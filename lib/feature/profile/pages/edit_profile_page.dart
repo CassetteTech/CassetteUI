@@ -5,6 +5,8 @@ import 'package:cassettefrontend/core/common_widgets/text_field_widget.dart';
 import 'package:cassettefrontend/core/constants/app_constants.dart';
 import 'package:cassettefrontend/core/constants/image_path.dart';
 import 'package:cassettefrontend/core/env.dart';
+import 'package:cassettefrontend/core/services/apple_music_service.dart';
+import 'package:cassettefrontend/core/services/spotify_service.dart';
 import 'package:cassettefrontend/core/styles/app_styles.dart';
 import 'package:cassettefrontend/core/utils/app_utils.dart';
 import 'package:cassettefrontend/feature/profile/model/profile_model.dart';
@@ -641,14 +643,55 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  addServiceFnc() {
+  addServiceFnc() async {
     if (allServicesList.isNotEmpty) {
-      AppUtils.profileModel.services
-          ?.add(Services(serviceName: allServicesList[value].serviceName));
-      if (allServicesList[value].serviceName == "Apple Music") {
-        AppUtils.authenticateAppleMusic();
-      }
       setState(() {});
+      
+      try {
+        switch (allServicesList[value].serviceName) {
+          case "Apple Music":
+            AppUtils.showToast(context: context, title: "Connecting to Apple Music...");
+            final appleMusicService = AppleMusicService();
+            
+            try {
+              // Initialize MusicKit
+              await appleMusicService.initialize();
+              
+              // Request user token
+              final userToken = await appleMusicService.requestUserToken();
+              if (userToken != null) {
+                print('Successfully authenticated with Apple Music');
+                // Add to services list on success
+                AppUtils.profileModel.services
+                    ?.add(Services(serviceName: allServicesList[value].serviceName));
+                setState(() {});
+                AppUtils.showToast(context: context, title: "Connected to Apple Music");
+              } else {
+                AppUtils.showToast(context: context, title: "Apple Music authorization failed - please try again");
+              }
+            } catch (e) {
+              print('Apple Music authentication error: $e');
+              AppUtils.showToast(context: context, title: "Error connecting to Apple Music: ${e.toString()}");
+            }
+            break;
+          case "Spotify":
+            // Start Spotify authentication flow
+            SpotifyService.initiateSpotifyAuth(context);
+            // Add to services list - this will be confirmed after successful auth
+            AppUtils.profileModel.services
+                ?.add(Services(serviceName: allServicesList[value].serviceName));
+            setState(() {});
+            break;
+          default:
+            // For other services, just add to the list
+            AppUtils.profileModel.services
+                ?.add(Services(serviceName: allServicesList[value].serviceName));
+            setState(() {});
+        }
+      } catch (e) {
+        print('Error during service authentication: $e');
+        AppUtils.showToast(context: context, title: "Error connecting to music service");
+      }
     }
   }
 

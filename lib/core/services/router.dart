@@ -32,7 +32,8 @@ class AppRouter {
           builder: (context, state) {
             final code = state.uri.queryParameters['code'];
             final error = state.uri.queryParameters['error'];
-            return SpotifyCallbackPage(code: code, error: error);
+            final stateParam = state.uri.queryParameters['state'];
+            return SpotifyCallbackPage(code: code, error: error, state: stateParam);
           },
         ),
         GoRoute(

@@ -63,43 +63,45 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _handleInitialUri();
-    router = AppRouter.getRouter(false); // Start with unauthenticated router
+    router = AppRouter.getRouter(false); // Initialize router first
+    //_handleInitialUri();
 
-    // Listen for auth state changes
-    supabase.auth.onAuthStateChange.listen(
-      (data) {
-        final AuthChangeEvent event = data.event;
-        if (!mounted) return;
+    // Listen for auth state changes (this is for app auth, not Spotify)
+    // supabase.auth.onAuthStateChange.listen(
+    //   (data) {
+    //     final AuthChangeEvent event = data.event;
+    //     if (!mounted) return;
 
-        setState(() {
-          switch (event) {
-            case AuthChangeEvent.initialSession:
-              // Don't force sign out, just set the state
-              isAuthenticated = data.session != null;
-              router = AppRouter.getRouter(isAuthenticated);
-              break;
-            case AuthChangeEvent.signedIn:
-              isAuthenticated = true;
-              router = AppRouter.getRouter(true);
-              break;
-            case AuthChangeEvent.signedOut:
-              isAuthenticated = false;
-              router = AppRouter.getRouter(false);
-              if (_initialized) {
-                router.go('/');
-              }
-              break;
-            case AuthChangeEvent.tokenRefreshed:
-              // Handle token refresh if needed
-              break;
-            default:
-              break;
-          }
-          _initialized = true;
-        });
-      },
-    );
+    //     setState(() {
+    //       switch (event) {
+    //         case AuthChangeEvent.initialSession:
+    //           // Don't force sign out, just set the state
+    //           isAuthenticated = data.session != null;
+    //           router = AppRouter.getRouter(isAuthenticated);
+    //           // Handle initial URI after Supabase is initialized
+    //           // _handleInitialUri(); // Commented out to avoid duplicate handling
+    //           break;
+    //         case AuthChangeEvent.signedIn:
+    //           isAuthenticated = true;
+    //           router = AppRouter.getRouter(true);
+    //           break;
+    //         case AuthChangeEvent.signedOut:
+    //           isAuthenticated = false;
+    //           router = AppRouter.getRouter(false);
+    //           if (_initialized) {
+    //             router.go('/');
+    //           }
+    //           break;
+    //         case AuthChangeEvent.tokenRefreshed:
+    //           // Handle token refresh if needed
+    //           break;
+    //         default:
+    //           break;
+    //       }
+    //       _initialized = true;
+    //     });
+    //   },
+    // );
   }
 
   @override
@@ -118,23 +120,27 @@ class _MyAppState extends State<MyApp> {
   void _handleInitialUri() {
     final uri = Uri.base;
     if (uri.path == '/spotify_callback') {
-      final code = uri.queryParameters['code'];
-      final error = uri.queryParameters['error'];
-      _handleSpotifyCallback(code, error);
+      // Let the router handle the callback instead of handling it here
+      // final code = uri.queryParameters['code'];
+      // final error = uri.queryParameters['error'];
+      // final state = uri.queryParameters['state'];
+      // _handleSpotifyCallback(code, error, state);
+      router.go(uri.toString());
     }
   }
 
-  void _handleSpotifyCallback(String? code, String? error) async {
-    if (code != null) {
-      try {
-        await SpotifyService.exchangeCodeForToken(code);
-        print('Successfully exchanged code for token');
-      } catch (e) {
-        print('Error exchanging code for token: $e');
-      }
-    } else if (error != null) {
-      print('Spotify auth error: $error');
-    }
-    // router.go('/profile');
-  }
+  // Keeping this for reference in case we need to debug the callback handling
+  // void _handleSpotifyCallback(String? code, String? error, String? state) async {
+  //   if (code != null) {
+  //     try {
+  //       await SpotifyService.exchangeCodeForToken(code);
+  //       print('Successfully exchanged code for token');
+  //     } catch (e) {
+  //       print('Error exchanging code for token: $e');
+  //     }
+  //   } else if (error != null) {
+  //     print('Spotify auth error: $error');
+  //   }
+  //   // router.go('/profile');
+  // }
 }

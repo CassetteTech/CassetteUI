@@ -5,54 +5,91 @@
   <script type="text/javascript">
     window.flutterWebRenderer = "html";
   </script>
-  <script src="https://js-cdn.music.apple.com/musickit/v3/musickit.js"></script>
+  <script src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" data-web-components async></script>
   <script>
-    // Initialize MusicKit without blocking other functionality
-    async function initializeMusicKit() {
+    // Global variable to store the MusicKit instance
+    window.musicKitInstance = null;
+    
+    // Helper function to convert JS Promises to Dart Futures
+    function convertPromiseToFuture(promise, resolve, reject) {
+      promise
+        .then(result => resolve(result))
+        .catch(error => reject(error));
+    }
+    
+    // Listen for the musickitloaded event to know when MusicKit is available
+    document.addEventListener('musickitloaded', function() {
+      console.log('MusicKit loaded successfully');
+    });
+    
+    // This function will be called from Dart to configure MusicKit
+    function configureMusicKit(developerToken) {
       try {
-        // Only initialize if we have a valid endpoint
-        if (window.musickitEndpoint) {
-          const response = await fetch(window.musickitEndpoint);
-          const data = await response.json();
-          const developerToken = data.token;
-
-          MusicKit.configure({
-              developerToken: developerToken,
-              app: {
-                  name: "Cassette",
-                  build: "1.0.0"
-              }
-          });
-          window.MusicKit = MusicKit.getInstance();
-        }
+        console.log('Configuring MusicKit with developer token');
+        return MusicKit.configure({
+          developerToken: developerToken,
+          app: {
+            name: 'Cassette',
+            build: '1.0.0'
+          }
+        });
       } catch (error) {
-        console.log('MusicKit initialization skipped or failed:', error);
+        console.error('Error configuring MusicKit:', error);
+        throw error;
       }
     }
-
+    
+    // This function will be called from Dart to request user authorization
+    async function requestUserToken() {
+      try {
+        console.log('Requesting user authorization');
+        // Always get a fresh instance
+        const music = MusicKit.getInstance();
+        
+        if (!music) {
+          console.error('Failed to get MusicKit instance');
+          throw new Error('MusicKit instance not available');
+        }
+        
+        console.log('Authorizing with MusicKit instance:', music);
+        const musicUserToken = await music.authorize();
+        console.log('Authorization successful, token:', musicUserToken);
+        console.log('Token type:', typeof musicUserToken);
+        console.log('Token length:', musicUserToken ? musicUserToken.length : 0);
+        
+        // Log the first few characters of the token for debugging (but not the full token for security)
+        if (musicUserToken) {
+          console.log('Token preview:', musicUserToken.substring(0, 10) + '...');
+          
+          // Send the token to Dart via postMessage
+          console.log('Sending token to Dart via postMessage');
+          window.postMessage(musicUserToken, "*");
+          
+          // Also return the token directly
+          return musicUserToken;
+        } else {
+          console.error('No token received from MusicKit authorize()');
+          window.postMessage("ERROR:No token received", "*");
+          return null;
+        }
+      } catch (error) {
+        console.error('MusicKit Auth Error:', error);
+        window.postMessage("ERROR:" + error.message, "*");
+        throw error;
+      }
+    }
+    
     // Handle clipboard permissions
     document.addEventListener('DOMContentLoaded', function() {
-      // Initialize MusicKit in background
-      initializeMusicKit();
-
       // Request clipboard permissions
       if (navigator.clipboard) {
         navigator.clipboard.readText()
           .then(() => console.log('Clipboard permission granted'))
           .catch(err => console.log('Clipboard permission denied:', err));
       }
+      
+      console.log('DOMContentLoaded event fired');
     });
-
-    async function requestUserToken() {
-      try {
-        if (window.MusicKit) {
-          const musicUserToken = await window.MusicKit.authorize();
-          window.postMessage(musicUserToken, "*");
-        }
-      } catch (error) {
-        console.error("MusicKit Auth Error:", error);
-      }
-    }
   </script>
   <meta charset="UTF-8">
   <title>Cassette</title>

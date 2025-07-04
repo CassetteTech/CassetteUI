@@ -11,8 +11,9 @@ import {
 } from '@/components/ui/typography';
 import { AnimatedBackground } from '@/components/ui/animated-background';
 import { Badge } from '@/components/ui/badge';
-import { useMusicLinkConversion, useTopCharts } from '@/hooks/use-music';
+import { useMusicLinkConversion, useTopCharts, useMusicSearch } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
+import { useDebounce } from '@/hooks/use-debounce';
 import { MusicLinkConversion } from '@/types';
 import Image from 'next/image';
 
@@ -32,10 +33,22 @@ export default function HomePage() {
   const [bottomVisible, setBottomVisible] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const debouncedSearchTerm = useDebounce(musicUrl, 500); // 500ms debounce
   
   const { isAuthenticated } = useAuthState();
   const { data: topCharts, isLoading: isLoadingCharts } = useTopCharts();
   const { mutate: convertLink, isPending: isConverting } = useMusicLinkConversion();
+  
+  // Add the music search hook
+  const { data: searchResultsData, isLoading: isSearchingMusic } = useMusicSearch(
+    // Only search if it's not a link and has sufficient length
+    debouncedSearchTerm.includes('http') ? '' : debouncedSearchTerm
+  );
+  
+  // Decide what data to display
+  const displayData = debouncedSearchTerm.length > 2 && !debouncedSearchTerm.includes('http') 
+    ? searchResultsData 
+    : topCharts;
 
   // Initial animation sequence (matching Flutter's 6-second timeline)
   useEffect(() => {
@@ -138,7 +151,7 @@ export default function HomePage() {
 
   const searchBarClasses = `transition-all duration-300 ease-out ${
     searchBarVisible 
-      ? (isSearchActive ? 'transform -translate-y-32' : 'transform translate-y-0')
+      ? (isSearchActive ? 'transform -translate-y-24 md:-translate-y-32 lg:-translate-y-40' : 'transform translate-y-0')
       : 'opacity-0 transform translate-y-8'
   }`;
 
@@ -147,7 +160,7 @@ export default function HomePage() {
   }`;
 
   return (
-    <div className="min-h-screen bg-bg-cream relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
       {/* Animated Background */}
       <AnimatedBackground className="fixed inset-0 z-0" />
       
@@ -217,26 +230,49 @@ export default function HomePage() {
                   </div>
                   
                   <div className="border-t border-text-hint/30 pt-4">
-                    {isLoadingCharts ? (
+                    {(isLoadingCharts || isSearchingMusic) ? (
                       <div className="text-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                        <UIText>Loading...</UIText>
+                        <UIText>{isSearchingMusic ? 'Searching...' : 'Loading...'}</UIText>
                       </div>
                     ) : (
                       <div className="space-y-3 max-h-96 overflow-y-auto">
-                        {topCharts?.tracks.slice(0, 12).map((track) => (
+                        {displayData?.tracks.slice(0, 12).map((track) => (
                           <div 
                             key={track.id} 
-                            className="flex items-center gap-4 p-3 rounded-lg hover:bg-bg-cream/50 transition-colors cursor-pointer"
+                            className="flex items-center gap-4 p-3 rounded-lg hover:bg-cream/50 transition-colors cursor-pointer"
                             onClick={() => {
-                              setMusicUrl(`Converting ${track.title}...`);
-                              setIsSearchActive(false);
-                              setShowSearchResults(false);
-                              setIsLinkConversion(true);
-                              // Simulate conversion
-                              setTimeout(() => {
-                                // Handle track conversion here
-                              }, 300);
+                              // Find a valid URL from the track object
+                              const trackUrl = track.externalUrls?.spotify || 
+                                               track.externalUrls?.appleMusic || 
+                                               track.externalUrls?.deezer;
+                              
+                              if (trackUrl) {
+                                setMusicUrl(`Converting ${track.title}...`);
+                                setIsSearchActive(false);
+                                setShowSearchResults(false);
+                                setIsLinkConversion(true);
+                                
+                                // Use the convertLink mutation after a short delay
+                                setTimeout(() => {
+                                  convertLink(trackUrl, {
+                                    onSuccess: (result) => {
+                                      setConversionResult(result);
+                                      setIsLoading(false);
+                                      setIsLinkConversion(false);
+                                      setMusicUrl('');
+                                    },
+                                    onError: (error) => {
+                                      console.error('Conversion failed:', error);
+                                      setIsLoading(false);
+                                      setIsLinkConversion(false);
+                                      setMusicUrl('');
+                                    },
+                                  });
+                                }, 300);
+                              } else {
+                                console.error('No convertible URL found for this track.');
+                              }
                             }}
                           >
                             <Image
@@ -356,7 +392,7 @@ export default function HomePage() {
 
             {/* Loading State */}
             {(isLoading || isConverting) && (
-              <div className="fixed inset-0 bg-bg-cream/80 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="fixed inset-0 bg-cream/80 backdrop-blur-sm flex items-center justify-center z-50">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-primary mx-auto mb-4"></div>
                   <UIText className="text-text-primary font-bold">

@@ -23,7 +23,7 @@ export function Navbar() {
   };
 
   return (
-    <nav className="bg-bg-cream/95 backdrop-blur border-b border-text-hint/20">
+    <nav className="bg-cream/95 backdrop-blur border-b border-text-hint/20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -88,14 +88,14 @@ export function Navbar() {
                         <div className="py-2">
                           <Link
                             href={`/profile/${user?.username}`}
-                            className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-text-primary hover:bg-bg-cream hover:text-primary transition-colors"
+                            className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-text-primary hover:bg-cream hover:text-primary transition-colors"
                           >
                             <User className="h-4 w-4" />
                             <span>Profile</span>
                           </Link>
                           <button
                             onClick={handleSignOut}
-                            className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-text-primary hover:bg-bg-cream hover:text-primary transition-colors w-full text-left"
+                            className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-text-primary hover:bg-cream hover:text-primary transition-colors w-full text-left"
                           >
                             <LogOut className="h-4 w-4" />
                             <span>Sign Out</span>

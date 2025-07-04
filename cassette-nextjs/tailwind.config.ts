@@ -8,48 +8,8 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      colors: {
-        // Cassette Brand Colors
-        primary: "#FF0054",
-        secondary: "#ED2748",
-        accent: "#E95E75",
-        
-        // Text Colors
-        "text-primary": "#1F2327",
-        "text-secondary": "#757575",
-        "text-hint": "#C4C4C4",
-        "text-artist": "#5C5C5C",
-        
-        // Background Colors
-        "bg-cream": "#F8F0DE",
-        "bg-profile": "#1F2327",
-        "bg-tab": "#C4C4C4",
-        "bg-input": "#F8F0DE",
-        
-        // Neutral Colors
-        white: "#FFFFFF",
-        black: "#000000",
-        gray: "#A7A7A7",
-        "gray-light": "#C4C4C4",
-        "gray-dark": "#5C5C5C",
-        
-        // Accent Colors
-        green: "#1ED760",
-        blue: "#0093FF",
-        
-        // Animated Button Colors
-        "btn-top": "#ED2748",
-        "btn-top-border": "#FF002B",
-        "btn-bottom": "#E95E75",
-        "btn-convert-top": "#1F2327",
-        "btn-convert-bottom": "#595C5E",
-        "btn-convert-border": "#1F2327",
-        
-        // Utility Colors
-        "popup-bg": "rgba(31, 35, 39, 0.78)",
-        "popup-divider": "#8A8A8A",
-        "tab-divider": "#333333",
-      },
+      // Colors are now defined in CSS using @theme directive
+      // Keep only non-color theme extensions here
       fontFamily: {
         // Primary fonts from Flutter
         'teko': ['Teko', 'sans-serif'],

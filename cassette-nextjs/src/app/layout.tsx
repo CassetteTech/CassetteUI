@@ -51,7 +51,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${robotoFlex.variable} ${atkinsonHyperlegible.variable} ${teko.variable}`}>
-      <body className="font-sans antialiased bg-bg-cream">
+      <body className="font-sans antialiased bg-background text-foreground">
         <Providers>
           <Layout>
             {children}

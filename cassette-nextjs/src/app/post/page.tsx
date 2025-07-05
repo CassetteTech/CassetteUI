@@ -22,7 +22,7 @@ function PostPageContent() {
   const [error, setError] = useState<string | null>(null);
   
   // Animation states
-  const [dominantColor, setDominantColor] = useState<string>('#F5E6D3');
+  const [dominantColor, setDominantColor] = useState<string>('#E0E0E0');
   
   // Use the conversion mutation
   const { mutate: convertLink, isPending: isConverting } = useMusicLinkConversion();
@@ -50,7 +50,7 @@ function PostPageContent() {
                 
                 // Extract dominant color from image
                 if (result.metadata?.artwork) {
-                  setDominantColor('#FF6B6B');
+                  setDominantColor('#E0E0E0');
                 }
               },
               onError: (err) => {
@@ -70,7 +70,7 @@ function PostPageContent() {
           
           // Extract dominant color from image
           if (parsedData.metadata?.artwork) {
-            setDominantColor('#FF6B6B');
+            setDominantColor('#E0E0E0');
           }
         } else if (postId) {
           // Fetch by ID flow
@@ -114,7 +114,7 @@ function PostPageContent() {
               
               // Extract dominant color
               if (transformedData.metadata.artwork) {
-                setDominantColor('#FF6B6B');
+                setDominantColor('#E0E0E0');
               }
             } else {
               throw new Error('Invalid response format');
@@ -197,13 +197,13 @@ function PostPageContent() {
         style={{
           background: `linear-gradient(180deg, 
             ${dominantColor} 0%, 
-            ${dominantColor}D9 15%, 
+            ${dominantColor}CC 15%, 
             ${dominantColor}99 30%, 
             ${dominantColor}66 45%, 
             ${dominantColor}40 60%, 
             ${dominantColor}26 75%, 
-            #F5E6D34D 90%, 
-            #F5E6D3 100%)`
+            #D1D5DB4D 90%, 
+            #D1D5DB 100%)`
         }}
       />
       
@@ -249,8 +249,8 @@ function PostPageContent() {
         
         {isDesktop ? (
           // Desktop Layout - matching Flutter desktopBody()
-          <div className="px-5 sm:px-10 lg:px-10 max-w-7xl mx-auto pb-6">
-            <div className="flex px-10 gap-0">
+          <div className="px-10 max-w-7xl mx-auto pb-6">
+            <div className="flex gap-0">
               {/* Left Column - Album Art and Info (flex: 4) */}
               <div className="flex-[4] flex flex-col items-center">
                 <UIText className="text-text-primary font-bold mb-6 uppercase tracking-wider text-lg">
@@ -349,13 +349,15 @@ function PostPageContent() {
           </div>
         ) : (
           // Mobile Layout - matching Flutter body() with proper container structure
-          <div className="px-5 pb-6">
+          <div className="px-5 sm:px-10 pb-6">
             <div className="text-center">
-              {/* Element Type and Album Art Container */}
+              {/* Element Type */}
+              <UIText className="text-text-primary font-bold mb-6 uppercase tracking-wider text-lg">
+                {isArtist ? 'Artist' : 'Track'}
+              </UIText>
+              
+              {/* Album Art Container */}
               <div className="mb-5">
-                <UIText className="text-text-primary font-bold mb-6 uppercase tracking-wider text-lg">
-                  {isArtist ? 'Artist' : 'Track'}
-                </UIText>
                 
                 {/* Album Art with Shadow - matching Flutter styling with responsive sizing */}
                 <div className="relative inline-block">

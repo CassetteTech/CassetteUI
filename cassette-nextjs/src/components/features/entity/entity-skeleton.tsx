@@ -20,9 +20,16 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({ isDesktop = fals
         {/* Header Toolbar Skeleton - matching Flutter PostHeaderToolbar */}
         <div className="pt-4 pb-6 px-3">
           <div className="flex items-center justify-between">
-            <Skeleton className="w-6 h-6 rounded" />
+            <button className="flex items-center gap-2 text-text-primary relative z-10">
+              <img
+                src="/images/ic_back.png"
+                alt="Back"
+                width={16}
+                height={16}
+                className="object-contain"
+              />
+            </button>
             <div className="flex items-center gap-3">
-              <Skeleton className="w-6 h-6 rounded" />
               <Skeleton className="w-6 h-6 rounded" />
             </div>
           </div>
@@ -50,7 +57,7 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({ isDesktop = fals
                 </div>
               </div>
               
-                {/* Right Column - Links and Description (flex: 5) */}
+                Right Column - Links and Description (flex: 5)
                 <div className="flex-[5] pl-10 pt-16">
                   {/* Description Box */}
                   <div className="mb-9 p-4 border border-border rounded-lg">
@@ -102,18 +109,7 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({ isDesktop = fals
                   <Skeleton className="h-6 w-40 mx-auto" />
                   <Skeleton className="h-4 w-28 mx-auto" />
                 </div>
-                
-                {/* Description Box */}
-                <div className="mb-6 p-4 border border-border rounded-lg text-left">
-                  <div className="flex items-start space-x-3">
-                    <Skeleton className="w-6 h-6 rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-3 w-20" />
-                      <Skeleton className="h-3 w-full" />
-                      <Skeleton className="h-3 w-3/4" />
-                    </div>
-                  </div>
-                </div>
+                            
                 
                 {/* Divider */}
                 <div className="border-t-2 border-border mb-6" />

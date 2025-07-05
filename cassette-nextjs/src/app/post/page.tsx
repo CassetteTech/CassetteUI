@@ -6,8 +6,9 @@ import { MusicLinkConversion, ElementType } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks } from '@/components/features/entity/streaming-links';
 import { AudioPreview } from '@/components/features/entity/audio-preview';
-import { AnimatedBackground } from '@/components/ui/animated-background';
 import { AnimatedButton } from '@/components/ui/animated-button';
+import { AnimatedColorBackground } from '@/components/ui/animated-color-background';
+import { ColorExtractor } from '@/services/color-extractor';
 import { MainContainer } from '@/components/ui/container';
 import { HeadlineText, BodyText, UIText } from '@/components/ui/typography';
 import Image from 'next/image';
@@ -22,7 +23,7 @@ function PostPageContent() {
   const [error, setError] = useState<string | null>(null);
   
   // Animation states
-  const [dominantColor, setDominantColor] = useState<string>('#E0E0E0');
+  const [dominantColor, setDominantColor] = useState<string | null>(null);
   
   // Use the conversion mutation
   const { mutate: convertLink, isPending: isConverting } = useMusicLinkConversion();
@@ -50,7 +51,7 @@ function PostPageContent() {
                 
                 // Extract dominant color from image
                 if (result.metadata?.artwork) {
-                  setDominantColor('#E0E0E0');
+                  extractColorFromArtwork(result.metadata.artwork);
                 }
               },
               onError: (err) => {
@@ -70,7 +71,7 @@ function PostPageContent() {
           
           // Extract dominant color from image
           if (parsedData.metadata?.artwork) {
-            setDominantColor('#E0E0E0');
+            extractColorFromArtwork(parsedData.metadata.artwork);
           }
         } else if (postId) {
           // Fetch by ID flow
@@ -114,7 +115,7 @@ function PostPageContent() {
               
               // Extract dominant color
               if (transformedData.metadata.artwork) {
-                setDominantColor('#E0E0E0');
+                extractColorFromArtwork(transformedData.metadata.artwork);
               }
             } else {
               throw new Error('Invalid response format');
@@ -134,6 +135,19 @@ function PostPageContent() {
     
     loadData();
   }, [searchParams, convertLink]);
+  
+  // Color extraction function
+  const extractColorFromArtwork = async (artworkUrl: string) => {
+    try {
+      console.log('🎨 Extracting color from:', artworkUrl);
+      const result = await ColorExtractor.extractDominantColor(artworkUrl);
+      console.log('🎨 Extracted color:', result.dominantColor);
+      setDominantColor(result.dominantColor);
+    } catch (error) {
+      console.error('❌ Color extraction failed:', error);
+      setDominantColor('#3B82F6'); // Fallback to blue
+    }
+  };
   
   const [isDesktop, setIsDesktop] = useState(false);
   
@@ -156,7 +170,7 @@ function PostPageContent() {
   if (error) {
     return (
       <div className="min-h-screen relative">
-        <AnimatedBackground className="fixed inset-0 z-0" />
+        <AnimatedColorBackground color={dominantColor} />
         <div className="relative z-10 min-h-screen flex items-center justify-center">
           <MainContainer className="text-center p-8">
             <div className="mb-4">
@@ -191,53 +205,31 @@ function PostPageContent() {
   
   return (
     <div className="min-h-screen relative">
-      {/* Gradient Background - matching Flutter gradient */}
-      <div 
-        className="fixed inset-0 z-0"
-        style={{
-          background: `linear-gradient(180deg, 
-            ${dominantColor} 0%, 
-            ${dominantColor}CC 15%, 
-            ${dominantColor}99 30%, 
-            ${dominantColor}66 45%, 
-            ${dominantColor}40 60%, 
-            ${dominantColor}26 75%, 
-            #D1D5DB4D 90%, 
-            #D1D5DB 100%)`
-        }}
-      />
+      {/* Animated Gradient Background */}
+      <AnimatedColorBackground color={dominantColor} />
       
       <div className="relative z-10 min-h-screen">
         {/* Header Toolbar - matching Flutter PostHeaderToolbar */}
-        <div className="pt-4 pb-6 px-3">
+        <div className="pt-4 pb-6 px-3 relative z-50">
           <div className="flex items-center justify-between">
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-2 text-text-primary hover:opacity-70 transition-opacity"
+              className="flex items-center gap-2 text-text-primary hover:opacity-70 transition-opacity relative z-10"
             >
               <Image
                 src="/images/ic_back.png"
                 alt="Back"
-                width={24}
-                height={24}
+                width={16}
+                height={16}
                 className="object-contain"
               />
             </button>
             
             <div className="flex items-center gap-3">
-              <button className="text-text-primary hover:opacity-70 transition-opacity">
+              <button className="text-text-primary hover:opacity-70 transition-opacity relative z-10">
                 <Image
                   src="/images/ic_share.png"
                   alt="Share"
-                  width={24}
-                  height={24}
-                  className="object-contain"
-                />
-              </button>
-              <button className="text-text-primary hover:opacity-70 transition-opacity">
-                <Image
-                  src="/images/ic_menu.png"
-                  alt="Menu"
                   width={24}
                   height={24}
                   className="object-contain"

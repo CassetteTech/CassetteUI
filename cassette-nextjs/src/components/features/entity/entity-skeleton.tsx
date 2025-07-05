@@ -1,5 +1,6 @@
 import React from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import Image from 'next/image';
 
 interface EntitySkeletonProps {
   isDesktop?: boolean;
@@ -21,7 +22,7 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({ isDesktop = fals
         <div className="pt-4 pb-6 px-3">
           <div className="flex items-center justify-between">
             <button className="flex items-center gap-2 text-text-primary relative z-10">
-              <img
+              <Image
                 src="/images/ic_back.png"
                 alt="Back"
                 width={16}

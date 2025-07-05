@@ -207,6 +207,7 @@ export interface PostByIdResponse {
     [key: string]: {
       url: string;
       previewUrl?: string;
+      artworkUrl?: string;
     };
   };
   caption?: string;

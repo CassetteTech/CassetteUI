@@ -47,6 +47,14 @@ function PostPageContent() {
               onSuccess: (result) => {
                 console.log('✅ Post page: Conversion successful:', result);
                 console.log('🖼️ Artwork URL:', result.metadata?.artwork);
+                
+                // If we have a postId, navigate to the postId URL
+                if (result.postId) {
+                  console.log('🔄 Navigating to postId URL:', result.postId);
+                  router.replace(`/post?id=${result.postId}`);
+                  return;
+                }
+                
                 setPostData(result);
                 
                 // Extract dominant color from image
@@ -79,6 +87,7 @@ function PostPageContent() {
             const response = await apiService.fetchPostById(postId);
             
             // Transform the API response
+            console.log('🔍 Raw API response:', response);
             if (response.success && response.details) {
               const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; } = {
                 originalUrl: response.originalLink || '',
@@ -96,22 +105,41 @@ function PostPageContent() {
                 username: response.username
               };
               
-              // Extract platform URLs
+              // Extract platform URLs and artwork - handle different platform key formats
+              let fallbackArtwork = '';
               if (response.platforms) {
                 Object.entries(response.platforms).forEach(([platform, data]) => {
-                  if (data?.url) {
-                    transformedData.convertedUrls[platform as keyof typeof transformedData.convertedUrls] = data.url;
+                  // Check if URL exists and is not empty
+                  if (data?.url && data.url.trim() !== '') {
+                    // Map platform keys to match the expected convertedUrls structure
+                    let platformKey = platform.toLowerCase();
+                    if (platformKey === 'applemusic') {
+                      platformKey = 'appleMusic';
+                    }
+                    transformedData.convertedUrls[platformKey as keyof typeof transformedData.convertedUrls] = data.url;
+                  }
+                  
+                  // Collect artwork URLs as fallback
+                  if (data?.artworkUrl && !fallbackArtwork) {
+                    fallbackArtwork = data.artworkUrl;
                   }
                 });
                 
-                // Extract preview URL
+                // Extract preview URL - handle both applemusic and appleMusic keys
                 transformedData.previewUrl = response.platforms?.spotify?.previewUrl || 
                                            response.platforms?.deezer?.previewUrl || 
-                                           response.platforms?.applemusic?.previewUrl;
+                                           response.platforms?.applemusic?.previewUrl ||
+                                           response.platforms?.appleMusic?.previewUrl;
+              }
+              
+              // Use fallback artwork if main artwork is empty
+              if (!transformedData.metadata.artwork && fallbackArtwork) {
+                transformedData.metadata.artwork = fallbackArtwork;
               }
               
               setPostData(transformedData);
               console.log('🖼️ Transformed artwork URL:', transformedData.metadata.artwork);
+              console.log('🔗 Transformed convertedUrls:', transformedData.convertedUrls);
               
               // Extract dominant color
               if (transformedData.metadata.artwork) {
@@ -134,7 +162,7 @@ function PostPageContent() {
     };
     
     loadData();
-  }, [searchParams, convertLink]);
+  }, [searchParams, convertLink, router]);
   
   // Color extraction function
   const extractColorFromArtwork = async (artworkUrl: string) => {

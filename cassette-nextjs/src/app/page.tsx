@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AnimatedButton } from '@/components/ui/animated-button';
 import { MainContainer } from '@/components/ui/container';
-import { MusicSearchField } from '@/components/ui/text-field';
+import { UrlBar } from '@/components/ui/url-bar';
 import { 
   BodyText, 
   HeadlineText,
@@ -165,7 +165,7 @@ export default function HomePage() {
       <AnimatedBackground className="fixed inset-0 z-0" />
       
       <div className="relative z-10 min-h-screen">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Top spacing */}
           <div className="h-16"></div>
@@ -175,20 +175,20 @@ export default function HomePage() {
             
             {/* Logo Section */}
             <div className={logoClasses}>
-              <div className="text-center mb-8">
+              <div className="text-center mb-6 sm:mb-8">
                 <Image
-                  src="/images/app_logo_text.png"
+                  src="/images/cassette_words_logo.png"
                   alt="Cassette"
-                  width={300}
-                  height={120}
-                  className="mx-auto w-auto h-24 md:h-32 mb-5"
+                  width={750}
+                  height={750}
+                  className="mx-auto w-[85%] h-auto mb-3 sm:mb-5"
                   priority
                 />
                 
                 {/* Tagline */}
                 <div className={taglineClasses}>
-                  <div className="max-w-2xl mx-auto px-7">
-                    <UIText className="text-center text-text-primary font-bold leading-relaxed">
+                  <div className="max-w-2xl mx-auto px-6 sm:px-8 md:px-10">
+                    <UIText className="text-center text-text-primary font-bold leading-relaxed text-xs sm:text-sm md:text-base lg:text-lg">
                       Express yourself through your favorite songs and playlists - wherever you stream them
                     </UIText>
                   </div>
@@ -198,27 +198,32 @@ export default function HomePage() {
 
             {/* Search Bar Section */}
             <div className={searchBarClasses}>
-              <div className="w-full max-w-2xl mx-auto px-4 mb-8">
+              <div className="w-[85vw] mx-auto mb-6 sm:mb-8">
                 <div className="relative">
-                  <MusicSearchField
-                    ref={searchInputRef}
-                    value={musicUrl}
-                    onChange={handleUrlChange}
-                    onFocus={handleSearchFocus}
-                    onBlur={handleSearchBlur}
-                    placeholder="Search or paste your music link here..."
-                    className="w-full text-center"
-                  />
+                  <UrlBar 
+                    variant="light"
+                    className="w-full"
+                  >
+                    <input
+                      ref={searchInputRef}
+                      value={musicUrl}
+                      onChange={handleUrlChange}
+                      onFocus={handleSearchFocus}
+                      onBlur={handleSearchBlur}
+                      placeholder="Search or paste your music link here..."
+                      className="w-full h-full bg-transparent border-none outline-none text-center text-[#1F2327] placeholder-gray-500 px-3 sm:px-4 md:px-6 text-sm sm:text-base"
+                    />
+                  </UrlBar>
                 </div>
               </div>
             </div>
 
             {/* Search Results Container */}
             {showSearchResults && (
-              <div className="w-full max-w-4xl mx-auto px-4 mb-8 animate-in fade-in duration-300">
-                <MainContainer className="p-6">
+              <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-4 mb-8 animate-in fade-in duration-300">
+                <MainContainer className="p-4 sm:p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <HeadlineText className="text-primary">Search Results</HeadlineText>
+                    <HeadlineText className="text-primary text-lg sm:text-xl md:text-2xl">Search Results</HeadlineText>
                     <button
                       onClick={closeSearch}
                       className="text-text-secondary hover:text-text-primary transition-colors p-2"
@@ -240,7 +245,7 @@ export default function HomePage() {
                         {displayData?.tracks.slice(0, 12).map((track) => (
                           <div 
                             key={track.id} 
-                            className="flex items-center gap-4 p-3 rounded-lg hover:bg-cream/50 transition-colors cursor-pointer"
+                            className="flex items-center gap-2 sm:gap-3 md:gap-4 p-2 sm:p-3 rounded-lg hover:bg-cream/50 transition-colors cursor-pointer"
                             onClick={() => {
                               // Find a valid URL from the track object
                               const trackUrl = track.externalUrls?.spotify || 
@@ -280,18 +285,18 @@ export default function HomePage() {
                               alt={track.title}
                               width={48}
                               height={48}
-                              className="rounded-lg object-cover border border-text-hint/20"
+                              className="rounded-lg object-cover border border-text-hint/20 w-10 h-10 sm:w-12 sm:h-12"
                             />
                             <div className="flex-1 min-w-0">
-                              <UIText className="font-bold text-text-primary truncate">{track.title}</UIText>
-                              <UIText className="text-text-secondary text-sm truncate">{track.artist}</UIText>
+                              <UIText className="font-bold text-text-primary truncate text-sm sm:text-base">{track.title}</UIText>
+                              <UIText className="text-text-secondary text-xs sm:text-sm truncate">{track.artist}</UIText>
                               <div className="inline-block mt-1">
                                 <Badge className="bg-primary/10 text-primary border-primary/20 font-atkinson font-bold text-xs">
                                   TRACK
                                 </Badge>
                               </div>
                             </div>
-                            <svg className="w-4 h-4 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 text-text-secondary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
                           </div>
@@ -305,26 +310,26 @@ export default function HomePage() {
 
             {/* Conversion Result */}
             {conversionResult && (
-              <div className="w-full max-w-2xl mx-auto px-4 mb-8 animate-in fade-in duration-500">
-                <MainContainer className="p-6">
-                  <div className="flex items-start gap-4 mb-6">
+              <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 md:px-4 mb-8 animate-in fade-in duration-500">
+                <MainContainer className="p-4 sm:p-6">
+                  <div className="flex items-start gap-3 sm:gap-4 mb-6">
                     <Image
                       src={conversionResult.metadata.artwork}
                       alt={conversionResult.metadata.title}
                       width={64}
                       height={64}
-                      className="rounded-lg object-cover"
+                      className="rounded-lg object-cover w-14 h-14 sm:w-16 sm:h-16"
                     />
                     <div className="flex-1 min-w-0">
-                      <HeadlineText className="truncate">{conversionResult.metadata.title}</HeadlineText>
-                      <BodyText className="text-text-secondary truncate">{conversionResult.metadata.artist}</BodyText>
-                      <Badge className="mt-2 bg-primary text-white font-atkinson font-bold">
+                      <HeadlineText className="truncate text-lg sm:text-xl md:text-2xl">{conversionResult.metadata.title}</HeadlineText>
+                      <BodyText className="text-text-secondary truncate text-sm sm:text-base">{conversionResult.metadata.artist}</BodyText>
+                      <Badge className="mt-2 bg-primary text-white font-atkinson font-bold text-xs sm:text-sm">
                         {conversionResult.metadata.type}
                       </Badge>
                     </div>
                   </div>
                   
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-2 sm:gap-3 justify-center sm:justify-start">
                     {conversionResult.convertedUrls.spotify && (
                       <AnimatedButton
                         text="Spotify"
@@ -360,7 +365,7 @@ export default function HomePage() {
             {/* Bottom Graphics and CTA */}
             <div className={bottomContentClasses}>
               <div className="text-center px-4 w-full">
-                <div className="mb-12 max-w-4xl mx-auto">
+                <div className="mb-8 sm:mb-12 max-w-4xl mx-auto">
                   <Image
                     src="/images/home_graphics.png"
                     alt="Music graphics"
@@ -371,7 +376,7 @@ export default function HomePage() {
                 </div>
                 
                 {!isAuthenticated && (
-                  <div className="mb-16">
+                  <div className="mb-12 sm:mb-16">
                     <AnimatedButton
                       text="Create Your Free Account!"
                       onClick={() => window.location.href = '/auth/signup'}
@@ -383,7 +388,7 @@ export default function HomePage() {
                       borderColorTop="#1F2327"
                       borderColorBottom="#1F2327"
                       className="mx-auto"
-                      textStyle="text-xl font-bold tracking-wide font-atkinson text-white"
+                      textStyle="text-lg sm:text-xl font-bold tracking-wide font-atkinson text-white"
                     />
                   </div>
                 )}

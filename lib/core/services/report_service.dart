@@ -96,7 +96,7 @@ class ReportService {
       final Map<String, dynamic> payload = {
         'username': 'Cassette Report Bot',
         'avatar_url':
-            'https://github.com/matttoppi/cassette/blob/main/lib/assets/images/app_logo_text.png?raw=true',
+            'https://github.com/matttoppi/cassette/blob/main/lib/assets/images/cassette_words_logo.png?raw=true',
         'embeds': [embed],
       };
 

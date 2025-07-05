@@ -29,11 +29,11 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center">
             <Image
-              src="/images/app_logo_text_small.png"
+              src="/images/cassette_words_logo.png"
               alt="Cassette"
               width={120}
               height={32}
-              className="h-8 w-auto"
+              className="h-[80%] w-auto"
             />
           </Link>
 

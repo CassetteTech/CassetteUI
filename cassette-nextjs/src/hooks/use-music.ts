@@ -4,12 +4,12 @@ import { musicService } from '@/services/music';
 import { apiService } from '@/services/api';
 import { useMusicStore } from '@/stores/music-store';
 
-export const useMusicSearch = (query: string, type?: string) => {
+export const useMusicSearch = (query: string) => {
   const { setSearchResults, setIsSearching } = useMusicStore();
 
   const result = useQuery({
-    queryKey: ['music-search', query, type],
-    queryFn: () => musicService.searchMusic(query, type),
+    queryKey: ['music-search', query],
+    queryFn: () => musicService.searchMusic(query),
     enabled: !!query && query.length > 2,
   });
 

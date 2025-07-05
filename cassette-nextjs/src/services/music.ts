@@ -2,12 +2,17 @@ import { apiService } from './api';
 import { MusicSearchResult, MusicLinkConversion, Track, Album, Artist, Playlist } from '@/types';
 
 class MusicService {
-  async searchMusic(query: string, type?: string): Promise<MusicSearchResult> {
-    const results = await apiService.searchMusic(query, type);
-    return results;
+  async searchMusic(query: string): Promise<MusicSearchResult> {
+    // Call Next.js API route
+    const response = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`);
+    if (!response.ok) {
+      throw new Error('Failed to search music');
+    }
+    return response.json();
   }
 
   async convertMusicLink(url: string): Promise<MusicLinkConversion> {
+    // Keep using backend API for link conversion
     const result = await apiService.convertMusicLink(url);
     return result;
   }
@@ -18,20 +23,17 @@ class MusicService {
     artists: Artist[];
     playlists: Playlist[];
   }> {
-    // This would typically call a specific endpoint for top charts
-    // For now, we'll use a search for popular content
-    const results = await this.searchMusic('top 40', 'track');
-    return {
-      tracks: results.tracks || [],
-      albums: results.albums || [],
-      artists: results.artists || [],
-      playlists: results.playlists || [],
-    };
+    // Call Next.js API route
+    const response = await fetch('/api/music/charts');
+    if (!response.ok) {
+      throw new Error('Failed to fetch top charts');
+    }
+    return response.json();
   }
 
   async getTrackById(id: string): Promise<Track> {
     // This would call a specific endpoint to get track details
-    const results = await this.searchMusic(id, 'track');
+    const results = await this.searchMusic(id);
     if (results.tracks.length === 0) {
       throw new Error('Track not found');
     }
@@ -40,7 +42,7 @@ class MusicService {
 
   async getAlbumById(id: string): Promise<Album> {
     // This would call a specific endpoint to get album details
-    const results = await this.searchMusic(id, 'album');
+    const results = await this.searchMusic(id);
     if (results.albums.length === 0) {
       throw new Error('Album not found');
     }
@@ -49,7 +51,7 @@ class MusicService {
 
   async getArtistById(id: string): Promise<Artist> {
     // This would call a specific endpoint to get artist details
-    const results = await this.searchMusic(id, 'artist');
+    const results = await this.searchMusic(id);
     if (results.artists.length === 0) {
       throw new Error('Artist not found');
     }
@@ -58,7 +60,7 @@ class MusicService {
 
   async getPlaylistById(id: string): Promise<Playlist> {
     // This would call a specific endpoint to get playlist details
-    const results = await this.searchMusic(id, 'playlist');
+    const results = await this.searchMusic(id);
     if (results.playlists.length === 0) {
       throw new Error('Playlist not found');
     }

@@ -1,6 +1,6 @@
 import { config } from '@/lib/config';
 import { supabase } from '@/lib/supabase';
-import { MusicSearchResult, MusicLinkConversion } from '@/types';
+import { MusicLinkConversion } from '@/types';
 
 class ApiService {
   private baseUrl = config.api.url;
@@ -90,12 +90,6 @@ class ApiService {
     });
   }
 
-  // Search endpoints
-  async searchMusic(query: string, type?: string): Promise<MusicSearchResult> {
-    const params = new URLSearchParams({ q: query });
-    if (type) params.append('type', type);
-    return this.request<MusicSearchResult>(`/api/v1/search?${params}`);
-  }
 
   // Lambda warmup
   async warmupLambdas() {

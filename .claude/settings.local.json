@@ -13,7 +13,9 @@
       "mcp__context7__get-library-docs",
       "Bash(npm uninstall:*)",
       "Bash(timeout 10 npm run dev)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(npm run:*)",
+      "Bash(pkill:*)"
     ],
     "deny": []
   }

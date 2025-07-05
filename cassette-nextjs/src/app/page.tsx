@@ -2,19 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { AnimatedButton } from '@/components/ui/animated-button';
-import { MainContainer } from '@/components/ui/container';
 import { UrlBar } from '@/components/ui/url-bar';
-import { 
-  BodyText, 
-  HeadlineText,
-  UIText
-} from '@/components/ui/typography';
+import { UIText } from '@/components/ui/typography';
 import { AnimatedBackground } from '@/components/ui/animated-background';
-import { Badge } from '@/components/ui/badge';
-import { useMusicLinkConversion, useTopCharts, useMusicSearch } from '@/hooks/use-music';
+import { useTopCharts, useMusicSearch } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
-import { MusicLinkConversion } from '@/types';
 import { SearchResults } from '@/components/features/search-results';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -22,10 +15,7 @@ import { useRouter } from 'next/navigation';
 export default function HomePage() {
   const router = useRouter();
   const [musicUrl, setMusicUrl] = useState('');
-  const [conversionResult, setConversionResult] = useState<MusicLinkConversion | null>(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
-  const [isLinkConversion, setIsLinkConversion] = useState(false);
-  const [autoConvertTimer, setAutoConvertTimer] = useState<NodeJS.Timeout | null>(null);
   
   // Animation states
   const [logoVisible, setLogoVisible] = useState(false);
@@ -38,12 +28,15 @@ export default function HomePage() {
   
   const { isAuthenticated } = useAuthState();
   const { data: topCharts, isLoading: isLoadingCharts } = useTopCharts();
-  const { mutate: convertLink, isPending: isConverting } = useMusicLinkConversion();
   
   // Add the music search hook
   const { data: searchResultsData, isLoading: isSearchingMusic } = useMusicSearch(
-    // Only search if it's not a link and has sufficient length
-    debouncedSearchTerm.includes('http') || debouncedSearchTerm.length < 2 ? '' : debouncedSearchTerm
+    // Only search if it's not a link, not converting, and has sufficient length
+    debouncedSearchTerm.includes('http') || 
+    debouncedSearchTerm.includes('Converting') || 
+    debouncedSearchTerm.length < 2
+      ? '' 
+      : debouncedSearchTerm
   );
   
   // Decide what data to display
@@ -72,46 +65,38 @@ export default function HomePage() {
   }, []);
 
   const handleConvertLink = (url: string) => {
-    if (!url.trim()) return;
+    console.log('🔄 handleConvertLink called with URL:', url);
+    if (!url.trim()) {
+      console.log('❌ URL is empty, returning');
+      return;
+    }
     
-    setIsLinkConversion(true);
-    setIsSearchActive(false);
-    
-    convertLink(url, {
-      onSuccess: (result) => {
-        // Navigate to the post page with the conversion result
-        router.push(`/post?data=${encodeURIComponent(JSON.stringify(result))}`);
-      },
-      onError: (error) => {
-        console.error('Conversion failed:', error);
-        setIsLinkConversion(false);
-        setIsSearchActive(true);
-        // Show error toast or message
-      },
-    });
+    // Navigate immediately to the post page with the URL
+    // The post page will show skeleton and handle the conversion
+    console.log('🚀 Navigating to post page with URL:', url);
+    router.push(`/post?url=${encodeURIComponent(url)}`);
   };
 
   const handleSearchFocus = () => {
     setIsSearchActive(true);
   };
 
-  const handleSearchBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    // Check if the new focus target is within the search results
-    const relatedTarget = e.relatedTarget as HTMLElement;
-    const isWithinSearch = relatedTarget?.closest('.search-container');
-    
-    if (!isWithinSearch && !musicUrl.trim()) {
-      setIsSearchActive(false);
-    }
+  const handleSearchBlur = () => {
+    // Delay the blur to allow click events to fire
+    setTimeout(() => {
+      // Check if the new focus target is within the search results
+      const activeElement = document.activeElement as HTMLElement;
+      const isWithinSearch = activeElement?.closest('.search-container');
+      
+      if (!isWithinSearch && !musicUrl.trim()) {
+        setIsSearchActive(false);
+      }
+    }, 200);
   };
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setMusicUrl(value);
-    
-    if (conversionResult) {
-      setConversionResult(null);
-    }
 
     // Ensure search is active when typing
     if (value.trim() && !isSearchActive) {
@@ -122,11 +107,6 @@ export default function HomePage() {
   // Handle paste event for auto-conversion
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const pastedText = e.clipboardData.getData('text');
-    
-    // Clear any existing timer
-    if (autoConvertTimer) {
-      clearTimeout(autoConvertTimer);
-    }
 
     // Check if it's a music link for auto-conversion
     const linkLower = pastedText.toLowerCase();
@@ -135,24 +115,13 @@ export default function HomePage() {
                        linkLower.includes('music.apple.com') || 
                        linkLower.includes('deezer.com');
 
-    if (isSupported && !isConverting && !isSearchingMusic) {
-      // Animate back to center for link conversion
-      setIsSearchActive(false);
-      setIsLinkConversion(true);
-      searchInputRef.current?.blur();
-      
-      const timer = setTimeout(() => {
-        handleConvertLink(pastedText);
-      }, 300);
-      
-      setAutoConvertTimer(timer);
+    if (isSupported && !isSearchingMusic) {
+      // Navigate immediately for link conversion
+      handleConvertLink(pastedText);
     }
   };
 
   const closeSearch = () => {
-    if (autoConvertTimer) {
-      clearTimeout(autoConvertTimer);
-    }
     setIsSearchActive(false);
     setMusicUrl('');
     searchInputRef.current?.blur();
@@ -160,19 +129,13 @@ export default function HomePage() {
 
   // Handle selecting an item from search results
   const handleSelectItem = (url: string, title: string, type: string) => {
-    setMusicUrl(`Converting ${type} - ${title}...`);
-    searchInputRef.current?.blur();
+    console.log('🎵 handleSelectItem called with:', { url, title, type });
+    
+    // Navigate immediately to post page
     handleConvertLink(url);
   };
 
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (autoConvertTimer) {
-        clearTimeout(autoConvertTimer);
-      }
-    };
-  }, [autoConvertTimer]);
+  // Removed timer cleanup - no longer needed
 
   // Calculate animation classes
   const logoClasses = `transition-all duration-1000 ease-out ${
@@ -187,7 +150,7 @@ export default function HomePage() {
 
   const searchBarClasses = `transition-all duration-300 ease-out ${
     searchBarVisible 
-      ? (isSearchActive && !isLinkConversion 
+      ? (isSearchActive 
           ? 'transform -translate-y-[calc(50vh-18rem)] sm:-translate-y-[calc(50vh-10rem)] md:-translate-y-64 lg:-translate-y-80' 
           : 'transform translate-y-0')
       : 'opacity-0 transform translate-y-8'
@@ -267,7 +230,7 @@ export default function HomePage() {
             </div>
 
             {/* Search Results Container */}
-            {isSearchActive && !isLinkConversion && (
+            {isSearchActive && (
               <div className="search-container transition-all duration-300 ease-out transform -translate-y-[calc(50vh-18rem)] sm:-translate-y-[calc(50vh-10rem)] md:-translate-y-64 lg:-translate-y-80 w-full">
                 <SearchResults
                   results={displayData}
@@ -280,59 +243,6 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Conversion Result */}
-            {conversionResult && (
-              <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 md:px-4 mb-8 animate-in fade-in duration-500">
-                <MainContainer className="p-4 sm:p-6">
-                  <div className="flex items-start gap-3 sm:gap-4 mb-6">
-                    <Image
-                      src={conversionResult.metadata.artwork}
-                      alt={conversionResult.metadata.title}
-                      width={64}
-                      height={64}
-                      className="rounded-lg object-cover w-14 h-14 sm:w-16 sm:h-16"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <HeadlineText className="truncate text-lg sm:text-xl md:text-2xl">{conversionResult.metadata.title}</HeadlineText>
-                      <BodyText className="text-text-secondary truncate text-sm sm:text-base">{conversionResult.metadata.artist}</BodyText>
-                      <Badge className="mt-2 bg-primary text-white font-atkinson font-bold text-xs sm:text-sm">
-                        {conversionResult.metadata.type}
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2 sm:gap-3 justify-center sm:justify-start">
-                    {conversionResult.convertedUrls.spotify && (
-                      <AnimatedButton
-                        text="Spotify"
-                        onClick={() => window.open(conversionResult.convertedUrls.spotify, '_blank')}
-                        height={36}
-                        width={100}
-                        initialPos={3}
-                      />
-                    )}
-                    {conversionResult.convertedUrls.appleMusic && (
-                      <AnimatedButton
-                        text="Apple Music"
-                        onClick={() => window.open(conversionResult.convertedUrls.appleMusic, '_blank')}
-                        height={36}
-                        width={120}
-                        initialPos={3}
-                      />
-                    )}
-                    {conversionResult.convertedUrls.deezer && (
-                      <AnimatedButton
-                        text="Deezer"
-                        onClick={() => window.open(conversionResult.convertedUrls.deezer, '_blank')}
-                        height={36}
-                        width={100}
-                        initialPos={3}
-                      />
-                    )}
-                  </div>
-                </MainContainer>
-              </div>
-            )}
 
             {/* Bottom Graphics and CTA */}
             <div className={bottomContentClasses}>
@@ -367,17 +277,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Loading State */}
-            {(isLinkConversion && isConverting) && (
-              <div className="fixed inset-0 bg-cream/80 backdrop-blur-sm flex items-center justify-center z-50">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-primary mx-auto mb-4"></div>
-                  <UIText className="text-text-primary font-bold">
-                    Converting your link...
-                  </UIText>
-                </div>
-              </div>
-            )}
+            {/* Remove loading state - handled in post page now */}
 
           </div>
         </div>

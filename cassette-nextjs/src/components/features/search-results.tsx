@@ -109,16 +109,23 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   };
 
   const handleItemClick = (item: typeof allResults[0]) => {
+    console.log('🔍 Item clicked:', item);
+    console.log('🔗 External URLs:', item.externalUrls);
+    
     // Try to find a valid URL from the item
     const url = item.externalUrls?.spotify || 
                 item.externalUrls?.appleMusic || 
                 item.externalUrls?.deezer;
     
+    console.log('📎 Selected URL:', url);
+    
     if (url) {
       const typeDisplay = item.type.charAt(0).toUpperCase() + item.type.slice(1);
+      console.log('✅ Calling onSelectItem with:', { url, title: item.title, type: typeDisplay });
       onSelectItem(url, item.title, typeDisplay);
     } else {
-      console.error('No valid URL found for this item');
+      console.error('❌ No valid URL found for this item');
+      console.error('Item data:', item);
     }
   };
 
@@ -182,7 +189,10 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
               <div
                 key={`${item.type}-${item.id}-${index}`}
                 className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-b-0"
-                onClick={() => handleItemClick(item)}
+                onMouseDown={(e) => {
+                  e.preventDefault(); // Prevent blur
+                  handleItemClick(item);
+                }}
               >
                 {/* Album Art */}
                 <div className="flex-shrink-0 relative w-12 h-12 rounded-md overflow-hidden border border-gray-200">

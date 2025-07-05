@@ -144,7 +144,74 @@ export interface MusicLinkConversion {
     title: string;
     artist: string;
     artwork: string;
+    album?: string;
+    duration?: string;
   };
+  // Additional fields that might be present
+  previewUrl?: string;
+  description?: string;
+  username?: string;
+  postId?: string;
+}
+
+// API Response type for music link conversion
+export interface ConversionApiResponse {
+  success: boolean;
+  errorMessage?: string;
+  postId: string;
+  userId?: string | null;
+  username?: string | null;
+  elementType: string;
+  musicElementId: string;
+  details: {
+    title: string;
+    artist: string;
+    album?: string;
+    duration?: string;
+    isrcs?: string[];
+    artists?: Array<{ name: string; role: string; }>;
+    coverArtUrl: string;
+    genres?: string[];
+  };
+  platforms: {
+    [key: string]: {
+      platformName: string;
+      elementType: string;
+      name: string;
+      url: string;
+      platformSpecificId: string;
+      artworkUrl?: string;
+      isrc?: string | null;
+      artistName: string;
+      albumName?: string | null;
+      previewUrl?: string;
+    };
+  };
+  caption?: string;
+}
+
+// API Response type for fetchPostById
+export interface PostByIdResponse {
+  success: boolean;
+  postId: string;
+  elementType: string;
+  musicElementId: string;
+  details: {
+    title?: string;
+    name?: string;
+    artist?: string;
+    coverArtUrl?: string;
+    imageUrl?: string;
+  };
+  platforms?: {
+    [key: string]: {
+      url: string;
+      previewUrl?: string;
+    };
+  };
+  caption?: string;
+  username?: string;
+  originalLink?: string;
 }
 
 // Form Types

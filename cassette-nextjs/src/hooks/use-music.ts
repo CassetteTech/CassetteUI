@@ -31,9 +31,16 @@ export const useMusicLinkConversion = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (url: string) => musicService.convertMusicLink(url),
-    onSuccess: () => {
+    mutationFn: (url: string) => {
+      console.log('🎯 Mutation function called with URL:', url);
+      return musicService.convertMusicLink(url);
+    },
+    onSuccess: (data) => {
+      console.log('✅ Mutation successful:', data);
       queryClient.invalidateQueries({ queryKey: ['music-search'] });
+    },
+    onError: (error) => {
+      console.error('❌ Mutation error:', error);
     },
   });
 };

@@ -27,9 +27,12 @@ export const config = {
 
   // Backend API Configuration
   api: {
-    url: process.env.NODE_ENV === 'production' 
-      ? process.env.NEXT_PUBLIC_API_URL || 'https://nm2uheummh.us-east-1.awsapprunner.com'
-      : process.env.NEXT_PUBLIC_API_URL_LOCAL || 'http://localhost:5173',
+    // Force local URL for development
+    url: 'http://localhost:5173', // TODO: Revert to environment-based config
+    // url: process.env.NEXT_PUBLIC_API_URL_LOCAL || 
+    //      (process.env.NODE_ENV === 'production' 
+    //        ? process.env.NEXT_PUBLIC_API_URL || 'https://nm2uheummh.us-east-1.awsapprunner.com'
+    //        : 'http://localhost:5173'),
   },
 
   // Feature Flags

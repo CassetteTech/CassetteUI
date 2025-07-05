@@ -45,6 +45,18 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '**',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn-images.dzcdn.net',
+        port: '',
+        pathname: '**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'e-cdns-images.dzcdn.net',
+        port: '',
+        pathname: '**',
+      },
     ],
   },
 };

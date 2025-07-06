@@ -22,8 +22,11 @@ import { SignInForm } from '@/types';
 import Image from 'next/image';
 
 const signInSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
+  email: z.string().email('Please Enter A Valid Email'),
+  password: z.string().min(8, 'Please Enter At-Least 8 Digit Password'),
+  acceptTerms: z.boolean().refine((val) => val === true, {
+    message: 'Please agree to all the terms and conditions before Signing in',
+  }),
 });
 
 export default function SignInPage() {
@@ -36,6 +39,7 @@ export default function SignInPage() {
     defaultValues: {
       email: '',
       password: '',
+      acceptTerms: false,
     },
   });
 
@@ -62,7 +66,7 @@ export default function SignInPage() {
           <div className="flex justify-center mb-8">
             <Link href="/" className="flex flex-col items-center">
               <Image
-                src="/images/app_logo_text.png"
+                src="/images/cassette_words_logo.png"
                 alt="Cassette"
                 width={200}
                 height={80}
@@ -182,6 +186,36 @@ export default function SignInPage() {
                         </div>
                       </FormControl>
                       <FormMessage className="font-atkinson text-sm" />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="acceptTerms"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <input
+                          type="checkbox"
+                          checked={field.value}
+                          onChange={field.onChange}
+                          className="mt-1 h-4 w-4 rounded border-2 border-text-primary text-text-primary focus:ring-text-primary"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="text-sm font-atkinson text-text-primary">
+                          I have read and agreed to the{' '}
+                          <Link href="/terms" className="text-primary hover:underline font-bold">
+                            Terms of Service
+                          </Link>{' '}
+                          and{' '}
+                          <Link href="/privacy" className="text-primary hover:underline font-bold">
+                            Privacy Policy
+                          </Link>
+                        </FormLabel>
+                        <FormMessage className="font-atkinson text-sm" />
+                      </div>
                     </FormItem>
                   )}
                 />

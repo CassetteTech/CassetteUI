@@ -22,19 +22,19 @@ import { SignUpForm } from '@/types';
 import Image from 'next/image';
 
 const signUpSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: z.string().email('Please Enter A Valid Email'),
   username: z
     .string()
-    .min(3, 'Username must be at least 3 characters')
-    .max(20, 'Username must be less than 20 characters')
-    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+    .min(1, 'Please Enter Username'),
   password: z
     .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Password must contain at least one uppercase letter, one lowercase letter, and one number'),
-  confirmPassword: z.string(),
+    .min(8, 'Please Enter At-Least 8 Digit Password'),
+  confirmPassword: z.string().min(1, 'Please Enter Confirm Password'),
+  acceptTerms: z.boolean().refine((val) => val === true, {
+    message: 'Please agree to all the terms and conditions before signing up',
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
+  message: "Password And Confirm Password Must Be Same",
   path: ['confirmPassword'],
 });
 
@@ -51,10 +51,13 @@ export default function SignUpPage() {
       username: '',
       password: '',
       confirmPassword: '',
+      acceptTerms: false,
     },
   });
 
   const onSubmit = (data: SignUpForm) => {
+    if (isSigningUp) return; // Prevent double submission
+    console.log('📝 [Signup] Form submitted with data:', { ...data, password: '[REDACTED]', confirmPassword: '[REDACTED]' });
     signUp(data);
   };
 
@@ -77,7 +80,7 @@ export default function SignUpPage() {
           <div className="flex justify-center mb-8">
             <Link href="/" className="flex flex-col items-center">
               <Image
-                src="/images/app_logo_text.png"
+                src="/images/cassette_words_logo.png"
                 alt="Cassette"
                 width={200}
                 height={80}
@@ -249,25 +252,61 @@ export default function SignUpPage() {
                   )}
                 />
 
+                <FormField
+                  control={form.control}
+                  name="acceptTerms"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <input
+                          type="checkbox"
+                          checked={field.value}
+                          onChange={field.onChange}
+                          className="mt-1 h-4 w-4 rounded border-2 border-text-primary text-text-primary focus:ring-text-primary"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="text-sm font-atkinson text-text-primary">
+                          I have read and agreed to the{' '}
+                          <Link href="/terms" className="text-primary hover:underline font-bold">
+                            Terms of Service
+                          </Link>{' '}
+                          and{' '}
+                          <Link href="/privacy" className="text-primary hover:underline font-bold">
+                            Privacy Policy
+                          </Link>
+                        </FormLabel>
+                        <FormMessage className="font-atkinson text-sm" />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
                 {signUpError && (
                   <div className="text-sm text-red-500 font-atkinson">
                     {signUpError.message}
                   </div>
                 )}
 
-                <AnimatedButton
-                  text={isSigningUp ? 'Creating account...' : 'Create account'}
-                  onClick={form.handleSubmit(onSubmit)}
+                <button
+                  type="submit"
                   disabled={isSigningUp}
-                  height={48}
-                  width={400}
-                  initialPos={6}
-                  colorTop="#1F2327"
-                  colorBottom="#595C5E"
-                  borderColorTop="#1F2327"
-                  borderColorBottom="#1F2327"
                   className="w-full"
-                />
+                >
+                  <AnimatedButton
+                    text={isSigningUp ? 'Creating account...' : 'Create account'}
+                    onClick={() => {}} // Dummy handler since we use the button wrapper for submission
+                    disabled={isSigningUp}
+                    height={48}
+                    width={400}
+                    initialPos={6}
+                    colorTop="#1F2327"
+                    colorBottom="#595C5E"
+                    borderColorTop="#1F2327"
+                    borderColorBottom="#1F2327"
+                    className="w-full pointer-events-none"
+                  />
+                </button>
               </form>
             </Form>
 

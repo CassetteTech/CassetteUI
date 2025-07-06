@@ -12,7 +12,8 @@ export const useSignIn = () => {
     mutationFn: (data: SignInForm) => authService.signIn(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
-      router.push('/');
+      // Match Flutter navigation - go to profile page after signin
+      router.push('/profile');
     },
     onError: (error: Error) => {
       console.error('Sign in error:', error);
@@ -24,12 +25,17 @@ export const useSignUp = () => {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: (data: SignUpForm) => authService.signUp(data),
-    onSuccess: () => {
-      router.push('/auth/verify-email');
+    mutationFn: (data: SignUpForm) => {
+      console.log('🚀 [useSignUp] Calling authService.signUp with:', { ...data, password: '[REDACTED]', confirmPassword: '[REDACTED]' });
+      return authService.signUp(data);
+    },
+    onSuccess: (result) => {
+      console.log('✅ [useSignUp] Signup successful:', result);
+      // Match Flutter navigation - go to profile page after signup
+      router.push('/profile');
     },
     onError: (error: Error) => {
-      console.error('Sign up error:', error);
+      console.error('❌ [useSignUp] Sign up error:', error);
     },
   });
 };

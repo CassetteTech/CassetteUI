@@ -4,15 +4,35 @@ export interface UserBio {
   username: string;
   displayName: string;
   bio: string;
-  profilePicture: string;
+  avatarUrl: string;
   isOwnProfile: boolean;
   connectedServices: ConnectedService[];
 }
 
 export interface ConnectedService {
-  serviceName: string;
-  isConnected: boolean;
+  serviceType: string;
+  connectedAt: string;
   profileUrl?: string;
+}
+
+export interface ActivityPost {
+  postId: string;
+  elementType: string;
+  title: string;
+  subtitle?: string;
+  imageUrl?: string;
+  username: string;
+  userId: string;
+  createdAt: string;
+}
+
+export interface PaginatedActivityResponse {
+  items: ActivityPost[];
+  page: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
 }
 
 // Music Types
@@ -74,8 +94,8 @@ export interface Playlist {
   };
 }
 
-// Social Types
-export interface ActivityPost {
+// Social Types - Updated to match profile service requirements
+export interface SocialPost {
   id: string;
   userId: string;
   username: string;
@@ -219,6 +239,7 @@ export interface PostByIdResponse {
 export interface SignInForm {
   email: string;
   password: string;
+  acceptTerms: boolean;
 }
 
 export interface SignUpForm {
@@ -226,6 +247,7 @@ export interface SignUpForm {
   password: string;
   confirmPassword: string;
   username: string;
+  acceptTerms: boolean;
 }
 
 export interface EditProfileForm {

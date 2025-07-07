@@ -34,6 +34,27 @@ export default function ProfilePage() {
 
   const userIdentifier = Array.isArray(username) ? username[0] : username;
 
+  const getOptimalTab = useCallback((posts: ActivityPost[]): TabType => {
+    const tabPriority: TabType[] = ['playlists', 'tracks', 'artists', 'albums'];
+    
+    for (const tabType of tabPriority) {
+      const hasContent = posts.some(post => {
+        if (tabType === 'playlists') return post.elementType.toLowerCase() === 'playlist';
+        if (tabType === 'tracks') return post.elementType.toLowerCase() === 'track';
+        if (tabType === 'artists') return post.elementType.toLowerCase() === 'artist';
+        if (tabType === 'albums') return post.elementType.toLowerCase() === 'album';
+        return false;
+      });
+      
+      if (hasContent) {
+        return tabType;
+      }
+    }
+    
+    // Fallback to playlists if no content found
+    return 'playlists';
+  }, []);
+
   const loadProfile = useCallback(async () => {
     if (!userIdentifier) return;
 
@@ -83,7 +104,7 @@ export default function ProfilePage() {
       setCurrentPage(activityData.page);
       setIsCurrentUser(finalIsCurrentUser);
       setLastLoadedUserId(userIdToFetch);
-      setActiveTab('playlists'); // Set default tab after loading data
+      setActiveTab(getOptimalTab(activityData.items)); // Set optimal tab based on content availability
       
     } catch (e) {
       console.error('❌ Error loading profile:', e);
@@ -91,7 +112,7 @@ export default function ProfilePage() {
     } finally {
       setIsLoading(false);
     }
-  }, [userIdentifier, user, userBio, lastLoadedUserId]);
+  }, [userIdentifier, user, userBio, lastLoadedUserId, getOptimalTab]);
 
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !userIdentifier || activityPosts.length >= totalItems) return;

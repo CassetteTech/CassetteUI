@@ -96,3 +96,36 @@ export const useCreatePost = () => {
     },
   });
 };
+
+export const useAddMusicToProfile = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      url: string;
+      description?: string;
+      originalItemDetails?: {
+        title: string;
+        artist: string;
+        type: string;
+        coverArtUrl: string;
+      };
+    }) => {
+      console.log('🎯 useAddMusicToProfile mutation called with:', params);
+      return musicService.addMusicToUserProfile(params.url, {
+        description: params.description,
+        originalItemDetails: params.originalItemDetails,
+      });
+    },
+    onSuccess: (data) => {
+      console.log('✅ Add music to profile successful:', data);
+      // Invalidate profile-related queries to refresh the user's profile
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['user-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['user-activity'] });
+    },
+    onError: (error) => {
+      console.error('❌ Add music to profile error:', error);
+    },
+  });
+};

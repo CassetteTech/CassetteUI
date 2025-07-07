@@ -1,5 +1,4 @@
 import { config } from '@/lib/config';
-import { supabase } from '@/lib/supabase';
 import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType } from '@/types';
 
 class ApiService {
@@ -13,11 +12,19 @@ class ApiService {
   }
 
   private async getAuthHeaders() {
-    const { data: { session } } = await supabase.auth.getSession();
+    // Get token from localStorage (where authService stores it)
+    const accessToken = localStorage.getItem('access_token');
+    
+    if (accessToken) {
+      console.log('🔐 Auth token found, adding to headers');
+    } else {
+      console.log('⚠️ No auth token found in localStorage');
+    }
+    
     return {
       'Content-Type': 'application/json',
-      ...(session?.access_token && {
-        Authorization: `Bearer ${session.access_token}`,
+      ...(accessToken && {
+        Authorization: `Bearer ${accessToken}`,
       }),
     };
   }

@@ -121,7 +121,7 @@ export default function ProfilePage() {
   }, [userBio]);
 
   const handleAddMusic = useCallback(() => {
-    router.push('/post');
+    router.push('/add-music');
   }, [router]);
 
   useEffect(() => {

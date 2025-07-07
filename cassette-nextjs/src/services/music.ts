@@ -17,6 +17,30 @@ class MusicService {
     return result;
   }
 
+  async addMusicToUserProfile(
+    url: string, 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    additionalData?: {
+      description?: string;
+      originalItemDetails?: {
+        title: string;
+        artist: string;
+        type: string;
+        coverArtUrl: string;
+      };
+    }
+  ): Promise<MusicLinkConversion> {
+    // Use the same convert endpoint but with authentication
+    // The backend should associate the music with the user's profile based on JWT token
+    
+    // For now, we're using the same convertMusicLink method
+    // The backend needs to be updated to properly handle authenticated requests
+    // and associate posts with the user's profile
+    // TODO: Use additionalData when backend supports it
+    const result = await apiService.convertMusicLink(url);
+    return result;
+  }
+
   async getTopCharts(): Promise<{
     tracks: Track[];
     albums: Album[];

@@ -11,7 +11,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/layout/app-sidebar';
+import { AppSidebar, AppSidebarSkeleton } from '@/components/layout/app-sidebar';
 
 export default function EditProfilePage() {
   const { username } = useParams();
@@ -75,45 +75,120 @@ export default function EditProfilePage() {
 
   if (isLoading) {
     return (
-      <Container className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a]">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white"></div>
+      <>
+        {/* Mobile Loading */}
+        <div className="bg-background lg:hidden">
+          <Container className="min-h-screen bg-transparent p-0">
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-foreground"></div>
+            </div>
+          </Container>
         </div>
-      </Container>
+        
+        {/* Desktop Loading with Sidebar */}
+        <div className="hidden lg:block min-h-screen bg-background">
+          <SidebarProvider defaultOpen={true}>
+            <AppSidebarSkeleton />
+            <SidebarInset>
+              <div className="flex flex-col h-screen overflow-hidden">
+                <div className="flex items-center justify-center flex-1">
+                  <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-foreground"></div>
+                </div>
+              </div>
+            </SidebarInset>
+          </SidebarProvider>
+        </div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <Container className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a] flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Error</h1>
-          <p className="text-gray-300 mb-4">{error}</p>
-          <button
-            onClick={() => router.back()}
-            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-          >
-            Go Back
-          </button>
+      <>
+        {/* Mobile Error */}
+        <div className="bg-background lg:hidden">
+          <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <button
+                onClick={() => router.back()}
+                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
+              >
+                Go Back
+              </button>
+            </div>
+          </Container>
         </div>
-      </Container>
+        
+        {/* Desktop Error with Sidebar */}
+        <div className="hidden lg:block min-h-screen bg-background">
+          <SidebarProvider defaultOpen={true}>
+            <AppSidebarSkeleton />
+            <SidebarInset>
+              <div className="flex flex-col h-screen overflow-hidden">
+                <div className="flex items-center justify-center flex-1">
+                  <div className="text-center">
+                    <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
+                    <p className="text-muted-foreground mb-4">{error}</p>
+                    <button
+                      onClick={() => router.back()}
+                      className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
+                    >
+                      Go Back
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </SidebarInset>
+          </SidebarProvider>
+        </div>
+      </>
     );
   }
 
   if (!userBio) {
     return (
-      <Container className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a] flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Profile Not Found</h1>
-          <p className="text-gray-300 mb-4">The profile you&apos;re trying to edit doesn&apos;t exist.</p>
-          <button
-            onClick={() => router.back()}
-            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-          >
-            Go Back
-          </button>
+      <>
+        {/* Mobile Not Found */}
+        <div className="bg-background lg:hidden">
+          <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-foreground mb-4">Profile Not Found</h1>
+              <p className="text-muted-foreground mb-4">The profile you&apos;re trying to edit doesn&apos;t exist.</p>
+              <button
+                onClick={() => router.back()}
+                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
+              >
+                Go Back
+              </button>
+            </div>
+          </Container>
         </div>
-      </Container>
+        
+        {/* Desktop Not Found with Sidebar */}
+        <div className="hidden lg:block min-h-screen bg-background">
+          <SidebarProvider defaultOpen={true}>
+            <AppSidebarSkeleton />
+            <SidebarInset>
+              <div className="flex flex-col h-screen overflow-hidden">
+                <div className="flex items-center justify-center flex-1">
+                  <div className="text-center">
+                    <h1 className="text-2xl font-bold text-foreground mb-4">Profile Not Found</h1>
+                    <p className="text-muted-foreground mb-4">The profile you&apos;re trying to edit doesn&apos;t exist.</p>
+                    <button
+                      onClick={() => router.back()}
+                      className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
+                    >
+                      Go Back
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </SidebarInset>
+          </SidebarProvider>
+        </div>
+      </>
     );
   }
 

@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import { User, LogOut, Menu } from 'lucide-react';
 import { ThemeSwitcher } from './theme-switcher';
+import { MobileMenu } from './mobile-menu';
 
 import {
   DropdownMenu,
@@ -19,6 +21,7 @@ import Image from 'next/image';
 export function Navbar() {
   const { user, isAuthenticated } = useAuthState();
   const { mutate: signOut } = useSignOut();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleSignOut = () => {
     signOut();
@@ -110,13 +113,22 @@ export function Navbar() {
 
             {/* Mobile menu button */}
             <div className="md:hidden ml-2">
-              <button className="text-foreground hover:text-primary transition-colors">
+              <button 
+                className="text-foreground hover:text-primary transition-colors"
+                onClick={() => setIsMobileMenuOpen(true)}
+              >
                 <Menu className="h-6 w-6" />
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      <MobileMenu 
+        isOpen={isMobileMenuOpen} 
+        onClose={() => setIsMobileMenuOpen(false)} 
+      />
     </nav>
   );
 }

@@ -13,7 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { Home, Music, User, LogOut, Search } from 'lucide-react';
+import { Home, Music, User, LogOut, Edit } from 'lucide-react';
 import Image from 'next/image';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -39,7 +39,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
   };
 
   return (
-    <Sidebar collapsible="icon" className={className}>
+    <Sidebar collapsible="none" className={`h-screen ${className}`}>
       <SidebarHeader>
         {/* Cassette Logo */}
         <div className="p-4">
@@ -57,7 +57,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
       
       <SidebarContent>
         {/* User Profile Section */}
-        {user && (
+        {user ? (
           <SidebarGroup>
             <SidebarGroupContent>
               <div className="p-4">
@@ -83,6 +83,24 @@ export function AppSidebar({ className }: AppSidebarProps) {
               </div>
             </SidebarGroupContent>
           </SidebarGroup>
+        ) : (
+          /* Auth Options for non-authenticated users */
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <div className="p-4 space-y-3">
+                <Button asChild className="w-full">
+                  <Link href="/auth/signup">
+                    Sign Up
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/auth/signin">
+                    Sign In
+                  </Link>
+                </Button>
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
         )}
         
         {/* Navigation */}
@@ -99,14 +117,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/search')}>
-                  <Link href="/search">
-                    <Search className="mr-2 h-4 w-4" />
-                    <span>Search</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive('/add-music')}>
                   <Link href="/add-music">
                     <Music className="mr-2 h-4 w-4" />
@@ -114,14 +124,26 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/profile')}>
-                  <Link href={user?.username ? `/profile/${user.username}` : '/profile'}>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {user && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive('/profile')}>
+                    <Link href={`/profile/${user.username}`}>
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {user && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive('/profile') && pathname.includes('/edit')}>
+                    <Link href={`/profile/${user.username}/edit`}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      <span>Edit Profile</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -207,14 +229,6 @@ export function AppSidebarSkeleton({ className }: AppSidebarProps) {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/search')}>
-                  <Link href="/search">
-                    <Search className="mr-2 h-4 w-4" />
-                    <span>Search</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive('/add-music')}>
                   <Link href="/add-music">
                     <Music className="mr-2 h-4 w-4" />
@@ -230,6 +244,16 @@ export function AppSidebarSkeleton({ className }: AppSidebarProps) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {user && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive('/profile') && pathname.includes('/edit')}>
+                    <Link href={`/profile/${user.username}/edit`}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      <span>Edit Profile</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

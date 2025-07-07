@@ -18,15 +18,14 @@ export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = (
       className="absolute inset-0 -z-10 transition-all ease-in-out"
       style={{
         // Set the gradient background. Defaults to transparent if color is null.
-        background: color ? `linear-gradient(180deg, 
+        background: color ? `linear-gradient(0deg, 
           ${color} 0%, 
           ${color}CC 15%, 
           ${color}99 30%, 
           ${color}66 45%, 
           ${color}40 60%, 
           ${color}26 75%, 
-          #D1D5DB4D 90%, 
-          #D1D5DB 100%)` : 'transparent',
+          ${color}00 90%)` : 'transparent',
         // Control the opacity. When a color is provided, fade in (opacity: 1).
         // When no color, be completely invisible (opacity: 0).
         opacity: color ? 1 : 0,

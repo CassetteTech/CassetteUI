@@ -21,48 +21,54 @@ export function ProfileActivity({
 }: ProfileActivityProps) {
   if (isLoading && posts.length === 0) {
     return (
-      <div className="p-6">
-        <ActivitySkeleton />
+      <div className="min-h-screen lg:min-h-0 lg:h-full">
+        <div className="p-3 sm:p-4 md:p-6 lg:p-8">
+          <ActivitySkeleton />
+        </div>
       </div>
     );
   }
 
   if (posts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center">
-        <div className="w-16 h-16 mb-4 opacity-50">
-          <Image
-            src="/images/ic_music.png"
-            alt="No music"
-            width={64}
-            height={64}
-            className="w-full h-full object-contain"
-          />
+      <div className="min-h-screen lg:min-h-0 lg:h-full">
+        <div className="flex flex-col items-center justify-center p-8 sm:p-12 text-center h-full">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 mb-4 opacity-50">
+            <Image
+              src="/images/ic_music.png"
+              alt="No music"
+              width={64}
+              height={64}
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <p className="text-gray-600 text-base sm:text-lg">No items to display</p>
         </div>
-        <p className="text-gray-400 text-lg">No items to display</p>
       </div>
     );
   }
 
   return (
-    <div className="p-4">
-      <div className="space-y-4">
-        {posts.map((post) => (
-          <ActivityPostItem key={post.postId} post={post} />
-        ))}
-      </div>
-      
-      {hasMore && onLoadMore && (
-        <div className="flex justify-center mt-6">
-          <AnimatedButton
-            onClick={onLoadMore}
-            disabled={isLoading}
-            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium disabled:opacity-50"
-          >
-            {isLoading ? 'Loading...' : 'Load More'}
-          </AnimatedButton>
+    <div className="min-h-screen lg:min-h-0 lg:h-full">
+      <div className="p-3 sm:p-4 md:p-6 lg:p-8">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4">
+          {posts.map((post) => (
+            <ActivityPostItem key={post.postId} post={post} />
+          ))}
         </div>
-      )}
+        
+        {hasMore && onLoadMore && (
+          <div className="flex justify-center mt-6">
+            <AnimatedButton
+              onClick={onLoadMore}
+              disabled={isLoading}
+              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium disabled:opacity-50"
+            >
+              {isLoading ? 'Loading...' : 'Load More'}
+            </AnimatedButton>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -111,7 +117,7 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
   };
 
   return (
-    <Card className="p-4 hover:shadow-lg transition-shadow bg-gradient-to-br from-cream/5 to-white/5 border border-white/10">
+    <Card className="p-3 sm:p-4 hover:shadow-lg transition-all duration-200 bg-white/60 lg:bg-white/40 border border-[#E5D5B7]/30 backdrop-blur-sm hover:bg-white/80 lg:hover:bg-white/60">
       <Link href={getNavigationPath(post)} className="block">
         <div className="flex gap-4">
           {/* Artwork */}
@@ -122,10 +128,10 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
                 alt={post.title}
                 width={120}
                 height={120}
-                className="w-20 h-20 md:w-28 md:h-28 rounded-lg object-cover"
+                className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-lg object-cover"
               />
             ) : (
-              <div className="w-20 h-20 md:w-28 md:h-28 rounded-lg bg-gray-700 flex items-center justify-center">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-lg bg-[#E5D5B7]/40 flex items-center justify-center">
                 <Image
                   src="/images/ic_music.png"
                   alt="Music"
@@ -142,7 +148,7 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
             <div className="flex items-start justify-between mb-2">
               <div className="flex-1 min-w-0">
                 {/* Type Badge */}
-                <div className="inline-flex items-center gap-1 px-2 py-1 mb-2 bg-red-500/10 border border-red-500/20 rounded text-xs font-bold text-red-400">
+                <div className="inline-flex items-center gap-1 px-2 py-1 mb-2 bg-red-500/15 border border-red-500/30 rounded text-xs font-bold text-red-600">
                   <span className="material-icons text-xs">
                     {getTypeIcon(post.elementType)}
                   </span>
@@ -150,7 +156,7 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
                 </div>
                 
                 {/* Title */}
-                <h3 className="text-white font-semibold text-base md:text-lg mb-1 truncate">
+                <h3 className="text-gray-800 font-semibold text-sm sm:text-base md:text-lg mb-1 truncate">
                   {post.title}
                 </h3>
               </div>
@@ -160,29 +166,29 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
                 onClick={() => {
                   handleShare();
                 }}
-                className="flex-shrink-0 w-10 h-7 bg-[#1a1a1a] border border-white/20 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors"
+                className="flex-shrink-0 w-8 h-6 sm:w-10 sm:h-7 bg-white/60 border border-[#E5D5B7]/50 rounded-lg flex items-center justify-center hover:bg-white/80 transition-colors"
               >
                 <Image
                   src="/images/ic_share.png"
                   alt="Share"
-                  width={12}
-                  height={12}
-                  className="opacity-80"
+                  width={10}
+                  height={10}
+                  className="sm:w-3 sm:h-3 opacity-70"
                 />
               </AnimatedButton>
             </div>
             
             {/* Subtitle */}
             {post.subtitle && (
-              <p className="text-gray-300 text-sm mb-2 line-clamp-2">
+              <p className="text-gray-600 text-xs sm:text-sm mb-2 line-clamp-2">
                 {post.subtitle}
               </p>
             )}
             
             {/* From User */}
-            <p className="text-gray-400 text-xs">
-              <span className="text-gray-500">from: </span>
-              <span className="text-gray-300">{post.username}</span>
+            <p className="text-gray-500 text-xs">
+              <span className="text-gray-400">from: </span>
+              <span className="text-gray-600">{post.username}</span>
             </p>
           </div>
         </div>
@@ -195,14 +201,14 @@ function ActivitySkeleton() {
   return (
     <div className="space-y-4">
       {Array.from({ length: 3 }).map((_, index) => (
-        <Card key={index} className="p-4 bg-gradient-to-br from-cream/5 to-white/5 border border-white/10">
-          <div className="flex gap-4 animate-pulse">
-            <div className="w-20 h-20 md:w-28 md:h-28 bg-gray-700 rounded-lg" />
+        <Card key={index} className="p-3 sm:p-4 bg-gradient-to-br from-white/80 to-[#F8F0DE]/60 border border-[#E5D5B7]/30 backdrop-blur-sm">
+          <div className="flex gap-3 sm:gap-4 animate-pulse">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 bg-[#E5D5B7]/40 rounded-lg" />
             <div className="flex-1">
-              <div className="w-16 h-4 bg-gray-700 rounded mb-2" />
-              <div className="w-3/4 h-6 bg-gray-700 rounded mb-2" />
-              <div className="w-1/2 h-4 bg-gray-700 rounded mb-2" />
-              <div className="w-1/3 h-3 bg-gray-700 rounded" />
+              <div className="w-12 sm:w-16 h-3 sm:h-4 bg-[#E5D5B7]/40 rounded mb-2" />
+              <div className="w-3/4 h-4 sm:h-6 bg-[#E5D5B7]/40 rounded mb-2" />
+              <div className="w-1/2 h-3 sm:h-4 bg-[#E5D5B7]/40 rounded mb-2" />
+              <div className="w-1/3 h-2 sm:h-3 bg-[#E5D5B7]/40 rounded" />
             </div>
           </div>
         </Card>

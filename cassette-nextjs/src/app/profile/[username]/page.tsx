@@ -63,13 +63,22 @@ export default function ProfilePage() {
         page: 1,
       });
 
+      // Determine if this is the current user's profile
+      // Use both backend isOwnProfile and client-side validation as fallback
+      const clientSideCurrentUserCheck = user ? (
+        user.id === bio.id ||
+        user.username?.toLowerCase() === bio.username?.toLowerCase()
+      ) : false;
+      const finalIsCurrentUser = bio.isOwnProfile || clientSideCurrentUserCheck;
+      
       setUserBio(bio);
       setActivityPosts(activityData.items);
       setTotalItems(activityData.totalItems);
       setCurrentPage(activityData.page);
-      setIsCurrentUser(bio.isOwnProfile);
+      setIsCurrentUser(finalIsCurrentUser);
       setLastLoadedUserId(userIdToFetch);
       setActiveTab('playlists'); // Set default tab after loading data
+      
     } catch (e) {
       console.error('❌ Error loading profile:', e);
       setError(e instanceof Error ? e.message : 'Failed to load profile');
@@ -183,28 +192,68 @@ export default function ProfilePage() {
 
   return (
     <Container className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a]">
-      <div className="max-w-4xl mx-auto">
-        {/* Profile Header */}
+      
+      {/* --- MOBILE & TABLET LAYOUT --- */}
+      {/* This block will be visible on screens smaller than `lg` (1024px) */}
+      <div className="max-w-4xl mx-auto lg:hidden">
         <ProfileHeader
           userBio={userBio}
           isCurrentUser={isCurrentUser}
           onShare={handleShare}
           onAddMusic={isCurrentUser ? handleAddMusic : undefined}
         />
-        
-        {/* Profile Tabs */}
-        <ProfileTabs
-          activeTab={activeTab}
-          onTabChange={filterByElementType}
-        />
-        
-        {/* Profile Activity */}
+        <div className="sticky top-0 z-10">
+          <ProfileTabs
+            activeTab={activeTab}
+            onTabChange={filterByElementType}
+            variant="dark"
+          />
+        </div>
         <ProfileActivity
           posts={filteredPosts}
           isLoading={isLoadingMore}
           onLoadMore={loadMore}
           hasMore={activityPosts.length < totalItems}
         />
+      </div>
+
+      {/* --- DESKTOP LAYOUT --- */}
+      {/* This block is hidden by default and becomes a grid on `lg` screens */}
+      <div className="hidden lg:grid lg:grid-cols-12 lg:gap-0 w-full h-full">
+        
+        {/* Left Column (Profile Sidebar) */}
+        <div className="lg:col-span-4 xl:col-span-3 bg-[#1a1a1a] h-screen overflow-hidden">
+          {/* Make the profile header sticky so it stays visible on scroll */}
+          <div className="h-full overflow-y-auto">
+            <div className="p-6 xl:p-8">
+              <ProfileHeader
+                userBio={userBio}
+                isCurrentUser={isCurrentUser}
+                onShare={handleShare}
+                onAddMusic={isCurrentUser ? handleAddMusic : undefined}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column (Tabs and Activity Feed) */}
+        <div className="lg:col-span-8 xl:col-span-9 bg-gradient-to-br from-[#F8F0DE] via-[#F5EDD6] to-[#F0E8CE] h-screen overflow-hidden flex flex-col">
+          <div className="bg-white/40 backdrop-blur-sm sticky top-0 z-10">
+            <ProfileTabs
+              activeTab={activeTab}
+              onTabChange={filterByElementType}
+              variant="light"
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <ProfileActivity
+              posts={filteredPosts}
+              isLoading={isLoadingMore}
+              onLoadMore={loadMore}
+              hasMore={activityPosts.length < totalItems}
+            />
+          </div>
+        </div>
       </div>
     </Container>
   );

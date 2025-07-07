@@ -230,7 +230,7 @@ function PostPageContent() {
           <div className="flex items-center justify-between">
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-2 text-text-primary hover:opacity-70 transition-opacity relative z-10"
+              className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity relative z-10"
             >
               <Image
                 src="/images/ic_back.png"
@@ -242,7 +242,7 @@ function PostPageContent() {
             </button>
             
             <div className="flex items-center gap-3">
-              <button className="text-text-primary hover:opacity-70 transition-opacity relative z-10">
+              <button className="text-foreground hover:opacity-70 transition-opacity relative z-10">
                 <Image
                   src="/images/ic_share.png"
                   alt="Share"
@@ -257,22 +257,22 @@ function PostPageContent() {
         
         {isDesktop ? (
           // Desktop Layout - matching Flutter desktopBody()
-          <div className="px-10 max-w-7xl mx-auto pb-6">
-            <div className="flex gap-0">
-              {/* Left Column - Album Art and Info (flex: 4) */}
-              <div className="flex-[4] flex flex-col items-center">
-                <UIText className="text-text-primary font-bold mb-6 uppercase tracking-wider text-lg">
+          <div className="px-8 max-w-6xl mx-auto pb-8">
+            <div className="flex gap-8 items-center min-h-[80vh]">
+              {/* Left Column - Album Art and Info (flex: 2) */}
+              <div className="flex-[2] flex flex-col items-center min-w-0">
+                <UIText className="text-foreground font-bold mb-8 uppercase tracking-wider text-lg">
                   {isArtist ? 'Artist' : 'Track'}
                 </UIText>
                 
-                {/* Album Art with Shadow - matching Flutter styling */}
-                <div className="relative mb-4">
+                {/* Album Art with Shadow - improved sizing */}
+                <div className="relative mb-6">
                   <div className="absolute inset-0 translate-x-2.5 translate-y-2.5 bg-black/25 rounded-xl blur-lg" />
                   <Image
                     src={metadata.artwork || '/images/cassette_logo.png'}
                     alt={metadata.title}
-                    width={300}
-                    height={300}
+                    width={280}
+                    height={280}
                     className="relative rounded-xl object-cover shadow-lg"
                     priority
                     onError={(e) => {
@@ -290,30 +290,30 @@ function PostPageContent() {
                   )}
                 </div>
                 
-                <HeadlineText className="text-2xl font-bold mb-2 text-center max-w-xs overflow-hidden text-ellipsis">
+                <HeadlineText className="text-2xl font-bold mb-3 text-center text-foreground leading-tight">
                   {metadata.title}
                 </HeadlineText>
                 {!isArtist && (
-                  <BodyText className="text-lg text-text-secondary text-center max-w-xs overflow-hidden text-ellipsis">
+                  <BodyText className="text-lg text-muted-foreground text-center leading-relaxed">
                     {metadata.artist}
                   </BodyText>
                 )}
               </div>
               
-              {/* Right Column - Links and Description (flex: 5) */}
-              <div className="flex-[5] pl-10 pt-16 max-h-[80vh] overflow-hidden">
+              {/* Right Column - Links and Description (flex: 3) */}
+              <div className="flex-[3] max-h-[75vh] overflow-hidden">
                 <div 
-                  className="h-full overflow-y-auto pb-24"
+                  className="h-full overflow-y-auto pr-4"
                   style={{
                     maskImage: 'linear-gradient(to bottom, white 0%, white 85%, white 90%, transparent 100%)',
                     WebkitMaskImage: 'linear-gradient(to bottom, white 0%, white 85%, white 90%, transparent 100%)'
                   }}
                 >
-                  <div className="pt-16 pb-24">
+                  <div className="space-y-6">
                     {/* Description if available */}
                     {postData?.description && (
-                      <div className="mb-9 p-4 bg-background rounded-lg border-2 border-text-primary/30">
-                        <div className="flex items-start gap-3">
+                      <div className="p-5 bg-card rounded-lg border border-border shadow-sm">
+                        <div className="flex items-start gap-4">
                           <Image
                             src="/images/ic_music.png"
                             alt="User"
@@ -321,11 +321,11 @@ function PostPageContent() {
                             height={32}
                             className="rounded-full"
                           />
-                          <div>
-                            <UIText className="font-bold text-text-primary mb-1">
+                          <div className="min-w-0 flex-1">
+                            <UIText className="font-bold text-card-foreground mb-2">
                               {postData?.username || 'User'}
                             </UIText>
-                            <BodyText className="text-text-secondary">
+                            <BodyText className="text-muted-foreground leading-relaxed">
                               {postData?.description}
                             </BodyText>
                           </div>
@@ -333,10 +333,10 @@ function PostPageContent() {
                       </div>
                     )}
                     
-                    <div className="border-t-2 border-text-primary mb-6" />
+                    <div className="border-t border-border mb-6" />
                     
-                    {/* Streaming Links Container - matching Flutter glass effect */}
-                    <div className="p-4 bg-text-primary/5 rounded-2xl border border-text-primary/10 shadow-sm backdrop-blur-sm mb-6 transform scale-115 pt-2">
+                    {/* Streaming Links Container - improved styling */}
+                    <div className="p-5 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm">
                       <StreamingLinks 
                         links={convertedUrls}
                         className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
@@ -344,11 +344,11 @@ function PostPageContent() {
                     </div>
                     
                     {/* Report Problem Button */}
-                    <button className="flex items-center gap-2 px-5 py-3 bg-primary/8 text-primary border-2 border-primary rounded-lg hover:bg-primary/20 transition-colors">
+                    <button className="flex items-center gap-3 px-6 py-4 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors font-medium relative z-50">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <span className="font-medium">Report a Problem</span>
+                      <span>Report a Problem</span>
                     </button>
                   </div>
                 </div>
@@ -360,7 +360,7 @@ function PostPageContent() {
           <div className="px-5 sm:px-10 pb-6">
             <div className="text-center">
               {/* Element Type */}
-              <UIText className="text-text-primary font-bold mb-6 uppercase tracking-wider text-lg">
+              <UIText className="text-foreground font-bold mb-6 uppercase tracking-wider text-lg">
                 {isArtist ? 'Artist' : 'Track'}
               </UIText>
               
@@ -396,11 +396,11 @@ function PostPageContent() {
               
               {/* Title and Artist with proper spacing - matching Flutter */}
               <div className="mb-6">
-                <HeadlineText className="text-2xl font-bold mb-2 text-center break-words px-4">
+                <HeadlineText className="text-2xl font-bold mb-2 text-center break-words px-4 text-foreground">
                   {metadata.title}
                 </HeadlineText>
                 {!isArtist && (
-                  <BodyText className="text-lg text-text-secondary text-center break-words px-4">
+                  <BodyText className="text-lg text-muted-foreground text-center break-words px-4">
                     {metadata.artist}
                   </BodyText>
                 )}
@@ -429,7 +429,7 @@ function PostPageContent() {
                 </div>
               )}
               
-              <div className="border-t-2 border-text-primary mb-6" />
+              <div className="border-t border-border mb-6" />
               
               {/* Streaming Links Container - matching Flutter glass effect with proper mobile sizing */}
               <div className="p-4 bg-text-primary/5 rounded-2xl border border-text-primary/10 shadow-sm backdrop-blur-sm mb-6">
@@ -440,7 +440,7 @@ function PostPageContent() {
               </div>
               
               {/* Report Problem Button */}
-              <button className="flex items-center gap-2 px-5 py-3 bg-primary/8 text-primary border-2 border-primary rounded-lg hover:bg-primary/20 transition-colors mx-auto">
+              <button className="flex items-center gap-2 px-5 py-3 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors mx-auto font-medium relative z-50">
                 <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>

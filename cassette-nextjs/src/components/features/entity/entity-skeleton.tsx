@@ -58,7 +58,6 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({ isDesktop = fals
                 </div>
               </div>
               
-                Right Column - Links and Description (flex: 5)
                 <div className="flex-[5] pl-10 pt-16">
                   {/* Description Box */}
                   <div className="mb-9 p-4 border border-border rounded-lg">

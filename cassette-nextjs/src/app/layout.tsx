@@ -53,6 +53,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${robotoFlex.variable} ${atkinsonHyperlegible.variable} ${teko.variable}`} suppressHydrationWarning>
       <head>
+        <link
+          href="https://fonts.googleapis.com/icon?family=Material+Icons"
+          rel="stylesheet"
+        />
         <Script 
           src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" 
           strategy="beforeInteractive"

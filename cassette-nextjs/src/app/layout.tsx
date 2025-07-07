@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Roboto_Flex, Atkinson_Hyperlegible, Teko } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { Providers } from "@/providers/providers";
 import { Layout } from "@/components/layout/layout";
@@ -51,6 +52,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${robotoFlex.variable} ${atkinsonHyperlegible.variable} ${teko.variable}`} suppressHydrationWarning>
+      <head>
+        <Script 
+          src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" 
+          strategy="beforeInteractive"
+        />
+      </head>
       <body className="font-sans antialiased bg-background text-foreground">
         <Providers>
           <Layout>

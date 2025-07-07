@@ -1,6 +1,16 @@
 import { config } from '@/lib/config';
 import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType } from '@/types';
 
+interface MusicConnection {
+  id: string;
+  userId: string;
+  service: string;
+  serviceUserId?: string;
+  serviceUsername?: string;
+  connectedAt: string;
+  expiresAt?: string;
+}
+
 class ApiService {
   private baseUrl = config.api.url;
 
@@ -12,13 +22,19 @@ class ApiService {
   }
 
   private async getAuthHeaders() {
-    // Get token from localStorage (where authService stores it)
-    const accessToken = localStorage.getItem('access_token');
+    // Check if we're in a browser environment before accessing localStorage
+    let accessToken = null;
     
-    if (accessToken) {
-      console.log('🔐 Auth token found, adding to headers');
+    if (typeof window !== 'undefined' && window.localStorage) {
+      accessToken = localStorage.getItem('access_token');
+      
+      if (accessToken) {
+        console.log('🔐 Auth token found, adding to headers');
+      } else {
+        console.log('⚠️ No auth token found in localStorage');
+      }
     } else {
-      console.log('⚠️ No auth token found in localStorage');
+      console.log('🔍 Running on server-side, no localStorage access');
     }
     
     return {
@@ -222,6 +238,42 @@ class ApiService {
   // Fetch post by ID (includes conversion data)
   async fetchPostById(postId: string): Promise<PostByIdResponse> {
     return this.request<PostByIdResponse>(`/api/v1/social/posts/${postId}`);
+  }
+
+  // Music service authentication endpoints
+  async connectSpotify() {
+    return this.request<{ authUrl: string }>('/api/v1/music-services/spotify/init', {
+      method: 'POST',
+      body: JSON.stringify({ returnUrl: window.location.origin + '/spotify_callback' }),
+    });
+  }
+
+  async handleSpotifyCallback(code: string, state: string) {
+    return this.request<{ success: boolean; user?: { id: string; display_name: string } }>('/api/v1/music-services/spotify/exchange-code', {
+      method: 'POST',
+      body: JSON.stringify({ Code: code, State: state }),
+    });
+  }
+
+  async connectAppleMusic(userToken: string) {
+    return this.request<{ success: boolean }>('/api/v1/music-services/apple-music/user-token', {
+      method: 'POST',
+      body: JSON.stringify({ MusicUserToken: userToken }),
+    });
+  }
+
+  async getMusicConnections() {
+    return this.request<{ connections: MusicConnection[] }>('/api/v1/music-services/connected');
+  }
+
+  async disconnectMusicService(service: string) {
+    return this.request<{ success: boolean }>(`/api/v1/music-services/${service}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getAppleMusicDeveloperToken() {
+    return this.request<{ developerToken: string }>('/api/v1/music-services/apple-music/developer-token');
   }
 
   // Lambda warmup

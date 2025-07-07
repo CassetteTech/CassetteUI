@@ -6,7 +6,7 @@ import { AnimatedButton } from '@/components/ui/animated-button';
 import { UrlBar } from '@/components/ui/url-bar';
 import { UIText } from '@/components/ui/typography';
 import { AnimatedBackground } from '@/components/ui/animated-background';
-import { useTopCharts, useMusicSearch, useAddMusicToProfile } from '@/hooks/use-music';
+import { useTopCharts, useMusicSearch } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
 import { SearchResults } from '@/components/features/search-results';
@@ -43,7 +43,6 @@ export default function AddMusicPage() {
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
   const { data: topCharts, isLoading: isLoadingCharts } = useTopCharts();
-  const addMusicMutation = useAddMusicToProfile();
   
   // Music search - only search if it's not a link and has sufficient length
   const { data: searchResultsData, isLoading: isSearchingMusic } = useMusicSearch(
@@ -216,44 +215,45 @@ export default function AddMusicPage() {
     setErrorMessage('');
   };
 
-  const handleAddToProfile = async () => {
-    if (addMusicMutation.isPending) return;
-    
+  const handleAddToProfile = () => {
     setErrorMessage('');
     
-    try {
-      let urlToConvert = '';
-      let itemDetails = undefined;
-      
-      if (selectedItem) {
-        urlToConvert = selectedItem.url;
-        itemDetails = {
-          title: selectedItem.title,
-          artist: selectedItem.artist,
-          type: selectedItem.type,
-          coverArtUrl: selectedItem.coverArtUrl
-        };
-      } else if (musicUrl.trim()) {
-        urlToConvert = musicUrl.trim();
-      } else {
-        setErrorMessage('Please enter a music link or search for a song');
-        return;
-      }
-      
-      console.log('🎯 Adding music to profile:', { urlToConvert, description, itemDetails });
-      
-      await addMusicMutation.mutateAsync({
-        url: urlToConvert,
-        description: description.trim() || undefined,
-        originalItemDetails: itemDetails
-      });
-      
-      // Success - navigate back to profile
-      router.push('/profile');
-    } catch (error) {
-      console.error('❌ Error adding music to profile:', error);
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to add music to profile');
+    let urlToConvert = '';
+    let itemDetails = undefined;
+    
+    if (selectedItem) {
+      urlToConvert = selectedItem.url;
+      itemDetails = {
+        title: selectedItem.title,
+        artist: selectedItem.artist,
+        type: selectedItem.type,
+        coverArtUrl: selectedItem.coverArtUrl
+      };
+    } else if (musicUrl.trim()) {
+      urlToConvert = musicUrl.trim();
+    } else {
+      setErrorMessage('Please enter a music link or search for a song');
+      return;
     }
+    
+    console.log('🎯 Adding music to profile:', { urlToConvert, description, itemDetails });
+    
+    // Navigate immediately to post page with skeleton loading
+    // Pass the URL and description as query parameters
+    const params = new URLSearchParams({
+      url: urlToConvert,
+      fromAddMusic: 'true'
+    });
+    
+    if (description.trim()) {
+      params.append('description', description.trim());
+    }
+    
+    if (itemDetails) {
+      params.append('itemDetails', JSON.stringify(itemDetails));
+    }
+    
+    router.push(`/post?${params.toString()}`);
   };
 
   // Show loading while checking auth
@@ -436,6 +436,8 @@ export default function AddMusicPage() {
                 placeholder="Let us know a little bit about this song or playlist!"
                 rows={6}
                 className="relative w-full p-4 bg-white border-2 border-black rounded-lg font-atkinson text-text-primary placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                autoComplete="off"
+                spellCheck="false"
               />
             </div>
           </div>
@@ -443,9 +445,9 @@ export default function AddMusicPage() {
           {/* Add to Profile Button */}
           <div className="text-center">
             <AnimatedButton
-              text={addMusicMutation.isPending ? "Adding..." : "Add to Profile"}
+              text="Add to Profile"
               onClick={handleAddToProfile}
-              disabled={addMusicMutation.isPending || (!selectedItem && !musicUrl.trim())}
+              disabled={!selectedItem && !musicUrl.trim()}
               height={48}
               width={280}
               initialPos={6}

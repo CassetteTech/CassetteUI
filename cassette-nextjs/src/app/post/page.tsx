@@ -40,17 +40,14 @@ function PostPageContent() {
           // New flow: we have a URL to convert
           try {
             const decodedUrl = decodeURIComponent(urlParam);
-            console.log('📱 Post page: Converting URL:', decodedUrl);
             
             // Trigger conversion
             convertLink(decodedUrl, {
               onSuccess: (result) => {
-                console.log('✅ Post page: Conversion successful:', result);
-                console.log('🖼️ Artwork URL:', result.metadata?.artwork);
+                
                 
                 // If we have a postId, navigate to the postId URL
                 if (result.postId) {
-                  console.log('🔄 Navigating to postId URL:', result.postId);
                   router.replace(`/post?id=${result.postId}`);
                   return;
                 }
@@ -75,7 +72,6 @@ function PostPageContent() {
           // Legacy flow: data passed directly
           const parsedData = JSON.parse(decodeURIComponent(dataParam));
           setPostData(parsedData);
-          console.log('🖼️ Legacy artwork URL:', parsedData.metadata?.artwork);
           
           // Extract dominant color from image
           if (parsedData.metadata?.artwork) {
@@ -87,7 +83,6 @@ function PostPageContent() {
             const response = await apiService.fetchPostById(postId);
             
             // Transform the API response
-            console.log('🔍 Raw API response:', response);
             if (response.success && response.details) {
               const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; } = {
                 originalUrl: response.originalLink || '',
@@ -138,8 +133,6 @@ function PostPageContent() {
               }
               
               setPostData(transformedData);
-              console.log('🖼️ Transformed artwork URL:', transformedData.metadata.artwork);
-              console.log('🔗 Transformed convertedUrls:', transformedData.convertedUrls);
               
               // Extract dominant color
               if (transformedData.metadata.artwork) {
@@ -167,9 +160,7 @@ function PostPageContent() {
   // Color extraction function
   const extractColorFromArtwork = async (artworkUrl: string) => {
     try {
-      console.log('🎨 Extracting color from:', artworkUrl);
       const result = await ColorExtractor.extractDominantColor(artworkUrl);
-      console.log('🎨 Extracted color:', result.dominantColor);
       setDominantColor(result.dominantColor);
     } catch (error) {
       console.error('❌ Color extraction failed:', error);
@@ -226,10 +217,7 @@ function PostPageContent() {
   const { metadata, convertedUrls } = postData as MusicLinkConversion;
   const isArtist = metadata.type === ElementType.ARTIST;
   
-  // Debug logging
-  console.log('🎵 Post data:', postData);
-  console.log('🎨 Metadata:', metadata);
-  console.log('🖼️ Artwork URL at render:', metadata?.artwork);
+
   
   return (
     <div className="min-h-screen relative">

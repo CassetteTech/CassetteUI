@@ -56,7 +56,6 @@ export function Layout({ children }: LayoutProps) {
       {showNavbar && (
         <div className={isProfilePage ? 'lg:hidden' : ''}>
           <Navbar onMenuClick={() => {
-            console.log('Layout: Setting mobile menu open to true');
             setIsMobileMenuOpen(true);
           }} />
         </div>

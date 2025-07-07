@@ -7,52 +7,77 @@
   </script>
   <script src="https://js-cdn.music.apple.com/musickit/v3/musickit.js"></script>
   <script>
-    // Initialize MusicKit without blocking other functionality
-    async function initializeMusicKit() {
-      try {
-        // Only initialize if we have a valid endpoint
-        if (window.musickitEndpoint) {
-          const response = await fetch(window.musickitEndpoint);
-          const data = await response.json();
-          const developerToken = data.token;
+    let musicKitInstance = null;
 
-          MusicKit.configure({
-              developerToken: developerToken,
-              app: {
-                  name: "Cassette",
-                  build: "1.0.0"
-              }
-          });
-          window.MusicKit = MusicKit.getInstance();
+    async function jsConfigureMusicKit(developerToken) {
+      try {
+        if (!developerToken) {
+          console.error("JS: Missing developer token");
+          return false;
         }
+
+        musicKitInstance = await MusicKit.configure({
+          developerToken,
+          app: {
+            name: "Cassette",
+            build: "1.0.0"
+          }
+        });
+
+        return true;
       } catch (error) {
-        console.log('MusicKit initialization skipped or failed:', error);
+        console.error('JS: MusicKit configuration error:', error);
+        musicKitInstance = null;
+        return false;
       }
     }
 
-    // Handle clipboard permissions
+    async function jsAuthorizeUser() {
+      try {
+        if (!musicKitInstance) {
+          console.error("JS: MusicKit not configured");
+          return null;
+        }
+
+        const token = await musicKitInstance.authorize();
+        return { token };
+      } catch (error) {
+        console.error("JS: Authorization error:", error);
+        return null;
+      }
+    }
+
+    // Function to check authorization status
+    async function jsCheckAuthorization() {
+      try {
+        if (!musicKitInstance) return false;
+        
+        const status = await musicKitInstance.authorizationStatus;
+        console.log("JS: Current authorization status:", status);
+        
+        // MusicKit v3 uses numeric status codes
+        return status > 0;
+      } catch (error) {
+        console.error("JS: Error checking authorization:", error);
+        return false;
+      }
+    }
+
+    // Function to revoke authorization
+    async function jsRevokeAuthorization() {
+      try {
+        if (!musicKitInstance) return false;
+        await musicKitInstance.unauthorize();
+        return true;
+      } catch (error) {
+        console.error("JS: Error revoking authorization:", error);
+        return false;
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
-      // Initialize MusicKit in background
-      initializeMusicKit();
-
-      // Request clipboard permissions
-      if (navigator.clipboard) {
-        navigator.clipboard.readText()
-          .then(() => console.log('Clipboard permission granted'))
-          .catch(err => console.log('Clipboard permission denied:', err));
-      }
+      console.log("JS: DOMContentLoaded. MusicKit v3 ready for initialization.");
     });
-
-    async function requestUserToken() {
-      try {
-        if (window.MusicKit) {
-          const musicUserToken = await window.MusicKit.authorize();
-          window.postMessage(musicUserToken, "*");
-        }
-      } catch (error) {
-        console.error("MusicKit Auth Error:", error);
-      }
-    }
   </script>
   <meta charset="UTF-8">
   <title>Cassette</title>

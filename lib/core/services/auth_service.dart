@@ -65,8 +65,8 @@ class AuthService extends ChangeNotifier {
       await _loadCachedSession();
       await _checkAuthState();
 
-      // Set up periodic session check every 4 minutes
-      Timer.periodic(const Duration(minutes: 4), (_) {
+      // Set up periodic session check every 15 minutes instead of 4
+      Timer.periodic(const Duration(minutes: 15), (_) {
         _checkAuthState();
       });
     } catch (e) {
@@ -164,8 +164,13 @@ class AuthService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('❌ [Auth] Error checking auth state: $e');
-      _authStateController.add(false);
-      notifyListeners();
+      // Don't immediately invalidate the session on refresh failure
+      // Only invalidate if we can't get the current user
+      final currentUser = await getCurrentUser(forceRefresh: false);
+      if (currentUser == null) {
+        _authStateController.add(false);
+        notifyListeners();
+      }
     } finally {
       _isCheckingAuth = false;
     }
@@ -216,9 +221,15 @@ class AuthService extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        // Decode and explicitly cast the response body
+        final dynamic decodedBody = json.decode(response.body);
+        if (decodedBody is! Map<String, dynamic>) {
+          throw Exception('Invalid response format from server');
+        }
+        final Map<String, dynamic> data = decodedBody;
+
         if (data['success'] == true && data['user'] != null) {
-          await _saveSessionData(data['user']);
+          await _saveSessionData(data['user'] as Map<String, dynamic>);
           _isCheckingAuth = false;
           return _cachedUser;
         }
@@ -337,6 +348,7 @@ class AuthService extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
+    beginCriticalOperation();
     try {
       final response = await http.post(
         Uri.parse('${ApiService.apiUrl}/auth/signin'),
@@ -347,20 +359,35 @@ class AuthService extends ChangeNotifier {
         }),
       );
 
-      final data = json.decode(response.body);
+      // Decode and explicitly cast the response body
+      final dynamic decodedBody = json.decode(response.body);
+      if (decodedBody is! Map<String, dynamic>) {
+        throw Exception('Invalid response format from server');
+      }
+      final Map<String, dynamic> data = decodedBody;
+
       if (response.statusCode == 200 && data['success'] == true) {
-        // Normalize and store user data
-        final userData = data['user'];
+        // Explicitly cast user data
+        final dynamic userPayload = data['user'];
+        if (userPayload is! Map<String, dynamic>) {
+          throw Exception('Invalid user data format in response');
+        }
+        final Map<String, dynamic> userData = userPayload;
+        
+        // Normalize user data (already typed correctly now)
         final normalizedData = {
           ...userData,
           'userId': userData['id'] ?? userData['userId'],
           'authUserId': userData['authUserId'],
         };
 
-        await _storage.write(key: _accessTokenKey, value: data['token']);
-        await _storage.write(
-            key: _refreshTokenKey, value: data['refreshToken']);
-        await _storage.write(key: _userKey, value: json.encode(normalizedData));
+        // Update persistent storage for tokens first
+        await _storage.write(key: _accessTokenKey, value: data['token'] as String?);
+        await _storage.write(key: _refreshTokenKey, value: data['refreshToken'] as String?);
+        _cachedToken = data['token'] as String?;
+
+        await _saveSessionData(normalizedData);
+
         _authStateController.add(true);
         notifyListeners();
         return data;
@@ -370,6 +397,8 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       print('❌ [Auth] Sign in error: $e');
       rethrow;
+    } finally {
+      endCriticalOperation();
     }
   }
 
@@ -404,6 +433,7 @@ class AuthService extends ChangeNotifier {
   // Refresh token
   Future<bool> _refreshToken() async {
     try {
+      print('🔄 [Auth] Refreshing token !!!');
       final refreshToken = await _storage.read(key: _refreshTokenKey);
       if (refreshToken == null) return false;
 
@@ -478,5 +508,34 @@ class AuthService extends ChangeNotifier {
     await _storage.delete(key: _refreshTokenKey);
     _authStateController.add(false);
     notifyListeners();
+  }
+
+  // Store OAuth state for verification
+  Future<void> storeAuthState(String provider, String state) async {
+    try {
+      await _storage.write(key: '${provider}_auth_state', value: state);
+    } catch (e) {
+      print('❌ [Auth] Error storing auth state: $e');
+      throw 'Failed to store auth state: $e';
+    }
+  }
+
+  // Get stored OAuth state
+  Future<String?> getAuthState(String provider) async {
+    try {
+      return await _storage.read(key: '${provider}_auth_state');
+    } catch (e) {
+      print('❌ [Auth] Error getting auth state: $e');
+      return null;
+    }
+  }
+
+  // Clear stored OAuth state
+  Future<void> clearAuthState(String provider) async {
+    try {
+      await _storage.delete(key: '${provider}_auth_state');
+    } catch (e) {
+      print('❌ [Auth] Error clearing auth state: $e');
+    }
   }
 }

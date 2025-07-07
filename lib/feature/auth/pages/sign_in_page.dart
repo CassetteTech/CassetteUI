@@ -11,6 +11,7 @@ import 'package:dotted_line/dotted_line.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -309,35 +310,53 @@ class _SignInPageState extends State<SignInPage> {
       _isLoading = true;
     });
 
+    StreamSubscription? authSubscription;
     try {
+      print('🔐 [SignIn] Starting sign in process');
+      
+      // Listen to auth state changes
+      authSubscription = _authService.authStateChanges.listen(
+        (isAuthenticated) {
+          print('🔄 [SignIn] Auth state changed: $isAuthenticated');
+          if (isAuthenticated && mounted) {
+            print('✅ [SignIn] Navigating to profile');
+            context.go('/profile');
+          }
+        },
+        onError: (error) {
+          print('❌ [SignIn] Auth state change error: $error');
+        },
+      );
+
       final response = await _authService.signIn(
         email: emailController.text.trim().toLowerCase(),
         password: passController.text,
       );
 
-      if (!mounted) return;
+      print('📝 [SignIn] Sign in response received: ${response['success']}');
+
+      if (!mounted) {
+        print('⚠️ [SignIn] Widget not mounted after sign in');
+        authSubscription.cancel();
+        return;
+      }
 
       if (response['success'] == true) {
-        // Show success message
+        print('✅ [SignIn] Sign in successful, showing toast');
         AppUtils.showToast(
           context: context,
           title: "Successfully signed in!",
         );
-
-        // Update global auth state
-        isAuthenticated = true;
-
-        // Navigate to profile
-        if (!mounted) return;
-        context.go('/profile');
       } else {
+        print('❌ [SignIn] Sign in failed: ${response['message']}');
+        authSubscription.cancel();
         AppUtils.showToast(
           context: context,
           title: response['message'] ?? "Failed to sign in. Please try again.",
         );
       }
     } catch (error) {
-      print("❌ [Auth] Sign in error: $error");
+      print("❌ [SignIn] Sign in error: $error");
       if (!mounted) return;
 
       String errorMessage = error.toString();
@@ -357,6 +376,8 @@ class _SignInPageState extends State<SignInPage> {
           _isLoading = false;
         });
       }
+      // Clean up subscription if it exists
+      authSubscription?.cancel();
     }
   }
 }

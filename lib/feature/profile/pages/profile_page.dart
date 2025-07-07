@@ -19,7 +19,7 @@ import 'package:cassettefrontend/core/common_widgets/error_widget.dart';
 import 'package:cassettefrontend/core/env.dart';
 
 class ProfilePage extends StatefulWidget {
-  final String userIdentifier; // Can be either UUID or username
+  final String userIdentifier; // Can be either UUID or username ?
 
   const ProfilePage({Key? key, required this.userIdentifier}) : super(key: key);
 

@@ -20,15 +20,23 @@ class AppRouter {
 
   static GoRouter getRouter(bool isAuth) {
     return GoRouter(
-      initialLocation: isAuth ? '/profile' : '/',
+      initialLocation: '/',
       debugLogDiagnostics: true,
       refreshListenable: _authService, // Listen to auth state changes
       redirect: (context, state) async {
         print('🔄 [Router] Redirect called for ${state.matchedLocation}');
 
-        // Get current auth state
-        final isAuthenticated = await _authService.isAuthenticated();
-        print('🔐 [Router] isAuthenticated: $isAuthenticated');
+        if (state.matchedLocation == '/spotify_callback') {
+          print(
+              '✅ [Router] Allowing /spotify_callback to pass through redirect guard.');
+          return null; // null means no redirect, proceed to the route's builder
+        }
+
+        // Get current auth state using cached data first
+        final user = await _authService.getCurrentUser();
+        final isAuthenticated = user != null;
+        print(
+            '🔐 [Router] isAuthenticated (from cache/check): $isAuthenticated');
 
         final isSigningIn = state.matchedLocation == '/signin';
         final isSigningUp = state.matchedLocation == '/signup';
@@ -66,11 +74,17 @@ class AppRouter {
         }
 
         // User is authenticated
-        if (isSigningIn || isSigningUp || isHome) {
-          print('🔐 [Router] User is authenticated and on auth/home route');
+        if (isSigningIn || isSigningUp) {
+          print('🔐 [Router] User is authenticated and on auth route');
           // Go directly to profile
           print('👤 [Router] Redirecting to profile');
           return '/profile';
+        }
+
+        // If user is authenticated and on home page, allow access
+        if (isHome) {
+          print('🏠 [Router] User is authenticated and on home page');
+          return null;
         }
 
         print('✅ [Router] No redirect needed');
@@ -129,6 +143,11 @@ class AppRouter {
             );
           },
         ),
+        GoRoute(
+          name: 'edit_profile',
+          path: '/profile/edit',
+          builder: (context, state) => const EditProfilePage(),
+        ), // **needs to be defined before /profile/:identifier otherwise it will match "edit" as a profile identifier**
         GoRoute(
           name: 'user_profile',
           path: '/profile/:identifier',
@@ -311,11 +330,6 @@ class AppRouter {
           name: 'signin',
           path: '/signin',
           builder: (context, state) => const SignInPage(),
-        ),
-        GoRoute(
-          name: 'edit_profile',
-          path: '/profile/edit',
-          builder: (context, state) => const EditProfilePage(),
         ),
         GoRoute(
           name: 'add_music',

@@ -15,6 +15,7 @@ import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cassettefrontend/core/services/auth_service.dart';
+import '../services/apple_music_service.dart';
 
 class AppUtils {
   static UserBio userProfile = UserBio(
@@ -37,6 +38,7 @@ class AppUtils {
   );
 
   static final _authService = AuthService();
+  static final _appleMusicService = AppleMusicService(_authService);
 
   static Widget burgerMenu(
       {required VoidCallback onPressed, Color? iconColor, double? size}) {
@@ -454,10 +456,6 @@ class AppUtils {
         color: AppColors.textPrimary,
         borderRadius: BorderRadius.circular(12),
         backgroundColor: AppColors.appBg);
-  }
-
-  static void authenticateAppleMusic() {
-    js.context.callMethod('requestUserToken');
   }
 
   static void listenForUserToken() {

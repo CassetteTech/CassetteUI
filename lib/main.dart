@@ -36,8 +36,9 @@ void main() async {
     final authService = AuthService();
     authService.initAuthStateListener();
 
-    // Check initial auth state
-    isAuthenticated = await authService.isAuthenticated();
+    // Get initial auth state from the auth service's cached state
+    isAuthenticated = await authService.getCurrentUser() != null;
+    
     // Initialize router with initial auth state
     router = AppRouter.getRouter(isAuthenticated);
 
@@ -67,7 +68,7 @@ void main() async {
       final error = uri.queryParameters['error'];
       if (code != null) {
         try {
-          await SpotifyService.exchangeCodeForToken(code);
+          // await SpotifyService.exchangeCodeForToken(code);
           print('Successfully exchanged code for token');
         } catch (e) {
           print('Error exchanging code for token: $e');

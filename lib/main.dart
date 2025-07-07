@@ -44,7 +44,9 @@ void main() async {
 
     // Listen to auth state changes after initial setup
     authService.authStateChanges.listen((authenticated) {
+      print('🔄 [Main] Auth state changed to: $authenticated');
       isAuthenticated = authenticated;
+      // Note: The router will handle refreshes automatically via refreshListenable
     });
 
     // Only perform lambda warmup if enabled in config

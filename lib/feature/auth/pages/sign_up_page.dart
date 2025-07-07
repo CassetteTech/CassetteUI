@@ -344,6 +344,9 @@ class _SignUpPageState extends State<SignUpPage> {
     });
 
     try {
+      // Begin critical operation to prevent auth state throttling
+      _authService.beginCriticalOperation();
+      
       final response = await _authService.signUp(
         email: emailController.text.trim().toLowerCase(),
         password: passController.text,
@@ -357,20 +360,15 @@ class _SignUpPageState extends State<SignUpPage> {
           title: "Account created successfully!",
         );
 
-        // Wait a moment for auth state to fully update
-        await Future.delayed(const Duration(milliseconds: 300));
+        // Wait for auth state to fully propagate
+        await Future.delayed(const Duration(milliseconds: 800));
 
-        // Fetch user data to confirm authentication
-        final userData = await _authService.getCurrentUser(forceRefresh: true);
-
-        // Only navigate if we're still mounted and user is authenticated
+        // Check if we're still mounted before navigating
         if (!mounted) return;
 
-        if (userData != null) {
-          print('✅ [Signup] Successfully authenticated, navigating to profile');
-          // Navigate to profile
-          context.go('/profile');
-        }
+        // Let the router handle the navigation automatically
+        // Since auth state is now set, the router will redirect to profile
+        print('✅ [Signup] Successfully authenticated, router will handle navigation');
       } else {
         AppUtils.showToast(
           context: context,
@@ -405,6 +403,9 @@ class _SignUpPageState extends State<SignUpPage> {
         title: errorMessage,
       );
     } finally {
+      // End critical operation
+      _authService.endCriticalOperation();
+      
       if (mounted) {
         setState(() {
           _isLoading = false;

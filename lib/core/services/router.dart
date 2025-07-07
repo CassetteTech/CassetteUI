@@ -17,6 +17,9 @@ import 'package:cassettefrontend/core/services/auth_service.dart';
 
 class AppRouter {
   static final _authService = AuthService();
+  static String? _lastRedirectLocation;
+  static DateTime? _lastRedirectTime;
+  static const _redirectThrottle = Duration(milliseconds: 500);
 
   static GoRouter getRouter(bool isAuth) {
     return GoRouter(
@@ -24,7 +27,10 @@ class AppRouter {
       debugLogDiagnostics: true,
       refreshListenable: _authService, // Listen to auth state changes
       redirect: (context, state) async {
-        print('🔄 [Router] Redirect called for ${state.matchedLocation}');
+        final location = state.matchedLocation;
+        final now = DateTime.now();
+        
+        print('🔄 [Router] Redirect called for $location');
 
         if (state.matchedLocation == '/spotify_callback') {
           print(
@@ -38,25 +44,25 @@ class AppRouter {
         print(
             '🔐 [Router] isAuthenticated (from cache/check): $isAuthenticated');
 
-        final isSigningIn = state.matchedLocation == '/signin';
-        final isSigningUp = state.matchedLocation == '/signup';
-        final isHome = state.matchedLocation == '/';
-        final isEditProfile = state.matchedLocation == '/profile/edit';
-        final isProfile = state.matchedLocation == '/profile';
 
-        print(
-            '📍 [Router] Route info - isSigningIn: $isSigningIn, isSigningUp: $isSigningUp, isHome: $isHome, isEditProfile: $isEditProfile');
+        final isSigningIn = location == '/signin';
+        final isSigningUp = location == '/signup';
+        final isHome = location == '/';
+        final isEditProfile = location == '/profile/edit';
+        final isProfile = location == '/profile';
+
+        print('📍 [Router] Route info - isSigningIn: $isSigningIn, isSigningUp: $isSigningUp, isHome: $isHome, isEditProfile: $isEditProfile, isProfile: $isProfile');
 
         // Check if the current route is a public route
         final isPublicRoute = isHome ||
             isSigningIn ||
             isSigningUp ||
-            state.matchedLocation.startsWith('/track/') ||
-            state.matchedLocation.startsWith('/artist/') ||
-            state.matchedLocation.startsWith('/album/') ||
-            state.matchedLocation.startsWith('/playlist/') ||
-            state.matchedLocation.startsWith('/post') ||
-            state.matchedLocation.startsWith('/p/');
+            location.startsWith('/track/') ||
+            location.startsWith('/artist/') ||
+            location.startsWith('/album/') ||
+            location.startsWith('/playlist/') ||
+            location.startsWith('/post') ||
+            location.startsWith('/p/');
 
         print('🌐 [Router] isPublicRoute: $isPublicRoute');
 
@@ -70,14 +76,24 @@ class AppRouter {
           }
           // Redirect to signin for protected routes
           print('🔒 [Router] Redirecting to signin');
+          _lastRedirectLocation = '/signin';
+          _lastRedirectTime = now;
           return '/signin';
         }
-
         // User is authenticated
         if (isSigningIn || isSigningUp) {
           print('🔐 [Router] User is authenticated and on auth route');
           // Go directly to profile
+
           print('👤 [Router] Redirecting to profile');
+          _lastRedirectLocation = '/profile';
+          _lastRedirectTime = now;
+          return '/profile';
+        } else if (isHome) {
+          print('🔐 [Router] User is authenticated and on home route');
+          print('👤 [Router] Redirecting to profile');
+          _lastRedirectLocation = '/profile';
+          _lastRedirectTime = now;
           return '/profile';
         }
 
@@ -114,14 +130,27 @@ class AppRouter {
               future: _authService.getCurrentUser(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  );
                 }
 
                 final userData = snapshot.data;
                 if (userData == null) {
-                  print(
-                      '❌ [Router] No user data available, redirecting to sign in');
-                  return const SignInPage();
+                  print('❌ [Router] No user data available after timeout');
+                  // Don't redirect here - let the router handle it
+                  return const Scaffold(
+                    body: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Loading profile...'),
+                        ],
+                      ),
+                    ),
+                  );
                 }
 
                 // Try to get user ID in order of preference
@@ -135,7 +164,20 @@ class AppRouter {
 
                 if (userId == null) {
                   print('❌ [Router] No valid user ID found in data');
-                  return const SignInPage();
+                  // Don't redirect here - let the router handle it
+                  return const Scaffold(
+                    body: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline, size: 48, color: Colors.red),
+                          SizedBox(height: 16),
+                          Text('Profile loading error'),
+                          Text('Please try refreshing'),
+                        ],
+                      ),
+                    ),
+                  );
                 }
 
                 return ProfilePage(userIdentifier: userId.toString());

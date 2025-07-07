@@ -1,0 +1,161 @@
+
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* shadcn/ui default variables in HSL format */
+    --background: 48 80% 92%; /* #F8F0DE */
+    --foreground: 210 10% 14%; /* #1F2327 */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 210 10% 14%; /* #1F2327 */
+    --popover: 0 0% 100%; /* #FFFFFF */
+    --popover-foreground: 210 10% 14%; /* #1F2327 */
+    --primary: 338 100% 50%; /* #FF0054 */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    --secondary: 349 81% 56%; /* #ED2748 */
+    --secondary-foreground: 0 0% 100%; /* #FFFFFF */
+    --muted: 48 80% 92%; /* #F8F0DE */
+    --muted-foreground: 210 10% 38%; /* #595C5E */
+    --accent: 349 68% 68%; /* #E95E75 */
+    --accent-foreground: 210 10% 14%; /* #1F2327 */
+    --destructive: 349 81% 56%; /* #ED2748 */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+    --border: 35 15% 70%; /* #B3B0AD */
+    --input: 48 80% 92%; /* #F8F0DE */
+    --ring: 338 100% 50%; /* #FF0054 */
+    --radius: 0.5rem;
+
+    /* Custom Cassette Brand Colors */
+    --cream: 48 80% 92%; /* #F8F0DE */
+    --text-primary: 210 10% 14%; /* #1F2327 */
+    --text-secondary: 0 0% 46%; /* #757575 */
+    --text-hint: 0 0% 77%; /* #C4C4C4 */
+    --text-artist: 0 0% 36%; /* #5C5C5C */
+    --profile: 210 10% 14%; /* #1F2327 */
+    --tab: 0 0% 77%; /* #C4C4C4 */
+    --gray: 0 0% 65%; /* #A7A7A7 */
+    --gray-light: 0 0% 77%; /* #C4C4C4 */
+    --gray-dark: 0 0% 36%; /* #5C5C5C */
+    --green: 141 76% 47%; /* #1ED760 */
+    --blue: 203 100% 50%; /* #0093FF */
+
+    /* Button Colors */
+    --btn-top: 349 81% 56%; /* #ED2748 */
+    --btn-top-border: 343 100% 50%; /* #FF002B */
+    --btn-bottom: 349 68% 68%; /* #E95E75 */
+    --btn-convert-top: 210 10% 14%; /* #1F2327 */
+    --btn-convert-bottom: 210 10% 38%; /* #595C5E */
+    --btn-convert-border: 210 10% 14%; /* #1F2327 */
+
+    /* Utility Colors */
+    --popup-bg: 210 10% 14%; /* with 78% opacity */
+    --popup-divider: 0 0% 54%; /* #8A8A8A */
+    --tab-divider: 0 0% 20%; /* #333333 */
+
+    /* Chart colors */
+    --chart-1: 338 100% 50%; /* #FF0054 */
+    --chart-2: 349 81% 56%; /* #ED2748 */
+    --chart-3: 52 100% 67%; /* #FFDE59 */
+    --chart-4: 48 80% 92%; /* #F8F0DE */
+    --chart-5: 210 10% 38%; /* #595C5E */
+
+    /* Sidebar colors */
+    --sidebar-background: 0 0% 100%; /* #FFFFFF */
+    --sidebar-foreground: 210 10% 14%; /* #1F2327 */
+    --sidebar-primary: 338 100% 50%; /* #FF0054 */
+    --sidebar-primary-foreground: 0 0% 100%; /* #FFFFFF */
+    --sidebar-accent: 48 80% 92%; /* #F8F0DE */
+    --sidebar-accent-foreground: 210 10% 14%; /* #1F2327 */
+    --sidebar-border: 35 15% 70%; /* #B3B0AD */
+    --sidebar-ring: 338 100% 50%; /* #FF0054 */
+  }
+
+  .dark {
+    --background: 210 10% 14%; /* #1F2327 */
+    --foreground: 48 80% 92%; /* #F8F0DE */
+    --card: 210 10% 18%; /* #292D31 */
+    --card-foreground: 48 80% 92%; /* #F8F0DE */
+    --popover: 210 10% 18%; /* #292D31 */
+    --popover-foreground: 48 80% 92%; /* #F8F0DE */
+    --primary: 338 100% 50%; /* #FF0054 */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    --secondary: 349 81% 56%; /* #ED2748 */
+    --secondary-foreground: 0 0% 100%; /* #FFFFFF */
+    --muted: 210 10% 18%; /* #292D31 */
+    --muted-foreground: 35 15% 70%; /* #B3B0AD */
+    --accent: 349 68% 68%; /* #E95E75 */
+    --accent-foreground: 210 10% 14%; /* #1F2327 */
+    --destructive: 349 81% 56%; /* #ED2748 */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+    --border: 210 10% 38%; /* #595C5E */
+    --input: 210 10% 18%; /* #292D31 */
+    --ring: 338 100% 50%; /* #FF0054 */
+
+    /* Custom dark theme overrides */
+    --cream: 210 10% 14%; /* #1F2327 */
+    --sidebar-background: 210 10% 18%; /* #292D31 */
+    --sidebar-foreground: 48 80% 92%; /* #F8F0DE */
+    --sidebar-accent: 210 10% 38%; /* #595C5E */
+    --sidebar-accent-foreground: 48 80% 92%; /* #F8F0DE */
+    --sidebar-border: 210 10% 38%; /* #595C5E */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', 'Roboto Flex', sans-serif;
+  }
+}
+
+:root {
+  --sidebar: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(240 5.3% 26.1%);
+  --sidebar-primary: hsl(240 5.9% 10%);
+  --sidebar-primary-foreground: hsl(0 0% 98%);
+  --sidebar-accent: hsl(240 4.8% 95.9%);
+  --sidebar-accent-foreground: hsl(240 5.9% 10%);
+  --sidebar-border: hsl(220 13% 91%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+.dark {
+  --sidebar: hsl(240 5.9% 10%);
+  --sidebar-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(240 3.7% 15.9%);
+  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-border: hsl(240 3.7% 15.9%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+@theme inline {
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

@@ -317,7 +317,7 @@ class AuthService extends ChangeNotifier {
         print('✅ [Auth] Sign up successful');
         // Normalize and store user data
         final userData = data['user'];
-        final normalizedData = {
+        final normalizedData = <String, dynamic>{
           ...userData,
           'userId': userData['id'] ?? userData['userId'],
           'authUserId': userData['authUserId'],
@@ -327,11 +327,18 @@ class AuthService extends ChangeNotifier {
         await _storage.write(key: _accessTokenKey, value: data['token']);
         await _storage.write(
             key: _refreshTokenKey, value: data['refreshToken']);
-        await _storage.write(key: _userKey, value: json.encode(normalizedData));
+        
+        // Update the session cache immediately
+        _cachedToken = data['token'];
+        await _saveSessionData(normalizedData);
 
         print('📢 [Auth] Notifying listeners of auth state change');
         _authStateController.add(true);
         notifyListeners();
+        
+        // Longer delay to ensure all listeners are notified and UI updates
+        await Future.delayed(const Duration(milliseconds: 300));
+        
         return data;
       } else {
         print('❌ [Auth] Sign up failed: ${data['message']}');
@@ -376,6 +383,7 @@ class AuthService extends ChangeNotifier {
         
         // Normalize user data (already typed correctly now)
         final normalizedData = {
+
           ...userData,
           'userId': userData['id'] ?? userData['userId'],
           'authUserId': userData['authUserId'],
@@ -418,6 +426,10 @@ class AuthService extends ChangeNotifier {
   // Check if user is authenticated
   Future<bool> isAuthenticated() async {
     print('🔍 [Auth] Checking authentication status');
+    print('🔍 [Auth] Session valid: ${_isSessionValid()}');
+    print('🔍 [Auth] Cached user: ${_cachedUser != null}');
+    print('🔍 [Auth] Cached token: ${_cachedToken != null}');
+    
     if (_isSessionValid()) {
       print('✅ [Auth] Session is valid');
       return true;
@@ -426,6 +438,9 @@ class AuthService extends ChangeNotifier {
     final user = await getCurrentUser();
     final isAuth = user != null;
     print('🔐 [Auth] Authentication check result: $isAuth');
+    if (isAuth && user != null) {
+      print('👤 [Auth] User authenticated with ID: ${user['userId'] ?? user['id']}');
+    }
     _authStateController.add(isAuth);
     return isAuth;
   }

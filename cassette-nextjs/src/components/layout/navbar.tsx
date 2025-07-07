@@ -1,13 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
 import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import { User, LogOut, Menu } from 'lucide-react';
 import { ThemeSwitcher } from './theme-switcher';
-import { MobileMenu } from './mobile-menu';
 
 import {
   DropdownMenu,
@@ -18,17 +16,18 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Image from 'next/image';
 
-export function Navbar() {
+export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const { user, isAuthenticated } = useAuthState();
   const { mutate: signOut } = useSignOut();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  console.log('Navbar: onMenuClick function is:', typeof onMenuClick, onMenuClick);
 
   const handleSignOut = () => {
     signOut();
   };
 
   return (
-    <nav className="bg-background/95 backdrop-blur border-b border-border/20">
+    <nav className="bg-background/95 backdrop-blur border-b border-border/20 relative z-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
@@ -114,8 +113,12 @@ export function Navbar() {
             {/* Mobile menu button */}
             <div className="md:hidden ml-2">
               <button 
-                className="text-foreground hover:text-primary transition-colors"
-                onClick={() => setIsMobileMenuOpen(true)}
+                className="text-foreground hover:text-primary transition-colors p-2 rounded-lg hover:bg-muted"
+                onClick={() => {
+                  console.log('Navbar: Mobile menu button clicked');
+                  onMenuClick();
+                }}
+                aria-label="Open mobile menu"
               >
                 <Menu className="h-6 w-6" />
               </button>
@@ -123,12 +126,6 @@ export function Navbar() {
           </div>
         </div>
       </div>
-
-      {/* Mobile Menu */}
-      <MobileMenu 
-        isOpen={isMobileMenuOpen} 
-        onClose={() => setIsMobileMenuOpen(false)} 
-      />
     </nav>
   );
 }

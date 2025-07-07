@@ -20,10 +20,14 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
   const { mutate: signOut } = useSignOut();
   const pathname = usePathname();
 
-  // Close menu when route changes
-  useEffect(() => {
-    onClose();
-  }, [pathname, onClose]);
+  console.log('MobileMenu: isOpen =', isOpen, ', user =', user?.username || 'not logged in');
+
+  // Close menu when route changes (temporarily disabled for debugging)
+  // useEffect(() => {
+  //   if (isOpen) {
+  //     onClose();
+  //   }
+  // }, [pathname, onClose, isOpen]);
 
   // Prevent body scroll when menu is open
   useEffect(() => {
@@ -51,10 +55,15 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
     return pathname.startsWith(path);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    console.log('MobileMenu: Not rendering because isOpen is false');
+    return null;
+  }
+
+  console.log('MobileMenu: Rendering mobile menu');
 
   return (
-    <div className="fixed inset-0 z-50 md:hidden">
+    <div className="fixed inset-0 z-[100] md:hidden">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-background/80 backdrop-blur-sm"

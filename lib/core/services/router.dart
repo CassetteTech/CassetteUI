@@ -23,7 +23,7 @@ class AppRouter {
 
   static GoRouter getRouter(bool isAuth) {
     return GoRouter(
-      initialLocation: isAuth ? '/profile' : '/',
+      initialLocation: '/',
       debugLogDiagnostics: true,
       refreshListenable: _authService, // Listen to auth state changes
       redirect: (context, state) async {
@@ -32,17 +32,18 @@ class AppRouter {
         
         print('🔄 [Router] Redirect called for $location');
 
-        // Throttle rapid redirects to the same location
-        if (_lastRedirectLocation == location && 
-            _lastRedirectTime != null && 
-            now.difference(_lastRedirectTime!) < _redirectThrottle) {
-          print('⏰ [Router] Throttling redirect to same location');
-          return null;
+        if (state.matchedLocation == '/spotify_callback') {
+          print(
+              '✅ [Router] Allowing /spotify_callback to pass through redirect guard.');
+          return null; // null means no redirect, proceed to the route's builder
         }
 
-        // Get current auth state with caching
-        final isAuthenticated = await _authService.isAuthenticated();
-        print('🔐 [Router] isAuthenticated: $isAuthenticated');
+        // Get current auth state using cached data first
+        final user = await _authService.getCurrentUser();
+        final isAuthenticated = user != null;
+        print(
+            '🔐 [Router] isAuthenticated (from cache/check): $isAuthenticated');
+
 
         final isSigningIn = location == '/signin';
         final isSigningUp = location == '/signup';
@@ -79,15 +80,11 @@ class AppRouter {
           _lastRedirectTime = now;
           return '/signin';
         }
-
-        // User is authenticated - handle auth route redirects carefully
+        // User is authenticated
         if (isSigningIn || isSigningUp) {
           print('🔐 [Router] User is authenticated and on auth route');
-          // Don't redirect if we're already in the middle of a navigation
-          if (isProfile) {
-            print('📍 [Router] Already navigating to profile, no redirect needed');
-            return null;
-          }
+          // Go directly to profile
+
           print('👤 [Router] Redirecting to profile');
           _lastRedirectLocation = '/profile';
           _lastRedirectTime = now;
@@ -98,6 +95,12 @@ class AppRouter {
           _lastRedirectLocation = '/profile';
           _lastRedirectTime = now;
           return '/profile';
+        }
+
+        // If user is authenticated and on home page, allow access
+        if (isHome) {
+          print('🏠 [Router] User is authenticated and on home page');
+          return null;
         }
 
         print('✅ [Router] No redirect needed');
@@ -182,6 +185,11 @@ class AppRouter {
             );
           },
         ),
+        GoRoute(
+          name: 'edit_profile',
+          path: '/profile/edit',
+          builder: (context, state) => const EditProfilePage(),
+        ), // **needs to be defined before /profile/:identifier otherwise it will match "edit" as a profile identifier**
         GoRoute(
           name: 'user_profile',
           path: '/profile/:identifier',
@@ -364,11 +372,6 @@ class AppRouter {
           name: 'signin',
           path: '/signin',
           builder: (context, state) => const SignInPage(),
-        ),
-        GoRoute(
-          name: 'edit_profile',
-          path: '/profile/edit',
-          builder: (context, state) => const EditProfilePage(),
         ),
         GoRoute(
           name: 'add_music',

@@ -139,7 +139,7 @@ class _AddMusicPageState extends State<AddMusicPage> with AuthRequiredState {
         lowerText.contains('apple.com/music') ||
         lowerText.contains('music.apple.com') ||
         lowerText.contains('deezer.com');
-  }
+  } // should this be handled on backend?
 
   // Handle URL paste
   void _handleUrlPaste(String url) {

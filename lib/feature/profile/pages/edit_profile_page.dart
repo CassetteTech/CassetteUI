@@ -4,9 +4,12 @@ import 'package:cassettefrontend/core/common_widgets/app_toolbar.dart';
 import 'package:cassettefrontend/core/common_widgets/text_field_widget.dart';
 import 'package:cassettefrontend/core/constants/app_constants.dart';
 import 'package:cassettefrontend/core/constants/image_path.dart';
+import 'package:cassettefrontend/core/services/spotify_service.dart';
+import 'package:cassettefrontend/core/services/apple_music_service.dart';
 import 'package:cassettefrontend/core/styles/app_styles.dart';
 import 'package:cassettefrontend/core/utils/app_utils.dart';
 import 'package:cassettefrontend/feature/profile/model/user_profile_models.dart';
+import 'package:cassettefrontend/feature/profile/services/profile_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:go_router/go_router.dart';
@@ -38,34 +41,60 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   List<ConnectedService> allServicesList = [];
   final _authService = AuthService();
+  late final ApiService _apiService;
+  late final ProfileService _profileService;
+
   Map<String, dynamic> userData = {};
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
+
+    _apiService = ApiService(_authService);
     _loadUserData();
   }
 
   Future<void> _loadUserData() async {
+    _profileService = ProfileService(_apiService);
+    _logger.info(
+        '🔍 [EditProfilePage] Loading user data from ${'${ApiService.baseUrl}/user/profile'}');
+    setState(() => isLoading = true);
+    // final userData1 = await _authService.getCurrentUser(forceRefresh: true);
+    // print(userData1?.entries);
     try {
-      final headers = await _authService.authHeaders;
-      final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/user/profile'),
-        headers: headers,
-      );
+      Map<String, dynamic>? cachedUserData =
+          await _authService.getCurrentUser(forceRefresh: false);
+      if (cachedUserData != null) {
+        userData = cachedUserData;
+        setState(() {
+          userData = userData;
+          nameCtr.text = userData['fullName'] ?? '';
+          userNameCtr.text = userData['username'] ?? '';
+          bioCtr.text = userData['bio'] ?? '';
+          linkCtr.text = userData['avatarUrl'] ?? '';
+          isLoading = false;
+        });
+      } else {
+        final headers = await _authService.authHeaders;
+        final response = await http.get(
+          Uri.parse('${ApiService.baseUrl}/profile/${userData['id']}/bio'),
+          headers: headers,
+        );
+        print('🔍 [EditProfilePage] Response: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          setState(() {
-            userData = data['user'];
-            nameCtr.text = userData['fullName'] ?? '';
-            userNameCtr.text = userData['username'] ?? '';
-            bioCtr.text = userData['bio'] ?? '';
-            linkCtr.text = userData['avatarUrl'] ?? '';
-            isLoading = false;
-          });
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data['success'] == true) {
+            setState(() {
+              userData = data['user'];
+              nameCtr.text = userData['fullName'] ?? '';
+              userNameCtr.text = userData['username'] ?? '';
+              bioCtr.text = userData['bio'] ?? '';
+              linkCtr.text = userData['avatarUrl'] ?? '';
+              isLoading = false;
+            });
+          }
         }
       }
     } catch (e) {
@@ -383,6 +412,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           maxLines: 5,
                           onChanged: (bio) {},
                         ),
+                        const SizedBox(height: 35),
+                        connectServiceView(),
                         const SizedBox(height: 35),
                         AnimatedPrimaryButton(
                           text: 'Save',
@@ -763,11 +794,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   addServiceFnc() {
     if (allServicesList.isNotEmpty) {
-      AppUtils.userProfile.connectedServices?.add(ConnectedService(
+      AppUtils.userProfile.connectedServices.add(ConnectedService(
           serviceType: allServicesList[value].serviceType,
           connectedAt: DateTime.now()));
-      if (allServicesList[value].serviceType == "Apple Music") {
-        AppUtils.authenticateAppleMusic();
+      switch (allServicesList[value].serviceType) {
+        case "Apple Music":
+          final appleMusicService = AppleMusicService(_authService);
+          appleMusicService.initializeAppleMusic();
+          break;
+        case "Spotify":
+          SpotifyService(AuthService()).initiateSpotifyAuthFlow('http://localhost:3000/spotify_callback');
+          break;
       }
       setState(() {});
     }

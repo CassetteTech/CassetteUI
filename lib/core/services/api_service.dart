@@ -281,7 +281,7 @@ class ApiService {
     }
   }
 
-  Future<http.Response> post(String path,
+  Future<http.Response> post(String path, Map<String, String> map,
       {Map<String, String>? queryParameters, Object? body}) async {
     try {
       final headers = await _authService.authHeaders;

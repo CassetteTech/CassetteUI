@@ -91,42 +91,70 @@ export function MusicConnectionsStatus({
   // Sidebar variant - minimal display
   if (variant === 'sidebar') {
     return (
-      <div className={`${className}`}>
+      <div className={`bg-white/10 dark:bg-black/10 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-xl p-3 shadow-lg ${className}`}>
         {hasConnections ? (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
+          <>
+            {/* Desktop version - with text */}
+            <div className="hidden md:flex flex-col items-start gap-2">
+              <span className="text-xs font-medium text-foreground/80">Connected</span>
+              <div className="flex items-center gap-2">
+                {connectedServicesFiltered.map(conn => (
+                  <div key={conn.serviceType} className="relative">
+                    {conn.serviceType.toLowerCase() === 'spotify' && (
+                      <Image
+                        src="/images/social_images/ic_spotify.png"
+                        alt="Spotify Connected"
+                        width={20}
+                        height={20}
+                        className="rounded-md shadow-sm"
+                      />
+                    )}
+                    {conn.serviceType.toLowerCase() === 'applemusic' && (
+                      <Image
+                        src="/images/social_images/ic_apple.png"
+                        alt="Apple Music Connected"
+                        width={20}
+                        height={20}
+                        className="rounded-md shadow-sm"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Mobile version - only icons */}
+            <div className="flex md:hidden items-center gap-2">
               {connectedServicesFiltered.map(conn => (
                 <div key={conn.serviceType} className="relative">
                   {conn.serviceType.toLowerCase() === 'spotify' && (
                     <Image
                       src="/images/social_images/ic_spotify.png"
                       alt="Spotify Connected"
-                      width={16}
-                      height={16}
-                      className="rounded-sm"
+                      width={24}
+                      height={24}
+                      className="rounded-md shadow-sm"
                     />
                   )}
                   {conn.serviceType.toLowerCase() === 'applemusic' && (
                     <Image
                       src="/images/social_images/ic_apple.png"
                       alt="Apple Music Connected"
-                      width={16}
-                      height={16}
-                      className="rounded-sm"
+                      width={24}
+                      height={24}
+                      className="rounded-md shadow-sm"
                     />
                   )}
-                  <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-background"></div>
                 </div>
               ))}
             </div>
-            <span className="text-xs text-muted-foreground">
-              {connectedServicesFiltered.length} service{connectedServicesFiltered.length !== 1 ? 's' : ''} connected
-            </span>
-          </div>
+          </>
         ) : (
           <div className="flex items-center gap-2">
-            <Music className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">No music services</span>
+            <div className="w-5 h-5 bg-muted/50 rounded-md flex items-center justify-center">
+              <Music className="h-3 w-3 text-muted-foreground" />
+            </div>
+            <span className="text-xs font-medium text-foreground/60">No Services</span>
           </div>
         )}
       </div>
@@ -136,48 +164,67 @@ export function MusicConnectionsStatus({
   // Profile variant - compact card display
   if (variant === 'profile') {
     return (
-      <div className={`bg-card border rounded-lg p-3 ${className}`}>
-        <div className="flex items-center justify-between">
-          <h4 className="font-medium text-sm flex items-center gap-2">
-            <Music className="h-4 w-4" />
-            Music Services
-          </h4>
-          {hasConnections && (
-            <span className="text-xs text-muted-foreground">
-              {connectedServicesFiltered.length} connected
-            </span>
-          )}
-        </div>
-
+      <div className={`bg-white/10 dark:bg-black/10 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-xl p-3 shadow-lg ${className}`}>
         {hasConnections ? (
-          <div className="flex items-center gap-2 mt-2">
-            {connectedServicesFiltered.map(conn => (
-              <div key={conn.serviceType} className="relative">
-                {conn.serviceType === 'Spotify' && (
-                  <Image
-                    src="/images/social_images/ic_spotify.png"
-                    alt="Spotify Connected"
-                    width={24}
-                    height={24}
-                    className="rounded"
-                  />
-                )}
-                {conn.serviceType === 'AppleMusic' && (
-                  <Image
-                    src="/images/social_images/ic_apple.png"
-                    alt="Apple Music Connected"
-                    width={24}
-                    height={24}
-                    className="rounded"
-                  />
-                )}
-                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border border-background"></div>
+          <>
+            {/* Desktop version - with text */}
+            <div className="hidden md:flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                {connectedServicesFiltered.map(conn => (
+                  <div key={conn.serviceType} className="relative">
+                    {conn.serviceType.toLowerCase() === 'spotify' && (
+                      <Image
+                        src="/images/social_images/ic_spotify.png"
+                        alt="Spotify Connected"
+                        width={24}
+                        height={24}
+                        className="rounded-sm"
+                      />
+                    )}
+                    {conn.serviceType.toLowerCase() === 'applemusic' && (
+                      <Image
+                        src="/images/social_images/ic_apple.png"
+                        alt="Apple Music Connected"
+                        width={24}
+                        height={24}
+                        className="rounded-sm"
+                      />
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+              <span className="text-sm text-muted-foreground">Connected</span>
+            </div>
+            
+            {/* Mobile version - only icons */}
+            <div className="flex md:hidden items-center gap-2">
+              {connectedServicesFiltered.map(conn => (
+                <div key={conn.serviceType} className="relative">
+                  {conn.serviceType.toLowerCase() === 'spotify' && (
+                    <Image
+                      src="/images/social_images/ic_spotify.png"
+                      alt="Spotify Connected"
+                      width={28}
+                      height={28}
+                      className="rounded-md shadow-sm"
+                    />
+                  )}
+                  {conn.serviceType.toLowerCase() === 'applemusic' && (
+                    <Image
+                      src="/images/social_images/ic_apple.png"
+                      alt="Apple Music Connected"
+                      width={28}
+                      height={28}
+                      className="rounded-md shadow-sm"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
         ) : (
-          <div className="flex items-center gap-2 mt-2">
-            <div className="w-6 h-6 bg-muted rounded flex items-center justify-center">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 bg-muted/50 rounded-md flex items-center justify-center">
               <Music className="h-3 w-3 text-muted-foreground" />
             </div>
             <span className="text-xs text-muted-foreground">No services connected</span>

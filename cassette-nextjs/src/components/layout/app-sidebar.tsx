@@ -82,9 +82,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   </div>
                 </div>
                 {/* Music Connections Status */}
-                <div className="px-4 pb-4">
-                  <MusicConnectionsStatus variant="sidebar" />
-                </div>
+                <MusicConnectionsStatus variant="sidebar" />
               </div>
             </SidebarGroupContent>
           </SidebarGroup>

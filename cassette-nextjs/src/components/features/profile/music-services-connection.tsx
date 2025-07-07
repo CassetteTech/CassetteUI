@@ -2,9 +2,9 @@
 
 import { ConnectSpotifyButton } from './connect-spotify-button';
 import { ConnectAppleMusicButton } from './connect-apple-music-button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Card, CardContent } from '@/components/ui/card';
 import { useAuthStore } from '@/stores/auth-store';
+import Image from 'next/image';
 
 export function MusicServicesConnection() {
   const { user, isLoading } = useAuthStore();
@@ -38,14 +38,10 @@ export function MusicServicesConnection() {
 
   if (isLoading) {
     return (
-      <Card className="w-full max-w-4xl">
-        <CardHeader>
-          <CardTitle>Music Services</CardTitle>
-          <CardDescription>Loading your music service connections...</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      <Card className="w-full max-w-md bg-card/50 backdrop-blur-sm border-muted/50">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
           </div>
         </CardContent>
       </Card>
@@ -53,55 +49,56 @@ export function MusicServicesConnection() {
   }
 
   return (
-    <Card className="w-full max-w-4xl">
-      <CardHeader>
-        <CardTitle>Music Services</CardTitle>
-        <CardDescription>
-          Connect your music streaming services to import your playlists and tracks
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ConnectSpotifyButton
-            isConnected={!!spotifyConnection}
-            onConnect={handleSpotifyConnect}
-            onDisconnect={handleSpotifyDisconnect}
-          />
-          
-          <ConnectAppleMusicButton
-            isConnected={!!appleMusicConnection}
-            onConnect={handleAppleMusicConnect}
-            onDisconnect={handleAppleMusicDisconnect}
-          />
-        </div>
-        
-        {connectedServices.length > 0 && (
-          <>
-            <Separator className="my-6" />
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Connected Services</h3>
-              <div className="space-y-2">
+    <div className="space-y-4">
+      {/* Connected Services Display */}
+      {connectedServices.length > 0 && (
+        <Card className="w-full max-w-md bg-card/50 backdrop-blur-sm border-muted/50 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {connectedServices.map(service => (
-                  <div key={service.serviceType} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>{service.serviceType}</span>
-                      {service.profileUrl && (
-                        <a href={service.profileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline">
-                          View Profile
-                        </a>
-                      )}
-                    </div>
-                    <span className="text-sm text-gray-500">
-                      Connected {new Date(service.connectedAt).toLocaleDateString()}
-                    </span>
+                  <div key={service.serviceType} className="relative">
+                    {service.serviceType === 'Spotify' && (
+                      <Image
+                        src="/images/social_images/ic_spotify.png"
+                        alt="Spotify"
+                        width={24}
+                        height={24}
+                        className="rounded-sm"
+                      />
+                    )}
+                    {service.serviceType === 'AppleMusic' && (
+                      <Image
+                        src="/images/social_images/ic_apple.png"
+                        alt="Apple Music"
+                        width={24}
+                        height={24}
+                        className="rounded-sm"
+                      />
+                    )}
                   </div>
                 ))}
               </div>
+              <span className="text-sm text-muted-foreground">Connected</span>
             </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Connection Buttons */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ConnectSpotifyButton
+          isConnected={!!spotifyConnection}
+          onConnect={handleSpotifyConnect}
+          onDisconnect={handleSpotifyDisconnect}
+        />
+        
+        <ConnectAppleMusicButton
+          isConnected={!!appleMusicConnection}
+          onConnect={handleAppleMusicConnect}
+          onDisconnect={handleAppleMusicDisconnect}
+        />
+      </div>
+    </div>
   );
 }

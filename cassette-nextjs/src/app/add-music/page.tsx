@@ -11,6 +11,11 @@ import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
 import { SearchResults } from '@/components/features/search-results';
 import Image from 'next/image';
+import {
+  SidebarInset,
+  SidebarProvider,
+} from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/layout/app-sidebar';
 
 type SelectedItem = {
   id: string;
@@ -268,7 +273,8 @@ export default function AddMusicPage() {
     return null;
   }
 
-  return (
+  // Mobile content component for reuse
+  const MobileContent = () => (
     <div className="min-h-screen relative">
       {/* Animated Background */}
       <AnimatedBackground className="fixed inset-0 z-0" />
@@ -313,159 +319,198 @@ export default function AddMusicPage() {
 
           {/* Main Content */}
           <div className="max-w-2xl mx-auto">
-            
-            {/* Search/Input Section */}
-            {!isSearchActive && (
-              <div className="mb-8">
-                <UIText className="text-center text-text-primary font-atkinson font-bold mb-6 text-sm sm:text-base">
-                  Search or paste a link below to add music to your profile
-                </UIText>
-                
-                <div className="mb-6">
-                  <label className="block text-text-primary font-atkinson font-bold mb-3 text-sm">
-                    Music link or search
-                  </label>
-                  
-                  {!selectedItem && !pastedLinkSource && (
-                    <UrlBar variant="light" className="w-full">
-                      <input
-                        ref={searchInputRef}
-                        value={musicUrl}
-                        onChange={handleUrlChange}
-                        onFocus={handleSearchFocus}
-                        onBlur={handleSearchBlur}
-                        onPaste={handlePaste}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && musicUrl.trim()) {
-                            if (isValidMusicUrl(musicUrl)) {
-                              handleUrlPaste(musicUrl);
-                            } else {
-                              setIsSearchActive(true);
-                            }
-                          }
-                        }}
-                        placeholder="Search or paste your music link here"
-                        className="w-full h-full bg-transparent border-none outline-none text-center text-[#1F2327] placeholder-gray-500 px-3 sm:px-4 md:px-6 text-sm sm:text-base"
-                      />
-                    </UrlBar>
-                  )}
-                  
-                  {/* Selected Item Display */}
-                  {selectedItem && (
-                    <div className="mt-4 p-4 bg-white rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_#1F2327]">
-                      <div className="flex items-center gap-3">
-                        {selectedItem.coverArtUrl ? (
-                          <Image
-                            src={selectedItem.coverArtUrl}
-                            alt={selectedItem.title}
-                            width={48}
-                            height={48}
-                            className="rounded-md"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-gray-200 rounded-md flex items-center justify-center">
-                            <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                            </svg>
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <p className="font-atkinson font-bold text-text-primary">{selectedItem.title}</p>
-                          {selectedItem.artist && <p className="text-text-secondary text-sm">{selectedItem.artist}</p>}
-                          <span className="inline-block px-2 py-1 bg-primary/10 text-primary text-xs font-bold rounded uppercase">
-                            {selectedItem.type}
-                          </span>
-                        </div>
-                        <button onClick={clearSelection} className="p-1 hover:bg-gray-100 rounded">
-                          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Pasted Link Display */}
-                  {pastedLinkSource && !selectedItem && (
-                    <div className="mt-4 p-4 bg-white rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_#1F2327]">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                          <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                          </svg>
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-atkinson font-bold text-text-primary">{pastedLinkSource} link pasted</p>
-                          <p className="text-text-secondary text-sm truncate">{musicUrl}</p>
-                        </div>
-                        <button onClick={clearSelection} className="p-1 hover:bg-gray-100 rounded">
-                          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Description Field */}
-                <div className="mb-8">
-                  <label className="block text-text-primary font-atkinson font-bold mb-3 text-sm">
-                    Description
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-0 translate-x-1 translate-y-1 bg-gray-400 rounded-lg" />
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Let us know a little bit about this song or playlist!"
-                      rows={6}
-                      className="relative w-full p-4 bg-white border-2 border-black rounded-lg font-atkinson text-text-primary placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                </div>
-
-                {/* Add to Profile Button */}
-                <div className="text-center">
-                  <AnimatedButton
-                    text={addMusicMutation.isPending ? "Adding..." : "Add to Profile"}
-                    onClick={handleAddToProfile}
-                    disabled={addMusicMutation.isPending || (!selectedItem && !musicUrl.trim())}
-                    height={48}
-                    width={280}
-                    initialPos={6}
-                    colorTop="#1F2327"
-                    colorBottom="#595C5E"
-                    borderColorTop="#1F2327"
-                    borderColorBottom="#1F2327"
-                    className="mx-auto"
-                    textStyle="text-lg font-bold tracking-wide font-atkinson text-white"
-                  />
-                  
-                  {errorMessage && (
-                    <p className="mt-4 text-red-600 font-atkinson text-sm">{errorMessage}</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Search Results Container */}
-            {isSearchActive && (
-              <div className="search-container w-full">
-                <SearchResults
-                  results={displayData}
-                  isLoading={isLoadingCharts}
-                  isSearching={isSearchingMusic}
-                  showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}
-                  onSelectItem={handleSelectItem}
-                  onClose={closeSearch}
-                />
-              </div>
-            )}
-
+            <AddMusicForm />
           </div>
         </div>
       </div>
     </div>
+  );
+
+  // Add Music Form component for reuse
+  const AddMusicForm = () => (
+    <>
+      {/* Search/Input Section */}
+      {!isSearchActive && (
+        <div className="mb-8">
+          <UIText className="text-center text-text-primary font-atkinson font-bold mb-6 text-sm sm:text-base">
+            Search or paste a link below to add music to your profile
+          </UIText>
+          
+          <div className="mb-6">
+            <label className="block text-text-primary font-atkinson font-bold mb-3 text-sm">
+              Music link or search
+            </label>
+            
+            {!selectedItem && !pastedLinkSource && (
+              <UrlBar variant="light" className="w-full">
+                <input
+                  ref={searchInputRef}
+                  value={musicUrl}
+                  onChange={handleUrlChange}
+                  onFocus={handleSearchFocus}
+                  onBlur={handleSearchBlur}
+                  onPaste={handlePaste}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && musicUrl.trim()) {
+                      if (isValidMusicUrl(musicUrl)) {
+                        handleUrlPaste(musicUrl);
+                      } else {
+                        setIsSearchActive(true);
+                      }
+                    }
+                  }}
+                  placeholder="Search or paste your music link here"
+                  className="w-full h-full bg-transparent border-none outline-none text-center text-[#1F2327] placeholder-gray-500 px-3 sm:px-4 md:px-6 text-sm sm:text-base"
+                />
+              </UrlBar>
+            )}
+            
+            {/* Selected Item Display */}
+            {selectedItem && (
+              <div className="mt-4 p-4 bg-white rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_#1F2327]">
+                <div className="flex items-center gap-3">
+                  {selectedItem.coverArtUrl ? (
+                    <Image
+                      src={selectedItem.coverArtUrl}
+                      alt={selectedItem.title}
+                      width={48}
+                      height={48}
+                      className="rounded-md"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-200 rounded-md flex items-center justify-center">
+                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="font-atkinson font-bold text-text-primary">{selectedItem.title}</p>
+                    {selectedItem.artist && <p className="text-text-secondary text-sm">{selectedItem.artist}</p>}
+                    <span className="inline-block px-2 py-1 bg-primary/10 text-primary text-xs font-bold rounded uppercase">
+                      {selectedItem.type}
+                    </span>
+                  </div>
+                  <button onClick={clearSelection} className="p-1 hover:bg-gray-100 rounded">
+                    <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Pasted Link Display */}
+            {pastedLinkSource && !selectedItem && (
+              <div className="mt-4 p-4 bg-white rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_#1F2327]">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-atkinson font-bold text-text-primary">{pastedLinkSource} link pasted</p>
+                    <p className="text-text-secondary text-sm truncate">{musicUrl}</p>
+                  </div>
+                  <button onClick={clearSelection} className="p-1 hover:bg-gray-100 rounded">
+                    <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Description Field */}
+          <div className="mb-8">
+            <label className="block text-text-primary font-atkinson font-bold mb-3 text-sm">
+              Description
+            </label>
+            <div className="relative">
+              <div className="absolute inset-0 translate-x-1 translate-y-1 bg-gray-400 rounded-lg" />
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Let us know a little bit about this song or playlist!"
+                rows={6}
+                className="relative w-full p-4 bg-white border-2 border-black rounded-lg font-atkinson text-text-primary placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          </div>
+
+          {/* Add to Profile Button */}
+          <div className="text-center">
+            <AnimatedButton
+              text={addMusicMutation.isPending ? "Adding..." : "Add to Profile"}
+              onClick={handleAddToProfile}
+              disabled={addMusicMutation.isPending || (!selectedItem && !musicUrl.trim())}
+              height={48}
+              width={280}
+              initialPos={6}
+              colorTop="#1F2327"
+              colorBottom="#595C5E"
+              borderColorTop="#1F2327"
+              borderColorBottom="#1F2327"
+              className="mx-auto"
+              textStyle="text-lg font-bold tracking-wide font-atkinson text-white"
+            />
+            
+            {errorMessage && (
+              <p className="mt-4 text-red-600 font-atkinson text-sm">{errorMessage}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Search Results Container */}
+      {isSearchActive && (
+        <div className="search-container w-full">
+          <SearchResults
+            results={displayData}
+            isLoading={isLoadingCharts}
+            isSearching={isSearchingMusic}
+            showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}
+            onSelectItem={handleSelectItem}
+            onClose={closeSearch}
+          />
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile Layout */}
+      <div className="lg:hidden">
+        <MobileContent />
+      </div>
+
+      {/* Desktop Layout with Sidebar */}
+      <div className="hidden lg:block min-h-screen bg-background">
+        <SidebarProvider defaultOpen={true}>
+          <AppSidebar />
+          
+          {/* Main Content Area */}
+          <SidebarInset>
+            <div className="flex flex-col h-screen overflow-hidden p-6">
+              <div className="flex-1 overflow-y-auto">
+                {/* Header */}
+                <div className="text-center mb-8">
+                  <h1 className="text-3xl font-bold text-foreground mb-2">Add Music</h1>
+                  <p className="text-muted-foreground">Search or paste a link to add music to your profile</p>
+                </div>
+
+                {/* Add Music Form */}
+                <div className="max-w-2xl mx-auto">
+                  <AddMusicForm />
+                </div>
+              </div>
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
+      </div>
+    </>
   );
 }

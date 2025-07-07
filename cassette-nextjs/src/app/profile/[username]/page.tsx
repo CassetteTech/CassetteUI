@@ -9,6 +9,11 @@ import { ProfileActivity } from '@/components/features/profile/profile-activity'
 import { profileService } from '@/services/profile';
 import { UserBio, ActivityPost } from '@/types';
 import { Container } from '@/components/ui/container';
+import {
+  SidebarInset,
+  SidebarProvider,
+} from '@/components/ui/sidebar';
+import { AppSidebar, AppSidebarSkeleton } from '@/components/layout/app-sidebar';
 
 export default function ProfilePage() {
   const { username } = useParams();
@@ -137,53 +142,124 @@ export default function ProfilePage() {
     loadProfile();
   }, [loadProfile]);
 
+
+  // Mobile loading states
   if (isLoading) {
     return (
-      <div className="bg-background">
-        <Container className="min-h-screen bg-transparent p-0">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-foreground"></div>
-          </div>
-        </Container>
-      </div>
+      <>
+        {/* Mobile Loading */}
+        <div className="bg-background lg:hidden">
+          <Container className="min-h-screen bg-transparent p-0">
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-foreground"></div>
+            </div>
+          </Container>
+        </div>
+        
+        {/* Desktop Loading with Sidebar */}
+        <div className="hidden lg:block min-h-screen bg-background">
+          <SidebarProvider defaultOpen={true}>
+            <AppSidebarSkeleton />
+            <SidebarInset>
+              <div className="flex flex-col h-screen overflow-hidden">
+                <div className="flex items-center justify-center flex-1">
+                  <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-foreground"></div>
+                </div>
+              </div>
+            </SidebarInset>
+          </SidebarProvider>
+        </div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-background">
-        <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <button
-              onClick={() => router.back()}
-              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-            >
-              Go Back
-            </button>
-          </div>
-        </Container>
-      </div>
+      <>
+        {/* Mobile Error */}
+        <div className="bg-background lg:hidden">
+          <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <button
+                onClick={() => router.back()}
+                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
+              >
+                Go Back
+              </button>
+            </div>
+          </Container>
+        </div>
+        
+        {/* Desktop Error with Sidebar */}
+        <div className="hidden lg:block min-h-screen bg-background">
+          <SidebarProvider defaultOpen={true}>
+            <AppSidebarSkeleton />
+            <SidebarInset>
+              <div className="flex flex-col h-screen overflow-hidden">
+                <div className="flex items-center justify-center flex-1">
+                  <div className="text-center">
+                    <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
+                    <p className="text-muted-foreground mb-4">{error}</p>
+                    <button
+                      onClick={() => router.back()}
+                      className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
+                    >
+                      Go Back
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </SidebarInset>
+          </SidebarProvider>
+        </div>
+      </>
     );
   }
 
   if (!userBio) {
     return (
-      <div className="bg-background">
-        <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-4">User Not Found</h1>
-            <p className="text-muted-foreground mb-4">The profile you&apos;re looking for doesn&apos;t exist.</p>
-            <button
-              onClick={() => router.back()}
-              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-            >
-              Go Back
-            </button>
-          </div>
-        </Container>
-      </div>
+      <>
+        {/* Mobile Not Found */}
+        <div className="bg-background lg:hidden">
+          <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-foreground mb-4">User Not Found</h1>
+              <p className="text-muted-foreground mb-4">The profile you&apos;re looking for doesn&apos;t exist.</p>
+              <button
+                onClick={() => router.back()}
+                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
+              >
+                Go Back
+              </button>
+            </div>
+          </Container>
+        </div>
+        
+        {/* Desktop Not Found with Sidebar */}
+        <div className="hidden lg:block min-h-screen bg-background">
+          <SidebarProvider defaultOpen={true}>
+            <AppSidebarSkeleton />
+            <SidebarInset>
+              <div className="flex flex-col h-screen overflow-hidden">
+                <div className="flex items-center justify-center flex-1">
+                  <div className="text-center">
+                    <h1 className="text-2xl font-bold text-foreground mb-4">User Not Found</h1>
+                    <p className="text-muted-foreground mb-4">The profile you&apos;re looking for doesn&apos;t exist.</p>
+                    <button
+                      onClick={() => router.back()}
+                      className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
+                    >
+                      Go Back
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </SidebarInset>
+          </SidebarProvider>
+        </div>
+      </>
     );
   }
 
@@ -197,60 +273,24 @@ export default function ProfilePage() {
   });
 
   return (
-    <div className="bg-background">
-      <Container className="min-h-screen bg-transparent p-0">
-      
+    <>
       {/* --- MOBILE & TABLET LAYOUT --- */}
       {/* This block will be visible on screens smaller than `lg` (1024px) */}
-      <div className="max-w-4xl mx-auto lg:hidden">
-        <ProfileHeader
-          userBio={userBio}
-          isCurrentUser={isCurrentUser}
-          onShare={handleShare}
-          onAddMusic={isCurrentUser ? handleAddMusic : undefined}
-        />
-        <div className="sticky top-0 z-10">
-          <ProfileTabs
-            activeTab={activeTab}
-            onTabChange={filterByElementType}
-          />
-        </div>
-        <ProfileActivity
-          posts={filteredPosts}
-          isLoading={isLoadingMore}
-          onLoadMore={loadMore}
-          hasMore={activityPosts.length < totalItems}
-        />
-      </div>
-
-      {/* --- DESKTOP LAYOUT --- */}
-      {/* This block is hidden by default and becomes a grid on `lg` screens */}
-      <div className="hidden lg:grid lg:grid-cols-12 lg:gap-0 w-full h-full">
-        
-        {/* Left Column (Profile Sidebar) */}
-        <div className="lg:col-span-4 xl:col-span-3 bg-card h-screen overflow-hidden">
-          {/* Make the profile header sticky so it stays visible on scroll */}
-          <div className="h-full overflow-y-auto">
-            <div className="p-6 xl:p-8">
-              <ProfileHeader
-                userBio={userBio}
-                isCurrentUser={isCurrentUser}
-                onShare={handleShare}
-                onAddMusic={isCurrentUser ? handleAddMusic : undefined}
+      <div className="bg-background lg:hidden">
+        <Container className="min-h-screen bg-transparent p-0">
+          <div className="max-w-4xl mx-auto">
+            <ProfileHeader
+              userBio={userBio}
+              isCurrentUser={isCurrentUser}
+              onShare={handleShare}
+              onAddMusic={isCurrentUser ? handleAddMusic : undefined}
+            />
+            <div className="sticky top-0 z-10">
+              <ProfileTabs
+                activeTab={activeTab}
+                onTabChange={filterByElementType}
               />
             </div>
-          </div>
-        </div>
-
-        {/* Right Column (Tabs and Activity Feed) */}
-        <div className="lg:col-span-8 xl:col-span-9 bg-background h-screen overflow-hidden flex flex-col">
-          <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-            <ProfileTabs
-              activeTab={activeTab}
-              onTabChange={filterByElementType}
-            />
-          </div>
-          <div className="flex-1 overflow-y-auto">
             <ProfileActivity
               posts={filteredPosts}
               isLoading={isLoadingMore}
@@ -258,9 +298,37 @@ export default function ProfilePage() {
               hasMore={activityPosts.length < totalItems}
             />
           </div>
-        </div>
+        </Container>
       </div>
-      </Container>
-    </div>
+
+      {/* --- DESKTOP LAYOUT --- */}
+      {/* This block is hidden by default and becomes visible on `lg` screens */}
+      <div className="hidden lg:block min-h-screen bg-background">
+        <SidebarProvider defaultOpen={true}>
+          <AppSidebar />
+          
+          {/* Main Content Area */}
+          <SidebarInset>
+            <div className="flex flex-col h-screen overflow-hidden">
+              <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b">
+                <ProfileTabs
+                  activeTab={activeTab}
+                  onTabChange={filterByElementType}
+                />
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <ProfileActivity
+                  posts={filteredPosts}
+                  isLoading={isLoadingMore}
+                  onLoadMore={loadMore}
+                  hasMore={activityPosts.length < totalItems}
+                />
+              </div>
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
+      </div>
+    </>
   );
 }
+            

@@ -28,6 +28,10 @@ export function Layout({ children }: LayoutProps) {
   }, []);
 
   const isAuthPage = pathname?.startsWith('/auth');
+  const isProfilePage = pathname?.startsWith('/profile');
+
+  // We always want to show the navbar/footer unless on an auth page.
+  // The hiding for the profile page will be handled responsively with CSS.
   const showNavbar = !isAuthPage;
   const showFooter = !isAuthPage;
 
@@ -41,11 +45,19 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {showNavbar && <Navbar />}
+      {showNavbar && (
+        <div className={isProfilePage ? 'lg:hidden' : ''}>
+          <Navbar />
+        </div>
+      )}
       <main className="flex-1">
         {children}
       </main>
-      {showFooter && <Footer />}
+      {showFooter && (
+        <div className={isProfilePage ? 'lg:hidden' : ''}>
+          <Footer />
+        </div>
+      )}
     </div>
   );
 }

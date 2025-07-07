@@ -7,6 +7,11 @@ import { EditProfileFormComponent } from '@/components/features/profile/edit-pro
 import { profileService } from '@/services/profile';
 import { UserBio } from '@/types';
 import { Container } from '@/components/ui/container';
+import {
+  SidebarInset,
+  SidebarProvider,
+} from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/layout/app-sidebar';
 
 export default function EditProfilePage() {
   const { username } = useParams();
@@ -113,21 +118,53 @@ export default function EditProfilePage() {
   }
 
   return (
-    <Container className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a]">
-      <div className="py-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Edit Your Profile</h1>
-          <p className="text-gray-300">Update your profile information and connected services</p>
-        </div>
+    <>
+      {/* Mobile Layout */}
+      <div className="bg-background lg:hidden">
+        <Container className="min-h-screen bg-transparent p-0">
+          <div className="py-8 px-4">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-foreground mb-2">Edit Your Profile</h1>
+              <p className="text-muted-foreground">Update your profile information and connected services</p>
+            </div>
 
-        {/* Edit Form */}
-        <EditProfileFormComponent
-          initialData={userBio}
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-        />
+            {/* Edit Form */}
+            <EditProfileFormComponent
+              initialData={userBio}
+              onSuccess={handleSuccess}
+              onCancel={handleCancel}
+            />
+          </div>
+        </Container>
       </div>
-    </Container>
+
+      {/* Desktop Layout with Sidebar */}
+      <div className="hidden lg:block min-h-screen bg-background">
+        <SidebarProvider defaultOpen={true}>
+          <AppSidebar />
+          
+          {/* Main Content Area */}
+          <SidebarInset>
+            <div className="flex flex-col h-screen overflow-hidden p-6">
+              <div className="flex-1 overflow-y-auto">
+                {/* Header */}
+                <div className="text-center mb-8">
+                  <h1 className="text-3xl font-bold text-foreground mb-2">Edit Your Profile</h1>
+                  <p className="text-muted-foreground">Update your profile information and connected services</p>
+                </div>
+
+                {/* Edit Form */}
+                <EditProfileFormComponent
+                  initialData={userBio}
+                  onSuccess={handleSuccess}
+                  onCancel={handleCancel}
+                />
+              </div>
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
+      </div>
+    </>
   );
 }

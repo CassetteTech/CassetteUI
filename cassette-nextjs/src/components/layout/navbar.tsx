@@ -5,6 +5,7 @@ import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import { Search, User, LogOut, Home, Plus, Menu } from 'lucide-react';
+import { ThemeSwitcher } from './theme-switcher';
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -28,7 +29,7 @@ export function Navbar() {
   };
 
   return (
-    <nav className="bg-cream/95 backdrop-blur border-b border-text-hint/20">
+    <nav className="bg-background/95 backdrop-blur border-b border-border/20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -47,20 +48,20 @@ export function Navbar() {
             <NavigationMenu>
               <NavigationMenuList>
                 <NavigationMenuItem>
-                  <Link href="/" className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-text-primary hover:text-primary transition-colors">
+                  <Link href="/" className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors">
                     <Home className="h-4 w-4" />
                     <span>Home</span>
                   </Link>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
-                  <Link href="/search" className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-text-primary hover:text-primary transition-colors">
+                  <Link href="/search" className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors">
                     <Search className="h-4 w-4" />
                     <span>Search</span>
                   </Link>
                 </NavigationMenuItem>
                 {isAuthenticated && (
                   <NavigationMenuItem>
-                    <Link href="/add" className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-text-primary hover:text-primary transition-colors">
+                    <Link href="/add" className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors">
                       <Plus className="h-4 w-4" />
                       <span>Add Music</span>
                     </Link>
@@ -70,9 +71,11 @@ export function Navbar() {
             </NavigationMenu>
           </div>
 
-          {/* User Menu */}
+          {/* User Menu & Theme Switcher */}
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
+              <>
+                <ThemeSwitcher />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="outline-none">
@@ -84,16 +87,16 @@ export function Navbar() {
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 bg-white border border-text-hint/20 rounded-lg shadow-main">
+                <DropdownMenuContent align="end" className="w-48 bg-background border border-border/20 rounded-lg shadow-main">
                   <div className="px-3 py-2">
-                    <p className="text-sm font-atkinson font-bold text-text-primary">{user?.displayName}</p>
-                    <p className="text-xs text-text-secondary font-atkinson">@{user?.username}</p>
+                    <p className="text-sm font-atkinson font-bold text-foreground">{user?.displayName}</p>
+                    <p className="text-xs text-muted-foreground font-atkinson">@{user?.username}</p>
                   </div>
-                  <DropdownMenuSeparator className="bg-text-hint/20" />
+                  <DropdownMenuSeparator className="bg-border/20" />
                   <DropdownMenuItem asChild>
                     <Link
                       href={`/profile/${user?.username}`}
-                      className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-text-primary hover:bg-cream hover:text-primary transition-colors cursor-pointer"
+                      className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors cursor-pointer"
                     >
                       <User className="h-4 w-4" />
                       <span>Profile</span>
@@ -102,7 +105,7 @@ export function Navbar() {
                   <DropdownMenuItem asChild>
                     <button
                       onClick={handleSignOut}
-                      className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-text-primary hover:bg-cream hover:text-primary transition-colors w-full text-left cursor-pointer"
+                      className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors w-full text-left cursor-pointer"
                     >
                       <LogOut className="h-4 w-4" />
                       <span>Sign Out</span>
@@ -110,11 +113,13 @@ export function Navbar() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              </>
             ) : (
               <div className="flex items-center space-x-3">
+                <ThemeSwitcher />
                 <Link
                   href="/auth/signin"
-                  className="text-sm font-atkinson font-bold text-text-primary hover:text-primary transition-colors px-3 py-2"
+                  className="text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2"
                 >
                   Sign In
                 </Link>
@@ -131,7 +136,7 @@ export function Navbar() {
 
           {/* Mobile menu button */}
           <div className="md:hidden">
-            <button className="text-text-primary hover:text-primary transition-colors">
+            <button className="text-foreground hover:text-primary transition-colors">
               <Menu className="h-6 w-6" />
             </button>
           </div>

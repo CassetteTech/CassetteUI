@@ -50,7 +50,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${robotoFlex.variable} ${atkinsonHyperlegible.variable} ${teko.variable}`}>
+    <html lang="en" className={`${inter.variable} ${robotoFlex.variable} ${atkinsonHyperlegible.variable} ${teko.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased bg-background text-foreground">
         <Providers>
           <Layout>

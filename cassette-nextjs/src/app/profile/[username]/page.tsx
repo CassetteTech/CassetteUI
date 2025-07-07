@@ -139,45 +139,51 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <Container className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a]">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white"></div>
-        </div>
-      </Container>
+      <div className="bg-background">
+        <Container className="min-h-screen bg-transparent p-0">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-foreground"></div>
+          </div>
+        </Container>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Container className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a] flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Error</h1>
-          <p className="text-gray-300 mb-4">{error}</p>
-          <button
-            onClick={() => router.back()}
-            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-          >
-            Go Back
-          </button>
-        </div>
-      </Container>
+      <div className="bg-background">
+        <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <button
+              onClick={() => router.back()}
+              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
+            >
+              Go Back
+            </button>
+          </div>
+        </Container>
+      </div>
     );
   }
 
   if (!userBio) {
     return (
-      <Container className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a] flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">User Not Found</h1>
-          <p className="text-gray-300 mb-4">The profile you&apos;re looking for doesn&apos;t exist.</p>
-          <button
-            onClick={() => router.back()}
-            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-          >
-            Go Back
-          </button>
-        </div>
-      </Container>
+      <div className="bg-background">
+        <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-foreground mb-4">User Not Found</h1>
+            <p className="text-muted-foreground mb-4">The profile you&apos;re looking for doesn&apos;t exist.</p>
+            <button
+              onClick={() => router.back()}
+              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
+            >
+              Go Back
+            </button>
+          </div>
+        </Container>
+      </div>
     );
   }
 
@@ -191,7 +197,8 @@ export default function ProfilePage() {
   });
 
   return (
-    <Container className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a]">
+    <div className="bg-background">
+      <Container className="min-h-screen bg-transparent p-0">
       
       {/* --- MOBILE & TABLET LAYOUT --- */}
       {/* This block will be visible on screens smaller than `lg` (1024px) */}
@@ -206,7 +213,6 @@ export default function ProfilePage() {
           <ProfileTabs
             activeTab={activeTab}
             onTabChange={filterByElementType}
-            variant="dark"
           />
         </div>
         <ProfileActivity
@@ -222,7 +228,7 @@ export default function ProfilePage() {
       <div className="hidden lg:grid lg:grid-cols-12 lg:gap-0 w-full h-full">
         
         {/* Left Column (Profile Sidebar) */}
-        <div className="lg:col-span-4 xl:col-span-3 bg-[#1a1a1a] h-screen overflow-hidden">
+        <div className="lg:col-span-4 xl:col-span-3 bg-card h-screen overflow-hidden">
           {/* Make the profile header sticky so it stays visible on scroll */}
           <div className="h-full overflow-y-auto">
             <div className="p-6 xl:p-8">
@@ -237,12 +243,11 @@ export default function ProfilePage() {
         </div>
 
         {/* Right Column (Tabs and Activity Feed) */}
-        <div className="lg:col-span-8 xl:col-span-9 bg-gradient-to-br from-[#F8F0DE] via-[#F5EDD6] to-[#F0E8CE] h-screen overflow-hidden flex flex-col">
-          <div className="bg-white/40 backdrop-blur-sm sticky top-0 z-10">
+        <div className="lg:col-span-8 xl:col-span-9 bg-background h-screen overflow-hidden flex flex-col">
+          <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10">
             <ProfileTabs
               activeTab={activeTab}
               onTabChange={filterByElementType}
-              variant="light"
             />
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -255,6 +260,7 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-    </Container>
+      </Container>
+    </div>
   );
 }

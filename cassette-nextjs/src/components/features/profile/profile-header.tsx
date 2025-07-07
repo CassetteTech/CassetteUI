@@ -29,17 +29,17 @@ export function ProfileHeader({
   const padding = isSmallScreen ? 'p-3' : isLargeScreen ? 'p-4' : 'p-3';
   
   return (
-    <div className={`text-white ${padding} lg:bg-transparent lg:p-0`}>
-      <div className="flex flex-col gap-3 bg-[#1a1a1a] lg:bg-transparent p-4 lg:p-0 rounded-lg lg:rounded-none">
+    <div className={`text-card-foreground ${padding} lg:bg-transparent lg:p-0`}>
+      <div className="flex flex-col gap-3 bg-transparent p-4 lg:p-0 rounded-lg lg:rounded-none">
         {/* Top Row: Avatar + User Info */}
         <div className="flex items-start gap-4 lg:gap-6">
           {/* Avatar */}
-          <Avatar className={`${avatarSize} border-2 border-white/20 flex-shrink-0`}>
+          <Avatar className={`${avatarSize} border-2 border-border/20 flex-shrink-0`}>
             <AvatarImage 
               src={userBio.avatarUrl || '/images/default-avatar.png'} 
               alt={`@${userBio.username}`}
             />
-            <AvatarFallback className="bg-gray-600 text-white text-xl lg:text-2xl">
+            <AvatarFallback className="bg-muted text-muted-foreground text-xl lg:text-2xl">
               {userBio.username.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -47,7 +47,7 @@ export function ProfileHeader({
           {/* User Info */}
           <div className="flex-1 min-w-0 flex flex-col">
             <div className="flex items-center gap-2 mb-1">
-              <span className={`font-semibold tracking-tight text-white truncate ${
+              <span className={`font-semibold tracking-tight text-card-foreground truncate ${
                 isSmallScreen ? 'text-lg' : isLargeScreen ? 'text-2xl lg:text-3xl' : 'text-xl'
               }`}>
                 {userBio.displayName || userBio.username}
@@ -65,7 +65,7 @@ export function ProfileHeader({
               )}
             </div>
             
-            <span className={`leading-none text-gray-300 mb-2 ${
+            <span className={`leading-none text-muted-foreground mb-2 ${
               isSmallScreen ? 'text-sm' : 'text-base lg:text-lg'
             }`}>
               @{userBio.username}
@@ -75,7 +75,7 @@ export function ProfileHeader({
         
         {/* Bio */}
         {userBio.bio && (
-          <p className={`text-gray-200 mb-3 ${
+          <p className={`text-card-foreground/90 mb-3 ${
             isSmallScreen ? 'text-sm line-clamp-3' : 'text-base lg:text-lg lg:line-clamp-none'
           }`}>
             {userBio.bio}
@@ -117,12 +117,12 @@ export function ProfileHeader({
               onClick={onAddMusic}
               width={isLargeScreen ? 200 : isSmallScreen ? 120 : 132}
               height={isSmallScreen ? 32 : isLargeScreen ? 48 : 36}
-              colorTop="#F8F0DE"
-              colorBottom="#F5EDD6"
-              borderColorTop="#1a1a1a"
-              borderColorBottom="#1a1a1a"
+              colorTop="hsl(var(--card))"
+              colorBottom="hsl(var(--muted))"
+              borderColorTop="hsl(var(--border))"
+              borderColorBottom="hsl(var(--border))"
               radius={12}
-              textStyle={`text-gray-800 font-medium ${fontSize}`}
+              textStyle={`font-medium ${fontSize} text-card-foreground`}
             >
               <div className="flex items-center justify-center gap-2">
                 <Image 

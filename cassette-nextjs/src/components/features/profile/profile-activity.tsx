@@ -42,7 +42,7 @@ export function ProfileActivity({
               className="w-full h-full object-contain"
             />
           </div>
-          <p className="text-gray-600 text-base sm:text-lg">No items to display</p>
+          <p className="text-muted-foreground text-base sm:text-lg">No items to display</p>
         </div>
       </div>
     );
@@ -117,7 +117,7 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
   };
 
   return (
-    <Card className="p-3 sm:p-4 hover:shadow-lg transition-all duration-200 bg-white/60 lg:bg-white/40 border border-[#E5D5B7]/30 backdrop-blur-sm hover:bg-white/80 lg:hover:bg-white/60">
+    <Card className="p-3 sm:p-4 hover:shadow-lg transition-all duration-200 bg-card/60 backdrop-blur-sm hover:bg-card/80">
       <Link href={getNavigationPath(post)} className="block">
         <div className="flex gap-4">
           {/* Artwork */}
@@ -131,7 +131,7 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
                 className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-lg object-cover"
               />
             ) : (
-              <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-lg bg-[#E5D5B7]/40 flex items-center justify-center">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-lg bg-muted/40 flex items-center justify-center">
                 <Image
                   src="/images/ic_music.png"
                   alt="Music"
@@ -156,7 +156,7 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
                 </div>
                 
                 {/* Title */}
-                <h3 className="text-gray-800 font-semibold text-sm sm:text-base md:text-lg mb-1 truncate">
+                <h3 className="text-foreground font-semibold text-sm sm:text-base md:text-lg mb-1 truncate">
                   {post.title}
                 </h3>
               </div>
@@ -166,7 +166,7 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
                 onClick={() => {
                   handleShare();
                 }}
-                className="flex-shrink-0 w-8 h-6 sm:w-10 sm:h-7 bg-white/60 border border-[#E5D5B7]/50 rounded-lg flex items-center justify-center hover:bg-white/80 transition-colors"
+                className="flex-shrink-0 w-8 h-6 sm:w-10 sm:h-7 bg-card/60 border border-border/50 rounded-lg flex items-center justify-center hover:bg-card/80 transition-colors"
               >
                 <Image
                   src="/images/ic_share.png"
@@ -180,15 +180,15 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
             
             {/* Subtitle */}
             {post.subtitle && (
-              <p className="text-gray-600 text-xs sm:text-sm mb-2 line-clamp-2">
+              <p className="text-muted-foreground text-xs sm:text-sm mb-2 line-clamp-2">
                 {post.subtitle}
               </p>
             )}
             
             {/* From User */}
-            <p className="text-gray-500 text-xs">
-              <span className="text-gray-400">from: </span>
-              <span className="text-gray-600">{post.username}</span>
+            <p className="text-muted-foreground/80 text-xs">
+              <span className="text-muted-foreground/60">from: </span>
+              <span className="text-muted-foreground">{post.username}</span>
             </p>
           </div>
         </div>
@@ -201,14 +201,14 @@ function ActivitySkeleton() {
   return (
     <div className="space-y-4">
       {Array.from({ length: 3 }).map((_, index) => (
-        <Card key={index} className="p-3 sm:p-4 bg-gradient-to-br from-white/80 to-[#F8F0DE]/60 border border-[#E5D5B7]/30 backdrop-blur-sm">
+        <Card key={index} className="p-3 sm:p-4 bg-card/60 backdrop-blur-sm">
           <div className="flex gap-3 sm:gap-4 animate-pulse">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 bg-[#E5D5B7]/40 rounded-lg" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 bg-muted/40 rounded-lg" />
             <div className="flex-1">
-              <div className="w-12 sm:w-16 h-3 sm:h-4 bg-[#E5D5B7]/40 rounded mb-2" />
-              <div className="w-3/4 h-4 sm:h-6 bg-[#E5D5B7]/40 rounded mb-2" />
-              <div className="w-1/2 h-3 sm:h-4 bg-[#E5D5B7]/40 rounded mb-2" />
-              <div className="w-1/3 h-2 sm:h-3 bg-[#E5D5B7]/40 rounded" />
+              <div className="w-12 sm:w-16 h-3 sm:h-4 bg-muted/40 rounded mb-2" />
+              <div className="w-3/4 h-4 sm:h-6 bg-muted/40 rounded mb-2" />
+              <div className="w-1/2 h-3 sm:h-4 bg-muted/40 rounded mb-2" />
+              <div className="w-1/3 h-2 sm:h-3 bg-muted/40 rounded" />
             </div>
           </div>
         </Card>

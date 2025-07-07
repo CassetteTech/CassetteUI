@@ -31,7 +31,7 @@ export function Layout({ children }: LayoutProps) {
   }, []);
 
   const isAuthPage = pathname?.startsWith('/auth');
-  const isProfilePage = pathname?.startsWith('/profile');
+  const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/add-music');
 
   // We always want to show the navbar/footer unless on an auth page.
   // The hiding for the profile page will be handled responsively with CSS.

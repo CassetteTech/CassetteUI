@@ -16,6 +16,7 @@ interface SearchResultsProps {
   showSearchResults: boolean;
   onSelectItem: (url: string, title: string, type: string) => void;
   onClose: () => void;
+  SkeletonComponent?: React.ComponentType<{ className?: string }>;
 }
 
 export const SearchResults: React.FC<SearchResultsProps> = ({
@@ -25,6 +26,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   showSearchResults,
   onSelectItem,
   onClose,
+  SkeletonComponent,
 }) => {
   // Combine all results into a single array with type information
   const allResults = React.useMemo(() => {
@@ -211,6 +213,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                         });
                       }}
                     />
+                  ) : SkeletonComponent ? (
+                    <SkeletonComponent className="w-12 h-12 rounded-md" />
                   ) : (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                       <svg 

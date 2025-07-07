@@ -9,6 +9,7 @@ import { useTopCharts, useMusicSearch } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
 import { SearchResults } from '@/components/features/search-results';
+import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
@@ -239,6 +240,7 @@ export default function HomePage() {
                   showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}
                   onSelectItem={handleSelectItem}
                   onClose={closeSearch}
+                  SkeletonComponent={Skeleton}
                 />
               </div>
             )}

@@ -19,7 +19,6 @@ export function Layout({ children }: LayoutProps) {
   const { isLoading } = useAuthState();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  console.log('Layout: isMobileMenuOpen =', isMobileMenuOpen);
 
   useEffect(() => {
     // Initialize auth listener

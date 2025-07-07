@@ -19,6 +19,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/layout/theme-switcher';
+import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
 import { usePathname } from 'next/navigation';
 
 interface AppSidebarProps {
@@ -79,6 +80,10 @@ export function AppSidebar({ className }: AppSidebarProps) {
                       @{user.username}
                     </p>
                   </div>
+                </div>
+                {/* Music Connections Status */}
+                <div className="px-4 pb-4">
+                  <MusicConnectionsStatus variant="sidebar" />
                 </div>
               </div>
             </SidebarGroupContent>

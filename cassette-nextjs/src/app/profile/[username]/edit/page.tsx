@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
 import { EditProfileFormComponent } from '@/components/features/profile/edit-profile-form';
+import { MusicConnectionsFlow } from '@/components/features/music/music-connections-flow';
 import { profileService } from '@/services/profile';
 import { UserBio } from '@/types';
 import { Container } from '@/components/ui/container';
@@ -204,6 +205,11 @@ export default function EditProfilePage() {
               <p className="text-muted-foreground">Update your profile information and connected services</p>
             </div>
 
+            {/* Music Services Connection */}
+            <div className="mb-8">
+              <MusicConnectionsFlow />
+            </div>
+
             {/* Edit Form */}
             <EditProfileFormComponent
               initialData={userBio}
@@ -227,6 +233,11 @@ export default function EditProfilePage() {
                 <div className="text-center mb-8">
                   <h1 className="text-3xl font-bold text-foreground mb-2">Edit Your Profile</h1>
                   <p className="text-muted-foreground">Update your profile information and connected services</p>
+                </div>
+
+                {/* Music Services Connection */}
+                <div className="mb-8 max-w-4xl mx-auto">
+                  <MusicConnectionsFlow />
                 </div>
 
                 {/* Edit Form */}

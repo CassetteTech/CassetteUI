@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/stores/auth-store';
-import { AuthUser, SignInForm, SignUpForm } from '@/types';
+import { AuthUser, SignInForm, SignUpForm, ConnectedService } from '@/types';
 
 // Use your local API URL for development
 const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5173';
@@ -225,8 +225,6 @@ class AuthService {
     const userId = userData.userId || userData.UserId || userData.id;
     const username = userData.username || userData.Username;
     
-    console.log('🔄 [Auth] Mapping user data:', { userId, username });
-    
     return {
       id: String(userId || ''),
       email: String(userData.email || userData.Email || ''),
@@ -236,6 +234,8 @@ class AuthService {
       isEmailVerified: true, // Assume verified if coming from backend
       createdAt: String(userData.joinDate || userData.createdAt || new Date().toISOString()),
       updatedAt: String(userData.updatedAt || new Date().toISOString()),
+      // Include connected services from backend
+      connectedServices: (userData.connectedServices as ConnectedService[]) || [],
     };
   }
 

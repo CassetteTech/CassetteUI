@@ -6,6 +6,7 @@ import { useAuthState } from '@/hooks/use-auth';
 import { ProfileHeader } from '@/components/features/profile/profile-header';
 import { ProfileTabs, TabType } from '@/components/features/profile/profile-tabs';
 import { ProfileActivity } from '@/components/features/profile/profile-activity';
+import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
 import { profileService } from '@/services/profile';
 import { UserBio, ActivityPost } from '@/types';
 import { Container } from '@/components/ui/container';
@@ -285,6 +286,11 @@ export default function ProfilePage() {
               onShare={handleShare}
               onAddMusic={isCurrentUser ? handleAddMusic : undefined}
             />
+            {isCurrentUser && (
+              <div className="px-4 mb-4">
+                <MusicConnectionsStatus variant="profile" />
+              </div>
+            )}
             <div className="sticky top-0 z-10">
               <ProfileTabs
                 activeTab={activeTab}

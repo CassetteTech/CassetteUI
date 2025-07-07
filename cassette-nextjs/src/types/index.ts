@@ -272,4 +272,5 @@ export interface AuthUser {
   isEmailVerified: boolean;
   createdAt: string;
   updatedAt: string;
+  connectedServices?: ConnectedService[];
 }

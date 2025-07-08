@@ -220,14 +220,25 @@ export interface PostByIdResponse {
     title?: string;
     name?: string;
     artist?: string;
+    album?: string;
+    duration?: string;
     coverArtUrl?: string;
     imageUrl?: string;
+    genres?: string[];
+    artists?: Array<{ name: string; role: string; }>;
+  };
+  metadata?: {
+    duration?: string;
+    albumName?: string;
+    releaseDate?: string | null;
+    genres?: string[];
   };
   platforms?: {
     [key: string]: {
       url: string;
       previewUrl?: string;
       artworkUrl?: string;
+      genres?: string[];
     };
   };
   caption?: string;

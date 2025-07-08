@@ -19,7 +19,7 @@ import { useMusicLinkConversion } from '@/hooks/use-music';
 function PostPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; } | null>(null);
+  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; details?: { artists?: Array<{ name: string; role: string; }>; }; } | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   // Animation states
@@ -84,7 +84,7 @@ function PostPageContent() {
             
             // Transform the API response
             if (response.success && response.details) {
-              const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; } = {
+              const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; details?: { artists?: Array<{ name: string; role: string; }>; }; } = {
                 originalUrl: response.originalLink || '',
                 convertedUrls: {},
                 metadata: {
@@ -94,10 +94,17 @@ function PostPageContent() {
                          ElementType.PLAYLIST),
                   title: response.details.title || response.details.name || 'Unknown',
                   artist: response.details.artist || '',
-                  artwork: response.details.coverArtUrl || response.details.imageUrl || ''
+                  artwork: response.details.coverArtUrl || response.details.imageUrl || '',
+                  duration: response.metadata?.duration || response.details.duration || ''
                 },
                 description: response.caption,
-                username: response.username
+                username: response.username,
+                genres: response.details.genres || response.metadata?.genres || [],
+                albumName: response.metadata?.albumName || response.details.album || '',
+                releaseDate: response.metadata?.releaseDate || null,
+                details: {
+                  artists: response.details.artists || []
+                }
               };
               
               // Extract platform URLs and artwork - handle different platform key formats
@@ -298,16 +305,85 @@ function PostPageContent() {
                   className="h-full overflow-y-auto pr-4"
                 >
                   <div className="space-y-6">
-                    {/* Title and Artist */}
-                    <div className="text-center">
-                      <HeadlineText className="text-2xl font-bold mb-3 text-foreground leading-tight">
-                        {metadata.title}
-                      </HeadlineText>
-                      {!isArtist && (
-                        <BodyText className="text-lg text-muted-foreground leading-relaxed">
-                          {metadata.artist}
-                        </BodyText>
-                      )}
+                    {/* Track Information Card */}
+                    <div className="p-5 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
+                      <div className="space-y-3">
+                        {/* Title */}
+                        <HeadlineText className="text-xl font-bold text-foreground text-center">
+                          {metadata.title}
+                        </HeadlineText>
+                        
+                        {/* Artists with roles */}
+                        {!isArtist && (
+                          <div className="text-center">
+                            <BodyText className="text-base text-muted-foreground">
+                              {postData?.details?.artists && postData.details.artists.length > 0 ? (
+                                postData.details.artists.map((artist, idx) => (
+                                  <span key={idx}>
+                                    {artist.name}
+                                    {artist.role === 'Featured' && <span className="text-xs"> (feat.)</span>}
+                                    {idx < postData.details!.artists!.length - 1 && ', '}
+                                  </span>
+                                ))
+                              ) : (
+                                metadata.artist
+                              )}
+                            </BodyText>
+                          </div>
+                        )}
+                        
+                        {/* Separator */}
+                        <div className="border-t border-border/30 mx-4" />
+                        
+                        {/* Metadata - Centered as inline items */}
+                        <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
+                          {/* Duration */}
+                          {metadata.duration && (
+                            <div>
+                              <span className="text-muted-foreground">Duration: </span>
+                              <span className="font-medium">{metadata.duration}</span>
+                            </div>
+                          )}
+                          
+                          {/* Separator between duration and album */}
+                          {metadata.duration && postData?.albumName && (
+                            <span className="text-muted-foreground">•</span>
+                          )}
+                          
+                          {/* Album */}
+                          {postData?.albumName && (
+                            <div>
+                              <span className="text-muted-foreground">Album: </span>
+                              <span className="font-medium">{postData.albumName}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Genres */}
+                        {(() => {
+                          const filteredGenres = postData?.genres?.filter(genre => 
+                            genre.toLowerCase() !== 'music'
+                          ) || [];
+                          
+                          if (filteredGenres.length === 0) return null;
+                          
+                          return (
+                            <>
+                              <div className="border-t border-border/30 mx-4" />
+                              <div className="flex flex-wrap gap-2 justify-center">
+                                {filteredGenres.map((genre, index) => (
+                                  <span
+                                    key={index}
+                                    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-muted/30 text-muted-foreground border border-border/50"
+                                  >
+                                    {genre}
+                                  </span>
+                                ))}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
                     </div>
                     {/* Description if available */}
                     {postData?.description && (
@@ -394,16 +470,85 @@ function PostPageContent() {
                 </div>
               </div>
               
-              {/* Title and Artist with proper spacing - matching Flutter */}
-              <div className="mb-6">
-                <HeadlineText className="text-2xl font-bold mb-2 text-center break-words px-4 text-foreground">
-                  {metadata.title}
-                </HeadlineText>
-                {!isArtist && (
-                  <BodyText className="text-lg text-muted-foreground text-center break-words px-4">
-                    {metadata.artist}
-                  </BodyText>
-                )}
+              {/* Track Information Card - Mobile */}
+              <div className="mb-6 p-4 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
+                <div className="space-y-3">
+                  {/* Title */}
+                  <HeadlineText className="text-xl font-bold text-foreground text-center">
+                    {metadata.title}
+                  </HeadlineText>
+                  
+                  {/* Artists with roles */}
+                  {!isArtist && (
+                    <div className="text-center">
+                      <BodyText className="text-sm text-muted-foreground">
+                        {postData?.details?.artists && postData.details.artists.length > 0 ? (
+                          postData.details.artists.map((artist, idx) => (
+                            <span key={idx}>
+                              {artist.name}
+                              {artist.role === 'Featured' && <span className="text-xs"> (feat.)</span>}
+                              {idx < postData.details!.artists!.length - 1 && ', '}
+                            </span>
+                          ))
+                        ) : (
+                          metadata.artist
+                        )}
+                      </BodyText>
+                    </div>
+                  )}
+                  
+                  {/* Separator */}
+                  <div className="border-t border-border/30" />
+                  
+                  {/* Metadata */}
+                  <div className="space-y-2 text-xs">
+                    {/* Duration and Album in one line */}
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {postData?.metadata?.duration && (
+                        <div>
+                          <span className="text-muted-foreground">Duration: </span>
+                          <span className="font-medium">{postData.metadata.duration}</span>
+                        </div>
+                      )}
+                      
+                      {postData?.metadata?.duration && postData?.albumName && (
+                        <span className="text-muted-foreground">•</span>
+                      )}
+                      
+                      {postData?.albumName && (
+                        <div>
+                          <span className="text-muted-foreground">Album: </span>
+                          <span className="font-medium">{postData.albumName}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Genres */}
+                  {(() => {
+                    const filteredGenres = postData?.genres?.filter(genre => 
+                      genre.toLowerCase() !== 'music'
+                    ) || [];
+                    
+                    if (filteredGenres.length === 0) return null;
+                    
+                    return (
+                      <>
+                        <div className="border-t border-border/30" />
+                        <div className="flex flex-wrap gap-1.5 justify-center">
+                          {filteredGenres.map((genre, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted/30 text-muted-foreground border border-border/50"
+                            >
+                              {genre}
+                            </span>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
               
               {/* Description if available - matching Flutter styling */}

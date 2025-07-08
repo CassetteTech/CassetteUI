@@ -205,17 +205,17 @@ export default function EditProfilePage() {
               <p className="text-muted-foreground">Update your profile information and connected services</p>
             </div>
 
-            {/* Music Services Connection */}
-            <div className="mb-8">
-              <MusicConnectionsFlow />
-            </div>
-
             {/* Edit Form */}
             <EditProfileFormComponent
               initialData={userBio}
               onSuccess={handleSuccess}
               onCancel={handleCancel}
             />
+
+            {/* Music Services Connection */}
+            <div className="mt-8">
+              <MusicConnectionsFlow />
+            </div>
           </div>
         </Container>
       </div>
@@ -235,17 +235,17 @@ export default function EditProfilePage() {
                   <p className="text-muted-foreground">Update your profile information and connected services</p>
                 </div>
 
-                {/* Music Services Connection */}
-                <div className="mb-8 max-w-4xl mx-auto">
-                  <MusicConnectionsFlow />
-                </div>
-
                 {/* Edit Form */}
                 <EditProfileFormComponent
                   initialData={userBio}
                   onSuccess={handleSuccess}
                   onCancel={handleCancel}
                 />
+
+                {/* Music Services Connection */}
+                <div className="mt-8 max-w-4xl mx-auto">
+                  <MusicConnectionsFlow />
+                </div>
               </div>
             </div>
           </SidebarInset>

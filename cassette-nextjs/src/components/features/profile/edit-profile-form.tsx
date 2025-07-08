@@ -5,10 +5,9 @@ import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UserBio, ConnectedService } from '@/types';
+import { UserBio } from '@/types';
 import { profileService } from '@/services/profile';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Card } from '@/components/ui/card';
 import { TextField } from '@/components/ui/text-field';
 
 const editProfileSchema = z.object({
@@ -37,9 +36,6 @@ export function EditProfileFormComponent({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaveOnCooldown, setIsSaveOnCooldown] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
-  const [connectedServices, setConnectedServices] = useState<ConnectedService[]>(
-    initialData?.connectedServices || []
-  );
 
   const {
     register,
@@ -131,25 +127,6 @@ export function EditProfileFormComponent({
     alert('Image upload functionality coming soon');
   };
 
-  const addService = (serviceType: string) => {
-    const newService: ConnectedService = {
-      serviceType,
-      connectedAt: new Date().toISOString(),
-    };
-    setConnectedServices(prev => [...prev, newService]);
-  };
-
-  const removeService = (serviceType: string) => {
-    setConnectedServices(prev => prev.filter(service => service.serviceType !== serviceType));
-  };
-
-  const availableServices = [
-    'Spotify',
-    'Apple Music',
-    'YouTube Music',
-    'Tidal',
-    'Deezer',
-  ].filter(service => !connectedServices.some(cs => cs.serviceType === service));
 
   return (
     <div className="max-w-md mx-auto p-6">
@@ -197,13 +174,13 @@ export function EditProfileFormComponent({
           />
 
           <div className="w-full">
-            <label className="block text-sm font-bold text-white mb-1 font-atkinson tracking-wide">
+            <label className="block text-sm font-bold text-text-primary mb-1 font-atkinson tracking-wide">
               Bio
             </label>
             <textarea
               {...register('bio')}
               rows={5}
-              className="w-full px-3 py-2 rounded-md border-2 transition-colors duration-200 font-atkinson text-sm font-normal tracking-wide placeholder:text-gray-400 placeholder:font-atkinson placeholder:font-normal focus:outline-none focus:ring-0 border-white/20 focus:border-red-500 bg-[#2a2a2a] text-white"
+              className="w-full px-3 py-2 rounded-md border-2 transition-colors duration-200 font-atkinson text-sm font-normal tracking-wide placeholder:text-text-hint placeholder:font-atkinson placeholder:font-normal focus:outline-none focus:ring-0 border-text-hint focus:border-primary text-foreground"
               placeholder="Tell us about yourself..."
             />
             {errors.bio && (
@@ -214,54 +191,6 @@ export function EditProfileFormComponent({
           </div>
         </div>
 
-        {/* Connected Services */}
-        <Card className="p-4 bg-[#1a1a1a] border border-white/10">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold">Connected Services</h3>
-            {availableServices.length > 0 && (
-              <select
-                onChange={(e) => {
-                  if (e.target.value) {
-                    addService(e.target.value);
-                    e.target.value = '';
-                  }
-                }}
-                className="bg-[#2a2a2a] text-white text-sm rounded px-2 py-1 border border-white/20"
-              >
-                <option value="">Add Service</option>
-                {availableServices.map(service => (
-                  <option key={service} value={service}>{service}</option>
-                ))}
-              </select>
-            )}
-          </div>
-          
-          <div className="space-y-2">
-            {connectedServices.map((service, index) => (
-              <div
-                key={`${service.serviceType}-${index}`}
-                className="flex items-center justify-between p-2 bg-[#2a2a2a] rounded"
-              >
-                <div className="flex items-center gap-2">
-                  <ServiceIcon serviceType={service.serviceType} />
-                  <span className="text-white text-sm">{service.serviceType}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeService(service.serviceType)}
-                  className="text-red-400 hover:text-red-300 transition-colors"
-                >
-                  <Image
-                    src="/images/ic_delete.png"
-                    alt="Remove"
-                    width={16}
-                    height={16}
-                  />
-                </button>
-              </div>
-            ))}
-          </div>
-        </Card>
 
         {/* Action Buttons */}
         <div className="flex gap-3">
@@ -286,40 +215,3 @@ export function EditProfileFormComponent({
   );
 }
 
-function ServiceIcon({ serviceType }: { serviceType: string }) {
-  const getServiceIcon = (type: string) => {
-    const iconMap: Record<string, string> = {
-      'spotify': '/images/social_images/ic_spotify.png',
-      'apple music': '/images/social_images/ic_apple.png',
-      'youtube music': '/images/social_images/ic_yt_music.png',
-      'tidal': '/images/social_images/ic_tidal.png',
-      'deezer': '/images/social_images/ic_deezer.png',
-    };
-    
-    return iconMap[type.toLowerCase()] || '/images/social_images/ic_spotify.png';
-  };
-
-  const getServiceColor = (type: string) => {
-    const colorMap: Record<string, string> = {
-      'spotify': 'bg-green-500',
-      'apple music': 'bg-gray-700',
-      'youtube music': 'bg-red-500',
-      'tidal': 'bg-blue-500',
-      'deezer': 'bg-purple-500',
-    };
-    
-    return colorMap[type.toLowerCase()] || 'bg-gray-500';
-  };
-
-  return (
-    <div className={`w-6 h-6 rounded-full p-1 ${getServiceColor(serviceType)}`}>
-      <Image
-        src={getServiceIcon(serviceType)}
-        alt={serviceType}
-        width={16}
-        height={16}
-        className="w-full h-full object-contain"
-      />
-    </div>
-  );
-}

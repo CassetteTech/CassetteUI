@@ -24,21 +24,21 @@ interface StreamingService {
 const streamingServices: Record<string, StreamingService> = {
   spotify: {
     name: 'Spotify',
-    icon: '/images/social_images/ic_spotify.png',
+    icon: '/images/spotify_logo_colored.png',
     color: '#1DB954',
     bgColor: 'bg-green-50',
     borderColor: 'border-green-400',
   },
   appleMusic: {
     name: 'Apple Music',
-    icon: '/images/social_images/ic_apple.png',
+    icon: '/images/apple_music_logo_colored.png',
     color: '#FC3C44',
     bgColor: 'bg-red-50',
     borderColor: 'border-red-400',
   },
   deezer: {
     name: 'Deezer',
-    icon: '/images/social_images/ic_deezer.png',
+    icon: '/images/deezer_logo_colored.png',
     color: '#FF6B3D',
     bgColor: 'bg-orange-50',
     borderColor: 'border-orange-400',
@@ -99,7 +99,7 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({ links, className
                   alt={service.name}
                   width={16}
                   height={16}
-                  className="object-contain dark:brightness-0 dark:invert"
+                  className="object-contain"
                 />
               </div>
               

@@ -251,28 +251,38 @@ function PostPageContent() {
                   className="object-contain"
                 />
               </button>
+              
+              {/* Report Problem Button - Desktop Header */}
+              {isDesktop && (
+                <button className="flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium relative z-10">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Report</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
         
         {isDesktop ? (
-          // Desktop Layout - matching Flutter desktopBody()
-          <div className="px-8 max-w-6xl mx-auto pb-8">
-            <div className="flex gap-8 items-center min-h-[80vh]">
+          // Desktop Layout - enhanced with better spacing
+          <div className="px-8 max-w-7xl mx-auto pb-8">
+            <div className="flex gap-12 items-center min-h-[80vh]">
               {/* Left Column - Album Art and Info (flex: 2) */}
               <div className="flex-[2] flex flex-col items-center min-w-0">
                 <UIText className="text-foreground font-bold mb-8 uppercase tracking-wider text-lg">
                   {isArtist ? 'Artist' : 'Track'}
                 </UIText>
                 
-                {/* Album Art with Shadow - improved sizing */}
+                {/* Album Art with Shadow - increased size for desktop */}
                 <div className="relative mb-6">
-                  <div className="absolute inset-0 translate-x-2.5 translate-y-2.5 bg-black/25 rounded-xl blur-lg" />
+                  <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
                   <Image
                     src={metadata.artwork || '/images/cassette_logo.png'}
                     alt={metadata.title}
-                    width={280}
-                    height={280}
+                    width={400}
+                    height={400}
                     className="relative rounded-xl object-cover shadow-lg"
                     priority
                     onError={(e) => {
@@ -290,26 +300,25 @@ function PostPageContent() {
                   )}
                 </div>
                 
-                <HeadlineText className="text-2xl font-bold mb-3 text-center text-foreground leading-tight">
-                  {metadata.title}
-                </HeadlineText>
-                {!isArtist && (
-                  <BodyText className="text-lg text-muted-foreground text-center leading-relaxed">
-                    {metadata.artist}
-                  </BodyText>
-                )}
               </div>
               
               {/* Right Column - Links and Description (flex: 3) */}
               <div className="flex-[3] max-h-[75vh] overflow-hidden">
                 <div 
                   className="h-full overflow-y-auto pr-4"
-                  style={{
-                    maskImage: 'linear-gradient(to bottom, white 0%, white 85%, white 90%, transparent 100%)',
-                    WebkitMaskImage: 'linear-gradient(to bottom, white 0%, white 85%, white 90%, transparent 100%)'
-                  }}
                 >
                   <div className="space-y-6">
+                    {/* Title and Artist */}
+                    <div className="text-center">
+                      <HeadlineText className="text-2xl font-bold mb-3 text-foreground leading-tight">
+                        {metadata.title}
+                      </HeadlineText>
+                      {!isArtist && (
+                        <BodyText className="text-lg text-muted-foreground leading-relaxed">
+                          {metadata.artist}
+                        </BodyText>
+                      )}
+                    </div>
                     {/* Description if available */}
                     {postData?.description && (
                       <div className="p-5 bg-card rounded-lg border border-border shadow-sm">
@@ -333,23 +342,14 @@ function PostPageContent() {
                       </div>
                     )}
                     
-                    <div className="border-t border-border mb-6" />
-                    
-                    {/* Streaming Links Container - improved styling */}
-                    <div className="p-5 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm">
+                    {/* Streaming Links Container - enhanced styling */}
+                    <div className="p-5 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm relative z-10">
+                      <h3 className="text-lg font-semibold text-card-foreground mb-4">Listen Now</h3>
                       <StreamingLinks 
                         links={convertedUrls}
                         className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                       />
                     </div>
-                    
-                    {/* Report Problem Button */}
-                    <button className="flex items-center gap-3 px-6 py-4 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors font-medium relative z-50">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>Report a Problem</span>
-                    </button>
                   </div>
                 </div>
               </div>
@@ -431,8 +431,8 @@ function PostPageContent() {
               
               <div className="border-t border-border mb-6" />
               
-              {/* Streaming Links Container - matching Flutter glass effect with proper mobile sizing */}
-              <div className="p-4 bg-text-primary/5 rounded-2xl border border-text-primary/10 shadow-sm backdrop-blur-sm mb-6">
+              {/* Streaming Links Container - matching desktop glass effect */}
+              <div className="p-4 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm mb-6 relative z-10">
                 <StreamingLinks 
                   links={convertedUrls}
                   className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"

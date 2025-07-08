@@ -192,6 +192,7 @@ export interface ConversionApiResponse {
     artists?: Array<{ name: string; role: string; }>;
     coverArtUrl: string;
     genres?: string[];
+    previewUrl?: string;
   };
   platforms: {
     [key: string]: {
@@ -226,6 +227,7 @@ export interface PostByIdResponse {
     imageUrl?: string;
     genres?: string[];
     artists?: Array<{ name: string; role: string; }>;
+    previewUrl?: string;
   };
   metadata?: {
     duration?: string;

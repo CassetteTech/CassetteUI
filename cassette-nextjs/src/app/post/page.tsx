@@ -5,7 +5,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { MusicLinkConversion, ElementType } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks } from '@/components/features/entity/streaming-links';
-import { AudioPreview } from '@/components/features/entity/audio-preview';
+import { PlayPreview } from '@/components/features/entity/play-preview';
 import { AnimatedButton } from '@/components/ui/animated-button';
 import { AnimatedColorBackground } from '@/components/ui/animated-color-background';
 import { ColorExtractor } from '@/services/color-extractor';
@@ -127,8 +127,9 @@ function PostPageContent() {
                   }
                 });
                 
-                // Extract preview URL - handle both applemusic and appleMusic keys
-                transformedData.previewUrl = response.platforms?.spotify?.previewUrl || 
+                // Extract preview URL - prioritize main details.previewUrl, then check platforms
+                transformedData.previewUrl = response.details?.previewUrl ||
+                                           response.platforms?.spotify?.previewUrl || 
                                            response.platforms?.deezer?.previewUrl || 
                                            response.platforms?.applemusic?.previewUrl ||
                                            response.platforms?.appleMusic?.previewUrl;
@@ -288,12 +289,16 @@ function PostPageContent() {
                     }}
                   />
                   
-                  {/* Play Button for Tracks - positioned like Flutter */}
-                  {!isArtist && (
-                    <AudioPreview 
-                      previewUrl={postData?.previewUrl}
-                      className="absolute -bottom-2.5 -right-2.5"
-                    />
+                  {/* Play Preview for Tracks - positioned over artwork */}
+                  {!isArtist && postData?.previewUrl && (
+                    <div className="absolute -bottom-4 -right-4">
+                      <PlayPreview 
+                        previewUrl={postData.previewUrl}
+                        title={metadata.title}
+                        artist={metadata.artist}
+                        artwork={metadata.artwork}
+                      />
+                    </div>
                   )}
                 </div>
                 
@@ -385,6 +390,7 @@ function PostPageContent() {
                         })()}
                       </div>
                     </div>
+                    
                     {/* Description if available */}
                     {postData?.description && (
                       <div className="p-5 bg-card rounded-lg border border-border shadow-sm">
@@ -460,12 +466,17 @@ function PostPageContent() {
                     }}
                   />
                   
-                  {/* Play Button for Tracks */}
-                  {!isArtist && (
-                    <AudioPreview 
-                      previewUrl={postData?.previewUrl}
-                      className="absolute -bottom-2.5 -right-2.5"
-                    />
+                  {/* Play Preview for Tracks - positioned over artwork */}
+                  {!isArtist && postData?.previewUrl && (
+                    <div className="absolute -bottom-4 -right-2">
+                      <PlayPreview 
+                        previewUrl={postData.previewUrl}
+                        title={metadata.title}
+                        artist={metadata.artist}
+                        artwork={metadata.artwork}
+                        mobile={true}
+                      />
+                    </div>
                   )}
                 </div>
               </div>

@@ -3,7 +3,9 @@
     "allow": [
       "WebFetch(domain:ui.shadcn.com)",
       "mcp__basic-memory__list_directory",
-      "mcp__basic-memory__get_current_project"
+      "mcp__basic-memory__get_current_project",
+      "Bash(mv:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

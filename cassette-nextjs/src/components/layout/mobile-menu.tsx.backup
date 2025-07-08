@@ -1,0 +1,97 @@
+'use client';
+
+import { useState } from 'react';
+import { useAuthState } from '@/hooks/use-auth';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import Image from 'next/image';
+import Link from 'next/link';
+import { ThemeSwitcher } from './theme-switcher';
+import { Sheet, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
+import * as SheetPrimitive from "@radix-ui/react-dialog";
+import { cn } from '@/lib/utils';
+import { NavigationLinks } from './navigation-links';
+import { AnimatedHamburger } from '@/components/ui/animated-hamburger';
+
+export function MobileMenu() {
+  const { user, isAuthenticated } = useAuthState();
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      {/* Animated hamburger button - always in the same position */}
+      <AnimatedHamburger 
+        isOpen={isOpen}
+        onClick={() => setIsOpen(!isOpen)}
+        className="md:hidden"
+      />
+      
+      {/* Sheet component for the menu content */}
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        <SheetPrimitive.Portal>
+          <SheetPrimitive.Overlay
+            className={cn(
+              "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50"
+            )}
+          />
+          <SheetPrimitive.Content
+            className={cn(
+              "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+              "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-full max-w-xs border-l",
+              "p-0"
+            )}
+          >
+          
+          {/* Header with Logo */}
+          <SheetHeader className="p-4 border-b border-border/20">
+            <SheetTitle asChild>
+              <Link href="/" className="flex items-center">
+                <Image
+                  src="/images/app_logo.png"
+                  alt="Cassette"
+                  width={120}
+                  height={40}
+                  className="h-8 w-auto"
+                />
+              </Link>
+            </SheetTitle>
+          </SheetHeader>
+
+          {/* User Profile Section - only show for authenticated users */}
+          {isAuthenticated && user && (
+            <div className="p-6 border-b border-border/20">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16 border-2 border-border/20">
+                  <AvatarImage src={user.profilePicture} alt={`@${user.username}`} />
+                  <AvatarFallback className="bg-primary text-white font-atkinson font-bold text-lg">
+                    {user.username?.charAt(0)?.toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-lg truncate">{user.displayName || user.username}</p>
+                  <p className="text-sm text-muted-foreground truncate">@{user.username}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Links */}
+          <div className="flex-1 p-6 overflow-y-auto">
+            {/* By wrapping the links in SheetClose, the sheet will close when any link is clicked */}
+            <SheetClose asChild>
+              <NavigationLinks />
+            </SheetClose>
+          </div>
+
+          {/* Footer with Theme Switcher */}
+          <div className="p-6 border-t border-border/20">
+            <div className="flex items-center justify-center">
+              <ThemeSwitcher />
+            </div>
+          </div>
+
+          </SheetPrimitive.Content>
+        </SheetPrimitive.Portal>
+      </Sheet>
+    </>
+  );
+}

@@ -159,3 +159,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Hamburger menu animation */
+@keyframes hamburger-rotate {
+  0% {
+    transform: rotate(0);
+  }
+  100% {
+    transform: rotate(180deg);
+  }
+}
+
+.animate-hamburger-rotate {
+  animation: hamburger-rotate 0.5s linear forwards;
+}

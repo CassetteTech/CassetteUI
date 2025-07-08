@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { authService } from '@/services/auth';
 import { apiService } from '@/services/api';
@@ -8,7 +8,6 @@ import { useAuthState } from '@/hooks/use-auth';
 import { Navbar } from './navbar';
 import { Footer } from './footer';
 import { config } from '@/lib/config';
-import { MobileMenu } from './mobile-menu';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,14 +16,10 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const pathname = usePathname();
   const { isLoading } = useAuthState();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
+  // No longer need isMobileMenuOpen state
 
   useEffect(() => {
-    // Initialize auth listener
     authService.initializeAuthListener();
-
-    // Warmup lambdas if enabled
     if (config.features.enableLambdaWarmup) {
       apiService.warmupLambdas().catch(console.warn);
     }
@@ -33,8 +28,6 @@ export function Layout({ children }: LayoutProps) {
   const isAuthPage = pathname?.startsWith('/auth');
   const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/add-music');
 
-  // We always want to show the navbar/footer unless on an auth page.
-  // The hiding for the profile page will be handled responsively with CSS.
   const showNavbar = !isAuthPage;
   const showFooter = !isAuthPage;
 
@@ -48,16 +41,11 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen flex flex-col relative">
-      <MobileMenu 
-        isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
-      />
+      {/* We don't render MobileMenu here anymore, it's self-contained in Navbar */}
       
       {showNavbar && (
         <div className={isProfilePage ? 'lg:hidden' : ''}>
-          <Navbar onMenuClick={() => {
-            setIsMobileMenuOpen(true);
-          }} />
+          <Navbar />
         </div>
       )}
       <main className="flex-1">

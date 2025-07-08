@@ -251,16 +251,6 @@ function PostPageContent() {
                   className="object-contain"
                 />
               </button>
-              
-              {/* Report Problem Button - Desktop Header */}
-              {isDesktop && (
-                <button className="flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium relative z-10">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>Report</span>
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -349,6 +339,16 @@ function PostPageContent() {
                         links={convertedUrls}
                         className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                       />
+                    </div>
+                    
+                    {/* Report Problem Button - Desktop */}
+                    <div className="flex justify-center">
+                      <button className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium relative z-10">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Report a Problem</span>
+                      </button>
                     </div>
                   </div>
                 </div>

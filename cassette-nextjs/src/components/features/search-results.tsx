@@ -186,7 +186,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           </div>
 
           {/* Results List */}
-          <div className="max-h-[400px] overflow-y-auto">
+          <div className="max-h-[400px] lg:max-h-[calc(100vh-20rem)] overflow-y-auto">
             {allResults.map((item, index) => (
               <div
                 key={`${item.type}-${item.id}-${index}`}

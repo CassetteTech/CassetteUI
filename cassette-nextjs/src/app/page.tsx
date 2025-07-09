@@ -144,18 +144,18 @@ export default function HomePage() {
   // Calculate animation classes
   const logoClasses = `transition-[opacity,transform] ${isInitialLoad ? 'duration-[1100ms]' : 'duration-[500ms]'} ease-out ${
     logoVisible 
-      ? (isSearchActive ? 'opacity-0 transform -translate-y-8' : 'opacity-100 transform translate-y-0')
+      ? (isSearchActive ? 'opacity-0 transform -translate-y-8 lg:opacity-100 lg:transform-none' : 'opacity-100 transform translate-y-0')
       : 'opacity-0 transform translate-y-16'
   }`;
 
   const taglineClasses = `transition-all duration-1000 ease-out ${
-    taglineVisible && !isSearchActive ? 'opacity-100' : 'opacity-0'
+    taglineVisible && !isSearchActive ? 'opacity-100' : 'opacity-0 lg:opacity-100'
   }`;
 
   const searchBarClasses = `transition-all duration-500 ease-out ${
     searchBarVisible 
       ? (isSearchActive 
-          ? 'transform -translate-y-[calc(50vh-18rem)] sm:-translate-y-[calc(50vh-10rem)] md:-translate-y-64 lg:-translate-y-80' 
+          ? 'transform -translate-y-[calc(50vh-18rem)] sm:-translate-y-[calc(50vh-10rem)] md:-translate-y-64 lg:transform-none' 
           : 'transform translate-y-0')
       : 'opacity-0 transform translate-y-8'
   }`;
@@ -173,27 +173,27 @@ export default function HomePage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Top spacing */}
-          <div className="h-16"></div>
+          <div className="h-16 lg:h-0"></div>
 
           {/* Main Content Container */}
-          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] relative">
+          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] relative lg:min-h-screen lg:block lg:p-0 lg:relative">
             
             {/* Logo Section */}
-            <div className={logoClasses}>
-              <div className="text-center mb-6 sm:mb-8">
+            <div className={`${logoClasses} w-full lg:absolute lg:bottom-32 lg:left-12 lg:w-auto`}>
+              <div className="text-center mb-6 sm:mb-8 lg:text-left lg:mb-0">
                 <Image
                   src="/images/cassette_words_logo.png"
                   alt="Cassette"
                   width={750}
                   height={750}
-                  className="mx-auto w-[85%] h-auto mb-3 sm:mb-5"
+                  className="mx-auto w-[85%] h-auto mb-3 sm:mb-5 lg:mx-0 lg:w-[600px]"
                   priority
                 />
                 
                 {/* Tagline */}
                 <div className={taglineClasses}>
-                  <div className="max-w-2xl mx-auto px-6 sm:px-8 md:px-10">
-                    <UIText className="text-center text-text-primary font-bold leading-relaxed text-xs sm:text-sm md:text-base lg:text-lg">
+                  <div className="max-w-2xl mx-auto px-6 sm:px-8 md:px-10 lg:mx-0 lg:px-0 lg:max-w-[600px]">
+                    <UIText className="text-center text-text-primary font-bold leading-relaxed text-xs sm:text-sm md:text-base lg:text-xl lg:text-left">
                       Express yourself through your favorite songs and playlists - wherever you stream them
                     </UIText>
                   </div>
@@ -202,8 +202,8 @@ export default function HomePage() {
             </div>
 
             {/* Search Bar Section */}
-            <div className={searchBarClasses}>
-              <div className="w-[85vw] mx-auto mb-6 sm:mb-8">
+            <div className={`${searchBarClasses} w-full lg:absolute lg:top-0 lg:right-0 lg:bottom-0 lg:w-[500px] lg:flex lg:flex-col lg:p-8`}>
+              <div className="w-[85vw] mx-auto mb-6 sm:mb-8 lg:w-full lg:mb-4">
                 <div className="relative">
                   <UrlBar 
                     variant="light"
@@ -231,12 +231,25 @@ export default function HomePage() {
                   </UrlBar>
                 </div>
               </div>
+
+              {/* Search Results Container - Desktop only in right column */}
+              <div className={`hidden lg:block search-container transition-all duration-500 ease-out w-full opacity-100 flex-1 overflow-y-auto pb-8`}>
+                <SearchResults
+                  results={displayData}
+                  isLoading={isLoadingCharts}
+                  isSearching={isSearchingMusic}
+                  showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}
+                  onSelectItem={handleSelectItem}
+                  onClose={closeSearch}
+                  SkeletonComponent={Skeleton}
+                />
+              </div>
             </div>
 
-            {/* Search Results Container */}
-            <div className={`search-container transition-all duration-500 ease-out w-full ${
+            {/* Search Results Container - Mobile/Tablet positioning */}
+            <div className={`lg:hidden search-container transition-all duration-500 ease-out w-full ${
               isSearchActive 
-                ? 'opacity-100 transform -translate-y-[calc(50vh-18rem)] sm:-translate-y-[calc(50vh-10rem)] md:-translate-y-64 lg:-translate-y-80' 
+                ? 'opacity-100 transform -translate-y-[calc(50vh-18rem)] sm:-translate-y-[calc(50vh-10rem)] md:-translate-y-64' 
                 : 'opacity-0 transform translate-y-0 pointer-events-none h-0 overflow-hidden'
             }`}>
               <SearchResults
@@ -250,9 +263,8 @@ export default function HomePage() {
               />
             </div>
 
-
-            {/* Bottom Graphics and CTA */}
-            <div className={`${bottomContentClasses} ${!isSearchActive ? '-mt-8 sm:-mt-10 md:-mt-12' : 'mt-8'}`}>
+            {/* Bottom Graphics and CTA - Inside container on mobile, outside on desktop */}
+            <div className={`${bottomContentClasses} ${!isSearchActive ? '-mt-8 sm:-mt-10 md:-mt-12 lg:hidden' : 'mt-8 lg:hidden'}`}>
               <div className="text-center px-4 w-full">
                 <div className="mb-8 sm:mb-12 max-w-4xl mx-auto">
                   <Image
@@ -286,6 +298,39 @@ export default function HomePage() {
 
             {/* Remove loading state - handled in post page now */}
 
+          </div>
+
+          {/* Bottom Graphics and CTA - Desktop only, outside container for scroll */}
+          <div className={`${bottomContentClasses} hidden lg:block ${!isSearchActive ? 'mt-32' : 'mt-8'}`}>
+            <div className="text-center px-4 w-full">
+              <div className="mb-8 sm:mb-12 max-w-4xl mx-auto">
+                <Image
+                  src="/images/home_graphics.png"
+                  alt="Music graphics"
+                  width={800}
+                  height={400}
+                  className="w-full h-auto mx-auto"
+                />
+              </div>
+              
+              {!isAuthenticated && (
+                <div className="mb-12 sm:mb-16">
+                  <AnimatedButton
+                    text="Create Your Free Account!"
+                    onClick={() => window.location.href = '/auth/signup'}
+                    height={48}
+                    width={280}
+                    initialPos={6}
+                    colorTop="#1F2327"
+                    colorBottom="#595C5E"
+                    borderColorTop="#1F2327"
+                    borderColorBottom="#1F2327"
+                    className="mx-auto"
+                    textStyle="text-lg sm:text-xl font-bold tracking-wide font-atkinson text-white"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

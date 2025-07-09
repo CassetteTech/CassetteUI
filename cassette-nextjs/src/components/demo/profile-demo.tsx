@@ -14,39 +14,54 @@ const dummyUserBio = {
   username: "alexmusic",
   displayName: "Alex Music",
   bio: "🎵 Music enthusiast | Playlist curator | Always discovering new sounds",
-  avatarUrl: "/api/placeholder/100/100",
+  avatarUrl: "/images/demo/alex-avatar.jpg",
   connectedServices: ["spotify", "apple-music", "deezer"]
 };
 
 const dummyActivityPosts = {
   playlists: [
-    { id: 1, title: "Summer Vibes 2024", image: "/api/placeholder/200/200", tracks: 25 },
-    { id: 2, title: "Chill Study Session", image: "/api/placeholder/200/200", tracks: 40 },
-    { id: 3, title: "Workout Energy", image: "/api/placeholder/200/200", tracks: 35 },
-    { id: 4, title: "Late Night Jazz", image: "/api/placeholder/200/200", tracks: 20 }
+    { id: 1, title: "Summer Vibes 2024", image: "/images/demo/summer-vibes-playlist.jpg", tracks: 25 },
+    { id: 2, title: "Chill Study Session", image: "/images/demo/chill-study-playlist.jpg", tracks: 40 },
+    { id: 3, title: "Workout Energy", image: "/images/demo/workout-energy-playlist.jpg", tracks: 35 },
+    { id: 4, title: "Late Night Jazz", image: "/images/demo/late-night-jazz-playlist.jpg", tracks: 20 }
   ],
   tracks: [
-    { id: 1, title: "Midnight City", artist: "M83", image: "/api/placeholder/100/100" },
-    { id: 2, title: "Electric Feel", artist: "MGMT", image: "/api/placeholder/100/100" },
-    { id: 3, title: "Daft Punk is Playing at My House", artist: "LCD Soundsystem", image: "/api/placeholder/100/100" },
-    { id: 4, title: "Feels Like Summer", artist: "Childish Gambino", image: "/api/placeholder/100/100" }
+    { id: 1, title: "Swim Between Trees", artist: "Flipturn", image: "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/6e/09/d9/6e09d9bd-2a54-57f0-b254-a1fb1aa6803a/25355.jpg/100x100bb.jpg" },
+    { id: 2, title: "Time", artist: "Pink Floyd", image: "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/8f/50/cb/8f50cba0-1ab8-deb0-c21f-1750cc3b2201/23UMGIM65578.rgb.jpg/100x100bb.jpg" },
+    { id: 3, title: "Daft Punk is Playing at My House", artist: "LCD Soundsystem", image: "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/77/61/e7/7761e73a-706b-91b6-743e-d42721f4ee18/859744966031.jpg/100x100bb.jpg" },
+    { id: 4, title: "Feels Like Summer", artist: "Childish Gambino", image: "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/77/61/e7/7761e73a-706b-91b6-743e-d42721f4ee18/859744966031.jpg/100x100bb.jpg" }
   ],
   artists: [
-    { id: 1, name: "The Weeknd", image: "/api/placeholder/150/150", genre: "R&B/Pop" },
-    { id: 2, name: "Tame Impala", image: "/api/placeholder/150/150", genre: "Psychedelic Rock" },
-    { id: 3, name: "Frank Ocean", image: "/api/placeholder/150/150", genre: "Alternative R&B" },
-    { id: 4, name: "Arctic Monkeys", image: "/api/placeholder/150/150", genre: "Indie Rock" }
+    { id: 1, name: "The Weeknd", image: "/images/demo/artist_weeknd.jpg", genre: "R&B/Pop" },
+    { id: 2, name: "Tame Impala", image: "/images/demo/artist_tameimpala.jpg", genre: "Psychedelic Rock" },
+    { id: 3, name: "Frank Ocean", image: "/images/demo/artist_frankocean.jpg", genre: "Alternative R&B" },
+    { id: 4, name: "Arctic Monkeys", image: "/images/demo/artist_arcticmonkeys.jpg", genre: "Indie Rock" }
   ],
   albums: [
-    { id: 1, title: "After Hours", artist: "The Weeknd", image: "/api/placeholder/200/200", year: 2020 },
-    { id: 2, title: "Currents", artist: "Tame Impala", image: "/api/placeholder/200/200", year: 2015 },
-    { id: 3, title: "Blonde", artist: "Frank Ocean", image: "/api/placeholder/200/200", year: 2016 },
-    { id: 4, title: "AM", artist: "Arctic Monkeys", image: "/api/placeholder/200/200", year: 2013 }
+    { id: 1, title: "After Hours", artist: "The Weeknd", image: "/images/demo/after-hours-album.jpg", year: 2020 },
+    { id: 2, title: "Currents", artist: "Tame Impala", image: "/images/demo/currents-album.jpg", year: 2015 },
+    { id: 3, title: "Blonde", artist: "Frank Ocean", image: "/images/demo/blonde-album.jpg", year: 2016 },
+    { id: 4, title: "AM", artist: "Arctic Monkeys", image: "/images/demo/am-album.jpg", year: 2013 }
   ]
 };
 
 export function ProfileDemo() {
   const [activeTab, setActiveTab] = useState<TabType>('playlists');
+
+  const handleShare = () => {
+    const shareUrl = 'https://cassette.tech/';
+    
+    if (navigator.share) {
+      navigator.share({
+        title: `${dummyUserBio.displayName}'s Profile`,
+        text: `Check out ${dummyUserBio.displayName}'s music profile on Cassette`,
+        url: shareUrl,
+      });
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+    }
+  };
+
 
   const tabs: { key: TabType; label: string }[] = [
     { key: 'playlists', label: 'Playlists' },
@@ -151,19 +166,14 @@ export function ProfileDemo() {
             <div className="h-full flex flex-col pt-8">
               {/* Profile Header */}
               <div className="p-3 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-12 h-12">
-                      <img src={dummyUserBio.avatarUrl} alt={dummyUserBio.displayName} />
-                    </Avatar>
-                    <div>
-                      <h1 className="text-sm font-bold">{dummyUserBio.displayName}</h1>
-                      <p className="text-xs text-muted-foreground">@{dummyUserBio.username}</p>
-                    </div>
+                <div className="flex items-center gap-3">
+                  <Avatar className="w-12 h-12">
+                    <img src={dummyUserBio.avatarUrl} alt={dummyUserBio.displayName} />
+                  </Avatar>
+                  <div>
+                    <h1 className="text-sm font-bold">{dummyUserBio.displayName}</h1>
+                    <p className="text-xs text-muted-foreground">@{dummyUserBio.username}</p>
                   </div>
-                  <Button size="icon" variant="ghost" className="rounded-full h-8 w-8">
-                    <Share2 className="h-3 w-3" />
-                  </Button>
                 </div>
 
                 <p className="text-xs leading-relaxed">{dummyUserBio.bio}</p>
@@ -182,10 +192,16 @@ export function ProfileDemo() {
                   ))}
                 </div>
 
-                <Button className="w-full h-8" variant="default">
-                  <Music className="mr-2 h-3 w-3" />
-                  <span className="text-xs">Add Music</span>
-                </Button>
+                <div className="flex gap-2">
+                  <Button className="flex-1 h-8" variant="outline">
+                    <Music className="mr-2 h-3 w-3" />
+                    <span className="text-xs">Add Music</span>
+                  </Button>
+                  <Button className="flex-1 h-8 bg-red-500 hover:bg-red-600 text-white" onClick={handleShare}>
+                    <Share2 className="mr-2 h-3 w-3" />
+                    <span className="text-xs">Share Profile</span>
+                  </Button>
+                </div>
               </div>
 
               {/* Tabs */}

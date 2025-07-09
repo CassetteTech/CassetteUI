@@ -5,17 +5,17 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AnimatedButton } from '@/components/ui/animated-button';
-import { MainContainer } from '@/components/ui/container';
-import { AuthField } from '@/components/ui/text-field';
-import { 
-  AddMusicTitle, 
-  BodyText, 
-  UIText 
-} from '@/components/ui/typography';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { AuthInput } from '@/components/ui/auth-input';
 import { AnimatedBackground } from '@/components/ui/animated-background';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Separator } from '@/components/ui/separator';
 import { Eye, EyeOff } from 'lucide-react';
 import { useSignIn, useSignInWithProvider } from '@/hooks/use-auth';
 import { SignInForm } from '@/types';
@@ -56,7 +56,7 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="min-h-screen bg-cream relative overflow-hidden">
+    <div className="min-h-screen bg-cream dark:bg-gray-900 relative overflow-hidden">
       {/* Animated Background */}
       <AnimatedBackground className="fixed inset-0 z-0" />
       
@@ -76,63 +76,56 @@ export default function SignInPage() {
             </Link>
           </div>
 
-          <MainContainer className="p-8">
-            <div className="text-center mb-8">
-              <AddMusicTitle className="mb-4">Welcome back!</AddMusicTitle>
-              <BodyText className="text-text-secondary">
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">Welcome back!</CardTitle>
+              <CardDescription>
                 Enter your information below to sign in
-              </BodyText>
-            </div>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
 
             {/* Social Sign In */}
-            <div className="space-y-4 mb-6">
-              <AnimatedButton
+            <div className="flex flex-col gap-4 mb-6">
+              <Button
+                variant="outline"
                 onClick={handleGoogleSignIn}
                 disabled={isSigningInWithProvider}
-                height={48}
-                width={400}
-                initialPos={4}
-                className="w-full flex items-center justify-center"
+                className="w-full border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
               >
-                <div className="flex items-center">
-                  <Image
-                    src="/images/social_images/ic_auth_google.png"
-                    alt="Google"
-                    width={20}
-                    height={20}
-                    className="mr-3"
-                  />
-                  <UIText className="text-white">Continue with Google</UIText>
-                </div>
-              </AnimatedButton>
+                <Image
+                  src="/images/social_images/ic_auth_google.png"
+                  alt="Google"
+                  width={20}
+                  height={20}
+                  className="mr-2"
+                />
+                Continue with Google
+              </Button>
               
-              <AnimatedButton
+              <Button
+                variant="outline"
                 onClick={handleAppleSignIn}
                 disabled={isSigningInWithProvider}
-                height={48}
-                width={400}
-                initialPos={4}
-                className="w-full flex items-center justify-center"
+                className="w-full border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
               >
-                <div className="flex items-center">
-                  <Image
-                    src="/images/social_images/ic_apple.png"
-                    alt="Apple"
-                    width={20}
-                    height={20}
-                    className="mr-3"
-                  />
-                  <UIText className="text-white">Continue with Apple</UIText>
-                </div>
-              </AnimatedButton>
+                <Image
+                  src="/images/apple_music_logo_colored.png"
+                  alt="Apple"
+                  width={20}
+                  height={20}
+                  className="mr-2"
+                />
+                Continue with Apple
+              </Button>
             </div>
 
             <div className="relative mb-6">
               <div className="absolute inset-0 flex items-center">
-                <Separator className="border-text-hint" />
+                <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-3 text-text-secondary font-atkinson font-bold">
+                <span className="bg-card dark:bg-card px-2 text-muted-foreground">
                   Or continue with email
                 </span>
               </div>
@@ -146,15 +139,15 @@ export default function SignInPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-atkinson font-bold text-text-primary">Email</FormLabel>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <AuthField
-                          placeholder="your@email.com"
+                        <AuthInput
+                          placeholder="m@example.com"
                           type="email"
                           {...field}
                         />
                       </FormControl>
-                      <FormMessage className="font-atkinson text-sm" />
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -164,17 +157,25 @@ export default function SignInPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-atkinson font-bold text-text-primary">Password</FormLabel>
+                      <div className="flex items-center">
+                        <FormLabel>Password</FormLabel>
+                        <Link
+                          href="/auth/forgot-password"
+                          className="ml-auto text-sm underline-offset-4 hover:underline"
+                        >
+                          Forgot your password?
+                        </Link>
+                      </div>
                       <FormControl>
                         <div className="relative">
-                          <AuthField
+                          <AuthInput
                             placeholder="Enter your password"
                             type={showPassword ? 'text' : 'password'}
                             {...field}
                           />
                           <button
                             type="button"
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-hint hover:text-text-primary transition-colors"
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                             onClick={() => setShowPassword(!showPassword)}
                           >
                             {showPassword ? (
@@ -185,7 +186,7 @@ export default function SignInPage() {
                           </button>
                         </div>
                       </FormControl>
-                      <FormMessage className="font-atkinson text-sm" />
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -200,66 +201,65 @@ export default function SignInPage() {
                           type="checkbox"
                           checked={field.value}
                           onChange={field.onChange}
-                          className="mt-1 h-4 w-4 rounded border-2 border-text-primary text-text-primary focus:ring-text-primary"
+                          className="mt-1 h-4 w-4 rounded border-gray-400 text-gray-900 dark:border-gray-600 dark:bg-gray-800 focus:ring-gray-500"
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
-                        <FormLabel className="text-sm font-atkinson text-text-primary">
+                        <FormLabel className="text-sm font-normal">
                           I have read and agreed to the{' '}
-                          <Link href="/terms" className="text-primary hover:underline font-bold">
+                          <Link href="/terms" className="underline hover:underline">
                             Terms of Service
                           </Link>{' '}
                           and{' '}
-                          <Link href="/privacy" className="text-primary hover:underline font-bold">
+                          <Link href="/privacy" className="underline hover:underline">
                             Privacy Policy
                           </Link>
                         </FormLabel>
-                        <FormMessage className="font-atkinson text-sm" />
+                        <FormMessage />
                       </div>
                     </FormItem>
                   )}
                 />
 
                 {signInError && (
-                  <div className="text-sm text-red-500 font-atkinson">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
                     {signInError.message}
                   </div>
                 )}
 
-                <AnimatedButton
-                  text={isSigningIn ? 'Signing in...' : 'Sign In'}
-                  onClick={form.handleSubmit(onSubmit)}
+                <Button
+                  type="submit"
                   disabled={isSigningIn}
-                  height={48}
-                  width={400}
-                  initialPos={6}
-                  colorTop="#1F2327"
-                  colorBottom="#595C5E"
-                  borderColorTop="#1F2327"
-                  borderColorBottom="#1F2327"
                   className="w-full"
-                />
+                >
+                  {isSigningIn ? 'Signing in...' : 'Sign In'}
+                </Button>
               </form>
             </Form>
 
-            <div className="text-center space-y-4 mt-6">
-              <Link
-                href="/auth/forgot-password"
-                className="text-sm text-text-secondary hover:text-text-primary font-atkinson"
-              >
-                Forgot your password?
-              </Link>
-              <div className="text-sm text-text-secondary font-atkinson">
+              <div className="text-center text-sm mt-4">
                 Don&apos;t have an account?{' '}
                 <Link
                   href="/auth/signup"
-                  className="text-primary hover:underline font-bold"
+                  className="underline underline-offset-4"
                 >
                   Sign up
                 </Link>
               </div>
-            </div>
-          </MainContainer>
+            </CardContent>
+          </Card>
+          
+          <div className="text-gray-600 dark:text-gray-400 text-center text-xs text-balance">
+            By clicking continue, you agree to our{' '}
+            <Link href="/terms" className="underline underline-offset-4 hover:text-gray-900 dark:hover:text-gray-200">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="underline underline-offset-4 hover:text-gray-900 dark:hover:text-gray-200">
+              Privacy Policy
+            </Link>
+            .
+          </div>
         </div>
       </div>
     </div>

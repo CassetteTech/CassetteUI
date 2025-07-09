@@ -5,17 +5,17 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AnimatedButton } from '@/components/ui/animated-button';
-import { MainContainer } from '@/components/ui/container';
-import { AuthField } from '@/components/ui/text-field';
-import { 
-  AddMusicTitle, 
-  BodyText, 
-  UIText 
-} from '@/components/ui/typography';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { AuthInput } from '@/components/ui/auth-input';
 import { AnimatedBackground } from '@/components/ui/animated-background';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Separator } from '@/components/ui/separator';
 import { Eye, EyeOff } from 'lucide-react';
 import { useSignUp, useSignInWithProvider } from '@/hooks/use-auth';
 import { SignUpForm } from '@/types';
@@ -70,7 +70,7 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-cream relative overflow-hidden">
+    <div className="min-h-screen bg-cream dark:bg-gray-900 relative overflow-hidden">
       {/* Animated Background */}
       <AnimatedBackground className="fixed inset-0 z-0" />
       
@@ -90,63 +90,56 @@ export default function SignUpPage() {
             </Link>
           </div>
 
-          <MainContainer className="p-8">
-            <div className="text-center mb-8">
-              <AddMusicTitle className="mb-4">Create your account</AddMusicTitle>
-              <BodyText className="text-text-secondary">
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">Create your account</CardTitle>
+              <CardDescription>
                 Join Cassette to share your favorite music with the world
-              </BodyText>
-            </div>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
 
             {/* Social Sign In */}
-            <div className="space-y-4 mb-6">
-              <AnimatedButton
+            <div className="flex flex-col gap-4 mb-6">
+              <Button
+                variant="outline"
                 onClick={handleGoogleSignIn}
                 disabled={isSigningInWithProvider}
-                height={48}
-                width={400}
-                initialPos={4}
-                className="w-full flex items-center justify-center"
+                className="w-full border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
               >
-                <div className="flex items-center">
-                  <Image
-                    src="/images/social_images/ic_auth_google.png"
-                    alt="Google"
-                    width={20}
-                    height={20}
-                    className="mr-3"
-                  />
-                  <UIText className="text-white">Continue with Google</UIText>
-                </div>
-              </AnimatedButton>
+                <Image
+                  src="/images/social_images/ic_auth_google.png"
+                  alt="Google"
+                  width={20}
+                  height={20}
+                  className="mr-2"
+                />
+                Continue with Google
+              </Button>
               
-              <AnimatedButton
+              <Button
+                variant="outline"
                 onClick={handleAppleSignIn}
                 disabled={isSigningInWithProvider}
-                height={48}
-                width={400}
-                initialPos={4}
-                className="w-full flex items-center justify-center"
+                className="w-full border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
               >
-                <div className="flex items-center">
-                  <Image
-                    src="/images/social_images/ic_apple.png"
-                    alt="Apple"
-                    width={20}
-                    height={20}
-                    className="mr-3"
-                  />
-                  <UIText className="text-white">Continue with Apple</UIText>
-                </div>
-              </AnimatedButton>
+                <Image
+                  src="/images/apple_music_logo_colored.png"
+                  alt="Apple"
+                  width={20}
+                  height={20}
+                  className="mr-2"
+                />
+                Continue with Apple
+              </Button>
             </div>
 
             <div className="relative mb-6">
               <div className="absolute inset-0 flex items-center">
-                <Separator className="border-text-hint" />
+                <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-3 text-text-secondary font-atkinson font-bold">
+                <span className="bg-card dark:bg-card px-2 text-muted-foreground">
                   Or create account with email
                 </span>
               </div>
@@ -160,15 +153,15 @@ export default function SignUpPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-atkinson font-bold text-text-primary">Email</FormLabel>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <AuthField
-                          placeholder="your@email.com"
+                        <AuthInput
+                          placeholder="m@example.com"
                           type="email"
                           {...field}
                         />
                       </FormControl>
-                      <FormMessage className="font-atkinson text-sm" />
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -178,14 +171,14 @@ export default function SignUpPage() {
                   name="username"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-atkinson font-bold text-text-primary">Username</FormLabel>
+                      <FormLabel>Username</FormLabel>
                       <FormControl>
-                        <AuthField
+                        <AuthInput
                           placeholder="your_username"
                           {...field}
                         />
                       </FormControl>
-                      <FormMessage className="font-atkinson text-sm" />
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -195,17 +188,17 @@ export default function SignUpPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-atkinson font-bold text-text-primary">Password</FormLabel>
+                      <FormLabel>Password</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <AuthField
+                          <AuthInput
                             placeholder="Create a strong password"
                             type={showPassword ? 'text' : 'password'}
                             {...field}
                           />
                           <button
                             type="button"
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-hint hover:text-text-primary transition-colors"
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                             onClick={() => setShowPassword(!showPassword)}
                           >
                             {showPassword ? (
@@ -216,7 +209,7 @@ export default function SignUpPage() {
                           </button>
                         </div>
                       </FormControl>
-                      <FormMessage className="font-atkinson text-sm" />
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -226,17 +219,17 @@ export default function SignUpPage() {
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-atkinson font-bold text-text-primary">Confirm Password</FormLabel>
+                      <FormLabel>Confirm Password</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <AuthField
+                          <AuthInput
                             placeholder="Confirm your password"
                             type={showConfirmPassword ? 'text' : 'password'}
                             {...field}
                           />
                           <button
                             type="button"
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-hint hover:text-text-primary transition-colors"
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                           >
                             {showConfirmPassword ? (
@@ -247,7 +240,7 @@ export default function SignUpPage() {
                           </button>
                         </div>
                       </FormControl>
-                      <FormMessage className="font-atkinson text-sm" />
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -262,77 +255,65 @@ export default function SignUpPage() {
                           type="checkbox"
                           checked={field.value}
                           onChange={field.onChange}
-                          className="mt-1 h-4 w-4 rounded border-2 border-text-primary text-text-primary focus:ring-text-primary"
+                          className="mt-1 h-4 w-4 rounded border-gray-400 text-gray-900 dark:border-gray-600 dark:bg-gray-800 focus:ring-gray-500"
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
-                        <FormLabel className="text-sm font-atkinson text-text-primary">
+                        <FormLabel className="text-sm font-normal">
                           I have read and agreed to the{' '}
-                          <Link href="/terms" className="text-primary hover:underline font-bold">
+                          <Link href="/terms" className="underline hover:underline">
                             Terms of Service
                           </Link>{' '}
                           and{' '}
-                          <Link href="/privacy" className="text-primary hover:underline font-bold">
+                          <Link href="/privacy" className="underline hover:underline">
                             Privacy Policy
                           </Link>
                         </FormLabel>
-                        <FormMessage className="font-atkinson text-sm" />
+                        <FormMessage />
                       </div>
                     </FormItem>
                   )}
                 />
 
                 {signUpError && (
-                  <div className="text-sm text-red-500 font-atkinson">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
                     {signUpError.message}
                   </div>
                 )}
 
-                <button
+                <Button
                   type="submit"
                   disabled={isSigningUp}
                   className="w-full"
                 >
-                  <AnimatedButton
-                    text={isSigningUp ? 'Creating account...' : 'Create account'}
-                    onClick={() => {}} // Dummy handler since we use the button wrapper for submission
-                    disabled={isSigningUp}
-                    height={48}
-                    width={400}
-                    initialPos={6}
-                    colorTop="#1F2327"
-                    colorBottom="#595C5E"
-                    borderColorTop="#1F2327"
-                    borderColorBottom="#1F2327"
-                    className="w-full pointer-events-none"
-                  />
-                </button>
+                  {isSigningUp ? 'Creating account...' : 'Create account'}
+                </Button>
               </form>
             </Form>
 
-            <div className="text-center space-y-4 mt-6">
-              <div className="text-sm text-text-secondary font-atkinson">
+              <div className="text-center text-sm mt-4">
                 Already have an account?{' '}
                 <Link
                   href="/auth/signin"
-                  className="text-primary hover:underline font-bold"
+                  className="underline underline-offset-4"
                 >
                   Sign in
                 </Link>
               </div>
-
-              <div className="text-xs text-text-secondary text-center font-atkinson">
-                By creating an account, you agree to our{' '}
-                <Link href="/terms" className="text-primary hover:underline font-bold">
-                  Terms of Service
-                </Link>{' '}
-                and{' '}
-                <Link href="/privacy" className="text-primary hover:underline font-bold">
-                  Privacy Policy
-                </Link>
-              </div>
-            </div>
-          </MainContainer>
+            </CardContent>
+          </Card>
+          
+          <div className="text-gray-600 dark:text-gray-400 text-center text-xs text-balance">
+            By creating an account, you agree to our{' '}
+            <Link href="/terms" className="underline underline-offset-4 hover:text-gray-900 dark:hover:text-gray-200">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="underline underline-offset-4 hover:text-gray-900 dark:hover:text-gray-200">
+              Privacy Policy
+            </Link>
+            .
+          </div>
         </div>
       </div>
     </div>

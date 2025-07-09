@@ -5,7 +5,10 @@
       "mcp__basic-memory__list_directory",
       "mcp__basic-memory__get_current_project",
       "Bash(mv:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

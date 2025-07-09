@@ -16,7 +16,7 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({ isDesktop = fals
       
       <div className="relative z-10 min-h-screen">
         {/* Header Toolbar Skeleton - matching Flutter PostHeaderToolbar */}
-        <div className="pt-4 pb-6 px-3">
+        <div className="pt-4 pb-6 px-3 relative z-50">
           <div className="flex items-center justify-between">
             <button className="flex items-center gap-2 text-foreground relative z-10">
               <Image
@@ -34,54 +34,70 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({ isDesktop = fals
         </div>
           
           {isDesktop ? (
-            // Desktop Layout Skeleton - improved layout matching the updated post page
-            <div className="px-8 max-w-6xl mx-auto pb-8">
-              <div className="flex gap-8 items-start">
+            // Desktop Layout Skeleton - enhanced with better spacing
+            <div className="px-8 max-w-7xl mx-auto pb-8">
+              <div className="flex gap-12 items-center min-h-[80vh]">
                 {/* Left Column - Album Art and Info (flex: 2) */}
-                <div className="flex-[2] flex flex-col items-center">
-                {/* Type Badge */}
-                <Skeleton className="h-5 w-16 mx-auto mb-8" />
-                
-                {/* Album Art with Shadow */}
-                <div className="relative mb-6">
-                  <div className="absolute inset-0 translate-x-2.5 translate-y-2.5 bg-black/15 rounded-xl blur-lg" />
-                  <Skeleton className="relative w-[280px] h-[280px] rounded-xl" />
+                <div className="flex-[2] flex flex-col items-center min-w-0">
+                  {/* Type Badge */}
+                  <Skeleton className="h-6 w-20 mb-8" />
+                  
+                  {/* Album Art with Shadow - increased size for desktop */}
+                  <div className="relative mb-6">
+                    <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
+                    <Skeleton className="relative w-[400px] h-[400px] rounded-xl" />
+                  </div>
                 </div>
                 
-                {/* Title and Artist */}
-                <div className="space-y-3">
-                  <Skeleton className="h-6 w-48 mx-auto" />
-                  <Skeleton className="h-4 w-32 mx-auto" />
-                </div>
-              </div>
-              
-                <div className="flex-[3] pt-8">
-                  {/* Description Box */}
-                  <div className="mb-6 p-5 border border-border rounded-lg">
-                    <div className="flex items-start space-x-4">
-                      <Skeleton className="w-8 h-8 rounded-full" />
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="h-3 w-24" />
-                        <Skeleton className="h-3 w-full" />
-                        <Skeleton className="h-3 w-3/4" />
+                {/* Right Column - Links and Description (flex: 3) */}
+                <div className="flex-[3] max-h-[75vh] overflow-hidden">
+                  <div className="h-full overflow-y-auto pr-4">
+                    <div className="space-y-6">
+                      {/* Track Information Card */}
+                      <div className="p-5 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
+                        <div className="space-y-3">
+                          {/* Title */}
+                          <Skeleton className="h-6 w-48 mx-auto" />
+                          
+                          {/* Artist */}
+                          <Skeleton className="h-4 w-32 mx-auto" />
+                          
+                          {/* Separator */}
+                          <div className="border-t border-border/30 mx-4" />
+                          
+                          {/* Metadata - Duration and Album */}
+                          <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2">
+                            <Skeleton className="h-4 w-24" />
+                            <span className="text-muted-foreground">•</span>
+                            <Skeleton className="h-4 w-32" />
+                          </div>
+                          
+                          {/* Genres */}
+                          <div className="border-t border-border/30 mx-4" />
+                          <div className="flex flex-wrap gap-2 justify-center">
+                            {[1, 2, 3].map((i) => (
+                              <Skeleton key={i} className="h-6 w-16 rounded-full" />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Streaming Links Container */}
+                      <div className="p-5 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm relative z-10">
+                        <Skeleton className="h-5 w-24 mb-4" />
+                        <div className="grid grid-cols-3 gap-4">
+                          {[1, 2, 3, 4, 5, 6].map((i) => (
+                            <Skeleton key={i} className="h-12 rounded-lg" />
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Report Button */}
+                      <div className="flex justify-center">
+                        <Skeleton className="w-40 h-10 rounded-lg" />
                       </div>
                     </div>
                   </div>
-                
-                {/* Divider */}
-                <div className="border-t border-border mb-6" />
-                
-                  {/* Streaming Links Container */}
-                  <div className="mb-6 p-5 rounded-2xl border border-border">
-                    <div className="grid grid-cols-3 gap-4">
-                      {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <Skeleton key={i} className="h-12 rounded-lg" />
-                      ))}
-                    </div>
-                  </div>
-                
-                {/* Report Button */}
-                <Skeleton className="w-40 h-12 rounded-lg" />
                 </div>
               </div>
             </div>
@@ -96,23 +112,59 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({ isDesktop = fals
                 <div className="mb-5">
                   {/* Album Art with Shadow */}
                   <div className="relative inline-block">
-                    <div className="absolute inset-0 translate-x-2.5 translate-y-2.5 bg-black/15 rounded-xl blur-lg" />
+                    <div className="absolute inset-0 translate-x-2.5 translate-y-2.5 bg-black/25 rounded-xl blur-lg" />
                     <Skeleton className="relative w-[calc(100vw/2.3)] h-[calc(100vw/2.3)] max-w-[200px] max-h-[200px] rounded-xl" />
                   </div>
                 </div>
                 
-                {/* Title and Artist */}
-                <div className="space-y-2 mb-6">
-                  <Skeleton className="h-6 w-40 mx-auto" />
-                  <Skeleton className="h-4 w-28 mx-auto" />
+                {/* Track Information Card - Mobile */}
+                <div className="mb-6 p-4 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
+                  <div className="space-y-3">
+                    {/* Title */}
+                    <Skeleton className="h-6 w-40 mx-auto" />
+                    
+                    {/* Artist */}
+                    <Skeleton className="h-4 w-28 mx-auto" />
+                    
+                    {/* Separator */}
+                    <div className="border-t border-border/30" />
+                    
+                    {/* Metadata */}
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Skeleton className="h-3 w-20" />
+                      <span className="text-muted-foreground">•</span>
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    
+                    {/* Genres */}
+                    <div className="border-t border-border/30" />
+                    <div className="flex flex-wrap gap-1.5 justify-center">
+                      {[1, 2, 3].map((i) => (
+                        <Skeleton key={i} className="h-5 w-14 rounded-full" />
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                            
+                
+                {/* Description */}
+                <div className="mb-6 p-4 bg-background rounded-lg border-2 border-text-primary/30 text-left">
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="w-6 h-6 rounded-full flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <Skeleton className="h-4 w-16 mb-1" />
+                      <div className="space-y-1">
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-5/6" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 
                 {/* Divider */}
                 <div className="border-t border-border mb-6" />
                 
                 {/* Streaming Links Container */}
-                <div className="mb-6 p-4 rounded-2xl border border-border">
+                <div className="p-4 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm mb-6 relative z-10">
                   <div className="grid grid-cols-3 gap-3">
                     {[1, 2, 3, 4, 5, 6].map((i) => (
                       <Skeleton key={i} className="h-10 rounded-lg" />
@@ -121,7 +173,7 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({ isDesktop = fals
                 </div>
                 
                 {/* Report Button */}
-                <Skeleton className="w-36 h-10 rounded-lg mx-auto" />
+                <Skeleton className="w-36 h-12 rounded-lg mx-auto" />
               </div>
             </div>
           )}

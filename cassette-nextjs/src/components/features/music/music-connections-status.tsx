@@ -102,7 +102,7 @@ export function MusicConnectionsStatus({
                   <div key={conn.serviceType} className="relative">
                     {conn.serviceType.toLowerCase() === 'spotify' && (
                       <Image
-                        src="/images/social_images/ic_spotify.png"
+                        src="/images/spotify_logo_colored.png"
                         alt="Spotify Connected"
                         width={20}
                         height={20}
@@ -111,7 +111,7 @@ export function MusicConnectionsStatus({
                     )}
                     {conn.serviceType.toLowerCase() === 'applemusic' && (
                       <Image
-                        src="/images/social_images/ic_apple.png"
+                        src="/images/apple_music_logo_colored.png"
                         alt="Apple Music Connected"
                         width={20}
                         height={20}
@@ -129,7 +129,7 @@ export function MusicConnectionsStatus({
                 <div key={conn.serviceType} className="relative">
                   {conn.serviceType.toLowerCase() === 'spotify' && (
                     <Image
-                      src="/images/social_images/ic_spotify.png"
+                      src="/images/spotify_logo_colored.png"
                       alt="Spotify Connected"
                       width={24}
                       height={24}
@@ -138,7 +138,7 @@ export function MusicConnectionsStatus({
                   )}
                   {conn.serviceType.toLowerCase() === 'applemusic' && (
                     <Image
-                      src="/images/social_images/ic_apple.png"
+                      src="/images/apple_music_logo_colored.png"
                       alt="Apple Music Connected"
                       width={24}
                       height={24}
@@ -174,7 +174,7 @@ export function MusicConnectionsStatus({
                   <div key={conn.serviceType} className="relative">
                     {conn.serviceType.toLowerCase() === 'spotify' && (
                       <Image
-                        src="/images/social_images/ic_spotify.png"
+                        src="/images/spotify_logo_colored.png"
                         alt="Spotify Connected"
                         width={24}
                         height={24}
@@ -183,7 +183,7 @@ export function MusicConnectionsStatus({
                     )}
                     {conn.serviceType.toLowerCase() === 'applemusic' && (
                       <Image
-                        src="/images/social_images/ic_apple.png"
+                        src="/images/apple_music_logo_colored.png"
                         alt="Apple Music Connected"
                         width={24}
                         height={24}
@@ -202,7 +202,7 @@ export function MusicConnectionsStatus({
                 <div key={conn.serviceType} className="relative">
                   {conn.serviceType.toLowerCase() === 'spotify' && (
                     <Image
-                      src="/images/social_images/ic_spotify.png"
+                      src="/images/spotify_logo_colored.png"
                       alt="Spotify Connected"
                       width={28}
                       height={28}
@@ -211,7 +211,7 @@ export function MusicConnectionsStatus({
                   )}
                   {conn.serviceType.toLowerCase() === 'applemusic' && (
                     <Image
-                      src="/images/social_images/ic_apple.png"
+                      src="/images/apple_music_logo_colored.png"
                       alt="Apple Music Connected"
                       width={28}
                       height={28}
@@ -245,7 +245,7 @@ export function MusicConnectionsStatus({
                 <div key={conn.serviceType} className="relative">
                   {conn.serviceType.toLowerCase() === 'spotify' && (
                     <Image
-                      src="/images/social_images/ic_spotify.png"
+                      src="/images/spotify_logo_colored.png"
                       alt="Spotify"
                       width={14}
                       height={14}
@@ -254,7 +254,7 @@ export function MusicConnectionsStatus({
                   )}
                   {conn.serviceType.toLowerCase() === 'applemusic' && (
                     <Image
-                      src="/images/social_images/ic_apple.png"
+                      src="/images/apple_music_logo_colored.png"
                       alt="Apple Music"
                       width={14}
                       height={14}

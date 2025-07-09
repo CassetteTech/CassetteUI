@@ -37,7 +37,6 @@ const AddMusicForm = ({
   handleSearchFocus,
   handleSearchBlur,
   handlePaste,
-  handleUrlPaste,
   clearSelection,
   description,
   setDescription,
@@ -50,7 +49,7 @@ const AddMusicForm = ({
   handleSelectItem,
   closeSearch,
   isValidMusicUrl,
-  setIsSearchActive
+  router
 }: {
   isSearchActive: boolean;
   selectedItem: SelectedItem | null;
@@ -60,7 +59,6 @@ const AddMusicForm = ({
   handleSearchFocus: () => void;
   handleSearchBlur: () => void;
   handlePaste: (e: React.ClipboardEvent<HTMLInputElement>) => void;
-  handleUrlPaste: (url: string) => void;
   clearSelection: () => void;
   description: string;
   setDescription: (value: string) => void;
@@ -73,15 +71,14 @@ const AddMusicForm = ({
   handleSelectItem: (url: string, title: string, type: string) => void;
   closeSearch: () => void;
   isValidMusicUrl: (text: string) => boolean;
-  setIsSearchActive: (active: boolean) => void;
+  router: ReturnType<typeof useRouter>;
 }) => (
   <>
     {/* Search/Input Section */}
-    {!isSearchActive && (
-      <div className="mb-8">
-        <UIText className="text-center text-text-primary font-atkinson font-bold mb-6 text-sm sm:text-base">
-          Search or paste a link below to add music to your profile
-        </UIText>
+    <div className="mb-8">
+      <UIText className="text-center text-text-primary font-atkinson font-bold mb-6 text-sm sm:text-base">
+        Search or paste a link below to add music to your profile
+      </UIText>
         
         <div className="mb-6">
           <label className="block text-text-primary font-atkinson font-bold mb-3 text-sm">
@@ -100,10 +97,19 @@ const AddMusicForm = ({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && musicUrl.trim()) {
                     if (isValidMusicUrl(musicUrl)) {
-                      handleUrlPaste(musicUrl);
-                    } else {
-                      setIsSearchActive(true);
+                      // Navigate immediately to post page when pressing Enter with a link
+                      const params = new URLSearchParams({
+                        url: musicUrl,
+                        fromAddMusic: 'true'
+                      });
+                      
+                      if (description.trim()) {
+                        params.append('description', description.trim());
+                      }
+                      
+                      router.push(`/post?${params.toString()}`);
                     }
+                    // For search queries, the search will happen via the debounced value
                   }
                 }}
                 placeholder="Search or paste your music link here"
@@ -171,7 +177,8 @@ const AddMusicForm = ({
         </div>
 
         {/* Description Field */}
-        <div className="mb-8">
+        {!isSearchActive && (
+          <div className="mb-8">
           <label className="block text-text-primary font-atkinson font-bold mb-3 text-sm">
             Description
           </label>
@@ -188,9 +195,11 @@ const AddMusicForm = ({
             />
           </div>
         </div>
+        )}
 
         {/* Add to Profile Button */}
-        <div className="text-center">
+        {!isSearchActive && (
+          <div className="text-center">
           <AnimatedButton
             text="Add to Profile"
             onClick={handleAddToProfile}
@@ -210,8 +219,8 @@ const AddMusicForm = ({
             <p className="mt-4 text-red-600 font-atkinson text-sm">{errorMessage}</p>
           )}
         </div>
+        )}
       </div>
-    )}
 
     {/* Search Results Container */}
     {isSearchActive && (
@@ -332,10 +341,8 @@ export default function AddMusicPage() {
       setPastedLinkSource(null);
     }
 
-    // Check if it's a URL
-    if (isValidMusicUrl(value)) {
-      handleUrlPaste(value);
-    } else if (value.trim() && !isSearchActive) {
+    // Ensure search is active when typing (but don't auto-convert URLs while typing)
+    if (value.trim() && !isSearchActive) {
       setIsSearchActive(true);
     }
   };
@@ -344,7 +351,17 @@ export default function AddMusicPage() {
     const pastedText = e.clipboardData.getData('text');
     
     if (isValidMusicUrl(pastedText)) {
-      handleUrlPaste(pastedText);
+      // Navigate immediately to post page when pasting a link
+      const params = new URLSearchParams({
+        url: pastedText,
+        fromAddMusic: 'true'
+      });
+      
+      if (description.trim()) {
+        params.append('description', description.trim());
+      }
+      
+      router.push(`/post?${params.toString()}`);
     }
   };
 
@@ -531,7 +548,6 @@ export default function AddMusicPage() {
               handleSearchFocus={handleSearchFocus}
               handleSearchBlur={handleSearchBlur}
               handlePaste={handlePaste}
-              handleUrlPaste={handleUrlPaste}
               clearSelection={clearSelection}
               description={description}
               setDescription={setDescription}
@@ -544,7 +560,7 @@ export default function AddMusicPage() {
               handleSelectItem={handleSelectItem}
               closeSearch={closeSearch}
               isValidMusicUrl={isValidMusicUrl}
-              setIsSearchActive={setIsSearchActive}
+              router={router}
             />
           </div>
         </div>
@@ -586,7 +602,6 @@ export default function AddMusicPage() {
                     handleSearchFocus={handleSearchFocus}
                     handleSearchBlur={handleSearchBlur}
                     handlePaste={handlePaste}
-                    handleUrlPaste={handleUrlPaste}
                     clearSelection={clearSelection}
                     description={description}
                     setDescription={setDescription}
@@ -599,7 +614,7 @@ export default function AddMusicPage() {
                     handleSelectItem={handleSelectItem}
                     closeSearch={closeSearch}
                     isValidMusicUrl={isValidMusicUrl}
-                    setIsSearchActive={setIsSearchActive}
+                    router={router}
                   />
                 </div>
               </div>

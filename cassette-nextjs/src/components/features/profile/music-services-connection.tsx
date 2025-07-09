@@ -60,7 +60,7 @@ export function MusicServicesConnection() {
                   <div key={service.serviceType} className="relative">
                     {service.serviceType === 'Spotify' && (
                       <Image
-                        src="/images/social_images/ic_spotify.png"
+                        src="/images/social_images/spotify_logo_colored.png"
                         alt="Spotify"
                         width={24}
                         height={24}
@@ -69,7 +69,7 @@ export function MusicServicesConnection() {
                     )}
                     {service.serviceType === 'AppleMusic' && (
                       <Image
-                        src="/images/social_images/ic_apple.png"
+                        src="/images/social_images/apple_music_logo_colored.png"
                         alt="Apple Music"
                         width={24}
                         height={24}

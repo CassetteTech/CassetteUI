@@ -23,6 +23,7 @@ export default function HomePage() {
   const [taglineVisible, setTaglineVisible] = useState(false);
   const [searchBarVisible, setSearchBarVisible] = useState(false);
   const [bottomVisible, setBottomVisible] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   const debouncedSearchTerm = useDebounce(musicUrl, 300); // 300ms debounce for better responsiveness
@@ -51,16 +52,19 @@ export default function HomePage() {
       // Logo fade in (15% delay, then 45% duration)
       { delay: 900, action: () => setLogoVisible(true) },
       // Tagline fade in (10% into logo animation)
-      { delay: 1800, action: () => setTaglineVisible(true) },
-      // Search bar appears (65% of timeline)
-      { delay: 3900, action: () => setSearchBarVisible(true) },
-      // Bottom graphics (75% of timeline)
-      { delay: 4500, action: () => setBottomVisible(true) },
+      { delay: 1500, action: () => setTaglineVisible(true) },
+      // Search bar appears earlier
+      { delay: 1500, action: () => setSearchBarVisible(true) },
+      // Bottom graphics appear 1s after search bar completes (2400 + 300 + 1000)
+      { delay: 1575, action: () => setBottomVisible(true) },
     ];
 
     const timeouts = timeline.map(({ delay, action }) => 
       setTimeout(action, delay)
     );
+    
+    // Mark initial load as complete after all animations
+    timeouts.push(setTimeout(() => setIsInitialLoad(false), 2100));
 
     return () => timeouts.forEach(clearTimeout);
   }, []);
@@ -136,20 +140,19 @@ export default function HomePage() {
     handleConvertLink(url);
   };
 
-  // Removed timer cleanup - no longer needed
 
   // Calculate animation classes
-  const logoClasses = `transition-all duration-1000 ease-out ${
+  const logoClasses = `transition-[opacity,transform] ${isInitialLoad ? 'duration-[1100ms]' : 'duration-[500ms]'} ease-out ${
     logoVisible 
       ? (isSearchActive ? 'opacity-0 transform -translate-y-8' : 'opacity-100 transform translate-y-0')
       : 'opacity-0 transform translate-y-16'
   }`;
 
-  const taglineClasses = `transition-all duration-500 delay-200 ease-out ${
+  const taglineClasses = `transition-all duration-1000 ease-out ${
     taglineVisible && !isSearchActive ? 'opacity-100' : 'opacity-0'
   }`;
 
-  const searchBarClasses = `transition-all duration-300 ease-out ${
+  const searchBarClasses = `transition-all duration-500 ease-out ${
     searchBarVisible 
       ? (isSearchActive 
           ? 'transform -translate-y-[calc(50vh-18rem)] sm:-translate-y-[calc(50vh-10rem)] md:-translate-y-64 lg:-translate-y-80' 
@@ -157,7 +160,7 @@ export default function HomePage() {
       : 'opacity-0 transform translate-y-8'
   }`;
 
-  const bottomContentClasses = `transition-all duration-700 ease-out ${
+  const bottomContentClasses = `transition-all duration-1000 ease-out ${
     bottomVisible && !isSearchActive ? 'opacity-100' : 'opacity-0'
   }`;
 
@@ -231,19 +234,21 @@ export default function HomePage() {
             </div>
 
             {/* Search Results Container */}
-            {isSearchActive && (
-              <div className="search-container transition-all duration-300 ease-out transform -translate-y-[calc(50vh-18rem)] sm:-translate-y-[calc(50vh-10rem)] md:-translate-y-64 lg:-translate-y-80 w-full">
-                <SearchResults
-                  results={displayData}
-                  isLoading={isLoadingCharts}
-                  isSearching={isSearchingMusic}
-                  showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}
-                  onSelectItem={handleSelectItem}
-                  onClose={closeSearch}
-                  SkeletonComponent={Skeleton}
-                />
-              </div>
-            )}
+            <div className={`search-container transition-all duration-500 ease-out w-full ${
+              isSearchActive 
+                ? 'opacity-100 transform -translate-y-[calc(50vh-18rem)] sm:-translate-y-[calc(50vh-10rem)] md:-translate-y-64 lg:-translate-y-80' 
+                : 'opacity-0 transform translate-y-0 pointer-events-none'
+            }`}>
+              <SearchResults
+                results={displayData}
+                isLoading={isLoadingCharts}
+                isSearching={isSearchingMusic}
+                showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}
+                onSelectItem={handleSelectItem}
+                onClose={closeSearch}
+                SkeletonComponent={Skeleton}
+              />
+            </div>
 
 
             {/* Bottom Graphics and CTA */}
@@ -255,7 +260,7 @@ export default function HomePage() {
                     alt="Music graphics"
                     width={800}
                     height={400}
-                    className="w-full h-auto"
+                    className="w-[85%] sm:w-full h-auto mx-auto"
                   />
                 </div>
                 

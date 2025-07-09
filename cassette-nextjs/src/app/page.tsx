@@ -237,7 +237,7 @@ export default function HomePage() {
             <div className={`search-container transition-all duration-500 ease-out w-full ${
               isSearchActive 
                 ? 'opacity-100 transform -translate-y-[calc(50vh-18rem)] sm:-translate-y-[calc(50vh-10rem)] md:-translate-y-64 lg:-translate-y-80' 
-                : 'opacity-0 transform translate-y-0 pointer-events-none'
+                : 'opacity-0 transform translate-y-0 pointer-events-none h-0 overflow-hidden'
             }`}>
               <SearchResults
                 results={displayData}
@@ -252,7 +252,7 @@ export default function HomePage() {
 
 
             {/* Bottom Graphics and CTA */}
-            <div className={bottomContentClasses}>
+            <div className={`${bottomContentClasses} ${!isSearchActive ? '-mt-8 sm:-mt-10 md:-mt-12' : 'mt-8'}`}>
               <div className="text-center px-4 w-full">
                 <div className="mb-8 sm:mb-12 max-w-4xl mx-auto">
                   <Image

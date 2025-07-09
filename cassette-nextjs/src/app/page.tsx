@@ -202,7 +202,7 @@ export default function HomePage() {
             </div>
 
             {/* Search Bar Section */}
-            <div className={`${searchBarClasses} w-full lg:absolute lg:top-0 lg:right-0 lg:bottom-0 lg:w-[500px] lg:flex lg:flex-col lg:p-8`}>
+            <div className={`${searchBarClasses} w-full lg:fixed lg:top-16 lg:right-[calc(50vw-640px+1rem)] lg:bottom-0 lg:w-[500px] lg:flex lg:flex-col lg:p-8 lg:z-10`}>
               <div className="w-[85vw] mx-auto mb-6 sm:mb-8 lg:w-full lg:mb-4">
                 <div className="relative">
                   <UrlBar 

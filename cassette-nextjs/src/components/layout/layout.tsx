@@ -48,7 +48,7 @@ export function Layout({ children }: LayoutProps) {
           <Navbar />
         </div>
       )}
-      <main className="flex-1">
+      <main className={`flex-1 ${showNavbar ? 'pt-16' : ''}`}>
         {children}
       </main>
       {showFooter && (

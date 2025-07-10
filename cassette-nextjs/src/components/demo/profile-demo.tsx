@@ -156,7 +156,7 @@ export function ProfileDemo() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-8">
-      {/* Phone Frame */}
+      {/* Phone + call-outs wrapper */}
       <div className="relative">
         {/* Phone Body */}
         <div className="w-80 h-[640px] bg-black rounded-[2.5rem] p-2 shadow-2xl">
@@ -239,6 +239,76 @@ export function ProfileDemo() {
         <div className="absolute -right-1 top-36 w-1 h-16 bg-black rounded-r-lg"></div>
         <div className="absolute -right-1 top-56 w-1 h-16 bg-black rounded-r-lg"></div>
         <div className="absolute -left-1 top-28 w-1 h-8 bg-black rounded-l-lg"></div>
+
+        {/* TOP CALLOUT */}
+        <div className="absolute -top-48 left-1/2 -translate-x-1/2">
+          {/* retro window frame */}
+          <div className="relative w-72 h-32">
+            <div className="absolute inset-0 bg-white rounded-xl outline outline-1 outline-black shadow-[1px_1px_0px_1px_rgba(0,0,0,1)]">
+              {/* "browser chrome" bars */}
+              <div className="absolute left-0 top-0 w-full h-7 bg-white outline outline-1 outline-black">
+                {([6, 9, 12, 15, 18, 21] as const).map((y) => (
+                  <div key={y} className="absolute left-1 right-1 h-px bg-black" style={{ top: y }} />
+                ))}
+                <div className="absolute left-8 top-1 w-4 h-4 bg-white border border-black" />
+              </div>
+
+              {/* label text */}
+              <div className="flex items-center justify-center h-full px-4 pt-7">
+                <p className="text-center text-black font-['Atkinson_Hyperlegible'] font-bold text-xl leading-snug">
+                  Add music to your profile <br />from any streaming platform!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Arrow from Add Music button to top label */}
+        <div className="absolute top-[216px] left-[12px]">
+          {/* Horizontal segment left */}
+          <div className="absolute w-8 h-0.5 bg-black -left-8 -translate-y-1/2" />
+          {/* Vertical segment up - adjusted to reach middle of label (label is h-32, so middle is 16 from top) */}
+          <div className="absolute h-[346px] w-0.5 bg-black -left-8 -top-[346px]" />
+          {/* Horizontal segment to label */}
+          <div className="absolute w-4 h-0.5 bg-black -left-8 -top-[347px]" />
+          {/* Arrow head pointing right */}
+          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-l-[8px] border-t-transparent border-b-transparent border-l-black -left-4 -top-[346px] -translate-y-1/2" />
+        </div>
+
+        {/* BOTTOM CALLOUT */}
+        <div className="absolute -bottom-48 left-1/2 -translate-x-1/2">
+          {/* retro window frame */}
+          <div className="relative w-72 h-32">
+            <div className="absolute inset-0 bg-white rounded-xl outline outline-1 outline-black shadow-[1px_1px_0px_1px_rgba(0,0,0,1)]">
+              {/* "browser chrome" bars */}
+              <div className="absolute left-0 top-0 w-full h-7 bg-white outline outline-1 outline-black">
+                {([6, 9, 12, 15, 18, 21] as const).map((y) => (
+                  <div key={y} className="absolute left-1 right-1 h-px bg-black" style={{ top: y }} />
+                ))}
+                <div className="absolute left-4 top-1 w-4 h-4 bg-white border border-black" />
+              </div>
+
+              {/* label text */}
+              <div className="flex items-center justify-center h-full px-4 pt-7">
+                <p className="text-center text-black font-['Atkinson_Hyperlegible'] font-bold text-xl leading-snug">
+                  Share smart links <br />with friends
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Arrow from Share Profile button to bottom label */}
+        <div className="absolute top-[216px] right-[12px]">
+          {/* Horizontal segment right */}
+          <div className="absolute w-8 h-0.5 bg-black -right-8 -translate-y-1/2" />
+          {/* Vertical segment down - adjusted to reach middle of label */}
+          <div className="absolute h-[552px] w-0.5 bg-black -right-8 top-0" />
+          {/* Horizontal segment to label */}
+          <div className="absolute w-4 h-0.5 bg-black -right-8 top-[552px]" />
+          {/* Arrow head pointing left */}
+          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-r-[8px] border-t-transparent border-b-transparent border-r-black -right-4 top-[553px] -translate-y-1/2" />
+        </div>
       </div>
     </div>
   );

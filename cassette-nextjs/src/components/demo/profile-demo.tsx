@@ -12,10 +12,10 @@ type TabType = 'playlists' | 'tracks' | 'artists' | 'albums';
 
 // Dummy data
 const dummyUserBio = {
-  username: "alexmusic",
-  displayName: "Alex Music",
+  username: "matttoppi",
+  displayName: "Matt Topp",
   bio: "🎵 Music enthusiast | Playlist curator | Always discovering new sounds",
-  avatarUrl: "/images/demo/alex-avatar.jpg",
+  avatarUrl: "/images/demo/matt-avatar.jpg",
   connectedServices: ["spotify", "apple-music", "deezer"]
 };
 
@@ -85,7 +85,7 @@ export function ProfileDemo() {
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="font-medium text-xs truncate">{playlist.title}</h3>
+                <h3 className="font-medium text-xs truncate text-foreground">{playlist.title}</h3>
                 <p className="text-xs text-muted-foreground">{playlist.tracks} tracks</p>
               </div>
             ))}
@@ -105,7 +105,7 @@ export function ProfileDemo() {
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-xs truncate">{track.title}</h4>
+                  <h4 className="font-medium text-xs truncate text-foreground">{track.title}</h4>
                   <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
                 </div>
               </div>
@@ -125,7 +125,7 @@ export function ProfileDemo() {
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="font-medium text-xs">{artist.name}</h3>
+                <h3 className="font-medium text-xs text-foreground">{artist.name}</h3>
                 <p className="text-xs text-muted-foreground">{artist.genre}</p>
               </div>
             ))}
@@ -145,7 +145,7 @@ export function ProfileDemo() {
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-xs truncate">{album.title}</h4>
+                  <h4 className="font-medium text-xs truncate text-foreground">{album.title}</h4>
                   <p className="text-xs text-muted-foreground truncate">{album.artist} • {album.year}</p>
                 </div>
               </div>
@@ -172,12 +172,12 @@ export function ProfileDemo() {
                     <img src={dummyUserBio.avatarUrl} alt={dummyUserBio.displayName} />
                   </Avatar>
                   <div>
-                    <h1 className="text-sm font-bold">{dummyUserBio.displayName}</h1>
+                    <h1 className="text-sm font-bold text-foreground">{dummyUserBio.displayName}</h1>
                     <p className="text-xs text-muted-foreground">@{dummyUserBio.username}</p>
                   </div>
                 </div>
 
-                <p className="text-xs leading-relaxed">{dummyUserBio.bio}</p>
+                <p className="text-xs leading-relaxed text-foreground">{dummyUserBio.bio}</p>
 
                 <div className="flex gap-2">
                   {dummyUserBio.connectedServices.map((service) => (

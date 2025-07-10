@@ -13,7 +13,7 @@ import { SearchResults } from '@/components/features/search-results';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ProfileDemo } from '@/components/demo/profile-demo';
+import { InvertedProfileDemo } from '@/components/demo/inverted-profile-demo';
 
 export default function HomePage() {
   const router = useRouter();
@@ -207,7 +207,7 @@ export default function HomePage() {
 
               {/* Profile Demo Section - Below Logo - Desktop only */}
               <div className={`${bottomContentClasses} w-full lg:mt-[2vh] lg:pt-32 hidden lg:block`}>
-                <ProfileDemo />
+                <InvertedProfileDemo />
               </div>
             </div>
 
@@ -275,7 +275,7 @@ export default function HomePage() {
 
             {/* Profile Demo Section - Mobile only */}
             <div className={`${bottomContentClasses} w-full mt-32 pt-16 lg:hidden`}>
-              <ProfileDemo />
+              <InvertedProfileDemo />
             </div>
 
             {/* CTA Button - Mobile only */}

@@ -37,9 +37,16 @@ export function InvertedProfileDemo() {
         '--border': '210 9% 89%',
       } as React.CSSProperties;
 
+  // Calculate the actual color values for arrows
+  // Dark demo (shown in light mode) should have dark arrows
+  // Light demo (shown in dark mode) should have light arrows
+  const arrowColor = resolvedTheme === 'light' 
+    ? '#1F2327' // Dark arrows for dark demo (shown in light mode)
+    : '#F8F0DE'; // Light arrows for light demo (shown in dark mode)
+
   return (
-    <div style={invertedStyles}>
-      <ProfileDemo />
+    <div style={invertedStyles} className="isolate">
+      <ProfileDemo arrowColor={arrowColor} />
     </div>
   );
 }

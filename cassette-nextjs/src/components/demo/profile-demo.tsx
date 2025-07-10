@@ -13,7 +13,7 @@ type TabType = 'playlists' | 'tracks' | 'artists' | 'albums';
 // Dummy data
 const dummyUserBio = {
   username: "matttoppi",
-  displayName: "Matt Topp",
+  displayName: "Matt Toppi",
   bio: "🎵 Music enthusiast | Playlist curator | Always discovering new sounds",
   avatarUrl: "/images/demo/matt-avatar.jpg",
   connectedServices: ["spotify", "apple-music", "deezer"]
@@ -46,7 +46,11 @@ const dummyActivityPosts = {
   ]
 };
 
-export function ProfileDemo() {
+interface ProfileDemoProps {
+  arrowColor?: string;
+}
+
+export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
   const [activeTab, setActiveTab] = useState<TabType>('playlists');
 
   const handleShare = () => {
@@ -271,13 +275,13 @@ export function ProfileDemo() {
         {/* Arrow from Add Music button to top label */}
         <div className="absolute top-[216px] left-[12px]">
           {/* Horizontal segment left */}
-          <div className="absolute w-8 h-0.5 bg-foreground -left-8 -translate-y-1/2" />
+          <div className="absolute w-8 h-0.5 -left-8 -translate-y-1/2" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Vertical segment up - adjusted to reach middle of label (label is h-32, so middle is 16 from top) */}
-          <div className="absolute h-[346px] w-0.5 bg-foreground -left-8 -top-[346px]" />
+          <div className="absolute h-[346px] w-0.5 -left-8 -top-[346px]" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Horizontal segment to label */}
-          <div className="absolute w-4 h-0.5 bg-foreground -left-8 -top-[347px]" />
+          <div className="absolute w-4 h-0.5 -left-8 -top-[347px]" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Arrow head pointing right */}
-          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-l-[8px] border-t-transparent border-b-transparent border-l-foreground -left-4 -top-[346px] -translate-y-1/2" />
+          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-l-[8px] border-t-transparent border-b-transparent -left-4 -top-[346px] -translate-y-1/2" style={{ borderLeftColor: arrowColor || 'hsl(var(--foreground))' }} />
         </div>
 
         {/* BOTTOM CALLOUT */}
@@ -306,13 +310,13 @@ export function ProfileDemo() {
         {/* Arrow from Share Profile button to bottom label */}
         <div className="absolute top-[216px] right-[12px]">
           {/* Horizontal segment right */}
-          <div className="absolute w-8 h-0.5 bg-foreground -right-8 -translate-y-1/2" />
+          <div className="absolute w-8 h-0.5 -right-8 -translate-y-1/2" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Vertical segment down - adjusted to reach middle of label */}
-          <div className="absolute h-[552px] w-0.5 bg-foreground -right-8 top-0" />
+          <div className="absolute h-[552px] w-0.5 -right-8 top-0" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Horizontal segment to label */}
-          <div className="absolute w-4 h-0.5 bg-foreground -right-8 top-[552px]" />
+          <div className="absolute w-4 h-0.5 -right-8 top-[552px]" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Arrow head pointing left */}
-          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-r-[8px] border-t-transparent border-b-transparent border-r-foreground -right-4 top-[553px] -translate-y-1/2" />
+          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-r-[8px] border-t-transparent border-b-transparent -right-4 top-[553px] -translate-y-1/2" style={{ borderRightColor: arrowColor || 'hsl(var(--foreground))' }} />
         </div>
       </div>
     </div>

@@ -13,6 +13,7 @@ import { SearchResults } from '@/components/features/search-results';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { ProfileDemo } from '@/components/demo/profile-demo';
 
 export default function HomePage() {
   const router = useRouter();
@@ -171,30 +172,32 @@ export default function HomePage() {
       <AnimatedBackground className="fixed inset-0 z-0" />
       
       <div className="relative z-10 min-h-screen">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-0 lg:max-w-none">
           
           {/* Top spacing */}
           <div className="h-16 lg:h-0"></div>
 
           {/* Main Content Container */}
-          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] relative lg:min-h-screen lg:block lg:p-0 lg:relative">
+          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] relative lg:min-h-screen lg:max-w-[1600px] lg:mx-auto lg:block lg:pr-[500px] lg:p-0">
             
-            {/* Logo Section */}
-            <div className={`${logoClasses} w-full lg:absolute lg:bottom-32 lg:left-12 lg:w-auto`}>
-              <div className="text-center mb-6 sm:mb-8 lg:text-left lg:mb-0">
+            {/* Left Column - Logo and Profile Demo */}
+            <div className="w-full lg:flex lg:flex-col lg:items-center lg:justify-start lg:px-12">
+              {/* Logo Section */}
+              <div className={`${logoClasses} w-full lg:min-h-screen lg:flex lg:flex-col lg:justify-center`}>
+              <div className="text-center mb-6 sm:mb-8 lg:text-center lg:mb-0 lg:-mt-[25px]">
                 <Image
                   src="/images/cassette_words_logo.png"
                   alt="Cassette"
                   width={750}
                   height={750}
-                  className="mx-auto w-[85%] h-auto mb-3 sm:mb-5 lg:mx-0 lg:w-[600px]"
+                  className="mx-auto w-[85%] h-auto mb-3 sm:mb-5 lg:mx-auto lg:w-[600px]"
                   priority
                 />
                 
                 {/* Tagline */}
                 <div className={taglineClasses}>
-                  <div className="max-w-2xl mx-auto px-6 sm:px-8 md:px-10 lg:mx-0 lg:px-0 lg:max-w-[600px]">
-                    <UIText className="text-center text-foreground font-bold leading-relaxed text-xs sm:text-sm md:text-base lg:text-xl lg:text-left">
+                  <div className="max-w-2xl mx-auto px-6 sm:px-8 md:px-10 lg:mx-auto lg:px-0 lg:max-w-[600px]">
+                    <UIText className="text-center text-foreground font-bold leading-relaxed text-xs sm:text-sm md:text-base lg:text-xl lg:text-center">
                       Express yourself through your favorite songs and playlists - wherever you stream them
                     </UIText>
                   </div>
@@ -202,8 +205,14 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Search Bar Section */}
-            <div className={`${searchBarClasses} w-full lg:fixed lg:top-16 lg:right-[calc(50vw-640px+1rem)] lg:bottom-0 lg:w-[500px] lg:flex lg:flex-col lg:p-8 lg:z-10`}>
+              {/* Profile Demo Section - Below Logo - Desktop only */}
+              <div className={`${bottomContentClasses} w-full lg:mt-[2vh] lg:pt-32 hidden lg:block`}>
+                <ProfileDemo />
+              </div>
+            </div>
+
+            {/* Search Bar Section - Right Column */}
+            <div className={`${searchBarClasses} w-full lg:fixed lg:top-0 lg:right-[max(calc((100vw-1600px)/2),0px)] lg:h-screen lg:w-[500px] lg:flex lg:flex-col lg:px-12 lg:pt-24 lg:z-10`}>
               <div className="w-[85vw] mx-auto mb-6 sm:mb-8 lg:w-full lg:mb-4">
                 <div className="relative">
                   <UrlBar 
@@ -264,20 +273,15 @@ export default function HomePage() {
               />
             </div>
 
-            {/* Bottom Graphics and CTA - Inside container on mobile, outside on desktop */}
-            <div className={`${bottomContentClasses} ${!isSearchActive ? '-mt-8 sm:-mt-10 md:-mt-12 lg:hidden' : 'mt-8 lg:hidden'}`}>
-              <div className="text-center px-4 w-full">
-                <div className="mb-8 sm:mb-12 max-w-4xl mx-auto">
-                  <Image
-                    src="/images/home_graphics.png"
-                    alt="Music graphics"
-                    width={800}
-                    height={400}
-                    className="w-[85%] sm:w-full h-auto mx-auto"
-                  />
-                </div>
-                
-                {!isAuthenticated && (
+            {/* Profile Demo Section - Mobile only */}
+            <div className={`${bottomContentClasses} w-full mt-32 pt-16 lg:hidden`}>
+              <ProfileDemo />
+            </div>
+
+            {/* CTA Button - Mobile only */}
+            {!isAuthenticated && (
+              <div className={`${bottomContentClasses} ${!isSearchActive ? 'mt-8' : 'mt-8'} lg:hidden`}>
+                <div className="text-center px-4 w-full">
                   <div className="mb-12 sm:mb-16">
                     <AnimatedButton
                       text="Create Your Free Account!"
@@ -293,46 +297,31 @@ export default function HomePage() {
                       textStyle="text-lg sm:text-xl font-bold tracking-wide font-atkinson text-white"
                     />
                   </div>
-                )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Remove loading state - handled in post page now */}
 
           </div>
 
-          {/* Bottom Graphics and CTA - Desktop only, outside container for scroll */}
-          <div className={`${bottomContentClasses} hidden lg:block ${!isSearchActive ? 'mt-32' : 'mt-8'}`}>
-            <div className="text-center px-4 w-full">
-              <div className="mb-8 sm:mb-12 max-w-4xl mx-auto">
-                <Image
-                  src="/images/home_graphics.png"
-                  alt="Music graphics"
-                  width={800}
-                  height={400}
-                  className="w-full h-auto mx-auto"
-                />
-              </div>
-              
-              {!isAuthenticated && (
-                <div className="mb-12 sm:mb-16">
-                  <AnimatedButton
-                    text="Create Your Free Account!"
-                    onClick={() => window.location.href = '/auth/signup'}
-                    height={48}
-                    width={280}
-                    initialPos={6}
-                    colorTop={theme.colors.btnConvertTop}
-                    colorBottom={theme.colors.btnConvertBottom}
-                    borderColorTop={theme.colors.btnConvertBorder}
-                    borderColorBottom={theme.colors.btnConvertBorder}
-                    className="mx-auto"
-                    textStyle="text-lg sm:text-xl font-bold tracking-wide font-atkinson text-white"
-                  />
-                </div>
-              )}
+          {/* CTA Button - Desktop only */}
+          {!isAuthenticated && (
+            <div className={`${bottomContentClasses} hidden lg:block pl-12 mt-16`}>
+              <AnimatedButton
+                text="Create Your Free Account!"
+                onClick={() => window.location.href = '/auth/signup'}
+                height={48}
+                width={280}
+                initialPos={6}
+                colorTop={theme.colors.btnConvertTop}
+                colorBottom={theme.colors.btnConvertBottom}
+                borderColorTop={theme.colors.btnConvertBorder}
+                borderColorBottom={theme.colors.btnConvertBorder}
+                textStyle="text-lg sm:text-xl font-bold tracking-wide font-atkinson text-white"
+              />
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

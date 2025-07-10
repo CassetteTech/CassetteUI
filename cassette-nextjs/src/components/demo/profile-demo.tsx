@@ -156,7 +156,7 @@ export function ProfileDemo() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-8">
+    <div className="flex items-center justify-center py-8 lg:py-16">
       {/* Phone + call-outs wrapper */}
       <div className="relative">
         {/* Phone Body */}

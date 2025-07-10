@@ -208,6 +208,24 @@ export default function HomePage() {
               {/* Profile Demo Section - Below Logo - Desktop only */}
               <div className={`${bottomContentClasses} w-full lg:mt-[2vh] lg:pt-32 hidden lg:block`}>
                 <InvertedProfileDemo />
+                
+                {/* CTA Button - Desktop only, under profile demo */}
+                {!isAuthenticated && (
+                  <div className="mt-64 text-center pb-32">
+                    <AnimatedButton
+                      text="Create Your Free Account!"
+                      onClick={() => window.location.href = '/auth/signup'}
+                      height={48}
+                      width={280}
+                      initialPos={6}
+                      colorTop={theme.colors.brandRed}
+                      colorBottom={theme.colors.brandRedD}
+                      borderColorTop={theme.colors.brandRed}
+                      borderColorBottom={theme.colors.brandRedD}
+                      textStyle="text-lg sm:text-xl font-bold tracking-wide font-atkinson text-white"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -276,52 +294,33 @@ export default function HomePage() {
             {/* Profile Demo Section - Mobile only */}
             <div className={`${bottomContentClasses} w-full mt-32 pt-16 lg:hidden`}>
               <InvertedProfileDemo />
-            </div>
-
-            {/* CTA Button - Mobile only */}
-            {!isAuthenticated && (
-              <div className={`${bottomContentClasses} ${!isSearchActive ? 'mt-8' : 'mt-8'} lg:hidden`}>
-                <div className="text-center px-4 w-full">
-                  <div className="mb-12 sm:mb-16">
+              
+              {/* CTA Button - Mobile only, under profile demo */}
+              {!isAuthenticated && (
+                <div className="mt-48 text-center px-4 w-full">
+                  <div className="mb-48">
                     <AnimatedButton
                       text="Create Your Free Account!"
                       onClick={() => window.location.href = '/auth/signup'}
                       height={48}
                       width={280}
                       initialPos={6}
-                      colorTop={theme.colors.btnConvertTop}
-                      colorBottom={theme.colors.btnConvertBottom}
-                      borderColorTop={theme.colors.btnConvertBorder}
-                      borderColorBottom={theme.colors.btnConvertBorder}
+                      colorTop={theme.colors.brandRed}
+                      colorBottom={theme.colors.brandRedD}
+                      borderColorTop={theme.colors.brandRed}
+                      borderColorBottom={theme.colors.brandRedD}
                       className="mx-auto"
                       textStyle="text-lg sm:text-xl font-bold tracking-wide font-atkinson text-white"
                     />
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Remove loading state - handled in post page now */}
 
           </div>
 
-          {/* CTA Button - Desktop only */}
-          {!isAuthenticated && (
-            <div className={`${bottomContentClasses} hidden lg:block pl-12 mt-16`}>
-              <AnimatedButton
-                text="Create Your Free Account!"
-                onClick={() => window.location.href = '/auth/signup'}
-                height={48}
-                width={280}
-                initialPos={6}
-                colorTop={theme.colors.btnConvertTop}
-                colorBottom={theme.colors.btnConvertBottom}
-                borderColorTop={theme.colors.btnConvertBorder}
-                borderColorBottom={theme.colors.btnConvertBorder}
-                textStyle="text-lg sm:text-xl font-bold tracking-wide font-atkinson text-white"
-              />
-            </div>
-          )}
         </div>
       </div>
     </div>

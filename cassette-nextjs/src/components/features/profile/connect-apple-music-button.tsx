@@ -119,7 +119,7 @@ export function ConnectAppleMusicButton({
             height={32}
             className="mr-2"
           />
-          <CardTitle className="text-[#FA2D48]">Apple Music</CardTitle>
+          <CardTitle className="text-danger">Apple Music</CardTitle>
         </div>
         <CardDescription>
           {isConnected 
@@ -131,7 +131,7 @@ export function ConnectAppleMusicButton({
       <CardContent className="space-y-4">
         {isConnected ? (
           <>
-            <div className="flex items-center justify-center text-green-600 dark:text-green-400">
+            <div className="flex items-center justify-center text-success">
               <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path 
                   fillRule="evenodd" 
@@ -154,7 +154,7 @@ export function ConnectAppleMusicButton({
           <Button 
             onClick={handleConnect}
             disabled={isLoading || !developerToken}
-            className="w-full bg-[#FA2D48] hover:bg-[#E0244E] text-white"
+            className="w-full bg-danger hover:bg-danger/90 text-white"
           >
             {isLoading ? 'Connecting...' : 'Connect with Apple Music'}
           </Button>

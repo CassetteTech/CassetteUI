@@ -8,6 +8,7 @@ import { AnimatedBackground } from '@/components/ui/animated-background';
 import { useTopCharts, useMusicSearch } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
+import { theme } from '@/lib/theme';
 import { SearchResults } from '@/components/features/search-results';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
@@ -193,7 +194,7 @@ export default function HomePage() {
                 {/* Tagline */}
                 <div className={taglineClasses}>
                   <div className="max-w-2xl mx-auto px-6 sm:px-8 md:px-10 lg:mx-0 lg:px-0 lg:max-w-[600px]">
-                    <UIText className="text-center text-text-primary font-bold leading-relaxed text-xs sm:text-sm md:text-base lg:text-xl lg:text-left">
+                    <UIText className="text-center text-foreground font-bold leading-relaxed text-xs sm:text-sm md:text-base lg:text-xl lg:text-left">
                       Express yourself through your favorite songs and playlists - wherever you stream them
                     </UIText>
                   </div>
@@ -226,7 +227,7 @@ export default function HomePage() {
                         }
                       }}
                       placeholder="Search or paste your music link here..."
-                      className="w-full h-full bg-transparent border-none outline-none text-center text-[#1F2327] placeholder-gray-500 px-3 sm:px-4 md:px-6 text-sm sm:text-base"
+                      className="w-full h-full bg-transparent border-none outline-none text-center text-brandBlack placeholder:text-textHint px-3 sm:px-4 md:px-6 text-sm sm:text-base"
                     />
                   </UrlBar>
                 </div>
@@ -284,10 +285,10 @@ export default function HomePage() {
                       height={48}
                       width={280}
                       initialPos={6}
-                      colorTop="#1F2327"
-                      colorBottom="#595C5E"
-                      borderColorTop="#1F2327"
-                      borderColorBottom="#1F2327"
+                      colorTop={theme.colors.btnConvertTop}
+                      colorBottom={theme.colors.btnConvertBottom}
+                      borderColorTop={theme.colors.btnConvertBorder}
+                      borderColorBottom={theme.colors.btnConvertBorder}
                       className="mx-auto"
                       textStyle="text-lg sm:text-xl font-bold tracking-wide font-atkinson text-white"
                     />
@@ -321,10 +322,10 @@ export default function HomePage() {
                     height={48}
                     width={280}
                     initialPos={6}
-                    colorTop="#1F2327"
-                    colorBottom="#595C5E"
-                    borderColorTop="#1F2327"
-                    borderColorBottom="#1F2327"
+                    colorTop={theme.colors.btnConvertTop}
+                    colorBottom={theme.colors.btnConvertBottom}
+                    borderColorTop={theme.colors.btnConvertBorder}
+                    borderColorBottom={theme.colors.btnConvertBorder}
                     className="mx-auto"
                     textStyle="text-lg sm:text-xl font-bold tracking-wide font-atkinson text-white"
                   />

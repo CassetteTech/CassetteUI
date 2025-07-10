@@ -9,101 +9,121 @@
 
 @layer base {
   :root {
-    /* shadcn/ui default variables in HSL format */
-    --background: 48 80% 92%; /* #F8F0DE */
-    --foreground: 210 10% 14%; /* #1F2327 */
-    --card: 0 0% 100%; /* #FFFFFF */
-    --card-foreground: 210 10% 14%; /* #1F2327 */
-    --popover: 0 0% 100%; /* #FFFFFF */
-    --popover-foreground: 210 10% 14%; /* #1F2327 */
-    --primary: 338 100% 50%; /* #FF0054 */
-    --primary-foreground: 0 0% 100%; /* #FFFFFF */
-    --secondary: 349 81% 56%; /* #ED2748 */
-    --secondary-foreground: 0 0% 100%; /* #FFFFFF */
-    --muted: 48 80% 92%; /* #F8F0DE */
-    --muted-foreground: 210 10% 38%; /* #595C5E */
-    --accent: 349 68% 68%; /* #E95E75 */
-    --accent-foreground: 210 10% 14%; /* #1F2327 */
-    --destructive: 349 81% 56%; /* #ED2748 */
-    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
-    --border: 35 15% 70%; /* #B3B0AD */
-    --input: 48 80% 92%; /* #F8F0DE */
-    --ring: 338 100% 50%; /* #FF0054 */
+    /* ─── NEW: Shadcn/UI Base Variables (Light Mode) ────────────────────────── */
+    --background: 44 43% 92%; /* brandCream: #F8F0DE */
+    --foreground: 210 10% 14%; /* brandBlack: #1F2327 */
+    --card: 44 100% 97%;      /* brandCreamL: #FFF8EC */
+    --card-foreground: 210 10% 14%; /* brandBlack: #1F2327 */
+    --popover: 44 100% 97%;    /* brandCreamL: #FFF8EC */
+    --popover-foreground: 210 10% 14%; /* brandBlack: #1F2327 */
+    --primary: 349 84% 55%;   /* brandRed: #ED2748 */
+    --primary-foreground: 0 0% 100%; /* white: #FFFFFF */
+    --secondary: 210 10% 35%; /* gray600: #56595C */
+    --secondary-foreground: 0 0% 100%; /* white: #FFFFFF */
+    --muted: 43 27% 88%;      /* brandCreamD: #E0D9C8 */
+    --muted-foreground: 210 10% 35%; /* gray600: #56595C */
+    --accent: 349 89% 68%;    /* brandRedL: #F36A84 */
+    --accent-foreground: 210 10% 14%; /* brandBlack: #1F2327 */
+    --destructive: 344 100% 50%; /* danger: #FF004C */
+    --destructive-foreground: 0 0% 100%; /* white: #FFFFFF */
+    --border: 210 9% 89%;     /* gray200: #E1E3E5 */
+    --input: 43 27% 88%;      /* brandCreamD: #E0D9C8 */
+    --ring: 349 84% 55%;      /* brandRed: #ED2748 */
     --radius: 0.5rem;
 
-    /* Custom Cassette Brand Colors */
-    --cream: 48 80% 92%; /* #F8F0DE */
-    --text-primary: 210 10% 14%; /* #1F2327 */
-    --text-secondary: 0 0% 46%; /* #757575 */
-    --text-hint: 0 0% 77%; /* #C4C4C4 */
-    --text-artist: 0 0% 36%; /* #5C5C5C */
-    --profile: 210 10% 14%; /* #1F2327 */
-    --tab: 0 0% 77%; /* #C4C4C4 */
-    --gray: 0 0% 65%; /* #A7A7A7 */
-    --gray-light: 0 0% 77%; /* #C4C4C4 */
-    --gray-dark: 0 0% 36%; /* #5C5C5C */
-    --green: 141 76% 47%; /* #1ED760 */
-    --blue: 203 100% 50%; /* #0093FF */
+    /* ─── NEW: Custom Cassette Brand & UI Tokens ─────────────────────────────── */
+    --brand-red: 349 84% 55%;      /* #ED2748 */
+    --brand-red-l: 349 89% 68%;    /* #F36A84 */
+    --brand-red-d: 349 71% 37%;    /* #A31B34 */
+    --brand-black: 210 10% 14%;    /* #1F2327 */
+    --brand-black-l: 210 10% 19%;  /* #2B3035 */
+    --brand-black-d: 210 10% 7%;   /* #0D0F11 */
+    --brand-cream: 44 43% 92%;     /* #F8F0DE */
+    --brand-cream-l: 44 100% 97%;  /* #FFF8EC */
+    --brand-cream-d: 43 27% 88%;   /* #E0D9C8 */
 
-    /* Button Colors */
-    --btn-top: 349 81% 56%; /* #ED2748 */
-    --btn-top-border: 343 100% 50%; /* #FF002B */
-    --btn-bottom: 349 68% 68%; /* #E95E75 */
-    --btn-convert-top: 210 10% 14%; /* #1F2327 */
-    --btn-convert-bottom: 210 10% 38%; /* #595C5E */
-    --btn-convert-border: 210 10% 14%; /* #1F2327 */
+    --success: 142 71% 45%;        /* #1ED760 */
+    --info: 206 100% 50%;         /* #0093FF */
+    --warning: 39 100% 50%;       /* #FFB300 */
+    --danger: 344 100% 50%;        /* #FF004C */
 
-    /* Utility Colors */
-    --popup-bg: 210 10% 14%; /* with 78% opacity */
-    --popup-divider: 0 0% 54%; /* #8A8A8A */
-    --tab-divider: 0 0% 20%; /* #333333 */
+    --accent-teal: 176 100% 35%;   /* #00B3A4 */
+    --accent-lilac: 256 100% 73%;  /* #9A75FF */
+    
+    --text-primary: 210 10% 14%;   /* on light */
+    --text-on-dark: 44 43% 92%;    /* on dark */
+    --text-secondary: 210 5% 45%;  /* #75787C */
+    --text-hint: 213 4% 61%;       /* #9A9DA1 */
+
+    --bg-canvas: 210 10% 7%;       /* #0D0F11 */
+    --bg-elevated: 210 10% 14%;    /* #1F2327 */
+    --bg-subtle: 210 10% 19%;      /* #2B3035 */
+    --bg-cream: 44 43% 92%;        /* #F8F0DE */
+
+    --border-light: 210 9% 89%;    /* #E1E3E5 */
+    --border-dark: 213 7% 17%;     /* #2A2D30 */
+
+    --overlay-scrim: 15 17 19 / 0.78; /* #0F1113 */
+    --divider-light: 210 9% 89%;   /* #E1E3E5 */
+    --divider-dark: 0 0% 20%;      /* #333 */
+
+    /* Button Colors - using new tokens */
+    --btn-primary-top: 349 84% 55%;       /* brandRed */
+    --btn-primary-bottom: 349 71% 37%;    /* brandRedD */
+    --btn-primary-border: 344 100% 50%;   /* danger */
+    --btn-convert-top: 210 10% 14%;       /* brandBlack */
+    --btn-convert-bottom: 210 10% 35%;    /* gray600 */
+    --btn-convert-border: 210 10% 14%;    /* brandBlack */
 
     /* Chart colors */
-    --chart-1: 338 100% 50%; /* #FF0054 */
-    --chart-2: 349 81% 56%; /* #ED2748 */
-    --chart-3: 52 100% 67%; /* #FFDE59 */
-    --chart-4: 48 80% 92%; /* #F8F0DE */
-    --chart-5: 210 10% 38%; /* #595C5E */
+    --chart-1: 349 84% 55%;    /* brandRed */
+    --chart-2: 349 89% 68%;    /* brandRedL */
+    --chart-3: 39 100% 50%;    /* warning */
+    --chart-4: 44 43% 92%;     /* brandCream */
+    --chart-5: 210 10% 35%;    /* gray600 */
 
     /* Sidebar colors */
-    --sidebar-background: 0 0% 100%; /* #FFFFFF */
-    --sidebar-foreground: 210 10% 14%; /* #1F2327 */
-    --sidebar-primary: 338 100% 50%; /* #FF0054 */
-    --sidebar-primary-foreground: 0 0% 100%; /* #FFFFFF */
-    --sidebar-accent: 48 80% 92%; /* #F8F0DE */
-    --sidebar-accent-foreground: 210 10% 14%; /* #1F2327 */
-    --sidebar-border: 35 15% 70%; /* #B3B0AD */
-    --sidebar-ring: 338 100% 50%; /* #FF0054 */
+    --sidebar-background: 0 0% 100%;       /* white */
+    --sidebar-foreground: 210 10% 14%;     /* brandBlack */
+    --sidebar-primary: 349 84% 55%;        /* brandRed */
+    --sidebar-primary-foreground: 0 0% 100%; /* white */
+    --sidebar-accent: 44 43% 92%;          /* brandCream */
+    --sidebar-accent-foreground: 210 10% 14%; /* brandBlack */
+    --sidebar-border: 210 9% 89%;          /* borderLight */
+    --sidebar-ring: 349 84% 55%;           /* brandRed */
   }
 
   .dark {
-    --background: 210 10% 14%; /* #1F2327 */
-    --foreground: 48 80% 92%; /* #F8F0DE */
-    --card: 210 10% 18%; /* #292D31 */
-    --card-foreground: 48 80% 92%; /* #F8F0DE */
-    --popover: 210 10% 18%; /* #292D31 */
-    --popover-foreground: 48 80% 92%; /* #F8F0DE */
-    --primary: 338 100% 50%; /* #FF0054 */
-    --primary-foreground: 0 0% 100%; /* #FFFFFF */
-    --secondary: 349 81% 56%; /* #ED2748 */
-    --secondary-foreground: 0 0% 100%; /* #FFFFFF */
-    --muted: 210 10% 18%; /* #292D31 */
-    --muted-foreground: 35 15% 70%; /* #B3B0AD */
-    --accent: 349 68% 68%; /* #E95E75 */
-    --accent-foreground: 210 10% 14%; /* #1F2327 */
-    --destructive: 349 81% 56%; /* #ED2748 */
-    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
-    --border: 210 10% 38%; /* #595C5E */
-    --input: 210 10% 18%; /* #292D31 */
-    --ring: 338 100% 50%; /* #FF0054 */
+    /* ─── NEW: Shadcn/UI Base Variables (Dark Mode) ────────────────────────── */
+    --background: 210 10% 14%;    /* brandBlack: #1F2327 */
+    --foreground: 44 43% 92%;     /* brandCream: #F8F0DE */
+    --card: 210 10% 19%;          /* brandBlackL: #2B3035 */
+    --card-foreground: 44 43% 92%;/* brandCream: #F8F0DE */
+    --popover: 210 10% 19%;       /* brandBlackL: #2B3035 */
+    --popover-foreground: 44 43% 92%; /* brandCream: #F8F0DE */
+    --primary: 349 89% 68%;       /* brandRedL: #F36A84 - Lighter for dark mode */
+    --primary-foreground: 210 10% 14%; /* brandBlack: #1F2327 */
+    --secondary: 213 7% 17%;      /* gray800: #2A2D30 */
+    --secondary-foreground: 44 43% 92%; /* brandCream: #F8F0DE */
+    --muted: 210 10% 19%;         /* brandBlackL: #2B3035 */
+    --muted-foreground: 213 4% 61%; /* gray400: #9A9DA1 */
+    --accent: 349 71% 37%;        /* brandRedD: #A31B34 - Pressed/Hover */
+    --accent-foreground: 44 43% 92%; /* brandCream: #F8F0DE */
+    --destructive: 344 100% 50%;  /* danger: #FF004C */
+    --destructive-foreground: 0 0% 100%; /* white: #FFFFFF */
+    --border: 213 7% 17%;         /* borderDark: #2A2D30 */
+    --input: 210 10% 19%;         /* brandBlackL: #2B3035 */
+    --ring: 349 89% 68%;          /* brandRedL: #F36A84 */
 
-    /* Custom dark theme overrides */
-    --cream: 210 10% 14%; /* #1F2327 */
-    --sidebar-background: 210 10% 18%; /* #292D31 */
-    --sidebar-foreground: 48 80% 92%; /* #F8F0DE */
-    --sidebar-accent: 210 10% 38%; /* #595C5E */
-    --sidebar-accent-foreground: 48 80% 92%; /* #F8F0DE */
-    --sidebar-border: 210 10% 38%; /* #595C5E */
+    /* ─── NEW: Custom Dark Theme Overrides ──────────────────────────────────── */
+    --text-primary: 44 43% 92%;   /* textOnDark: #F8F0DE */
+    --bg-cream: 210 10% 14%;       /* Use dark background instead of cream */
+
+    --sidebar-background: 210 10% 19%;     /* brandBlackL: #2B3035 */
+    --sidebar-foreground: 44 43% 92%;      /* brandCream: #F8F0DE */
+    --sidebar-accent: 213 7% 17%;          /* gray800: #2A2D30 */
+    --sidebar-accent-foreground: 44 43% 92%; /* brandCream: #F8F0DE */
+    --sidebar-border: 213 7% 17%;          /* borderDark: #2A2D30 */
   }
 }
 
@@ -118,30 +138,9 @@
   }
 }
 
-:root {
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(240 5.9% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(240 4.8% 95.9%);
-  --sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-}
-
-.dark {
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-}
-
+/* ─── Theme inline utilities for sidebar ─────────────────────────────────── */
 @theme inline {
-  --color-sidebar: var(--sidebar);
+  --color-sidebar: var(--sidebar-background);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
@@ -149,15 +148,6 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
 }
 
 /* Hamburger menu animation */

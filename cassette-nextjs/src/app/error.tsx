@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { AnimatedButton } from '@/components/ui/animated-button';
 import { HeadlineText, BodyText } from '@/components/ui/typography';
 import { AnimatedBackground } from '@/components/ui/animated-background';
+import { theme } from '@/lib/theme';
 
 export default function Error({
   error,
@@ -23,13 +24,13 @@ export default function Error({
       <div className="relative z-10 min-h-screen flex items-center justify-center">
         <div className="text-center p-8 max-w-md mx-auto">
           <div className="mb-6">
-            <svg className="w-20 h-20 text-red-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-20 h-20 text-danger mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           
           <HeadlineText className="mb-4">Something went wrong!</HeadlineText>
-          <BodyText className="text-text-secondary mb-8">
+          <BodyText className="text-muted-foreground mb-8">
             We encountered an unexpected error. Please try again.
           </BodyText>
           
@@ -47,8 +48,8 @@ export default function Error({
               height={40}
               width={120}
               initialPos={4}
-              colorTop="#595C5E"
-              colorBottom="#1F2327"
+              colorTop={theme.colors.btnConvertTop}
+              colorBottom={theme.colors.btnConvertBottom}
             />
           </div>
         </div>

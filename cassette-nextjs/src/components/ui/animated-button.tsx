@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { theme } from '@/lib/theme';
 
 interface AnimatedButtonProps {
   text?: string;
@@ -64,11 +65,11 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
     onMouseDown?.();
   };
 
-  // Default colors based on Flutter implementation
-  const defaultTopColor = colorTop || '#ED2748';
-  const defaultBottomColor = colorBottom || '#E95E75';
-  const defaultTopBorderColor = borderColorTop || '#FF002B';
-  const defaultBottomBorderColor = borderColorBottom || '#ED2748';
+  // NEW: Use theme tokens as defaults
+  const defaultTopColor = colorTop || theme.colors.btnPrimaryTop;
+  const defaultBottomColor = colorBottom || theme.colors.brandRedL;
+  const defaultTopBorderColor = borderColorTop || theme.colors.btnPrimaryBorder;
+  const defaultBottomBorderColor = borderColorBottom || theme.colors.brandRedD;
 
   return (
     <button
@@ -127,34 +128,34 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
   );
 };
 
-// Preset button variants based on Flutter styles
+// Preset button variants using theme tokens
 export const AnimatedPrimaryButton: React.FC<Omit<AnimatedButtonProps, 'colorTop' | 'colorBottom'>> = (props) => (
   <AnimatedButton
     {...props}
-    colorTop="#ED2748"
-    colorBottom="#E95E75"
-    borderColorTop="#FF002B"
-    borderColorBottom="#ED2748"
+    colorTop={theme.colors.btnPrimaryTop}
+    colorBottom={theme.colors.brandRedL}
+    borderColorTop={theme.colors.btnPrimaryBorder}
+    borderColorBottom={theme.colors.brandRed}
   />
 );
 
 export const AnimatedConvertButton: React.FC<Omit<AnimatedButtonProps, 'colorTop' | 'colorBottom'>> = (props) => (
   <AnimatedButton
     {...props}
-    colorTop="#1F2327"
-    colorBottom="#595C5E"
-    borderColorTop="#1F2327"
-    borderColorBottom="#1F2327"
+    colorTop={theme.colors.btnConvertTop}
+    colorBottom={theme.colors.btnConvertBottom}
+    borderColorTop={theme.colors.btnConvertBorder}
+    borderColorBottom={theme.colors.btnConvertBorder}
   />
 );
 
 export const AnimatedFreeAccountButton: React.FC<Omit<AnimatedButtonProps, 'colorTop' | 'colorBottom' | 'textStyle'>> = (props) => (
   <AnimatedButton
     {...props}
-    colorTop="#ED2748"
-    colorBottom="#E95E75"
-    borderColorTop="#FF002B"
-    borderColorBottom="#ED2748"
+    colorTop={theme.colors.btnPrimaryTop}
+    colorBottom={theme.colors.brandRedL}
+    borderColorTop={theme.colors.btnPrimaryBorder}
+    borderColorBottom={theme.colors.brandRed}
     textStyle="text-xl font-bold tracking-wide"
   />
 );

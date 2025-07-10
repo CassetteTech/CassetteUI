@@ -98,15 +98,19 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'track':
+        // Use primary color for tracks
         return 'bg-primary/10 text-primary border-primary/20';
       case 'album':
-        return 'bg-orange-100/20 text-orange-600 border-orange-300/30';
+        // Use warning color for albums
+        return 'bg-warning/10 text-warning border-warning/20';
       case 'artist':
-        return 'bg-purple-100/20 text-purple-600 border-purple-300/30';
+        // Use a restrained accent color for artists
+        return 'bg-accentLilac/10 text-accentLilac border-accentLilac/20';
       case 'playlist':
-        return 'bg-green-100/20 text-green-600 border-green-300/30';
+        // Use success color for playlists
+        return 'bg-success/10 text-success border-success/20';
       default:
-        return 'bg-gray-100/20 text-gray-600 border-gray-300/30';
+        return 'bg-secondary/10 text-secondary-foreground border-border';
     }
   };
 
@@ -135,7 +139,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     return (
       <div className="text-center py-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-        <UIText className="text-text-secondary">
+        <UIText className="text-muted-foreground">
           {isSearching ? 'Searching...' : 'Loading top charts...'}
         </UIText>
       </div>
@@ -145,7 +149,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   if (!results || allResults.length === 0) {
     return (
       <div className="text-center py-8">
-        <UIText className="text-text-secondary">No results found</UIText>
+        <UIText className="text-muted-foreground">No results found</UIText>
       </div>
     );
   }
@@ -155,22 +159,22 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
       {/* Search Results Container with retro shadow effect */}
       <div className="relative">
         {/* Bottom shadow layer */}
-        <div className="absolute inset-0 translate-x-1 translate-y-1 bg-gray-400 rounded-lg" />
+        <div className="absolute inset-0 translate-x-1 translate-y-1 bg-textSecondary rounded-lg" />
         
         {/* Main container */}
-        <div className="relative bg-white rounded-lg border-2 border-black">
+        <div className="relative bg-white rounded-lg border-2 border-brandBlack">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b-2 border-black">
-            <h3 className="text-lg font-bold text-text-primary font-atkinson">
+          <div className="flex items-center justify-between px-4 py-3 border-b-2 border-brandBlack">
+            <h3 className="text-lg font-bold text-brandBlack font-atkinson">
               {showSearchResults ? 'Search Results' : 'Top Charts'}
             </h3>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-gray-100 rounded transition-colors"
+              className="p-1 hover:bg-brandCreamD rounded transition-colors"
               aria-label="Close search results"
             >
               <svg 
-                className="w-5 h-5 text-text-primary" 
+                className="w-5 h-5 text-brandBlack" 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
@@ -190,14 +194,14 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             {allResults.map((item, index) => (
               <div
                 key={`${item.type}-${item.id}-${index}`}
-                className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-b-0"
+                className="flex items-center gap-3 p-3 hover:bg-brandCreamL transition-colors cursor-pointer border-b border-brandCreamD last:border-b-0"
                 onMouseDown={(e) => {
                   e.preventDefault(); // Prevent blur
                   handleItemClick(item);
                 }}
               >
                 {/* Album Art */}
-                <div className="flex-shrink-0 relative w-12 h-12 rounded-md overflow-hidden border border-gray-200">
+                <div className="flex-shrink-0 relative w-12 h-12 rounded-md overflow-hidden border border-borderLight">
                   {item.artwork ? (
                     <Image
                       src={item.artwork}
@@ -216,9 +220,9 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                   ) : SkeletonComponent ? (
                     <SkeletonComponent className="w-12 h-12 rounded-md" />
                   ) : (
-                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                    <div className="w-full h-full bg-brandCreamD flex items-center justify-center">
                       <svg 
-                        className="w-6 h-6 text-gray-400" 
+                        className="w-6 h-6 text-textHint" 
                         fill="none" 
                         stroke="currentColor" 
                         viewBox="0 0 24 24"
@@ -236,11 +240,11 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-text-primary truncate text-sm">
+                  <p className="font-semibold text-brandBlack truncate text-sm">
                     {item.title}
                   </p>
                   {item.artist && (
-                    <p className="text-text-secondary text-xs truncate">
+                    <p className="text-textSecondary text-xs truncate">
                       {item.artist}
                     </p>
                   )}
@@ -253,7 +257,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
                 {/* Arrow */}
                 <svg 
-                  className="w-4 h-4 text-gray-400 flex-shrink-0" 
+                  className="w-4 h-4 text-textHint flex-shrink-0" 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"

@@ -87,7 +87,7 @@ export function ConnectSpotifyButton({
             height={32}
             className="mr-2"
           />
-          <CardTitle className="text-[#1DB954]">Spotify</CardTitle>
+          <CardTitle className="text-success">Spotify</CardTitle>
         </div>
         <CardDescription>
           {isConnected 
@@ -99,7 +99,7 @@ export function ConnectSpotifyButton({
       <CardContent className="space-y-4">
         {isConnected ? (
           <>
-            <div className="flex items-center justify-center text-green-600 dark:text-green-400">
+            <div className="flex items-center justify-center text-success">
               <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path 
                   fillRule="evenodd" 
@@ -122,7 +122,7 @@ export function ConnectSpotifyButton({
           <Button 
             onClick={handleConnect}
             disabled={isLoading}
-            className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white"
+            className="w-full bg-success hover:bg-success/90 text-white"
           >
             {isLoading ? 'Connecting...' : 'Connect with Spotify'}
           </Button>

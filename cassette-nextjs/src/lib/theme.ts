@@ -221,7 +221,7 @@ export const typography = {
     fontFamily: theme.fonts.teko,
     fontSize: theme.fontSizes['2xl'],
     fontWeight: theme.fontWeights.bold,
-    color: theme.colors.textArtist,
+    color: theme.colors.textSecondary,
     letterSpacing: theme.letterSpacing.custom2,
   },
   
@@ -250,14 +250,14 @@ export const components = {
   
   animatedButton: {
     top: {
-      backgroundColor: theme.colors.btnTop,
-      borderColor: theme.colors.btnTopBorder,
+      backgroundColor: theme.colors.btnPrimaryTop,
+      borderColor: theme.colors.btnPrimaryBorder,
       borderWidth: '1px',
       borderRadius: theme.borderRadius.default,
     },
     bottom: {
-      backgroundColor: theme.colors.btnBottom,
-      borderColor: theme.colors.btnTop,
+      backgroundColor: theme.colors.btnPrimaryBottom,
+      borderColor: theme.colors.btnPrimaryTop,
       borderWidth: '1px',
       borderRadius: theme.borderRadius.default,
     },
@@ -273,7 +273,7 @@ export const components = {
   },
   
   circleDecoration: {
-    backgroundColor: theme.colors.grayLight,
+    backgroundColor: theme.colors.gray200,
     borderRadius: theme.borderRadius.full,
   },
   
@@ -287,7 +287,7 @@ export const components = {
     borderColor: theme.colors.textHint,
     padding: '8px 12px',
     '&:focus': {
-      borderColor: theme.colors.primary,
+      borderColor: theme.colors.brandRed,
       outline: 'none',
     },
   },

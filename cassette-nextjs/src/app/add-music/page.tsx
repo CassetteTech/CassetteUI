@@ -113,14 +113,14 @@ const AddMusicForm = ({
                   }
                 }}
                 placeholder="Search or paste your music link here"
-                className="w-full h-full bg-transparent border-none outline-none text-center text-[#1F2327] placeholder-gray-500 px-3 sm:px-4 md:px-6 text-sm sm:text-base"
+                className="w-full h-full bg-transparent border-none outline-none text-center text-[#1F2327] placeholder:text-textHint px-3 sm:px-4 md:px-6 text-sm sm:text-base"
               />
             </UrlBar>
           )}
           
           {/* Selected Item Display */}
           {selectedItem && (
-            <div className="mt-4 p-4 bg-white rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_#1F2327]">
+            <div className="mt-4 p-4 bg-white rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px_var(--brand-black)]">
               <div className="flex items-center gap-3">
                 {selectedItem.coverArtUrl ? (
                   <Image
@@ -155,9 +155,9 @@ const AddMusicForm = ({
           
           {/* Pasted Link Display */}
           {pastedLinkSource && !selectedItem && (
-            <div className="mt-4 p-4 bg-white rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_#1F2327]">
+            <div className="mt-4 p-4 bg-white rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px_var(--brand-black)]">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <div className="w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
                   <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                   </svg>
@@ -189,7 +189,7 @@ const AddMusicForm = ({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Let us know a little bit about this song or playlist!"
               rows={6}
-              className="relative w-full p-4 bg-white border-2 border-black rounded-lg font-atkinson text-text-primary placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              className="relative w-full p-4 bg-white border-2 border-foreground rounded-lg font-atkinson text-text-primary placeholder:text-textHint resize-none focus:outline-none focus:ring-2 focus:ring-primary"
               autoComplete="off"
               spellCheck="false"
             />
@@ -216,7 +216,7 @@ const AddMusicForm = ({
           />
           
           {errorMessage && (
-            <p className="mt-4 text-red-600 font-atkinson text-sm">{errorMessage}</p>
+            <p className="mt-4 text-danger font-atkinson text-sm">{errorMessage}</p>
           )}
         </div>
         )}

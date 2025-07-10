@@ -56,7 +56,7 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="min-h-screen bg-cream dark:bg-gray-900 relative overflow-hidden">
+    <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Animated Background */}
       <AnimatedBackground className="fixed inset-0 z-0" />
       
@@ -91,7 +91,7 @@ export default function SignInPage() {
                 variant="outline"
                 onClick={handleGoogleSignIn}
                 disabled={isSigningInWithProvider}
-                className="w-full border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+                className="w-full border-borderLight bg-white hover:bg-brandCreamL text-foreground shadow-sm hover:shadow transition-all"
               >
                 <Image
                   src="/images/social_images/ic_auth_google.png"
@@ -107,7 +107,7 @@ export default function SignInPage() {
                 variant="outline"
                 onClick={handleAppleSignIn}
                 disabled={isSigningInWithProvider}
-                className="w-full border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+                className="w-full border-borderLight bg-white hover:bg-brandCreamL text-foreground shadow-sm hover:shadow transition-all"
               >
                 <Image
                   src="/images/apple_music_logo_colored.png"
@@ -125,7 +125,7 @@ export default function SignInPage() {
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card dark:bg-card px-2 text-muted-foreground">
+                <span className="bg-card px-2 text-muted-foreground">
                   Or continue with email
                 </span>
               </div>
@@ -201,7 +201,7 @@ export default function SignInPage() {
                           type="checkbox"
                           checked={field.value}
                           onChange={field.onChange}
-                          className="mt-1 h-4 w-4 rounded border-gray-400 text-gray-900 dark:border-gray-600 dark:bg-gray-800 focus:ring-gray-500"
+                          className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
@@ -222,7 +222,7 @@ export default function SignInPage() {
                 />
 
                 {signInError && (
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-sm text-destructive">
                     {signInError.message}
                   </div>
                 )}
@@ -249,13 +249,13 @@ export default function SignInPage() {
             </CardContent>
           </Card>
           
-          <div className="text-gray-600 dark:text-gray-400 text-center text-xs text-balance">
+          <div className="text-muted-foreground text-center text-xs text-balance">
             By clicking continue, you agree to our{' '}
-            <Link href="/terms" className="underline underline-offset-4 hover:text-gray-900 dark:hover:text-gray-200">
+            <Link href="/terms" className="underline underline-offset-4 hover:text-foreground">
               Terms of Service
             </Link>{' '}
             and{' '}
-            <Link href="/privacy" className="underline underline-offset-4 hover:text-gray-900 dark:hover:text-gray-200">
+            <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
               Privacy Policy
             </Link>
             .

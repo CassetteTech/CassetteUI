@@ -1,7 +1,7 @@
 # Cassette Project - Development Guide
 
 ## 🎨 Theme System
-**ALWAYS** check `src/lib/theme.ts` for all available colors before making any color changes. This file is the single source of truth for the design system.
+**ALWAYS** check `src/lib/theme.ts` for all available colors before making any color changes. This file is the single source of truth for the design system. NEVER HARDCODE COLORS. USE VARIABLES FROM THEME FILE.
 
 ### Dark/Light Mode
 - The theme system automatically handles dark/light mode through CSS variables

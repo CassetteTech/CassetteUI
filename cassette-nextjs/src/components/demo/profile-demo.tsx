@@ -6,6 +6,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Share2, Music } from "lucide-react";
 import Image from "next/image";
+import { theme } from "@/lib/theme";
 
 type TabType = 'playlists' | 'tracks' | 'artists' | 'albums';
 
@@ -197,7 +198,7 @@ export function ProfileDemo() {
                     <Music className="mr-2 h-3 w-3" />
                     <span className="text-xs">Add Music</span>
                   </Button>
-                  <Button className="flex-1 h-8 text-white" style={{ backgroundColor: '#FF0054' }} onClick={handleShare}>
+                  <Button className="flex-1 h-8 text-white" style={{ backgroundColor: theme.colors.brandRed }} onClick={handleShare}>
                     <Share2 className="mr-2 h-3 w-3" />
                     <span className="text-xs">Share Profile</span>
                   </Button>
@@ -215,7 +216,7 @@ export function ProfileDemo() {
                           value={tab.key}
                           className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 py-2 text-xs font-medium transition-all duration-200 data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground data-[state=active]:text-white"
                           style={{
-                            backgroundColor: activeTab === tab.key ? '#FF0054' : undefined,
+                            backgroundColor: activeTab === tab.key ? theme.colors.brandRed : undefined,
                             height: activeTab === tab.key ? '32px' : '28px',
                           }}
                         >

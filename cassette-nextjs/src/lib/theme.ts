@@ -2,46 +2,75 @@
 
 export const theme = {
   colors: {
-    // Primary brand colors
-    primary: '#FF0054',
-    secondary: '#ED2748',
-    accent: '#E95E75',
-    
-    // Text colors
-    textPrimary: '#1F2327',
-    textSecondary: '#757575',
-    textHint: '#C4C4C4',
-    textArtist: '#5C5C5C',
-    
-    // Background colors
-    bgCream: '#F8F0DE',
-    bgProfile: '#1F2327',
-    bgTab: '#C4C4C4',
-    bgInput: '#F8F0DE',
-    
-    // Neutral colors
-    white: '#FFFFFF',
-    black: '#000000',
-    gray: '#A7A7A7',
-    grayLight: '#C4C4C4',
-    grayDark: '#5C5C5C',
-    
-    // Accent colors
-    green: '#1ED760',
-    blue: '#0093FF',
-    
-    // Animated button colors
-    btnTop: '#ED2748',
-    btnTopBorder: '#FF002B',
-    btnBottom: '#E95E75',
-    btnConvertTop: '#1F2327',
-    btnConvertBottom: '#595C5E',
-    btnConvertBorder: '#1F2327',
-    
-    // Utility colors
-    popupBg: 'rgba(31, 35, 39, 0.78)',
-    popupDivider: '#8A8A8A',
-    tabDivider: '#333333',
+    /* ─── Core Brand ───────────────────────────────────── */
+    brandRed:   '#ED2748',   // primary CTA, highlights
+    brandRedL:  '#F36A84',   // hover / active
+    brandRedD:  '#A31B34',   // pressed / dark mode hover
+
+    brandBlack: '#1F2327',   // body text, dark UI
+    brandBlackL:'#2B3035',   // card / surface on dark
+    brandBlackD:'#0D0F11',   // deepest shadow
+
+    brandCream: '#F8F0DE',   // light surfaces
+    brandCreamL:'#FFF8EC',   // elevated card
+    brandCreamD:'#E0D9C8',   // border / subtle fill
+
+    /* ─── Functional Neutrals ─────────────────────────── */
+    white:      '#FFFFFF',
+    gray100:    '#F2F4F5',
+    gray200:    '#E1E3E5',
+    gray300:    '#C4C7CA',
+    gray400:    '#9A9DA1',
+    gray500:    '#75787C',
+    gray600:    '#56595C',
+    gray700:    '#3B3E41',
+    gray800:    '#2A2D30',
+    gray900:    '#1F2327',
+
+    /* ─── Semantic / Status ───────────────────────────── */
+    success:    '#1ED760',   // matches Spotify-green, good contrast
+    successBg:  '#E6F9EB',
+
+    info:       '#0093FF',
+    infoBg:     '#E1F1FF',
+
+    warning:    '#FFB300',
+    warningBg:  '#FFF8E1',
+
+    danger:     '#FF004C',
+    dangerBg:   '#FFE9EE',
+
+    /* ─── Accent Pops (retro but restrained) ──────────── */
+    accentTeal: '#00B3A4',   // for little graphic pops
+    accentLilac:'#9A75FF',   // subtle illustration tints
+
+    /* ─── UI Elements ─────────────────────────────────── */
+    textPrimary:   '#1F2327',  // on light
+    textOnDark:    '#F8F0DE',  // cream on dark surfaces
+    textSecondary: '#56595C',
+    textHint:      '#9A9DA1',
+
+    bgCanvas:      '#0D0F11',  // full-bleed dark sections
+    bgElevated:    '#1F2327',
+    bgSubtle:      '#2B3035',
+    bgCream:       '#F8F0DE',
+
+    borderLight:   '#E1E3E5',
+    borderDark:    '#2A2D30',
+
+    /* ─── Buttons (derived) ───────────────────────────── */
+    btnPrimaryTop:       '#ED2748',
+    btnPrimaryBottom:    '#C81E3F',
+    btnPrimaryBorder:    '#FF004C',
+
+    btnConvertTop:       '#1F2327',
+    btnConvertBottom:    '#595C5E',
+    btnConvertBorder:    '#1F2327',
+
+    /* ─── Overlays ────────────────────────────────────── */
+    overlayScrim: 'rgba(15, 17, 19, 0.78)',
+    dividerLight: '#E1E3E5',
+    dividerDark:  '#333',
   },
   
   fonts: {

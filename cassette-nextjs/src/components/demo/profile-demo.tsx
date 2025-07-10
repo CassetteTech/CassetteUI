@@ -193,11 +193,11 @@ export function ProfileDemo() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button className="flex-1 h-8" variant="outline">
+                  <Button className="flex-1 h-8 border-2 border-gray-400" variant="outline">
                     <Music className="mr-2 h-3 w-3" />
                     <span className="text-xs">Add Music</span>
                   </Button>
-                  <Button className="flex-1 h-8 bg-red-500 hover:bg-red-600 text-white" onClick={handleShare}>
+                  <Button className="flex-1 h-8 text-white" style={{ backgroundColor: '#FF0054' }} onClick={handleShare}>
                     <Share2 className="mr-2 h-3 w-3" />
                     <span className="text-xs">Share Profile</span>
                   </Button>
@@ -208,12 +208,16 @@ export function ProfileDemo() {
               <div className="sticky top-0 z-10 bg-background border-t">
                 <div className="p-3">
                   <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabType)} className="w-full">
-                    <TabsList className="flex h-8 items-center justify-start rounded-lg w-full p-1 bg-muted/50 backdrop-blur-sm border border-border/50">
+                    <TabsList className="flex h-10 items-center justify-start rounded-lg w-full p-1 bg-muted/50 backdrop-blur-sm border border-border/50">
                       {tabs.map((tab) => (
                         <TabsTrigger
                           key={tab.key}
                           value={tab.key}
-                          className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium transition-all duration-200 data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                          className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 py-2 text-xs font-medium transition-all duration-200 data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground data-[state=active]:text-white"
+                          style={{
+                            backgroundColor: activeTab === tab.key ? '#FF0054' : undefined,
+                            height: activeTab === tab.key ? '32px' : '28px',
+                          }}
                         >
                           {tab.label}
                         </TabsTrigger>
@@ -266,13 +270,13 @@ export function ProfileDemo() {
         {/* Arrow from Add Music button to top label */}
         <div className="absolute top-[216px] left-[12px]">
           {/* Horizontal segment left */}
-          <div className="absolute w-8 h-0.5 bg-black -left-8 -translate-y-1/2" />
+          <div className="absolute w-8 h-0.5 bg-foreground -left-8 -translate-y-1/2" />
           {/* Vertical segment up - adjusted to reach middle of label (label is h-32, so middle is 16 from top) */}
-          <div className="absolute h-[346px] w-0.5 bg-black -left-8 -top-[346px]" />
+          <div className="absolute h-[346px] w-0.5 bg-foreground -left-8 -top-[346px]" />
           {/* Horizontal segment to label */}
-          <div className="absolute w-4 h-0.5 bg-black -left-8 -top-[347px]" />
+          <div className="absolute w-4 h-0.5 bg-foreground -left-8 -top-[347px]" />
           {/* Arrow head pointing right */}
-          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-l-[8px] border-t-transparent border-b-transparent border-l-black -left-4 -top-[346px] -translate-y-1/2" />
+          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-l-[8px] border-t-transparent border-b-transparent border-l-foreground -left-4 -top-[346px] -translate-y-1/2" />
         </div>
 
         {/* BOTTOM CALLOUT */}
@@ -301,13 +305,13 @@ export function ProfileDemo() {
         {/* Arrow from Share Profile button to bottom label */}
         <div className="absolute top-[216px] right-[12px]">
           {/* Horizontal segment right */}
-          <div className="absolute w-8 h-0.5 bg-black -right-8 -translate-y-1/2" />
+          <div className="absolute w-8 h-0.5 bg-foreground -right-8 -translate-y-1/2" />
           {/* Vertical segment down - adjusted to reach middle of label */}
-          <div className="absolute h-[552px] w-0.5 bg-black -right-8 top-0" />
+          <div className="absolute h-[552px] w-0.5 bg-foreground -right-8 top-0" />
           {/* Horizontal segment to label */}
-          <div className="absolute w-4 h-0.5 bg-black -right-8 top-[552px]" />
+          <div className="absolute w-4 h-0.5 bg-foreground -right-8 top-[552px]" />
           {/* Arrow head pointing left */}
-          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-r-[8px] border-t-transparent border-b-transparent border-r-black -right-4 top-[553px] -translate-y-1/2" />
+          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-r-[8px] border-t-transparent border-b-transparent border-r-foreground -right-4 top-[553px] -translate-y-1/2" />
         </div>
       </div>
     </div>

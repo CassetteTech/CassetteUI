@@ -12,7 +12,7 @@ export const useSignIn = () => {
     mutationFn: (data: SignInForm) => authService.signIn(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
-      // Match Flutter navigation - go to profile page after signin
+      // Navigate to profile (which will handle onboarding redirect if needed)
       router.push('/profile');
     },
     onError: (error: Error) => {
@@ -31,7 +31,7 @@ export const useSignUp = () => {
     },
     onSuccess: (result) => {
       console.log('✅ [useSignUp] Signup successful:', result);
-      // Match Flutter navigation - go to profile page after signup
+      // Navigate to profile (which will handle onboarding redirect if needed)
       router.push('/profile');
     },
     onError: (error: Error) => {

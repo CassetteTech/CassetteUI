@@ -283,6 +283,7 @@ export interface AuthUser {
   displayName: string;
   profilePicture: string;
   isEmailVerified: boolean;
+  isOnboarded: boolean;
   createdAt: string;
   updatedAt: string;
   connectedServices?: ConnectedService[];

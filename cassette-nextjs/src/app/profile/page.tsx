@@ -11,7 +11,11 @@ export default function ProfileRedirect() {
 
   useEffect(() => {
     if (!isLoading) {
-      if (user?.username) {
+      if (!user) {
+        router.replace('/auth/signin');
+      } else if (!user.isOnboarded) {
+        router.replace('/onboarding');
+      } else if (user.username) {
         router.replace(`/profile/${user.username}`);
       } else {
         router.replace('/auth/signin');
@@ -20,7 +24,7 @@ export default function ProfileRedirect() {
   }, [user, isLoading, router]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center space-y-4">
         <Skeleton className="h-12 w-12 rounded-full" />
         <Skeleton className="h-4 w-32" />

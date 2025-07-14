@@ -209,17 +209,20 @@ class AuthService {
     
     // Store the tokens
     this.setTokens(accessToken, refreshToken);
+    console.log('✅ [Auth] Tokens stored successfully');
     
     // Fetch the user data using the new token
+    console.log('🔄 [Auth] Fetching user data with new tokens...');
     const user = await this.getCurrentUser();
     
     if (!user) {
       // Clear tokens if we couldn't get user data
+      console.error('❌ [Auth] Failed to fetch user data after OAuth login');
       this.clearTokens();
       throw new Error('Failed to fetch user data after OAuth login');
     }
     
-    console.log('✅ [Auth] OAuth callback handled successfully');
+    console.log('✅ [Auth] OAuth callback handled successfully, user:', user);
     return user;
   }
 
@@ -277,6 +280,7 @@ class AuthService {
       displayName: String(userData.displayName || username || ''),
       profilePicture: String(userData.avatarUrl || userData.AvatarUrl || ''),
       isEmailVerified: true, // Assume verified if coming from backend
+      isOnboarded: Boolean(userData.isOnboarded || userData.IsOnboarded || false),
       createdAt: String(userData.joinDate || userData.createdAt || new Date().toISOString()),
       updatedAt: String(userData.updatedAt || new Date().toISOString()),
       // Include connected services from backend

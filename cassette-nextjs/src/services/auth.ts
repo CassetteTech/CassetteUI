@@ -159,23 +159,68 @@ class AuthService {
   }
 
   async signInWithProvider(provider: 'google' | 'apple') {
-    const response = await fetch(`${API_URL}/api/v1/auth/oauth/${provider}`, {
+    if (provider !== 'google') {
+      throw new Error('Only Google sign-in is implemented.');
+    }
+
+    const response = await fetch(`${API_URL}/api/v1/auth/google/init`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        redirectUrl: `${window.location.origin}/auth/callback`,
+        returnUrl: `${window.location.origin}/auth/google/callback`,
       }),
     });
 
     const data = await response.json();
 
-    if (!response.ok || !data.success) {
-      throw new Error(data.message || `Failed to sign in with ${provider}`);
+    if (!response.ok || !data.success || !data.authUrl) {
+      throw new Error(data.message || 'Failed to initiate Google sign-in.');
     }
 
-    return data;
+    window.location.href = data.authUrl;
+  }
+
+  async handleGoogleCallback(code: string, state: string) {
+    const response = await fetch(`${API_URL}/api/v1/auth/google/callback`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ code, state }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || 'Failed to handle Google callback.');
+    }
+
+    this.setTokens(data.token, data.refreshToken);
+    const authUser = this.mapToAuthUser(data.user);
+    useAuthStore.getState().setUser(authUser);
+
+    return authUser;
+  }
+
+  async handleOAuthCallback(accessToken: string, refreshToken: string) {
+    console.log('🔄 [Auth] Handling OAuth callback');
+    
+    // Store the tokens
+    this.setTokens(accessToken, refreshToken);
+    
+    // Fetch the user data using the new token
+    const user = await this.getCurrentUser();
+    
+    if (!user) {
+      // Clear tokens if we couldn't get user data
+      this.clearTokens();
+      throw new Error('Failed to fetch user data after OAuth login');
+    }
+    
+    console.log('✅ [Auth] OAuth callback handled successfully');
+    return user;
   }
 
   async resetPassword(email: string) {

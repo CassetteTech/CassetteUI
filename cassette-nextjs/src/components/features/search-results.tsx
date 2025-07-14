@@ -170,7 +170,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             </h3>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-brandCreamD rounded transition-colors"
+              className="p-1 hover:bg-brandCreamD rounded transition-colors lg:hidden"
               aria-label="Close search results"
             >
               <svg 

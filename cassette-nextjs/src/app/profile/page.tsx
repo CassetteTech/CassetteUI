@@ -11,13 +11,19 @@ export default function ProfileRedirect() {
 
   useEffect(() => {
     if (!isLoading) {
+      console.log('🔄 [Profile] Profile redirect logic running', { user, isLoading });
+      
       if (!user) {
+        console.log('❌ [Profile] No user, redirecting to signin');
         router.replace('/auth/signin');
       } else if (!user.isOnboarded) {
+        console.log('⚠️ [Profile] User not onboarded, redirecting to onboarding', user);
         router.replace('/onboarding');
       } else if (user.username) {
+        console.log('✅ [Profile] User onboarded with username, redirecting to profile', user);
         router.replace(`/profile/${user.username}`);
       } else {
+        console.log('❌ [Profile] User onboarded but no username, redirecting to signin', user);
         router.replace('/auth/signin');
       }
     }

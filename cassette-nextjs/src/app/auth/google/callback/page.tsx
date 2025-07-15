@@ -28,6 +28,13 @@ export default function GoogleCallbackPage() {
           try {
             const user = await authService.handleOAuthCallback(token, refreshToken);
             console.log('✅ [Google Callback] OAuth callback successful, user:', user);
+            
+            // Ensure the auth store is updated
+            useAuthStore.getState().setUser(user);
+            
+            // Add a small delay to ensure state is propagated
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             console.log('🔄 [Google Callback] Redirecting to /profile');
             router.push('/profile');
             return;

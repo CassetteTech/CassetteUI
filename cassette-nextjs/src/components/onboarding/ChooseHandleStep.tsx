@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 interface FormData {
   username: string;
   displayName: string;
-  profilePicture: File | null;
+  avatarFile: File | null;
 }
 
 interface ChooseHandleStepProps {

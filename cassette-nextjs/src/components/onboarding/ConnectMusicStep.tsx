@@ -8,7 +8,7 @@ import { Music, Check, ExternalLink } from 'lucide-react';
 interface FormData {
   username: string;
   displayName: string;
-  profilePicture: File | null;
+  avatarFile: File | null;
 }
 
 interface ConnectMusicStepProps {

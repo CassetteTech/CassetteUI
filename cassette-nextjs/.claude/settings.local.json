@@ -1,6 +1,10 @@
 {
-  "systemInstructions": ["CLAUDE.md"],
-  "additionalContext": ["CLAUDE.md"],
+  "systemInstructions": [
+    "CLAUDE.md"
+  ],
+  "additionalContext": [
+    "CLAUDE.md"
+  ],
   "permissions": {
     "allow": [
       "WebFetch(domain:ui.shadcn.com)",
@@ -11,7 +15,8 @@
       "Bash(ls:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm run lint)"
     ],
     "deny": []
   }

@@ -22,7 +22,7 @@ export default function OnboardingPage() {
   const [formData, setFormData] = useState({
     username: user?.username || '',
     displayName: user?.displayName || '',
-    profilePicture: null as File | null,
+    avatarFile: null as File | null,
   });
 
   // Update form data when user loads
@@ -75,42 +75,72 @@ export default function OnboardingPage() {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5173';
       
+      // Create FormData for file upload
+      const form = new FormData();
+      form.append('username', formData.username);
+      form.append('displayName', formData.displayName);
+      form.append('isOnboarded', 'true'); // Must be string!
+      
+      // Optional avatar file
+      if (formData.avatarFile) {
+        form.append('avatar', formData.avatarFile);
+      }
+      
       // Update user profile on the backend
-      const response = await fetch(`${API_URL}/api/v1/user/profile`, {
+      const response = await fetch(`${API_URL}/api/v1/profile`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          // Don't set Content-Type! Browser handles it automatically for FormData
         },
-        body: JSON.stringify({
-          username: formData.username,
-          displayName: formData.displayName,
-          isOnboarded: true,
-        }),
+        body: form,
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to update profile');
+        let errorMessage = 'Failed to update profile';
+        
+        // Handle specific error cases based on your API spec
+        switch (response.status) {
+          case 400:
+            errorMessage = errorData.message || 'Username taken, file too large, or invalid file type';
+            break;
+          case 401:
+            errorMessage = 'Invalid or expired login session';
+            break;
+          case 404:
+            errorMessage = 'User not found';
+            break;
+          case 500:
+            errorMessage = 'Server error occurred';
+            break;
+          default:
+            errorMessage = errorData.message || errorMessage;
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
       
-      // Update the auth store with the updated user
-      if (data.user) {
+      // Update the auth store with the updated user (API returns user object in data.user)
+      if (data.success && data.user) {
         setUser(data.user);
+        // Redirect to profile using the returned username
+        router.replace(`/profile/${data.user.username}`);
       } else if (user) {
-        // Update the existing user with the new onboarding status
-        setUser({
+        // Fallback: Update the existing user with the new onboarding status
+        const updatedUser = {
           ...user,
           username: formData.username,
           displayName: formData.displayName,
           isOnboarded: true,
-        });
+        };
+        setUser(updatedUser);
+        router.replace(`/profile/${formData.username}`);
+      } else {
+        throw new Error('Failed to update user data');
       }
-
-      // Redirect to profile
-      router.replace(`/profile/${formData.username}`);
     } catch (error) {
       console.error('Onboarding completion error:', error);
       // Handle error (could show toast, etc.)

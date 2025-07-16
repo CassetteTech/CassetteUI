@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { Upload, User } from 'lucide-react';
@@ -8,7 +8,7 @@ import { Upload, User } from 'lucide-react';
 interface FormData {
   username: string;
   displayName: string;
-  profilePicture: File | null;
+  avatarFile: File | null;
 }
 
 interface AvatarStepProps {
@@ -30,24 +30,39 @@ export function AvatarStep({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Cleanup preview URL on unmount
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
+      // Validate file type (match API requirements)
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Invalid file type! Use JPEG, PNG, or WebP');
         return;
       }
 
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be less than 5MB');
+        alert('File too large! Max 5MB');
         return;
       }
 
-      updateFormData({ profilePicture: file });
+      updateFormData({ avatarFile: file });
       
-      // Create preview URL
+      // Cleanup previous preview URL
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      
+      // Create new preview URL
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
     }
@@ -58,8 +73,11 @@ export function AvatarStep({
   };
 
   const handleSkip = () => {
-    updateFormData({ profilePicture: null });
-    setPreviewUrl(null);
+    updateFormData({ avatarFile: null });
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
     onNext();
   };
 
@@ -99,7 +117,7 @@ export function AvatarStep({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           onChange={handleFileSelect}
           className="hidden"
         />
@@ -111,10 +129,10 @@ export function AvatarStep({
             className="mb-2"
           >
             <Upload className="w-4 h-4 mr-2" />
-            {formData.profilePicture ? 'Change Photo' : 'Upload Photo'}
+            {formData.avatarFile ? 'Change Photo' : 'Upload Photo'}
           </Button>
           <p className="text-xs text-muted-foreground">
-            JPG, PNG or GIF • Max 5MB
+            JPEG, PNG or WebP • Max 5MB
           </p>
         </div>
       </div>

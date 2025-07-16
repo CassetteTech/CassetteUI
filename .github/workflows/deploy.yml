@@ -26,7 +26,7 @@ jobs:
       - name: Install Amplify CLI
         run: npm install -g @aws-amplify/cli
 
-      - name: Amplify Pull (headless)
+      - name: Amplify Pull (headless for Next.js)
         run: |
           amplify pull \
             --appId ${{ secrets.AMPLIFY_APP_ID }} \
@@ -37,12 +37,12 @@ jobs:
             }" \
             --frontend "{\
               \"frontend\":\"javascript\",\
-              \"framework\":\"react\",\
+              \"framework\":\"nextjs\",\
               \"config\":{\
                 \"SourceDir\":\"src\",\
-                \"DistributionDir\":\"build\",\
+                \"DistributionDir\":\".next\",\
                 \"BuildCommand\":\"npm run build\",\
-                \"StartCommand\":\"npm start\"\
+                \"StartCommand\":\"npm run start\"\
               }\
             }" \
             --providers "{\

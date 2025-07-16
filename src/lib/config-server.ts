@@ -1,3 +1,5 @@
+import { getBaseUrl } from './utils/url';
+
 // Server-only configuration - contains sensitive secrets
 // This config should NEVER be imported by client components
 // Only use in API routes, server actions, and server-side code
@@ -10,7 +12,7 @@ export const serverConfig = {
 
   // NextAuth configuration
   nextAuth: {
-    url: process.env.NEXTAUTH_URL || 'http://localhost:3000',
+    url: getBaseUrl(),
     secret: process.env.NEXTAUTH_SECRET || 'placeholder-secret',
   },
 

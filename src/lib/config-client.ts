@@ -1,3 +1,5 @@
+import { getApiUrl, getBaseUrl } from './utils/url';
+
 // Client-safe configuration - only NEXT_PUBLIC_ variables
 // This config can be safely imported by client components
 export const clientConfig = {
@@ -9,10 +11,7 @@ export const clientConfig = {
 
   // Backend API configuration
   api: {
-    url: process.env.NEXT_PUBLIC_API_URL_LOCAL || 
-         (process.env.NODE_ENV === 'production' 
-           ? process.env.NEXT_PUBLIC_API_URL || 'https://nm2uheummh.us-east-1.awsapprunner.com'
-           : 'http://localhost:5173'),
+    url: getApiUrl(),
   },
 
   // Feature flags
@@ -23,6 +22,7 @@ export const clientConfig = {
   // App configuration
   app: {
     domain: process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://cassetteinc.org',
+    baseUrl: getBaseUrl(),
   },
 } as const;
 

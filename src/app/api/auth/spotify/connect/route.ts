@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config';
+import { getCallbackUrl } from '@/lib/utils/url';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        returnUrl: `${config.nextAuth.url}/spotify_callback`
+        returnUrl: getCallbackUrl('/spotify_callback')
       }),
     });
 

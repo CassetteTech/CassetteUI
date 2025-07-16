@@ -17,6 +17,7 @@ export function getBaseUrl(): string {
     return process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://cassetteinc.org';
   }
   
+  
   // In development, check if we're in browser context
   if (typeof window !== 'undefined') {
     return window.location.origin;

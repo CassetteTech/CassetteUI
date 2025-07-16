@@ -1,5 +1,6 @@
+import './server-only';
 import jwt from 'jsonwebtoken';
-import { config } from '@/lib/config';
+import { serverConfig } from '@/lib/config-server';
 import { MusicSearchResult } from '@/types';
 import { 
   AppleMusicSearchResponse, 
@@ -20,9 +21,9 @@ class AppleMusicService {
   private tokenExpiryTime: Date | null = null;
 
   private getConfig(): AppleMusicConfig {
-    const keyId = config.appleMusic.keyId;
-    const teamId = config.appleMusic.teamId;
-    const privateKey = config.appleMusic.privateKey;
+    const keyId = serverConfig.appleMusic.keyId;
+    const teamId = serverConfig.appleMusic.teamId;
+    const privateKey = serverConfig.appleMusic.privateKey;
 
     if (!keyId || !teamId || !privateKey) {
       throw new Error('Apple Music credentials not configured. Please check your environment variables.');

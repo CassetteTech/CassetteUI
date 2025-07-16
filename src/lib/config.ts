@@ -1,54 +1,46 @@
+// Legacy config export for backward compatibility
+// New code should use clientConfig or serverConfig directly
+import { clientConfig } from './config-client';
+import { serverConfig } from './config-server';
+
+// Combined config for backward compatibility
+// WARNING: This exports sensitive secrets - use with caution
 export const config = {
-  // Supabase Configuration
+  // Client-safe configuration
   supabase: {
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key',
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key',
+    url: clientConfig.supabase.url,
+    anonKey: clientConfig.supabase.anonKey,
+    // Server-only secrets
+    serviceRoleKey: serverConfig.supabase.serviceRoleKey,
   },
 
-  // NextAuth Configuration
-  nextAuth: {
-    url: process.env.NEXTAUTH_URL || 'http://localhost:3000',
-    secret: process.env.NEXTAUTH_SECRET || 'placeholder-secret',
-  },
+  // Server-only configuration
+  nextAuth: serverConfig.nextAuth,
 
-  // Music API Configuration
+  // Music API configuration (mixed client/server)
   spotify: {
-    clientId: process.env.SPOTIFY_CLIENT_ID || '',
-    clientSecret: process.env.SPOTIFY_CLIENT_SECRET || '',
+    clientId: serverConfig.spotify.clientId,
+    clientSecret: serverConfig.spotify.clientSecret,
   },
 
   appleMusic: {
     developerToken: process.env.APPLE_MUSIC_DEVELOPER_TOKEN || '',
-    keyId: process.env.APPLE_MUSIC_KEY_ID || '',
-    teamId: process.env.APPLE_MUSIC_TEAM_ID || '',
-    privateKey: process.env.APPLE_MUSIC_PRIVATE_KEY || '',
+    keyId: serverConfig.appleMusic.keyId,
+    teamId: serverConfig.appleMusic.teamId,
+    privateKey: serverConfig.appleMusic.privateKey,
   },
 
-  // Backend API Configuration
-  api: {
-    // Force local URL for development
-    url: 'http://localhost:5173', // TODO: Revert to environment-based config
-    // url: process.env.NEXT_PUBLIC_API_URL_LOCAL || 
-    //      (process.env.NODE_ENV === 'production' 
-    //        ? process.env.NEXT_PUBLIC_API_URL || 'https://nm2uheummh.us-east-1.awsapprunner.com'
-    //        : 'http://localhost:5173'),
-  },
+  // Client-safe configuration
+  api: clientConfig.api,
+  features: clientConfig.features,
+  app: clientConfig.app,
 
-  // Feature Flags
-  features: {
-    enableLambdaWarmup: process.env.ENABLE_LAMBDA_WARMUP === 'true',
-  },
-
-  // Webhook Configuration
-  webhooks: {
-    reportUrl: process.env.REPORT_WEBHOOK_URL || '',
-  },
-
-  // App Configuration
-  app: {
-    domain: process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://cassetteinc.org',
-  },
+  // Server-only secrets
+  webhooks: serverConfig.webhooks,
 } as const;
 
 export type Config = typeof config;
+
+// Re-export the split configs
+export { clientConfig } from './config-client';
+export { serverConfig, validateServerConfig } from './config-server';

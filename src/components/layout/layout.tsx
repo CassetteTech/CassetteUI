@@ -7,7 +7,7 @@ import { apiService } from '@/services/api';
 import { useAuthState } from '@/hooks/use-auth';
 import { Navbar } from './navbar';
 import { Footer } from './footer';
-import { config } from '@/lib/config';
+import { clientConfig } from '@/lib/config-client';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -20,7 +20,7 @@ export function Layout({ children }: LayoutProps) {
 
   useEffect(() => {
     authService.initializeAuthListener();
-    if (config.features.enableLambdaWarmup) {
+    if (clientConfig.features.enableLambdaWarmup) {
       apiService.warmupLambdas().catch(console.warn);
     }
   }, []);

@@ -1,4 +1,5 @@
-import { config } from '@/lib/config';
+import './server-only';
+import { serverConfig } from '@/lib/config-server';
 import { MusicSearchResult } from '@/types';
 import { 
   SpotifySearchResponse,
@@ -17,8 +18,8 @@ class SpotifyService {
   private tokenExpiryTime: Date | null = null;
 
   private getConfig(): SpotifyConfig {
-    const clientId = config.spotify.clientId;
-    const clientSecret = config.spotify.clientSecret;
+    const clientId = serverConfig.spotify.clientId;
+    const clientSecret = serverConfig.spotify.clientSecret;
 
     if (!clientId || !clientSecret) {
       throw new Error('Spotify credentials not configured. Please check your environment variables.');

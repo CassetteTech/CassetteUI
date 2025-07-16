@@ -26,6 +26,7 @@ jobs:
       - name: Install Amplify CLI
         run: npm install -g @aws-amplify/cli
 
+        
       - name: Amplify Pull (headless for Next.js)
         run: |
           amplify pull \

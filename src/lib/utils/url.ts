@@ -17,7 +17,6 @@ export function getBaseUrl(): string {
     return process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://cassetteinc.org';
   }
   
-  
   // In development, check if we're in browser context
   if (typeof window !== 'undefined') {
     return window.location.origin;
@@ -35,6 +34,7 @@ export function getCallbackUrl(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${baseUrl}${cleanPath}`;
 }
+
 
 /**
  * Get the API base URL for external service calls

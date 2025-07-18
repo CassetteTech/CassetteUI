@@ -172,7 +172,25 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
           ref={audioRef}
           onEnded={handleAudioEnded}
           onError={(e) => {
-            console.error('Audio error:', e);
+            console.log('Audio error event triggered (mobile)');
+            const audio = e.target as HTMLAudioElement;
+            console.log('Audio element:', audio);
+            console.log('Audio error object:', audio.error);
+            console.log('Preview URL:', previewUrl);
+            
+            if (audio.error) {
+              const errorCode = audio.error.code;
+              const errorMessages = {
+                1: 'MEDIA_ERR_ABORTED - The user aborted the media operation',
+                2: 'MEDIA_ERR_NETWORK - Network error occurred while loading media',
+                3: 'MEDIA_ERR_DECODE - Error occurred while decoding media',
+                4: 'MEDIA_ERR_SRC_NOT_SUPPORTED - Media source not supported'
+              };
+              console.error(`Audio Error Code ${errorCode}: ${errorMessages[errorCode as keyof typeof errorMessages] || 'Unknown error'}`);
+            } else {
+              console.error('Audio error occurred but no error details available');
+            }
+            
             setIsPlaying(false);
             setIsLoading(false);
           }}
@@ -263,7 +281,25 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
         ref={audioRef}
         onEnded={handleAudioEnded}
         onError={(e) => {
-          console.error('Audio error:', e);
+          console.log('Audio error event triggered');
+          const audio = e.target as HTMLAudioElement;
+          console.log('Audio element:', audio);
+          console.log('Audio error object:', audio.error);
+          console.log('Preview URL:', previewUrl);
+          
+          if (audio.error) {
+            const errorCode = audio.error.code;
+            const errorMessages = {
+              1: 'MEDIA_ERR_ABORTED - The user aborted the media operation',
+              2: 'MEDIA_ERR_NETWORK - Network error occurred while loading media',
+              3: 'MEDIA_ERR_DECODE - Error occurred while decoding media',
+              4: 'MEDIA_ERR_SRC_NOT_SUPPORTED - Media source not supported'
+            };
+            console.error(`Audio Error Code ${errorCode}: ${errorMessages[errorCode as keyof typeof errorMessages] || 'Unknown error'}`);
+          } else {
+            console.error('Audio error occurred but no error details available');
+          }
+          
           setIsPlaying(false);
           setIsLoading(false);
         }}

@@ -136,7 +136,7 @@ export function EditProfileFormComponent({
           <div className="relative">
             <Avatar className="w-32 h-32 border-4 border-white/20">
               <AvatarImage
-                src={watch('avatarUrl') || '/images/default-avatar.png'}
+                src={watch('avatarUrl')}
                 alt="Profile"
               />
               <AvatarFallback>P</AvatarFallback>

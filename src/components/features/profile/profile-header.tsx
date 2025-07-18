@@ -36,7 +36,7 @@ export function ProfileHeader({
           {/* Avatar */}
           <Avatar className={`${avatarSize} border-2 border-border/20 flex-shrink-0`}>
             <AvatarImage 
-              src={userBio.avatarUrl || '/images/default-avatar.png'} 
+              src={userBio.avatarUrl} 
               alt={`@${userBio.username}`}
             />
             <AvatarFallback className="bg-muted text-muted-foreground text-xl lg:text-2xl">

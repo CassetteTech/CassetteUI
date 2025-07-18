@@ -65,7 +65,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                 <div className="flex items-center gap-3 mb-4">
                   <Avatar className="h-12 w-12 border-2 border-border/20">
                     <AvatarImage 
-                      src={user.profilePicture || '/images/default-avatar.png'} 
+                      src={user.profilePicture} 
                       alt={`@${user.username}`}
                     />
                     <AvatarFallback className="bg-primary text-white font-atkinson font-bold">

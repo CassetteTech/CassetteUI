@@ -24,6 +24,11 @@ export const clientConfig = {
     domain: process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://cassetteinc.org',
     baseUrl: getBaseUrl(),
   },
+
+  // Music service configuration
+  appleMusic: {
+    developerToken: process.env.NEXT_PUBLIC_APPLE_MUSIC_DEVELOPER_TOKEN || '',
+  },
 } as const;
 
 export type ClientConfig = typeof clientConfig;

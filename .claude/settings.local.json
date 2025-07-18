@@ -7,16 +7,7 @@
   ],
   "permissions": {
     "allow": [
-      "WebFetch(domain:ui.shadcn.com)",
-      "mcp__basic-memory__list_directory",
-      "mcp__basic-memory__get_current_project",
-      "Bash(mv:*)",
-      "Bash(rm:*)",
-      "Bash(ls:*)",
-      "Bash(find:*)",
-      "Bash(grep:*)",
-      "Bash(npm run build:*)",
-      "Bash(npm run lint)"
+      "Bash(rm:*)"
     ],
     "deny": []
   }

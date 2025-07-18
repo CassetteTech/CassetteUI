@@ -37,16 +37,18 @@ export default function OnboardingPage() {
   }, [user, formData.username, formData.displayName]);
 
   // Redirect if already onboarded or not authenticated
-  if (!isLoading) {
-    if (!user) {
-      router.replace('/auth/signin');
-      return null;
+  useEffect(() => {
+    if (!isLoading) {
+      if (!user) {
+        router.replace('/auth/signin');
+        return;
+      }
+      if (user.isOnboarded) {
+        router.replace('/profile');
+        return;
+      }
     }
-    if (user.isOnboarded) {
-      router.replace('/profile');
-      return null;
-    }
-  }
+  }, [isLoading, user, router]);
 
   if (isLoading) {
     return (

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
+import { clientConfig } from '@/lib/config-client';
 
 interface ConnectAppleMusicButtonProps {
   isConnected?: boolean;
@@ -34,24 +35,7 @@ export function ConnectAppleMusicButton({
   onDisconnect 
 }: ConnectAppleMusicButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [developerToken, setDeveloperToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Fetch the developer token from our backend
-    const fetchDeveloperToken = async () => {
-      try {
-        const response = await fetch('/api/auth/apple-music/dev-token');
-        const data = await response.json();
-        if (data.developerToken) {
-          setDeveloperToken(data.developerToken);
-        }
-      } catch (error) {
-        console.error('Failed to fetch Apple Music developer token:', error);
-      }
-    };
-
-    fetchDeveloperToken();
-  }, []);
+  const developerToken = clientConfig.appleMusic.developerToken;
 
   const handleConnect = async () => {
     if (!developerToken) {
@@ -156,7 +140,7 @@ export function ConnectAppleMusicButton({
             disabled={isLoading || !developerToken}
             className="w-full bg-danger hover:bg-danger/90 text-white"
           >
-            {isLoading ? 'Connecting...' : 'Connect with Apple Music'}
+            {isLoading ? 'Connecting...' : !developerToken ? 'Apple Music Not Available' : 'Connect with Apple Music'}
           </Button>
         )}
       </CardContent>

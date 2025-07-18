@@ -58,7 +58,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <Script 
-          src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" 
+          src="https://js-cdn.music.apple.com/musickit/v1/musickit.js" 
           strategy="beforeInteractive"
         />
       </head>

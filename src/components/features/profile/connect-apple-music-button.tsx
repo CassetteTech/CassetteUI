@@ -4,29 +4,12 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
-import { clientConfig } from '@/lib/config-client';
+import { appleMusicAuth } from '@/services/apple-music-auth';
 
 interface ConnectAppleMusicButtonProps {
   isConnected?: boolean;
   onConnect?: () => void;
   onDisconnect?: () => void;
-}
-
-declare global {
-  interface Window {
-    MusicKit: {
-      configure: (options: {
-        developerToken: string;
-        app: {
-          name: string;
-          build: string;
-        };
-      }) => Promise<void>;
-      getInstance: () => {
-        authorize: () => Promise<string>;
-      };
-    };
-  }
 }
 
 export function ConnectAppleMusicButton({ 
@@ -35,46 +18,19 @@ export function ConnectAppleMusicButton({
   onDisconnect 
 }: ConnectAppleMusicButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const developerToken = clientConfig.appleMusic.developerToken;
+  const [error, setError] = useState<string | null>(null);
 
   const handleConnect = async () => {
-    if (!developerToken) {
-      console.error('Developer token not available');
-      return;
-    }
-
     setIsLoading(true);
+    setError(null);
+    
     try {
-      // Configure MusicKit with the developer token
-      await window.MusicKit.configure({
-        developerToken: developerToken,
-        app: {
-          name: 'Cassette',
-          build: '1.0.0',
-        },
-      });
-
-      // Request user authorization
-      const musicUserToken = await window.MusicKit.getInstance().authorize();
-      
-      if (musicUserToken) {
-        // Send the user token to our backend for secure storage
-        const response = await fetch('/api/auth/apple-music/save-token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token: musicUserToken }),
-        });
-
-        if (response.ok) {
-          onConnect?.();
-        } else {
-          throw new Error('Failed to save Apple Music token');
-        }
-      }
+      await appleMusicAuth.authorize();
+      console.log('Apple Music connected successfully');
+      onConnect?.();
     } catch (error) {
       console.error('Failed to connect to Apple Music:', error);
+      setError(error instanceof Error ? error.message : 'Failed to connect to Apple Music');
     } finally {
       setIsLoading(false);
     }
@@ -113,6 +69,12 @@ export function ConnectAppleMusicButton({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {error && (
+          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
+        
         {isConnected ? (
           <>
             <div className="flex items-center justify-center text-success">
@@ -137,10 +99,10 @@ export function ConnectAppleMusicButton({
         ) : (
           <Button 
             onClick={handleConnect}
-            disabled={isLoading || !developerToken}
+            disabled={isLoading}
             className="w-full bg-danger hover:bg-danger/90 text-white"
           >
-            {isLoading ? 'Connecting...' : !developerToken ? 'Apple Music Not Available' : 'Connect with Apple Music'}
+            {isLoading ? 'Connecting...' : 'Connect with Apple Music'}
           </Button>
         )}
       </CardContent>

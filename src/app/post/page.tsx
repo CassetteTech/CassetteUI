@@ -163,7 +163,7 @@ function PostPageContent() {
     };
     
     loadData();
-  }, [searchParams, convertLink, router]);
+  }, [searchParams, router]);
   
   // Color extraction function
   const extractColorFromArtwork = async (artworkUrl: string) => {

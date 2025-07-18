@@ -97,17 +97,8 @@ const AddMusicForm = ({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && musicUrl.trim()) {
                     if (isValidMusicUrl(musicUrl)) {
-                      // Navigate immediately to post page when pressing Enter with a link
-                      const params = new URLSearchParams({
-                        url: musicUrl,
-                        fromAddMusic: 'true'
-                      });
-                      
-                      if (description.trim()) {
-                        params.append('description', description.trim());
-                      }
-                      
-                      router.push(`/post?${params.toString()}`);
+                      // Don't auto-navigate, just handle URL detection
+                      handleUrlPaste(musicUrl);
                     }
                     // For search queries, the search will happen via the debounced value
                   }
@@ -351,17 +342,8 @@ export default function AddMusicPage() {
     const pastedText = e.clipboardData.getData('text');
     
     if (isValidMusicUrl(pastedText)) {
-      // Navigate immediately to post page when pasting a link
-      const params = new URLSearchParams({
-        url: pastedText,
-        fromAddMusic: 'true'
-      });
-      
-      if (description.trim()) {
-        params.append('description', description.trim());
-      }
-      
-      router.push(`/post?${params.toString()}`);
+      // Just handle the URL paste detection, don't auto-navigate
+      handleUrlPaste(pastedText);
     }
   };
 

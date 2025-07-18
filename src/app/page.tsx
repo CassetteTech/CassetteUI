@@ -19,6 +19,7 @@ export default function HomePage() {
   const router = useRouter();
   const [musicUrl, setMusicUrl] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
   
   // Animation states
   const [logoVisible, setLogoVisible] = useState(false);
@@ -73,10 +74,12 @@ export default function HomePage() {
 
   const handleConvertLink = (url: string) => {
     console.log('🔄 handleConvertLink called with URL:', url);
-    if (!url.trim()) {
-      console.log('❌ URL is empty, returning');
+    if (!url.trim() || isConverting) {
+      console.log('❌ URL is empty or already converting, returning');
       return;
     }
+    
+    setIsConverting(true);
     
     // Navigate immediately to the post page with the URL
     // The post page will show skeleton and handle the conversion
@@ -122,7 +125,7 @@ export default function HomePage() {
                        linkLower.includes('music.apple.com') || 
                        linkLower.includes('deezer.com');
 
-    if (isSupported && !isSearchingMusic) {
+    if (isSupported && !isSearchingMusic && !isConverting) {
       // Navigate immediately for link conversion
       handleConvertLink(pastedText);
     }
@@ -245,7 +248,7 @@ export default function HomePage() {
                       onBlur={handleSearchBlur}
                       onPaste={handlePaste}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && musicUrl.trim()) {
+                        if (e.key === 'Enter' && musicUrl.trim() && !isConverting) {
                           // Check if it's a link
                           if (musicUrl.includes('http')) {
                             handleConvertLink(musicUrl);

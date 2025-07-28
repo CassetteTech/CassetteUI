@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, ChevronDown, Info, Users, Shield, FileText } from 'lucide-react';
 import { ThemeSwitcher } from './theme-switcher';
 import { NavigationLinks } from './navigation-links';
 import { cn } from '@/lib/utils';
@@ -32,7 +32,7 @@ export function Navbar() {
     <nav className="bg-background/95 backdrop-blur border-b border-border/20 fixed top-0 left-0 right-0 z-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
+          <div className="flex items-center space-x-8">
             <Link href="/" className="flex items-center">
               <Image
                 src="/images/cassette_words_logo.png"
@@ -42,6 +42,57 @@ export function Navbar() {
                 className="h-[80%] w-auto"
               />
             </Link>
+            
+            {/* Desktop Company Dropdown */}
+            <div className="hidden md:block">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center space-x-1 text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted outline-none">
+                    <span>Company</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48 bg-background border border-border/20 rounded-lg shadow-main">
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/about"
+                      className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <Info className="h-4 w-4" />
+                      <span>About</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/team"
+                      className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <Users className="h-4 w-4" />
+                      <span>Team</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-border/20" />
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/privacy"
+                      className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <Shield className="h-4 w-4" />
+                      <span>Privacy</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/terms"
+                      className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Terms</span>
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4">

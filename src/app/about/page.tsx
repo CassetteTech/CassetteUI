@@ -9,7 +9,7 @@ import { ArrowRight, CassetteTape, Link as LinkIcon, Music2, Radio, UserSquare, 
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-bgElevated to-bgCanvas relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 relative overflow-hidden">
       <AnimatedBackground />
       
       {/* Floating Cassettes */}
@@ -85,7 +85,7 @@ export default function AboutPage() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="relative">
               <div className="absolute -top-6 -left-6 w-32 h-32 bg-accent/10 rounded-full blur-xl"></div>
-              <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 border border-border/50 rounded-2xl p-8 backdrop-blur-sm">
+              <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-8 backdrop-blur-sm">
                 <h2 className="font-teko text-3xl sm:text-4xl font-bold text-foreground mb-6">
                   The Story Behind Cassette
                 </h2>
@@ -111,7 +111,7 @@ export default function AboutPage() {
             >
               <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-r from-primary to-secondary rounded-2xl blur-lg opacity-30"></div>
-                <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 border border-border/50 rounded-2xl p-8 h-full flex flex-col items-center justify-center">
+                <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-8 h-full flex flex-col items-center justify-center">
                   <div className="grid grid-cols-2 gap-4 mb-6">
                     {[...Array(4)].map((_, i) => (
                       <div key={i} className="bg-borderDark/30 rounded-lg w-16 h-16 flex items-center justify-center">
@@ -152,7 +152,7 @@ export default function AboutPage() {
               whileHover={{ y: -5 }}
               transition={{ duration: 0.3 }}
             >
-              <Card className="bg-gradient-to-b from-gray-800/50 to-gray-900/80 border border-border/50 rounded-2xl overflow-hidden">
+              <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl overflow-hidden shadow-lg">
                 <CardHeader>
                   <div className="bg-primary/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
                     <LinkIcon className="text-primary" size={24} />
@@ -182,7 +182,7 @@ export default function AboutPage() {
               whileHover={{ y: -5 }}
               transition={{ duration: 0.3 }}
             >
-              <Card className="bg-gradient-to-b from-gray-800/50 to-gray-900/80 border border-border/50 rounded-2xl overflow-hidden">
+              <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl overflow-hidden shadow-lg">
                 <CardHeader>
                   <div className="bg-accent/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
                     <UserSquare className="text-accent" size={24} />
@@ -193,7 +193,7 @@ export default function AboutPage() {
                   <p className="font-roboto text-muted-foreground mb-6">
                   Your free Cassette profile is your music home - shareable in bios, showcasing your expertise like a musical resume.
                   </p>
-                  <div className="bg-gradient-to-r from-gray-700/50 to-secondary/10 rounded-xl p-4 border border-border">
+                  <div className="bg-muted/50 backdrop-blur-sm rounded-xl p-4 border border-border shadow-inner">
                     <div className="flex items-center gap-3">
                       <div className="bg-textSecondary rounded-full w-10 h-10"></div>
                       <div>
@@ -224,7 +224,7 @@ export default function AboutPage() {
               <div className="flex justify-center">
                 <div className="relative">
                   <div className="absolute -inset-6 bg-gradient-to-r from-primary to-secondary rounded-full blur-xl opacity-20"></div>
-                  <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 border border-border/50 rounded-2xl p-8 w-64 h-64 flex flex-col items-center justify-center">
+                  <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-8 w-64 h-64 flex flex-col items-center justify-center">
                     <Radio className="text-accent mb-4" size={48} />
                     <h3 className="font-teko text-xl text-foreground text-center">The Future of Curation</h3>
                   </div>

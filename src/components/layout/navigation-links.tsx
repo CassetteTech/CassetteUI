@@ -3,7 +3,7 @@
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Music, User, Edit, LogOut, Info } from 'lucide-react';
+import { Home, Music, User, Edit, LogOut, Info, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +14,7 @@ interface NavigationLinksProps {
 const navItems = [
   { href: '/', icon: Home, text: 'Home', auth: false },
   { href: '/about', icon: Info, text: 'About', auth: false },
+  { href: '/team', icon: Users, text: 'Team', auth: false },
   { href: '/add-music', icon: Music, text: 'Add Music', auth: true },
   { href: '/profile', icon: User, text: 'Profile', auth: true },
   { href: '/profile/edit', icon: Edit, text: 'Edit Profile', auth: true },

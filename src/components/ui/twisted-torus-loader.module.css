@@ -1,0 +1,171 @@
+.loaderContainer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    isolation: isolate;
+}
+
+.canvasContainer {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 240px;
+    height: 240px;
+    filter: drop-shadow(0 10px 30px rgba(237, 39, 72, 0.3));
+    animation: float 3s ease-in-out infinite;
+}
+
+.canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.canvas.loading {
+    opacity: 0;
+}
+
+.canvas.loaded {
+    opacity: 1;
+}
+
+/* Fallback loader */
+.fallbackLoader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fallbackSpinner {
+    width: 60px;
+    height: 60px;
+    border: 3px solid rgba(237, 39, 72, 0.1);
+    border-left: 3px solid #ED2748;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Floating animation for the entire canvas */
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+        filter: drop-shadow(0 10px 30px rgba(237, 39, 72, 0.3));
+    }
+    50% {
+        transform: translateY(-10px);
+        filter: drop-shadow(0 20px 40px rgba(237, 39, 72, 0.4));
+    }
+}
+
+/* Loading Section */
+.loadingSection {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 40px;
+}
+
+/* Loading Text */
+.loadingText {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Teko', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: hsl(var(--foreground));
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.9;
+}
+
+.dots {
+    display: flex;
+    gap: 2px;
+}
+
+.dots span {
+    animation: dotBounce 1.4s ease-in-out infinite;
+}
+
+.dots span:nth-child(1) { animation-delay: 0s; }
+.dots span:nth-child(2) { animation-delay: 0.2s; }
+.dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotBounce {
+    0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.5;
+    }
+    30% {
+        transform: translateY(-10px);
+        opacity: 1;
+    }
+}
+
+/* Cassette Logo */
+.logoContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    animation: logoFloat 4s ease-in-out infinite;
+}
+
+.logo {
+    filter: drop-shadow(0 2px 8px rgba(237, 39, 72, 0.2));
+    transition: opacity 0.3s ease;
+}
+
+@keyframes logoFloat {
+    0%, 100% {
+        transform: translateY(0px);
+        opacity: 0.6;
+    }
+    50% {
+        transform: translateY(-5px);
+        opacity: 0.8;
+    }
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+    .loadingSection {
+        gap: 12px;
+        margin-bottom: 32px;
+    }
+    
+    .canvasContainer {
+        width: 200px;
+        height: 200px;
+        filter: drop-shadow(0 8px 25px rgba(237, 39, 72, 0.3));
+    }
+    
+    .fallbackSpinner {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .loadingText {
+        font-size: 22px;
+    }
+    
+    .logo {
+        width: 28px;
+        height: 28px;
+    }
+}

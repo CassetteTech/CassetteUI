@@ -103,8 +103,15 @@ class ApiService {
   // Music conversion endpoints
   async convertMusicLink(url: string): Promise<MusicLinkConversion> {
     console.log('🔄 API Service: convertMusicLink called with:', url);
+    
+    // Generate idempotency key for request deduplication
+    const key = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `key-${Date.now()}-${Math.random()}`;
+
     const response = await this.request<ConversionApiResponse>('/api/v1/convert', {
       method: 'POST',
+      headers: { 'X-Idempotency-Key': key }, // server should honor this
       body: JSON.stringify({ sourceLink: url }),
     });
 

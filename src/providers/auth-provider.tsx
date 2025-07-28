@@ -5,8 +5,8 @@ import { authService } from '@/services/auth';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    // Initialize the auth listener when the app starts
-    authService.initializeAuthListener();
+    const dispose = authService.initializeAuthListener();
+    return () => dispose && dispose();
   }, []);
 
   return <>{children}</>;

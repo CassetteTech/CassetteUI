@@ -5,6 +5,9 @@ import { AuthUser, SignInForm, SignUpForm, ConnectedService } from '@/types';
 const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5173';
 
 class AuthService {
+  private sessionIntervalId: number | null = null;
+  private initialized = false;
+
   // Store tokens securely
   private setTokens(accessToken: string, refreshToken: string) {
     localStorage.setItem('access_token', accessToken);
@@ -19,7 +22,7 @@ class AuthService {
     return localStorage.getItem('refresh_token');
   }
 
-  private clearTokens() {
+  clearTokens() {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_data');
@@ -362,24 +365,39 @@ class AuthService {
 
   // Initialize auth state listener
   initializeAuthListener() {
-    const { setUser, setLoading } = useAuthStore.getState();
+    if (this.initialized) {
+      // Already initialized; return a no-op disposer
+      return () => {};
+    }
+    this.initialized = true;
 
+    const { setUser, setLoading } = useAuthStore.getState();
     setLoading(true);
 
-    // Check initial session
-    this.getCurrentUser().then(setUser).finally(() => setLoading(false));
+    let cancelled = false;
+    this.getCurrentUser()
+      .then((u) => !cancelled && setUser(u))
+      .finally(() => !cancelled && setLoading(false));
 
-    // Set up periodic session check
-    setInterval(() => {
+    this.sessionIntervalId = window.setInterval(() => {
       this.getCurrentUser().then((user) => {
-        if (user) {
-          setUser(user);
-        } else {
+        if (user) useAuthStore.getState().setUser(user);
+        else {
           this.clearTokens();
-          setUser(null);
+          useAuthStore.getState().setUser(null);
         }
       });
-    }, 4 * 60 * 1000); // Check every 4 minutes like Flutter
+    }, 4 * 60 * 1000);
+
+    // Return disposer for React effect cleanup
+    return () => {
+      cancelled = true;
+      if (this.sessionIntervalId !== null) {
+        clearInterval(this.sessionIntervalId);
+        this.sessionIntervalId = null;
+      }
+      this.initialized = false;
+    };
   }
 }
 

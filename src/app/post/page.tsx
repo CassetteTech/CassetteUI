@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState, Suspense } from 'react';
+import { useRef, useEffect, useState, Suspense } from 'react';
 import { MusicLinkConversion, ElementType } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks } from '@/components/features/entity/streaming-links';
@@ -28,142 +28,137 @@ function PostPageContent() {
   // Use the conversion mutation
   const { mutate: convertLink, isPending: isConverting } = useMusicLinkConversion();
   
+  // Guards against duplicate conversions (React Strict Mode protection)
+  const hasConvertedRef = useRef(false);
+  const lastUrlRef = useRef<string | null>(null);
+  
   useEffect(() => {
-    const loadData = async () => {
+    const run = async () => {
       try {
-        // Check URL params
         const urlParam = searchParams.get('url');
         const dataParam = searchParams.get('data');
         const postId = searchParams.get('id');
-        
+
+        // Only run conversion when we actually have a ?url=
         if (urlParam) {
-          // New flow: we have a URL to convert
-          try {
-            const decodedUrl = decodeURIComponent(urlParam);
-            
-            // Trigger conversion
-            convertLink(decodedUrl, {
-              onSuccess: (result) => {
-                
-                
-                // If we have a postId, navigate to the postId URL
-                if (result.postId) {
-                  router.replace(`/post?id=${result.postId}`);
-                  return;
-                }
-                
-                setPostData(result);
-                
-                // Extract dominant color from image
-                if (result.metadata?.artwork) {
-                  extractColorFromArtwork(result.metadata.artwork);
-                }
-              },
-              onError: (err) => {
-                console.error('❌ Post page: Conversion failed:', err);
-                setError(err instanceof Error ? err.message : 'Failed to convert link');
-              },
-            });
-          } catch (err) {
-            console.error('Error decoding URL:', err);
-            setError('Invalid URL format');
-          }
-        } else if (dataParam) {
-          // Legacy flow: data passed directly
+          const decodedUrl = decodeURIComponent(urlParam);
+
+          // Prevent duplicate mutate calls (Strict Mode / re-renders)
+          if (hasConvertedRef.current && lastUrlRef.current === decodedUrl) return;
+          hasConvertedRef.current = true;
+          lastUrlRef.current = decodedUrl;
+
+          convertLink(decodedUrl, {
+            onSuccess: (result) => {
+              if (result.postId) {
+                // replace removes ?url= so this effect won't re-enter conversion
+                router.replace(`/post?id=${result.postId}`);
+                return;
+              }
+              setPostData(result);
+              if (result.metadata?.artwork) {
+                extractColorFromArtwork(result.metadata.artwork);
+              }
+            },
+            onError: (err) => {
+              console.error('❌ Post page: Conversion failed:', err);
+              setError(err instanceof Error ? err.message : 'Failed to convert link');
+            },
+          });
+          return; // important: don't fall through
+        }
+
+        if (dataParam) {
           const parsedData = JSON.parse(decodeURIComponent(dataParam));
           setPostData(parsedData);
-          
-          // Extract dominant color from image
-          if (parsedData.metadata?.artwork) {
-            extractColorFromArtwork(parsedData.metadata.artwork);
-          }
-        } else if (postId) {
-          // Fetch by ID flow
-          try {
-            const response = await apiService.fetchPostById(postId);
-            
-            // Transform the API response
-            if (response.success && response.details) {
-              const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; details?: { artists?: Array<{ name: string; role: string; }>; }; } = {
-                originalUrl: response.originalLink || '',
-                convertedUrls: {},
-                metadata: {
-                  type: (response.elementType?.toLowerCase() === 'track' ? ElementType.TRACK :
-                         response.elementType?.toLowerCase() === 'album' ? ElementType.ALBUM :
-                         response.elementType?.toLowerCase() === 'artist' ? ElementType.ARTIST :
-                         ElementType.PLAYLIST),
-                  title: response.details.title || response.details.name || 'Unknown',
-                  artist: response.details.artist || '',
-                  artwork: response.details.coverArtUrl || response.details.imageUrl || '',
-                  duration: response.metadata?.duration || response.details.duration || ''
-                },
-                description: response.caption,
-                username: response.username,
-                genres: response.details.genres || response.metadata?.genres || [],
-                albumName: response.metadata?.albumName || response.details.album || '',
-                releaseDate: response.metadata?.releaseDate || null,
-                details: {
-                  artists: response.details.artists || []
-                }
-              };
-              
-              // Extract platform URLs and artwork - handle different platform key formats
-              let fallbackArtwork = '';
-              if (response.platforms) {
-                Object.entries(response.platforms).forEach(([platform, data]) => {
-                  // Check if URL exists and is not empty
-                  if (data?.url && data.url.trim() !== '') {
-                    // Map platform keys to match the expected convertedUrls structure
-                    let platformKey = platform.toLowerCase();
-                    if (platformKey === 'applemusic') {
-                      platformKey = 'appleMusic';
-                    }
-                    transformedData.convertedUrls[platformKey as keyof typeof transformedData.convertedUrls] = data.url;
-                  }
-                  
-                  // Collect artwork URLs as fallback
-                  if (data?.artworkUrl && !fallbackArtwork) {
-                    fallbackArtwork = data.artworkUrl;
-                  }
-                });
-                
-                // Extract preview URL - prioritize main details.previewUrl, then check platforms
-                transformedData.previewUrl = response.details?.previewUrl ||
-                                           response.platforms?.spotify?.previewUrl || 
-                                           response.platforms?.deezer?.previewUrl || 
-                                           response.platforms?.applemusic?.previewUrl ||
-                                           response.platforms?.appleMusic?.previewUrl;
-              }
-              
-              // Use fallback artwork if main artwork is empty
-              if (!transformedData.metadata.artwork && fallbackArtwork) {
-                transformedData.metadata.artwork = fallbackArtwork;
-              }
-              
-              setPostData(transformedData);
-              
-              // Extract dominant color
-              if (transformedData.metadata.artwork) {
-                extractColorFromArtwork(transformedData.metadata.artwork);
-              }
-            } else {
-              throw new Error('Invalid response format');
-            }
-          } catch (err) {
-            console.error('Error fetching post by ID:', err);
-            setError('Failed to load content');
-          }
-        } else {
-          setError('No data provided');
+          if (parsedData.metadata?.artwork) extractColorFromArtwork(parsedData.metadata.artwork);
+          return;
         }
-      } catch (err) {
-        console.error('Error loading post data:', err);
+
+        if (postId) {
+          const response = await apiService.fetchPostById(postId);
+          
+          // Transform the API response
+          if (response.success && response.details) {
+            const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; details?: { artists?: Array<{ name: string; role: string; }>; }; } = {
+              originalUrl: response.originalLink || '',
+              convertedUrls: {},
+              metadata: {
+                type: (response.elementType?.toLowerCase() === 'track' ? ElementType.TRACK :
+                       response.elementType?.toLowerCase() === 'album' ? ElementType.ALBUM :
+                       response.elementType?.toLowerCase() === 'artist' ? ElementType.ARTIST :
+                       ElementType.PLAYLIST),
+                title: response.details.title || response.details.name || 'Unknown',
+                artist: response.details.artist || '',
+                artwork: response.details.coverArtUrl || response.details.imageUrl || '',
+                duration: response.metadata?.duration || response.details.duration || ''
+              },
+              description: response.caption,
+              username: response.username,
+              genres: response.details.genres || response.metadata?.genres || [],
+              albumName: response.metadata?.albumName || response.details.album || '',
+              releaseDate: response.metadata?.releaseDate || null,
+              details: {
+                artists: response.details.artists || []
+              }
+            };
+            
+            // Extract platform URLs and artwork - handle different platform key formats
+            let fallbackArtwork = '';
+            if (response.platforms) {
+              Object.entries(response.platforms).forEach(([platform, data]) => {
+                // Check if URL exists and is not empty
+                if (data?.url && data.url.trim() !== '') {
+                  // Map platform keys to match the expected convertedUrls structure
+                  let platformKey = platform.toLowerCase();
+                  if (platformKey === 'applemusic') {
+                    platformKey = 'appleMusic';
+                  }
+                  transformedData.convertedUrls[platformKey as keyof typeof transformedData.convertedUrls] = data.url;
+                }
+                
+                // Collect artwork URLs as fallback
+                if (data?.artworkUrl && !fallbackArtwork) {
+                  fallbackArtwork = data.artworkUrl;
+                }
+              });
+              
+              // Extract preview URL - prioritize main details.previewUrl, then check platforms
+              transformedData.previewUrl = response.details?.previewUrl ||
+                                         response.platforms?.spotify?.previewUrl || 
+                                         response.platforms?.deezer?.previewUrl || 
+                                         response.platforms?.applemusic?.previewUrl ||
+                                         response.platforms?.appleMusic?.previewUrl;
+            }
+            
+            // Use fallback artwork if main artwork is empty
+            if (!transformedData.metadata.artwork && fallbackArtwork) {
+              transformedData.metadata.artwork = fallbackArtwork;
+            }
+            
+            setPostData(transformedData);
+            
+            // Extract dominant color
+            if (transformedData.metadata.artwork) {
+              extractColorFromArtwork(transformedData.metadata.artwork);
+            }
+          } else {
+            throw new Error('Invalid response format');
+          }
+          return;
+        }
+
+        setError('No data provided');
+      } catch (e) {
+        console.error('Error loading post data:', e);
         setError('Failed to load content');
       }
     };
-    
-    loadData();
-  }, [searchParams, convertLink, router]);
+
+    run();
+    // Only depend on searchParams; do NOT depend on convertLink/router to avoid spurious reruns
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   
   // Color extraction function
   const extractColorFromArtwork = async (artworkUrl: string) => {

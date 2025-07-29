@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CassetteTape, Github, Linkedin, Mail, Twitter, ChevronDown, Code, TrendingUp, DollarSign, Briefcase, Palette, Users, Zap, X } from "lucide-react";
+import Tilt from "react-vanilla-tilt";
 
 const teamMembers = [
   {
@@ -324,12 +325,28 @@ export default function TeamPage() {
                   transition={{ duration: 0.6, delay: 0.05 * index, ease: "easeOut" }}
                   className="team-card"
                 >
-                  <motion.div
-                    className={`bg-card/80 backdrop-blur-sm border rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer h-full ${typeConfig.borderColor}`}
-                    whileHover={{ y: -3, scale: 1.005 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    onClick={(e) => toggleExpanded(member.name, e)}
+                  <Tilt
+                    options={{
+                      max: 15,
+                      speed: 300,
+                      scale: 1.02,
+                      transition: true,
+                      axis: null,
+                      reset: true,
+                      easing: "cubic-bezier(.03,.98,.52,.99)",
+                      glare: true,
+                      "max-glare": 0.1,
+                      "glare-prerender": false,
+                    }}
+                    style={{ height: '100%' }}
+                    className={`rounded-2xl overflow-hidden ${expandedMember ? 'pointer-events-none' : ''}`}
                   >
+                    <motion.div
+                      className={`bg-card/80 backdrop-blur-sm border rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer h-full ${typeConfig.borderColor}`}
+                      whileHover={{ y: -3 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      onClick={(e) => toggleExpanded(member.name, e)}
+                    >
                     <div className="p-6 h-full flex flex-col">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-4 flex-1">
@@ -371,7 +388,8 @@ export default function TeamPage() {
                         </div>
                       </div>
                     </div>
-                  </motion.div>
+                    </motion.div>
+                  </Tilt>
                 </motion.div>
               );
             })}

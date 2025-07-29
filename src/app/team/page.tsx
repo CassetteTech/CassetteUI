@@ -10,115 +10,115 @@ import Tilt from "react-vanilla-tilt";
 
 const teamMembers = [
   {
-    name: "Alex Chen",
-    role: "Co-Founder & Head of Engineering",
+    name: "Matt Toppi",
+    role: "Lead Engineer",
     type: "cofounder",
     icon: Code,
-    shortBio: "Former Spotify engineer passionate about breaking down streaming barriers.",
-    fullBio: "Alex spent 5 years at Spotify working on their recommendation algorithms and cross-platform integrations. After experiencing the frustration of sharing music across different platforms firsthand, they co-founded Cassette to solve this universal problem. Alex holds a Computer Science degree from MIT and has contributed to several open-source music technology projects.",
-    background: "Previously: Senior Software Engineer at Spotify (5 years), worked on recommendation systems and platform APIs. Built the initial cross-platform music matching algorithms that power Cassette.",
-    expertise: ["Distributed Systems", "Music APIs", "Algorithm Design", "Full-Stack Development"],
+    shortBio: "Co-Founder and Lead Engineer with over three years of experience building full-stack applications and leading engineering teams from concept to deployment.",
+    fullBio: "Matt is a Co-Founder and the Lead Engineer at Cassette Technologies. With over three years of experience, he is a startup founder and software engineer who excels in leading teams and building full-stack applications from concept to deployment. He holds a Bachelor of Science in Computer Science from the University of New Hampshire. As a co-founder, Matt has been instrumental in spearheading all technology operations.",
+    background: "He built and leads the engineering team, architected the company's full-stack platform, and has been a key driver in securing seed funding. His technical expertise is demonstrated in his hands-on development of the core REST API, which has been scaled to support over 65,000 users. His leadership experience extends to his role as Software Team Lead for the NASA Lunabotics program, where he led the development of an autonomous navigation stack for a rover, earning a first-place award at a university research conference. He is also a certified Google Project Management Professional.",
+    expertise: ["Python", "C#/.NET", "SQL", "Distributed Systems", "Machine Learning", "Cloud Technologies"],
     social: {
       github: "#",
       linkedin: "#",
       twitter: "#",
-      email: "mailto:alex@cassette.com"
+      email: "mailto:matt@cassette.tech"
     }
   },
   {
-    name: "Jordan Rivera",
-    role: "Co-Founder & Head of Marketing",
+    name: "Brian Davies",
+    role: "Head of Finance",
     type: "cofounder",
-    icon: Users,
-    shortBio: "Growth expert who scaled multiple music startups from zero to millions of users.",
-    fullBio: "Jordan has over 8 years of experience in music industry marketing, having led growth at two successful music startups that were later acquired. They understand the creator economy deeply and have built communities around music curation. Jordan's vision for Cassette extends beyond just link conversion to creating a thriving ecosystem for music curators.",
-    background: "Previously: Head of Growth at BeatShare (acquired by SoundCloud), Marketing Director at Playlist.co. Grew user bases from 0 to 5M+ users across multiple platforms.",
-    expertise: ["Growth Marketing", "Community Building", "Creator Economy", "Music Industry"],
+    icon: Briefcase,
+    shortBio: "Co-founder focused on corporate banking and company valuation, creating opportunities for entrepreneurs.",
+    fullBio: "Brian is a co-founder of Cassette Technologies and a Corporate Banking Associate at Huntington National Bank. He holds a Bachelor of Science in Finance from the American University - Kogod School of Business. With a focus on corporate banking and company valuation, Brian aims to create opportunities for both new and established entrepreneurs.",
+    background: "At Cassette Technologies, he successfully pitched the business concept into American University's accelerator program, led a team through a successful crowdfunding campaign, and established international business relationships. Currently works as a Corporate Banking Associate at Huntington National Bank.",
+    expertise: ["Corporate Banking", "Financial Modeling", "Credit Analysis", "Company Valuation", "Entrepreneurship"],
     social: {
       github: "#",
       linkedin: "#",
       twitter: "#",
-      email: "mailto:jordan@cassette.com"
+      email: "mailto:brian@cassette.tech"
     }
   },
   {
-    name: "Sam Kumar",
-    role: "Senior Software Engineer",
+    name: "Sage Duford",
+    role: "Senior DevOps Engineer",
     type: "engineer",
     icon: Code,
-    shortBio: "Full-stack engineer specializing in scalable music technology and API integrations.",
-    fullBio: "Sam brings deep expertise in building high-performance music applications. With a background in both frontend and backend development, they've architected systems that handle millions of music queries daily. Sam is passionate about creating intuitive user experiences while maintaining robust, scalable infrastructure.",
-    background: "Previously: Software Engineer at Apple Music for 3 years, focused on playlist and library sync systems. Built several personal music projects that gained traction in the developer community.",
-    expertise: ["React/Next.js", "Node.js", "Database Architecture", "Music APIs"],
+    shortBio: "Senior DevOps Engineer passionate about coding with expertise in full-stack programming and back-end development.",
+    fullBio: "Sage is a Senior DevOps Engineer at Cassette Technologies and also works as a Software Engineer at Liberty Mutual Insurance. He is a graduate of the Wentworth Institute of Technology with a bachelor's degree in Computer Science. Sage is passionate about coding and has a strong background in full-stack programming, with a particular expertise in back-end development.",
+    background: "Graduate of the Wentworth Institute of Technology with a bachelor's degree in Computer Science. Currently works as a Software Engineer at Liberty Mutual Insurance while serving as Senior DevOps Engineer at Cassette Technologies.",
+    expertise: ["DevOps", "Java", "Python", "Full-Stack Programming", "Back-End Development"],
     social: {
       github: "#",
       linkedin: "#",
       twitter: "#",
-      email: "mailto:sam@cassette.com"
+      email: "mailto:sage@cassette.tech"
     }
   },
   {
-    name: "Taylor Brooks",
-    role: "Frontend Engineer",
+    name: "Jenna O'Connell",
+    role: "Social Media Manager",
+    type: "marketer",
+    icon: TrendingUp,
+    shortBio: "Social Media Manager specializing in creating engaging content for both B2C and B2B audiences.",
+    fullBio: "Jenna is the Social Media Manager for Cassette Technologies and a Content Marketing Specialist at RoomReady. She earned her bachelor's degree in Advertising, Marketing, and Communications from the Fashion Institute of Technology. Jenna specializes in managing social media accounts and creating engaging content for both B2C and B2B audiences.",
+    background: "She uses analytics to inform her strategy, focusing on boosting engagement and growing brand awareness. At Cassette Technologies, her responsibilities include designing graphics, overseeing social media activity, creating original content, and collaborating with the marketing team. Currently also works as a Content Marketing Specialist at RoomReady.",
+    expertise: ["Social Media Marketing", "Content Creation", "Interpersonal Communication", "Organization", "Analytics"],
+    social: {
+      github: "#",
+      linkedin: "#",
+      twitter: "#",
+      email: "mailto:jenna@cassette.tech"
+    }
+  },
+  {
+    name: "Massimo Lotruglio",
+    role: "Director of Marketing",
+    type: "marketer",
+    icon: TrendingUp,
+    shortBio: "Globally-minded marketing professional with expertise in brand identity, storytelling, and team leadership.",
+    fullBio: "Massimo is a globally-minded professional and a proud graduate of American University, where he studied International Studies, Journalism, and French. His academic background has fueled his passion for global engagement, problem-solving, and storytelling. As the Director of Marketing for Cassette Technologies, Massimo was instrumental in shaping the company's brand identity.",
+    background: "He led the creation of marketing materials, developed and wrote biweekly newsletters, and managed a team of interns. His strategic efforts in overseeing company engagement contributed to building a combined audience of over 60,000 users. Currently, as the Assistant Director of Admissions at American University, he continues to use his strong communication and relationship-building skills to guide prospective students.",
+    expertise: ["Journalism", "Marketing", "Public Speaking", "Project Management", "Brand Identity"],
+    social: {
+      github: "#",
+      linkedin: "#",
+      twitter: "#",
+      email: "mailto:massimo@cassette.tech"
+    }
+  },
+  {
+    name: "Tobey DiMambro",
+    role: "Software Engineer",
     type: "engineer",
     icon: Code,
-    shortBio: "UI/UX focused engineer creating beautiful, responsive experiences for music lovers.",
-    fullBio: "Taylor combines design sensibility with engineering expertise to create Cassette's polished user interface. They specialize in responsive design and performance optimization, ensuring Cassette works seamlessly across all devices. Taylor is also passionate about accessibility and ensuring music sharing is inclusive for all users.",
-    background: "Previously: Frontend Developer at Pandora, focused on mobile web experiences. Contributed to several popular open-source UI libraries and has a strong design background.",
-    expertise: ["React", "TypeScript", "CSS/Tailwind", "Mobile-First Design"],
+    shortBio: "Talented engineer joining our team soon to help build the future of music sharing.",
+    fullBio: "We're excited to welcome a new team member who will bring fresh perspectives and technical expertise to our engineering team. Stay tuned for more details about this amazing addition to the Cassette family.",
+    background: "Details coming soon as we finalize our newest team member addition.",
+    expertise: ["Software Development", "Music Technology", "Team Collaboration"],
     social: {
       github: "#",
       linkedin: "#",
       twitter: "#",
-      email: "mailto:taylor@cassette.com"
+      email: "mailto:team@cassette.tech"
     }
   },
   {
-    name: "Casey Thompson",
-    role: "Content Marketing Manager",
-    type: "marketer",
-    icon: TrendingUp,
-    shortBio: "Creative marketer building authentic connections between Cassette and music communities.",
-    fullBio: "Casey has spent the last 4 years building content strategies for music and tech companies. They understand how music lovers discover and share content, and they're responsible for Cassette's voice across social media, blog content, and community engagement. Casey is also a passionate playlist curator with over 50K followers across platforms.",
-    background: "Previously: Content Marketing at Bandcamp, grew their artist community blog to 500K monthly readers. Also worked as a music journalist covering emerging artists and streaming trends.",
-    expertise: ["Content Strategy", "Social Media Marketing", "Music Journalism", "Community Management"],
-    social: {
-      github: "#",
-      linkedin: "#",
-      twitter: "#",
-      email: "mailto:casey@cassette.com"
-    }
-  },
-  {
-    name: "Morgan Lee",
-    role: "Growth Marketing Specialist",
-    type: "marketer",
-    icon: TrendingUp,
-    shortBio: "Data-driven marketer optimizing user acquisition and retention for music platforms.",
-    fullBio: "Morgan specializes in performance marketing and user growth analytics. They've helped multiple startups achieve sustainable growth through innovative acquisition strategies and retention campaigns. At Cassette, Morgan focuses on understanding user behavior patterns and optimizing the complete user journey from discovery to daily usage.",
-    background: "Previously: Growth Marketing at Last.fm and Shazam, managed multi-million dollar ad budgets and achieved 40% improvement in user retention rates. Strong background in A/B testing and conversion optimization.",
-    expertise: ["Performance Marketing", "Analytics", "A/B Testing", "User Retention"],
-    social: {
-      github: "#",
-      linkedin: "#",
-      twitter: "#",
-      email: "mailto:morgan@cassette.com"
-    }
-  },
-  {
-    name: "Dr. Patricia Valdez",
-    role: "Lead Investor & Strategic Advisor",
+    name: "Mukund Kaushik",
+    role: "Technical Advisor & Investor",
     type: "investor",
     icon: DollarSign,
-    shortBio: "Venture partner at Harmony Ventures with 15+ years investing in music technology.",
-    fullBio: "Dr. Valdez is a venture partner at Harmony Ventures and has been investing in music technology companies for over 15 years. She led the Series A rounds for three companies that later became category leaders in music streaming and discovery. Patricia brings both capital and strategic guidance, helping Cassette navigate partnerships with major streaming platforms and scale operations.",
-    background: "Partner at Harmony Ventures, previously Investment Director at Warner Music Group's venture arm. PhD in Computer Science from Stanford, with research focus on music information retrieval. Board positions at 8 music technology companies.",
-    expertise: ["Venture Capital", "Music Industry Strategy", "Platform Partnerships", "Scaling Operations"],
+    shortBio: "Seasoned CTO and tech innovation expert with a 'Think Big, Act Small' philosophy, leading digital transformations at major corporations.",
+    fullBio: "Mukund Kaushik is a seasoned Chief Technology Officer with a demonstrated history of achieving business success through his 'Think Big, Act Small' philosophy. He is an expert in technology infrastructure, strategy, innovation, and engineering. Throughout his career, Mukund has held prominent leadership positions at major corporations including Inspire, CommonSpirit Health, Southern California Edison, Kimberly-Clark, and Honda North America.",
+    background: "He has a proven ability to lead digital transformations and scale technology organizations to foster growth. His industry accolades include being named a 'Visionary' by Consumer Goods Technology in 2017. He holds a Bachelor of Technology in Electrical Engineering from the National Institute of Technology, Kurukshetra, and has completed the Distinguished Leader Program at the University of Southern California.",
+    expertise: ["Digital Transformation", "Technology Strategy", "AI & Machine Learning", "Cybersecurity", "Leadership Mentoring"],
     social: {
       github: "#",
       linkedin: "#",
       twitter: "#",
-      email: "mailto:patricia@harmonyventures.com"
+      email: "mailto:mukund@cassette.tech"
     }
   }
 ];

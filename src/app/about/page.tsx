@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { ArrowRight, CassetteTape, Link as LinkIcon, Music2, Radio, UserSquare, Zap } from "lucide-react";
+import { InvertedProfileDemo } from "@/components/demo/inverted-profile-demo";
 
 export default function AboutPage() {
   return (
@@ -111,17 +112,22 @@ export default function AboutPage() {
             >
               <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-r from-primary to-secondary rounded-2xl blur-lg opacity-30"></div>
-                <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-8 h-full flex flex-col items-center justify-center">
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    {[...Array(4)].map((_, i) => (
-                      <div key={i} className="bg-borderDark/30 rounded-lg w-16 h-16 flex items-center justify-center">
-                        <UserSquare className="text-primary" size={24} />
-                      </div>
-                    ))}
+                <Link href="/team" className="block group">
+                  <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-8 h-full flex flex-col items-center justify-center group-hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      {[...Array(4)].map((_, i) => (
+                        <div key={i} className="bg-borderDark/30 rounded-lg w-16 h-16 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                          <UserSquare className="text-primary group-hover:text-primary" size={24} />
+                        </div>
+                      ))}
+                    </div>
+                    <h3 className="font-teko text-2xl text-foreground mb-2 group-hover:text-primary transition-colors">The Cassette Crew</h3>
+                    <p className="font-roboto text-textHint text-center group-hover:text-muted-foreground transition-colors">Music-obsessed team breaking down streaming barriers</p>
+                    <div className="mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ArrowRight className="text-primary" size={20} />
+                    </div>
                   </div>
-                  <h3 className="font-teko text-2xl text-foreground mb-2">The Cassette Crew</h3>
-                  <p className="font-roboto text-textHint text-center">Music-obsessed team breaking down streaming barriers</p>
-                </div>
+                </Link>
               </div>
             </motion.div>
           </div>
@@ -134,7 +140,7 @@ export default function AboutPage() {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="mb-24"
         >
-          <div className="text-center max-w-2xl mx-auto mb-16">
+          <div className="text-center max-w-2xl mx-auto mb-20">
             <div className="inline-flex items-center gap-2 bg-bgSubtle/50 px-4 py-2 rounded-full mb-4">
               <Zap className="text-primary" size={20} />
               <span className="font-teko text-primary text-lg">WHAT WE DO TODAY</span>
@@ -147,68 +153,257 @@ export default function AboutPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
-            <motion.div
-              whileHover={{ y: -5 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl overflow-hidden shadow-lg">
-                <CardHeader>
-                  <div className="bg-primary/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                    <LinkIcon className="text-primary" size={24} />
-                  </div>
-                  <CardTitle className="font-teko text-2xl text-foreground">Universal Music Links</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="font-roboto text-muted-foreground mb-6">
-                    Paste any track, album, or playlist link. We transform it into one beautiful Cassette link that works everywhere.
-                  </p>
-                  <div className="bg-borderDark/30 rounded-xl p-4 border border-border">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="h-3 bg-textSecondary rounded w-32 mb-2"></div>
-                        <div className="h-3 bg-textSecondary rounded w-24"></div>
-                      </div>
-                      <div className="bg-gradient-to-r from-primary to-secondary px-3 py-1 rounded-lg">
-                        <span className="font-teko text-foreground">Play</span>
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-24">
+            {/* Left Column - Profile Demo with extra spacing */}
+            <div className="flex justify-center lg:justify-end">
+              <div className="relative z-10" style={{ paddingTop: '6rem', paddingBottom: '12rem' }}>
+                <InvertedProfileDemo />
+              </div>
+            </div>
+
+            {/* Right Column - Features Cards */}
+            <div className="space-y-8 lg:flex lg:flex-col lg:justify-center">
+              <motion.div
+                whileHover={{ y: -5 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl overflow-hidden shadow-lg">
+                  <CardHeader>
+                    <div className="bg-primary/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                      <LinkIcon className="text-primary" size={24} />
+                    </div>
+                    <CardTitle className="font-teko text-2xl text-foreground">Universal Music Links</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="font-roboto text-muted-foreground mb-6">
+                      Paste any track, album, or playlist link. We transform it into one beautiful Cassette link that works everywhere.
+                    </p>
+                    <div className="space-y-3">
+                      <p className="font-roboto text-sm text-muted-foreground">Try these examples from our demo profile:</p>
+                      <div className="space-y-2">
+                        <Link href="/post?url=https://open.spotify.com/track/4fzsfWzRhPawzqhX8Qt9F3" className="block">
+                          <div className="bg-borderDark/30 rounded-xl p-3 border border-border hover:bg-muted/30 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded bg-green-500 flex items-center justify-center">
+                                <Music2 size={16} className="text-white" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium text-sm text-foreground">Stronger - Kanye West</p>
+                                <p className="text-xs text-muted-foreground">Smart link opens in your preferred app</p>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                        <Link href="/post?url=https://music.apple.com/us/album/the-dark-side-of-the-moon/1065973699?i=1065973705" className="block">
+                          <div className="bg-borderDark/30 rounded-xl p-3 border border-border hover:bg-muted/30 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded bg-pink-500 flex items-center justify-center">
+                                <Music2 size={16} className="text-white" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium text-sm text-foreground">Time - Pink Floyd</p>
+                                <p className="text-xs text-muted-foreground">Cross-platform playlist ready</p>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-            
-            <motion.div
-              whileHover={{ y: -5 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl overflow-hidden shadow-lg">
-                <CardHeader>
-                  <div className="bg-accent/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                    <UserSquare className="text-accent" size={24} />
-                  </div>
-                  <CardTitle className="font-teko text-2xl text-foreground">Your Music Identity</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="font-roboto text-muted-foreground mb-6">
-                  Your free Cassette profile is your music home - shareable in bios, showcasing your expertise like a musical resume.
-                  </p>
-                  <div className="bg-muted/50 backdrop-blur-sm rounded-xl p-4 border border-border shadow-inner">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-textSecondary rounded-full w-10 h-10"></div>
-                      <div>
-                        <div className="h-3 bg-textSecondary rounded w-24 mb-2"></div>
-                        <div className="flex gap-2">
-                          <div className="w-8 h-8 bg-textSecondary rounded"></div>
-                          <div className="w-8 h-8 bg-textSecondary rounded"></div>
-                          <div className="w-8 h-8 bg-textSecondary rounded"></div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+              
+              <motion.div
+                whileHover={{ y: -5 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl overflow-hidden shadow-lg">
+                  <CardHeader>
+                    <div className="bg-accent/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                      <UserSquare className="text-accent" size={24} />
+                    </div>
+                    <CardTitle className="font-teko text-2xl text-foreground">Your Music Identity</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="font-roboto text-muted-foreground mb-6">
+                      Your free Cassette profile becomes your music home - shareable in bios, showcasing your curation skills like a musical resume.
+                    </p>
+                    <div className="space-y-3">
+                      <p className="font-roboto text-sm text-muted-foreground">Organize your music across platforms:</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-muted/50 backdrop-blur-sm rounded-lg p-3 border border-border">
+                          <p className="text-xs font-medium text-foreground mb-1">Playlists</p>
+                          <p className="text-xs text-muted-foreground">Summer Vibes, Chill Study</p>
+                        </div>
+                        <div className="bg-muted/50 backdrop-blur-sm rounded-lg p-3 border border-border">
+                          <p className="text-xs font-medium text-foreground mb-1">Top Artists</p>
+                          <p className="text-xs text-muted-foreground">The Weeknd, Tame Impala</p>
+                        </div>
+                        <div className="bg-muted/50 backdrop-blur-sm rounded-lg p-3 border border-border">
+                          <p className="text-xs font-medium text-foreground mb-1">Recent Tracks</p>
+                          <p className="text-xs text-muted-foreground">LCD Soundsystem, Flipturn</p>
+                        </div>
+                        <div className="bg-muted/50 backdrop-blur-sm rounded-lg p-3 border border-border">
+                          <p className="text-xs font-medium text-foreground mb-1">Albums</p>
+                          <p className="text-xs text-muted-foreground">After Hours, Currents</p>
                         </div>
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Smart Links Showcase */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.45 }}
+          className="mb-24"
+        >
+          <div className="text-center mb-12">
+            <h2 className="font-teko text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              See Smart Links in Action
+            </h2>
+            <p className="font-roboto text-muted-foreground max-w-2xl mx-auto">
+              Click any link below to see how Cassette creates universal music links that work across all platforms
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Flipturn Track */}
+            <Link href="/post?url=https://open.spotify.com/track/4fzsfWzRhPawzqhX8Qt9F3" className="block group">
+              <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl overflow-hidden shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center flex-shrink-0">
+                      <Music2 size={20} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-teko text-lg font-bold text-foreground truncate">Stronger</h3>
+                      <p className="font-roboto text-sm text-muted-foreground truncate">Kanye West</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span className="font-roboto text-xs text-muted-foreground">Spotify → Universal</span>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </Link>
+
+            {/* Pink Floyd Track */}
+            <Link href="/post?url=https://music.apple.com/us/album/the-dark-side-of-the-moon/1065973699?i=1065973705" className="block group">
+              <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl overflow-hidden shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center flex-shrink-0">
+                      <Music2 size={20} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-teko text-lg font-bold text-foreground truncate">Time</h3>
+                      <p className="font-roboto text-sm text-muted-foreground truncate">Pink Floyd</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className="w-2 h-2 rounded-full bg-pink-500"></div>
+                        <span className="font-roboto text-xs text-muted-foreground">Apple Music → Universal</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* LCD Soundsystem Track */}
+            <Link href="/post?url=https://open.spotify.com/track/3jtvJtAA25a7d0BLOJ8Dqo" className="block group">
+              <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl overflow-hidden shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center flex-shrink-0">
+                      <Music2 size={20} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-teko text-lg font-bold text-foreground truncate">Daft Punk is Playing at My House</h3>
+                      <p className="font-roboto text-sm text-muted-foreground truncate">LCD Soundsystem</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                        <span className="font-roboto text-xs text-muted-foreground">Dance/Electronic</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* The Weeknd Album */}
+            <Link href="/post?url=https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj" className="block group">
+              <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl overflow-hidden shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center flex-shrink-0">
+                      <Music2 size={20} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-teko text-lg font-bold text-foreground truncate">After Hours</h3>
+                      <p className="font-roboto text-sm text-muted-foreground truncate">The Weeknd</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                        <span className="font-roboto text-xs text-muted-foreground">Full Album</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Tame Impala Album */}
+            <Link href="/post?url=https://open.spotify.com/album/79dL7FLiJFOO0EoehUHQBv" className="block group">
+              <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl overflow-hidden shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center flex-shrink-0">
+                      <Music2 size={20} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-teko text-lg font-bold text-foreground truncate">Currents</h3>
+                      <p className="font-roboto text-sm text-muted-foreground truncate">Tame Impala</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                        <span className="font-roboto text-xs text-muted-foreground">Psychedelic Rock</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Childish Gambino Track */}
+            <Link href="/post?url=https://open.spotify.com/track/5UH5s7VwbSkFExIl1oqNux" className="block group">
+              <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl overflow-hidden shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0">
+                      <Music2 size={20} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-teko text-lg font-bold text-foreground truncate">Feels Like Summer</h3>
+                      <p className="font-roboto text-sm text-muted-foreground truncate">Childish Gambino</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                        <span className="font-roboto text-xs text-muted-foreground">Hip-Hop/R&B</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+          
+          <div className="text-center mt-8">
+            <p className="font-roboto text-sm text-muted-foreground">
+              Each link automatically detects your preferred streaming service and opens there, while providing alternatives for all other platforms.
+            </p>
           </div>
         </motion.div>
 

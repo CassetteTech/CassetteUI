@@ -18,6 +18,7 @@ import { InvertedProfileDemo } from '@/components/demo/inverted-profile-demo';
 export default function HomePage() {
   const router = useRouter();
   const [musicUrl, setMusicUrl] = useState('');
+  const [urlError, setUrlError] = useState<string | null>(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
   
   // Animation states
@@ -71,6 +72,20 @@ export default function HomePage() {
     return () => timeouts.forEach(clearTimeout);
   }, []);
 
+  const validateAppleMusicLink = (url: string): string | null => {
+    try {
+      if (!url.startsWith('http')) return null;
+      
+      const parsedUrl = new URL(url);
+      if (parsedUrl.hostname.includes('music.apple.com') && parsedUrl.pathname.includes('/library/playlist/')) {
+        return "You've pasted a private Apple Music link. Please use the 'Share Playlist' option to copy the correct link.";
+      }
+    } catch {
+      // Not a valid URL, ignore for this specific validation.
+    }
+    return null;
+  };
+
   const handleConvertLink = (url: string) => {
     console.log('🔄 handleConvertLink called with URL:', url);
     if (!url.trim()) {
@@ -105,6 +120,17 @@ export default function HomePage() {
     const value = e.target.value;
     setMusicUrl(value);
 
+    // Clear any existing error first
+    if (urlError) {
+      setUrlError(null);
+    }
+
+    // Only validate if it looks like a URL (starts with http)
+    if (value.startsWith('http')) {
+      const validationError = validateAppleMusicLink(value);
+      setUrlError(validationError);
+    }
+
     // Ensure search is active when typing
     if (value.trim() && !isSearchActive) {
       setIsSearchActive(true);
@@ -114,6 +140,14 @@ export default function HomePage() {
   // Handle paste event for auto-conversion
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const pastedText = e.clipboardData.getData('text');
+    const validationError = validateAppleMusicLink(pastedText);
+
+    setMusicUrl(pastedText);
+    setUrlError(validationError);
+
+    if (validationError) {
+      return;
+    }
 
     // Check if it's a music link for auto-conversion
     const linkLower = pastedText.toLowerCase();
@@ -236,6 +270,7 @@ export default function HomePage() {
                   <UrlBar 
                     variant="light"
                     className="w-full"
+                    hasError={!!urlError}
                   >
                     <input
                       ref={searchInputRef}
@@ -246,6 +281,11 @@ export default function HomePage() {
                       onPaste={handlePaste}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && musicUrl.trim()) {
+                          const validationError = validateAppleMusicLink(musicUrl);
+                          setUrlError(validationError);
+                          if (validationError) {
+                            return;
+                          }
                           // Check if it's a link
                           if (musicUrl.includes('http')) {
                             handleConvertLink(musicUrl);
@@ -257,6 +297,11 @@ export default function HomePage() {
                       className="w-full h-full bg-transparent border-none outline-none text-center text-brandBlack placeholder:text-textHint px-3 sm:px-4 md:px-6 text-sm sm:text-base"
                     />
                   </UrlBar>
+                  {urlError && (
+                    <p className="text-destructive text-sm mt-2 text-center px-4 font-semibold">
+                      {urlError}
+                    </p>
+                  )}
                 </div>
               </div>
 

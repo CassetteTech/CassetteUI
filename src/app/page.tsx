@@ -294,7 +294,8 @@ export default function HomePage() {
                         }
                       }}
                       placeholder="Search or paste your music link here..."
-                      className="w-full h-full bg-transparent border-none outline-none text-center text-brandBlack placeholder:text-textHint px-3 sm:px-4 md:px-6 text-sm sm:text-base"
+                      className="w-full h-full bg-transparent border-none outline-none text-center text-brandBlack placeholder:text-textHint px-3 sm:px-4 md:px-6 text-base"
+                      style={{ fontSize: '16px', touchAction: 'manipulation' }}
                     />
                   </UrlBar>
                   {urlError && (

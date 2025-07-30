@@ -32,6 +32,7 @@ export const metadata: Metadata = {
   description: "Share your favorite music across all platforms. Connect with friends and discover new tunes.",
   keywords: ["music", "social", "spotify", "apple music", "deezer", "sharing"],
   authors: [{ name: "Cassette Team" }],
+  viewport: "width=device-width, initial-scale=1",
   openGraph: {
     title: "Cassette - Share Your Music",
     description: "Share your favorite music across all platforms. Connect with friends and discover new tunes.",

@@ -215,7 +215,7 @@ export default function HomePage() {
           <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] relative lg:min-h-screen lg:max-w-[1600px] lg:mx-auto lg:block lg:pr-[500px] lg:p-0">
             
             {/* Left Column - Logo and Profile Demo */}
-            <div className="w-full lg:flex lg:flex-col lg:items-center lg:justify-start lg:px-12">
+            <div className="w-full lg:flex lg:flex-col lg:items-center lg:justify-start lg:px-12" style={{overscrollBehavior: 'contain'}}>
               {/* Logo Section */}
               <div className={`${logoClasses} w-full lg:min-h-screen lg:flex lg:flex-col lg:justify-center`}>
               <div className="text-center mb-6 sm:mb-8 lg:text-center lg:mb-0 lg:-mt-[25px]">
@@ -264,7 +264,7 @@ export default function HomePage() {
             </div>
 
             {/* Search Bar Section - Right Column */}
-            <div className={`${searchBarClasses} w-full lg:fixed lg:top-0 lg:right-[max(calc((100vw-1600px)/2),0px)] lg:h-screen lg:w-[500px] lg:flex lg:flex-col lg:px-12 lg:pt-24 lg:z-10`}>
+            <div className={`${searchBarClasses} w-full lg:fixed lg:top-0 lg:right-[max(calc((100vw-1600px)/2),0px)] lg:h-screen lg:w-[500px] lg:flex lg:flex-col lg:px-12 lg:pt-24 lg:z-10 lg:overflow-hidden`} style={{overscrollBehavior: 'contain'}}>
               <div className="w-[85vw] mx-auto mb-6 sm:mb-8 lg:w-full lg:mb-4">
                 <div className="relative">
                   <UrlBar 
@@ -306,7 +306,7 @@ export default function HomePage() {
               </div>
 
               {/* Search Results Container - Desktop only in right column */}
-              <div className={`hidden lg:block search-container transition-all duration-500 ease-out w-full opacity-100 flex-1 pb-8`}>
+              <div className={`hidden lg:block search-container transition-all duration-500 ease-out w-full opacity-100 flex-1 overflow-hidden pb-8`} style={{overscrollBehavior: 'contain'}}>
                 <SearchResults
                   results={displayData}
                   isLoading={isLoadingCharts}

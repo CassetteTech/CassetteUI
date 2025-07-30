@@ -28,9 +28,10 @@ export function Layout({ children }: LayoutProps) {
   const isAuthPage = pathname?.startsWith('/auth');
   const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/add-music');
   const isHomePage = pathname === '/';
+  const isPostPage = pathname?.startsWith('/post');
 
   const showNavbar = !isAuthPage;
-  const showFooter = !isAuthPage && !isHomePage;
+  const showFooter = !isAuthPage && !isHomePage && !isPostPage;
 
   if (isLoading) {
     return (

@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { useRef, useEffect, useState, Suspense } from 'react';
 import { MusicLinkConversion, ElementType } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
+import { ConversionProgress } from '@/components/features/conversion/conversion-progress';
 import { StreamingLinks } from '@/components/features/entity/streaming-links';
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { AnimatedButton } from '@/components/ui/animated-button';
@@ -21,6 +22,10 @@ function PostPageContent() {
   const router = useRouter();
   const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; details?: { artists?: Array<{ name: string; role: string; }>; }; } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [apiComplete, setApiComplete] = useState(false);
+  
+  // Demo mode - force loading state for testing
+  const [demoMode, setDemoMode] = useState(false);
   
   // Animation states
   const [dominantColor, setDominantColor] = useState<string | null>(null);
@@ -38,6 +43,21 @@ function PostPageContent() {
         const urlParam = searchParams.get('url');
         const dataParam = searchParams.get('data');
         const postId = searchParams.get('id');
+        const demo = searchParams.get('demo');
+
+        // Check for demo mode - only activate if explicitly requested
+        if (demo === 'loading') {
+          console.log('🎬 Demo mode activated - showing pulse loader');
+          setDemoMode(true);
+          return;
+        }
+
+        // If no parameters at all, immediately set error
+        if (!urlParam && !dataParam && !postId) {
+          console.log('❌ No parameters provided - setting error immediately');
+          setError('No data provided');
+          return;
+        }
 
         // Only run conversion when we actually have a ?url=
         if (urlParam) {
@@ -50,6 +70,7 @@ function PostPageContent() {
 
           convertLink(decodedUrl, {
             onSuccess: (result) => {
+              setApiComplete(true);
               if (result.postId) {
                 // replace removes ?url= so this effect won't re-enter conversion
                 router.replace(`/post?id=${result.postId}`);
@@ -62,6 +83,7 @@ function PostPageContent() {
             },
             onError: (err) => {
               console.error('❌ Post page: Conversion failed:', err);
+              setApiComplete(true);
               setError(err instanceof Error ? err.message : 'Failed to convert link');
             },
           });
@@ -71,6 +93,7 @@ function PostPageContent() {
         if (dataParam) {
           const parsedData = JSON.parse(decodeURIComponent(dataParam));
           setPostData(parsedData);
+          setApiComplete(true);
           if (parsedData.metadata?.artwork) extractColorFromArtwork(parsedData.metadata.artwork);
           return;
         }
@@ -137,6 +160,7 @@ function PostPageContent() {
             }
             
             setPostData(transformedData);
+            setApiComplete(true);
             
             // Extract dominant color
             if (transformedData.metadata.artwork) {
@@ -147,10 +171,9 @@ function PostPageContent() {
           }
           return;
         }
-
-        setError('No data provided');
       } catch (e) {
         console.error('Error loading post data:', e);
+        setApiComplete(true);
         setError('Failed to load content');
       }
     };
@@ -184,9 +207,28 @@ function PostPageContent() {
     return () => window.removeEventListener('resize', checkDesktop);
   }, []);
   
-  // Show skeleton while converting or if no data yet
-  if (isConverting || (!postData && !error)) {
-    return <EntitySkeleton isDesktop={isDesktop} />;
+  // Show conversion progress while converting, if no data yet, or in demo mode
+  if (isConverting || (!postData && !error) || demoMode) {
+    console.log('🌊 Showing conversion progress:', { isConverting, hasPostData: !!postData, hasError: !!error, demoMode });
+    
+    const urlParam = searchParams.get('url');
+    const currentUrl = urlParam ? decodeURIComponent(urlParam) : '';
+    
+    return (
+      <ConversionProgress
+        url={currentUrl}
+        metadata={null}
+        apiComplete={apiComplete}
+        onComplete={() => {
+          // Conversion simulation complete - the actual API call should also be done by now
+          console.log('🎉 Conversion progress simulation completed');
+        }}
+        onCancel={() => {
+          router.back();
+        }}
+        isDesktop={isDesktop}
+      />
+    );
   }
   
   if (error) {

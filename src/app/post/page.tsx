@@ -22,6 +22,7 @@ function PostPageContent() {
   const router = useRouter();
   const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; details?: { artists?: Array<{ name: string; role: string; }>; }; } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [apiComplete, setApiComplete] = useState(false);
   
   // Demo mode - force loading state for testing
   const [demoMode, setDemoMode] = useState(false);
@@ -69,6 +70,7 @@ function PostPageContent() {
 
           convertLink(decodedUrl, {
             onSuccess: (result) => {
+              setApiComplete(true);
               if (result.postId) {
                 // replace removes ?url= so this effect won't re-enter conversion
                 router.replace(`/post?id=${result.postId}`);
@@ -81,6 +83,7 @@ function PostPageContent() {
             },
             onError: (err) => {
               console.error('❌ Post page: Conversion failed:', err);
+              setApiComplete(true);
               setError(err instanceof Error ? err.message : 'Failed to convert link');
             },
           });
@@ -90,6 +93,7 @@ function PostPageContent() {
         if (dataParam) {
           const parsedData = JSON.parse(decodeURIComponent(dataParam));
           setPostData(parsedData);
+          setApiComplete(true);
           if (parsedData.metadata?.artwork) extractColorFromArtwork(parsedData.metadata.artwork);
           return;
         }
@@ -156,6 +160,7 @@ function PostPageContent() {
             }
             
             setPostData(transformedData);
+            setApiComplete(true);
             
             // Extract dominant color
             if (transformedData.metadata.artwork) {
@@ -168,6 +173,7 @@ function PostPageContent() {
         }
       } catch (e) {
         console.error('Error loading post data:', e);
+        setApiComplete(true);
         setError('Failed to load content');
       }
     };
@@ -212,13 +218,10 @@ function PostPageContent() {
       <ConversionProgress
         url={currentUrl}
         metadata={null}
+        apiComplete={apiComplete}
         onComplete={() => {
           // Conversion simulation complete - the actual API call should also be done by now
           console.log('🎉 Conversion progress simulation completed');
-        }}
-        onBackgroundMode={() => {
-          // Handle background mode - could navigate back or show notification
-          console.log('📱 Conversion moved to background');
         }}
         onCancel={() => {
           router.back();

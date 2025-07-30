@@ -82,17 +82,6 @@ export const ConversionSteps: React.FC<ConversionStepsProps> = ({
         })}
       </div>
       
-      {/* Progress bar */}
-      <div className="w-full max-w-xs mx-auto mt-2">
-        <div className="h-1 bg-border rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-primary transition-all duration-500 ease-out"
-            style={{
-              width: `${Math.max(0, (currentStep / steps.length) * 100)}%`
-            }}
-          />
-        </div>
-      </div>
     </div>
   );
 };

@@ -1,5 +1,4 @@
 import React from 'react';
-import { AnimatedButton } from '@/components/ui/animated-button';
 
 interface BackgroundOptionProps {
   onContinueWaiting: () => void;
@@ -11,9 +10,7 @@ interface BackgroundOptionProps {
 
 export const BackgroundOption: React.FC<BackgroundOptionProps> = ({
   onContinueWaiting,
-  onRunInBackground,
   onCancel,
-  elapsedTime,
   className = ''
 }) => {
   return (
@@ -24,10 +21,7 @@ export const BackgroundOption: React.FC<BackgroundOptionProps> = ({
           This is taking longer than expected
         </h4>
         <p className="text-xs text-muted-foreground">
-          {elapsedTime > 10 
-            ? 'The music service might be experiencing delays. You can continue waiting or run this in the background.'
-            : 'Large playlists and rate limits can cause delays. You have options:'
-          }
+          Large playlists and rate limits can cause delays.
         </p>
       </div>
 
@@ -41,21 +35,6 @@ export const BackgroundOption: React.FC<BackgroundOptionProps> = ({
           Keep waiting
         </button>
 
-        {/* Run in background */}
-        <AnimatedButton
-          text="Run in background"
-          onClick={onRunInBackground}
-          height={36}
-          width={160}
-          initialPos={3}
-          colorTop="#1F2327"
-          colorBottom="#595C5E"
-          borderColorTop="#1F2327"
-          borderColorBottom="#1F2327"
-          textStyle="text-sm font-medium text-white"
-          className="flex-shrink-0"
-        />
-
         {/* Cancel option */}
         {onCancel && (
           <button
@@ -65,13 +44,6 @@ export const BackgroundOption: React.FC<BackgroundOptionProps> = ({
             Cancel
           </button>
         )}
-      </div>
-
-      {/* Additional info */}
-      <div className="text-xs text-muted-foreground">
-        <p>
-          💡 Background conversions will notify you when complete
-        </p>
       </div>
     </div>
   );

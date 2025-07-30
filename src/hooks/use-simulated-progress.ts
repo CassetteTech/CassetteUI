@@ -11,79 +11,68 @@ export interface SimulationConfig {
 export interface ProgressState {
   currentStep: number;
   totalSteps: number;
-  elapsedTime: number;
   showSteps: boolean;
   showTrackList: boolean;
-  showTimer: boolean;
-  showBackgroundOption: boolean;
   matchedCount: number;
   isComplete: boolean;
   currentStepName: string;
   statusMessage: string;
+  isWaitingForApi: boolean;
 }
 
 const STEP_CONFIGS = {
   track: [
     { name: 'Finding track', duration: 800 },
-    { name: 'Verifying match', duration: 600 },
-    { name: 'Adding to library', duration: 400 }
+    { name: 'Matching Platforms', duration: 600 },
+    { name: 'Generating Smart Link', duration: 400 }
   ],
   album: [
     { name: 'Loading album', duration: 700 },
     { name: 'Matching tracks', duration: 1200 },
-    { name: 'Adding to library', duration: 500 }
+    { name: 'Generating Smart Link', duration: 500 }
   ],
   artist: [
     { name: 'Finding artist', duration: 900 },
-    { name: 'Loading catalog', duration: 1500 },
-    { name: 'Setting up profile', duration: 800 }
+    { name: 'Matching Platforms', duration: 1500 },
+    { name: 'Generating Smart Link', duration: 800 }
   ],
   playlist: [
     { name: 'Analyzing playlist', duration: 800 },
     { name: 'Matching tracks', duration: 2000 },
-    { name: 'Creating playlist', duration: 700 },
+    { name: 'Generating Smart Link', duration: 700 },
     { name: 'Finalizing', duration: 500 }
   ]
 };
 
 export const useSimulatedProgress = (
   config: SimulationConfig,
-  onComplete?: () => void
+  onComplete?: () => void,
+  apiComplete?: boolean
 ) => {
-  const { contentType, estimatedCount = 10, baseDelay = 400 } = config;
+  const { contentType, estimatedCount = 10, baseDelay = 100 } = config;
   
   const [state, setState] = useState<ProgressState>({
     currentStep: 0,
     totalSteps: STEP_CONFIGS[contentType].length,
-    elapsedTime: 0,
-    showSteps: false,
+    showSteps: true, // Show steps immediately
     showTrackList: false,
-    showTimer: false,
-    showBackgroundOption: false,
     matchedCount: 0,
     isComplete: false,
-    currentStepName: '',
-    statusMessage: `Converting ${contentType}...`
+    currentStepName: STEP_CONFIGS[contentType][0].name,
+    statusMessage: `Converting ${contentType}...`,
+    isWaitingForApi: true
   });
 
-  const startTimeRef = useRef<number>(Date.now());
   const stepTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  const elapsedIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const trackMatchingIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const rapidCompletionRef = useRef<boolean>(false);
 
-  // Calculate estimated total duration based on content type
-  const getEstimatedDuration = useCallback(() => {
-    const baseStepTime = STEP_CONFIGS[contentType].reduce((sum, step) => sum + step.duration, 0);
-    
-    if (contentType === 'playlist') {
-      return baseStepTime + (estimatedCount * 150); // ~150ms per track
-    }
-    if (contentType === 'album') {
-      return baseStepTime + (Math.min(estimatedCount, 15) * 100); // ~100ms per track, max 15
-    }
-    
-    return baseStepTime;
-  }, [contentType, estimatedCount]);
+  // Smart step timing logic
+  const getStepDelay = useCallback((isLastStep: boolean, apiComplete: boolean) => {
+    if (apiComplete) return Math.random() * 900 + 100; // Random 0.1-1s when API is done
+    if (isLastStep && !apiComplete) return null; // Pause on last step without API
+    return Math.random() * 2500 + 500; // Random 0.5-3s otherwise
+  }, []);
 
   // Simulate track matching progress for playlists/albums
   const simulateTrackMatching = useCallback(() => {
@@ -126,62 +115,107 @@ export const useSimulatedProgress = (
           ...prev,
           currentStep: nextStep,
           isComplete: true,
-          statusMessage: 'Conversion complete!'
+          statusMessage: 'Conversion complete!',
+          isWaitingForApi: false
         };
       }
       
       const currentStepConfig = steps[nextStep];
+      const isLastStep = nextStep === steps.length - 1;
       
-      // Schedule next step advancement
-      stepTimeoutRef.current = setTimeout(() => {
-        advanceStep();
-      }, currentStepConfig.duration);
+      // Don't schedule next step if in rapid completion mode
+      if (!rapidCompletionRef.current) {
+        const delay = getStepDelay(isLastStep, apiComplete || false);
+        
+        if (delay !== null) {
+          // Schedule next step advancement
+          stepTimeoutRef.current = setTimeout(() => {
+            advanceStep();
+          }, delay);
+        } else {
+          // We're on the last step without API response - wait
+          console.log('⏸️ Pausing on last step - waiting for API response');
+        }
+      }
       
       return {
         ...prev,
         currentStep: nextStep,
         currentStepName: currentStepConfig.name,
-        statusMessage: currentStepConfig.name + '...'
+        statusMessage: isLastStep && !apiComplete ? 
+          'Taking longer than usual...' : 
+          currentStepConfig.name + '...',
+        isWaitingForApi: !apiComplete
       };
     });
-  }, [contentType, onComplete]);
+  }, [contentType, onComplete, getStepDelay, apiComplete]);
+
+  // Rapid completion when API finishes first
+  const enterRapidCompletionMode = useCallback(() => {
+    console.log('🏃 Entering rapid completion mode');
+    rapidCompletionRef.current = true;
+    
+    // Clear any existing step timeout
+    if (stepTimeoutRef.current) {
+      clearTimeout(stepTimeoutRef.current);
+      console.log('🔄 Cleared existing step timeout');
+    }
+    
+    // Complete remaining steps with 100ms delay each
+    setState(prev => {
+      const remainingSteps = prev.totalSteps - prev.currentStep;
+      console.log(`⚡ Remaining steps to complete: ${remainingSteps}`);
+      
+      for (let i = 1; i <= remainingSteps; i++) {
+        setTimeout(() => {
+          console.log(`📝 Advancing step ${i}/${remainingSteps}`);
+          advanceStep();
+        }, 100 * i); // 0.1 second delay for each step
+      }
+      
+      return prev;
+    });
+  }, [advanceStep]);
+
+  // Handle API completion
+  useEffect(() => {
+    if (apiComplete && !state.isComplete) {
+      setState(prev => ({ ...prev, isWaitingForApi: false }));
+      
+      // If we're paused on the last step, complete it now
+      if (state.currentStep === state.totalSteps - 1 && !rapidCompletionRef.current) {
+        console.log('🎯 API completed on last step - completing in 0.1s');
+        setTimeout(() => {
+          advanceStep();
+        }, 100);
+      } else if (!rapidCompletionRef.current) {
+        console.log('🚀 API completed, entering rapid completion mode');
+        enterRapidCompletionMode();
+      }
+    }
+  }, [apiComplete, state.isComplete, state.currentStep, state.totalSteps, enterRapidCompletionMode, advanceStep]);
 
   // Start simulation
   useEffect(() => {
-    startTimeRef.current = Date.now();
-    
-    // Update elapsed time every second
-    const elapsedInterval = setInterval(() => {
-      setState(prev => ({
-        ...prev,
-        elapsedTime: Math.floor((Date.now() - startTimeRef.current) / 1000)
-      }));
-    }, 1000);
-    elapsedIntervalRef.current = elapsedInterval;
-
     // Progressive disclosure timeline
     const timeouts: NodeJS.Timeout[] = [];
 
-    // 400ms: Show initial skeleton
-    timeouts.push(setTimeout(() => {
-      setState(prev => ({ ...prev, statusMessage: `Converting ${contentType}...` }));
-    }, baseDelay));
-
-    // 1s: Show step progress
+    // Start first step immediately (after base delay)
     timeouts.push(setTimeout(() => {
       setState(prev => ({ 
         ...prev, 
-        showSteps: true,
-        currentStepName: STEP_CONFIGS[contentType][0].name,
         statusMessage: STEP_CONFIGS[contentType][0].name + '...'
       }));
       
-      // Start first step
-      stepTimeoutRef.current = setTimeout(() => {
-        advanceStep();
-      }, STEP_CONFIGS[contentType][0].duration);
+      // Start first step with smart timing
+      const delay = getStepDelay(false, apiComplete || false);
+      if (delay !== null) {
+        stepTimeoutRef.current = setTimeout(() => {
+          advanceStep();
+        }, delay);
+      }
       
-    }, 1000));
+    }, baseDelay));
 
     // 2s: Show track list for playlists/albums
     if (contentType === 'playlist' || contentType === 'album') {
@@ -191,28 +225,16 @@ export const useSimulatedProgress = (
       }, 2000));
     }
 
-    // 3s: Show timer
-    timeouts.push(setTimeout(() => {
-      setState(prev => ({ ...prev, showTimer: true }));
-    }, 3000));
-
-    // 5s: Show background option
-    timeouts.push(setTimeout(() => {
-      setState(prev => ({ ...prev, showBackgroundOption: true }));
-    }, 5000));
-
     return () => {
       // Cleanup all timeouts and intervals
       timeouts.forEach(clearTimeout);
       if (stepTimeoutRef.current) clearTimeout(stepTimeoutRef.current);
-      if (elapsedIntervalRef.current) clearInterval(elapsedIntervalRef.current);
       if (trackMatchingIntervalRef.current) clearInterval(trackMatchingIntervalRef.current);
     };
-  }, [contentType, baseDelay, advanceStep, simulateTrackMatching]);
+  }, [contentType, baseDelay, advanceStep, simulateTrackMatching, getStepDelay, apiComplete]);
 
   return {
     ...state,
-    estimatedDuration: getEstimatedDuration(),
     steps: STEP_CONFIGS[contentType]
   };
 };

@@ -1,80 +1,45 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Image from 'next/image';
 import { useSimulatedProgress } from '@/hooks/use-simulated-progress';
 import { detectContentType } from '@/utils/content-type-detection';
 import { ConversionSteps } from './conversion-steps';
 import { TrackMatchingList } from './track-matching-list';
-import { ConversionTimer } from './conversion-timer';
-import { BackgroundOption } from './background-option';
 
 interface ConversionProgressProps {
   url: string;
   metadata?: Record<string, unknown> | null;
   onComplete: () => void;
-  onBackgroundMode?: () => void;
   onCancel?: () => void;
   isDesktop?: boolean;
+  apiComplete?: boolean;
 }
 
 export const ConversionProgress: React.FC<ConversionProgressProps> = ({
   url,
   metadata,
   onComplete,
-  onBackgroundMode,
   onCancel,
-  isDesktop = false
+  isDesktop = false,
+  apiComplete = false
 }) => {
-  const [backgroundMode, setBackgroundMode] = useState(false);
-  const [showWaveform, setShowWaveform] = useState(false);
-  
   // Detect content type and get simulation config
   const contentInfo = detectContentType(url, metadata);
   const simulationConfig = {
     contentType: contentInfo.type,
-    estimatedCount: contentInfo.estimatedCount,
-    baseDelay: 400
+    estimatedCount: contentInfo.estimatedCount
   };
 
-  // Run simulation
-  const progressState = useSimulatedProgress(simulationConfig, onComplete);
+  // Run simulation with API completion tracking
+  const progressState = useSimulatedProgress(simulationConfig, onComplete, apiComplete);
 
-  // Show waveform animation after 1.5s
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowWaveform(true);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
 
-  const handleBackgroundMode = () => {
-    setBackgroundMode(true);
-    onBackgroundMode?.();
-  };
-
-  const handleContinueWaiting = () => {
-    // Just close the background option for now
-  };
-
-  // If in background mode, show minimal UI
-  if (backgroundMode) {
-    return (
-      <div className="fixed top-4 right-4 z-50 bg-background border border-border rounded-lg p-3 shadow-lg">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-          <span className="text-xs text-muted-foreground">
-            Converting in background...
-          </span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 z-50">
       {/* Background */}
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-muted/50 via-muted/30 to-background" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-muted/20 via-muted/10 to-background/80" />
       
       {/* Header Toolbar */}
       <div className="absolute top-0 left-0 right-0 z-10 pt-4 pb-6 px-3">
@@ -108,7 +73,7 @@ export const ConversionProgress: React.FC<ConversionProgressProps> = ({
               alt="Cassette Logo"
               width={isDesktop ? 48 : 40}
               height={isDesktop ? 48 : 40}
-              className="object-contain"
+              className="object-contain animate-pulse"
             />
           </div>
           
@@ -123,21 +88,20 @@ export const ConversionProgress: React.FC<ConversionProgressProps> = ({
         </div>
 
         {/* Waveform Animation */}
-        {showWaveform && (
-          <div className="flex items-center justify-center space-x-1">
-            {Array.from({ length: 5 }, (_, i) => (
-              <div
-                key={i}
-                className="w-1 bg-primary rounded-full animate-pulse"
-                style={{
-                  height: `${Math.random() * 20 + 10}px`,
-                  animationDelay: `${i * 0.1}s`,
-                  animationDuration: `${0.5 + Math.random() * 0.5}s`
-                }}
-              />
-            ))}
-          </div>
-        )}
+        <div className="flex items-center justify-center space-x-1 h-8">
+          {[12, 24, 32, 20, 16].map((baseHeight, i) => (
+            <div
+              key={i}
+              className="w-1 bg-primary rounded-full"
+              style={{
+                height: `${baseHeight}px`,
+                animation: `waveform-pulse 1.5s ease-in-out infinite`,
+                animationDelay: `${i * 0.1}s`,
+                transformOrigin: 'center'
+              }}
+            />
+          ))}
+        </div>
 
         {/* Step Progress */}
         {progressState.showSteps && (
@@ -159,26 +123,7 @@ export const ConversionProgress: React.FC<ConversionProgressProps> = ({
           />
         )}
 
-        {/* Timer */}
-        {progressState.showTimer && (
-          <ConversionTimer
-            elapsedTime={progressState.elapsedTime}
-            estimatedDuration={progressState.estimatedDuration}
-            contentType={contentInfo.type}
-            className="w-full max-w-xs"
-          />
-        )}
 
-        {/* Background Option */}
-        {progressState.showBackgroundOption && !progressState.isComplete && (
-          <BackgroundOption
-            onContinueWaiting={handleContinueWaiting}
-            onRunInBackground={handleBackgroundMode}
-            onCancel={onCancel}
-            elapsedTime={progressState.elapsedTime}
-            className="w-full max-w-md"
-          />
-        )}
 
         {/* Debug info in development */}
         {process.env.NODE_ENV === 'development' && (
@@ -187,7 +132,7 @@ export const ConversionProgress: React.FC<ConversionProgressProps> = ({
             <div>Count: {contentInfo.estimatedCount}</div>
             <div>Step: {progressState.currentStep}/{progressState.totalSteps}</div>
             <div>Matched: {progressState.matchedCount}</div>
-            <div>Elapsed: {progressState.elapsedTime}s</div>
+            <div>Waiting for API: {progressState.isWaitingForApi ? 'Yes' : 'No'}</div>
           </div>
         )}
       </div>

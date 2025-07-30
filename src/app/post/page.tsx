@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { useRef, useEffect, useState, Suspense } from 'react';
 import { MusicLinkConversion, ElementType } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
-import { TwistedTorusLoader } from '@/components/ui/twisted-torus-loader';
+import { ConversionProgress } from '@/components/features/conversion/conversion-progress';
 import { StreamingLinks } from '@/components/features/entity/streaming-links';
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { AnimatedButton } from '@/components/ui/animated-button';
@@ -201,10 +201,31 @@ function PostPageContent() {
     return () => window.removeEventListener('resize', checkDesktop);
   }, []);
   
-  // Show twisted torus loader while converting, if no data yet, or in demo mode
+  // Show conversion progress while converting, if no data yet, or in demo mode
   if (isConverting || (!postData && !error) || demoMode) {
-    console.log('🌊 Showing loader:', { isConverting, hasPostData: !!postData, hasError: !!error, demoMode });
-    return <TwistedTorusLoader isDesktop={isDesktop} />;
+    console.log('🌊 Showing conversion progress:', { isConverting, hasPostData: !!postData, hasError: !!error, demoMode });
+    
+    const urlParam = searchParams.get('url');
+    const currentUrl = urlParam ? decodeURIComponent(urlParam) : '';
+    
+    return (
+      <ConversionProgress
+        url={currentUrl}
+        metadata={null}
+        onComplete={() => {
+          // Conversion simulation complete - the actual API call should also be done by now
+          console.log('🎉 Conversion progress simulation completed');
+        }}
+        onBackgroundMode={() => {
+          // Handle background mode - could navigate back or show notification
+          console.log('📱 Conversion moved to background');
+        }}
+        onCancel={() => {
+          router.back();
+        }}
+        isDesktop={isDesktop}
+      />
+    );
   }
   
   if (error) {

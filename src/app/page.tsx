@@ -197,7 +197,7 @@ export default function HomePage() {
   }`;
 
   const bottomContentClasses = `transition-all duration-1000 ease-out ${
-    bottomVisible && !isSearchActive ? 'opacity-100' : 'opacity-0'
+    bottomVisible && !isSearchActive ? 'opacity-100' : 'opacity-0 lg:opacity-100'
   }`;
 
   return (
@@ -306,7 +306,7 @@ export default function HomePage() {
               </div>
 
               {/* Search Results Container - Desktop only in right column */}
-              <div className={`hidden lg:block search-container transition-all duration-500 ease-out w-full opacity-100 flex-1 overflow-y-auto pb-8`}>
+              <div className={`hidden lg:block search-container transition-all duration-500 ease-out w-full opacity-100 flex-1 pb-8`}>
                 <SearchResults
                   results={displayData}
                   isLoading={isLoadingCharts}

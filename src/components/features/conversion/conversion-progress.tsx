@@ -113,8 +113,8 @@ export const ConversionProgress: React.FC<ConversionProgressProps> = ({
           />
         )}
 
-        {/* Track Matching List */}
-        {progressState.showTrackList && (
+        {/* Track Matching List - Only for playlists */}
+        {progressState.showTrackList && contentInfo.type === 'playlist' && (
           <TrackMatchingList
             matchedCount={progressState.matchedCount}
             totalCount={contentInfo.estimatedCount}

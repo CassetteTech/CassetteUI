@@ -28,7 +28,7 @@ const STEP_CONFIGS = {
   ],
   album: [
     { name: 'Loading album', duration: 700 },
-    { name: 'Matching tracks', duration: 1200 },
+    { name: 'Matching Platforms', duration: 800 },
     { name: 'Generating Smart Link', duration: 500 }
   ],
   artist: [
@@ -74,9 +74,9 @@ export const useSimulatedProgress = (
     return Math.random() * 2500 + 500; // Random 0.5-3s otherwise
   }, []);
 
-  // Simulate track matching progress for playlists/albums
+  // Simulate track matching progress for playlists only
   const simulateTrackMatching = useCallback(() => {
-    if (contentType !== 'playlist' && contentType !== 'album') return;
+    if (contentType !== 'playlist') return;
     
     const matchingInterval = setInterval(() => {
       setState(prev => {
@@ -92,9 +92,7 @@ export const useSimulatedProgress = (
         return {
           ...prev,
           matchedCount: newCount,
-          statusMessage: contentType === 'playlist' 
-            ? `Matched ${newCount} / ${estimatedCount} tracks`
-            : `Matching tracks (${newCount}/${estimatedCount})`
+          statusMessage: `Matched ${newCount} / ${estimatedCount} tracks`
         };
       });
     }, 200 + Math.random() * 300); // 200-500ms per track
@@ -217,8 +215,8 @@ export const useSimulatedProgress = (
       
     }, baseDelay));
 
-    // 2s: Show track list for playlists/albums
-    if (contentType === 'playlist' || contentType === 'album') {
+    // 2s: Show track list for playlists only
+    if (contentType === 'playlist') {
       timeouts.push(setTimeout(() => {
         setState(prev => ({ ...prev, showTrackList: true }));
         simulateTrackMatching();

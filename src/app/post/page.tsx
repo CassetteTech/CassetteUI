@@ -30,8 +30,13 @@ function PostPageContent() {
   // Animation states
   const [dominantColor, setDominantColor] = useState<string | null>(null);
   
-  // Use the conversion mutation
-  const { mutate: convertLink, isPending: isConverting } = useMusicLinkConversion();
+  // Determine if this is from add-music page based on URL params
+  const isFromAddMusic = searchParams.get('fromAddMusic') === 'true';
+  
+  // Use the conversion mutation - anonymous for home page, authenticated for add-music
+  const { mutate: convertLink, isPending: isConverting } = useMusicLinkConversion({
+    anonymous: !isFromAddMusic
+  });
   
   // Guards against duplicate conversions (React Strict Mode protection)
   const hasConvertedRef = useRef(false);

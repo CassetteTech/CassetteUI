@@ -11,9 +11,9 @@ class MusicService {
     return response.json();
   }
 
-  async convertMusicLink(url: string): Promise<MusicLinkConversion> {
+  async convertMusicLink(url: string, options?: { anonymous?: boolean }): Promise<MusicLinkConversion> {
     // Keep using backend API for link conversion
-    const result = await apiService.convertMusicLink(url);
+    const result = await apiService.convertMusicLink(url, options);
     return result;
   }
 

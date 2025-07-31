@@ -27,13 +27,13 @@ export const useMusicSearch = (query: string) => {
   return result;
 };
 
-export const useMusicLinkConversion = () => {
+export const useMusicLinkConversion = (options?: { anonymous?: boolean }) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (url: string) => {
-      console.log('🎯 Mutation function called with URL:', url);
-      return musicService.convertMusicLink(url);
+      console.log('🎯 Mutation function called with URL:', url, 'anonymous:', options?.anonymous);
+      return musicService.convertMusicLink(url, options);
     },
     onSuccess: (data) => {
       console.log('✅ Mutation successful:', data);

@@ -47,10 +47,10 @@ class ApiService {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit & { skipAuth?: boolean } = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const headers = await this.getAuthHeaders();
+    const headers = options.skipAuth ? { 'Content-Type': 'application/json' } : await this.getAuthHeaders();
 
     console.log('🌐 API Request:', {
       url,
@@ -101,8 +101,8 @@ class ApiService {
   }
 
   // Music conversion endpoints
-  async convertMusicLink(url: string): Promise<MusicLinkConversion> {
-    console.log('🔄 API Service: convertMusicLink called with:', url);
+  async convertMusicLink(url: string, options?: { anonymous?: boolean }): Promise<MusicLinkConversion> {
+    console.log('🔄 API Service: convertMusicLink called with:', url, options);
     
     // Generate idempotency key for request deduplication
     const key = typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -113,6 +113,7 @@ class ApiService {
       method: 'POST',
       headers: { 'X-Idempotency-Key': key }, // server should honor this
       body: JSON.stringify({ sourceLink: url }),
+      skipAuth: options?.anonymous,
     });
 
     // Transform the API response to our expected format

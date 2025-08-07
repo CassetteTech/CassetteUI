@@ -1,5 +1,5 @@
 import { config } from '@/lib/config';
-import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType } from '@/types';
+import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType, MediaListTrack } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 
 interface MusicConnection {
@@ -174,6 +174,28 @@ class ApiService {
         username: response.username || undefined,
         postId: response.postId
       };
+
+      // Map album/playlist tracks when provided by the API
+      type ApiTrack = {
+        title?: string;
+        duration?: string;
+        trackNumber?: number;
+        artists?: string[];
+        previewUrl?: string;
+      };
+
+      const apiTracks = (response.details as { tracks?: ApiTrack[] })?.tracks;
+      if (Array.isArray(apiTracks)) {
+        const mappedTracks: MediaListTrack[] = apiTracks.map((t) => ({
+          trackNumber: t.trackNumber,
+          title: t.title ?? 'Untitled',
+          duration: t.duration,
+          artists: Array.isArray(t.artists) ? t.artists : undefined,
+          previewUrl: t.previewUrl,
+        }));
+        transformedData.tracks = mappedTracks;
+        console.log('🎼 API transform: mapped tracks count =', mappedTracks.length);
+      }
 
       // Extract platform URLs and collect fallback artwork/preview
       let fallbackArtwork = '';

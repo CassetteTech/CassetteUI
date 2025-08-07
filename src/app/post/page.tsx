@@ -2,11 +2,12 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useRef, useEffect, useState, Suspense } from 'react';
-import { MusicLinkConversion, ElementType } from '@/types';
+import { MusicLinkConversion, ElementType, MediaListTrack } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { ConversionProgress } from '@/components/features/conversion/conversion-progress';
 import { StreamingLinks } from '@/components/features/entity/streaming-links';
 import { PlayPreview } from '@/components/features/entity/play-preview';
+import { TrackList } from '@/components/features/entity/track-list';
 import { AnimatedButton } from '@/components/ui/animated-button';
 import { AnimatedColorBackground } from '@/components/ui/animated-color-background';
 import { ColorExtractor } from '@/services/color-extractor';
@@ -81,6 +82,10 @@ function PostPageContent() {
                 router.replace(`/post?id=${result.postId}`);
                 return;
               }
+              console.log('📦 Post page (convert): received result', {
+                type: result.metadata?.type,
+                trackCount: (result as unknown as { tracks?: unknown[] }).tracks?.length,
+              });
               setPostData(result);
               if (result.metadata?.artwork) {
                 extractColorFromArtwork(result.metadata.artwork);
@@ -133,6 +138,27 @@ function PostPageContent() {
                 artists: response.details.artists || []
               }
             };
+
+            // Map album track data when available for album view
+            type ApiAlbumTrack = {
+              title?: string;
+              duration?: string;
+              trackNumber?: number;
+              artists?: string[];
+              previewUrl?: string;
+            };
+
+            const trackArray = (response.details as { tracks?: ApiAlbumTrack[] })?.tracks;
+            if (Array.isArray(trackArray)) {
+              const mapped: MediaListTrack[] = trackArray.map((t) => ({
+                trackNumber: t.trackNumber,
+                title: t.title ?? 'Untitled',
+                duration: t.duration,
+                artists: Array.isArray(t.artists) ? t.artists : undefined,
+                previewUrl: t.previewUrl,
+              }));
+              transformedData.tracks = mapped;
+            }
             
             // Extract platform URLs and artwork - handle different platform key formats
             let fallbackArtwork = '';
@@ -167,7 +193,11 @@ function PostPageContent() {
               transformedData.metadata.artwork = fallbackArtwork;
             }
             
-            setPostData(transformedData);
+              console.log('📦 Post page: transformed post data', {
+                type: transformedData.metadata.type,
+                trackCount: (transformedData as unknown as { tracks?: unknown[] }).tracks?.length,
+              });
+              setPostData(transformedData);
             setApiComplete(true);
             
             // Extract dominant color
@@ -214,6 +244,17 @@ function PostPageContent() {
     
     return () => window.removeEventListener('resize', checkDesktop);
   }, []);
+  
+  // Log post render state (must be before any early returns to satisfy hooks rules)
+  useEffect(() => {
+    if (postData) {
+      console.log('🧩 Post render state:', {
+        type: (postData as MusicLinkConversion).metadata.type,
+        hasTracks: Array.isArray((postData as MusicLinkConversion).tracks),
+        trackCount: (postData as MusicLinkConversion).tracks?.length || 0,
+      });
+    }
+  }, [postData]);
   
   // Show conversion progress while converting, if no data yet, or in demo mode
   if (isConverting || (!postData && !error) || demoMode) {
@@ -272,10 +313,10 @@ function PostPageContent() {
   const isTrack = metadata.type === ElementType.TRACK; // only true for tracks
   const isAlbum = metadata.type === ElementType.ALBUM; // album-specific layout bits
   const isArtist = metadata.type === ElementType.ARTIST; // artist profile-like layout
-  // future playlist-specific bits handled later; avoid unused var for now
+  // const isPlaylist = metadata.type === ElementType.PLAYLIST; // future playlist-specific bits
   const typeLabel = isTrack ? 'Track' : isAlbum ? 'Album' : isArtist ? 'Artist' : 'Playlist';
+  const showAlbumTracks = isAlbum && Array.isArray(postData?.tracks) && (postData.tracks?.length ?? 0) > 0;
   
-
   
   return (
     <div className="min-h-screen relative">
@@ -355,9 +396,9 @@ function PostPageContent() {
               </div>
               
               {/* Right Column - Links and Description (flex: 3) */}
-              <div className="flex-[3] max-h-[75vh] overflow-hidden">
+              <div className={`flex-[3] ${showAlbumTracks ? 'max-h-[75vh] overflow-hidden' : ''}`}>
                 <div 
-                  className="h-full overflow-y-auto pr-4"
+                  className={showAlbumTracks ? 'h-full overflow-y-auto pr-4' : 'pr-4'}
                 >
                   <div className="space-y-6">
                     {/* Track Information Card */}
@@ -415,26 +456,40 @@ function PostPageContent() {
                             )}
                           </div>
                         ) : isAlbum ? (
-                          <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
-                            {/* Release Date */}
-                            {postData?.releaseDate && (
-                              <div>
-                                <span className="text-muted-foreground">Released: </span>
-                                <span className="font-medium">{postData.releaseDate}</span>
-                              </div>
-                            )}
-                            
-                            {/* Separator */}
-                            {postData?.releaseDate && postData?.trackCount && (
-                              <span className="text-muted-foreground">•</span>
-                            )}
-                            
-                            {/* Track Count */}
-                            {typeof postData?.trackCount === 'number' && (
-                              <div>
-                                <span className="text-muted-foreground">Tracks: </span>
-                                <span className="font-medium">{postData.trackCount}</span>
-                              </div>
+                          <div className="space-y-4">
+                            <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
+                              {/* Release Date */}
+                              {postData?.releaseDate && (
+                                <div>
+                                  <span className="text-muted-foreground">Released: </span>
+                                  <span className="font-medium">{postData.releaseDate}</span>
+                                </div>
+                              )}
+                              
+                              {/* Separator */}
+                              {postData?.releaseDate && postData?.trackCount && (
+                                <span className="text-muted-foreground">•</span>
+                              )}
+                              
+                              {/* Track Count */}
+                              {typeof postData?.trackCount === 'number' && (
+                                <div>
+                                  <span className="text-muted-foreground">Tracks: </span>
+                                  <span className="font-medium">{postData.trackCount}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Scrolling track list for albums */}
+                            {showAlbumTracks && (
+                              <TrackList
+                                items={postData.tracks!}
+                                artwork={metadata.artwork}
+                                albumArtist={metadata.artist}
+                                variant="album"
+                                className="mt-2"
+                                scrollable={false}
+                              />
                             )}
                           </div>
                         ) : null}
@@ -611,7 +666,7 @@ function PostPageContent() {
                       </div>
                     </div>
                   ) : isAlbum ? (
-                    <div className="space-y-2 text-xs">
+                    <div className="space-y-3 text-xs">
                       <div className="flex flex-wrap justify-center gap-2">
                         {postData?.releaseDate && (
                           <div>
@@ -629,6 +684,19 @@ function PostPageContent() {
                           </div>
                         )}
                       </div>
+
+                      {/* Scrolling track list for albums - mobile */}
+                      {isAlbum && Array.isArray(postData?.tracks) && (
+                        <TrackList
+                          items={postData.tracks!}
+                          artwork={metadata.artwork}
+                          albumArtist={metadata.artist}
+                          variant="album"
+                          className="mt-1"
+                          compact
+                          scrollable={false}
+                        />
+                      )}
                     </div>
                   ) : null}
                   

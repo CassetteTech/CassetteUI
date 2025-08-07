@@ -172,6 +172,15 @@ export interface MusicLinkConversion {
   description?: string;
   username?: string;
   postId?: string;
+  tracks?: MediaListTrack[];
+}
+
+export interface MediaListTrack {
+  trackNumber?: number;
+  title: string;
+  duration?: string;
+  artists?: string[];
+  previewUrl?: string;
 }
 
 // API Response type for music link conversion

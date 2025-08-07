@@ -20,7 +20,7 @@ import { useMusicLinkConversion } from '@/hooks/use-music';
 function PostPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; details?: { artists?: Array<{ name: string; role: string; }>; }; } | null>(null);
+  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
   
@@ -108,7 +108,7 @@ function PostPageContent() {
           
           // Transform the API response
           if (response.success && response.details) {
-            const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; details?: { artists?: Array<{ name: string; role: string; }>; }; } = {
+            const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; } = {
               originalUrl: response.originalLink || '',
               convertedUrls: {},
               metadata: {
@@ -125,7 +125,10 @@ function PostPageContent() {
               username: response.username,
               genres: response.details.genres || response.metadata?.genres || [],
               albumName: response.metadata?.albumName || response.details.album || '',
-              releaseDate: response.metadata?.releaseDate || null,
+              releaseDate: response.metadata?.releaseDate || response.details?.releaseDate || null,
+              trackCount: response.details && typeof (response.details as { trackCount?: number }).trackCount === 'number'
+                ? (response.details as { trackCount?: number }).trackCount
+                : undefined,
               details: {
                 artists: response.details.artists || []
               }
@@ -265,7 +268,12 @@ function PostPageContent() {
   }
   
   const { metadata, convertedUrls } = postData as MusicLinkConversion;
-  const isArtist = metadata.type === ElementType.ARTIST;
+  // Derive clear flags for how to render the page based on content type
+  const isTrack = metadata.type === ElementType.TRACK; // only true for tracks
+  const isAlbum = metadata.type === ElementType.ALBUM; // album-specific layout bits
+  const isArtist = metadata.type === ElementType.ARTIST; // artist profile-like layout
+  // future playlist-specific bits handled later; avoid unused var for now
+  const typeLabel = isTrack ? 'Track' : isAlbum ? 'Album' : isArtist ? 'Artist' : 'Playlist';
   
 
   
@@ -312,7 +320,7 @@ function PostPageContent() {
               {/* Left Column - Album Art and Info (flex: 2) */}
               <div className="flex-[2] flex flex-col items-center min-w-0">
                 <UIText className="text-foreground font-bold mb-8 uppercase tracking-wider text-lg">
-                  {isArtist ? 'Artist' : 'Track'}
+                  {typeLabel}
                 </UIText>
                 
                 {/* Album Art with Shadow - increased size for desktop */}
@@ -331,8 +339,8 @@ function PostPageContent() {
                     }}
                   />
                   
-                  {/* Play Preview for Tracks - positioned over artwork */}
-                  {!isArtist && postData?.previewUrl && (
+                  {/* Play Preview for Tracks only - positioned over artwork */}
+                  {isTrack && postData?.previewUrl && (
                     <div className="absolute -bottom-4 -right-4">
                       <PlayPreview 
                         previewUrl={postData.previewUrl}
@@ -360,8 +368,8 @@ function PostPageContent() {
                           {metadata.title}
                         </HeadlineText>
                         
-                        {/* Artists with roles */}
-                        {!isArtist && (
+                        {/* Artists with roles (show for Track/Album) */}
+                        {(isTrack || isAlbum) && (
                           <div className="text-center">
                             <BodyText className="text-base text-muted-foreground">
                               {postData?.details?.artists && postData.details.artists.length > 0 ? (
@@ -383,28 +391,53 @@ function PostPageContent() {
                         <div className="border-t border-border/30 mx-4" />
                         
                         {/* Metadata - Centered as inline items */}
-                        <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
-                          {/* Duration */}
-                          {metadata.duration && (
-                            <div>
-                              <span className="text-muted-foreground">Duration: </span>
-                              <span className="font-medium">{metadata.duration}</span>
-                            </div>
-                          )}
-                          
-                          {/* Separator between duration and album */}
-                          {metadata.duration && postData?.albumName && (
-                            <span className="text-muted-foreground">•</span>
-                          )}
-                          
-                          {/* Album */}
-                          {postData?.albumName && (
-                            <div>
-                              <span className="text-muted-foreground">Album: </span>
-                              <span className="font-medium">{postData.albumName}</span>
-                            </div>
-                          )}
-                        </div>
+                        {isTrack ? (
+                          <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
+                            {/* Duration */}
+                            {metadata.duration && (
+                              <div>
+                                <span className="text-muted-foreground">Duration: </span>
+                                <span className="font-medium">{metadata.duration}</span>
+                              </div>
+                            )}
+                            
+                            {/* Separator between duration and album */}
+                            {metadata.duration && postData?.albumName && (
+                              <span className="text-muted-foreground">•</span>
+                            )}
+                            
+                            {/* Album */}
+                            {postData?.albumName && (
+                              <div>
+                                <span className="text-muted-foreground">Album: </span>
+                                <span className="font-medium">{postData.albumName}</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : isAlbum ? (
+                          <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
+                            {/* Release Date */}
+                            {postData?.releaseDate && (
+                              <div>
+                                <span className="text-muted-foreground">Released: </span>
+                                <span className="font-medium">{postData.releaseDate}</span>
+                              </div>
+                            )}
+                            
+                            {/* Separator */}
+                            {postData?.releaseDate && postData?.trackCount && (
+                              <span className="text-muted-foreground">•</span>
+                            )}
+                            
+                            {/* Track Count */}
+                            {typeof postData?.trackCount === 'number' && (
+                              <div>
+                                <span className="text-muted-foreground">Tracks: </span>
+                                <span className="font-medium">{postData.trackCount}</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
                         
                         {/* Genres */}
                         {(() => {
@@ -485,7 +518,7 @@ function PostPageContent() {
             <div className="text-center">
               {/* Element Type */}
               <UIText className="text-foreground font-bold mb-6 uppercase tracking-wider text-lg">
-                {isArtist ? 'Artist' : 'Track'}
+                {typeLabel}
               </UIText>
               
               {/* Album Art Container */}
@@ -508,8 +541,8 @@ function PostPageContent() {
                     }}
                   />
                   
-                  {/* Play Preview for Tracks - positioned over artwork */}
-                  {!isArtist && postData?.previewUrl && (
+                  {/* Play Preview for Tracks only - positioned over artwork */}
+                  {isTrack && postData?.previewUrl && (
                     <div className="absolute -bottom-4 -right-2">
                       <PlayPreview 
                         previewUrl={postData.previewUrl}
@@ -531,8 +564,8 @@ function PostPageContent() {
                     {metadata.title}
                   </HeadlineText>
                   
-                  {/* Artists with roles */}
-                  {!isArtist && (
+                  {/* Artists with roles (show for Track/Album) */}
+                  {(isTrack || isAlbum) && (
                     <div className="text-center">
                       <BodyText className="text-sm text-muted-foreground">
                         {postData?.details?.artists && postData.details.artists.length > 0 ? (
@@ -554,28 +587,50 @@ function PostPageContent() {
                   <div className="border-t border-border/30" />
                   
                   {/* Metadata */}
-                  <div className="space-y-2 text-xs">
-                    {/* Duration and Album in one line */}
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {postData?.metadata?.duration && (
-                        <div>
-                          <span className="text-muted-foreground">Duration: </span>
-                          <span className="font-medium">{postData.metadata.duration}</span>
-                        </div>
-                      )}
-                      
-                      {postData?.metadata?.duration && postData?.albumName && (
-                        <span className="text-muted-foreground">•</span>
-                      )}
-                      
-                      {postData?.albumName && (
-                        <div>
-                          <span className="text-muted-foreground">Album: </span>
-                          <span className="font-medium">{postData.albumName}</span>
-                        </div>
-                      )}
+                  {isTrack ? (
+                    <div className="space-y-2 text-xs">
+                      {/* Duration and Album in one line */}
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {postData?.metadata?.duration && (
+                          <div>
+                            <span className="text-muted-foreground">Duration: </span>
+                            <span className="font-medium">{postData.metadata.duration}</span>
+                          </div>
+                        )}
+                        
+                        {postData?.metadata?.duration && postData?.albumName && (
+                          <span className="text-muted-foreground">•</span>
+                        )}
+                        
+                        {postData?.albumName && (
+                          <div>
+                            <span className="text-muted-foreground">Album: </span>
+                            <span className="font-medium">{postData.albumName}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  ) : isAlbum ? (
+                    <div className="space-y-2 text-xs">
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {postData?.releaseDate && (
+                          <div>
+                            <span className="text-muted-foreground">Released: </span>
+                            <span className="font-medium">{postData.releaseDate}</span>
+                          </div>
+                        )}
+                        {postData?.releaseDate && postData?.trackCount && (
+                          <span className="text-muted-foreground">•</span>
+                        )}
+                        {typeof postData?.trackCount === 'number' && (
+                          <div>
+                            <span className="text-muted-foreground">Tracks: </span>
+                            <span className="font-medium">{postData.trackCount}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
                   
                   {/* Genres */}
                   {(() => {

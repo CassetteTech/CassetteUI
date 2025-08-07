@@ -193,6 +193,9 @@ export interface ConversionApiResponse {
     coverArtUrl: string;
     genres?: string[];
     previewUrl?: string;
+    releaseDate?: string | null;
+    trackCount?: number;
+    tracks?: unknown[];
   };
   platforms: {
     [key: string]: {
@@ -228,6 +231,9 @@ export interface PostByIdResponse {
     genres?: string[];
     artists?: Array<{ name: string; role: string; }>;
     previewUrl?: string;
+    releaseDate?: string | null;
+    trackCount?: number;
+    tracks?: unknown[];
   };
   metadata?: {
     duration?: string;

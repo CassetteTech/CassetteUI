@@ -83,9 +83,11 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
             {dummyActivityPosts.playlists.map((playlist) => (
               <div key={playlist.id} className="space-y-1">
                 <div className="aspect-square rounded-md bg-muted overflow-hidden">
-                  <img 
+                  <Image 
                     src={playlist.image} 
                     alt={playlist.title}
+                    width={200}
+                    height={200}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -102,9 +104,11 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
             {dummyActivityPosts.tracks.map((track) => (
               <div key={track.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
                 <div className="w-10 h-10 rounded bg-muted overflow-hidden flex-shrink-0">
-                  <img 
+                  <Image 
                     src={track.image} 
                     alt={track.title}
+                    width={40}
+                    height={40}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -123,9 +127,11 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
             {dummyActivityPosts.artists.map((artist) => (
               <div key={artist.id} className="flex flex-col items-center text-center space-y-1">
                 <div className="w-16 h-16 rounded-full bg-muted overflow-hidden">
-                  <img 
+                  <Image 
                     src={artist.image} 
                     alt={artist.name}
+                    width={64}
+                    height={64}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -142,9 +148,11 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
             {dummyActivityPosts.albums.map((album) => (
               <div key={album.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
                 <div className="w-10 h-10 rounded bg-muted overflow-hidden flex-shrink-0">
-                  <img 
+                  <Image 
                     src={album.image} 
                     alt={album.title}
+                    width={40}
+                    height={40}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -173,7 +181,7 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
               <div className="p-3 space-y-3">
                 <div className="flex items-center gap-3">
                   <Avatar className="w-12 h-12">
-                    <img src={dummyUserBio.avatarUrl} alt={dummyUserBio.displayName} />
+                    <Image src={dummyUserBio.avatarUrl} alt={dummyUserBio.displayName} width={48} height={48} />
                   </Avatar>
                   <div>
                     <h1 className="text-sm font-bold text-foreground">{dummyUserBio.displayName}</h1>

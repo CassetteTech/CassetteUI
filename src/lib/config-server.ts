@@ -1,3 +1,4 @@
+import 'server-only';
 import { getBaseUrl } from './utils/url';
 
 // Server-only configuration - contains sensitive secrets

@@ -87,16 +87,17 @@ export default function HomePage() {
   };
 
   const handleConvertLink = (url: string) => {
-    console.log('🔄 handleConvertLink called with URL:', url);
-    if (!url.trim()) {
+    const trimmed = url.trim();
+    console.log('🔄 handleConvertLink called with URL:', trimmed);
+    if (!trimmed) {
       console.log('❌ URL is empty, returning');
       return;
     }
     
     // Navigate immediately to the post page with the URL
     // The post page will show skeleton and handle the conversion
-    console.log('🚀 Navigating to post page with URL:', url);
-    router.push(`/post?url=${encodeURIComponent(url)}`);
+    console.log('🚀 Navigating to post page with URL:', trimmed);
+    router.push(`/post?url=${encodeURIComponent(trimmed)}`);
   };
 
   const handleSearchFocus = () => {
@@ -288,7 +289,7 @@ export default function HomePage() {
                           }
                           // Check if it's a link
                           if (musicUrl.includes('http')) {
-                            handleConvertLink(musicUrl);
+                            handleConvertLink(musicUrl.trim());
                           }
                           // Otherwise, the search will happen via the debounced value
                         }

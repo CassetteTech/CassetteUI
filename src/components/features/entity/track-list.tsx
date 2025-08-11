@@ -39,34 +39,35 @@ export const TrackList: React.FC<TrackListProps> = ({
   return (
     <div
       className={cn(
-        // Card container
-        'rounded-2xl border border-border/60 bg-card/40 backdrop-blur-md overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.12)]',
+        // Minimal container with subtle styling
+        'rounded-xl border border-border/30 bg-card/20 backdrop-blur-sm overflow-hidden',
         className
       )}
     >
-      {/* Accent bar (variant-aware) */}
+      {/* Subtle accent bar */}
       <div
         className={cn(
-          'h-1.5 bg-gradient-to-r',
+          'h-0.5 bg-gradient-to-r opacity-60',
           variant === 'album' && 'from-pink-400 via-violet-400 to-sky-400',
           variant === 'playlist' && 'from-amber-400 via-rose-400 to-cyan-400'
         )}
       />
 
-      {/* Optional sticky header for large screens */}
-      <div className={cn(scrollable ? 'max-h-[360px] overflow-y-auto' : undefined)}>
+      {/* Track list container */}
+      <div className={cn(scrollable ? 'max-h-[400px] overflow-y-auto' : undefined)}>
+        {/* Header for desktop */}
         <div className={cn(
-          'hidden sm:grid grid-cols-[auto_1fr_auto_auto] px-4 py-2 text-xs text-muted-foreground/80 border-b border-border/40 sticky top-0 bg-card/70 backdrop-blur-md z-10',
+          'hidden sm:grid grid-cols-[auto_1fr_auto_auto] px-4 py-2 text-xs text-muted-foreground/70 border-b border-border/20 sticky top-0 bg-card/80 backdrop-blur-sm z-10',
           compact && 'hidden'
         )}
         >
           <div className="w-6 text-center">#</div>
           <div className="pl-1">Title</div>
-          <div className="pr-2">Time</div>
-          <div className="justify-self-end pr-2">Preview</div>
+          <div className="pr-2">Duration</div>
+          <div className="justify-self-end pr-2">Play</div>
         </div>
 
-        <ul className="divide-y divide-border/40">
+        <ul className="divide-y divide-border/20">
           {items.map((track, index) => {
             const isActive = activeIndex === index;
             const displayArtist = track.artists?.join(', ') || albumArtist || '';
@@ -76,50 +77,53 @@ export const TrackList: React.FC<TrackListProps> = ({
                 key={`${track.title}-${index}`}
                 className={cn(
                   // Base row layout
-                  'group grid items-center gap-3 px-3 sm:px-4 transition-colors grid-cols-[auto_1fr_auto_auto]',
+                  'group grid items-center gap-3 px-3 sm:px-4 transition-all duration-200 grid-cols-[auto_1fr_auto_auto]',
                   // Spacing density
-                  compact ? 'py-2' : 'py-3',
-                  // Subtle zebra striping and hover effect
-                  'odd:bg-transparent even:bg-muted/20 hover:bg-muted/30',
+                  compact ? 'py-2.5' : 'py-3',
+                  // Clean hover effect
+                  'hover:bg-muted/20',
                   // Active highlight
-                  isActive ? 'bg-muted/40' : undefined
+                  isActive ? 'bg-muted/30' : undefined
                 )}
                 onMouseEnter={() => setActiveIndex(index)}
                 onMouseLeave={() => setActiveIndex((cur) => (cur === index ? null : cur))}
               >
-                {/* Number chip */}
+                {/* Track number - cleaner design */}
                 <div className="flex items-center justify-center w-6">
-                  <span className="inline-flex items-center justify-center h-5 w-5 rounded-full text-[10px] sm:text-xs text-muted-foreground/90 ring-1 ring-border/60 bg-background/60 tabular-nums">
+                  <span className="text-xs text-muted-foreground/80 font-medium tabular-nums">
                     {track.trackNumber ?? index + 1}
                   </span>
                 </div>
 
                 {/* Title/Artist */}
                 <div className="min-w-0">
-                  <div className="text-foreground font-medium truncate">
+                  <div className="text-foreground font-medium truncate text-sm">
                     {track.title}
                   </div>
                   {displayArtist && (
-                    <div className="text-xs text-muted-foreground truncate">
+                    <div className="text-xs text-muted-foreground/80 truncate mt-0.5">
                       {displayArtist}
                     </div>
                   )}
                 </div>
 
                 {/* Duration */}
-                <div className="hidden sm:block text-xs text-muted-foreground tabular-nums text-right pr-2">
-                  {track.duration || ''}
+                <div className="hidden sm:block text-xs text-muted-foreground/70 tabular-nums text-right pr-2">
+                  {track.duration || '—'}
                 </div>
 
-                {/* Preview - hidden until hover on desktop to reduce noise */}
+                {/* Preview - cleaner visibility */}
                 <div className="justify-self-end">
-                  <div className={cn('transition-opacity duration-150', compact ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}>
+                  <div className={cn(
+                    'transition-opacity duration-200', 
+                    compact ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  )}>
                     <PlayPreview
                       previewUrl={track.previewUrl}
                       title={track.title}
                       artist={displayArtist}
                       artwork={artwork}
-                      className="!p-1 !w-10 !h-10"
+                      className="!p-1.5 !w-8 !h-8"
                       mobile={compact}
                     />
                   </div>

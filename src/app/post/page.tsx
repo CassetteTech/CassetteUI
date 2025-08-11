@@ -6,6 +6,7 @@ import { MusicLinkConversion, ElementType, MediaListTrack } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { ConversionProgress } from '@/components/features/conversion/conversion-progress';
 import { StreamingLinks } from '@/components/features/entity/streaming-links';
+import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList } from '@/components/features/entity/track-list';
 import { AnimatedButton } from '@/components/ui/animated-button';
@@ -17,6 +18,16 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { apiService } from '@/services/api';
 import { useMusicLinkConversion } from '@/hooks/use-music';
+
+// Incoming track shape when using ?data= payloads
+type IncomingDataTrack = {
+  trackNumber?: number;
+  title?: string;
+  duration?: string;
+  artist?: string;
+  artists?: string[];
+  previewUrl?: string | null;
+};
 
 function PostPageContent() {
   const searchParams = useSearchParams();
@@ -102,44 +113,120 @@ function PostPageContent() {
 
         if (dataParam) {
           const parsedData = JSON.parse(decodeURIComponent(dataParam));
-          setPostData(parsedData);
+
+          // Transform arbitrary JSON payload (e.g. playlist JSON) into our internal shape
+          // Expected fields in parsedData (best-effort):
+          // - name, description, imageUrl, numberOfTracks, elementType, tracks[], platforms{}
+          const transformedFromData: MusicLinkConversion & {
+            description?: string;
+            username?: string;
+            genres?: string[];
+            albumName?: string;
+            releaseDate?: string | null;
+            trackCount?: number;
+          } = {
+            originalUrl: (parsedData.platforms?.spotify?.url || parsedData.platforms?.applemusic?.url || parsedData.platforms?.appleMusic?.url || parsedData.platforms?.deezer?.url || ''),
+            convertedUrls: {},
+            metadata: {
+              type:
+                (typeof parsedData.elementType === 'string' && parsedData.elementType.toLowerCase() === 'track')
+                  ? ElementType.TRACK
+                  : (typeof parsedData.elementType === 'string' && parsedData.elementType.toLowerCase() === 'album')
+                  ? ElementType.ALBUM
+                  : (typeof parsedData.elementType === 'string' && parsedData.elementType.toLowerCase() === 'artist')
+                  ? ElementType.ARTIST
+                  : ElementType.PLAYLIST,
+              title: parsedData.title || parsedData.name || 'Untitled',
+              artist: parsedData.artist || '',
+              artwork: parsedData.metadata?.artwork || parsedData.imageUrl || parsedData.details?.coverArtUrl || '',
+              duration: parsedData.metadata?.duration || parsedData.details?.duration || undefined,
+            },
+            description: parsedData.description || undefined,
+            username: parsedData.username || undefined,
+            trackCount: parsedData.numberOfTracks || parsedData.details?.trackCount || undefined,
+          };
+
+          // Map platform URLs if present
+          if (parsedData.platforms && typeof parsedData.platforms === 'object') {
+            Object.entries(parsedData.platforms as Record<string, { url?: string } | undefined>).forEach(([platform, data]) => {
+              if (!data?.url) return;
+              let platformKey = platform.toLowerCase();
+              if (platformKey === 'applemusic') platformKey = 'appleMusic';
+              // Only map known keys
+              if (['spotify', 'applemusic', 'appleMusic', 'deezer'].includes(platform)) {
+                (transformedFromData.convertedUrls as Record<string, string>)[platformKey] = data.url;
+              }
+            });
+          }
+
+          // Map tracks to MediaListTrack[] when available
+          if (Array.isArray(parsedData.tracks)) {
+            // Map arbitrary incoming tracks to our MediaListTrack
+            const mappedTracks: MediaListTrack[] = parsedData.tracks.map((t: IncomingDataTrack, idx: number) => ({
+              trackNumber: typeof t.trackNumber === 'number' ? t.trackNumber : idx + 1,
+              title: t.title || 'Untitled',
+              duration: t.duration || undefined,
+              artists: t.artist ? [t.artist] : Array.isArray(t.artists) ? t.artists : undefined,
+              previewUrl: t.previewUrl || undefined,
+            }));
+            transformedFromData.tracks = mappedTracks;
+          }
+
+          // If artwork available, kick off color extraction
+          if (transformedFromData.metadata.artwork) {
+            extractColorFromArtwork(transformedFromData.metadata.artwork);
+          }
+
+          console.log('📦 Post page (?data): transformed payload', {
+            type: transformedFromData.metadata.type,
+            trackCount: transformedFromData.tracks?.length || 0,
+            hasTracksArray: Array.isArray(transformedFromData.tracks),
+          });
+          setPostData(transformedFromData);
           setApiComplete(true);
-          if (parsedData.metadata?.artwork) extractColorFromArtwork(parsedData.metadata.artwork);
           return;
         }
 
         if (postId) {
           const response = await apiService.fetchPostById(postId);
           
-          // Transform the API response
-          if (response.success && response.details) {
+          // Transform the API response (support both detailed and simplified shapes)
+          if (response.success) {
+            const elementTypeLower = response.elementType?.toLowerCase();
+            const isTrackResp = elementTypeLower === 'track';
+            const isAlbumResp = elementTypeLower === 'album';
+            const isArtistResp = elementTypeLower === 'artist';
+            const typeVal = isTrackResp ? ElementType.TRACK : isAlbumResp ? ElementType.ALBUM : isArtistResp ? ElementType.ARTIST : ElementType.PLAYLIST;
+
+            const titleVal = response.details?.title || response.details?.name || (response as unknown as { name?: string }).name || 'Unknown';
+            const artistVal = response.details?.artist || '';
+            const artworkVal = response.details?.coverArtUrl || response.details?.imageUrl || (response as unknown as { imageUrl?: string }).imageUrl || '';
+            const durationVal = response.metadata?.duration || response.details?.duration || '';
+
             const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; } = {
               originalUrl: response.originalLink || '',
               convertedUrls: {},
               metadata: {
-                type: (response.elementType?.toLowerCase() === 'track' ? ElementType.TRACK :
-                       response.elementType?.toLowerCase() === 'album' ? ElementType.ALBUM :
-                       response.elementType?.toLowerCase() === 'artist' ? ElementType.ARTIST :
-                       ElementType.PLAYLIST),
-                title: response.details.title || response.details.name || 'Unknown',
-                artist: response.details.artist || '',
-                artwork: response.details.coverArtUrl || response.details.imageUrl || '',
-                duration: response.metadata?.duration || response.details.duration || ''
+                type: typeVal,
+                title: titleVal,
+                artist: artistVal,
+                artwork: artworkVal,
+                duration: durationVal,
               },
               description: response.caption,
               username: response.username,
-              genres: response.details.genres || response.metadata?.genres || [],
-              albumName: response.metadata?.albumName || response.details.album || '',
+              genres: response.details?.genres || response.metadata?.genres || [],
+              albumName: response.metadata?.albumName || response.details?.album || '',
               releaseDate: response.metadata?.releaseDate || response.details?.releaseDate || null,
-              trackCount: response.details && typeof (response.details as { trackCount?: number }).trackCount === 'number'
+              trackCount: (typeof (response.details as { trackCount?: number } | undefined)?.trackCount === 'number')
                 ? (response.details as { trackCount?: number }).trackCount
-                : undefined,
+                : (response as unknown as { numberOfTracks?: number }).numberOfTracks,
               details: {
-                artists: response.details.artists || []
+                artists: response.details?.artists || []
               }
             };
 
-            // Map album track data when available for album view
+            // Map album/playlist track data when available for album/playlist view
             type ApiAlbumTrack = {
               title?: string;
               duration?: string;
@@ -148,8 +235,8 @@ function PostPageContent() {
               previewUrl?: string;
             };
 
-            const trackArray = (response.details as { tracks?: ApiAlbumTrack[] })?.tracks;
-            if (Array.isArray(trackArray)) {
+            const trackArray = (response.details as { tracks?: ApiAlbumTrack[] } | undefined)?.tracks;
+            if (Array.isArray(trackArray) && trackArray.length > 0) {
               const mapped: MediaListTrack[] = trackArray.map((t) => ({
                 trackNumber: t.trackNumber,
                 title: t.title ?? 'Untitled',
@@ -158,6 +245,27 @@ function PostPageContent() {
                 previewUrl: t.previewUrl,
               }));
               transformedData.tracks = mapped;
+            }
+
+            // Fallback: some responses provide tracks at the top level (playlist cases)
+            type ApiTopLevelTrack = {
+              title?: string;
+              duration?: string;
+              artist?: string;
+              artists?: string[];
+              previewUrl?: string | null;
+              trackNumber?: number;
+            };
+            const topLevelTracks = (response as unknown as { tracks?: ApiTopLevelTrack[] }).tracks;
+            if ((!transformedData.tracks || transformedData.tracks.length === 0) && Array.isArray(topLevelTracks) && topLevelTracks.length > 0) {
+              const mappedTop: MediaListTrack[] = topLevelTracks.map((t, idx) => ({
+                trackNumber: typeof t.trackNumber === 'number' ? t.trackNumber : idx + 1,
+                title: t.title ?? 'Untitled',
+                duration: t.duration,
+                artists: t.artist ? [t.artist] : Array.isArray(t.artists) ? t.artists : undefined,
+                previewUrl: t.previewUrl ?? undefined,
+              }));
+              transformedData.tracks = mappedTop;
             }
             
             // Extract platform URLs and artwork - handle different platform key formats
@@ -313,103 +421,96 @@ function PostPageContent() {
   const isTrack = metadata.type === ElementType.TRACK; // only true for tracks
   const isAlbum = metadata.type === ElementType.ALBUM; // album-specific layout bits
   const isArtist = metadata.type === ElementType.ARTIST; // artist profile-like layout
-  // const isPlaylist = metadata.type === ElementType.PLAYLIST; // future playlist-specific bits
+  const isPlaylist = metadata.type === ElementType.PLAYLIST; // playlist-specific layout bits
   const typeLabel = isTrack ? 'Track' : isAlbum ? 'Album' : isArtist ? 'Artist' : 'Playlist';
-  const showAlbumTracks = isAlbum && Array.isArray(postData?.tracks) && (postData.tracks?.length ?? 0) > 0;
+  const showTracks = (isAlbum || isPlaylist) && Array.isArray(postData?.tracks) && (postData.tracks?.length ?? 0) > 0;
+  const useSplitScrollLayout = isDesktop && (isAlbum || isPlaylist);
   
   
   return (
-    <div className="min-h-screen relative">
+    <div className={useSplitScrollLayout ? "fixed inset-x-0 top-16 bottom-0 overflow-hidden" : "min-h-screen relative"}>
       {/* Animated Gradient Background */}
       <AnimatedColorBackground color={dominantColor} />
       
-      <div className="relative z-10 min-h-screen">
-        {/* Header Toolbar - matching Flutter PostHeaderToolbar */}
-        <div className="pt-4 pb-6 px-3 relative z-50">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity relative z-10"
-            >
-              <Image
-                src="/images/ic_back.png"
-                alt="Back"
-                width={16}
-                height={16}
-                className="object-contain"
-              />
-            </button>
-            
-            <div className="flex items-center gap-3">
-              <button className="text-foreground hover:opacity-70 transition-opacity relative z-10">
-                <Image
-                  src="/images/ic_share.png"
-                  alt="Share"
-                  width={24}
-                  height={24}
-                  className="object-contain"
-                />
-              </button>
-            </div>
-          </div>
-        </div>
-        
+      <div className={useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"}>
         {isDesktop ? (
-          // Desktop Layout - enhanced with better spacing
-          <div className="px-8 max-w-7xl mx-auto pb-8">
-            <div className="flex gap-12 items-center min-h-[80vh]">
-              {/* Left Column - Album Art and Info (flex: 2) */}
-              <div className="flex-[2] flex flex-col items-center min-w-0">
-                <UIText className="text-foreground font-bold mb-8 uppercase tracking-wider text-lg">
-                  {typeLabel}
-                </UIText>
-                
-                {/* Album Art with Shadow - increased size for desktop */}
-                <div className="relative mb-6">
-                  <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
-                  <Image
-                    src={metadata.artwork || '/images/cassette_logo.png'}
-                    alt={metadata.title}
-                    width={400}
-                    height={400}
-                    className="relative rounded-xl object-cover shadow-lg"
-                    priority
-                    onError={(e) => {
-                      console.error('❌ Desktop image failed to load:', metadata.artwork);
-                      e.currentTarget.src = '/images/cassette_logo.png';
-                    }}
-                  />
-                  
-                  {/* Play Preview for Tracks only - positioned over artwork */}
-                  {isTrack && postData?.previewUrl && (
-                    <div className="absolute -bottom-4 -right-4">
-                      <PlayPreview 
-                        previewUrl={postData.previewUrl}
-                        title={metadata.title}
-                        artist={metadata.artist}
-                        artwork={metadata.artwork}
-                      />
-                    </div>
-                  )}
-                </div>
-                
-              </div>
-              
-              {/* Right Column - Links and Description (flex: 3) */}
-              <div className={`flex-[3] ${showAlbumTracks ? 'max-h-[75vh] overflow-hidden' : ''}`}>
-                <div 
-                  className={showAlbumTracks ? 'h-full overflow-y-auto pr-4' : 'pr-4'}
+          useSplitScrollLayout ? (
+          // Desktop Album/Playlist: fixed left, scrollable right (only right side scrolls)
+          <div className="px-8 max-w-7xl mx-auto h-full overflow-hidden flex flex-col">
+            {/* Header Toolbar */}
+            <div className="pt-4 pb-4 px-3 shrink-0">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => router.back()}
+                  className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity"
                 >
+                  <Image
+                    src="/images/ic_back.png"
+                    alt="Back"
+                    width={16}
+                    height={16}
+                    className="object-contain"
+                  />
+                </button>
+                <div className="flex items-center gap-3">
+                  <button className="text-foreground hover:opacity-70 transition-opacity">
+                    <Image
+                      src="/images/ic_share.png"
+                      alt="Share"
+                      width={24}
+                      height={24}
+                      className="object-contain"
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+            {/* Content Row */}
+            <div className="flex gap-12 flex-1 overflow-hidden">
+              {/* Left: fixed panel */}
+              <div className="flex-[2] self-start sticky top-0">
+                <div className="flex flex-col items-center min-w-0 h-full justify-center">
+                  <UIText className="text-foreground font-bold mb-8 uppercase tracking-wider text-lg">
+                    {typeLabel}
+                  </UIText>
+                  {/* Artwork */}
+                  <div className="relative mb-6">
+                    <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
+                    <Image
+                      src={metadata.artwork || '/images/cassette_logo.png'}
+                      alt={metadata.title}
+                      width={400}
+                      height={400}
+                      className="relative rounded-xl object-cover shadow-lg"
+                      priority
+                      onError={(e) => {
+                        console.error('❌ Desktop image failed to load:', metadata.artwork);
+                        e.currentTarget.src = '/images/cassette_logo.png';
+                      }}
+                    />
+                    {isTrack && postData?.previewUrl && (
+                      <div className="absolute -bottom-4 -right-4">
+                        <PlayPreview 
+                          previewUrl={postData.previewUrl}
+                          title={metadata.title}
+                          artist={metadata.artist}
+                          artwork={metadata.artwork}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {/* Right: scrollable pane */}
+              <div className="flex-[3] overflow-y-auto pr-1">
+                <div className="py-6 pb-12">
                   <div className="space-y-6">
-                    {/* Track Information Card */}
+                    {/* Info Card */}
                     <div className="p-5 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
                       <div className="space-y-3">
-                        {/* Title */}
                         <HeadlineText className="text-xl font-bold text-foreground text-center">
                           {metadata.title}
                         </HeadlineText>
-                        
-                        {/* Artists with roles (show for Track/Album) */}
                         {(isTrack || isAlbum) && (
                           <div className="text-center">
                             <BodyText className="text-base text-muted-foreground">
@@ -427,27 +528,18 @@ function PostPageContent() {
                             </BodyText>
                           </div>
                         )}
-                        
-                        {/* Separator */}
                         <div className="border-t border-border/30 mx-4" />
-                        
-                        {/* Metadata - Centered as inline items */}
                         {isTrack ? (
                           <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
-                            {/* Duration */}
                             {metadata.duration && (
                               <div>
                                 <span className="text-muted-foreground">Duration: </span>
                                 <span className="font-medium">{metadata.duration}</span>
                               </div>
                             )}
-                            
-                            {/* Separator between duration and album */}
                             {metadata.duration && postData?.albumName && (
                               <span className="text-muted-foreground">•</span>
                             )}
-                            
-                            {/* Album */}
                             {postData?.albumName && (
                               <div>
                                 <span className="text-muted-foreground">Album: </span>
@@ -456,52 +548,29 @@ function PostPageContent() {
                             )}
                           </div>
                         ) : isAlbum ? (
-                          <div className="space-y-4">
-                            <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
-                              {/* Release Date */}
-                              {postData?.releaseDate && (
-                                <div>
-                                  <span className="text-muted-foreground">Released: </span>
-                                  <span className="font-medium">{postData.releaseDate}</span>
-                                </div>
-                              )}
-                              
-                              {/* Separator */}
-                              {postData?.releaseDate && postData?.trackCount && (
-                                <span className="text-muted-foreground">•</span>
-                              )}
-                              
-                              {/* Track Count */}
-                              {typeof postData?.trackCount === 'number' && (
-                                <div>
-                                  <span className="text-muted-foreground">Tracks: </span>
-                                  <span className="font-medium">{postData.trackCount}</span>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Scrolling track list for albums */}
-                            {showAlbumTracks && (
-                              <TrackList
-                                items={postData.tracks!}
-                                artwork={metadata.artwork}
-                                albumArtist={metadata.artist}
-                                variant="album"
-                                className="mt-2"
-                                scrollable={false}
-                              />
+                          <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
+                            {postData?.releaseDate && (
+                              <div>
+                                <span className="text-muted-foreground">Released: </span>
+                                <span className="font-medium">{postData.releaseDate}</span>
+                              </div>
+                            )}
+                            {postData?.releaseDate && postData?.trackCount && (
+                              <span className="text-muted-foreground">•</span>
+                            )}
+                            {typeof postData?.trackCount === 'number' && (
+                              <div>
+                                <span className="text-muted-foreground">Tracks: </span>
+                                <span className="font-medium">{postData.trackCount}</span>
+                              </div>
                             )}
                           </div>
                         ) : null}
-                        
-                        {/* Genres */}
                         {(() => {
                           const filteredGenres = postData?.genres?.filter(genre => 
                             genre.toLowerCase() !== 'music'
                           ) || [];
-                          
                           if (filteredGenres.length === 0) return null;
-                          
                           return (
                             <>
                               <div className="border-t border-border/30 mx-4" />
@@ -520,8 +589,20 @@ function PostPageContent() {
                         })()}
                       </div>
                     </div>
-                    
-                    {/* Description if available */}
+                    {/* Track list for album/playlist */}
+                    {showTracks && (
+                      // Debug: verify items flowing into TrackList
+                      console.log('🎵 TrackList (desktop) items:', (postData.tracks || []).length, { variant: isAlbum ? 'album' : 'playlist' }),
+                      <TrackList
+                        items={postData.tracks!}
+                        artwork={metadata.artwork}
+                        albumArtist={metadata.artist}
+                        variant={isAlbum ? 'album' : 'playlist'}
+                        className="mb-6"
+                        scrollable={false}
+                      />
+                    )}
+                    {/* Description */}
                     {postData?.description && (
                       <div className="p-5 bg-card rounded-lg border border-border shadow-sm">
                         <div className="flex items-start gap-4">
@@ -543,19 +624,24 @@ function PostPageContent() {
                         </div>
                       </div>
                     )}
-                    
-                    {/* Streaming Links Container - enhanced styling */}
+                    {/* Streaming Links */}
                     <div className="p-5 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm relative z-10">
                       <h3 className="text-lg font-semibold text-card-foreground mb-4">Listen Now</h3>
-                      <StreamingLinks 
-                        links={convertedUrls}
-                        className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                      />
+                      {isPlaylist ? (
+                        <PlaylistStreamingLinks
+                          links={convertedUrls}
+                          className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                        />
+                      ) : (
+                        <StreamingLinks 
+                          links={convertedUrls}
+                          className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                        />
+                      )}
                     </div>
-                    
-                    {/* Report Problem Button - Desktop */}
+                    {/* Report Problem */}
                     <div className="flex justify-center">
-                      <button className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium relative z-10">
+                      <button className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -567,9 +653,226 @@ function PostPageContent() {
               </div>
             </div>
           </div>
+          ) : (
+            // Desktop Track/Artist: keep original full-page scroll behavior
+            <div className="mt-16">
+              {/* Header Toolbar */}
+              <div className="pt-4 pb-6 px-3 relative z-20">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => router.back()}
+                    className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity"
+                  >
+                    <Image
+                      src="/images/ic_back.png"
+                      alt="Back"
+                      width={16}
+                      height={16}
+                      className="object-contain"
+                    />
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <button className="text-foreground hover:opacity-70 transition-opacity">
+                      <Image
+                        src="/images/ic_share.png"
+                        alt="Share"
+                        width={24}
+                        height={24}
+                        className="object-contain"
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="px-8 max-w-7xl mx-auto pb-8">
+                <div className="flex gap-12">
+                  {/* Left Column - Artwork */}
+                  <div className="flex-[2] sticky top-[120px] self-start">
+                    <div className="flex flex-col items-center min-w-0 h-[calc(100vh-140px)] justify-center">
+                      <UIText className="text-foreground font-bold mb-6 uppercase tracking-wider text-lg">
+                        {typeLabel}
+                      </UIText>
+                      <div className="relative mb-6">
+                        <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
+                        <Image
+                          src={metadata.artwork || '/images/cassette_logo.png'}
+                          alt={metadata.title}
+                          width={360}
+                          height={360}
+                          className="relative rounded-xl object-cover shadow-lg"
+                          priority
+                          onError={(e) => {
+                            console.error('❌ Desktop image failed to load:', metadata.artwork);
+                            e.currentTarget.src = '/images/cassette_logo.png';
+                          }}
+                        />
+                        {isTrack && postData?.previewUrl && (
+                          <div className="absolute -bottom-4 -right-4">
+                            <PlayPreview 
+                              previewUrl={postData.previewUrl}
+                              title={metadata.title}
+                              artist={metadata.artist}
+                              artwork={metadata.artwork}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Right Column - Content (page scroll) */}
+                  <div className="flex-[3]">
+                    <div className="py-8 pb-16">
+                      <div className="space-y-6">
+                        {/* Info Card */}
+                        <div className="p-5 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
+                          <div className="space-y-3">
+                            <HeadlineText className="text-xl font-bold text-foreground text-center">
+                              {metadata.title}
+                            </HeadlineText>
+                            {(isTrack || isAlbum) && (
+                              <div className="text-center">
+                                <BodyText className="text-base text-muted-foreground">
+                                  {postData?.details?.artists && postData.details.artists.length > 0 ? (
+                                    postData.details.artists.map((artist, idx) => (
+                                      <span key={idx}>
+                                        {artist.name}
+                                        {artist.role === 'Featured' && <span className="text-xs"> (feat.)</span>}
+                                        {idx < postData.details!.artists!.length - 1 && ', '}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    metadata.artist
+                                  )}
+                                </BodyText>
+                              </div>
+                            )}
+                            <div className="border-t border-border/30 mx-4" />
+                            {isTrack ? (
+                              <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
+                                {metadata.duration && (
+                                  <div>
+                                    <span className="text-muted-foreground">Duration: </span>
+                                    <span className="font-medium">{metadata.duration}</span>
+                                  </div>
+                                )}
+                                {metadata.duration && postData?.albumName && (
+                                  <span className="text-muted-foreground">•</span>
+                                )}
+                                {postData?.albumName && (
+                                  <div>
+                                    <span className="text-muted-foreground">Album: </span>
+                                    <span className="font-medium">{postData.albumName}</span>
+                                  </div>
+                                )}
+                              </div>
+                            ) : null}
+                            {(() => {
+                              const filteredGenres = postData?.genres?.filter(genre => 
+                                genre.toLowerCase() !== 'music'
+                              ) || [];
+                              if (filteredGenres.length === 0) return null;
+                              return (
+                                <>
+                                  <div className="border-t border-border/30 mx-4" />
+                                  <div className="flex flex-wrap gap-2 justify-center">
+                                    {filteredGenres.map((genre, index) => (
+                                      <span
+                                        key={index}
+                                        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-muted/30 text-muted-foreground border border-border/50"
+                                      >
+                                        {genre}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                        {/* Description */}
+                        {postData?.description && (
+                          <div className="p-5 bg-card rounded-lg border border-border shadow-sm">
+                            <div className="flex items-start gap-4">
+                              <Image
+                                src="/images/ic_music.png"
+                                alt="User"
+                                width={32}
+                                height={32}
+                                className="rounded-full"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <UIText className="font-bold text-card-foreground mb-2">
+                                  {postData?.username || 'User'}
+                                </UIText>
+                                <BodyText className="text-muted-foreground leading-relaxed">
+                                  {postData?.description}
+                                </BodyText>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {/* Streaming Links */}
+                        <div className="p-5 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm relative z-10">
+                          <h3 className="text-lg font-semibold text-card-foreground mb-4">Listen Now</h3>
+                          {isPlaylist ? (
+                            <PlaylistStreamingLinks
+                              links={convertedUrls}
+                              className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                            />
+                          ) : (
+                            <StreamingLinks 
+                              links={convertedUrls}
+                              className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                            />
+                          )}
+                        </div>
+                        {/* Report Problem */}
+                        <div className="flex justify-center">
+                          <button className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Report a Problem</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
         ) : (
           // Mobile Layout - matching Flutter body() with proper container structure
-          <div className="px-5 sm:px-10 pb-6">
+          <div className="px-5 sm:px-10 pb-6 mt-16">
+            {/* Header Toolbar */}
+            <div className="pt-4 pb-6">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => router.back()}
+                  className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity"
+                >
+                  <Image
+                    src="/images/ic_back.png"
+                    alt="Back"
+                    width={16}
+                    height={16}
+                    className="object-contain"
+                  />
+                </button>
+                <div className="flex items-center gap-3">
+                  <button className="text-foreground hover:opacity-70 transition-opacity">
+                    <Image
+                      src="/images/ic_share.png"
+                      alt="Share"
+                      width={24}
+                      height={24}
+                      className="object-contain"
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
             <div className="text-center">
               {/* Element Type */}
               <UIText className="text-foreground font-bold mb-6 uppercase tracking-wider text-lg">
@@ -685,18 +988,7 @@ function PostPageContent() {
                         )}
                       </div>
 
-                      {/* Scrolling track list for albums - mobile */}
-                      {isAlbum && Array.isArray(postData?.tracks) && (
-                        <TrackList
-                          items={postData.tracks!}
-                          artwork={metadata.artwork}
-                          albumArtist={metadata.artist}
-                          variant="album"
-                          className="mt-1"
-                          compact
-                          scrollable={false}
-                        />
-                      )}
+
                     </div>
                   ) : null}
                   
@@ -727,6 +1019,22 @@ function PostPageContent() {
                 </div>
               </div>
               
+              {/* Track list for album/playlist - mobile */}
+              {showTracks && (
+                // Debug: verify items flowing into TrackList
+                console.log('🎵 TrackList (mobile) items:', (postData.tracks || []).length, { variant: isAlbum ? 'album' : 'playlist' }),
+                <div className="mb-6">
+                  <TrackList
+                    items={postData.tracks!}
+                    artwork={metadata.artwork}
+                    albumArtist={metadata.artist}
+                    variant={isAlbum ? 'album' : 'playlist'}
+                    compact
+                    scrollable={true}
+                  />
+                </div>
+              )}
+              
               {/* Description if available - matching Flutter styling */}
               {postData?.description && (
                 <div className="mb-6 p-4 bg-background rounded-lg border-2 border-text-primary/30 text-left">
@@ -754,10 +1062,17 @@ function PostPageContent() {
               
               {/* Streaming Links Container - matching desktop glass effect */}
               <div className="p-4 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm mb-6 relative z-10">
-                <StreamingLinks 
-                  links={convertedUrls}
-                  className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                />
+                {isPlaylist ? (
+                  <PlaylistStreamingLinks
+                    links={convertedUrls}
+                    className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                  />
+                ) : (
+                  <StreamingLinks 
+                    links={convertedUrls}
+                    className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                  />
+                )}
               </div>
               
               {/* Report Problem Button */}

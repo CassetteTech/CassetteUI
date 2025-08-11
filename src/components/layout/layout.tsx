@@ -50,7 +50,7 @@ export function Layout({ children }: LayoutProps) {
           <Navbar />
         </div>
       )}
-      <main className={`flex-1 ${showNavbar && !isProfilePage ? 'pt-16' : ''} ${showNavbar && isProfilePage ? 'pt-16 lg:pt-0' : ''}`}>
+      <main className={`flex-1 ${showNavbar && !isProfilePage && !isPostPage ? 'pt-16' : ''} ${showNavbar && isProfilePage ? 'pt-16 lg:pt-0' : ''}`}>
         {children}
       </main>
       {showFooter && (

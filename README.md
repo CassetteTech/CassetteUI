@@ -62,7 +62,7 @@ APPLE_MUSIC_TEAM_ID=your_apple_music_team_id
 APPLE_MUSIC_PRIVATE_KEY=your_apple_music_private_key
 
 # Backend API Configuration
-NEXT_PUBLIC_API_URL=https://nm2uheummh.us-east-1.awsapprunner.com
+NEXT_PUBLIC_API_URL=https://563jznpk5k.execute-api.us-east-1.amazonaws.com/Dev
 NEXT_PUBLIC_API_URL_LOCAL=http://localhost:5173
 
 # Feature Flags

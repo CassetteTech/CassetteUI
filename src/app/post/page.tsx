@@ -466,22 +466,23 @@ function PostPageContent() {
               </div>
             </div>
             {/* Content Row */}
-            <div className="flex gap-12 flex-1 overflow-hidden">
+            <div className="flex gap-8 flex-1 overflow-hidden">
               {/* Left: fixed panel */}
-              <div className="flex-[2] self-start sticky top-0">
-                <div className="flex flex-col items-center min-w-0 h-full justify-center">
+              <div className="flex-[2] sticky top-0 h-full">
+                {/* Make the left column fill the available height and center content vertically */}
+                <div className="h-full flex flex-col items-center justify-center min-w-0">
                   <UIText className="text-foreground font-bold mb-8 uppercase tracking-wider text-lg">
                     {typeLabel}
                   </UIText>
                   {/* Artwork */}
-                  <div className="relative mb-6">
+                  <div className="relative mb-8">
                     <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
                     <Image
                       src={metadata.artwork || '/images/cassette_logo.png'}
                       alt={metadata.title}
-                      width={400}
-                      height={400}
-                      className="relative rounded-xl object-cover shadow-lg"
+                      width={340}
+                      height={340}
+                      className="relative rounded-xl object-cover shadow-xl"
                       priority
                       onError={(e) => {
                         console.error('❌ Desktop image failed to load:', metadata.artwork);
@@ -499,26 +500,22 @@ function PostPageContent() {
                       </div>
                     )}
                   </div>
-                </div>
-              </div>
-              {/* Right: scrollable pane */}
-              <div className="flex-[3] overflow-y-auto pr-1">
-                <div className="py-6 pb-12">
-                  <div className="space-y-6">
-                    {/* Info Card */}
-                    <div className="p-5 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
-                      <div className="space-y-3">
-                        <HeadlineText className="text-xl font-bold text-foreground text-center">
+                  {/* Info Card (moved from right) */}
+                  {(isAlbum || isPlaylist) && (
+                    <div className="p-8 bg-card/30 rounded-xl border border-border/40 backdrop-blur-md shadow-lg w-full max-w-xl">
+                      <div className="space-y-6">
+                        <HeadlineText className="text-3xl font-bold text-foreground text-center leading-tight">
                           {metadata.title}
                         </HeadlineText>
-                        {(isTrack || isAlbum) && (
+                        {/* Artist line for album */}
+                        {isAlbum && (
                           <div className="text-center">
-                            <BodyText className="text-base text-muted-foreground">
+                            <BodyText className="text-lg text-muted-foreground">
                               {postData?.details?.artists && postData.details.artists.length > 0 ? (
                                 postData.details.artists.map((artist, idx) => (
                                   <span key={idx}>
                                     {artist.name}
-                                    {artist.role === 'Featured' && <span className="text-xs"> (feat.)</span>}
+                                    {artist.role === 'Featured' && <span className="text-sm"> (feat.)</span>}
                                     {idx < postData.details!.artists!.length - 1 && ', '}
                                   </span>
                                 ))
@@ -528,27 +525,30 @@ function PostPageContent() {
                             </BodyText>
                           </div>
                         )}
-                        <div className="border-t border-border/30 mx-4" />
-                        {isTrack ? (
-                          <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
-                            {metadata.duration && (
-                              <div>
-                                <span className="text-muted-foreground">Duration: </span>
-                                <span className="font-medium">{metadata.duration}</span>
+                        <div className="border-t border-border/30 mx-6" />
+                        {isPlaylist ? (
+                          <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-3 text-base">
+                            {postData?.description && (
+                              <div className="w-full text-center mb-2">
+                                <BodyText className="text-muted-foreground italic">{postData.description}</BodyText>
                               </div>
                             )}
-                            {metadata.duration && postData?.albumName && (
-                              <span className="text-muted-foreground">•</span>
-                            )}
-                            {postData?.albumName && (
+                            {typeof postData?.trackCount === 'number' && (
                               <div>
-                                <span className="text-muted-foreground">Album: </span>
-                                <span className="font-medium">{postData.albumName}</span>
+                                <span className="text-muted-foreground">Tracks: </span>
+                                <span className="font-medium">{postData.trackCount}</span>
+                              </div>
+                            )}
+                            {Array.isArray(postData?.tracks) && postData.tracks.length > 0 && !postData?.trackCount && (
+                              <div>
+                                <span className="text-muted-foreground">Tracks: </span>
+                                <span className="font-medium">{postData.tracks.length}</span>
                               </div>
                             )}
                           </div>
-                        ) : isAlbum ? (
-                          <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
+                        ) : (
+                          // Album meta row
+                          <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-3 text-base">
                             {postData?.releaseDate && (
                               <div>
                                 <span className="text-muted-foreground">Released: </span>
@@ -565,7 +565,7 @@ function PostPageContent() {
                               </div>
                             )}
                           </div>
-                        ) : null}
+                        )}
                         {(() => {
                           const filteredGenres = postData?.genres?.filter(genre => 
                             genre.toLowerCase() !== 'music'
@@ -573,12 +573,12 @@ function PostPageContent() {
                           if (filteredGenres.length === 0) return null;
                           return (
                             <>
-                              <div className="border-t border-border/30 mx-4" />
-                              <div className="flex flex-wrap gap-2 justify-center">
+                              <div className="border-t border-border/30 mx-6" />
+                              <div className="flex flex-wrap gap-3 justify-center">
                                 {filteredGenres.map((genre, index) => (
                                   <span
                                     key={index}
-                                    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-muted/30 text-muted-foreground border border-border/50"
+                                    className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-muted/30 text-muted-foreground border border-border/50"
                                   >
                                     {genre}
                                   </span>
@@ -589,44 +589,11 @@ function PostPageContent() {
                         })()}
                       </div>
                     </div>
-                    {/* Track list for album/playlist */}
-                    {showTracks && (
-                      // Debug: verify items flowing into TrackList
-                      console.log('🎵 TrackList (desktop) items:', (postData.tracks || []).length, { variant: isAlbum ? 'album' : 'playlist' }),
-                      <TrackList
-                        items={postData.tracks!}
-                        artwork={metadata.artwork}
-                        albumArtist={metadata.artist}
-                        variant={isAlbum ? 'album' : 'playlist'}
-                        className="mb-6"
-                        scrollable={false}
-                      />
-                    )}
-                    {/* Description */}
-                    {postData?.description && (
-                      <div className="p-5 bg-card rounded-lg border border-border shadow-sm">
-                        <div className="flex items-start gap-4">
-                          <Image
-                            src="/images/ic_music.png"
-                            alt="User"
-                            width={32}
-                            height={32}
-                            className="rounded-full"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <UIText className="font-bold text-card-foreground mb-2">
-                              {postData?.username || 'User'}
-                            </UIText>
-                            <BodyText className="text-muted-foreground leading-relaxed">
-                              {postData?.description}
-                            </BodyText>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {/* Streaming Links */}
-                    <div className="p-5 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm relative z-10">
-                      <h3 className="text-lg font-semibold text-card-foreground mb-4">Listen Now</h3>
+                  )}
+                  {/* Streaming Links (moved from right) */}
+                  {(isAlbum || isPlaylist) && (
+                    <div className="mt-6 p-8 bg-card/40 rounded-2xl border border-border/40 shadow-lg backdrop-blur-md relative z-10 w-full max-w-xl">
+                      <h3 className="text-xl font-semibold text-card-foreground mb-6 text-center">Listen Now</h3>
                       {isPlaylist ? (
                         <PlaylistStreamingLinks
                           links={convertedUrls}
@@ -639,15 +606,42 @@ function PostPageContent() {
                         />
                       )}
                     </div>
-                    {/* Report Problem */}
-                    <div className="flex justify-center">
-                      <button className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  )}
+                  {/* Report Problem (moved to left to keep right-only track list) */}
+                  {(isAlbum || isPlaylist) && (
+                    <div className="mt-6 flex justify-center w-full max-w-xl">
+                      <button className="flex items-center gap-2 px-6 py-3 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-base font-medium">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span>Report a Problem</span>
                       </button>
                     </div>
+                  )}
+                </div>
+              </div>
+              {/* Right: scrollable pane */}
+              <div className="flex-[3] overflow-y-auto no-scrollbar pr-1">
+                <div className="pt-8 pb-12 max-w-2xl">
+                  <div className="space-y-8">
+                    {/* Track list for album/playlist */}
+                    {showTracks && (
+                      <div className="bg-card/25 rounded-xl border border-border/30 overflow-hidden shadow-lg backdrop-blur-md">
+                        <div className="p-5 border-b border-border/30 bg-gradient-to-r from-card/20 to-transparent">
+                          <h3 className="text-lg font-semibold text-foreground">
+                            {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
+                          </h3>
+                        </div>
+                        <TrackList
+                          items={postData.tracks!}
+                          artwork={metadata.artwork}
+                          albumArtist={metadata.artist}
+                          variant={isAlbum ? 'album' : 'playlist'}
+                          scrollable={false}
+                          className="!border-0 !bg-transparent !shadow-none"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -721,7 +715,8 @@ function PostPageContent() {
                   </div>
                   {/* Right Column - Content (page scroll) */}
                   <div className="flex-[3]">
-                    <div className="py-8 pb-16">
+                    {/* Vertically center content relative to viewport height */}
+                    <div className="py-8 pb-16 min-h-[calc(100vh-140px)] flex flex-col justify-center">
                       <div className="space-y-6">
                         {/* Info Card */}
                         <div className="p-5 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
@@ -844,7 +839,7 @@ function PostPageContent() {
           )
         ) : (
           // Mobile Layout - matching Flutter body() with proper container structure
-          <div className="px-5 sm:px-10 pb-6 mt-16">
+          <div className="px-4 sm:px-8 md:px-12 pb-8 mt-16 max-w-lg mx-auto">
             {/* Header Toolbar */}
             <div className="pt-4 pb-6">
               <div className="flex items-center justify-between">
@@ -873,25 +868,26 @@ function PostPageContent() {
                 </div>
               </div>
             </div>
-            <div className="text-center">
+            <div className="text-center space-y-6">
               {/* Element Type */}
-              <UIText className="text-foreground font-bold mb-6 uppercase tracking-wider text-lg">
-                {typeLabel}
-              </UIText>
+              <div>
+                <UIText className="text-foreground font-bold mb-8 uppercase tracking-wider text-lg">
+                  {typeLabel}
+                </UIText>
+              </div>
               
               {/* Album Art Container */}
-              <div className="mb-5">
-                
+              <div>
                 {/* Album Art with Shadow - matching Flutter styling with responsive sizing */}
                 <div className="relative inline-block">
-                  <div className="absolute inset-0 translate-x-2.5 translate-y-2.5 bg-black/25 rounded-xl blur-lg" />
+                  <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
                   <Image
                     src={metadata.artwork || '/images/cassette_logo.png'}
                     alt={metadata.title}
                     width={0}
                     height={0}
-                    sizes="100vw"
-                    className="relative rounded-xl object-cover shadow-lg w-[calc(100vw/2.3)] h-[calc(100vw/2.3)] max-w-[200px] max-h-[200px]"
+                    sizes="(max-width: 640px) 280px, 320px"
+                    className="relative rounded-xl object-cover shadow-lg w-[280px] h-[280px] sm:w-[320px] sm:h-[320px]"
                     priority
                     onError={(e) => {
                       console.error('❌ Mobile image failed to load:', metadata.artwork);
@@ -915,22 +911,22 @@ function PostPageContent() {
               </div>
               
               {/* Track Information Card - Mobile */}
-              <div className="mb-6 p-4 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
-                <div className="space-y-3">
+              <div className="p-6 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
+                <div className="space-y-4">
                   {/* Title */}
-                  <HeadlineText className="text-xl font-bold text-foreground text-center">
+                  <HeadlineText className="text-2xl font-bold text-foreground text-center leading-tight">
                     {metadata.title}
                   </HeadlineText>
                   
                   {/* Artists with roles (show for Track/Album) */}
                   {(isTrack || isAlbum) && (
                     <div className="text-center">
-                      <BodyText className="text-sm text-muted-foreground">
+                      <BodyText className="text-base text-muted-foreground">
                         {postData?.details?.artists && postData.details.artists.length > 0 ? (
                           postData.details.artists.map((artist, idx) => (
                             <span key={idx}>
                               {artist.name}
-                              {artist.role === 'Featured' && <span className="text-xs"> (feat.)</span>}
+                              {artist.role === 'Featured' && <span className="text-sm"> (feat.)</span>}
                               {idx < postData.details!.artists!.length - 1 && ', '}
                             </span>
                           ))
@@ -945,10 +941,32 @@ function PostPageContent() {
                   <div className="border-t border-border/30" />
                   
                   {/* Metadata */}
-                  {isTrack ? (
-                    <div className="space-y-2 text-xs">
+                  {isPlaylist ? (
+                    <div className="space-y-3 text-sm">
+                      {postData?.description && (
+                        <div className="text-center">
+                          <BodyText className="text-muted-foreground italic">{postData.description}</BodyText>
+                        </div>
+                      )}
+                      <div className="flex flex-wrap justify-center gap-3">
+                        {typeof postData?.trackCount === 'number' && (
+                          <div>
+                            <span className="text-muted-foreground">Tracks: </span>
+                            <span className="font-medium">{postData.trackCount}</span>
+                          </div>
+                        )}
+                        {Array.isArray(postData?.tracks) && postData.tracks.length > 0 && !postData?.trackCount && (
+                          <div>
+                            <span className="text-muted-foreground">Tracks: </span>
+                            <span className="font-medium">{postData.tracks.length}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : isTrack ? (
+                    <div className="space-y-2 text-sm">
                       {/* Duration and Album in one line */}
-                      <div className="flex flex-wrap justify-center gap-2">
+                      <div className="flex flex-wrap justify-center gap-3">
                         {postData?.metadata?.duration && (
                           <div>
                             <span className="text-muted-foreground">Duration: </span>
@@ -969,8 +987,8 @@ function PostPageContent() {
                       </div>
                     </div>
                   ) : isAlbum ? (
-                    <div className="space-y-3 text-xs">
-                      <div className="flex flex-wrap justify-center gap-2">
+                    <div className="space-y-3 text-sm">
+                      <div className="flex flex-wrap justify-center gap-3">
                         {postData?.releaseDate && (
                           <div>
                             <span className="text-muted-foreground">Released: </span>
@@ -987,8 +1005,6 @@ function PostPageContent() {
                           </div>
                         )}
                       </div>
-
-
                     </div>
                   ) : null}
                   
@@ -1003,11 +1019,11 @@ function PostPageContent() {
                     return (
                       <>
                         <div className="border-t border-border/30" />
-                        <div className="flex flex-wrap gap-1.5 justify-center">
+                        <div className="flex flex-wrap gap-2 justify-center">
                           {filteredGenres.map((genre, index) => (
                             <span
                               key={index}
-                              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted/30 text-muted-foreground border border-border/50"
+                              className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-muted/30 text-muted-foreground border border-border/50"
                             >
                               {genre}
                             </span>
@@ -1021,9 +1037,12 @@ function PostPageContent() {
               
               {/* Track list for album/playlist - mobile */}
               {showTracks && (
-                // Debug: verify items flowing into TrackList
-                console.log('🎵 TrackList (mobile) items:', (postData.tracks || []).length, { variant: isAlbum ? 'album' : 'playlist' }),
-                <div className="mb-6">
+                <div className="bg-card/25 rounded-xl border border-border/30 overflow-hidden shadow-lg backdrop-blur-md">
+                  <div className="p-4 border-b border-border/30 bg-gradient-to-r from-card/20 to-transparent">
+                    <h3 className="text-base font-semibold text-foreground text-center">
+                      {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
+                    </h3>
+                  </div>
                   <TrackList
                     items={postData.tracks!}
                     artwork={metadata.artwork}
@@ -1031,26 +1050,27 @@ function PostPageContent() {
                     variant={isAlbum ? 'album' : 'playlist'}
                     compact
                     scrollable={true}
+                    className="!border-0 !bg-transparent !shadow-none"
                   />
                 </div>
               )}
               
-              {/* Description if available - matching Flutter styling */}
-              {postData?.description && (
-                <div className="mb-6 p-4 bg-background rounded-lg border-2 border-text-primary/30 text-left">
+              {/* Description if available for non-playlists - matching Flutter styling */}
+              {postData?.description && !isPlaylist && (
+                <div className="p-5 bg-card/40 rounded-xl border border-border/50 text-left backdrop-blur-sm">
                   <div className="flex items-start gap-3">
                     <Image
                       src="/images/ic_music.png"
                       alt="User"
-                      width={24}
-                      height={24}
+                      width={32}
+                      height={32}
                       className="rounded-full flex-shrink-0"
                     />
                     <div className="min-w-0 flex-1">
-                      <UIText className="font-bold text-text-primary text-sm mb-1">
+                      <UIText className="font-bold text-foreground text-base mb-2">
                         {postData?.username || 'User'}
                       </UIText>
-                      <BodyText className="text-text-secondary text-sm break-words">
+                      <BodyText className="text-muted-foreground text-base break-words leading-relaxed">
                         {postData?.description}
                       </BodyText>
                     </div>
@@ -1058,10 +1078,9 @@ function PostPageContent() {
                 </div>
               )}
               
-              <div className="border-t border-border mb-6" />
-              
               {/* Streaming Links Container - matching desktop glass effect */}
-              <div className="p-4 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm mb-6 relative z-10">
+              <div className="p-6 bg-card/50 rounded-2xl border border-border/30 shadow-sm backdrop-blur-sm relative z-10">
+                <h3 className="text-lg font-semibold text-card-foreground mb-4 text-center">Listen Now</h3>
                 {isPlaylist ? (
                   <PlaylistStreamingLinks
                     links={convertedUrls}
@@ -1076,12 +1095,14 @@ function PostPageContent() {
               </div>
               
               {/* Report Problem Button */}
-              <button className="flex items-center gap-2 px-5 py-3 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors mx-auto font-medium relative z-50">
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="font-medium">Report a Problem</span>
-              </button>
+              <div>
+                <button className="flex items-center gap-2 px-6 py-3 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors font-medium relative z-50">
+                  <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="font-medium">Report a Problem</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

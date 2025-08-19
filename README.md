@@ -74,7 +74,7 @@ NEXT_PUBLIC_APP_DOMAIN=https://cassetteinc.org
 
 4. Run the development server:
 ```bash
-npm run dev
+`npm run dev` or `npx next dev`
 ```
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.

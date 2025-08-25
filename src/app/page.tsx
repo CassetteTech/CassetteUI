@@ -14,12 +14,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ProfileDemo } from '@/components/demo/profile-demo';
+import { AppleMusicHelpModal } from '@/components/features/apple-music-help-modal';
 
 export default function HomePage() {
   const router = useRouter();
   const [musicUrl, setMusicUrl] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   
   // Animation states
   const [logoVisible, setLogoVisible] = useState(false);
@@ -72,16 +74,54 @@ export default function HomePage() {
     return () => timeouts.forEach(clearTimeout);
   }, []);
 
-  const validateAppleMusicLink = (url: string): string | null => {
+  const validateMusicLink = (url: string): string | null => {
     try {
-      if (!url.startsWith('http')) return null;
+      if (!url.startsWith('http')) {
+        // Only validate if it looks like it should be a URL
+        if (url.includes('.com') || url.includes('http') || url.includes('www')) {
+          return "Please enter a valid URL starting with http:// or https://";
+        }
+        return null;
+      }
       
       const parsedUrl = new URL(url);
-      if (parsedUrl.hostname.includes('music.apple.com') && parsedUrl.pathname.includes('/library/playlist/')) {
-        return "You've pasted a private Apple Music link. Please use the 'Share Playlist' option to copy the correct link.";
+      const hostname = parsedUrl.hostname.toLowerCase();
+      
+      // Check for private Apple Music library links
+      if (hostname.includes('music.apple.com') && parsedUrl.pathname.includes('/library/')) {
+        if (parsedUrl.pathname.includes('/library/playlist/')) {
+          return "You've pasted a private Apple Music playlist link. Please use the 'Share Playlist' option to copy the correct link.";
+        }
+        return "You've pasted a private Apple Music library link. Please use the 'Share' option to copy the correct link.";
       }
+      
+      // Check if it's a music service but potentially unsupported
+      const supportedServices = ['spotify.com', 'music.apple.com', 'deezer.com'];
+      const isMusicService = supportedServices.some(service => hostname.includes(service));
+      
+      if (!isMusicService && (
+        hostname.includes('youtube.com') || 
+        hostname.includes('soundcloud.com') ||
+        hostname.includes('bandcamp.com') ||
+        hostname.includes('tidal.com') ||
+        hostname.includes('amazon.com')
+      )) {
+        return "This music service isn't supported yet. Please use a link from Spotify, Apple Music, or Deezer.";
+      }
+      
+      // Check for obviously non-music links
+      if (!isMusicService && url.length > 10) {
+        const commonNonMusicDomains = ['google.com', 'facebook.com', 'twitter.com', 'instagram.com', 'tiktok.com'];
+        if (commonNonMusicDomains.some(domain => hostname.includes(domain))) {
+          return "This doesn't look like a music link or that service isn't supported yet. Please paste a link from Spotify, Apple Music, or Deezer.";
+        }
+      }
+      
     } catch {
-      // Not a valid URL, ignore for this specific validation.
+      // If URL parsing fails but it looks like it should be a URL
+      if (url.includes('.com') || url.includes('http') || url.includes('www')) {
+        return "Please enter a valid URL.";
+      }
     }
     return null;
   };
@@ -126,11 +166,9 @@ export default function HomePage() {
       setUrlError(null);
     }
 
-    // Only validate if it looks like a URL (starts with http)
-    if (value.startsWith('http')) {
-      const validationError = validateAppleMusicLink(value);
-      setUrlError(validationError);
-    }
+    // Validate the input - check for URLs and common mistakes
+    const validationError = validateMusicLink(value);
+    setUrlError(validationError);
 
     // Ensure search is active when typing
     if (value.trim() && !isSearchActive) {
@@ -141,7 +179,7 @@ export default function HomePage() {
   // Handle paste event for auto-conversion
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const pastedText = e.clipboardData.getData('text');
-    const validationError = validateAppleMusicLink(pastedText);
+    const validationError = validateMusicLink(pastedText);
 
     setMusicUrl(pastedText);
     setUrlError(validationError);
@@ -282,7 +320,7 @@ export default function HomePage() {
                       onPaste={handlePaste}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && musicUrl.trim()) {
-                          const validationError = validateAppleMusicLink(musicUrl);
+                          const validationError = validateMusicLink(musicUrl);
                           setUrlError(validationError);
                           if (validationError) {
                             return;
@@ -301,7 +339,13 @@ export default function HomePage() {
                   </UrlBar>
                   {urlError && (
                     <p className="text-destructive text-sm mt-2 text-center px-4 font-semibold">
-                      {urlError}
+                      {urlError}{' '}
+                      <button 
+                        onClick={() => setIsHelpModalOpen(true)} 
+                        className="underline hover:text-destructive/80 focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2 rounded"
+                      >
+                        Show me how.
+                      </button>
                     </p>
                   )}
                 </div>
@@ -370,6 +414,12 @@ export default function HomePage() {
 
         </div>
       </div>
+
+      {/* Apple Music Help Modal */}
+      <AppleMusicHelpModal 
+        open={isHelpModalOpen} 
+        onOpenChange={setIsHelpModalOpen} 
+      />
     </div>
   );
 }

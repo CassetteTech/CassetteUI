@@ -1,5 +1,9 @@
+'use client';
+
+import { authFetch } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { AuthUser, SignInForm, SignUpForm, ConnectedService } from '@/types';
+import { log } from 'console';
 
 // Use your local API URL for development
 const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5173';
@@ -93,12 +97,16 @@ class AuthService {
       
       // Add delay like Flutter to ensure state updates propagate
       await new Promise(resolve => setTimeout(resolve, 300));
-    } else {
-      console.error('❌ [Auth] Invalid response structure:', data);
-      throw new Error('Invalid response from server');
-    }
+      return data;
+    } 
 
-    return data;
+    if (data.success && (!data.token || !data.user)) {
+      // Create a real session so the next route sees a valid bearer
+      const signedIn = await this.signIn({ email, password, acceptTerms: true });
+      return signedIn;
+    }
+  
+    throw new Error(data.message || 'Invalid response from server');
   }
 
   async signIn({ email, password, acceptTerms }: SignInForm) {
@@ -293,42 +301,17 @@ class AuthService {
 
   async getCurrentUser(): Promise<AuthUser | null> {
     const token = this.getAccessToken();
-    if (!token) {
-      console.log('🔄 [Auth] No access token found');
-      return null;
-    }
-
+    if (!token) return null;
+  
     try {
-      console.log('🔄 [Auth] Fetching current user session');
-      const response = await fetch(`${API_URL}/api/v1/auth/session`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('✅ [Auth] Session response:', response.status, response.statusText);
-
+      const response = await authFetch(`/api/v1/auth/session`); // <— use wrapper
       if (!response.ok) {
-        // Try to refresh token
-        console.log('🔄 [Auth] Session failed, attempting token refresh');
         const refreshed = await this.refreshSession();
-        if (refreshed) {
-          return this.getCurrentUser();
-        }
-        return null;
+        return refreshed ? this.getCurrentUser() : null;
       }
-
       const data = await response.json();
-      console.log('📦 [Auth] Session data:', data);
-      
-      if (data.success && data.user) {
-        return this.mapToAuthUser(data.user);
-      }
-
-      return null;
-    } catch (error) {
-      console.error('Get current user error:', error);
+      return (data.success && data.user) ? this.mapToAuthUser(data.user) : null;
+    } catch {
       return null;
     }
   }
@@ -343,8 +326,11 @@ class AuthService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token: refreshToken }),
+        body: JSON.stringify({ refresh_token: refreshToken }),
       });
+
+      console.log('🔄 [Auth] Refresh response:', response);
+      console.log('🔄 [Auth] Body:', response.body);
 
       const data = await response.json();
 

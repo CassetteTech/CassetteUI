@@ -95,7 +95,7 @@ APPLE_MUSIC_TEAM_ID=your_apple_music_team_id
 APPLE_MUSIC_PRIVATE_KEY=your_apple_music_private_key
 
 # Backend API Configuration
-NEXT_PUBLIC_API_URL=https://nm2uheummh.us-east-1.awsapprunner.com
+NEXT_PUBLIC_API_URL=https://563jznpk5k.execute-api.us-east-1.amazonaws.com/Dev
 NEXT_PUBLIC_API_URL_LOCAL=http://localhost:5173
 
 # Feature Flags
@@ -106,11 +106,8 @@ NEXT_PUBLIC_APP_DOMAIN=https://cassetteinc.org
 ```
 
 5. **Start Development Server**
-```bash
-npm run dev --turbopack  # Faster development with Turbopack
-# or
-npm run dev              # Standard development server
-```
+
+`npm run dev` or `npx next dev`
 
 6. **Open Application**
 Navigate to [http://localhost:3000](http://localhost:3000) in your browser.

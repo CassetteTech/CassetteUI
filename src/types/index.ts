@@ -172,6 +172,15 @@ export interface MusicLinkConversion {
   description?: string;
   username?: string;
   postId?: string;
+  tracks?: MediaListTrack[];
+}
+
+export interface MediaListTrack {
+  trackNumber?: number;
+  title: string;
+  duration?: string;
+  artists?: string[];
+  previewUrl?: string;
 }
 
 // API Response type for music link conversion
@@ -193,6 +202,9 @@ export interface ConversionApiResponse {
     coverArtUrl: string;
     genres?: string[];
     previewUrl?: string;
+    releaseDate?: string | null;
+    trackCount?: number;
+    tracks?: unknown[];
   };
   platforms: {
     [key: string]: {
@@ -228,6 +240,9 @@ export interface PostByIdResponse {
     genres?: string[];
     artists?: Array<{ name: string; role: string; }>;
     previewUrl?: string;
+    releaseDate?: string | null;
+    trackCount?: number;
+    tracks?: unknown[];
   };
   metadata?: {
     duration?: string;

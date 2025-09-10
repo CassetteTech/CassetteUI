@@ -1,5 +1,6 @@
 import { config } from '@/lib/config';
-import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType } from '@/types';
+import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType, MediaListTrack } from '@/types';
+import { detectContentType } from '@/utils/content-type-detection';
 
 interface MusicConnection {
   id: string;
@@ -121,13 +122,47 @@ class ApiService {
     console.log('🔄 API Service: Raw response:', JSON.stringify(response, null, 2));
     
     if (response.details || response.platforms) {
+      // Determine content type with fallbacks if elementType is missing/ambiguous
+      const elementTypeFromResponse = response.elementType?.toLowerCase();
+      let inferredElementType = elementTypeFromResponse;
+      if (!inferredElementType) {
+        // Try to infer from the source URL
+        try {
+          const urlInfo = detectContentType(url);
+          if (urlInfo?.type) {
+            inferredElementType = urlInfo.type;
+          }
+        } catch {}
+
+        const looksLikeAlbum = Boolean(response.details?.trackCount) || Array.isArray((response.details as { tracks?: unknown[] })?.tracks);
+        if (looksLikeAlbum) {
+          inferredElementType = 'album';
+        } else if (response.platforms) {
+          const platformTypes = Object.values(response.platforms)
+            .map(p => (p?.elementType || '').toLowerCase())
+            .filter(Boolean);
+          if (platformTypes.length > 0) {
+            // Use the most common platform-reported type
+            const counts = platformTypes.reduce<Record<string, number>>((acc, t) => {
+              acc[t] = (acc[t] || 0) + 1;
+              return acc;
+            }, {});
+            inferredElementType = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+          }
+        }
+        if (!inferredElementType) {
+          inferredElementType = 'track';
+        }
+      }
+
       const transformedData: MusicLinkConversion = {
         originalUrl: url,
         convertedUrls: {},
         metadata: {
-          type: (response.elementType?.toLowerCase() === 'track' ? ElementType.TRACK :
-                 response.elementType?.toLowerCase() === 'album' ? ElementType.ALBUM :
-                 response.elementType?.toLowerCase() === 'artist' ? ElementType.ARTIST :
+          // Map the inferred element type to our enum
+          type: (inferredElementType === 'track' ? ElementType.TRACK :
+                 inferredElementType === 'album' ? ElementType.ALBUM :
+                 inferredElementType === 'artist' ? ElementType.ARTIST :
                  ElementType.PLAYLIST),
           title: response.details?.title || 'Unknown',
           artist: response.details?.artist || '',
@@ -140,7 +175,31 @@ class ApiService {
         postId: response.postId
       };
 
-      // Extract platform URLs
+      // Map album/playlist tracks when provided by the API
+      type ApiTrack = {
+        title?: string;
+        duration?: string;
+        trackNumber?: number;
+        artists?: string[];
+        previewUrl?: string;
+      };
+
+      const apiTracks = (response.details as { tracks?: ApiTrack[] })?.tracks;
+      if (Array.isArray(apiTracks)) {
+        const mappedTracks: MediaListTrack[] = apiTracks.map((t) => ({
+          trackNumber: t.trackNumber,
+          title: t.title ?? 'Untitled',
+          duration: t.duration,
+          artists: Array.isArray(t.artists) ? t.artists : undefined,
+          previewUrl: t.previewUrl,
+        }));
+        transformedData.tracks = mappedTracks;
+        console.log('🎼 API transform: mapped tracks count =', mappedTracks.length);
+      }
+
+      // Extract platform URLs and collect fallback artwork/preview
+      let fallbackArtwork = '';
+      let fallbackPreview = '';
       if (response.platforms) {
         Object.entries(response.platforms).forEach(([platform, data]) => {
           const platformKey = platform.toLowerCase();
@@ -181,16 +240,32 @@ class ApiService {
               transformedData.convertedUrls.deezer = platformUrl;
             }
           }
+
+          // Capture fallback artwork from the first available platform artwork
+          if (!fallbackArtwork && data?.artworkUrl) {
+            fallbackArtwork = data.artworkUrl;
+          }
+
+          // Capture preview url fallback
+          if (!fallbackPreview && data?.previewUrl && data.previewUrl.trim() !== '') {
+            fallbackPreview = data.previewUrl;
+          }
         });
         
         // Extract preview URL from any available platform
-        const previewUrls = Object.values(response.platforms)
-          .map(platform => platform.previewUrl)
-          .filter(url => url && url.trim() !== '');
-        
-        if (previewUrls.length > 0) {
-          transformedData.previewUrl = previewUrls[0];
+        if (fallbackPreview) {
+          transformedData.previewUrl = fallbackPreview;
         }
+      }
+
+      // Also consider main details.previewUrl
+      if (!transformedData.previewUrl && response.details?.previewUrl) {
+        transformedData.previewUrl = response.details.previewUrl;
+      }
+
+      // Use fallback artwork if main artwork empty
+      if (!transformedData.metadata.artwork && fallbackArtwork) {
+        transformedData.metadata.artwork = fallbackArtwork;
       }
 
       console.log('✅ API Service: Transformed response:', transformedData);

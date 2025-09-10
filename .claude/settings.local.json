@@ -1,14 +1,15 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(lsof:*)"
+    ],
+    "deny": []
+  },
   "systemInstructions": [
     "CLAUDE.md"
   ],
   "additionalContext": [
     "CLAUDE.md"
-  ],
-  "permissions": {
-    "allow": [
-      "Bash(mkdir:*)"
-    ],
-    "deny": []
-  }
+  ]
 }

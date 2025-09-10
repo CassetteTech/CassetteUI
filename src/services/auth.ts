@@ -4,6 +4,7 @@ import { authFetch } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { AuthUser, SignInForm, SignUpForm, ConnectedService } from '@/types';
 import { log } from 'console';
+import { cacheTag } from 'next/dist/server/use-cache/cache-tag';
 
 // Use your local API URL for development
 const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5173';
@@ -110,6 +111,7 @@ class AuthService {
   }
 
   async signIn({ email, password, acceptTerms }: SignInForm) {
+    useAuthStore.getState().setUser(null);
     if (!acceptTerms) {
       throw new Error('Please agree to all the terms and conditions before Signing in');
     }
@@ -133,36 +135,59 @@ class AuthService {
 
     // Store tokens and user data
     this.setTokens(data.token, data.refreshToken);
-    const normalizedUser = {
-      ...data.user,
-      userId: data.user.id || data.user.userId,
-      authUserId: data.user.authUserId,
-    };
+    // const normalizedUser = {
+    //   ...data.user,
+    //   userId: data.user.id || data.user.userId,
+    //   authUserId: data.user.authUserId,
+    //   isOnboarded: data.user.isOnboarded,
+    // };
     
-    localStorage.setItem('user_data', JSON.stringify(normalizedUser));
-    
+    localStorage.setItem('user_data', JSON.stringify(data.user));
     // Update auth store
-    useAuthStore.getState().setUser(this.mapToAuthUser(normalizedUser));
+    const authUser = this.mapToAuthUser(data.user);
+    console.log('isOnboarded', authUser.isOnboarded);
+    console.log('isOnboarded', data.user.IsOnboarded);
+    console.log('isOnboarded', data.user.isOnboarded);
+    console.log('IsOnboarded', data.user.isonboarded);
+    console.log('email', data.user.email);
+    console.log('username', authUser.username);
+    console.log('username', data.user.username);
+    console.log('displayName', authUser.displayName);
+    console.log('displayName', data.user.displayName);
+    console.log('profilePicture', authUser.profilePicture);
+    console.log('profilePicture', data.user.profilePicture);
+    console.log('isEmailVerified', authUser.isEmailVerified);
+    console.log('isEmailVerified', data.user.isEmailVerified);
+    console.log('createdAt', authUser.createdAt);
+    console.log('createdAt', data.user.createdAt);
+    console.log('updatedAt', authUser.updatedAt);
+    console.log('updatedAt', data.user.updatedAt);
+    console.log('connectedServices', authUser.connectedServices);
+    console.log('connectedServices', data.user.connectedServices);
+    console.log('token', data.token);
+    console.log('refreshToken', data.refreshToken);
+    useAuthStore.getState().setUser(authUser);
+    //useAuthStore.getState().setUser(this.mapToAuthUser(normalizedUser));
 
     return data;
   }
 
   async signOut() {
-    try {
-      // Call backend signout endpoint if available
-      const token = this.getAccessToken();
-      if (token) {
-        await fetch(`${API_URL}/api/v1/auth/signout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-      }
-    } catch (error) {
-      console.error('Sign out API error:', error);
-    }
+    // try {
+    //   // Call backend signout endpoint if available
+    //   const token = this.getAccessToken();
+    //   if (token) {
+    //     await fetch(`${API_URL}/api/v1/auth/signout`, {
+    //       method: 'POST',
+    //       headers: {
+    //         'Authorization': `Bearer ${token}`,
+    //         'Content-Type': 'application/json',
+    //       },
+    //     });
+    //   }
+    // } catch (error) {
+    //   console.error('Sign out API error:', error);
+    // }
 
     // Clear local storage and update store
     this.clearTokens();
@@ -283,6 +308,8 @@ class AuthService {
     // Handle both camelCase and PascalCase field names from backend
     const userId = userData.userId || userData.UserId || userData.id;
     const username = userData.username || userData.Username;
+
+    console.log('userData', userData);
     
     return {
       id: String(userId || ''),
@@ -326,7 +353,7 @@ class AuthService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ refresh_token: refreshToken }),
+        body: JSON.stringify({ token: refreshToken }),
       });
 
       console.log('🔄 [Auth] Refresh response:', response);

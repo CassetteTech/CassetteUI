@@ -14,10 +14,26 @@ export const useSignIn = () => {
 
   return useMutation({
     mutationFn: (data: SignInForm) => authService.signIn(data),
+
     onSuccess: async () => {
-      await authService.getCurrentUser();
+      // Kill any stale cached “profile”
+      await queryClient.cancelQueries({ queryKey: ['profile'] });
       await queryClient.invalidateQueries({ queryKey: ['profile'] });
-      router.replace('/profile');
+
+      // Hydrate auth store from the server session (fresh)
+      const user = await authService.getCurrentUser(); // returns null | user
+      // Decide destination based on the hydrated user object
+      if (user?.isOnboarded) {
+        router.replace(`/profile/${user.username ?? ''}`.replace(/\/$/, '/profile'));
+      } else {
+        router.replace('/onboarding');
+      }
+      // Optional: refresh to bust any cached layouts using RSC data
+      router.refresh();
+    },
+
+    onError: (e: Error) => {
+      console.error('❌ [useSignIn] error:', e);
     },
   });
 };
@@ -53,15 +69,41 @@ export const useSignUp = () => {
 export const useSignOut = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const setUser = useAuthStore((s) => s.setUser);
 
   return useMutation({
     mutationFn: () => authService.signOut(),
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Belt & suspenders: clear tokens here too
+      try {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user_data');
+      } catch {}
+
+      // Clear store immediately
+      setUser(null);
+
+      // Cancel any in-flight queries, then wipe cache
+      await queryClient.cancelQueries();
       queryClient.clear();
-      router.push('/auth/signin');
+
+      // Hard reload router cache so layouts/guards don’t see stale data
+      router.replace('/auth/signin');
+      router.refresh();
     },
-    onError: (error: Error) => {
-      console.error('Sign out error:', error);
+    onError: (err: Error) => {
+      console.error('[useSignOut] error:', err);
+      // Still perform local cleanup
+      try {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user_data');
+      } catch {}
+      setUser(null);
+      queryClient.clear();
+      router.replace('/auth/signin');
+      router.refresh();
     },
   });
 };

@@ -1,5 +1,15 @@
 import type { NextConfig } from "next";
 
+const normalizeProxyPath = (value: string) => {
+  const trimmed = value.replace(/\/+$/, '');
+  if (!trimmed) {
+    return '/_ph';
+  }
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+};
+
+const posthogProxyPath = normalizeProxyPath(process.env.NEXT_PUBLIC_POSTHOG_PROXY_PATH ?? '/_ph');
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -65,6 +75,20 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: `${posthogProxyPath}/static/:path*`,
+        destination: 'https://us-assets.i.posthog.com/static/:path*',
+      },
+      {
+        source: `${posthogProxyPath}/:path*`,
+        destination: 'https://us.i.posthog.com/:path*',
+      },
+    ];
+  },
+  // This is required to support PostHog trailing slash API requests
+  skipTrailingSlashRedirect: true,
 };
 
 export default nextConfig;

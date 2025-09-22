@@ -15,16 +15,16 @@ const dummyUserBio = {
   username: "matttoppi",
   displayName: "Matt Toppi",
   bio: "🎵 Music enthusiast | Playlist curator | Always discovering new sounds",
-  avatarUrl: "/images/demo/matt-avatar.jpg",
+  avatarUrl: "https://i.scdn.co/image/ab6775700000ee85f9c4de09f31c52b4da41eeae",
   connectedServices: ["spotify", "apple-music", "deezer"]
 };
 
 const dummyActivityPosts = {
   playlists: [
-    { id: 1, title: "Summer Vibes 2024", image: "/images/demo/summer-vibes-playlist.jpg", tracks: 25 },
-    { id: 2, title: "Chill Study Session", image: "/images/demo/chill-study-playlist.jpg", tracks: 40 },
-    { id: 3, title: "Workout Energy", image: "/images/demo/workout-energy-playlist.jpg", tracks: 35 },
-    { id: 4, title: "Late Night Jazz", image: "/images/demo/late-night-jazz-playlist.jpg", tracks: 20 }
+    { id: 1, title: "Summer Vibes 2024", image: "https://i.scdn.co/image/ab67616d0000b273c22a1d0bdee1ade0c33e1e3c", tracks: 25 },
+    { id: 2, title: "Chill Study Session", image: "https://i.scdn.co/image/ab67706c0000da84093d508129f35ee05adf23e1", tracks: 40 },
+    { id: 3, title: "Workout Energy", image: "https://i.scdn.co/image/ab67616d0000b2731473a99f84f545b69c38d013", tracks: 35 },
+    { id: 4, title: "Late Night Jazz", image: "https://i.scdn.co/image/ab67616d0000b273428b827465d174a264a3ae59", tracks: 20 }
   ],
   tracks: [
     { id: 1, title: "Swim Between Trees", artist: "Flipturn", image: "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/6e/09/d9/6e09d9bd-2a54-57f0-b254-a1fb1aa6803a/25355.jpg/100x100bb.jpg" },
@@ -39,10 +39,10 @@ const dummyActivityPosts = {
     { id: 4, name: "Arctic Monkeys", image: "/images/demo/artist_arcticmonkeys.jpg", genre: "Indie Rock" }
   ],
   albums: [
-    { id: 1, title: "After Hours", artist: "The Weeknd", image: "/images/demo/after-hours-album.jpg", year: 2020 },
-    { id: 2, title: "Currents", artist: "Tame Impala", image: "/images/demo/currents-album.jpg", year: 2015 },
-    { id: 3, title: "Blonde", artist: "Frank Ocean", image: "/images/demo/blonde-album.jpg", year: 2016 },
-    { id: 4, title: "AM", artist: "Arctic Monkeys", image: "/images/demo/am-album.jpg", year: 2013 }
+    { id: 1, title: "After Hours", artist: "The Weeknd", image: "https://i.scdn.co/image/ab67616d0000b2736b40d5d1ca2224ef1274723a", year: 2020 },
+    { id: 2, title: "Currents", artist: "Tame Impala", image: "https://i.scdn.co/image/ab67616d0000b2737a7a89ab6c8d49910c3bd6f5", year: 2015 },
+    { id: 3, title: "Blonde", artist: "Frank Ocean", image: "https://i.scdn.co/image/ab67616d0000b273764b0db1d0545d142e5075d7", year: 2016 },
+    { id: 4, title: "AM", artist: "Arctic Monkeys", image: "https://i.scdn.co/image/ab67616d0000b273a8ad0664d9065f8314396b59", year: 2013 }
   ]
 };
 

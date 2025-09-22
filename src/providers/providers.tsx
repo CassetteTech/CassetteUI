@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useState } from 'react';
 import { AuthProvider } from './auth-provider';
 import { ThemeProvider } from './theme-provider';
+import { AnalyticsProvider } from './analytics-provider';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -37,9 +38,11 @@ export function Providers({ children }: ProvidersProps) {
       disableTransitionOnChange
     >
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <AnalyticsProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </AnalyticsProvider>
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </ThemeProvider>

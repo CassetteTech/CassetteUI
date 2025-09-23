@@ -18,6 +18,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { apiService } from '@/services/api';
 import { useMusicLinkConversion } from '@/hooks/use-music';
+import { HeartHandshake } from 'lucide-react';
+import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 
 // Incoming track shape when using ?data= payloads
 type IncomingDataTrack = {
@@ -821,6 +823,31 @@ function PostPageContent() {
                             />
                           )}
                         </div>
+                        {/* Support Us */}
+                        <div className="p-5 rounded-2xl border border-primary/30 bg-primary/5 backdrop-blur-sm">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-start gap-3 text-left">
+                              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
+                                <HeartHandshake className="h-5 w-5" />
+                              </span>
+                              <div>
+                                <h3 className="text-lg font-semibold text-foreground">Enjoying Cassette?</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  Help us keep building friendly music tools by tipping the team on Ko-fi.
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={openKoFiSupport}
+                              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-5 py-2 text-sm font-semibold transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                              aria-label="Support Cassette on Ko-fi"
+                            >
+                              <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={18} height={18} className="rounded-full" />
+                              <span>Support Us</span>
+                            </button>
+                          </div>
+                        </div>
+
                         {/* Report Problem */}
                         <div className="flex justify-center">
                           <button className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium">
@@ -1094,6 +1121,31 @@ function PostPageContent() {
                 )}
               </div>
               
+              {/* Support Us */}
+              <div className="p-5 rounded-2xl border border-primary/30 bg-primary/5 backdrop-blur-sm text-left">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
+                      <HeartHandshake className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">Enjoying Cassette?</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Tip the team on Ko-fi and help us keep the music sharing going.
+                      </p>
+                    </div>
+                  </div>
+              <button
+                onClick={openKoFiSupport}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-5 py-2 text-sm font-semibold transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                aria-label="Support Cassette on Ko-fi"
+              >
+                <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={18} height={18} className="rounded-full" />
+                <span>Support Us</span>
+              </button>
+                </div>
+              </div>
+
               {/* Report Problem Button */}
               <div>
                 <button className="flex items-center gap-2 px-6 py-3 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors font-medium relative z-50">

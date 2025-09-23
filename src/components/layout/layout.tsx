@@ -8,6 +8,7 @@ import { useAuthState } from '@/hooks/use-auth';
 import { Navbar } from './navbar';
 import { Footer } from './footer';
 import { clientConfig } from '@/lib/config-client';
+import { SupportFloatingButton } from './support-floating-button';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -58,6 +59,7 @@ export function Layout({ children }: LayoutProps) {
           <Footer />
         </div>
       )}
+      <SupportFloatingButton />
     </div>
   );
 }

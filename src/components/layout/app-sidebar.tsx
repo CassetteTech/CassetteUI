@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/layout/theme-switcher';
 import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
 import { usePathname } from 'next/navigation';
+import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
 
 interface AppSidebarProps {
   className?: string;
@@ -111,6 +112,19 @@ export function AppSidebar({ className }: AppSidebarProps) {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <a
+                    href={KOFI_SUPPORT_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-left"
+                  >
+                    <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="mr-2" />
+                    <span>Support Us</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive('/')}>
                   <Link href="/">

@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation';
 import { Home, Music, User, Edit, LogOut, Info, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
+import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
 
 interface NavigationLinksProps {
   onLinkClick?: () => void; // To close the menu after a click
@@ -47,6 +49,19 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
 
   return (
     <nav className="flex flex-col h-full">
+      <div className="pb-4 mb-4 border-b border-border/20">
+        <a
+          href={KOFI_SUPPORT_URL}
+          target="_blank"
+          rel="noreferrer"
+          onClick={onLinkClick}
+          className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-3 text-base font-semibold transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          aria-label="Support Cassette on Ko-fi"
+        >
+          <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={18} height={18} className="rounded-full" />
+          <span>Support Us</span>
+        </a>
+      </div>
       {/* Links */}
       <div className="flex-1 space-y-2">
         {dynamicNavItems.map((item) => {

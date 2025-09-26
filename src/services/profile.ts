@@ -1,9 +1,151 @@
-import { UserBio, PaginatedActivityResponse } from '@/types';
+import { config } from '@/lib/config';
+import { UserBio, PaginatedActivityResponse, ActivityPost, ConnectedService } from '@/types';
 
 export class ProfileService {
   private bioCache = new Map<string, { bio: UserBio; timestamp: number }>();
   private activityCache = new Map<string, { activity: PaginatedActivityResponse; timestamp: number }>();
   private readonly cacheDuration = 5 * 60 * 1000; // 5 minutes
+  private readonly apiBaseUrl = this.resolveApiBaseUrl();
+
+  private resolveApiBaseUrl(): string {
+    const baseUrl = config.api.url || process.env.NEXT_PUBLIC_API_URL || '';
+    return baseUrl.replace(/\/$/, '');
+  }
+
+  private buildUrl(path: string, query?: URLSearchParams): string {
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const base = this.apiBaseUrl || '';
+
+    if (!base) {
+      return query ? `${normalizedPath}?${query}` : normalizedPath;
+    }
+
+    const url = new URL(normalizedPath, `${base}/`);
+
+    if (query) {
+      query.forEach((value, key) => url.searchParams.set(key, value));
+    }
+
+    return url.toString();
+  }
+
+  private async parseJson<T>(response: Response): Promise<T | null> {
+    const text = await response.text();
+    if (!text) return null;
+    try {
+      return JSON.parse(text) as T;
+    } catch (error) {
+      console.warn('⚠️ Failed to parse JSON response:', error);
+      return null;
+    }
+  }
+
+  private normalizeUserBio(raw: unknown, fallbackIdentifier: string, isOwnProfileOverride?: boolean): UserBio {
+    const base: Partial<UserBio> = {
+      id: fallbackIdentifier,
+      username: fallbackIdentifier,
+      displayName: fallbackIdentifier,
+      bio: '',
+      avatarUrl: '',
+      isOwnProfile: false,
+      connectedServices: [],
+    };
+
+    if (!raw || typeof raw !== 'object') {
+      return base as UserBio;
+    }
+
+    const data = raw as Record<string, unknown>;
+
+    const id = (typeof data.id === 'string' && data.id) ||
+      (typeof data.userId === 'string' && data.userId) ||
+      fallbackIdentifier;
+
+    const connectedServicesRaw = Array.isArray(data.connectedServices)
+      ? data.connectedServices.filter(Boolean)
+      : [];
+
+    const connectedServices: ConnectedService[] = connectedServicesRaw.map((service) => {
+      const svc = service as Record<string, unknown>;
+      return {
+        serviceType: String(svc.serviceType ?? ''),
+        connectedAt: String(svc.connectedAt ?? ''),
+        profileUrl: svc.profileUrl ? String(svc.profileUrl) : undefined,
+      };
+    });
+
+    return {
+      id,
+      username: typeof data.username === 'string' ? data.username : fallbackIdentifier,
+      displayName: typeof data.displayName === 'string'
+        ? data.displayName
+        : typeof data.username === 'string'
+          ? data.username
+          : fallbackIdentifier,
+      bio: typeof data.bio === 'string' ? data.bio : '',
+      avatarUrl: typeof data.avatarUrl === 'string' ? data.avatarUrl : '',
+      isOwnProfile: typeof isOwnProfileOverride === 'boolean'
+        ? isOwnProfileOverride
+        : Boolean(data.isOwnProfile),
+      connectedServices,
+    };
+  }
+
+  private normalizeActivityItem(raw: unknown): ActivityPost | null {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+
+    const data = raw as Record<string, unknown>;
+    const elementType = typeof data.elementType === 'string' ? data.elementType : '';
+
+    return {
+      postId: String(data.postId ?? ''),
+      elementType,
+      title: String(data.title ?? ''),
+      subtitle: typeof data.subtitle === 'string' ? data.subtitle : undefined,
+      imageUrl: typeof data.imageUrl === 'string' ? data.imageUrl : undefined,
+      username: String(data.username ?? ''),
+      userId: String(data.userId ?? ''),
+      createdAt: String(data.createdAt ?? ''),
+    };
+  }
+
+  private normalizeActivityResponse(
+    raw: unknown,
+    overrides?: Partial<PaginatedActivityResponse>
+  ): PaginatedActivityResponse {
+    const base: PaginatedActivityResponse = {
+      items: [],
+      page: overrides?.page ?? 1,
+      totalItems: overrides?.totalItems ?? 0,
+      totalPages: overrides?.totalPages ?? 0,
+      hasNext: overrides?.hasNext ?? false,
+      hasPrevious: overrides?.hasPrevious ?? false,
+      isOwnProfile: overrides?.isOwnProfile ?? false,
+    };
+
+    if (!raw || typeof raw !== 'object') {
+      return base;
+    }
+
+    const data = raw as Record<string, unknown>;
+    const itemsRaw = Array.isArray(data.items) ? data.items : [];
+
+    const items = itemsRaw
+      .map((item) => this.normalizeActivityItem(item))
+      .filter((item): item is ActivityPost => item !== null);
+
+    return {
+      items,
+      page: typeof data.page === 'number' ? data.page : base.page,
+      totalItems: typeof data.totalItems === 'number' ? data.totalItems : items.length,
+      totalPages: typeof data.totalPages === 'number' ? data.totalPages : base.totalPages,
+      hasNext: typeof data.hasNext === 'boolean' ? data.hasNext : base.hasNext,
+      hasPrevious: typeof data.hasPrevious === 'boolean' ? data.hasPrevious : base.hasPrevious,
+      isOwnProfile: typeof data.isOwnProfile === 'boolean' ? data.isOwnProfile : base.isOwnProfile,
+    };
+  }
 
   async fetchUserBio(userIdentifier: string): Promise<UserBio> {
     try {
@@ -14,8 +156,7 @@ export class ProfileService {
 
       console.log('🔍 Fetching bio from:', path);
       
-      // Use the existing apiService request method
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL_LOCAL}${path}`, {
+      const response = await fetch(this.buildUrl(path), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -23,16 +164,20 @@ export class ProfileService {
         },
       });
 
+      const data = await this.parseJson<unknown>(response);
+
       if (response.status === 200) {
-        const data = await response.json();
-        return data as UserBio;
+        return this.normalizeUserBio(data, userIdentifier);
       } else if (response.status === 404) {
         console.log('❌ User not found:', userIdentifier);
         throw new Error('User not found');
-      } else {
-        console.log('❌ Error fetching bio:', response.status);
-        throw new Error('Failed to load profile');
+      } else if (response.status === 401 || response.status === 403) {
+        console.log('⚠️ Bio fetch unauthorized, falling back to view-only mode');
+        return this.normalizeUserBio(data, userIdentifier, false);
       }
+
+      console.log('❌ Error fetching bio:', response.status);
+      throw new Error('Failed to load profile');
     } catch (e) {
       console.log('❌ Bio fetch error:', e);
       throw e;
@@ -64,7 +209,7 @@ export class ProfileService {
         queryParams.append('elementType', elementType);
       }
 
-      const url = `${process.env.NEXT_PUBLIC_API_URL_LOCAL}${path}?${queryParams}`;
+      const url = this.buildUrl(path, queryParams);
       
       console.log('🔍 Fetching activity from:', url);
       
@@ -76,33 +221,27 @@ export class ProfileService {
         },
       });
 
+      const data = await this.parseJson<unknown>(response);
+
       if (response.status === 200) {
-        const json = await response.json();
-        return {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          items: json.items?.map((item: any) => ({
-            postId: item.postId,
-            elementType: item.elementType,
-            title: item.title,
-            subtitle: item.subtitle,
-            imageUrl: item.imageUrl,
-            username: item.username,
-            userId: item.userId,
-            createdAt: item.createdAt,
-          })) || [],
-          page: json.page || page,
-          totalItems: json.totalItems || 0,
-          totalPages: json.totalPages || 0,
-          hasNext: json.hasNext || false,
-          hasPrevious: json.hasPrevious || false,
-        };
+        return this.normalizeActivityResponse(data);
       } else if (response.status === 404) {
         console.log('❌ User not found:', userIdentifier);
         throw new Error('User not found');
-      } else {
-        console.log('❌ Error fetching activity:', response.status);
-        throw new Error('Failed to load activity');
+      } else if (response.status === 401 || response.status === 403) {
+        console.log('⚠️ Activity fetch unauthorized, falling back to public data');
+        return this.normalizeActivityResponse(data, {
+          page,
+          totalItems: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrevious: false,
+          isOwnProfile: false,
+        });
       }
+
+      console.log('❌ Error fetching activity:', response.status);
+      throw new Error('Failed to load activity');
     } catch (e) {
       console.log('❌ Activity fetch error:', e);
       throw e;

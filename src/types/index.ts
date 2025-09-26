@@ -33,6 +33,7 @@ export interface PaginatedActivityResponse {
   totalPages: number;
   hasNext: boolean;
   hasPrevious: boolean;
+  isOwnProfile?: boolean;
 }
 
 // Music Types

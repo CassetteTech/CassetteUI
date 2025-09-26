@@ -204,7 +204,16 @@ class AuthService {
 
     this.setTokens(data.token, data.refreshToken);
     const fresh = await this.getCurrentUser().catch(() => null);
-    const authUser = fresh ? this.mapToAuthUser(fresh as any) : this.mapToAuthUser(data.user);
+
+    let authUser: AuthUser;
+    if (fresh) {
+      authUser = fresh;
+    } else if (data.user) {
+      authUser = this.mapToAuthUser(data.user as Record<string, unknown>);
+    } else {
+      throw new Error('Failed to resolve authenticated user after Google callback');
+    }
+
     useAuthStore.getState().setUser(authUser);
 
     return authUser;

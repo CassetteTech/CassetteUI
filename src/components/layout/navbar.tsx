@@ -9,6 +9,8 @@ import { User, LogOut, ChevronDown, Info, Users, Shield, FileText } from 'lucide
 import { ThemeSwitcher } from './theme-switcher';
 import { NavigationLinks } from './navigation-links';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
+import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 
 import {
   DropdownMenu,
@@ -17,7 +19,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import Image from 'next/image';
 
 export function Navbar() {
   const { user, isAuthenticated } = useAuthState();
@@ -98,6 +99,15 @@ export function Navbar() {
           <div className="flex items-center space-x-2 sm:space-x-4">
             {/* Theme Switcher - always visible in navbar */}
             <ThemeSwitcher />
+
+            <button
+              className="hidden md:inline-flex items-center gap-1.5 text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              onClick={openKoFiSupport}
+              aria-label="Support Cassette on Ko-fi"
+            >
+              <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={18} height={18} className="rounded-full" />
+              <span>Support Us</span>
+            </button>
             
             {isAuthenticated ? (
               <>

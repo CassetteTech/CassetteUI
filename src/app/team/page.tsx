@@ -5,8 +5,10 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CassetteTape, Github, Linkedin, Mail, Twitter, ChevronDown, Code, TrendingUp, DollarSign, Briefcase, Palette, Users, Zap, X } from "lucide-react";
+import { CassetteTape, Github, Linkedin, Mail, Twitter, ChevronDown, Code, TrendingUp, DollarSign, Briefcase, Palette, Users, Zap, X, HeartHandshake } from "lucide-react";
 import Tilt from "react-vanilla-tilt";
+import Image from "next/image";
+import { openKoFiSupport, KOFI_ICON_SRC } from "@/lib/ko-fi";
 
 const teamMembers = [
   {
@@ -712,6 +714,36 @@ export default function TeamPage() {
                 </CardContent>
               </Card>
             </motion.div>
+          </div>
+        </motion.div>
+
+        {/* Support CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.55 }}
+          className="mb-16"
+        >
+          <div className="bg-primary/10 border border-primary/30 rounded-3xl p-6 sm:p-8 md:p-10 backdrop-blur-sm shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div className="flex items-start gap-4">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <HeartHandshake className="h-6 w-6" />
+              </span>
+              <div className="text-left">
+                <h3 className="font-teko text-2xl text-foreground mb-1">Support the Cassette Team</h3>
+                <p className="font-roboto text-muted-foreground max-w-xl">
+                  Love what we&apos;re building? Chip in on Ko-fi so we can keep bringing new sharing tools to life for our community.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={openKoFiSupport}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground font-teko text-lg px-6 py-3 shadow-lg shadow-primary/20 transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label="Support Cassette on Ko-fi"
+            >
+              <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={20} height={20} className="rounded-full" />
+              <span>Support Us</span>
+            </button>
           </div>
         </motion.div>
 

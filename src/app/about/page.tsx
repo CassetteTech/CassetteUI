@@ -2,9 +2,11 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowRight,
   CassetteTape,
+  HeartHandshake,
   Link as LinkIcon,
   Music2,
   Radio,
@@ -16,6 +18,7 @@ import { AnimatedBackground } from "@/components/ui/animated-background";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileDemo } from "@/components/demo/profile-demo";
+import { openKoFiSupport, KOFI_ICON_SRC } from "@/lib/ko-fi";
 
 /**
  * About Page (Revamped)
@@ -284,6 +287,31 @@ export default function AboutPage() {
                 </div>
               </Link>
             </motion.div>
+          </div>
+        </section>
+
+        {/* Support CTA */}
+        <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 mt-16">
+          <div className="rounded-3xl border border-primary/30 bg-primary/10 backdrop-blur-sm shadow-xl p-6 sm:p-8 md:p-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div className="flex items-start gap-4 text-left">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <HeartHandshake className="h-6 w-6" />
+              </span>
+              <div>
+                <h3 className="font-teko text-2xl text-foreground mb-1">Fuel the Cassette Mission</h3>
+                <p className="text-muted-foreground max-w-2xl">
+                  We&apos;re an indie team building better ways to share music. If our story resonates, tap Support to send a Ko-fi.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={openKoFiSupport}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground font-teko text-lg px-6 py-3 shadow-lg shadow-primary/20 transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label="Support Cassette on Ko-fi"
+            >
+              <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={20} height={20} className="rounded-full" />
+              <span>Support Us</span>
+            </button>
           </div>
         </section>
 
@@ -606,6 +634,28 @@ export default function AboutPage() {
                   Join us to shape what comes next.
                 </p>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Supporters Showcase */}
+        <section className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 mt-20 md:mt-28">
+          <div className="rounded-3xl border border-border/50 bg-card/80 backdrop-blur-md shadow-xl p-0 overflow-hidden">
+            <div className="px-6 pt-6 pb-4 text-left">
+              <h3 className="font-teko text-2xl text-foreground">Buy the Team a Coffee</h3>
+              <p className="mt-2 text-muted-foreground text-sm">
+                Want a closer look? Use the embedded Ko-fi widget to pledge support without leaving the page.
+              </p>
+            </div>
+            <div className="bg-[#f9f9f9] px-2 pb-2">
+              <iframe
+                id="kofiframe"
+                src="https://ko-fi.com/cassettetech/?hidefeed=true&widget=true&embed=true&preview=true"
+                title="cassettetech"
+                className="w-full rounded-2xl"
+                height={712}
+                style={{ border: "none", background: "#f9f9f9" }}
+              />
             </div>
           </div>
         </section>

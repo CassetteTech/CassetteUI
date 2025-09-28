@@ -86,7 +86,11 @@ export class ProfileService {
       avatarUrl: typeof data.avatarUrl === 'string' ? data.avatarUrl : '',
       isOwnProfile: typeof isOwnProfileOverride === 'boolean'
         ? isOwnProfileOverride
-        : Boolean(data.isOwnProfile),
+        : typeof data.isOwnProfile === 'boolean'
+          ? data.isOwnProfile
+          : typeof data.isOwnProfile === 'string'
+            ? data.isOwnProfile.toLowerCase() === 'true'
+            : false,
       connectedServices,
     };
   }

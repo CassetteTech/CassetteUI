@@ -76,9 +76,7 @@ export default function OnboardingPage() {
 
   const handleFinish = async () => {
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5173';
-      
-      // Hard guard: if no token, bounce to signin
+     // Hard guard: if no token, bounce to signin
       const token = localStorage.getItem('access_token');
       if (!token) {
         alert('Your session expired. Please sign in again.');

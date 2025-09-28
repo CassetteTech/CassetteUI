@@ -3,8 +3,6 @@
 import { authFetch } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { AuthUser, SignInForm, SignUpForm, ConnectedService } from '@/types';
-import { log } from 'console';
-import { cacheTag } from 'next/dist/server/use-cache/cache-tag';
 
 // Use your local API URL for development
 const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5173';

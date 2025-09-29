@@ -1,6 +1,7 @@
 'use client';
 
 import { authFetch } from '@/lib/api';
+
 import { useAuthStore } from '@/stores/auth-store';
 import { AuthUser, SignInForm, SignUpForm, ConnectedService } from '@/types';
 
@@ -232,7 +233,8 @@ class AuthService {
     }
 
     this.setTokens(data.token, data.refreshToken);
-    const authUser = this.mapToAuthUser(data.user);
+    const fresh = await this.getCurrentUser().catch(() => null);
+    const authUser = fresh ? this.mapToAuthUser(fresh as any) : this.mapToAuthUser(data.user);
     useAuthStore.getState().setUser(authUser);
 
     return authUser;
@@ -248,6 +250,9 @@ class AuthService {
     // Fetch the user data using the new token
     console.log('🔄 [Auth] Fetching user data with new tokens...');
     const user = await this.getCurrentUser();
+
+    useAuthStore.getState().setUser(user);
+    try { localStorage.setItem('user_data', JSON.stringify(user)); } catch {}
     
     if (!user) {
       // Clear tokens if we couldn't get user data

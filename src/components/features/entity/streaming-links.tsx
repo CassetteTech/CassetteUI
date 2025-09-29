@@ -13,7 +13,7 @@ interface StreamingLinksProps {
   className?: string;
 }
 
-interface StreamingService {
+export interface StreamingService {
   name: string;
   icon: string;
   color: string;
@@ -21,7 +21,7 @@ interface StreamingService {
   borderColor: string;
 }
 
-const streamingServices: Record<string, StreamingService> = {
+export const streamingServices: Record<string, StreamingService> = {
   spotify: {
     name: 'Spotify',
     icon: '/images/spotify_logo_colored.png',

@@ -8,6 +8,7 @@ import { useAuthState } from '@/hooks/use-auth';
 import { Navbar } from './navbar';
 import { Footer } from './footer';
 import { clientConfig } from '@/lib/config-client';
+import { SupportFloatingButton } from './support-floating-button';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -50,7 +51,7 @@ export function Layout({ children }: LayoutProps) {
           <Navbar />
         </div>
       )}
-      <main className={`flex-1 ${showNavbar && !isProfilePage ? 'pt-16' : ''} ${showNavbar && isProfilePage ? 'pt-16 lg:pt-0' : ''}`}>
+      <main className={`flex-1 ${showNavbar && !isProfilePage && !isPostPage ? 'pt-16' : ''} ${showNavbar && isProfilePage ? 'pt-16 lg:pt-0' : ''}`}>
         {children}
       </main>
       {showFooter && (
@@ -58,6 +59,7 @@ export function Layout({ children }: LayoutProps) {
           <Footer />
         </div>
       )}
+      <SupportFloatingButton />
     </div>
   );
 }

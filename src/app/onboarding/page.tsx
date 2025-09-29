@@ -1,5 +1,6 @@
 'use client';
 
+import { authFetch } from '@/lib/api';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
@@ -75,8 +76,24 @@ export default function OnboardingPage() {
 
   const handleFinish = async () => {
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5173';
-      
+     // Hard guard: if no token, bounce to signin
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        alert('Your session expired. Please sign in again.');
+        router.replace('/auth/signin');
+        return;
+      }
+
+      // Soft guard: ensure server sees you as authenticated *now*
+      const ok = await verifySession();
+      if (!ok) {
+        alert('Your session is invalid or expired. Please sign in again.');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        router.replace('/auth/signin');
+        return;
+      }
+
       // Create FormData for file upload
       const form = new FormData();
       form.append('username', formData.username);
@@ -87,15 +104,11 @@ export default function OnboardingPage() {
       if (formData.avatarFile) {
         form.append('avatar', formData.avatarFile);
       }
-      
-      // Update user profile on the backend
-      const response = await fetch(`${API_URL}/api/v1/profile`, {
+
+      // Use authFetch so Authorization is attached correctly
+      const response = await authFetch('/api/v1/profile', {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          // Don't set Content-Type! Browser handles it automatically for FormData
-        },
-        body: form,
+        body: form, // no Content-Type here
       });
 
       if (!response.ok) {
@@ -128,6 +141,16 @@ export default function OnboardingPage() {
       // Update the auth store with the updated user (API returns user object in data.user)
       if (data.success && data.user) {
         setUser(data.user);
+
+        // Force a fresh session read so guards see the updated value
+        const res = await authFetch('/api/v1/auth/session', { method: 'GET' });
+        if (res.ok) {
+          const s = await res.json().catch(() => null);
+          if (s?.success && s.user) {
+            setUser(s.user);
+          }
+        }
+
         // Redirect to profile using the returned username
         router.replace(`/profile/${data.user.username}`);
       } else if (user) {
@@ -150,6 +173,13 @@ export default function OnboardingPage() {
       alert(`Failed to complete onboarding: ${errorMessage}`);
     }
   };
+
+  async function verifySession(): Promise<boolean> {
+    const res = await authFetch('/api/v1/auth/session');
+    if (!res.ok) return false;
+    const js = await res.json().catch(() => null);
+    return !!(js && js.success && js.user);
+  }
 
   const updateFormData = (updates: Partial<typeof formData>) => {
     setFormData(prev => ({ ...prev, ...updates }));

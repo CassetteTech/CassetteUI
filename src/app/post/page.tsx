@@ -18,6 +18,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { apiService } from '@/services/api';
 import { useMusicLinkConversion } from '@/hooks/use-music';
+import { useAuthState } from '@/hooks/use-auth';
 import { HeartHandshake } from 'lucide-react';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 
@@ -31,9 +32,36 @@ type IncomingDataTrack = {
   previewUrl?: string | null;
 };
 
+type JoinCassetteCTAProps = {
+  onClick: () => void;
+  className?: string;
+};
+
+function JoinCassetteCTA({ onClick, className }: JoinCassetteCTAProps) {
+  return (
+    <div className={`rounded-2xl border border-primary/30 bg-primary/5 p-6 text-center backdrop-blur-sm ${className ?? ''}`}>
+      <h3 className="text-lg font-semibold text-foreground">Create your free Cassette account</h3>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Save your conversions, build collections, and share music with friends once you sign up.
+      </p>
+      <div className="mt-5 flex justify-center">
+        <AnimatedButton
+          text="Create free account"
+          onClick={onClick}
+          height={48}
+          width={230}
+          initialPos={6}
+          textStyle="text-base font-bold tracking-wide font-atkinson"
+        />
+      </div>
+    </div>
+  );
+}
+
 function PostPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuthState();
   const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
@@ -43,6 +71,7 @@ function PostPageContent() {
   
   // Animation states
   const [dominantColor, setDominantColor] = useState<string | null>(null);
+  const handleSignupClick = () => router.push('/auth/signup');
   
   // Determine if this is from add-music page based on URL params
   const isFromAddMusic = searchParams.get('fromAddMusic') === 'true';
@@ -427,6 +456,7 @@ function PostPageContent() {
   const typeLabel = isTrack ? 'Track' : isAlbum ? 'Album' : isArtist ? 'Artist' : 'Playlist';
   const showTracks = (isAlbum || isPlaylist) && Array.isArray(postData?.tracks) && (postData.tracks?.length ?? 0) > 0;
   const useSplitScrollLayout = isDesktop && (isAlbum || isPlaylist);
+  const showSignupCTA = !isLoading && !isAuthenticated;
   
   
   return (
@@ -608,6 +638,12 @@ function PostPageContent() {
                         />
                       )}
                     </div>
+                  )}
+                  {showSignupCTA && (
+                    <JoinCassetteCTA
+                      onClick={handleSignupClick}
+                      className="mt-6 w-full max-w-xl"
+                    />
                   )}
                   {/* Report Problem (moved to left to keep right-only track list) */}
                   {(isAlbum || isPlaylist) && (
@@ -823,6 +859,9 @@ function PostPageContent() {
                             />
                           )}
                         </div>
+                        {showSignupCTA && (
+                          <JoinCassetteCTA onClick={handleSignupClick} />
+                        )}
                         {/* Support Us */}
                         <div className="p-5 rounded-2xl border border-primary/30 bg-primary/5 backdrop-blur-sm">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1120,6 +1159,9 @@ function PostPageContent() {
                   />
                 )}
               </div>
+              {showSignupCTA && (
+                <JoinCassetteCTA onClick={handleSignupClick} />
+              )}
               
               {/* Support Us */}
               <div className="p-5 rounded-2xl border border-primary/30 bg-primary/5 backdrop-blur-sm text-left">

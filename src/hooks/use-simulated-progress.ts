@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
 export type ContentType = 'track' | 'album' | 'artist' | 'playlist';
 
@@ -18,29 +18,32 @@ export interface ProgressState {
   currentStepName: string;
   statusMessage: string;
   isWaitingForApi: boolean;
+  progress: number;
+  elapsedMs: number;
+  estimatedTotalMs: number;
 }
 
-const STEP_CONFIGS = {
+const STEP_CONFIGS: Record<ContentType, Array<{ name: string; duration: number }>> = {
   track: [
-    { name: 'Finding track', duration: 800 },
-    { name: 'Matching Platforms', duration: 600 },
-    { name: 'Generating Smart Link', duration: 400 }
+    { name: 'Analyzing your link', duration: 1000 },
+    { name: 'Matching streaming services', duration: 1700 },
+    { name: 'Building your smart link', duration: 1200 }
   ],
   album: [
-    { name: 'Loading album', duration: 700 },
-    { name: 'Matching Platforms', duration: 800 },
-    { name: 'Generating Smart Link', duration: 500 }
+    { name: 'Analyzing album details', duration: 1100 },
+    { name: 'Matching streaming services', duration: 1900 },
+    { name: 'Arranging track list', duration: 1400 }
   ],
   artist: [
-    { name: 'Finding artist', duration: 900 },
-    { name: 'Matching Platforms', duration: 1500 },
-    { name: 'Generating Smart Link', duration: 800 }
+    { name: 'Finding artist profile', duration: 1000 },
+    { name: 'Collecting releases', duration: 1900 },
+    { name: 'Building your smart link', duration: 1300 }
   ],
   playlist: [
-    { name: 'Analyzing playlist', duration: 800 },
-    { name: 'Matching tracks', duration: 2000 },
-    { name: 'Generating Smart Link', duration: 700 },
-    { name: 'Finalizing', duration: 500 }
+    { name: 'Analyzing playlist', duration: 1300 },
+    { name: 'Matching tracks', duration: 2400 },
+    { name: 'Syncing artwork', duration: 1500 },
+    { name: 'Getting things ready', duration: 1300 }
   ]
 };
 
@@ -50,7 +53,12 @@ export const useSimulatedProgress = (
   apiComplete?: boolean
 ) => {
   const { contentType, estimatedCount = 10, baseDelay = 100 } = config;
-  
+  const totalPlannedDuration = useMemo(
+    () => STEP_CONFIGS[contentType].reduce((total, step) => total + step.duration, 0),
+    [contentType]
+  );
+  const firstStep = STEP_CONFIGS[contentType][0];
+
   const [state, setState] = useState<ProgressState>({
     currentStep: 0,
     totalSteps: STEP_CONFIGS[contentType].length,
@@ -58,21 +66,100 @@ export const useSimulatedProgress = (
     showTrackList: false,
     matchedCount: 0,
     isComplete: false,
-    currentStepName: STEP_CONFIGS[contentType][0].name,
-    statusMessage: `Converting ${contentType}...`,
-    isWaitingForApi: true
+    currentStepName: firstStep.name,
+    statusMessage: `${firstStep.name}...`,
+    isWaitingForApi: true,
+    progress: 6,
+    elapsedMs: 0,
+    estimatedTotalMs: totalPlannedDuration
   });
 
   const stepTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const trackMatchingIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const rapidCompletionRef = useRef<boolean>(false);
+  const progressIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const startTimeRef = useRef<number | null>(null);
+  const hasShownLongWaitMessageRef = useRef(false);
+
+  // Track elapsed time and keep the progress bar feeling alive
+  useEffect(() => {
+    startTimeRef.current = performance.now();
+    setState(prev => (
+      prev.estimatedTotalMs === totalPlannedDuration
+        ? prev
+        : { ...prev, estimatedTotalMs: totalPlannedDuration }
+    ));
+
+    const updateProgress = () => {
+      const start = startTimeRef.current ?? performance.now();
+      const elapsed = performance.now() - start;
+
+      setState(prev => {
+        if (prev.isComplete) {
+          return { ...prev, elapsedMs: elapsed };
+        }
+
+        const baseRatio = totalPlannedDuration > 0
+          ? Math.min(elapsed / totalPlannedDuration, 0.92)
+          : 0.92;
+        const overtime = elapsed > totalPlannedDuration
+          ? Math.min((elapsed - totalPlannedDuration) / 5000, 0.08)
+          : 0;
+        const nextProgress = Math.min(99.5, (baseRatio + overtime) * 100);
+
+        return {
+          ...prev,
+          elapsedMs: elapsed,
+          progress: nextProgress > prev.progress ? nextProgress : prev.progress
+        };
+      });
+    };
+
+    updateProgress();
+
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+
+    progressIntervalRef.current = setInterval(updateProgress, 150);
+
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = undefined;
+      }
+    };
+  }, [totalPlannedDuration]);
+
+  useEffect(() => {
+    if (state.isComplete && progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = undefined;
+    }
+  }, [state.isComplete]);
 
   // Smart step timing logic
-  const getStepDelay = useCallback((isLastStep: boolean, apiComplete: boolean) => {
-    if (apiComplete) return Math.random() * 900 + 100; // Random 0.1-1s when API is done
-    if (isLastStep && !apiComplete) return null; // Pause on last step without API
-    return Math.random() * 2500 + 500; // Random 0.5-3s otherwise
-  }, []);
+  const getStepDelay = useCallback((stepIndex: number, isLastStep: boolean, apiDone: boolean) => {
+    const step = STEP_CONFIGS[contentType][stepIndex];
+    if (!step) return 0;
+
+    if (apiDone) {
+      // When the API is already done we sprint through remaining steps for snappy completion
+      return Math.max(120, Math.min(step.duration * 0.35, 240));
+    }
+
+    if (isLastStep && !apiDone) {
+      // Hold on the final step until the API call finishes
+      return null;
+    }
+
+    const jitter = Math.min(400, step.duration * 0.25);
+    const offset = (Math.random() - 0.5) * 2 * jitter;
+    const candidate = step.duration + offset;
+
+    // Never let a step feel too short, even with a negative jitter
+    return Math.max(320, candidate);
+  }, [contentType]);
 
   // Simulate track matching progress for playlists only
   const simulateTrackMatching = useCallback(() => {
@@ -123,7 +210,7 @@ export const useSimulatedProgress = (
       
       // Don't schedule next step if in rapid completion mode
       if (!rapidCompletionRef.current) {
-        const delay = getStepDelay(isLastStep, apiComplete || false);
+        const delay = getStepDelay(nextStep, isLastStep, apiComplete || false);
         
         if (delay !== null) {
           // Schedule next step advancement
@@ -140,9 +227,7 @@ export const useSimulatedProgress = (
         ...prev,
         currentStep: nextStep,
         currentStepName: currentStepConfig.name,
-        statusMessage: isLastStep && !apiComplete ? 
-          'Taking longer than usual...' : 
-          currentStepConfig.name + '...',
+        statusMessage: `${currentStepConfig.name}...`,
         isWaitingForApi: !apiComplete
       };
     });
@@ -193,6 +278,33 @@ export const useSimulatedProgress = (
     }
   }, [apiComplete, state.isComplete, state.currentStep, state.totalSteps, enterRapidCompletionMode, advanceStep]);
 
+  useEffect(() => {
+    if (apiComplete) {
+      setState(prev => ({
+        ...prev,
+        progress: 100,
+        isWaitingForApi: false,
+        statusMessage: prev.isComplete ? prev.statusMessage : 'Finishing up your post...'
+      }));
+    }
+  }, [apiComplete]);
+
+  useEffect(() => {
+    if (
+      !apiComplete &&
+      !state.isComplete &&
+      !hasShownLongWaitMessageRef.current &&
+      state.elapsedMs > 5000 &&
+      (contentType !== 'playlist' || state.matchedCount >= estimatedCount)
+    ) {
+      hasShownLongWaitMessageRef.current = true;
+      setState(prev => ({
+        ...prev,
+        statusMessage: 'Still working, streaming services are taking a little longer than usual...'
+      }));
+    }
+  }, [apiComplete, state.isComplete, state.elapsedMs, state.matchedCount, contentType, estimatedCount]);
+
   // Start simulation
   useEffect(() => {
     // Progressive disclosure timeline
@@ -206,7 +318,11 @@ export const useSimulatedProgress = (
       }));
       
       // Start first step with smart timing
-      const delay = getStepDelay(false, apiComplete || false);
+      const delay = getStepDelay(
+        0,
+        STEP_CONFIGS[contentType].length === 1,
+        apiComplete || false
+      );
       if (delay !== null) {
         stepTimeoutRef.current = setTimeout(() => {
           advanceStep();

@@ -21,8 +21,20 @@ class SpotifyService {
     const clientId = serverConfig.spotify.clientId;
     const clientSecret = serverConfig.spotify.clientSecret;
 
+    // Log credential availability (without exposing sensitive data)
+    console.log('🔐 Spotify Config Check:', {
+      environment: process.env.NODE_ENV || 'unknown',
+      clientId: clientId ? `present (${clientId.length} chars)` : 'MISSING',
+      clientSecret: clientSecret ? `present (${clientSecret.length} chars)` : 'MISSING',
+    });
+
     if (!clientId || !clientSecret) {
-      throw new Error('Spotify credentials not configured. Please check your environment variables.');
+      const missing = [];
+      if (!clientId) missing.push('SPOTIFY_CLIENT_ID');
+      if (!clientSecret) missing.push('SPOTIFY_CLIENT_SECRET');
+      
+      console.error('❌ Spotify credentials missing:', missing.join(', '));
+      throw new Error(`Spotify credentials not configured. Missing: ${missing.join(', ')}`);
     }
 
     return { clientId, clientSecret };
@@ -34,13 +46,21 @@ class SpotifyService {
       const now = new Date();
       const bufferTime = new Date(now.getTime() + 5 * 60 * 1000); // 5 minute buffer
       if (this.tokenExpiryTime > bufferTime) {
+        console.log('🔄 Using cached Spotify token (expires:', this.tokenExpiryTime.toISOString(), ')');
         return this.accessToken;
+      } else {
+        console.log('🔄 Spotify token expired or expiring soon, fetching new token');
       }
+    } else {
+      console.log('🔄 No cached Spotify token, fetching new token');
     }
 
     const { clientId, clientSecret } = this.getConfig();
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
+    console.log('🔐 Requesting Spotify access token');
+    const startTime = Date.now();
+    
     const response = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
@@ -50,9 +70,17 @@ class SpotifyService {
       body: 'grant_type=client_credentials',
     });
 
+    const elapsedTime = Date.now() - startTime;
+
     if (!response.ok) {
-      console.error('Spotify token error:', response.status, await response.text());
-      throw new Error(`Failed to get Spotify access token: ${response.status}`);
+      const errorBody = await response.text();
+      console.error('❌ Spotify token error:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorBody.substring(0, 500),
+        elapsedTime: `${elapsedTime}ms`,
+      });
+      throw new Error(`Failed to get Spotify access token: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
@@ -61,7 +89,15 @@ class SpotifyService {
     const expiresIn = data.expires_in || 3600;
     this.tokenExpiryTime = new Date(Date.now() + (expiresIn - 60) * 1000);
     
+    console.log('✅ Spotify token obtained successfully:', {
+      tokenLength: this.accessToken?.length,
+      expiresIn: `${expiresIn}s`,
+      expiresAt: this.tokenExpiryTime.toISOString(),
+      elapsedTime: `${elapsedTime}ms`,
+    });
+    
     if (!this.accessToken) {
+      console.error('❌ No access token in Spotify response');
       throw new Error('Failed to obtain access token from Spotify');
     }
     
@@ -69,12 +105,28 @@ class SpotifyService {
   }
 
   async search(query: string): Promise<MusicSearchResult> {
-    const token = await this.getAccessToken();
+    console.log('🎵 Spotify search starting for query:', query);
+    console.log('🔁 Note: Spotify being used as fallback service');
+    const startTime = Date.now();
+    
+    let token: string;
+    try {
+      token = await this.getAccessToken();
+    } catch (error) {
+      console.error('❌ Failed to get Spotify token for search:', error);
+      throw error;
+    }
     
     const url = new URL('https://api.spotify.com/v1/search');
     url.searchParams.append('q', query);
     url.searchParams.append('type', 'track,artist,album');
     url.searchParams.append('limit', '10');
+
+    console.log('🌐 Spotify API request:', {
+      url: url.toString(),
+      tokenPresent: !!token,
+      tokenLength: token?.length,
+    });
 
     const response = await fetch(url.toString(), {
       headers: {
@@ -83,10 +135,24 @@ class SpotifyService {
       },
     });
 
+    const elapsedTime = Date.now() - startTime;
+
     if (!response.ok) {
-      console.error('Spotify search failed:', response.status, await response.text());
-      throw new Error(`Failed to search Spotify: ${response.status}`);
+      const errorBody = await response.text();
+      console.error('❌ Spotify search failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorBody.substring(0, 500),
+        elapsedTime: `${elapsedTime}ms`,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+      throw new Error(`Failed to search Spotify: ${response.status} ${response.statusText}`);
     }
+
+    console.log('✅ Spotify search successful:', {
+      status: response.status,
+      elapsedTime: `${elapsedTime}ms`,
+    });
 
     const data = await response.json();
     return this.transformSearchResults(data);

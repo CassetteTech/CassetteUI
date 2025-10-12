@@ -1,3 +1,5 @@
+/* eslint-disable react/no-unescaped-entities */
+
 export default function TermsPage() {
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
@@ -12,13 +14,13 @@ export default function TermsPage() {
           <a href="mailto:contact@cassette.tech">contact@cassette.tech</a>
         </p>
         <p>
-          <strong>Entity:</strong> "Cassette Technologies" ("Cassette", "we", "us", "our")
+          <strong>Entity:</strong> 'Cassette Technologies' ('Cassette', 'we', 'us', 'our')
         </p>
 
         <section>
           <h3>1) Acceptance of Terms</h3>
           <p>
-            By accessing cassette.tech or any related pages, creating an account, or generating MusicLinks or shareable profiles (collectively, the "Service"), you agree to these Terms of Service ("Terms"). If you do not agree, do not use the Service.
+            By accessing cassette.tech or any related pages, creating an account, or generating MusicLinks or shareable profiles (collectively, the 'Service'), you agree to these Terms of Service ('Terms'). If you do not agree, do not use the Service.
           </p>
         </section>
 
@@ -163,7 +165,7 @@ export default function TermsPage() {
         <section>
           <h3>13) Disclaimers</h3>
           <p>
-            THE SERVICE (AND ALL CONTENT AND LINKS) IS PROVIDED "AS IS" AND "AS AVAILABLE." WE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. WE DO NOT WARRANT CONTINUOUS, ERROR-FREE, OR SECURE OPERATION, OR THE AVAILABILITY OR ACCURACY OF THIRD-PARTY CONTENT OR LINKS.
+            THE SERVICE (AND ALL CONTENT AND LINKS) IS PROVIDED 'AS IS' AND 'AS AVAILABLE.' WE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. WE DO NOT WARRANT CONTINUOUS, ERROR-FREE, OR SECURE OPERATION, OR THE AVAILABILITY OR ACCURACY OF THIRD-PARTY CONTENT OR LINKS.
           </p>
         </section>
 

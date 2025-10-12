@@ -234,7 +234,7 @@ class AuthService {
 
     this.setTokens(data.token, data.refreshToken);
     const fresh = await this.getCurrentUser().catch(() => null);
-    const authUser = fresh ? this.mapToAuthUser(fresh as any) : this.mapToAuthUser(data.user);
+    const authUser = fresh ?? this.mapToAuthUser(data.user);
     useAuthStore.getState().setUser(authUser);
 
     return authUser;

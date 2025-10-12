@@ -34,6 +34,20 @@ export const ConversionProgress: React.FC<ConversionProgressProps> = ({
   // Run simulation with API completion tracking
   const progressState = useSimulatedProgress(simulationConfig, onComplete, apiComplete);
 
+  const typeLabel = contentInfo.type.charAt(0).toUpperCase() + contentInfo.type.slice(1);
+  const progressPercent = Math.max(6, Math.min(100, Math.round(progressState.progress)));
+  const onFinalStep = progressState.currentStep >= progressState.totalSteps - 1;
+  const hasExceededEstimate = progressState.elapsedMs > progressState.estimatedTotalMs + 750;
+  const stepLabel = `Step ${Math.min(progressState.currentStep + 1, progressState.totalSteps)} of ${progressState.totalSteps}`;
+  const rightLabel = progressState.isComplete
+    ? 'Ready to share'
+    : progressState.isWaitingForApi && onFinalStep && hasExceededEstimate
+      ? 'Waiting for streaming services...'
+      : stepLabel;
+  const leftLabel = progressState.isComplete
+    ? 'Conversion complete'
+    : progressState.currentStepName || 'Working on it';
+
 
 
   return (
@@ -79,7 +93,7 @@ export const ConversionProgress: React.FC<ConversionProgressProps> = ({
           
           <div className="space-y-2">
             <h1 className="text-lg font-bold text-foreground font-atkinson">
-              Converting
+              Converting {typeLabel}
             </h1>
             <p className="text-sm text-muted-foreground">
               {progressState.statusMessage}
@@ -101,6 +115,29 @@ export const ConversionProgress: React.FC<ConversionProgressProps> = ({
               }}
             />
           ))}
+        </div>
+
+        {/* Progress Bar */}
+        <div className="w-full max-w-xl space-y-2">
+          <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progressPercent}
+              className="h-full bg-primary transition-[width] duration-300 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
+            <span>{leftLabel}</span>
+            <span>{rightLabel}</span>
+          </div>
+          {!apiComplete && (
+            <div className="text-xs text-muted-foreground/80 text-center">
+              Most conversions finish in about 1-6 seconds.
+            </div>
+          )}
         </div>
 
         {/* Step Progress */}

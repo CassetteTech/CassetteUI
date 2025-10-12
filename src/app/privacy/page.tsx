@@ -1,3 +1,5 @@
+/* eslint-disable react/no-unescaped-entities */
+
 export default function PrivacyPage() {
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
@@ -13,13 +15,13 @@ export default function PrivacyPage() {
           <a href="mailto:contact@cassette.tech">contact@cassette.tech</a>)
         </p>
         <p>
-          <strong>Controller:</strong> Cassette Technologies ("Cassette", "we", "us") is the data controller for personal data described here.
+          <strong>Controller:</strong> Cassette Technologies ('Cassette', 'we', 'us') is the data controller for personal data described here.
         </p>
 
         <section>
           <h3>1) Scope</h3>
           <p>
-            This Privacy Policy ("Policy") explains how we collect, use, disclose, and protect personal information when you use cassette.tech and related features, including account creation, MusicLinks, public profiles, and streaming-service integrations.
+            This Privacy Policy ('Policy') explains how we collect, use, disclose, and protect personal information when you use cassette.tech and related features, including account creation, MusicLinks, public profiles, and streaming-service integrations.
           </p>
         </section>
 
@@ -80,7 +82,7 @@ export default function PrivacyPage() {
             <li>Parties to corporate transactions (merger, acquisition, financing, or sale of assets) subject to standard safeguards.</li>
           </ul>
           <p>
-            We do not sell your personal information for money. Where analytics or advertising cookies or SDKs are used, certain U.S. state laws (such as the CPRA) may treat that as a "sale" or "sharing" for targeted advertising; see Your Privacy Choices below.
+            We do not sell your personal information for money. Where analytics or advertising cookies or SDKs are used, certain U.S. state laws (such as the CPRA) may treat that as a 'sale' or 'sharing' for targeted advertising; see Your Privacy Choices below.
           </p>
         </section>
 
@@ -141,7 +143,7 @@ export default function PrivacyPage() {
               Exercise rights by emailing <a href="mailto:privacy@cassette.tech">privacy@cassette.tech</a> or via in-product controls.
             </li>
             <li>
-              <strong>Do Not Sell or Share / Opt-Out.</strong> Use the footer link "Do Not Sell or Share My Personal Information" or email us. We will honor opt-outs via the Global Privacy Control (GPC) signal where required.
+              <strong>Do Not Sell or Share / Opt-Out.</strong> Use the footer link 'Do Not Sell or Share My Personal Information' or email us. We will honor opt-outs via the Global Privacy Control (GPC) signal where required.
             </li>
             <li>We do not use or disclose sensitive personal information for purposes requiring a right to limit under the CPRA.</li>
           </ul>

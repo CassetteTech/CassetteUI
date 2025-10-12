@@ -38,6 +38,35 @@ export type ServerConfig = typeof serverConfig;
 
 // Validation function for server-only environment variables
 export function validateServerConfig() {
+  console.log('🔍 Validating server configuration...');
+  console.log('🌍 Environment Details:', {
+    NODE_ENV: process.env.NODE_ENV || 'not set',
+    isProduction: process.env.NODE_ENV === 'production',
+    isDevelopment: process.env.NODE_ENV === 'development',
+    platform: process.platform,
+    nodeVersion: process.version,
+  });
+
+  // Check all music API credentials
+  const musicApiStatus = {
+    spotify: {
+      clientId: serverConfig.spotify.clientId ? `present (${serverConfig.spotify.clientId.length} chars)` : 'MISSING',
+      clientSecret: serverConfig.spotify.clientSecret ? `present (${serverConfig.spotify.clientSecret.length} chars)` : 'MISSING',
+    },
+    appleMusic: {
+      keyId: serverConfig.appleMusic.keyId ? `present (${serverConfig.appleMusic.keyId.length} chars)` : 'MISSING',
+      teamId: serverConfig.appleMusic.teamId ? `present (${serverConfig.appleMusic.teamId.length} chars)` : 'MISSING',
+      privateKey: serverConfig.appleMusic.privateKey ? {
+        length: serverConfig.appleMusic.privateKey.length,
+        hasBeginMarker: serverConfig.appleMusic.privateKey.includes('-----BEGIN'),
+        hasEndMarker: serverConfig.appleMusic.privateKey.includes('-----END'),
+        preview: serverConfig.appleMusic.privateKey.substring(0, 50) + '...',
+      } : 'MISSING',
+    },
+  };
+
+  console.log('🎵 Music API Configuration Status:', musicApiStatus);
+
   const required = {
     'SUPABASE_SERVICE_ROLE_KEY': serverConfig.supabase.serviceRoleKey,
     'NEXTAUTH_SECRET': serverConfig.nextAuth.secret,
@@ -45,12 +74,38 @@ export function validateServerConfig() {
     'APPLE_MUSIC_PRIVATE_KEY': serverConfig.appleMusic.privateKey,
   };
 
+  const optional = {
+    'SPOTIFY_CLIENT_ID': serverConfig.spotify.clientId,
+    'APPLE_MUSIC_KEY_ID': serverConfig.appleMusic.keyId,
+    'APPLE_MUSIC_TEAM_ID': serverConfig.appleMusic.teamId,
+    'REPORT_WEBHOOK_URL': serverConfig.webhooks.reportUrl,
+  };
+
   const missing = Object.entries(required)
     .filter(([, value]) => !value || value.includes('placeholder'))
     .map(([key]) => key);
 
+  const missingOptional = Object.entries(optional)
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+
   if (missing.length > 0) {
-    console.warn(`Missing server-only environment variables: ${missing.join(', ')}`);
+    console.error(`❌ Missing REQUIRED server-only environment variables:`, missing);
+  } else {
+    console.log('✅ All required server environment variables are present');
+  }
+
+  if (missingOptional.length > 0) {
+    console.warn(`⚠️ Missing OPTIONAL environment variables (may affect some features):`, missingOptional);
+  }
+
+  // Log deployment info if available
+  if (process.env.VERCEL) {
+    console.log('🚀 Running on Vercel:', {
+      env: process.env.VERCEL_ENV,
+      region: process.env.VERCEL_REGION,
+      url: process.env.VERCEL_URL,
+    });
   }
 
   return missing.length === 0;

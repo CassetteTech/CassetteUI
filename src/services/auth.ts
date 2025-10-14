@@ -1,7 +1,5 @@
 'use client';
 
-import { authFetch } from '@/lib/api';
-
 import { useAuthStore } from '@/stores/auth-store';
 import { AuthUser, SignInForm, SignUpForm, ConnectedService } from '@/types';
 
@@ -97,20 +95,15 @@ class AuthService {
       
       // Add delay like Flutter to ensure state updates propagate
       await new Promise(resolve => setTimeout(resolve, 300));
-      return data;
-    } 
-
-    if (data.success && (!data.token || !data.user)) {
-      // Create a real session so the next route sees a valid bearer
-      const signedIn = await this.signIn({ email, password, acceptTerms: true });
-      return signedIn;
+    } else {
+      console.error('❌ [Auth] Invalid response structure:', data);
+      throw new Error('Invalid response from server');
     }
-  
-    throw new Error(data.message || 'Invalid response from server');
+
+    return data;
   }
 
   async signIn({ email, password, acceptTerms }: SignInForm) {
-    useAuthStore.getState().setUser(null);
     if (!acceptTerms) {
       throw new Error('Please agree to all the terms and conditions before Signing in');
     }
@@ -134,59 +127,36 @@ class AuthService {
 
     // Store tokens and user data
     this.setTokens(data.token, data.refreshToken);
-    // const normalizedUser = {
-    //   ...data.user,
-    //   userId: data.user.id || data.user.userId,
-    //   authUserId: data.user.authUserId,
-    //   isOnboarded: data.user.isOnboarded,
-    // };
+    const normalizedUser = {
+      ...data.user,
+      userId: data.user.id || data.user.userId,
+      authUserId: data.user.authUserId,
+    };
     
-    localStorage.setItem('user_data', JSON.stringify(data.user));
+    localStorage.setItem('user_data', JSON.stringify(normalizedUser));
+    
     // Update auth store
-    const authUser = this.mapToAuthUser(data.user);
-    console.log('isOnboarded', authUser.isOnboarded);
-    console.log('isOnboarded', data.user.IsOnboarded);
-    console.log('isOnboarded', data.user.isOnboarded);
-    console.log('IsOnboarded', data.user.isonboarded);
-    console.log('email', data.user.email);
-    console.log('username', authUser.username);
-    console.log('username', data.user.username);
-    console.log('displayName', authUser.displayName);
-    console.log('displayName', data.user.displayName);
-    console.log('profilePicture', authUser.profilePicture);
-    console.log('profilePicture', data.user.profilePicture);
-    console.log('isEmailVerified', authUser.isEmailVerified);
-    console.log('isEmailVerified', data.user.isEmailVerified);
-    console.log('createdAt', authUser.createdAt);
-    console.log('createdAt', data.user.createdAt);
-    console.log('updatedAt', authUser.updatedAt);
-    console.log('updatedAt', data.user.updatedAt);
-    console.log('connectedServices', authUser.connectedServices);
-    console.log('connectedServices', data.user.connectedServices);
-    console.log('token', data.token);
-    console.log('refreshToken', data.refreshToken);
-    useAuthStore.getState().setUser(authUser);
-    //useAuthStore.getState().setUser(this.mapToAuthUser(normalizedUser));
+    useAuthStore.getState().setUser(this.mapToAuthUser(normalizedUser));
 
     return data;
   }
 
   async signOut() {
-    // try {
-    //   // Call backend signout endpoint if available
-    //   const token = this.getAccessToken();
-    //   if (token) {
-    //     await fetch(`${API_URL}/api/v1/auth/signout`, {
-    //       method: 'POST',
-    //       headers: {
-    //         'Authorization': `Bearer ${token}`,
-    //         'Content-Type': 'application/json',
-    //       },
-    //     });
-    //   }
-    // } catch (error) {
-    //   console.error('Sign out API error:', error);
-    // }
+    try {
+      // Call backend signout endpoint if available
+      const token = this.getAccessToken();
+      if (token) {
+        await fetch(`${API_URL}/api/v1/auth/signout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Sign out API error:', error);
+    }
 
     // Clear local storage and update store
     this.clearTokens();
@@ -311,8 +281,6 @@ class AuthService {
     // Handle both camelCase and PascalCase field names from backend
     const userId = userData.userId || userData.UserId || userData.id;
     const username = userData.username || userData.Username;
-
-    console.log('userData', userData);
     
     return {
       id: String(userId || ''),
@@ -331,17 +299,42 @@ class AuthService {
 
   async getCurrentUser(): Promise<AuthUser | null> {
     const token = this.getAccessToken();
-    if (!token) return null;
-  
+    if (!token) {
+      console.log('🔄 [Auth] No access token found');
+      return null;
+    }
+
     try {
-      const response = await authFetch(`/api/v1/auth/session`); // <— use wrapper
+      console.log('🔄 [Auth] Fetching current user session');
+      const response = await fetch(`${API_URL}/api/v1/auth/session`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('✅ [Auth] Session response:', response.status, response.statusText);
+
       if (!response.ok) {
+        // Try to refresh token
+        console.log('🔄 [Auth] Session failed, attempting token refresh');
         const refreshed = await this.refreshSession();
-        return refreshed ? this.getCurrentUser() : null;
+        if (refreshed) {
+          return this.getCurrentUser();
+        }
+        return null;
       }
+
       const data = await response.json();
-      return (data.success && data.user) ? this.mapToAuthUser(data.user) : null;
-    } catch {
+      console.log('📦 [Auth] Session data:', data);
+      
+      if (data.success && data.user) {
+        return this.mapToAuthUser(data.user);
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Get current user error:', error);
       return null;
     }
   }
@@ -358,9 +351,6 @@ class AuthService {
         },
         body: JSON.stringify({ token: refreshToken }),
       });
-
-      console.log('🔄 [Auth] Refresh response:', response);
-      console.log('🔄 [Auth] Body:', response.body);
 
       const data = await response.json();
 

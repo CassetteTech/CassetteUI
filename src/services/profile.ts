@@ -1,21 +1,57 @@
-import { UserBio, PaginatedActivityResponse } from '@/types';
+import { clientConfig } from '@/lib/config-client';
+import { ActivityPost, PaginatedActivityResponse, UserBio } from '@/types';
+
+interface ActivityItemPayload {
+  postId: string;
+  elementType: string;
+  title: string;
+  subtitle?: string;
+  imageUrl?: string;
+  username: string;
+  userId: string;
+  createdAt: string;
+}
+
+interface ActivityApiResponse {
+  items?: ActivityItemPayload[];
+  page?: number;
+  totalItems?: number;
+  totalPages?: number;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
+}
 
 export class ProfileService {
   private bioCache = new Map<string, { bio: UserBio; timestamp: number }>();
   private activityCache = new Map<string, { activity: PaginatedActivityResponse; timestamp: number }>();
   private readonly cacheDuration = 5 * 60 * 1000; // 5 minutes
+  private readonly apiBaseUrl = clientConfig.api.url;
+
+  private buildApiUrl(path: string) {
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const baseUrl = this.apiBaseUrl?.trim();
+
+    // Some environments set NEXT_PUBLIC_API_URL to literal "undefined"/"null".
+    if (!baseUrl || baseUrl === 'undefined' || baseUrl === 'null') {
+      return normalizedPath;
+    }
+
+    const base = baseUrl.replace(/\/+$/, '');
+    return `${base}${normalizedPath}`;
+  }
 
   async fetchUserBio(userIdentifier: string): Promise<UserBio> {
     try {
-      // Handle edit path
-      const path = userIdentifier === 'edit' 
-        ? '/api/v1.0/profile/edit/bio' 
-        : `/api/v1.0/profile/${userIdentifier}/bio`;
+      const path =
+        userIdentifier === 'edit'
+          ? '/api/v1.0/profile/edit/bio'
+          : `/api/v1.0/profile/${userIdentifier}/bio`;
 
-      console.log('🔍 Fetching bio from:', path);
-      
-      // Use the existing apiService request method
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL_LOCAL}${path}`, {
+      const url = this.buildApiUrl(path);
+
+      console.log('dY"? Fetching bio from:', url);
+
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -26,15 +62,17 @@ export class ProfileService {
       if (response.status === 200) {
         const data = await response.json();
         return data as UserBio;
-      } else if (response.status === 404) {
-        console.log('❌ User not found:', userIdentifier);
-        throw new Error('User not found');
-      } else {
-        console.log('❌ Error fetching bio:', response.status);
-        throw new Error('Failed to load profile');
       }
+
+      if (response.status === 404) {
+        console.log('�?O User not found:', userIdentifier);
+        throw new Error('User not found');
+      }
+
+      console.log('�?O Error fetching bio:', response.status);
+      throw new Error('Failed to load profile');
     } catch (e) {
-      console.log('❌ Bio fetch error:', e);
+      console.log('�?O Bio fetch error:', e);
       throw e;
     }
   }
@@ -45,15 +83,17 @@ export class ProfileService {
       page?: number;
       pageSize?: number;
       elementType?: string;
-    } = {}
+    } = {},
   ): Promise<PaginatedActivityResponse> {
     try {
       const { page = 1, pageSize = 20, elementType } = options;
-      
-      // Handle edit path
-      const path = userIdentifier === 'edit'
-        ? '/api/v1.0/profile/edit/activity'
-        : `/api/v1.0/profile/${userIdentifier}/activity`;
+
+      const path =
+        userIdentifier === 'edit'
+          ? '/api/v1.0/profile/edit/activity'
+          : `/api/v1.0/profile/${userIdentifier}/activity`;
+
+      const url = this.buildApiUrl(path);
 
       const queryParams = new URLSearchParams({
         page: page.toString(),
@@ -64,11 +104,11 @@ export class ProfileService {
         queryParams.append('elementType', elementType);
       }
 
-      const url = `${process.env.NEXT_PUBLIC_API_URL_LOCAL}${path}?${queryParams}`;
-      
-      console.log('🔍 Fetching activity from:', url);
-      
-      const response = await fetch(url, {
+      const requestUrl = `${url}?${queryParams}`;
+
+      console.log('dY"? Fetching activity from:', requestUrl);
+
+      const response = await fetch(requestUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -77,10 +117,9 @@ export class ProfileService {
       });
 
       if (response.status === 200) {
-        const json = await response.json();
-        return {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          items: json.items?.map((item: any) => ({
+        const json = (await response.json()) as ActivityApiResponse;
+        const items: ActivityPost[] =
+          json.items?.map((item) => ({
             postId: item.postId,
             elementType: item.elementType,
             title: item.title,
@@ -89,22 +128,27 @@ export class ProfileService {
             username: item.username,
             userId: item.userId,
             createdAt: item.createdAt,
-          })) || [],
+          })) ?? [];
+
+        return {
+          items,
           page: json.page || page,
           totalItems: json.totalItems || 0,
           totalPages: json.totalPages || 0,
           hasNext: json.hasNext || false,
           hasPrevious: json.hasPrevious || false,
         };
-      } else if (response.status === 404) {
-        console.log('❌ User not found:', userIdentifier);
-        throw new Error('User not found');
-      } else {
-        console.log('❌ Error fetching activity:', response.status);
-        throw new Error('Failed to load activity');
       }
+
+      if (response.status === 404) {
+        console.log('�?O User not found:', userIdentifier);
+        throw new Error('User not found');
+      }
+
+      console.log('�?O Error fetching activity:', response.status);
+      throw new Error('Failed to load activity');
     } catch (e) {
-      console.log('❌ Activity fetch error:', e);
+      console.log('�?O Activity fetch error:', e);
       throw e;
     }
   }
@@ -112,7 +156,7 @@ export class ProfileService {
   // Convenience methods for specific element types
   async fetchUserTracks(
     userIdentifier: string,
-    options: { page?: number; pageSize?: number } = {}
+    options: { page?: number; pageSize?: number } = {},
   ): Promise<PaginatedActivityResponse> {
     return this.fetchUserActivity(userIdentifier, {
       ...options,
@@ -122,7 +166,7 @@ export class ProfileService {
 
   async fetchUserAlbums(
     userIdentifier: string,
-    options: { page?: number; pageSize?: number } = {}
+    options: { page?: number; pageSize?: number } = {},
   ): Promise<PaginatedActivityResponse> {
     return this.fetchUserActivity(userIdentifier, {
       ...options,
@@ -132,7 +176,7 @@ export class ProfileService {
 
   async fetchUserArtists(
     userIdentifier: string,
-    options: { page?: number; pageSize?: number } = {}
+    options: { page?: number; pageSize?: number } = {},
   ): Promise<PaginatedActivityResponse> {
     return this.fetchUserActivity(userIdentifier, {
       ...options,
@@ -142,7 +186,7 @@ export class ProfileService {
 
   async fetchUserPlaylists(
     userIdentifier: string,
-    options: { page?: number; pageSize?: number } = {}
+    options: { page?: number; pageSize?: number } = {},
   ): Promise<PaginatedActivityResponse> {
     return this.fetchUserActivity(userIdentifier, {
       ...options,
@@ -157,7 +201,9 @@ export class ProfileService {
     avatarUrl?: string;
   }): Promise<void> {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL_LOCAL}/api/v1.0/user/profile`, {
+      const url = this.buildApiUrl('/api/v1.0/user/profile');
+
+      const response = await fetch(url, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -181,7 +227,9 @@ export class ProfileService {
 
   async checkUsernameAvailability(username: string): Promise<boolean> {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL_LOCAL}/api/v1.0/user/check-username/${username}`, {
+      const url = this.buildApiUrl(`/api/v1.0/user/check-username/${username}`);
+
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -195,7 +243,7 @@ export class ProfileService {
       }
       return false;
     } catch (e) {
-      console.log('❌ Error checking username availability:', e);
+      console.log('�?O Error checking username availability:', e);
       return false;
     }
   }

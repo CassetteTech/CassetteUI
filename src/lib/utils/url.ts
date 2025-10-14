@@ -40,11 +40,17 @@ export function getCallbackUrl(path: string): string {
  * Get the API base URL for external service calls
  */
 export function getApiUrl(): string {
+  const sanitize = (value: string | undefined) => {
+    const trimmed = value?.trim();
+    return trimmed && trimmed !== 'undefined' && trimmed !== 'null' ? trimmed : undefined;
+  };
+
   // Check if we have a local API URL set - this takes precedence for local development
-  if (process.env.NEXT_PUBLIC_API_URL_LOCAL) {
-    return process.env.NEXT_PUBLIC_API_URL_LOCAL;
+  const localUrl = sanitize(process.env.NEXT_PUBLIC_API_URL_LOCAL);
+  if (localUrl) {
+    return localUrl;
   }
   
   // If no local URL is set, use the production URL
-  return process.env.NEXT_PUBLIC_API_URL || 'https://nm2uheummh.us-east-1.awsapprunner.com';
+  return sanitize(process.env.NEXT_PUBLIC_API_URL) || 'https://nm2uheummh.us-east-1.awsapprunner.com';
 }

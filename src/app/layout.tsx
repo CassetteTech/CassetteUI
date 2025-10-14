@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Roboto_Flex, Atkinson_Hyperlegible, Teko } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
@@ -33,7 +33,6 @@ export const metadata: Metadata = {
   description: "Share your favorite music across all platforms. Connect with friends and discover new tunes.",
   keywords: ["music", "social", "spotify", "apple music", "deezer", "sharing"],
   authors: [{ name: "Cassette Team" }],
-  viewport: "width=device-width, initial-scale=1",
   openGraph: {
     title: "Cassette - Share Your Music",
     description: "Share your favorite music across all platforms. Connect with friends and discover new tunes.",
@@ -45,6 +44,11 @@ export const metadata: Metadata = {
     title: "Cassette - Share Your Music",
     description: "Share your favorite music across all platforms. Connect with friends and discover new tunes.",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

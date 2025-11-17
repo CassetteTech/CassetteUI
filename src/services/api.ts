@@ -1,4 +1,4 @@
-import { config } from '@/lib/config';
+import { clientConfig } from '@/lib/config-client';
 import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType, MediaListTrack } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 
@@ -13,13 +13,13 @@ interface MusicConnection {
 }
 
 class ApiService {
-  private baseUrl = config.api.url;
+  private baseUrl = clientConfig.api.url;
 
   constructor() {
     console.log('🔧 API Service initialized with URL:', this.baseUrl);
     console.log('🔧 Environment:', process.env.NODE_ENV);
     console.log('🔧 NEXT_PUBLIC_API_URL_LOCAL:', process.env.NEXT_PUBLIC_API_URL_LOCAL);
-    console.log('🔧 Config:', config.api);
+    console.log('🔧 Config:', clientConfig.api);
   }
 
   private async getAuthHeaders() {
@@ -361,7 +361,7 @@ class ApiService {
 
   // Lambda warmup
   async warmupLambdas() {
-    if (!config.features.enableLambdaWarmup) return;
+    if (!clientConfig.features.enableLambdaWarmup) return;
     
     try {
       return this.request('/api/v1/warmup', { method: 'POST' });

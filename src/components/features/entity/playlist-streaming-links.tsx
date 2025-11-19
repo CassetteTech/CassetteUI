@@ -2,6 +2,7 @@ import React from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { streamingServices } from './streaming-links';
+import { apiService } from '@/services/api';
 
 interface PlaylistStreamingLinksProps {
   links: {
@@ -10,6 +11,7 @@ interface PlaylistStreamingLinksProps {
     deezer?: string;
   };
   className?: string;
+  playlistId: string;
 }
 
 // Buttons always rendered for playlists: Spotify, Apple Music, Deezer
@@ -19,7 +21,7 @@ const PLATFORMS: Array<'spotify' | 'appleMusic' | 'deezer'> = [
   'deezer',
 ];
 
-export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({ links, className }) => {
+export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({ links, className, playlistId }) => {
   return (
     <div
       className={cn(
@@ -31,6 +33,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({ 
       <div className="flex flex-wrap gap-2 justify-center">
         {PLATFORMS.map((platform) => {
           const url = links[platform];
+          console.log('url', url);
           const service = streamingServices[platform];
           if (!service) return null;
 
@@ -40,7 +43,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({ 
             'px-4 py-2.5 rounded-full transition-all duration-200',
             'border-2 border-foreground/60 text-foreground',
             'bg-card/80 hover:bg-card text-sm font-medium backdrop-blur-sm',
-            url ? 'hover:scale-105 hover:shadow-lg cursor-pointer' : 'opacity-70 cursor-default',
+            // url ? 'hover:scale-105 hover:shadow-lg cursor-pointer' : 'opacity-70 cursor-default',
           );
 
           return url ? (
@@ -62,7 +65,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({ 
               type="button"
               className={commonClasses}
               onClick={() => {
-                // Placeholder action; to be wired to an API call later
+                apiService.createPlaylist(playlistId, platform.toLowerCase());
               }}
             >
               <div className="relative w-4 h-4 mr-2">

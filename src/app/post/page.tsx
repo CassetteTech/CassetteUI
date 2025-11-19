@@ -62,7 +62,7 @@ function PostPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuthState();
-  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; } | null>(null);
+  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
   
@@ -234,7 +234,7 @@ function PostPageContent() {
             const artworkVal = response.details?.coverArtUrl || response.details?.imageUrl || (response as unknown as { imageUrl?: string }).imageUrl || '';
             const durationVal = response.metadata?.duration || response.details?.duration || '';
 
-            const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; } = {
+            const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; } = {
               originalUrl: response.originalLink || '',
               convertedUrls: {},
               metadata: {
@@ -254,8 +254,11 @@ function PostPageContent() {
                 : (response as unknown as { numberOfTracks?: number }).numberOfTracks,
               details: {
                 artists: response.details?.artists || []
-              }
+              },
+              musicElementId: response.musicElementId || ''
             };
+            console.log('originalUrl', transformedData.originalUrl);
+            console.log('convertedUrls', transformedData.convertedUrls);
 
             // Map album/playlist track data when available for album/playlist view
             type ApiAlbumTrack = {
@@ -446,8 +449,10 @@ function PostPageContent() {
       </div>
     );
   }
+  console.log('postData', postData);
   
   const { metadata, convertedUrls } = postData as MusicLinkConversion;
+  console.log('convertedUrls', convertedUrls);
   // Derive clear flags for how to render the page based on content type
   const isTrack = metadata.type === ElementType.TRACK; // only true for tracks
   const isAlbum = metadata.type === ElementType.ALBUM; // album-specific layout bits
@@ -630,6 +635,7 @@ function PostPageContent() {
                         <PlaylistStreamingLinks
                           links={convertedUrls}
                           className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                          playlistId={postData?.musicElementId || ''}
                         />
                       ) : (
                         <StreamingLinks 
@@ -851,6 +857,7 @@ function PostPageContent() {
                             <PlaylistStreamingLinks
                               links={convertedUrls}
                               className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                              playlistId={postData?.musicElementId || ''}
                             />
                           ) : (
                             <StreamingLinks 
@@ -1151,6 +1158,7 @@ function PostPageContent() {
                   <PlaylistStreamingLinks
                     links={convertedUrls}
                     className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                    playlistId={postData?.musicElementId || ''}
                   />
                 ) : (
                   <StreamingLinks 

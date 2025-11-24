@@ -1,13 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 
 import { motion, AnimatePresence } from "framer-motion";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CassetteTape, Github, Linkedin, Mail, Twitter, ChevronDown, Code, TrendingUp, DollarSign, Briefcase, Palette, Users, Zap, X, HeartHandshake } from "lucide-react";
+import { CassetteTape, Github, Linkedin, Mail, Twitter, ChevronDown, Code, TrendingUp, DollarSign, Briefcase, Palette, Users, Zap, X, HeartHandshake, Sparkles, Rocket, Target, ArrowRight } from "lucide-react";
 import Tilt from "react-vanilla-tilt";
 import Image from "next/image";
+import Link from "next/link";
 import { openKoFiSupport, KOFI_ICON_SRC } from "@/lib/ko-fi";
 
 const teamMembers = [
@@ -173,81 +174,137 @@ export default function TeamPage() {
     };
   }, [expandedMember]);
 
+  type TeamCategory = 'all' | 'cofounder' | 'engineer' | 'marketer' | 'investor';
+  const [activeCategory, setActiveCategory] = useState<TeamCategory>('all');
+
   const getTypeConfig = (type: string) => {
     switch (type) {
       case 'cofounder':
         return {
-          bgClass: 'from-red-500 to-pink-500',
-          iconBg: 'bg-red-500/10',
-          iconColor: 'text-red-500',
-          borderColor: 'border-red-500/20',
-          hoverBg: 'hover:bg-red-500/5'
+          bgClass: 'from-primary to-accent',
+          iconBg: 'bg-primary/10',
+          iconColor: 'text-primary',
+          borderColor: 'border-primary/20',
+          hoverBg: 'hover:bg-primary/5',
+          label: 'Co-Founders',
+          icon: Rocket
         };
       case 'engineer':
         return {
-          bgClass: 'from-blue-500 to-cyan-500',
-          iconBg: 'bg-blue-500/10',
-          iconColor: 'text-blue-500',
-          borderColor: 'border-blue-500/20',
-          hoverBg: 'hover:bg-blue-500/5'
+          bgClass: 'from-accent to-secondary',
+          iconBg: 'bg-accent/10',
+          iconColor: 'text-accent',
+          borderColor: 'border-accent/20',
+          hoverBg: 'hover:bg-accent/5',
+          label: 'Engineers',
+          icon: Code
         };
       case 'marketer':
         return {
-          bgClass: 'from-green-500 to-emerald-500',
-          iconBg: 'bg-green-500/10',
-          iconColor: 'text-green-500',
-          borderColor: 'border-green-500/20',
-          hoverBg: 'hover:bg-green-500/5'
+          bgClass: 'from-secondary to-primary',
+          iconBg: 'bg-secondary/10',
+          iconColor: 'text-secondary',
+          borderColor: 'border-secondary/20',
+          hoverBg: 'hover:bg-secondary/5',
+          label: 'Marketing',
+          icon: TrendingUp
         };
       case 'investor':
         return {
-          bgClass: 'from-yellow-500 to-orange-500',
-          iconBg: 'bg-yellow-500/10',
-          iconColor: 'text-yellow-600',
-          borderColor: 'border-yellow-500/20',
-          hoverBg: 'hover:bg-yellow-500/5'
+          bgClass: 'from-primary/80 to-accent/80',
+          iconBg: 'bg-primary/10',
+          iconColor: 'text-primary',
+          borderColor: 'border-primary/20',
+          hoverBg: 'hover:bg-primary/5',
+          label: 'Advisors',
+          icon: Target
         };
       default:
         return {
-          bgClass: 'from-gray-500 to-gray-600',
-          iconBg: 'bg-gray-500/10',
-          iconColor: 'text-gray-500',
-          borderColor: 'border-gray-500/20',
-          hoverBg: 'hover:bg-gray-500/5'
+          bgClass: 'from-muted to-muted-foreground',
+          iconBg: 'bg-muted/10',
+          iconColor: 'text-muted-foreground',
+          borderColor: 'border-border',
+          hoverBg: 'hover:bg-muted/5',
+          label: 'Team',
+          icon: Users
         };
     }
   };
 
+  const filteredMembers = activeCategory === 'all'
+    ? teamMembers
+    : teamMembers.filter(member => member.type === activeCategory);
+
+  const categories = [
+    { id: 'all' as TeamCategory, label: 'All Team', icon: Users, count: teamMembers.length },
+    { id: 'cofounder' as TeamCategory, label: 'Co-Founders', icon: Rocket, count: teamMembers.filter(m => m.type === 'cofounder').length },
+    { id: 'engineer' as TeamCategory, label: 'Engineers', icon: Code, count: teamMembers.filter(m => m.type === 'engineer').length },
+    { id: 'marketer' as TeamCategory, label: 'Marketing', icon: TrendingUp, count: teamMembers.filter(m => m.type === 'marketer').length },
+    { id: 'investor' as TeamCategory, label: 'Advisors', icon: Target, count: teamMembers.filter(m => m.type === 'investor').length },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 relative overflow-hidden">
+    <div className="min-h-screen surface-bottom relative overflow-hidden">
       <AnimatedBackground />
-      
+
       {/* Floating Cassettes with enhanced styling */}
-      <div className="absolute top-20 left-10 opacity-30">
+      <div className="absolute top-20 left-10 opacity-20 hidden md:block">
         <motion.div
-          initial={{ rotate: 0, scale: 0.8 }}
-          animate={{ rotate: 12, scale: 1 }}
-          transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
+          initial={{ rotate: 0, scale: 0.8, y: 0 }}
+          animate={{ rotate: 12, scale: 1, y: [0, -20, 0] }}
+          transition={{ duration: 4, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
         >
-          <CassetteTape className="text-primary drop-shadow-lg" size={48} />
+          <CassetteTape className="text-primary elev-2" size={48} />
         </motion.div>
       </div>
-      <div className="absolute bottom-40 right-16 opacity-20">
+      <div className="absolute bottom-40 right-16 opacity-15 hidden md:block">
         <motion.div
-          initial={{ rotate: 0, scale: 0.9 }}
-          animate={{ rotate: -6, scale: 1.1 }}
-          transition={{ duration: 3, repeat: Infinity, repeatType: "reverse" }}
+          initial={{ rotate: 0, scale: 0.9, y: 0 }}
+          animate={{ rotate: -6, scale: 1.1, y: [0, 20, 0] }}
+          transition={{ duration: 5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
         >
-          <CassetteTape className="text-accent drop-shadow-lg" size={64} />
+          <CassetteTape className="text-accent elev-2" size={64} />
         </motion.div>
       </div>
-      
-      {/* Additional floating elements */}
-      <div className="absolute top-1/3 right-1/4 opacity-10">
-        <div className="w-32 h-32 bg-gradient-to-r from-primary to-accent rounded-full blur-xl"></div>
+      <div className="absolute top-1/2 right-10 opacity-10 hidden lg:block">
+        <motion.div
+          initial={{ rotate: 0, scale: 0.7, x: 0 }}
+          animate={{ rotate: 8, scale: 0.9, x: [0, 15, 0] }}
+          transition={{ duration: 6, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+        >
+          <CassetteTape className="text-secondary elev-2" size={56} />
+        </motion.div>
       </div>
-      <div className="absolute bottom-1/3 left-1/4 opacity-10">
-        <div className="w-24 h-24 bg-gradient-to-r from-accent to-primary rounded-full blur-2xl"></div>
+
+      {/* Additional ambient gradient orbs */}
+      <div className="absolute top-1/3 right-1/4 opacity-[0.06]">
+        <motion.div
+          className="w-32 h-32 bg-gradient-to-r from-primary to-accent rounded-full blur-3xl"
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.06, 0.08, 0.06]
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        ></motion.div>
+      </div>
+      <div className="absolute bottom-1/3 left-1/4 opacity-[0.06]">
+        <motion.div
+          className="w-24 h-24 bg-gradient-to-r from-accent to-secondary rounded-full blur-3xl"
+          animate={{
+            scale: [1, 1.3, 1],
+            opacity: [0.06, 0.09, 0.06]
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        ></motion.div>
       </div>
       
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
@@ -256,44 +313,100 @@ export default function TeamPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="text-center mb-20"
+          className="text-center mb-24"
         >
           <motion.div
             initial={{ scale: 0.8, rotate: -5 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="inline-block mb-6"
+            className="inline-block mb-8"
           >
-            <div className="bg-gradient-to-r from-primary to-secondary p-4 rounded-full shadow-lg">
-              <CassetteTape className="text-foreground" size={48} />
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-2xl opacity-30"></div>
+              <div className="relative bg-gradient-to-r from-primary to-secondary p-5 rounded-full elev-2 bordered-glow">
+                <CassetteTape className="text-foreground" size={52} />
+              </div>
             </div>
           </motion.div>
-          
-          <h1 className="font-teko text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-4 tracking-wide">
-            Meet the Team Behind <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Cassette</span>
+
+          <h1 className="font-teko text-5xl sm:text-6xl lg:text-7xl font-bold text-foreground mb-6 tracking-tight leading-none">
+            Meet the Team Behind{" "}
+            <span className="text-gradient inline-block">Cassette</span>
           </h1>
-          <p className="font-roboto text-xl sm:text-2xl text-muted-foreground max-w-3xl mx-auto">
-            We&apos;re music obsessives, developers, and creators united by a shared mission: making music universal again.
+          <p className="font-roboto text-xl sm:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed mb-12">
+            We&apos;re music obsessives, developers, and creators united by a shared mission:{" "}
+            <span className="text-foreground font-medium">making music universal again</span>.
           </p>
+
+          {/* Team Stats */}
+          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
+            <motion.div
+              className="text-center"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+            >
+              <div className="font-teko text-4xl sm:text-5xl font-bold text-gradient mb-1">7</div>
+              <div className="font-roboto text-sm text-muted-foreground uppercase tracking-wider">Team Members</div>
+            </motion.div>
+            <div className="hidden sm:block w-px h-12 bg-border"></div>
+            <motion.div
+              className="text-center"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.6 }}
+            >
+              <div className="font-teko text-4xl sm:text-5xl font-bold text-gradient mb-1">65K+</div>
+              <div className="font-roboto text-sm text-muted-foreground uppercase tracking-wider">Users Served</div>
+            </motion.div>
+            <div className="hidden sm:block w-px h-12 bg-border"></div>
+            <motion.div
+              className="text-center"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.7 }}
+            >
+              <div className="font-teko text-4xl sm:text-5xl font-bold text-gradient mb-1">∞</div>
+              <div className="font-roboto text-sm text-muted-foreground uppercase tracking-wider">Music Connections</div>
+            </motion.div>
+          </div>
+
+          {/* Decorative line */}
+          <div className="mt-12 flex items-center justify-center gap-3">
+            <div className="h-[2px] w-16 bg-gradient-to-r from-transparent via-primary to-transparent"></div>
+            <CassetteTape className="text-primary" size={16} />
+            <div className="h-[2px] w-16 bg-gradient-to-r from-transparent via-primary to-transparent"></div>
+          </div>
         </motion.div>
 
-        {/* Mission Statement */}
+        {/* Who We Are */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="mb-20"
+          className="mb-24"
         >
-          <div className="bg-gradient-to-r from-primary/10 to-accent/10 border border-border/30 rounded-3xl p-8 md:p-12 backdrop-blur-sm shadow-xl">
-            <div className="text-center max-w-4xl mx-auto">
-              <h2 className="font-teko text-3xl sm:text-4xl font-bold text-foreground mb-6">
-                Our Mission
-              </h2>
-              <p className="font-roboto text-lg text-muted-foreground leading-relaxed">
-                Every day, millions of music lovers face the same frustration: sharing their passion across different streaming platforms. 
-                We believe music should connect people, not divide them. That&apos;s why we built Cassette—to tear down the walls between 
-                streaming services and create a world where your taste can be shared anywhere, anytime.
-              </p>
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 mb-5 px-4 py-2 rounded-full surface-middle elev-1">
+              <Users size={16} className="text-accent" />
+              <span className="font-teko text-sm tracking-wider text-accent uppercase">Who We Are</span>
+            </div>
+            <h2 className="font-teko text-4xl sm:text-5xl font-bold text-foreground mb-6 leading-tight">
+              Music Lovers Building for{" "}
+              <span className="text-gradient">Music Lovers</span>
+            </h2>
+            <p className="font-roboto text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+              We&apos;re developers, marketers, and creators who share one frustration:{" "}
+              <span className="text-foreground font-medium">music streaming platforms divide us</span>. So we built Cassette to bring everyone together.
+            </p>
+            <div className="mt-8">
+              <Link
+                href="/about"
+                className="inline-flex items-center gap-2 text-primary hover:text-accent transition-colors duration-300 font-medium"
+              >
+                <span>Read our full story and journey</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
           </div>
         </motion.div>
@@ -303,30 +416,101 @@ export default function TeamPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="mb-20"
+          className="mb-24"
         >
-          <div className="text-center mb-16">
-            <h2 className="font-teko text-3xl sm:text-4xl font-bold text-foreground mb-4">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 mb-5 px-4 py-2 rounded-full surface-middle elev-1">
+              <Sparkles size={16} className="text-accent" />
+              <span className="font-teko text-sm tracking-wider text-accent uppercase">The Team</span>
+            </div>
+
+            <h2 className="font-teko text-4xl sm:text-5xl font-bold text-foreground mb-6 leading-tight">
               The People Making It Happen
             </h2>
-            <p className="font-roboto text-muted-foreground max-w-2xl mx-auto">
-              Meet the passionate individuals working to make music sharing effortless for everyone
+            <p className="font-roboto text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+              Meet the passionate individuals working to make music sharing{" "}
+              <span className="text-foreground font-medium">effortless for everyone</span>
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {teamMembers.map((member, index) => {
-              const IconComponent = member.icon;
-              const typeConfig = getTypeConfig(member.type);
-              
+          {/* Category Filter Pills */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-12">
+            {categories.map((category) => {
+              const CategoryIcon = category.icon;
+              const isActive = activeCategory === category.id;
+
               return (
-                <motion.div
-                  key={member.name}
+                <motion.button
+                  key={category.id}
+                  onClick={() => setActiveCategory(category.id)}
+                  className={`
+                    relative px-6 py-3 rounded-full font-teko text-lg font-medium
+                    transition-all duration-300 backdrop-blur-sm border
+                    ${isActive
+                      ? 'bg-gradient-to-r from-primary to-accent text-foreground border-transparent elev-2 scale-105'
+                      : 'surface-middle text-muted-foreground border-border/40 hover:border-primary/40 hover:text-foreground hover:elev-1'
+                    }
+                  `}
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.05 * index, ease: "easeOut" }}
-                  className="team-card"
+                  transition={{ duration: 0.3 }}
                 >
+                  <span className="relative flex items-center gap-2">
+                    <CategoryIcon size={18} />
+                    {category.label}
+                    <span className={`
+                      px-2 py-0.5 rounded-full text-xs font-bold
+                      ${isActive
+                        ? 'bg-foreground/20 text-foreground'
+                        : 'bg-muted text-muted-foreground'
+                      }
+                    `}>
+                      {category.count}
+                    </span>
+                  </span>
+                </motion.button>
+              );
+            })}
+          </div>
+
+          {/* Team Grid with AnimatePresence */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeCategory}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              className="grid md:grid-cols-2 xl:grid-cols-3 gap-6"
+            >
+              {filteredMembers.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="col-span-full text-center py-20"
+                >
+                  <Users className="mx-auto text-muted-foreground mb-4" size={64} />
+                  <p className="font-teko text-2xl text-muted-foreground">No team members in this category</p>
+                </motion.div>
+              ) : (
+                filteredMembers.map((member, index) => {
+                  const IconComponent = member.icon;
+                  const typeConfig = getTypeConfig(member.type);
+
+                  return (
+                    <motion.div
+                      key={member.name}
+                      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{
+                        duration: 0.5,
+                        delay: 0.05 * index,
+                        ease: [0.23, 1, 0.32, 1]
+                      }}
+                      className="team-card"
+                    >
                   <Tilt
                     options={{
                       max: 15,
@@ -344,23 +528,33 @@ export default function TeamPage() {
                     className={`rounded-2xl overflow-hidden ${expandedMember ? 'pointer-events-none' : ''}`}
                   >
                     <motion.div
-                      className={`bg-card/80 backdrop-blur-sm border rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer h-full ${typeConfig.borderColor}`}
-                      whileHover={{ y: -3 }}
+                      className={`gradient-border-hover surface-top backdrop-blur-sm rounded-[16px] elev-2 hover:elev-3 transition-all duration-300 group cursor-pointer h-full spotlight overflow-hidden relative`}
+                      whileHover={{ y: -5 }}
                       transition={{ duration: 0.2, ease: "easeOut" }}
                       onClick={(e) => toggleExpanded(member.name, e)}
                     >
-                    <div className="p-6 h-full flex flex-col">
-                      <div className="flex items-start justify-between mb-4">
+                      {/* Corner Accent */}
+                      <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl ${typeConfig.bgClass} opacity-5 group-hover:opacity-10 transition-opacity duration-500 rounded-bl-full`}></div>
+
+                      {/* Animated gradient border on hover */}
+                      <div className={`absolute inset-0 bg-gradient-to-r ${typeConfig.bgClass} opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-500 -z-10`}></div>
+
+                    <div className="p-7 h-full flex flex-col relative z-10">
+                      <div className="flex items-start justify-between mb-5">
                         <div className="flex items-center gap-4 flex-1">
                           <div className="relative">
                             <div className={`absolute -inset-1 bg-gradient-to-r ${typeConfig.bgClass} rounded-full blur opacity-0 group-hover:opacity-30 transition-opacity duration-500`}></div>
-                            <div className={`relative w-16 h-16 rounded-full flex items-center justify-center shadow-lg bg-gradient-to-br ${typeConfig.bgClass}`}>
-                              <IconComponent className="text-white" size={24} />
-                            </div>
+                            <motion.div
+                              className={`relative w-16 h-16 rounded-full flex items-center justify-center elev-1 bg-gradient-to-br ${typeConfig.bgClass} ring-2 ring-offset-2 ring-offset-card ring-transparent transition-all duration-300`}
+                              whileHover={{ scale: 1.1, rotate: 5 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <IconComponent className="text-white" size={26} />
+                            </motion.div>
                           </div>
                           <div className="flex-1">
-                            <h3 className="font-teko text-xl text-foreground font-bold">{member.name}</h3>
-                            <p className={`font-roboto font-medium text-sm ${typeConfig.iconColor}`}>{member.role}</p>
+                            <h3 className="font-teko text-2xl text-foreground font-bold leading-tight">{member.name}</h3>
+                            <p className={`font-roboto font-semibold text-sm ${typeConfig.iconColor} mt-0.5`}>{member.role}</p>
                             {member.type === 'cofounder' && (
                               <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full mt-2 ${typeConfig.iconBg}`}>
                                 <Briefcase size={12} className={typeConfig.iconColor} />
@@ -377,25 +571,44 @@ export default function TeamPage() {
                           <ChevronDown className={typeConfig.iconColor} size={20} />
                         </motion.div>
                       </div>
-                      
+
                       <div className="flex-1 flex flex-col justify-between">
-                        <p className="font-roboto text-muted-foreground leading-relaxed text-sm line-clamp-3">
+                        <p className="font-roboto text-muted-foreground leading-relaxed text-base line-clamp-3 mb-5">
                           {member.shortBio}
                         </p>
-                        
-                        <div className="mt-4 pt-4 border-t border-border/30">
-                          <div className="text-xs text-muted-foreground">
+
+                        <div className="mt-auto pt-5 border-t border-border/40 flex items-center justify-between">
+                          <div className="text-xs text-muted-foreground flex items-center gap-2 group-hover:text-foreground transition-colors duration-300">
+                            <motion.div
+                              animate={{ y: [0, 3, 0] }}
+                              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                            >
+                              <ChevronDown size={14} className={`${typeConfig.iconColor}`} />
+                            </motion.div>
                             <span className="font-medium">Click to learn more</span>
                           </div>
+                          <motion.div
+                            className={`w-2 h-2 rounded-full bg-gradient-to-r ${typeConfig.bgClass} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
+                            animate={{
+                              scale: [1, 1.2, 1],
+                            }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              ease: "easeInOut"
+                            }}
+                          ></motion.div>
                         </div>
                       </div>
                     </div>
                     </motion.div>
                   </Tilt>
                 </motion.div>
-              );
-            })}
-          </div>
+                  );
+                })
+              )}
+            </motion.div>
+          </AnimatePresence>
         </motion.div>
 
         {/* Modal Overlay */}
@@ -407,36 +620,36 @@ export default function TeamPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
               onClick={closeExpanded}
             >
               <motion.div
                 key={`modal-${expandedMember}`}
-                initial={{ 
-                  opacity: 0, 
+                initial={{
+                  opacity: 0,
                   scale: 0.8,
                   x: cardPosition.x - (typeof window !== 'undefined' ? window.innerWidth / 2 : 0),
                   y: cardPosition.y - (typeof window !== 'undefined' ? window.innerHeight / 2 : 0)
                 }}
-                animate={{ 
-                  opacity: 1, 
+                animate={{
+                  opacity: 1,
                   scale: 1,
                   x: 0,
                   y: 0
                 }}
-                exit={{ 
-                  opacity: 0, 
+                exit={{
+                  opacity: 0,
                   scale: 0.7,
                   x: cardPosition.x - (typeof window !== 'undefined' ? window.innerWidth / 2 : 0),
                   y: cardPosition.y - (typeof window !== 'undefined' ? window.innerHeight / 2 : 0)
                 }}
-                transition={{ 
+                transition={{
                   type: "spring",
                   damping: 25,
                   stiffness: 300,
                   duration: 0.4
                 }}
-                className="bg-card/95 backdrop-blur-md border border-border/50 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                className="surface-top backdrop-blur-md border border-border/60 rounded-[18px] elev-4 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
                 onClick={e => e.stopPropagation()}
               >
               {(() => {
@@ -452,8 +665,8 @@ export default function TeamPage() {
                     <div className="flex items-start justify-between mb-6">
                       <div className="flex items-center gap-6">
                         <div className="relative">
-                          <div className={`absolute -inset-2 bg-gradient-to-r ${typeConfig.bgClass} rounded-full blur opacity-20`}></div>
-                          <div className={`relative w-20 h-20 rounded-full flex items-center justify-center shadow-lg bg-gradient-to-br ${typeConfig.bgClass}`}>
+                          <div className={`absolute -inset-2 bg-gradient-to-r ${typeConfig.bgClass} rounded-full blur opacity-15`}></div>
+                          <div className={`relative w-20 h-20 rounded-full flex items-center justify-center elev-2 bg-gradient-to-br ${typeConfig.bgClass}`}>
                             <IconComponent className="text-white" size={32} />
                           </div>
                         </div>
@@ -560,9 +773,9 @@ export default function TeamPage() {
                             <Github size={20} />
                             <span className="font-medium">GitHub</span>
                           </motion.a>
-                          <motion.a 
+                          <motion.a
                             href={member.social.linkedin}
-                            className="flex items-center gap-2 text-muted-foreground hover:text-blue-600 transition-all duration-300 p-3 rounded-xl hover:bg-blue-50/10"
+                            className="flex items-center gap-2 text-muted-foreground hover:text-accent transition-all duration-300 p-3 rounded-xl hover:bg-accent/10"
                             aria-label="LinkedIn"
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -574,9 +787,9 @@ export default function TeamPage() {
                             <Linkedin size={20} />
                             <span className="font-medium">LinkedIn</span>
                           </motion.a>
-                          <motion.a 
+                          <motion.a
                             href={member.social.twitter}
-                            className="flex items-center gap-2 text-muted-foreground hover:text-sky-500 transition-all duration-300 p-3 rounded-xl hover:bg-sky-50/10"
+                            className="flex items-center gap-2 text-muted-foreground hover:text-secondary transition-all duration-300 p-3 rounded-xl hover:bg-secondary/10"
                             aria-label="Twitter"
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -619,40 +832,48 @@ export default function TeamPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.5 }}
-          className="mb-20"
+          className="mb-24"
         >
-          <div className="text-center mb-16">
-            <h2 className="font-teko text-3xl sm:text-4xl font-bold text-foreground mb-4">
+          <div className="text-center mb-20">
+            <div className="inline-flex items-center gap-2 mb-5 px-4 py-2 rounded-full surface-middle elev-1">
+              <Zap size={16} className="text-accent" />
+              <span className="font-teko text-sm tracking-wider text-accent uppercase">Our Values</span>
+            </div>
+
+            <h2 className="font-teko text-4xl sm:text-5xl font-bold text-foreground mb-6 leading-tight">
               What We Believe
             </h2>
-            <p className="font-roboto text-muted-foreground max-w-2xl mx-auto">
-              The values that guide everything we build at Cassette
+            <p className="font-roboto text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+              The values that guide everything we build at{" "}
+              <span className="text-gradient font-semibold">Cassette</span>
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             <motion.div
-              whileHover={{ y: -5, scale: 1.02 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+              whileHover={{ y: -8, scale: 1.02 }}
             >
-              <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl overflow-hidden text-center h-full shadow-lg hover:shadow-xl transition-all duration-300 group">
-                <CardHeader>
-                  <div className="relative mx-auto mb-4">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-full blur opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-                    <div className="relative bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
+              <Card className="gradient-border-hover surface-top backdrop-blur-sm rounded-[18px] overflow-hidden text-center h-full elev-2 hover:elev-3 transition-all duration-300 group spotlight relative">
+                <CardHeader className="pb-4">
+                  <div className="relative mx-auto mb-5">
+                    <div className="absolute -inset-2 bg-gradient-to-r from-primary to-accent rounded-full blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-500"></div>
+                    <div className="relative bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center elev-1 group-hover:elev-2 transition-all duration-300 bordered-glow">
                       <motion.div
                         whileHover={{ rotate: 360, scale: 1.1 }}
                         transition={{ duration: 0.6 }}
                       >
-                        <CassetteTape className="text-primary" size={32} />
+                        <CassetteTape className="text-primary" size={36} />
                       </motion.div>
                     </div>
                   </div>
-                  <CardTitle className="font-teko text-2xl text-foreground">Music is Universal</CardTitle>
+                  <CardTitle className="font-teko text-3xl text-foreground mb-2">Music is Universal</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="font-roboto text-muted-foreground">
-                    Great music transcends platforms. We believe everyone should be able to share their discoveries, 
+                <CardContent className="px-6 pb-8">
+                  <p className="font-roboto text-muted-foreground text-base leading-relaxed">
+                    Great music transcends platforms. We believe everyone should be able to share their discoveries,
                     regardless of which streaming service they use.
                   </p>
                 </CardContent>
@@ -660,27 +881,29 @@ export default function TeamPage() {
             </motion.div>
 
             <motion.div
-              whileHover={{ y: -5, scale: 1.02 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.7 }}
+              whileHover={{ y: -8, scale: 1.02 }}
             >
-              <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl overflow-hidden text-center h-full shadow-lg hover:shadow-xl transition-all duration-300 group">
-                <CardHeader>
-                  <div className="relative mx-auto mb-4">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-secondary to-primary rounded-full blur opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-                    <div className="relative bg-secondary/10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
+              <Card className="gradient-border-hover surface-top backdrop-blur-sm rounded-[18px] overflow-hidden text-center h-full elev-2 hover:elev-3 transition-all duration-300 group spotlight relative">
+                <CardHeader className="pb-4">
+                  <div className="relative mx-auto mb-5">
+                    <div className="absolute -inset-2 bg-gradient-to-r from-secondary to-primary rounded-full blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-500"></div>
+                    <div className="relative bg-secondary/10 w-20 h-20 rounded-full flex items-center justify-center elev-1 group-hover:elev-2 transition-all duration-300 bordered-glow">
                       <motion.div
                         whileHover={{ rotate: 360, scale: 1.1 }}
                         transition={{ duration: 0.6 }}
                       >
-                        <CassetteTape className="text-secondary" size={32} />
+                        <CassetteTape className="text-secondary" size={36} />
                       </motion.div>
                     </div>
                   </div>
-                  <CardTitle className="font-teko text-2xl text-foreground">Simplicity First</CardTitle>
+                  <CardTitle className="font-teko text-3xl text-foreground mb-2">Simplicity First</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="font-roboto text-muted-foreground">
-                    Sharing music should be effortless. We obsess over making complex technology feel simple and intuitive 
+                <CardContent className="px-6 pb-8">
+                  <p className="font-roboto text-muted-foreground text-base leading-relaxed">
+                    Sharing music should be effortless. We obsess over making complex technology feel simple and intuitive
                     for everyone.
                   </p>
                 </CardContent>
@@ -688,27 +911,29 @@ export default function TeamPage() {
             </motion.div>
 
             <motion.div
-              whileHover={{ y: -5, scale: 1.02 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.8 }}
+              whileHover={{ y: -8, scale: 1.02 }}
             >
-              <Card className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl overflow-hidden text-center h-full shadow-lg hover:shadow-xl transition-all duration-300 group">
-                <CardHeader>
-                  <div className="relative mx-auto mb-4">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-accent to-secondary rounded-full blur opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-                    <div className="relative bg-accent/10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
+              <Card className="gradient-border-hover surface-top backdrop-blur-sm rounded-[18px] overflow-hidden text-center h-full elev-2 hover:elev-3 transition-all duration-300 group spotlight relative">
+                <CardHeader className="pb-4">
+                  <div className="relative mx-auto mb-5">
+                    <div className="absolute -inset-2 bg-gradient-to-r from-accent to-secondary rounded-full blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-500"></div>
+                    <div className="relative bg-accent/10 w-20 h-20 rounded-full flex items-center justify-center elev-1 group-hover:elev-2 transition-all duration-300 bordered-glow">
                       <motion.div
                         whileHover={{ rotate: 360, scale: 1.1 }}
                         transition={{ duration: 0.6 }}
                       >
-                        <CassetteTape className="text-accent" size={32} />
+                        <CassetteTape className="text-accent" size={36} />
                       </motion.div>
                     </div>
                   </div>
-                  <CardTitle className="font-teko text-2xl text-foreground">Community Driven</CardTitle>
+                  <CardTitle className="font-teko text-3xl text-foreground mb-2">Community Driven</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="font-roboto text-muted-foreground">
-                    The best music discoveries come from passionate curators. We&apos;re building a platform where taste-makers 
+                <CardContent className="px-6 pb-8">
+                  <p className="font-roboto text-muted-foreground text-base leading-relaxed">
+                    The best music discoveries come from passionate curators. We&apos;re building a platform where taste-makers
                     are celebrated and rewarded.
                   </p>
                 </CardContent>
@@ -722,28 +947,33 @@ export default function TeamPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.55 }}
-          className="mb-16"
+          className="mb-20"
         >
-          <div className="bg-primary/10 border border-primary/30 rounded-3xl p-6 sm:p-8 md:p-10 backdrop-blur-sm shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div className="flex items-start gap-4">
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
-                <HeartHandshake className="h-6 w-6" />
-              </span>
-              <div className="text-left">
-                <h3 className="font-teko text-2xl text-foreground mb-1">Support the Cassette Team</h3>
-                <p className="font-roboto text-muted-foreground max-w-xl">
-                  Love what we&apos;re building? Chip in on Ko-fi so we can keep bringing new sharing tools to life for our community.
-                </p>
+          <div className="relative gradient-border surface-top rounded-[20px] p-8 sm:p-10 md:p-12 backdrop-blur-sm elev-2 overflow-hidden">
+            {/* Decorative gradient orb */}
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div>
+
+            <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+              <div className="flex items-start gap-5">
+                <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-foreground elev-1 flex-shrink-0">
+                  <HeartHandshake className="h-7 w-7" />
+                </span>
+                <div className="text-left">
+                  <h3 className="font-teko text-3xl sm:text-4xl text-foreground mb-2 leading-tight">Support the Cassette Team</h3>
+                  <p className="font-roboto text-muted-foreground text-lg max-w-xl leading-relaxed">
+                    Love what we&apos;re building? Chip in on Ko-fi so we can keep bringing new sharing tools to life for our community.
+                  </p>
+                </div>
               </div>
+              <button
+                onClick={openKoFiSupport}
+                className="inline-flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-primary to-accent text-foreground font-teko text-xl px-8 py-4 elev-2 hover:elev-3 shadow-primary/20 transition-all duration-300 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary whitespace-nowrap"
+                aria-label="Support Cassette on Ko-fi"
+              >
+                <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={24} height={24} className="rounded-full" />
+                <span>Support Us</span>
+              </button>
             </div>
-            <button
-              onClick={openKoFiSupport}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground font-teko text-lg px-6 py-3 shadow-lg shadow-primary/20 transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              aria-label="Support Cassette on Ko-fi"
-            >
-              <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={20} height={20} className="rounded-full" />
-              <span>Support Us</span>
-            </button>
           </div>
         </motion.div>
 
@@ -754,21 +984,32 @@ export default function TeamPage() {
           transition={{ duration: 0.8, delay: 0.6 }}
           className="text-center"
         >
-          <div className="bg-gradient-to-r from-primary/10 to-accent/10 border border-border/30 rounded-3xl p-8 md:p-12 backdrop-blur-sm shadow-xl">
-            <h2 className="font-teko text-3xl sm:text-4xl font-bold text-foreground mb-6">
-              Want to Join Us?
-            </h2>
-            <p className="font-roboto text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              We&apos;re always looking for passionate people who share our vision. Whether you&apos;re a developer, designer, 
-              or music enthusiast, we&apos;d love to hear from you.
-            </p>
-            <a 
-              href="mailto:team@cassette.com"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-primary to-secondary text-foreground font-teko text-lg px-8 py-4 rounded-xl hover:from-primary/90 hover:to-secondary/90 transition-all duration-300"
-            >
-              <Mail size={20} />
-              Get in Touch
-            </a>
+          <div className="relative gradient-border surface-top rounded-[20px] p-10 md:p-14 backdrop-blur-sm elev-2 overflow-hidden">
+            {/* Mesh gradient */}
+            <div className="absolute inset-0 mesh-gradient opacity-40"></div>
+
+            <div className="relative">
+              <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 rounded-full surface-middle elev-1">
+                <Mail size={16} className="text-accent" />
+                <span className="font-teko text-sm tracking-wider text-accent uppercase">Join Us</span>
+              </div>
+
+              <h2 className="font-teko text-4xl sm:text-5xl font-bold text-foreground mb-6 leading-tight">
+                Want to Join Us?
+              </h2>
+              <p className="font-roboto text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
+                We&apos;re always looking for passionate people who share our vision. Whether you&apos;re a developer, designer,
+                or music enthusiast, we&apos;d love to hear from you.
+              </p>
+
+              <a
+                href="mailto:team@cassette.com"
+                className="inline-flex items-center gap-3 bg-gradient-to-r from-primary to-accent text-foreground font-teko text-xl px-10 py-5 rounded-xl elev-2 hover:elev-3 transition-all duration-300 hover:scale-105 bordered-glow group"
+              >
+                <Mail size={22} className="group-hover:rotate-12 transition-transform duration-300" />
+                <span>Get in Touch</span>
+              </a>
+            </div>
           </div>
         </motion.div>
       </div>

@@ -58,7 +58,7 @@ export function MusicConnectionsFlow({
         }
 
         // Fetch from your backend API
-        const response = await fetch('http://localhost:5173/api/v1/auth/session', {
+        const response = await fetch('http://localhost:5000/api/v1/auth/session', {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
           }

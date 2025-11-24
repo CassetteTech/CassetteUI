@@ -16,7 +16,7 @@ import {
 import { AuthInput } from '@/components/ui/auth-input';
 import { AnimatedBackground } from '@/components/ui/animated-background';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, MailCheck } from 'lucide-react';
 import { useSignUp, useSignInWithProvider } from '@/hooks/use-auth';
 import { SignUpForm } from '@/types';
 import Image from 'next/image';
@@ -41,7 +41,7 @@ const signUpSchema = z.object({
 export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { mutate: signUp, isPending: isSigningUp, error: signUpError } = useSignUp();
+  const { mutate: signUp, isPending: isSigningUp, error: signUpError, isSuccess, data: signUpResult } = useSignUp();
   const { mutate: signInWithProvider, isPending: isSigningInWithProvider } = useSignInWithProvider();
 
   const form = useForm<SignUpForm>({
@@ -68,6 +68,51 @@ export default function SignUpPage() {
   const handleAppleSignIn = () => {
     signInWithProvider('apple');
   };
+
+  if (isSuccess && !signUpResult?.token) {
+    return (
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <AnimatedBackground className="fixed inset-0 z-0" />
+        <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
+          <div className="w-full max-w-md">
+            <div className="flex justify-center mb-8">
+              <Link href="/" className="flex flex-col items-center">
+                <Image
+                  src="/images/cassette_words_logo.png"
+                  alt="Cassette"
+                  width={200}
+                  height={80}
+                  className="mb-2"
+                  priority
+                />
+              </Link>
+            </div>
+
+            <Card>
+              <CardHeader className="text-center flex flex-col items-center gap-4">
+                <MailCheck className="h-12 w-12 text-primary" aria-hidden />
+                <div>
+                  <CardTitle className="text-2xl">Check your email</CardTitle>
+                  <CardDescription>
+                    We&apos;ve sent a confirmation link to your inbox. Please verify your email to complete your registration.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => window.location.href = '/auth/signin'}
+                >
+                  Return to Sign In
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">

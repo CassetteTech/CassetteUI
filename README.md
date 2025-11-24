@@ -96,7 +96,7 @@ APPLE_MUSIC_PRIVATE_KEY=your_apple_music_private_key
 
 # Backend API Configuration
 NEXT_PUBLIC_API_URL=https://563jznpk5k.execute-api.us-east-1.amazonaws.com/Dev
-NEXT_PUBLIC_API_URL_LOCAL=http://localhost:5173
+NEXT_PUBLIC_API_URL_LOCAL=http://localhost:5000
 
 # Feature Flags
 ENABLE_LAMBDA_WARMUP=false

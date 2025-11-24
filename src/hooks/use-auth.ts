@@ -31,8 +31,10 @@ export const useSignUp = () => {
     },
     onSuccess: (result) => {
       console.log('✅ [useSignUp] Signup successful:', result);
-      // Navigate to profile (which will handle onboarding redirect if needed)
-      router.push('/profile');
+      // Navigate to profile only if auto-login tokens were returned
+      if (result?.token) {
+        router.push('/profile');
+      }
     },
     onError: (error: Error) => {
       console.error('❌ [useSignUp] Sign up error:', error);

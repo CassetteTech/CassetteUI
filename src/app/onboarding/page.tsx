@@ -75,7 +75,7 @@ export default function OnboardingPage() {
 
   const handleFinish = async () => {
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5173';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       
       // Create FormData for file upload
       const form = new FormData();

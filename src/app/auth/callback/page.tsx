@@ -1,71 +1,83 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/auth';
 
-export default function OAuthCallbackPage() {
+function CallbackContent() {
   const router = useRouter();
+  const [status, setStatus] = useState('Processing login...');
+  const [error, setError] = useState<string | null>(null);
+  const processed = useRef(false);
 
   useEffect(() => {
-    const handleCallback = async () => {
-      try {
-        // Parse the URL fragment
-        const hash = window.location.hash;
-        
-        // Immediately remove tokens from browser history
-        history.replaceState({}, '', window.location.pathname);
-        
-        if (!hash) {
-          console.error('No hash fragment found in OAuth callback');
-          router.replace('/auth/signin?error=invalid-callback');
-          return;
-        }
+    if (processed.current) return;
+    
+    const hash = window.location.hash;
+    console.log('🟦 [Callback Page] Hash found:', hash);
 
-        // Parse the fragment parameters
-        const params = new URLSearchParams(hash.substring(1));
-        const token = params.get('token');
-        const refreshToken = params.get('refresh_token');
-        const error = params.get('error');
+    if (!hash) {
+      console.log('⚠️ [Callback Page] No hash present');
+      return;
+    }
 
-        if (error) {
-          console.error('OAuth authorization error:', error);
-          if (error === 'state_expired') {
-            router.replace('/auth/signin?error=session-expired');
-          } else {
-            router.replace('/auth/signin?error=oauth-denied');
-          }
-          return;
-        }
+    processed.current = true;
+    setStatus('Verifying token...');
 
-        if (!token || !refreshToken) {
-          console.error('Missing tokens in OAuth callback');
-          router.replace('/auth/signin?error=invalid-callback');
-          return;
-        }
+    try {
+      const params = new URLSearchParams(hash.substring(1));
+      
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      const type = params.get('type');
 
-        // Handle the OAuth tokens
-        await authService.handleOAuthCallback(token, refreshToken);
-        
-        // Success - redirect to profile
-        router.replace('/profile');
-        
-      } catch (error) {
-        console.error('OAuth callback processing error:', error);
-        router.replace('/auth/signin?error=callback-failed');
+      console.log('🟦 [Callback Page] Token Type:', type);
+
+      if (!accessToken) {
+        throw new Error('No access token found in URL hash');
       }
-    };
 
-    handleCallback();
+      authService.handleOAuthCallback(accessToken, refreshToken || '')
+        .then(() => {
+          console.log('🟩 [Callback Page] Success! Redirecting...');
+          window.history.replaceState(null, '', window.location.pathname);
+          router.replace('/profile');
+        })
+        .catch((err: Error) => {
+          console.error('🟥 [Callback Page] API Error:', err);
+          setError(err.message);
+        });
+
+    } catch (e) {
+      const err = e as Error;
+      console.error('🟥 [Callback Page] Parse Error:', err);
+      setError(err.message);
+    }
+
   }, [router]);
 
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="flex flex-col items-center space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        <p className="text-foreground font-atkinson">Completing sign in...</p>
-        <p className="text-muted-foreground text-sm">Please wait while we securely process your authentication.</p>
+  if (error) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4">
+        <h1 className="text-2xl font-bold text-red-500">Login Failed</h1>
+        <p>{error}</p>
+        <button onClick={() => router.push('/auth/signin')} className="underline">Back to Sign In</button>
       </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen flex-col items-center justify-center gap-4">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600" />
+      <p className="font-medium">{status}</p>
     </div>
+  );
+}
+
+export default function OAuthCallbackPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CallbackContent />
+    </Suspense>
   );
 }

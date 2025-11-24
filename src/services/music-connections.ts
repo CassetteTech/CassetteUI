@@ -11,10 +11,20 @@ export interface MusicConnection {
 }
 
 class MusicConnectionsService {
+  private getAuthHeaders(): Record<string, string> {
+    if (typeof window === 'undefined') return {};
+    const token = localStorage.getItem('access_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   async getUserConnections(): Promise<MusicConnection[]> {
     try {
       // Use the Next.js API route which forwards to your backend API
-      const response = await fetch('/api/user/music-connections');
+      const response = await fetch('/api/user/music-connections', {
+        headers: {
+          ...this.getAuthHeaders(),
+        },
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch music connections');
@@ -33,6 +43,9 @@ class MusicConnectionsService {
       // Use the Next.js API route which forwards to your backend API
       const response = await fetch(`/api/user/music-connections?service=${service}`, {
         method: 'DELETE',
+        headers: {
+          ...this.getAuthHeaders(),
+        },
       });
 
       if (!response.ok) {

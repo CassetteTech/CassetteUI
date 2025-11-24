@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { apiService } from '@/services/api';
 
 interface MusicConnection {
   serviceType: string;
@@ -16,19 +17,6 @@ interface MusicConnection {
   accessToken?: string;
   refreshToken?: string;
   tokenExpiration?: string;
-}
-
-interface ConnectedMusicService {
-  serviceType: string;
-  accessToken: string;
-  connectedAt: string;
-  isValid: boolean;
-  refreshToken: string;
-  tokenExpiration: string;
-}
-
-interface UserApiResponse {
-  connectedMusicServices?: ConnectedMusicService[];
 }
 
 interface MusicConnectionsFlowProps {
@@ -47,63 +35,44 @@ export function MusicConnectionsFlow({
   useEffect(() => {
     const fetchConnections = async () => {
       try {
-        console.log('🎵 MusicConnectionsFlow: Fetching connections from API...');
-        
-        // Get the access token from localStorage
-        const accessToken = localStorage.getItem('access_token');
-        if (!accessToken) {
-          console.log('🎵 MusicConnectionsFlow: No access token found, using empty connections');
-          setConnections([]);
-          return;
-        }
+        console.log('MusicConnectionsFlow: Fetching connections from API...');
 
-        // Fetch from your backend API
-        const response = await fetch('http://localhost:5173/api/v1/auth/session', {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          }
-        });
+        const { services = [] } = await apiService.getMusicConnections();
+        const normalized = services.map((s) => (typeof s === 'string' ? s : String(s)).toLowerCase());
+        const normalizedClean = normalized.map((s) => s.replace(/[^a-z0-9]/gi, ''));
+        const mapped: MusicConnection[] = [];
 
-        if (!response.ok) {
-          throw new Error(`API request failed: ${response.status}`);
-        }
-
-        const userData: UserApiResponse = await response.json();
-        console.log('🎵 MusicConnectionsFlow: API response:', userData);
-
-        // Transform the API response to our format
-        const connections: MusicConnection[] = [];
-        
-        if (userData.connectedMusicServices && Array.isArray(userData.connectedMusicServices)) {
-          userData.connectedMusicServices.forEach((service: ConnectedMusicService) => {
-            connections.push({
-              serviceType: service.serviceType,
-              isConnected: service.isValid === true,
-              connectedAt: service.connectedAt,
-              isValid: service.isValid,
-              accessToken: service.accessToken,
-              refreshToken: service.refreshToken,
-              tokenExpiration: service.tokenExpiration
-            });
+        if (normalizedClean.includes('spotify')) {
+          mapped.push({
+            serviceType: 'Spotify',
+            isConnected: true,
+            connectedAt: new Date().toISOString(),
+            isValid: true,
           });
         }
 
-        // Add missing services as disconnected
-        const serviceTypes = ['Spotify', 'AppleMusic'];
-        serviceTypes.forEach(serviceType => {
-          if (!connections.find(conn => conn.serviceType === serviceType)) {
-            connections.push({
+        if (normalizedClean.includes('applemusic')) {
+          mapped.push({
+            serviceType: 'AppleMusic',
+            isConnected: true,
+            connectedAt: new Date().toISOString(),
+            isValid: true,
+          });
+        }
+
+        ['Spotify', 'AppleMusic'].forEach(serviceType => {
+          if (!mapped.find(conn => conn.serviceType === serviceType)) {
+            mapped.push({
               serviceType,
               isConnected: false
             });
           }
         });
 
-        console.log('🎵 MusicConnectionsFlow: Transformed connections:', connections);
-        setConnections(connections);
+        console.log('MusicConnectionsFlow: Transformed connections:', mapped);
+        setConnections(mapped);
       } catch (error) {
-        console.error('🎵 MusicConnectionsFlow: Failed to fetch music connections:', error);
-        // Fallback to empty connections on error
+        console.error('MusicConnectionsFlow: Failed to fetch music connections:', error);
         setConnections([
           { serviceType: 'Spotify', isConnected: false },
           { serviceType: 'AppleMusic', isConnected: false },

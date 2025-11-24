@@ -347,13 +347,24 @@ class ApiService {
 
   async createPlaylist(playlistId: string, targetPlatform: string) {
     const connections = await this.getMusicConnections();
-    console.log(connections);
-    if (!connections.services.find(c => c === targetPlatform)) {
+    const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
+    const targetKey = normalize(targetPlatform);
+    const canonicalMap: Record<string, string> = {
+      spotify: 'spotify',
+      applemusic: 'apple-music',
+      deezer: 'deezer',
+    };
+    const canonicalTarget = canonicalMap[targetKey] || targetPlatform.toLowerCase();
+
+    const hasConnection = connections.services?.some(service => normalize(service) === targetKey);
+    console.log('createPlaylist connection check:', { connections, targetPlatform, canonicalTarget, hasConnection });
+
+    if (!hasConnection) {
       throw new Error('No connection found for target platform');
     }
     return this.request<{ success: boolean }>('/api/v1/convert/createPlaylist', {
       method: 'POST',
-      body: JSON.stringify({ PlaylistId: playlistId, TargetPlatform: targetPlatform}),
+      body: JSON.stringify({ PlaylistId: playlistId, TargetPlatform: canonicalTarget}),
     });
   }
 

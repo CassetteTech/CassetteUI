@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
 import { clientConfig } from '@/lib/config-client';
+import { apiService } from '@/services/api';
 
 interface ConnectAppleMusicButtonProps {
   isConnected?: boolean;
@@ -59,15 +60,9 @@ export function ConnectAppleMusicButton({
       
       if (musicUserToken) {
         // Send the user token to our backend for secure storage
-        const response = await fetch('/api/auth/apple-music/save-token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token: musicUserToken }),
-        });
+        const response = await apiService.connectAppleMusic(musicUserToken);
 
-        if (response.ok) {
+        if (response.success) {
           onConnect?.();
         } else {
           throw new Error('Failed to save Apple Music token');

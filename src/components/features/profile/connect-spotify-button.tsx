@@ -51,8 +51,8 @@ export function ConnectSpotifyButton({
       // Check if we got the URL successfully
       if (data && data.authUrl) {
         console.log("Received auth URL, redirecting user to Spotify:", data.authUrl);
-        // Redirect the user's browser to Spotify
-        window.location.href = data.authUrl;
+        // Open Spotify auth in a new tab
+        window.open(data.authUrl, '_blank');
       } else {
         console.error("Did not receive a valid authUrl from the backend.");
         console.error("Response was:", data);

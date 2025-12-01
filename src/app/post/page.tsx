@@ -21,6 +21,7 @@ import { useMusicLinkConversion } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { HeartHandshake } from 'lucide-react';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
+import { detectContentType } from '@/utils/content-type-detection';
 
 // Incoming track shape when using ?data= payloads
 type IncomingDataTrack = {
@@ -62,7 +63,7 @@ function PostPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuthState();
-  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; } | null>(null);
+  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
   
@@ -84,6 +85,8 @@ function PostPageContent() {
   // Guards against duplicate conversions (React Strict Mode protection)
   const hasConvertedRef = useRef(false);
   const lastUrlRef = useRef<string | null>(null);
+  const sourceUrlRef = useRef<string | null>(null);
+  const sourcePlatformRef = useRef<string | null>(null);
   
   useEffect(() => {
     const run = async () => {
@@ -110,6 +113,8 @@ function PostPageContent() {
         // Only run conversion when we actually have a ?url=
         if (urlParam) {
           const decodedUrl = decodeURIComponent(urlParam);
+          sourceUrlRef.current = decodedUrl;
+          sourcePlatformRef.current = detectContentType(decodedUrl).platform;
 
           // Prevent duplicate mutate calls (Strict Mode / re-renders)
           if (hasConvertedRef.current && lastUrlRef.current === decodedUrl) return;
@@ -128,7 +133,8 @@ function PostPageContent() {
                 type: result.metadata?.type,
                 trackCount: (result as unknown as { tracks?: unknown[] }).tracks?.length,
               });
-              setPostData(result);
+              const sourcePlatform = detectContentType(decodedUrl).platform;
+              setPostData({ ...result, sourcePlatform });
               if (result.metadata?.artwork) {
                 extractColorFromArtwork(result.metadata.artwork);
               }
@@ -155,8 +161,17 @@ function PostPageContent() {
             albumName?: string;
             releaseDate?: string | null;
             trackCount?: number;
+            sourcePlatform?: string;
           } = {
-            originalUrl: (parsedData.platforms?.spotify?.url || parsedData.platforms?.applemusic?.url || parsedData.platforms?.appleMusic?.url || parsedData.platforms?.deezer?.url || ''),
+            originalUrl: (
+              parsedData.originalUrl ||
+              parsedData.sourceUrl ||
+              parsedData.platforms?.spotify?.url ||
+              parsedData.platforms?.applemusic?.url ||
+              parsedData.platforms?.appleMusic?.url ||
+              parsedData.platforms?.deezer?.url ||
+              ''
+            ),
             convertedUrls: {},
             metadata: {
               type:
@@ -213,7 +228,13 @@ function PostPageContent() {
             trackCount: transformedFromData.tracks?.length || 0,
             hasTracksArray: Array.isArray(transformedFromData.tracks),
           });
-          setPostData(transformedFromData);
+          const detectedSourcePlatform = detectContentType(transformedFromData.originalUrl || '').platform;
+          sourceUrlRef.current = transformedFromData.originalUrl || sourceUrlRef.current;
+          sourcePlatformRef.current = detectedSourcePlatform || sourcePlatformRef.current;
+          setPostData({
+            ...transformedFromData,
+            sourcePlatform: detectedSourcePlatform,
+          });
           setApiComplete(true);
           return;
         }
@@ -234,8 +255,15 @@ function PostPageContent() {
             const artworkVal = response.details?.coverArtUrl || response.details?.imageUrl || (response as unknown as { imageUrl?: string }).imageUrl || '';
             const durationVal = response.metadata?.duration || response.details?.duration || '';
 
-            const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; } = {
-              originalUrl: response.originalLink || '',
+            const originalLink =
+              response.originalLink ||
+              response.platforms?.spotify?.url ||
+              response.platforms?.applemusic?.url ||
+              response.platforms?.appleMusic?.url ||
+              response.platforms?.deezer?.url ||
+              '';
+            const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; } = {
+              originalUrl: originalLink,
               convertedUrls: {},
               metadata: {
                 type: typeVal,
@@ -339,7 +367,13 @@ function PostPageContent() {
                 type: transformedData.metadata.type,
                 trackCount: (transformedData as unknown as { tracks?: unknown[] }).tracks?.length,
               });
-              setPostData(transformedData);
+              const detectedSourcePlatform = detectContentType(originalLink || '').platform;
+              sourceUrlRef.current = originalLink || sourceUrlRef.current;
+              sourcePlatformRef.current = detectedSourcePlatform || sourcePlatformRef.current;
+              setPostData({
+                ...transformedData,
+                sourcePlatform: detectedSourcePlatform,
+              });
             setApiComplete(true);
             
             // Extract dominant color
@@ -454,10 +488,11 @@ function PostPageContent() {
   const { metadata, convertedUrls } = postData as MusicLinkConversion;
   console.log('convertedUrls', convertedUrls);
   // Derive clear flags for how to render the page based on content type
+  const detectedTypeFromUrl = detectContentType(postData?.originalUrl || sourceUrlRef.current || '').type;
   const isTrack = metadata.type === ElementType.TRACK; // only true for tracks
   const isAlbum = metadata.type === ElementType.ALBUM; // album-specific layout bits
   const isArtist = metadata.type === ElementType.ARTIST; // artist profile-like layout
-  const isPlaylist = metadata.type === ElementType.PLAYLIST; // playlist-specific layout bits
+  const isPlaylist = metadata.type === ElementType.PLAYLIST || detectedTypeFromUrl === 'playlist'; // playlist-specific layout bits
   const typeLabel = isTrack ? 'Track' : isAlbum ? 'Album' : isArtist ? 'Artist' : 'Playlist';
   const showTracks = (isAlbum || isPlaylist) && Array.isArray(postData?.tracks) && (postData.tracks?.length ?? 0) > 0;
   const useSplitScrollLayout = isDesktop && (isAlbum || isPlaylist);
@@ -465,7 +500,7 @@ function PostPageContent() {
   
   
   return (
-    <div className={useSplitScrollLayout ? "fixed inset-x-0 top-16 bottom-0 overflow-hidden" : "min-h-screen relative"}>
+    <div className={useSplitScrollLayout ? "fixed inset-x-0 top-16 bottom-0 overflow-y-auto" : "min-h-screen relative"}>
       {/* Animated Gradient Background */}
       <AnimatedColorBackground color={dominantColor} />
       
@@ -473,7 +508,7 @@ function PostPageContent() {
         {isDesktop ? (
           useSplitScrollLayout ? (
           // Desktop Album/Playlist: fixed left, scrollable right (only right side scrolls)
-          <div className="px-8 max-w-7xl mx-auto h-full overflow-hidden flex flex-col">
+          <div className="px-8 max-w-7xl mx-auto h-full flex flex-col min-h-0">
             {/* Header Toolbar */}
             <div className="pt-4 pb-4 px-3 shrink-0">
               <div className="flex items-center justify-between">
@@ -503,7 +538,7 @@ function PostPageContent() {
               </div>
             </div>
             {/* Content Row */}
-            <div className="flex gap-8 flex-1 overflow-hidden">
+            <div className="flex gap-8 flex-1 min-h-0">
               {/* Left: fixed panel */}
               <div className="flex-[2] sticky top-0 h-full">
                 {/* Make the left column fill the available height and center content vertically */}
@@ -631,16 +666,18 @@ function PostPageContent() {
                   {(isAlbum || isPlaylist) && (
                     <div className="mt-6 p-8 bg-card/40 rounded-2xl border border-border/40 shadow-lg backdrop-blur-md relative z-10 w-full max-w-xl">
                       <h3 className="text-xl font-semibold text-card-foreground mb-6 text-center">Listen Now</h3>
-                      {isPlaylist ? (
-                        <PlaylistStreamingLinks
-                          links={convertedUrls}
-                          className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                          playlistId={postData?.musicElementId || ''}
-                        />
-                      ) : (
-                        <StreamingLinks 
-                          links={convertedUrls}
-                          className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                        {isPlaylist ? (
+                          <PlaylistStreamingLinks
+                            links={convertedUrls}
+                            className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                            playlistId={postData?.musicElementId || ''}
+                            sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
+                            sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                          />
+                        ) : (
+                          <StreamingLinks 
+                            links={convertedUrls}
+                            className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                         />
                       )}
                     </div>
@@ -665,7 +702,7 @@ function PostPageContent() {
                 </div>
               </div>
               {/* Right: scrollable pane */}
-              <div className="flex-[3] overflow-y-auto no-scrollbar pr-1">
+              <div className="flex-[3] overflow-y-auto no-scrollbar pr-1 min-h-0">
                 <div className="pt-8 pb-12 max-w-2xl">
                   <div className="space-y-8">
                     {/* Track list for album/playlist */}
@@ -858,6 +895,8 @@ function PostPageContent() {
                               links={convertedUrls}
                               className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                               playlistId={postData?.musicElementId || ''}
+                              sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
+                              sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                             />
                           ) : (
                             <StreamingLinks 
@@ -1159,6 +1198,8 @@ function PostPageContent() {
                     links={convertedUrls}
                     className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                     playlistId={postData?.musicElementId || ''}
+                    sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
+                    sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                   />
                 ) : (
                   <StreamingLinks 

@@ -351,7 +351,7 @@ class ApiService {
     const targetKey = normalize(targetPlatform);
     const canonicalMap: Record<string, string> = {
       spotify: 'spotify',
-      applemusic: 'apple-music',
+      applemusic: 'applemusic',
       deezer: 'deezer',
     };
     const canonicalTarget = canonicalMap[targetKey] || targetPlatform.toLowerCase();

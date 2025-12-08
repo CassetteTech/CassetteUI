@@ -32,13 +32,13 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/search" className="text-muted-foreground hover:text-foreground">
-                  Search
+                <Link href="/about" className="text-muted-foreground hover:text-foreground">
+                  About
                 </Link>
               </li>
               <li>
-                <Link href="/add" className="text-muted-foreground hover:text-foreground">
-                  Add Music
+                <Link href="/team" className="text-muted-foreground hover:text-foreground">
+                  Team
                 </Link>
               </li>
             </ul>
@@ -48,11 +48,6 @@ export function Footer() {
           <div>
             <h3 className="font-semibold mb-4">Support</h3>
             <ul className="space-y-2 text-sm">
-              <li>
-                <Link href="/help" className="text-muted-foreground hover:text-foreground">
-                  Help Center
-                </Link>
-              </li>
               <li>
                 <Link href="/privacy" className="text-muted-foreground hover:text-foreground">
                   Privacy Policy

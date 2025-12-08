@@ -21,6 +21,7 @@ import { useMusicLinkConversion } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { HeartHandshake } from 'lucide-react';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
+import { ReportIssueModal } from '@/components/features/report-issue-modal';
 
 // Incoming track shape when using ?data= payloads
 type IncomingDataTrack = {
@@ -71,6 +72,7 @@ function PostPageContent() {
   
   // Animation states
   const [dominantColor, setDominantColor] = useState<string | null>(null);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   const handleSignupClick = () => router.push('/auth/signup');
   
   // Determine if this is from add-music page based on URL params
@@ -648,7 +650,10 @@ function PostPageContent() {
                   {/* Report Problem (moved to left to keep right-only track list) */}
                   {(isAlbum || isPlaylist) && (
                     <div className="mt-6 flex justify-center w-full max-w-xl">
-                      <button className="flex items-center gap-2 px-6 py-3 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-base font-medium">
+                      <button
+                        onClick={() => setReportModalOpen(true)}
+                        className="flex items-center gap-2 px-6 py-3 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-base font-medium"
+                      >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -889,7 +894,10 @@ function PostPageContent() {
 
                         {/* Report Problem */}
                         <div className="flex justify-center">
-                          <button className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium">
+                          <button
+                            onClick={() => setReportModalOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium"
+                          >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
@@ -1190,7 +1198,10 @@ function PostPageContent() {
 
               {/* Report Problem Button */}
               <div>
-                <button className="flex items-center gap-2 px-6 py-3 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors font-medium relative z-50">
+                <button
+                  onClick={() => setReportModalOpen(true)}
+                  className="flex items-center gap-2 px-6 py-3 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors font-medium relative z-50"
+                >
                   <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -1201,6 +1212,20 @@ function PostPageContent() {
           </div>
         )}
       </div>
+
+      {/* Report Issue Modal */}
+      <ReportIssueModal
+        open={reportModalOpen}
+        onOpenChange={setReportModalOpen}
+        sourceContext="post_page"
+        sourceLink={postData?.originalUrl}
+        conversionData={{
+          elementType: postData?.metadata?.type,
+          title: postData?.metadata?.title,
+          artist: postData?.metadata?.artist,
+          platforms: postData?.convertedUrls,
+        }}
+      />
     </div>
   );
 }

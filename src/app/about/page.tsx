@@ -91,20 +91,25 @@ export default function AboutPage() {
                 </Button>
               </div>
 
-              {/* Trust / Proof */}
-              <div className="mt-10 flex items-center gap-6">
-                <div className="flex -space-x-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-8 w-8 rounded-full border border-border/60 bg-gradient-to-br from-muted to-muted/60"
-                    />
-                  ))}
+              {/*
+                TODO: Trusted Curators Section
+                Add this back once we have actual trusted curators to showcase.
+                This will display profile pictures of real curators using the platform.
+
+                <div className="mt-10 flex items-center gap-6">
+                  <div className="flex -space-x-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-8 w-8 rounded-full border border-border/60 bg-gradient-to-br from-muted to-muted/60"
+                      />
+                    ))}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Trusted by curators, DJs, and music creators worldwide
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Trusted by curators, DJs, and music creators worldwide
-                </p>
-              </div>
+              */}
             </motion.div>
 
             {/* Right - Smart Preview Card */}

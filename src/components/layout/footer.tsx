@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Music } from 'lucide-react';
+import Image from 'next/image';
 
 export function Footer() {
   return (
@@ -8,9 +8,14 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Logo and Description */}
           <div className="col-span-1 md:col-span-2">
-            <Link href="/" className="flex items-center space-x-2 mb-4">
-              <Music className="h-6 w-6 text-primary" />
-              <span className="text-lg font-bold">Cassette</span>
+            <Link href="/" className="flex items-center mb-4">
+              <Image
+                src="/images/cassette_words_logo.png"
+                alt="Cassette"
+                width={120}
+                height={32}
+                className="h-8 w-auto"
+              />
             </Link>
             <p className="text-muted-foreground text-sm mb-4">
               Share your favorite music across all platforms. Connect with friends and discover new tunes.

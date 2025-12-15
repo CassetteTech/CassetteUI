@@ -95,7 +95,7 @@ class ApiService {
     } catch (error) {
       console.error('❌ API Request Failed:', error);
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error(`Cannot connect to API at ${url}. Is your local server running on port 5173?`);
+        throw new Error(`Cannot connect to API at ${url}. Is your local server running on port 5000?`);
       }
       throw error;
     }

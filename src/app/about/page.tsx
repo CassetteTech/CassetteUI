@@ -33,14 +33,14 @@ import { openKoFiSupport, KOFI_ICON_SRC } from "@/lib/ko-fi";
 
 export default function AboutPage() {
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-background via-muted/10 to-muted/30 overflow-hidden">
+    <div className="relative min-h-screen surface-bottom overflow-hidden">
       <AnimatedBackground />
 
       {/* Ambient Gradient Orbs */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute top-1/3 -right-24 h-80 w-80 rounded-full bg-secondary/20 blur-3xl" />
-        <div className="absolute bottom-0 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-accent/10 blur-3xl" />
+        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute top-1/3 -right-24 h-80 w-80 rounded-full bg-secondary/10 blur-3xl" />
+        <div className="absolute bottom-0 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-accent/8 blur-3xl" />
       </div>
 
       <main className="relative z-10">
@@ -54,38 +54,38 @@ export default function AboutPage() {
               transition={{ duration: 0.7 }}
               className="lg:col-span-6"
             >
-              <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/70 px-3 py-1.5 backdrop-blur-md">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/60 surface-top px-4 py-2 backdrop-blur-md elev-1">
                 <Stars className="h-4 w-4 text-primary" />
-                <span className="font-teko text-sm tracking-wide text-muted-foreground">
-                  MADE FOR CURATORS
+                <span className="font-teko text-sm tracking-wider text-primary uppercase font-medium">
+                  Made for Curators
                 </span>
               </div>
 
-              <h1 className="mt-6 font-teko text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground">
-                Your Music, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Everywhere.</span>
+              <h1 className="mt-8 font-teko text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-foreground leading-none">
+                Your Music, <span className="text-gradient">Everywhere.</span>
               </h1>
 
-              <p className="mt-4 text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-xl">
+              <p className="mt-6 text-xl sm:text-2xl text-muted-foreground leading-relaxed max-w-xl">
                 Cassette turns any track, album, or playlist into a single smart link
-                that opens in your listener’s preferred app—no dead ends, no friction.
+                that opens in your listener&apos;s preferred app—<span className="text-foreground font-medium">no dead ends, no friction</span>.
               </p>
 
-              <div className="mt-8 flex flex-col sm:flex-row gap-4">
+              <div className="mt-10 flex flex-col sm:flex-row gap-5">
                 <Button
                   asChild
                   size="lg"
-                  className="font-teko text-lg px-7 py-6 rounded-xl bg-gradient-to-r from-primary to-secondary text-foreground hover:from-primary/90 hover:to-secondary/90"
+                  className="font-teko text-xl px-9 py-7 rounded-xl bg-gradient-to-r from-primary to-accent text-foreground elev-2 hover:elev-3 transition-all duration-300 hover:scale-105 bordered-glow group"
                 >
                   <Link href="/auth/signup">
-                    Create Your Universal Link
-                    <ArrowRight className="ml-2 h-5 w-5" />
+                    <span>Create Your Universal Link</span>
+                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
                   </Link>
                 </Button>
                 <Button
                   asChild
                   variant="outline"
                   size="lg"
-                  className="font-teko text-lg px-7 py-6 rounded-xl bg-transparent border-border hover:bg-bgSubtle/50"
+                  className="font-teko text-xl px-9 py-7 rounded-xl gradient-border-hover surface-top elev-1 hover:elev-2 transition-all duration-300"
                 >
                   <Link href="/profile">Explore Profiles</Link>
                 </Button>
@@ -115,18 +115,21 @@ export default function AboutPage() {
               className="lg:col-span-6"
             >
               <div className="relative">
-                <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-primary/30 to-secondary/30 blur-xl opacity-40" />
-                <Card className="relative rounded-3xl border border-border/60 bg-card/80 backdrop-blur-md shadow-xl">
-                  <CardHeader className="p-6 pb-0">
-                    <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                        <CassetteTape className="h-6 w-6 text-foreground" />
+                <div className="absolute -inset-4 rounded-[20px] bg-gradient-to-r from-primary/20 to-secondary/20 blur-2xl opacity-30" />
+                <Card className="relative gradient-border rounded-[20px] surface-top backdrop-blur-md elev-3 overflow-hidden">
+                  {/* Decorative mesh */}
+                  <div className="absolute inset-0 mesh-gradient opacity-30 pointer-events-none"></div>
+
+                  <CardHeader className="p-7 pb-0 relative">
+                    <div className="flex items-center gap-4">
+                      <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center elev-1 bordered-glow flex-shrink-0">
+                        <CassetteTape className="h-7 w-7 text-foreground" />
                       </div>
                       <div>
-                        <CardTitle className="font-teko text-2xl text-foreground">
+                        <CardTitle className="font-teko text-3xl text-foreground leading-tight">
                           Universal Music Link
                         </CardTitle>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground mt-1">
                           One link that speaks every platform
                         </p>
                       </div>
@@ -173,26 +176,26 @@ export default function AboutPage() {
                         <Link
                           key={idx}
                           href={item.href}
-                          className="group rounded-2xl border border-border/60 bg-muted/30 hover:bg-muted/50 transition-all"
+                          className="group rounded-xl gradient-border-hover surface-middle hover:surface-top transition-all elev-1 hover:elev-2 spotlight"
                         >
-                          <div className="flex items-center gap-3 p-3">
+                          <div className="flex items-center gap-3 p-4">
                             <div
-                              className={`h-12 w-12 flex-shrink-0 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center`}
+                              className={`h-12 w-12 flex-shrink-0 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center elev-1 group-hover:elev-2 transition-all duration-300`}
                             >
                               <Music2 className="h-5 w-5 text-white" />
                             </div>
-                            <div className="min-w-0">
-                              <p className="truncate font-medium text-foreground">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-semibold text-foreground">
                                 {item.title}
                               </p>
                               <p className="truncate text-sm text-muted-foreground">
                                 {item.artist}
                               </p>
-                              <span className="mt-1 inline-flex text-[10px] px-2 py-0.5 rounded-full bg-border/60 text-muted-foreground">
+                              <span className="mt-1.5 inline-flex text-[10px] px-2.5 py-0.5 rounded-full bg-border/60 text-muted-foreground font-medium">
                                 {item.badge}
                               </span>
                             </div>
-                            <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                            <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
                           </div>
                         </Link>
                       ))}
@@ -209,116 +212,270 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* STORY + TEAM PREVIEW */}
-        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-20 md:mt-28">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-stretch">
-            {/* Story Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.2 }}
-              transition={{ duration: 0.7 }}
-              className="lg:col-span-7"
-            >
-              <div className="relative">
-                <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-primary/20 to-secondary/20 blur-2xl opacity-40" />
-                <div className="relative rounded-3xl border border-border/60 bg-card/80 backdrop-blur-md p-8 md:p-10">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="h-10 w-10 rounded-xl bg-primary/15 flex items-center justify-center">
-                      <Radio className="h-5 w-5 text-accent" />
+        {/* WHY CASSETTE */}
+        <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 mt-20 md:mt-28">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.7 }}
+          >
+            <div className="relative">
+              <div className="absolute -inset-3 rounded-[20px] bg-gradient-to-r from-primary/15 to-secondary/15 blur-2xl opacity-30" />
+              <div className="relative gradient-border rounded-[20px] surface-top backdrop-blur-md p-10 md:p-14 elev-2 overflow-hidden">
+                {/* Mesh background */}
+                <div className="absolute inset-0 mesh-gradient opacity-30"></div>
+
+                <div className="relative max-w-4xl mx-auto">
+                  <div className="flex items-center justify-center gap-4 mb-8">
+                    <div className="h-14 w-14 rounded-xl bg-primary/15 flex items-center justify-center elev-1 bordered-glow">
+                      <Radio className="h-7 w-7 text-accent" />
                     </div>
-                    <h2 className="font-teko text-3xl sm:text-4xl text-foreground">
-                      Why Cassette Exists
+                    <h2 className="font-teko text-4xl sm:text-5xl text-foreground leading-tight text-center">
+                      The Problem We Solve
                     </h2>
                   </div>
-                  <div className="space-y-5 text-lg text-muted-foreground">
-                    <p className="border-l-2 border-primary/60 pl-4 text-foreground/90">
+                  <div className="space-y-6 text-xl text-muted-foreground text-center">
+                    <p className="text-foreground font-medium text-2xl leading-relaxed">
                       You share the perfect playlist—someone replies,
-                      “Sorry, I use Apple Music.” That ends today.
+                      &ldquo;Sorry, I use Apple Music.&rdquo;{" "}
+                      <span className="text-gradient font-bold">That ends today.</span>
                     </p>
-                    <p>
-                      Music is universal. Platforms aren’t. Cassette removes the
-                      walls so your discoveries flow to everyone, everywhere.
+                    <p className="leading-relaxed">
+                      Music is universal. Platforms aren&apos;t. Cassette removes the
+                      walls so your discoveries flow to everyone, everywhere—no friction, no dead ends.
                     </p>
-                    <p className="text-foreground font-medium">
-                      Built by music lovers, for the culture: developers,
-                      curators, and crate-diggers who live for great finds.
-                    </p>
+                    <div className="pt-6">
+                      <Link
+                        href="/team"
+                        className="inline-flex items-center gap-2 text-primary hover:text-accent transition-colors duration-300 font-medium"
+                      >
+                        <span>Meet the music lovers building Cassette</span>
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
+          </motion.div>
+        </section>
 
-            {/* Team Preview Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.2 }}
-              transition={{ duration: 0.8, delay: 0.1 }}
-              className="lg:col-span-5"
-            >
-              <Link href="/team" className="group block h-full">
-                <div className="relative h-full">
-                  <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-primary/30 to-secondary/30 blur-2xl opacity-40" />
-                  <div className="relative rounded-3xl border border-border/60 bg-card/80 backdrop-blur-md p-8 h-full flex flex-col">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-teko text-2xl text-foreground">
-                        The Cassette Crew
-                      </h3>
-                      <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                    <p className="mt-2 text-muted-foreground">
-                      Music-obsessed team breaking down streaming barriers.
-                    </p>
-                    <div className="mt-6 grid grid-cols-4 gap-3">
-                      {Array.from({ length: 8 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="aspect-square rounded-xl bg-muted/50 border border-border/60 flex items-center justify-center"
-                        >
-                          <UserSquare className="h-5 w-5 text-primary" />
+        {/* COMPANY JOURNEY TIMELINE */}
+        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-20 md:mt-28">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.7 }}
+          >
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center gap-2 mb-5 px-4 py-2 rounded-full surface-middle elev-1 border border-primary/20">
+                <Zap size={16} className="text-primary" />
+                <span className="font-teko text-sm tracking-wider text-primary uppercase">Our Journey</span>
+              </div>
+              <h2 className="font-teko text-4xl sm:text-5xl font-bold text-foreground mb-6 leading-tight">
+                From Idea to{" "}
+                <span className="text-gradient">Reality</span>
+              </h2>
+              <p className="font-roboto text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                The story of how we&apos;re breaking down barriers in music sharing
+              </p>
+            </div>
+
+            <div className="relative">
+              {/* Desktop: Horizontal Timeline */}
+              <div className="hidden lg:block">
+                {/* Horizontal Line */}
+                <div className="absolute left-0 right-0 top-[120px] h-0.5 bg-gradient-to-r from-primary via-accent to-secondary"></div>
+
+                <div className="grid grid-cols-4 gap-6">
+                  {[
+                    {
+                      year: "2020",
+                      title: "The Spark",
+                      description: "Co-founders met at American University, frustrated by the inability to share music across platforms. The idea for Cassette was born.",
+                      icon: Stars,
+                      color: "from-primary to-accent"
+                    },
+                    {
+                      year: "2021",
+                      title: "Building the Foundation",
+                      description: "Pitched into American University's accelerator program. Built initial prototype and assembled our founding team of engineers and marketers.",
+                      icon: Zap,
+                      color: "from-accent to-secondary"
+                    },
+                    {
+                      year: "2022",
+                      title: "Launch & Growth",
+                      description: "Successfully completed crowdfunding campaign. Launched platform publicly and began scaling to thousands of users.",
+                      icon: Radio,
+                      color: "from-secondary to-primary"
+                    },
+                    {
+                      year: "2023-2024",
+                      title: "Scaling Up",
+                      description: "Secured seed funding, scaled REST API to support 65,000+ users, established international partnerships, and continued innovation.",
+                      icon: Music2,
+                      color: "from-primary to-accent"
+                    }
+                  ].map((milestone, index) => {
+                    const IconComponent = milestone.icon;
+
+                    return (
+                      <motion.div
+                        key={milestone.year}
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, amount: 0.3 }}
+                        transition={{ duration: 0.6, delay: index * 0.15 }}
+                        className="relative pt-40"
+                      >
+                        {/* Timeline Dot */}
+                        <div className="absolute top-[120px] left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+                          <motion.div
+                            className={`w-6 h-6 rounded-full bg-gradient-to-br ${milestone.color} ring-4 ring-background elev-2`}
+                            whileHover={{ scale: 1.4 }}
+                            transition={{ duration: 0.3 }}
+                          ></motion.div>
                         </div>
-                      ))}
-                    </div>
-                    <div className="mt-auto pt-6 text-xs text-muted-foreground">
-                      Meet the people shaping the future of music curation.
-                    </div>
-                  </div>
+
+                        {/* Year Badge - Above Timeline */}
+                        <div className="absolute top-8 left-1/2 -translate-x-1/2">
+                          <motion.div
+                            className={`px-4 py-2 rounded-full bg-gradient-to-br ${milestone.color} elev-2`}
+                            whileHover={{ scale: 1.05 }}
+                          >
+                            <span className="font-teko text-xl font-bold text-white whitespace-nowrap">{milestone.year}</span>
+                          </motion.div>
+                        </div>
+
+                        {/* Content Card - Below Timeline */}
+                        <div className="gradient-border-hover surface-top rounded-[16px] p-5 backdrop-blur-sm elev-2 hover:elev-3 transition-all duration-300 group spotlight">
+                          <div className="flex items-center justify-center mb-4">
+                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${milestone.color} flex items-center justify-center elev-1 group-hover:elev-2 transition-all duration-300`}>
+                              <IconComponent className="text-white" size={22} />
+                            </div>
+                          </div>
+                          <h3 className="font-teko text-xl text-foreground mb-2 leading-tight text-center">{milestone.title}</h3>
+                          <p className="font-roboto text-sm text-muted-foreground leading-relaxed text-center">{milestone.description}</p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
-              </Link>
-            </motion.div>
-          </div>
+              </div>
+
+              {/* Mobile/Tablet: Vertical Timeline */}
+              <div className="lg:hidden relative">
+                {/* Vertical Line */}
+                <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary via-accent to-secondary"></div>
+
+                <div className="space-y-8">
+                  {[
+                    {
+                      year: "2020",
+                      title: "The Spark",
+                      description: "Co-founders met at American University, frustrated by the inability to share music across platforms. The idea for Cassette was born.",
+                      icon: Stars,
+                      color: "from-primary to-accent"
+                    },
+                    {
+                      year: "2021",
+                      title: "Building the Foundation",
+                      description: "Pitched into American University's accelerator program. Built initial prototype and assembled our founding team of engineers and marketers.",
+                      icon: Zap,
+                      color: "from-accent to-secondary"
+                    },
+                    {
+                      year: "2022",
+                      title: "Launch & Growth",
+                      description: "Successfully completed crowdfunding campaign. Launched platform publicly and began scaling to thousands of users.",
+                      icon: Radio,
+                      color: "from-secondary to-primary"
+                    },
+                    {
+                      year: "2023-2024",
+                      title: "Scaling Up",
+                      description: "Secured seed funding, scaled REST API to support 65,000+ users, established international partnerships, and continued innovation.",
+                      icon: Music2,
+                      color: "from-primary to-accent"
+                    }
+                  ].map((milestone, index) => {
+                    const IconComponent = milestone.icon;
+
+                    return (
+                      <motion.div
+                        key={milestone.year}
+                        initial={{ opacity: 0, x: -30 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true, amount: 0.3 }}
+                        transition={{ duration: 0.6, delay: index * 0.1 }}
+                        className="relative pl-16"
+                      >
+                        {/* Timeline Dot */}
+                        <div className="absolute left-6 top-6 -translate-x-1/2 z-10">
+                          <motion.div
+                            className={`w-5 h-5 rounded-full bg-gradient-to-br ${milestone.color} ring-4 ring-background elev-2`}
+                            whileHover={{ scale: 1.3 }}
+                            transition={{ duration: 0.3 }}
+                          ></motion.div>
+                        </div>
+
+                        {/* Content Card */}
+                        <div className="gradient-border-hover surface-top rounded-[16px] p-6 backdrop-blur-sm elev-2 hover:elev-3 transition-all duration-300 group spotlight">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${milestone.color} flex items-center justify-center elev-1 group-hover:elev-2 transition-all duration-300 flex-shrink-0`}>
+                              <IconComponent className="text-white" size={22} />
+                            </div>
+                            <div className="font-teko text-2xl font-bold text-gradient">{milestone.year}</div>
+                          </div>
+                          <h3 className="font-teko text-xl text-foreground mb-2 leading-tight">{milestone.title}</h3>
+                          <p className="font-roboto text-sm text-muted-foreground leading-relaxed">{milestone.description}</p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </section>
 
         {/* Support CTA */}
         <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 mt-16">
-          <div className="rounded-3xl border border-primary/30 bg-primary/10 backdrop-blur-sm shadow-xl p-6 sm:p-8 md:p-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div className="flex items-start gap-4 text-left">
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
-                <HeartHandshake className="h-6 w-6" />
-              </span>
-              <div>
-                <h3 className="font-teko text-2xl text-foreground mb-1">Fuel the Cassette Mission</h3>
-                <p className="text-muted-foreground max-w-2xl">
-                  We&apos;re an indie team building better ways to share music. If our story resonates, tap Support to send a Ko-fi.
-                </p>
+          <div className="relative gradient-border rounded-[20px] surface-top backdrop-blur-sm elev-2 p-8 sm:p-10 md:p-12 overflow-hidden">
+            {/* Decorative gradient orb */}
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div>
+
+            <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+              <div className="flex items-start gap-5 text-left">
+                <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-foreground elev-1 flex-shrink-0">
+                  <HeartHandshake className="h-7 w-7" />
+                </span>
+                <div>
+                  <h3 className="font-teko text-3xl sm:text-4xl text-foreground mb-2 leading-tight">Fuel the Cassette Mission</h3>
+                  <p className="text-muted-foreground text-lg max-w-2xl leading-relaxed">
+                    We&apos;re an indie team building better ways to share music. If our story resonates, tap Support to send a Ko-fi.
+                  </p>
+                </div>
               </div>
+              <button
+                onClick={openKoFiSupport}
+                className="inline-flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-primary to-accent text-foreground font-teko text-xl px-8 py-4 elev-2 hover:elev-3 shadow-primary/20 transition-all duration-300 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary whitespace-nowrap"
+                aria-label="Support Cassette on Ko-fi"
+              >
+                <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={24} height={24} className="rounded-full" />
+                <span>Support Us</span>
+              </button>
             </div>
-            <button
-              onClick={openKoFiSupport}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground font-teko text-lg px-6 py-3 shadow-lg shadow-primary/20 transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              aria-label="Support Cassette on Ko-fi"
-            >
-              <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={20} height={20} className="rounded-full" />
-              <span>Support Us</span>
-            </button>
           </div>
         </section>
 
         {/* FEATURES: Two-Column with Tall InvertedProfileDemo */}
         <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-20 md:mt-28">
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-bgSubtle/50 px-4 py-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 surface-top px-4 py-2 elev-1">
               <Zap className="h-4 w-4 text-primary" />
               <span className="font-teko text-primary text-lg tracking-wide">
                 WHAT YOU CAN DO
@@ -332,7 +489,7 @@ export default function AboutPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
             {/* Tall Demo - left on desktop */}
             <motion.div
               initial={{ opacity: 0, y: 18 }}
@@ -341,20 +498,14 @@ export default function AboutPage() {
               transition={{ duration: 0.7 }}
               className="lg:col-span-5 flex justify-center lg:justify-end"
             >
-              <div className="relative w-full max-w-[520px]">
-                <div className="absolute -inset-4 rounded-3xl bg-gradient-to-b from-primary/25 to-secondary/25 blur-2xl opacity-40" />
-                <div
-                  className="relative rounded-3xl border border-border/60 bg-card/80 backdrop-blur-md shadow-xl"
-                  style={{
-                    paddingTop: "2rem",
-                    paddingBottom: "2rem",
-                  }}
-                >
-                  {/* Ensure enough space for tall content */}
-                  <div className="px-4 md:px-6">
+              <div className="relative w-full max-w-[520px] min-h-[1200px] flex items-center justify-center py-24 lg:py-32">
+                <div className="absolute -inset-4 rounded-[18px] bg-gradient-to-b from-primary/20 to-secondary/20 blur-2xl opacity-30" />
+                <div className="relative rounded-[18px] border border-border/60 surface-top backdrop-blur-md elev-3 w-full overflow-visible">
+                  {/* Header Section */}
+                  <div className="px-4 md:px-6 pt-6 pb-4">
                     <div className="mb-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center elev-1">
                           <UserSquare className="h-5 w-5 text-foreground" />
                         </div>
                         <div>
@@ -370,17 +521,19 @@ export default function AboutPage() {
                         Live Demo
                       </span>
                     </div>
+                  </div>
 
-                    <div className="rounded-2xl border border-border/50 bg-bgElevated/80 p-3">
-                      {/* Constrain width, let height breathe */}
-                      <div className="mx-auto w-full">
-                        <ProfileDemo />
-                      </div>
+                  {/* ProfileDemo Component - with proper space for callouts */}
+                  <div className="px-4 md:px-6 pb-6">
+                    <div className="rounded-xl border border-border/50 surface-middle overflow-visible">
+                      <ProfileDemo />
                     </div>
+                  </div>
 
-                    <p className="mt-4 text-xs text-muted-foreground">
-                      Tip: This component is taller than it looks—extra vertical
-                      space included to avoid truncation.
+                  {/* Footer Note */}
+                  <div className="px-4 md:px-6 pb-6">
+                    <p className="text-xs text-muted-foreground text-center">
+                      Interactive demo showing your music profile with smart linking
                     </p>
                   </div>
                 </div>
@@ -396,12 +549,12 @@ export default function AboutPage() {
               className="lg:col-span-7 space-y-8 self-center"
             >
               {/* Universal Links */}
-              <Card className="rounded-3xl border border-border/60 bg-card/80 backdrop-blur-md shadow-lg overflow-hidden">
-                <CardHeader className="p-6">
-                  <div className="bg-primary/10 w-12 h-12 rounded-xl flex items-center justify-center">
-                    <LinkIcon className="text-primary h-5 w-5" />
+              <Card className="gradient-border-hover rounded-[20px] surface-top backdrop-blur-md elev-2 hover:elev-3 transition-all duration-300 overflow-hidden spotlight group">
+                <CardHeader className="p-7">
+                  <div className="bg-primary/10 w-14 h-14 rounded-xl flex items-center justify-center elev-1 bordered-glow group-hover:elev-2 transition-all duration-300">
+                    <LinkIcon className="text-primary h-6 w-6" />
                   </div>
-                  <CardTitle className="mt-4 font-teko text-2xl text-foreground">
+                  <CardTitle className="mt-5 font-teko text-3xl text-foreground leading-tight">
                     Universal Music Links
                   </CardTitle>
                 </CardHeader>
@@ -414,7 +567,7 @@ export default function AboutPage() {
                   <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Link
                       href="/post?url=https://open.spotify.com/track/4fzsfWzRhPawzqhX8Qt9F3"
-                      className="rounded-2xl border border-border/60 bg-muted/40 hover:bg-muted/60 transition-colors p-3"
+                      className="rounded-xl border border-border/60 surface-middle hover:surface-top transition-all elev-1 hover:elev-2 p-3"
                     >
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-lg bg-green-500/90 flex items-center justify-center">
@@ -433,7 +586,7 @@ export default function AboutPage() {
 
                     <Link
                       href="/post?url=https://music.apple.com/us/album/the-dark-side-of-the-moon/1065973699?i=1065973705"
-                      className="rounded-2xl border border-border/60 bg-muted/40 hover:bg-muted/60 transition-colors p-3"
+                      className="rounded-xl border border-border/60 surface-middle hover:surface-top transition-all elev-1 hover:elev-2 p-3"
                     >
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-lg bg-pink-500/90 flex items-center justify-center">
@@ -454,12 +607,12 @@ export default function AboutPage() {
               </Card>
 
               {/* Music Identity */}
-              <Card className="rounded-3xl border border-border/60 bg-card/80 backdrop-blur-md shadow-lg overflow-hidden">
-                <CardHeader className="p-6">
-                  <div className="bg-accent/10 w-12 h-12 rounded-xl flex items-center justify-center">
-                    <UserSquare className="text-accent h-5 w-5" />
+              <Card className="gradient-border-hover rounded-[20px] surface-top backdrop-blur-md elev-2 hover:elev-3 transition-all duration-300 overflow-hidden spotlight group">
+                <CardHeader className="p-7">
+                  <div className="bg-accent/10 w-14 h-14 rounded-xl flex items-center justify-center elev-1 bordered-glow group-hover:elev-2 transition-all duration-300">
+                    <UserSquare className="text-accent h-6 w-6" />
                   </div>
-                  <CardTitle className="mt-4 font-teko text-2xl text-foreground">
+                  <CardTitle className="mt-5 font-teko text-3xl text-foreground leading-tight">
                     Your Music Identity
                   </CardTitle>
                 </CardHeader>
@@ -483,7 +636,7 @@ export default function AboutPage() {
                     ].map((b, i) => (
                       <div
                         key={i}
-                        className="rounded-2xl border border-border/60 bg-muted/40 p-3"
+                        className="rounded-xl border border-border/60 surface-middle p-3 elev-1"
                       >
                         <p className="text-xs font-medium text-foreground">
                           {b.title}
@@ -500,7 +653,7 @@ export default function AboutPage() {
 
         {/* SHOWCASE STRIP */}
         <section className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 mt-20 md:mt-28">
-          <div className="rounded-3xl border border-border/50 bg-card/70 backdrop-blur-md p-6 md:p-8">
+          <div className="rounded-[18px] border border-border/50 surface-top backdrop-blur-md p-6 md:p-8 elev-2">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h3 className="font-teko text-2xl text-foreground">
@@ -573,7 +726,7 @@ export default function AboutPage() {
                 <Link
                   key={i}
                   href={x.href}
-                  className="group rounded-2xl border border-border/60 bg-card/80 hover:bg-card transition-all shadow-sm hover:shadow-lg"
+                  className="group rounded-xl border border-border/60 surface-top hover:surface-middle transition-all elev-1 hover:elev-2"
                 >
                   <div className="p-4 flex items-center gap-3">
                     <div
@@ -602,12 +755,12 @@ export default function AboutPage() {
 
         {/* VISION */}
         <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-20 md:mt-28">
-          <div className="relative rounded-3xl border border-border/50 bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur-md p-8 md:p-12">
+          <div className="relative rounded-[18px] border border-border/50 surface-top backdrop-blur-md p-8 md:p-12 elev-2">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-10 items-center">
               <div className="md:col-span-5">
                 <div className="relative">
-                  <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-primary to-secondary blur-2xl opacity-20" />
-                  <div className="relative rounded-3xl border border-border/60 bg-card/80 p-8 flex flex-col items-center justify-center">
+                  <div className="absolute -inset-4 rounded-[18px] bg-gradient-to-r from-primary to-secondary blur-2xl opacity-15" />
+                  <div className="relative rounded-[18px] border border-border/60 surface-top p-8 flex flex-col items-center justify-center elev-2">
                     <Radio className="text-accent mb-4 h-12 w-12" />
                     <h3 className="font-teko text-2xl text-foreground text-center">
                       The Future of Curation
@@ -616,7 +769,7 @@ export default function AboutPage() {
                 </div>
               </div>
               <div className="md:col-span-7">
-                <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-bgSubtle/50 px-4 py-2 mb-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-border/60 surface-top px-4 py-2 mb-4 elev-1">
                   <Music2 className="h-4 w-4 text-accent" />
                   <span className="font-teko text-accent text-lg">OUR VISION</span>
                 </div>
@@ -640,7 +793,7 @@ export default function AboutPage() {
 
         {/* Supporters Showcase */}
         <section className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 mt-20 md:mt-28">
-          <div className="rounded-3xl border border-border/50 bg-card/80 backdrop-blur-md shadow-xl p-0 overflow-hidden">
+          <div className="rounded-[18px] border border-border/50 surface-top backdrop-blur-md elev-3 p-0 overflow-hidden">
             <div className="px-6 pt-6 pb-4 text-left">
               <h3 className="font-teko text-2xl text-foreground">Buy the Team a Coffee</h3>
               <p className="mt-2 text-muted-foreground text-sm">

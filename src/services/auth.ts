@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { AuthUser, SignInForm, SignUpForm, ConnectedService } from '@/types';
 
 // Use your local API URL for development
-const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5173';
+const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 class AuthService {
   private sessionIntervalId: number | null = null;
@@ -64,43 +64,47 @@ class AuthService {
       throw new Error(data.message || 'Failed to create account');
     }
 
-    // Check if we got a successful response with user data
-    if (data.success && data.user && data.token) {
-      console.log('✅ [Auth] Storing tokens and user data');
-      console.log('📦 [Auth] User data from server:', data.user);
-      
-      // Store tokens
-      this.setTokens(data.token, data.refreshToken || '');
-      
-      // Normalize user data like Flutter does
-      const normalizedUser = {
-        ...data.user,
-        userId: data.user.userId || data.user.UserId || data.user.id,
-        authUserId: data.user.authUserId || data.user.AuthUserId,
-        username: data.user.username || data.user.Username,
-        email: data.user.email || data.user.Email,
-        bio: data.user.bio || data.user.Bio || null,
-        avatarUrl: data.user.avatarUrl || data.user.AvatarUrl || null,
-        joinDate: data.user.joinDate || data.user.JoinDate || new Date().toISOString(),
-      };
-      
-      console.log('✅ [Auth] Normalized user data:', normalizedUser);
-      localStorage.setItem('user_data', JSON.stringify(normalizedUser));
-      
-      // Update auth store with the proper auth user format
-      const authUser = this.mapToAuthUser(normalizedUser);
-      useAuthStore.getState().setUser(authUser);
-      
-      console.log('✅ [Auth] Auth user stored in state:', authUser);
-      
-      // Add delay like Flutter to ensure state updates propagate
-      await new Promise(resolve => setTimeout(resolve, 300));
-    } else {
-      console.error('❌ [Auth] Invalid response structure:', data);
-      throw new Error('Invalid response from server');
+    // Check if we got a successful response
+    if (data.success) {
+      if (data.user && data.token) {
+        console.log('✅ [Auth] Storing tokens and user data');
+        console.log('📦 [Auth] User data from server:', data.user);
+        
+        // Store tokens
+        this.setTokens(data.token, data.refreshToken || '');
+        
+        // Normalize user data like Flutter does
+        const normalizedUser = {
+          ...data.user,
+          userId: data.user.userId || data.user.UserId || data.user.id,
+          authUserId: data.user.authUserId || data.user.AuthUserId,
+          username: data.user.username || data.user.Username,
+          email: data.user.email || data.user.Email,
+          bio: data.user.bio || data.user.Bio || null,
+          avatarUrl: data.user.avatarUrl || data.user.AvatarUrl || null,
+          joinDate: data.user.joinDate || data.user.JoinDate || new Date().toISOString(),
+        };
+        
+        console.log('✅ [Auth] Normalized user data:', normalizedUser);
+        localStorage.setItem('user_data', JSON.stringify(normalizedUser));
+        
+        // Update auth store with the proper auth user format
+        const authUser = this.mapToAuthUser(normalizedUser);
+        useAuthStore.getState().setUser(authUser);
+        
+        console.log('✅ [Auth] Auth user stored in state:', authUser);
+        
+        // Add delay like Flutter to ensure state updates propagate
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } else {
+        console.log('ℹ️ [Auth] Signup successful but no token returned (Email confirmation likely required).');
+      }
+
+      return data;
     }
 
-    return data;
+    console.error('❌ [Auth] Invalid response structure:', data);
+    throw new Error('Invalid response from server');
   }
 
   async signIn({ email, password, acceptTerms }: SignInForm) {
@@ -211,28 +215,40 @@ class AuthService {
   }
 
   async handleOAuthCallback(accessToken: string, refreshToken: string) {
-    console.log('🔄 [Auth] Handling OAuth callback');
-    
-    // Store the tokens
-    this.setTokens(accessToken, refreshToken);
-    console.log('✅ [Auth] Tokens stored successfully');
-    
-    // Fetch the user data using the new token
-    console.log('🔄 [Auth] Fetching user data with new tokens...');
-    const user = await this.getCurrentUser();
+    console.log('🟪 [AuthService] handleOAuthCallback called');
+    console.log('🟪 [AuthService] Token length:', accessToken.length);
 
-    useAuthStore.getState().setUser(user);
-    try { localStorage.setItem('user_data', JSON.stringify(user)); } catch {}
-    
-    if (!user) {
-      // Clear tokens if we couldn't get user data
-      console.error('❌ [Auth] Failed to fetch user data after OAuth login');
+    try {
+      // 1. Store tokens
+      this.setTokens(accessToken, refreshToken);
+      console.log('🟪 [AuthService] Tokens saved to localStorage');
+      
+      // 2. Verify we can read them back
+      const stored = this.getAccessToken();
+      if (stored !== accessToken) {
+        throw new Error('LocalStorage failed to save token');
+      }
+
+      // 3. Fetch User
+      console.log('🟪 [AuthService] Fetching user profile...');
+      const user = await this.getCurrentUser();
+
+      if (!user) {
+        console.error('🟥 [AuthService] getCurrentUser returned null after token set');
+        throw new Error('Failed to fetch user profile with new token');
+      }
+
+      useAuthStore.getState().setUser(user);
+      try { localStorage.setItem('user_data', JSON.stringify(user)); } catch {}
+      console.log('🟩 [AuthService] User successfully set in store:', user.email);
+      
+      return user;
+    } catch (e) {
+      console.error('🟥 [AuthService] Error in handleOAuthCallback:', e);
+      // Clear bad tokens so we don't get stuck in a weird state
       this.clearTokens();
-      throw new Error('Failed to fetch user data after OAuth login');
+      throw e;
     }
-    
-    console.log('✅ [Auth] OAuth callback handled successfully, user:', user);
-    return user;
   }
 
   async resetPassword(email: string) {

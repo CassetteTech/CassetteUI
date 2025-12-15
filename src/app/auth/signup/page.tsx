@@ -51,14 +51,14 @@ export default function SignUpPage() {
       username: '',
       password: '',
       confirmPassword: '',
-      acceptTerms: false,
+      acceptTerms: true,
     },
   });
 
   const onSubmit = (data: SignUpForm) => {
     if (isSigningUp) return; // Prevent double submission
     console.log('📝 [Signup] Form submitted with data:', { ...data, password: '[REDACTED]', confirmPassword: '[REDACTED]' });
-    signUp(data);
+    signUp({ ...data, acceptTerms: true });
   };
 
   const handleGoogleSignIn = () => {
@@ -271,35 +271,17 @@ export default function SignUpPage() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="acceptTerms"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <input
-                          type="checkbox"
-                          checked={field.value}
-                          onChange={field.onChange}
-                          className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="text-sm font-normal">
-                          I have read and agreed to the{' '}
-                          <Link href="/terms" className="underline hover:underline">
-                            Terms of Service
-                          </Link>{' '}
-                          and{' '}
-                          <Link href="/privacy" className="underline hover:underline">
-                            Privacy Policy
-                          </Link>
-                        </FormLabel>
-                        <FormMessage />
-                      </div>
-                    </FormItem>
-                  )}
-                />
+                <p className="text-xs text-muted-foreground leading-5">
+                  By clicking Sign Up, you agree to our{' '}
+                  <Link href="/terms" className="underline hover:underline">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link href="/privacy" className="underline hover:underline">
+                    Privacy Policy
+                  </Link>
+                  . You may receive SMS Notifications from us and can opt out any time.
+                </p>
 
                 {signUpError && (
                   <div className="text-sm text-destructive">
@@ -312,7 +294,7 @@ export default function SignUpPage() {
                   disabled={isSigningUp}
                   className="w-full"
                 >
-                  {isSigningUp ? 'Creating account...' : 'Create account'}
+                  {isSigningUp ? 'Signing up...' : 'Sign Up'}
                 </Button>
               </form>
             </Form>
@@ -328,18 +310,6 @@ export default function SignUpPage() {
               </div>
             </CardContent>
           </Card>
-          
-          <div className="text-muted-foreground text-center text-xs text-balance">
-            By creating an account, you agree to our{' '}
-            <Link href="/terms" className="underline underline-offset-4 hover:text-foreground">
-              Terms of Service
-            </Link>{' '}
-            and{' '}
-            <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
-              Privacy Policy
-            </Link>
-            .
-          </div>
         </div>
       </div>
     </div>

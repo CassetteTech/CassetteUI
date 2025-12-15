@@ -107,11 +107,7 @@ class AuthService {
     throw new Error('Invalid response from server');
   }
 
-  async signIn({ email, password, acceptTerms }: SignInForm) {
-    if (!acceptTerms) {
-      throw new Error('Please agree to all the terms and conditions before Signing in');
-    }
-
+  async signIn({ email, password }: SignInForm) {
     const response = await fetch(`${API_URL}/api/v1/auth/signin`, {
       method: 'POST',
       headers: {

@@ -6,12 +6,10 @@ import { useAuthState } from '@/hooks/use-auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { ChooseHandleStep } from '@/components/onboarding/ChooseHandleStep';
 import { AvatarStep } from '@/components/onboarding/AvatarStep';
-import { ConnectMusicStep } from '@/components/onboarding/ConnectMusicStep';
 
 const STEPS = [
   { id: 'handle', title: 'Choose Your Handle', component: ChooseHandleStep },
   { id: 'avatar', title: 'Profile Picture', component: AvatarStep },
-  { id: 'music', title: 'Connect Music Services', component: ConnectMusicStep },
 ];
 
 export default function OnboardingPage() {

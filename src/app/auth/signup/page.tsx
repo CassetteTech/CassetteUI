@@ -65,9 +65,6 @@ export default function SignUpPage() {
     signInWithProvider('google');
   };
 
-  const handleAppleSignIn = () => {
-    signInWithProvider('apple');
-  };
 
   if (isSuccess && !signUpResult?.token) {
     return (
@@ -160,22 +157,6 @@ export default function SignUpPage() {
                   className="mr-2"
                 />
                 Continue with Google
-              </Button>
-              
-              <Button
-                variant="outline"
-                onClick={handleAppleSignIn}
-                disabled={isSigningInWithProvider}
-                className="w-full border-borderLight bg-white hover:bg-brandCreamL text-foreground shadow-sm hover:shadow transition-all dark:bg-black/40 dark:hover:bg-black/60 dark:border-white/20"
-              >
-                <Image
-                  src="/images/apple_music_logo_colored.png"
-                  alt="Apple"
-                  width={20}
-                  height={20}
-                  className="mr-2"
-                />
-                Continue with Apple
               </Button>
             </div>
 

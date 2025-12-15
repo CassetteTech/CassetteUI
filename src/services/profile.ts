@@ -44,8 +44,8 @@ export class ProfileService {
     try {
       const path =
         userIdentifier === 'edit'
-          ? '/api/v1.0/profile/edit/bio'
-          : `/api/v1.0/profile/${userIdentifier}/bio`;
+          ? '/api/v1/profile/edit/bio'
+          : `/api/v1/profile/${userIdentifier}/bio`;
 
       const url = this.buildApiUrl(path);
 
@@ -90,8 +90,8 @@ export class ProfileService {
 
       const path =
         userIdentifier === 'edit'
-          ? '/api/v1.0/profile/edit/activity'
-          : `/api/v1.0/profile/${userIdentifier}/activity`;
+          ? '/api/v1/profile/edit/activity'
+          : `/api/v1/profile/${userIdentifier}/activity`;
 
       const url = this.buildApiUrl(path);
 
@@ -201,7 +201,7 @@ export class ProfileService {
     avatarUrl?: string;
   }): Promise<void> {
     try {
-      const url = this.buildApiUrl('/api/v1.0/user/profile');
+      const url = this.buildApiUrl('/api/v1/user/profile');
 
       const response = await fetch(url, {
         method: 'PUT',
@@ -227,7 +227,7 @@ export class ProfileService {
 
   async checkUsernameAvailability(username: string): Promise<boolean> {
     try {
-      const url = this.buildApiUrl(`/api/v1.0/user/check-username/${username}`);
+      const url = this.buildApiUrl(`/api/v1/user/check-username/${username}`);
 
       const response = await fetch(url, {
         method: 'GET',

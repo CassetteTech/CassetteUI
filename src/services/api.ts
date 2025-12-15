@@ -2,15 +2,15 @@ import { clientConfig } from '@/lib/config-client';
 import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType, MediaListTrack } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 
-interface MusicConnection {
-  id: string;
-  userId: string;
-  service: string;
-  serviceUserId?: string;
-  serviceUsername?: string;
-  connectedAt: string;
-  expiresAt?: string;
-}
+// interface MusicConnection {
+//   id: string;
+//   userId: string;
+//   service: string;
+//   serviceUserId?: string;
+//   serviceUsername?: string;
+//   connectedAt: string;
+//   expiresAt?: string;
+// }
 
 class ApiService {
   private baseUrl = clientConfig.api.url;
@@ -345,8 +345,31 @@ class ApiService {
     });
   }
 
+  async createPlaylist(playlistId: string, targetPlatform: string) {
+    const connections = await this.getMusicConnections();
+    const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
+    const targetKey = normalize(targetPlatform);
+    const canonicalMap: Record<string, string> = {
+      spotify: 'spotify',
+      applemusic: 'applemusic',
+      deezer: 'deezer',
+    };
+    const canonicalTarget = canonicalMap[targetKey] || targetPlatform.toLowerCase();
+
+    const hasConnection = connections.services?.some(service => normalize(service) === targetKey);
+    console.log('createPlaylist connection check:', { connections, targetPlatform, canonicalTarget, hasConnection });
+
+    if (!hasConnection) {
+      throw new Error('No connection found for target platform');
+    }
+    return this.request<{ success: boolean }>('/api/v1/convert/createPlaylist', {
+      method: 'POST',
+      body: JSON.stringify({ PlaylistId: playlistId, TargetPlatform: canonicalTarget}),
+    });
+  }
+
   async getMusicConnections() {
-    return this.request<{ connections: MusicConnection[] }>('/api/v1/music-services/connected');
+    return this.request<{ services: string[] }>('/api/v1/music-services/connected');
   }
 
   async disconnectMusicService(service: string) {

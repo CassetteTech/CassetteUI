@@ -143,6 +143,8 @@ export function ProfileHeader({
 }
 
 function ConnectedServices({ services, isSmallScreen, isLargeScreen }: { services: ConnectedService[], isSmallScreen: boolean, isLargeScreen: boolean }) {
+  const normalize = (value: unknown) => (typeof value === 'string' ? value : value ? String(value) : '').toLowerCase();
+
   const getServiceIcon = (serviceType: string) => {
     const iconMap: Record<string, string> = {
       'spotify': '/images/social_images/ic_spotify.png',
@@ -152,7 +154,7 @@ function ConnectedServices({ services, isSmallScreen, isLargeScreen }: { service
       'deezer': '/images/social_images/ic_deezer.png',
     };
     
-    return iconMap[serviceType.toLowerCase()] || '/images/social_images/ic_spotify.png';
+    return iconMap[normalize(serviceType)] || '/images/social_images/ic_spotify.png';
   };
 
   const getServiceColor = (serviceType: string) => {
@@ -164,7 +166,7 @@ function ConnectedServices({ services, isSmallScreen, isLargeScreen }: { service
       'deezer': 'text-purple-500',
     };
     
-    return colorMap[serviceType.toLowerCase()] || 'text-gray-400';
+    return colorMap[normalize(serviceType)] || 'text-gray-400';
   };
 
   if (!services || services.length === 0) {

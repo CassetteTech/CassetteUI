@@ -26,6 +26,7 @@ export function MusicConnectionsStatus({
   className = ""
 }: MusicConnectionsStatusProps) {
   const { user, isLoading } = useAuthStore();
+  const normalize = (value: unknown) => (typeof value === 'string' ? value : value ? String(value) : '').toLowerCase();
   
   // Get connected services from auth store
   const connectedServices = user?.connectedServices || [];
@@ -47,7 +48,7 @@ export function MusicConnectionsStatus({
   serviceTypes.forEach(serviceType => {
     // Check both capitalized and lowercase versions
     const exists = connections.find(conn => 
-      conn.serviceType.toLowerCase() === serviceType.toLowerCase()
+      normalize(conn.serviceType) === serviceType.toLowerCase()
     );
     if (!exists) {
       connections.push({
@@ -100,7 +101,7 @@ export function MusicConnectionsStatus({
               <div className="flex items-center gap-2">
                 {connectedServicesFiltered.map(conn => (
                   <div key={conn.serviceType} className="relative">
-                    {conn.serviceType.toLowerCase() === 'spotify' && (
+                    {normalize(conn.serviceType) === 'spotify' && (
                       <Image
                         src="/images/spotify_logo_colored.png"
                         alt="Spotify Connected"
@@ -109,7 +110,7 @@ export function MusicConnectionsStatus({
                         className="rounded-md shadow-sm"
                       />
                     )}
-                    {conn.serviceType.toLowerCase() === 'applemusic' && (
+                    {normalize(conn.serviceType) === 'applemusic' && (
                       <Image
                         src="/images/apple_music_logo_colored.png"
                         alt="Apple Music Connected"
@@ -127,7 +128,7 @@ export function MusicConnectionsStatus({
             <div className="flex md:hidden items-center gap-2">
               {connectedServicesFiltered.map(conn => (
                 <div key={conn.serviceType} className="relative">
-                  {conn.serviceType.toLowerCase() === 'spotify' && (
+                  {normalize(conn.serviceType) === 'spotify' && (
                     <Image
                       src="/images/spotify_logo_colored.png"
                       alt="Spotify Connected"
@@ -136,7 +137,7 @@ export function MusicConnectionsStatus({
                       className="rounded-md shadow-sm"
                     />
                   )}
-                  {conn.serviceType.toLowerCase() === 'applemusic' && (
+                  {normalize(conn.serviceType) === 'applemusic' && (
                     <Image
                       src="/images/apple_music_logo_colored.png"
                       alt="Apple Music Connected"
@@ -172,7 +173,7 @@ export function MusicConnectionsStatus({
               <div className="flex items-center gap-2">
                 {connectedServicesFiltered.map(conn => (
                   <div key={conn.serviceType} className="relative">
-                    {conn.serviceType.toLowerCase() === 'spotify' && (
+                    {normalize(conn.serviceType) === 'spotify' && (
                       <Image
                         src="/images/spotify_logo_colored.png"
                         alt="Spotify Connected"
@@ -181,7 +182,7 @@ export function MusicConnectionsStatus({
                         className="rounded-sm"
                       />
                     )}
-                    {conn.serviceType.toLowerCase() === 'applemusic' && (
+                    {normalize(conn.serviceType) === 'applemusic' && (
                       <Image
                         src="/images/apple_music_logo_colored.png"
                         alt="Apple Music Connected"
@@ -200,7 +201,7 @@ export function MusicConnectionsStatus({
             <div className="flex md:hidden items-center gap-2">
               {connectedServicesFiltered.map(conn => (
                 <div key={conn.serviceType} className="relative">
-                  {conn.serviceType.toLowerCase() === 'spotify' && (
+                  {normalize(conn.serviceType) === 'spotify' && (
                     <Image
                       src="/images/spotify_logo_colored.png"
                       alt="Spotify Connected"
@@ -209,7 +210,7 @@ export function MusicConnectionsStatus({
                       className="rounded-md shadow-sm"
                     />
                   )}
-                  {conn.serviceType.toLowerCase() === 'applemusic' && (
+                  {normalize(conn.serviceType) === 'applemusic' && (
                     <Image
                       src="/images/apple_music_logo_colored.png"
                       alt="Apple Music Connected"
@@ -243,7 +244,7 @@ export function MusicConnectionsStatus({
             <div className="flex items-center gap-1">
               {connectedServicesFiltered.map(conn => (
                 <div key={conn.serviceType} className="relative">
-                  {conn.serviceType.toLowerCase() === 'spotify' && (
+                  {normalize(conn.serviceType) === 'spotify' && (
                     <Image
                       src="/images/spotify_logo_colored.png"
                       alt="Spotify"
@@ -252,7 +253,7 @@ export function MusicConnectionsStatus({
                       className="rounded-sm"
                     />
                   )}
-                  {conn.serviceType.toLowerCase() === 'applemusic' && (
+                  {normalize(conn.serviceType) === 'applemusic' && (
                     <Image
                       src="/images/apple_music_logo_colored.png"
                       alt="Apple Music"

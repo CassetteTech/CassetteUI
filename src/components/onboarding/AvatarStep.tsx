@@ -26,6 +26,8 @@ export function AvatarStep({
   updateFormData,
   onNext,
   onBack,
+  onFinish,
+  isLastStep,
 }: AvatarStepProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,7 +80,19 @@ export function AvatarStep({
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
     }
-    onNext();
+    if (isLastStep) {
+      onFinish();
+    } else {
+      onNext();
+    }
+  };
+
+  const handlePrimaryAction = () => {
+    if (isLastStep) {
+      onFinish();
+    } else {
+      onNext();
+    }
   };
 
   return (
@@ -152,10 +166,10 @@ export function AvatarStep({
             Skip
           </Button>
           <Button
-            onClick={onNext}
+            onClick={handlePrimaryAction}
             className="px-8"
           >
-            Next
+            {isLastStep ? 'Finish' : 'Next'}
           </Button>
         </div>
       </div>

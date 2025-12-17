@@ -24,9 +24,6 @@ import Image from 'next/image';
 const signInSchema = z.object({
   email: z.string().email('Please Enter A Valid Email'),
   password: z.string().min(8, 'Please Enter At-Least 8 Digit Password'),
-  acceptTerms: z.boolean().refine((val) => val === true, {
-    message: 'Please agree to all the terms and conditions before Signing in',
-  }),
 });
 
 export default function SignInPage() {
@@ -39,7 +36,6 @@ export default function SignInPage() {
     defaultValues: {
       email: '',
       password: '',
-      acceptTerms: false,
     },
   });
 
@@ -49,10 +45,6 @@ export default function SignInPage() {
 
   const handleGoogleSignIn = () => {
     signInWithProvider('google');
-  };
-
-  const handleAppleSignIn = () => {
-    signInWithProvider('apple');
   };
 
   return (
@@ -101,22 +93,6 @@ export default function SignInPage() {
                   className="mr-2"
                 />
                 Continue with Google
-              </Button>
-              
-              <Button
-                variant="outline"
-                onClick={handleAppleSignIn}
-                disabled={isSigningInWithProvider}
-                className="w-full border-borderLight bg-white hover:bg-brandCreamL text-foreground shadow-sm hover:shadow transition-all dark:bg-black/40 dark:hover:bg-black/60 dark:border-white/20"
-              >
-                <Image
-                  src="/images/apple_music_logo_colored.png"
-                  alt="Apple"
-                  width={20}
-                  height={20}
-                  className="mr-2"
-                />
-                Continue with Apple
               </Button>
             </div>
 
@@ -187,36 +163,6 @@ export default function SignInPage() {
                         </div>
                       </FormControl>
                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="acceptTerms"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <input
-                          type="checkbox"
-                          checked={field.value}
-                          onChange={field.onChange}
-                          className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="text-sm font-normal">
-                          I have read and agreed to the{' '}
-                          <Link href="/terms" className="underline hover:underline">
-                            Terms of Service
-                          </Link>{' '}
-                          and{' '}
-                          <Link href="/privacy" className="underline hover:underline">
-                            Privacy Policy
-                          </Link>
-                        </FormLabel>
-                        <FormMessage />
-                      </div>
                     </FormItem>
                   )}
                 />

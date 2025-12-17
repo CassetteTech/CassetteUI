@@ -267,7 +267,6 @@ export interface PostByIdResponse {
 export interface SignInForm {
   email: string;
   password: string;
-  acceptTerms: boolean;
 }
 
 export interface SignUpForm {

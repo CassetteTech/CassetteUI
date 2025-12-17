@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useRef, useEffect, useState, Suspense } from 'react';
+import { useRef, useEffect, useState, Suspense, useCallback } from 'react';
 import { MusicLinkConversion, ElementType, MediaListTrack } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { ConversionProgress } from '@/components/features/conversion/conversion-progress';
@@ -73,6 +73,29 @@ function PostPageContent() {
   // Animation states
   const [dominantColor, setDominantColor] = useState<string | null>(null);
   const handleSignupClick = () => router.push('/auth/signup');
+  const postIdParam = searchParams.get('id');
+  const [, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
+
+  const buildShareUrl = useCallback(() => {
+    if (typeof window === 'undefined') return '';
+    if (postData?.postId) return `${window.location.origin}/post?id=${postData.postId}`;
+    if (postIdParam) return `${window.location.origin}/post?id=${postIdParam}`;
+    return window.location.href;
+  }, [postData?.postId, postIdParam]);
+
+  const handleCopyShareLink = useCallback(async () => {
+    const shareUrl = buildShareUrl();
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopyState('copied');
+      setTimeout(() => setCopyState('idle'), 2000);
+    } catch (err) {
+      console.error('Failed to copy conversion link:', err);
+      setCopyState('error');
+      setTimeout(() => setCopyState('idle'), 2000);
+    }
+  }, [buildShareUrl]);
   
   // Determine if this is from add-music page based on URL params
   const isFromAddMusic = searchParams.get('fromAddMusic') === 'true';
@@ -134,7 +157,7 @@ function PostPageContent() {
                 trackCount: (result as unknown as { tracks?: unknown[] }).tracks?.length,
               });
               const sourcePlatform = detectContentType(decodedUrl).platform;
-              setPostData({ ...result, sourcePlatform });
+              setPostData({ ...result, sourcePlatform, postId: result.postId || postIdParam || undefined });
               if (result.metadata?.artwork) {
                 extractColorFromArtwork(result.metadata.artwork);
               }
@@ -234,6 +257,7 @@ function PostPageContent() {
           setPostData({
             ...transformedFromData,
             sourcePlatform: detectedSourcePlatform,
+            postId: postIdParam || transformedFromData.postId,
           });
           setApiComplete(true);
           return;
@@ -373,6 +397,7 @@ function PostPageContent() {
               setPostData({
                 ...transformedData,
                 sourcePlatform: detectedSourcePlatform,
+                postId: response.postId || postIdParam || transformedData.postId,
               });
             setApiComplete(true);
             
@@ -510,8 +535,8 @@ function PostPageContent() {
           // Desktop Album/Playlist: fixed left, scrollable right (only right side scrolls)
           <div className="px-8 max-w-7xl mx-auto h-full flex flex-col min-h-0">
             {/* Header Toolbar */}
-            <div className="pt-4 pb-4 px-3 shrink-0">
-              <div className="flex items-center justify-between">
+            <div className="pt-4 pb-4 px-3 shrink-0 max-w-7xl mx-auto w-full">
+              <div className="flex items-center justify-between gap-3">
                 <button
                   onClick={() => router.back()}
                   className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity"
@@ -525,7 +550,11 @@ function PostPageContent() {
                   />
                 </button>
                 <div className="flex items-center gap-3">
-                  <button className="text-foreground hover:opacity-70 transition-opacity">
+                  <button
+                    className="inline-flex items-center justify-center p-2 rounded-full text-foreground hover:opacity-70 transition-opacity"
+                    onClick={handleCopyShareLink}
+                    aria-label="Share conversion link"
+                  >
                     <Image
                       src="/images/ic_share.png"
                       alt="Share"
@@ -732,8 +761,8 @@ function PostPageContent() {
             // Desktop Track/Artist: keep original full-page scroll behavior
             <div className="mt-16">
               {/* Header Toolbar */}
-              <div className="pt-4 pb-6 px-3 relative z-20">
-                <div className="flex items-center justify-between">
+              <div className="pt-4 pb-6 px-3 relative z-20 max-w-7xl mx-auto w-full">
+                <div className="flex items-center justify-between gap-3">
                   <button
                     onClick={() => router.back()}
                     className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity"
@@ -747,15 +776,19 @@ function PostPageContent() {
                     />
                   </button>
                   <div className="flex items-center gap-3">
-                    <button className="text-foreground hover:opacity-70 transition-opacity">
-                      <Image
-                        src="/images/ic_share.png"
-                        alt="Share"
-                        width={24}
-                        height={24}
-                        className="object-contain"
-                      />
-                    </button>
+                  <button
+                    className="inline-flex items-center justify-center p-2 rounded-full text-foreground hover:opacity-70 transition-opacity ml-auto"
+                    onClick={handleCopyShareLink}
+                    aria-label="Share conversion link"
+                  >
+                    <Image
+                      src="/images/ic_share.png"
+                      alt="Share"
+                      width={24}
+                      height={24}
+                      className="object-contain"
+                    />
+                  </button>
                   </div>
                 </div>
               </div>
@@ -953,12 +986,12 @@ function PostPageContent() {
           // Mobile Layout - matching Flutter body() with proper container structure
           <div className="px-4 sm:px-8 md:px-12 pb-8 mt-16 max-w-lg mx-auto">
             {/* Header Toolbar */}
-            <div className="pt-4 pb-6">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => router.back()}
-                  className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity"
-                >
+            <div className="pt-4 pb-6 max-w-7xl mx-auto w-full">
+              <div className="flex items-center justify-between gap-3">
+                  <button
+                    onClick={() => router.back()}
+                    className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity"
+                  >
                   <Image
                     src="/images/ic_back.png"
                     alt="Back"
@@ -968,7 +1001,11 @@ function PostPageContent() {
                   />
                 </button>
                 <div className="flex items-center gap-3">
-                  <button className="text-foreground hover:opacity-70 transition-opacity">
+                  <button
+                    className="inline-flex items-center justify-center p-2 rounded-full text-foreground hover:opacity-70 transition-opacity ml-auto"
+                    onClick={handleCopyShareLink}
+                    aria-label="Share conversion link"
+                  >
                     <Image
                       src="/images/ic_share.png"
                       alt="Share"

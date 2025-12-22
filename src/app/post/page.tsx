@@ -19,7 +19,8 @@ import { useRouter } from 'next/navigation';
 import { apiService } from '@/services/api';
 import { useMusicLinkConversion } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
-import { HeartHandshake } from 'lucide-react';
+import { HeartHandshake, Share2, Check, Copy } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { detectContentType } from '@/utils/content-type-detection';
 
@@ -67,9 +68,6 @@ function PostPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
 
-  // Track when we're fetching an existing post (vs doing a conversion)
-  const [isFetchingExistingPost, setIsFetchingExistingPost] = useState(false);
-
   // Demo mode - force loading state for testing
   const [demoMode, setDemoMode] = useState(false);
   
@@ -77,7 +75,7 @@ function PostPageContent() {
   const [dominantColor, setDominantColor] = useState<string | null>(null);
   const handleSignupClick = () => router.push('/auth/signup');
   const postIdParam = searchParams.get('id');
-  const [, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
 
   const buildShareUrl = useCallback(() => {
     if (typeof window === 'undefined') return '';
@@ -86,19 +84,47 @@ function PostPageContent() {
     return window.location.href;
   }, [postData?.postId, postIdParam]);
 
-  const handleCopyShareLink = useCallback(async () => {
+  const handleShare = useCallback(async () => {
     const shareUrl = buildShareUrl();
     if (!shareUrl) return;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopyState('copied');
-      setTimeout(() => setCopyState('idle'), 2000);
-    } catch (err) {
-      console.error('Failed to copy conversion link:', err);
-      setCopyState('error');
-      setTimeout(() => setCopyState('idle'), 2000);
+
+    const shareTitle = postData?.metadata?.title || 'Music';
+    const shareArtist = postData?.metadata?.artist;
+    const shareText = shareArtist
+      ? `Check out "${shareTitle}" by ${shareArtist} on Cassette`
+      : `Check out "${shareTitle}" on Cassette`;
+
+    // Only use Web Share API on mobile/touch devices where it's actually useful
+    // On desktop, the share sheet doesn't have a copy option which is confusing
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+                     ('ontouchstart' in window && window.innerWidth < 1024);
+
+    if (navigator.share && isMobile) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (err) {
+        // User cancelled or share failed
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Share failed:', err);
+        }
+      }
+    } else {
+      // Desktop: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopyState('copied');
+        // Stay green - don't reset to idle
+      } catch (err) {
+        console.error('Failed to copy link:', err);
+        setCopyState('error');
+        setTimeout(() => setCopyState('idle'), 2000);
+      }
     }
-  }, [buildShareUrl]);
+  }, [buildShareUrl, postData?.metadata?.title, postData?.metadata?.artist]);
   
   // Determine if this is from add-music page based on URL params
   const isFromAddMusic = searchParams.get('fromAddMusic') === 'true';
@@ -122,6 +148,8 @@ function PostPageContent() {
         const postId = searchParams.get('id');
         const demo = searchParams.get('demo');
 
+        console.log('🚀 useEffect running with params:', { urlParam, dataParam, postId, demo });
+
         // Check for demo mode - only activate if explicitly requested
         if (demo === 'loading') {
           console.log('🎬 Demo mode activated - showing pulse loader');
@@ -142,6 +170,13 @@ function PostPageContent() {
           sourceUrlRef.current = decodedUrl;
           sourcePlatformRef.current = detectContentType(decodedUrl).platform;
 
+          console.log('🔗 Conversion check:', {
+            hasConverted: hasConvertedRef.current,
+            lastUrl: lastUrlRef.current,
+            currentUrl: decodedUrl,
+            willSkip: hasConvertedRef.current && lastUrlRef.current === decodedUrl
+          });
+
           // Prevent duplicate mutate calls (Strict Mode / re-renders)
           if (hasConvertedRef.current && lastUrlRef.current === decodedUrl) return;
           hasConvertedRef.current = true;
@@ -150,19 +185,23 @@ function PostPageContent() {
           convertLink(decodedUrl, {
             onSuccess: (result) => {
               setApiComplete(true);
-              if (result.postId) {
-                // replace removes ?url= so this effect won't re-enter conversion
-                router.replace(`/post?id=${result.postId}`);
-                return;
-              }
               console.log('📦 Post page (convert): received result', {
                 type: result.metadata?.type,
                 trackCount: (result as unknown as { tracks?: unknown[] }).tracks?.length,
+                postId: result.postId,
               });
+
+              // Set the data directly from conversion result (no need to fetch again)
               const sourcePlatform = detectContentType(decodedUrl).platform;
               setPostData({ ...result, sourcePlatform, postId: result.postId || postIdParam || undefined });
+
               if (result.metadata?.artwork) {
                 extractColorFromArtwork(result.metadata.artwork);
+              }
+
+              // Update URL for sharing purposes (without triggering re-render/fetch)
+              if (result.postId) {
+                window.history.replaceState(null, '', `/post?id=${result.postId}`);
               }
             },
             onError: (err) => {
@@ -267,7 +306,6 @@ function PostPageContent() {
         }
 
         if (postId) {
-          setIsFetchingExistingPost(true);
           const response = await apiService.fetchPostById(postId);
           
           // Transform the API response (support both detailed and simplified shapes)
@@ -461,16 +499,19 @@ function PostPageContent() {
     }
   }, [postData]);
   
-  // Show skeleton for existing post fetch (not a conversion)
-  if (isFetchingExistingPost && !postData && !error) {
+  // Check URL params directly to avoid race conditions with state
+  const urlParam = searchParams.get('url');
+  const hasPostIdParam = !!searchParams.get('id');
+
+  // Show skeleton for existing post fetch (navigating to ?id= URL)
+  if (hasPostIdParam && !postData && !error) {
     return <EntitySkeleton isDesktop={isDesktop} />;
   }
 
-  // Show conversion progress while converting, or in demo mode
-  if (isConverting || (!postData && !error && !isFetchingExistingPost) || demoMode) {
+  // Show conversion progress while converting (has ?url=), or in demo mode
+  if (isConverting || (urlParam && !postData && !error) || demoMode) {
     console.log('🌊 Showing conversion progress:', { isConverting, hasPostData: !!postData, hasError: !!error, demoMode });
 
-    const urlParam = searchParams.get('url');
     const currentUrl = urlParam ? decodeURIComponent(urlParam) : '';
 
     return (
@@ -558,21 +599,46 @@ function PostPageContent() {
                     className="object-contain"
                   />
                 </button>
-                <div className="flex items-center gap-3">
-                  <button
-                    className="inline-flex items-center justify-center p-2 rounded-full text-foreground hover:opacity-70 transition-opacity"
-                    onClick={handleCopyShareLink}
-                    aria-label="Share conversion link"
-                  >
-                    <Image
-                      src="/images/ic_share.png"
-                      alt="Share"
-                      width={24}
-                      height={24}
-                      className="object-contain"
-                    />
-                  </button>
-                </div>
+                <motion.button
+                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
+                    copyState === 'copied'
+                      ? 'bg-green-500/20 text-green-600 border-green-500/30'
+                      : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
+                  }`}
+                  onClick={handleShare}
+                  aria-label="Share"
+                  whileTap={{ scale: 0.95 }}
+                  animate={copyState === 'copied' ? { scale: [1, 1.05, 1] } : {}}
+                  transition={{ duration: 0.2 }}
+                >
+                  <AnimatePresence mode="wait">
+                    {copyState === 'copied' ? (
+                      <motion.span
+                        key="copied"
+                        className="flex items-center gap-2"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Copied!</span>
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="copy"
+                        className="flex items-center gap-2"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <Copy className="w-4 h-4" />
+                        <span>Copy Link</span>
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
               </div>
             </div>
             {/* Content Row */}
@@ -784,21 +850,46 @@ function PostPageContent() {
                       className="object-contain"
                     />
                   </button>
-                  <div className="flex items-center gap-3">
-                  <button
-                    className="inline-flex items-center justify-center p-2 rounded-full text-foreground hover:opacity-70 transition-opacity ml-auto"
-                    onClick={handleCopyShareLink}
-                    aria-label="Share conversion link"
+                  <motion.button
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
+                      copyState === 'copied'
+                        ? 'bg-green-500/20 text-green-600 border-green-500/30'
+                        : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
+                    }`}
+                    onClick={handleShare}
+                    aria-label="Share"
+                    whileTap={{ scale: 0.95 }}
+                    animate={copyState === 'copied' ? { scale: [1, 1.05, 1] } : {}}
+                    transition={{ duration: 0.2 }}
                   >
-                    <Image
-                      src="/images/ic_share.png"
-                      alt="Share"
-                      width={24}
-                      height={24}
-                      className="object-contain"
-                    />
-                  </button>
-                  </div>
+                    <AnimatePresence mode="wait">
+                      {copyState === 'copied' ? (
+                        <motion.span
+                          key="copied"
+                          className="flex items-center gap-2"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <Check className="w-4 h-4" />
+                          <span>Copied!</span>
+                        </motion.span>
+                      ) : (
+                        <motion.span
+                          key="copy"
+                          className="flex items-center gap-2"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <Copy className="w-4 h-4" />
+                          <span>Copy Link</span>
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </motion.button>
                 </div>
               </div>
               <div className="px-8 max-w-7xl mx-auto pb-8">
@@ -1009,21 +1100,46 @@ function PostPageContent() {
                     className="object-contain"
                   />
                 </button>
-                <div className="flex items-center gap-3">
-                  <button
-                    className="inline-flex items-center justify-center p-2 rounded-full text-foreground hover:opacity-70 transition-opacity ml-auto"
-                    onClick={handleCopyShareLink}
-                    aria-label="Share conversion link"
-                  >
-                    <Image
-                      src="/images/ic_share.png"
-                      alt="Share"
-                      width={24}
-                      height={24}
-                      className="object-contain"
-                    />
-                  </button>
-                </div>
+                <motion.button
+                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
+                    copyState === 'copied'
+                      ? 'bg-green-500/20 text-green-600 border-green-500/30'
+                      : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
+                  }`}
+                  onClick={handleShare}
+                  aria-label="Share"
+                  whileTap={{ scale: 0.95 }}
+                  animate={copyState === 'copied' ? { scale: [1, 1.05, 1] } : {}}
+                  transition={{ duration: 0.2 }}
+                >
+                  <AnimatePresence mode="wait">
+                    {copyState === 'copied' ? (
+                      <motion.span
+                        key="copied"
+                        className="flex items-center gap-2"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Copied!</span>
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="share"
+                        className="flex items-center gap-2"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <Share2 className="w-4 h-4" />
+                        <span>Share</span>
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
               </div>
             </div>
             <div className="text-center space-y-6">

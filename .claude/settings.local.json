@@ -5,7 +5,10 @@
       "Bash(lsof:*)",
       "Bash(./node_modules/.bin/tsc:*)",
       "Bash(pnpm run build:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   },

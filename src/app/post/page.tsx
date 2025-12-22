@@ -66,7 +66,10 @@ function PostPageContent() {
   const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
-  
+
+  // Track when we're fetching an existing post (vs doing a conversion)
+  const [isFetchingExistingPost, setIsFetchingExistingPost] = useState(false);
+
   // Demo mode - force loading state for testing
   const [demoMode, setDemoMode] = useState(false);
   
@@ -264,6 +267,7 @@ function PostPageContent() {
         }
 
         if (postId) {
+          setIsFetchingExistingPost(true);
           const response = await apiService.fetchPostById(postId);
           
           // Transform the API response (support both detailed and simplified shapes)
@@ -457,13 +461,18 @@ function PostPageContent() {
     }
   }, [postData]);
   
-  // Show conversion progress while converting, if no data yet, or in demo mode
-  if (isConverting || (!postData && !error) || demoMode) {
+  // Show skeleton for existing post fetch (not a conversion)
+  if (isFetchingExistingPost && !postData && !error) {
+    return <EntitySkeleton isDesktop={isDesktop} />;
+  }
+
+  // Show conversion progress while converting, or in demo mode
+  if (isConverting || (!postData && !error && !isFetchingExistingPost) || demoMode) {
     console.log('🌊 Showing conversion progress:', { isConverting, hasPostData: !!postData, hasError: !!error, demoMode });
-    
+
     const urlParam = searchParams.get('url');
     const currentUrl = urlParam ? decodeURIComponent(urlParam) : '';
-    
+
     return (
       <ConversionProgress
         url={currentUrl}

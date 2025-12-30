@@ -67,6 +67,12 @@ export class ProfileService {
     return `${base}${normalizedPath}`;
   }
 
+  private getAuthHeaders(): Record<string, string> {
+    if (typeof window === 'undefined') return {};
+    const token = localStorage.getItem('access_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   async fetchUserBio(userIdentifier: string): Promise<UserBio> {
     try {
       const path =
@@ -82,7 +88,7 @@ export class ProfileService {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          // Add auth headers if needed
+          ...this.getAuthHeaders(),
         },
       });
 
@@ -139,7 +145,7 @@ export class ProfileService {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          // Add auth headers if needed
+          ...this.getAuthHeaders(),
         },
       });
 
@@ -292,13 +298,13 @@ export class ProfileService {
     avatarUrl?: string;
   }): Promise<void> {
     try {
-      const url = this.buildApiUrl('/api/v1/user/profile');
+      const url = this.buildApiUrl('/api/v1/profile');
 
       const response = await fetch(url, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          // Add auth headers if needed
+          ...this.getAuthHeaders(),
         },
         body: JSON.stringify(data),
       });
@@ -324,7 +330,7 @@ export class ProfileService {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          // Add auth headers if needed
+          ...this.getAuthHeaders(),
         },
       });
 

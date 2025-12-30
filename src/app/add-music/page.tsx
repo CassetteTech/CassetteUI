@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AnimatedButton } from '@/components/ui/animated-button';
+import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { UrlBar } from '@/components/ui/url-bar';
 import { UIText } from '@/components/ui/typography';
 import { AnimatedBackground } from '@/components/ui/animated-background';
@@ -138,8 +138,8 @@ const AddMusicForm = ({
                   </div>
                 )}
                 <div className="flex-1">
-                  <p className="font-atkinson font-bold text-text-primary">{selectedItem.title}</p>
-                  {selectedItem.artist && <p className="text-text-secondary text-sm">{selectedItem.artist}</p>}
+                  <p className="font-atkinson font-bold text-[#1F2327]">{selectedItem.title}</p>
+                  {selectedItem.artist && <p className="text-[#1F2327] text-sm">{selectedItem.artist}</p>}
                   <span className="inline-block px-2 py-1 bg-primary/10 text-primary text-xs font-bold rounded uppercase">
                     {selectedItem.type}
                   </span>
@@ -189,7 +189,7 @@ const AddMusicForm = ({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Let us know a little bit about this song or playlist!"
               rows={6}
-              className="relative w-full p-4 bg-white border-2 border-foreground rounded-lg font-atkinson text-text-primary placeholder:text-textHint resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              className="relative w-full p-4 bg-white border-2 border-foreground rounded-lg font-atkinson text-[#1F2327] placeholder:text-textHint resize-none focus:outline-none focus:ring-2 focus:ring-primary"
               autoComplete="off"
               spellCheck="false"
             />
@@ -200,19 +200,15 @@ const AddMusicForm = ({
         {/* Add to Profile Button */}
         {!isSearchActive && (
           <div className="text-center">
-          <AnimatedButton
+          <AnimatedPrimaryButton
             text="Add to Profile"
             onClick={handleAddToProfile}
             disabled={!selectedItem && !musicUrl.trim()}
-            height={48}
+            height={52}
             width={280}
             initialPos={6}
-            colorTop="#1F2327"
-            colorBottom="#595C5E"
-            borderColorTop="#1F2327"
-            borderColorBottom="#1F2327"
-            className="mx-auto"
-            textStyle="text-lg font-bold tracking-wide font-atkinson text-white"
+            className="mx-auto shadow-[0_14px_32px_rgba(210,53,53,0.35)]"
+            textStyle="text-lg font-bold tracking-wide font-atkinson"
           />
           
           {errorMessage && (

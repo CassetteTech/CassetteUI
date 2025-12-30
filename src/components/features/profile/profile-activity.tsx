@@ -84,21 +84,8 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
     return iconMap[type.toLowerCase()] || 'help';
   };
 
-  const getNavigationPath = (post: ActivityPost) => {
-    const type = post.elementType.toLowerCase();
-    switch (type) {
-      case 'track':
-        return `/track/${post.postId}`;
-      case 'artist':
-        return `/artist/${post.postId}`;
-      case 'album':
-        return `/album/${post.postId}`;
-      case 'playlist':
-        return `/playlist/${post.postId}`;
-      default:
-        return '#';
-    }
-  };
+  const getNavigationPath = (post: ActivityPost) =>
+    post.postId ? `/post?id=${post.postId}` : '#';
 
   const handleShare = () => {
     const baseUrl = window.location.origin;
@@ -115,6 +102,7 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
       // You could add a toast notification here
     }
   };
+  const detailText = post.description ?? post.subtitle;
 
   return (
     <Card className="p-3 sm:p-4 hover:shadow-lg transition-all duration-200 bg-card/60 backdrop-blur-sm hover:bg-card/80">
@@ -179,9 +167,9 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
             </div>
             
             {/* Subtitle */}
-            {post.subtitle && (
+            {detailText && (
               <p className="text-muted-foreground text-xs sm:text-sm mb-2 line-clamp-2">
-                {post.subtitle}
+                {detailText}
               </p>
             )}
             

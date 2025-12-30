@@ -5,8 +5,35 @@ interface ActivityItemPayload {
   postId: string;
   elementType: string;
   title: string;
+  name?: string;
+  elementName?: string;
+  elementTitle?: string;
+  artistName?: string;
+  albumName?: string;
   subtitle?: string;
+  description?: string;
+  caption?: string;
   imageUrl?: string;
+  coverArtUrl?: string;
+  artworkUrl?: string;
+  artwork?: string;
+  image?: string;
+  details?: {
+    coverArtUrl?: string;
+    imageUrl?: string;
+    artworkUrl?: string;
+    artwork?: string;
+    title?: string;
+    name?: string;
+    artist?: string;
+    album?: string;
+    description?: string;
+    caption?: string;
+  };
+  metadata?: {
+    artwork?: string;
+  };
+  platforms?: Record<string, { artworkUrl?: string; imageUrl?: string; coverArtUrl?: string }>;
   username: string;
   userId: string;
   createdAt: string;
@@ -40,6 +67,12 @@ export class ProfileService {
     return `${base}${normalizedPath}`;
   }
 
+  private getAuthHeaders(): Record<string, string> {
+    if (typeof window === 'undefined') return {};
+    const token = localStorage.getItem('access_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   async fetchUserBio(userIdentifier: string): Promise<UserBio> {
     try {
       const path =
@@ -55,7 +88,7 @@ export class ProfileService {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          // Add auth headers if needed
+          ...this.getAuthHeaders(),
         },
       });
 
@@ -112,23 +145,87 @@ export class ProfileService {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          // Add auth headers if needed
+          ...this.getAuthHeaders(),
         },
       });
 
       if (response.status === 200) {
         const json = (await response.json()) as ActivityApiResponse;
+        const resolveText = (...values: Array<string | null | undefined>) => {
+          for (const value of values) {
+            if (typeof value === 'string' && value.trim() !== '') {
+              return value;
+            }
+          }
+          return undefined;
+        };
+        const extractTitleFromDescription = (description?: string) => {
+          if (!description) return undefined;
+          const match = description.match(/Converted\s+(?:Track|Album|Artist|Playlist)\s+-\s+(.+?)\s+from/i);
+          return match?.[1]?.trim();
+        };
+        const resolvePlatformArtwork = (
+          platforms?: Record<string, { artworkUrl?: string; imageUrl?: string; coverArtUrl?: string }>
+        ) => {
+          if (!platforms) return undefined;
+          for (const platform of Object.values(platforms)) {
+            const artwork = resolveText(platform?.artworkUrl, platform?.imageUrl, platform?.coverArtUrl);
+            if (artwork) return artwork;
+          }
+          return undefined;
+        };
         const items: ActivityPost[] =
-          json.items?.map((item) => ({
-            postId: item.postId,
-            elementType: item.elementType,
-            title: item.title,
-            subtitle: item.subtitle,
-            imageUrl: item.imageUrl,
-            username: item.username,
-            userId: item.userId,
-            createdAt: item.createdAt,
-          })) ?? [];
+          json.items?.map((item) => {
+            const elementType = item.elementType?.toLowerCase();
+            const resolvedDescription = resolveText(
+              item.description,
+              item.caption,
+              item.details?.description,
+              item.details?.caption,
+            );
+            const resolvedTitle = resolveText(
+              item.title,
+              item.name,
+              item.elementTitle,
+              item.elementName,
+              item.details?.title,
+              item.details?.name,
+              item.albumName,
+              elementType === 'artist' ? item.artistName ?? item.details?.artist ?? item.subtitle : undefined,
+              extractTitleFromDescription(resolvedDescription),
+            );
+            const resolvedSubtitle = resolveText(
+              item.subtitle,
+              item.details?.artist,
+              item.details?.album,
+              item.details?.name,
+            );
+            const resolvedImageUrl = resolveText(
+              item.imageUrl,
+              item.coverArtUrl,
+              item.artworkUrl,
+              item.artwork,
+              item.image,
+              item.details?.coverArtUrl,
+              item.details?.imageUrl,
+              item.details?.artworkUrl,
+              item.details?.artwork,
+              item.metadata?.artwork,
+              resolvePlatformArtwork(item.platforms),
+            );
+
+            return {
+              postId: item.postId,
+              elementType: item.elementType,
+              title: resolvedTitle || 'Untitled',
+              subtitle: resolvedSubtitle,
+              description: resolvedDescription,
+              imageUrl: resolvedImageUrl,
+              username: item.username,
+              userId: item.userId,
+              createdAt: item.createdAt,
+            };
+          }) ?? [];
 
         return {
           items,
@@ -201,13 +298,13 @@ export class ProfileService {
     avatarUrl?: string;
   }): Promise<void> {
     try {
-      const url = this.buildApiUrl('/api/v1/user/profile');
+      const url = this.buildApiUrl('/api/v1/profile');
 
       const response = await fetch(url, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          // Add auth headers if needed
+          ...this.getAuthHeaders(),
         },
         body: JSON.stringify(data),
       });
@@ -233,7 +330,7 @@ export class ProfileService {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          // Add auth headers if needed
+          ...this.getAuthHeaders(),
         },
       });
 

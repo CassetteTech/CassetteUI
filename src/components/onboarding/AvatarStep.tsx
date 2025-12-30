@@ -74,19 +74,6 @@ export function AvatarStep({
     fileInputRef.current?.click();
   };
 
-  const handleSkip = () => {
-    updateFormData({ avatarFile: null });
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-    if (isLastStep) {
-      onFinish();
-    } else {
-      onNext();
-    }
-  };
-
   const handlePrimaryAction = () => {
     if (isLastStep) {
       onFinish();
@@ -158,20 +145,12 @@ export function AvatarStep({
         >
           Back
         </Button>
-        <div className="space-x-2">
-          <Button
-            variant="ghost"
-            onClick={handleSkip}
-          >
-            Skip
-          </Button>
-          <Button
-            onClick={handlePrimaryAction}
-            className="px-8"
-          >
-            {isLastStep ? 'Finish' : 'Next'}
-          </Button>
-        </div>
+        <Button
+          onClick={handlePrimaryAction}
+          className="px-8"
+        >
+          {isLastStep ? 'Finish' : 'Next'}
+        </Button>
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ import { ChooseHandleStep } from '@/components/onboarding/ChooseHandleStep';
 import { AvatarStep } from '@/components/onboarding/AvatarStep';
 import { ConnectMusicStep } from '@/components/onboarding/ConnectMusicStep';
 import { CompletionStep } from '@/components/onboarding/CompletionStep';
+import { authService } from '@/services/auth';
 
 // Step definitions (excluding welcome and completion which are special)
 const STEPS = [
@@ -143,19 +144,29 @@ export default function OnboardingPage() {
 
       const data = await response.json();
 
-      if (data.success && data.user) {
-        setUser(data.user);
+      if (data.success) {
+        // Refresh the session to get complete user data including connectedServices
+        // The profile update response may not include all user fields (like connectedServices)
+        const freshUser = await authService.getCurrentUser();
+
+        if (freshUser) {
+          setUser(freshUser);
+        } else if (data.user) {
+          // Fallback to response data if session refresh fails
+          setUser(data.user);
+        } else if (user) {
+          // Last resort fallback
+          const updatedUser = {
+            ...user,
+            username: formData.username,
+            displayName: formData.displayName,
+            isOnboarded: true,
+          };
+          setUser(updatedUser);
+        }
+
         setPhase('complete');
         toast.success('Profile created successfully!');
-      } else if (user) {
-        const updatedUser = {
-          ...user,
-          username: formData.username,
-          displayName: formData.displayName,
-          isOnboarded: true,
-        };
-        setUser(updatedUser);
-        setPhase('complete');
       } else {
         throw new Error('Failed to update user data');
       }

@@ -108,18 +108,20 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
     <Card className="p-3 sm:p-4 hover:shadow-lg transition-all duration-200 bg-card/60 backdrop-blur-sm hover:bg-card/80">
       <Link href={getNavigationPath(post)} className="block">
         <div className="flex gap-4">
-          {/* Artwork */}
-          <div className="flex-shrink-0">
+          {/* Artwork - Fixed dimensions to prevent layout shift */}
+          <div className="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28">
             {post.imageUrl ? (
               <Image
                 src={post.imageUrl}
                 alt={post.title}
                 width={120}
                 height={120}
-                className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-lg object-cover"
+                className="w-full h-full rounded-lg object-cover"
+                placeholder="blur"
+                blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJoc2woMjQwLCA0LjglLCA4My45JSkiLz48L3N2Zz4="
               />
             ) : (
-              <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-lg bg-muted/40 flex items-center justify-center">
+              <div className="w-full h-full rounded-lg bg-muted/40 flex items-center justify-center">
                 <Image
                   src="/images/ic_music.png"
                   alt="Music"
@@ -185,14 +187,14 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
   );
 }
 
-function ActivitySkeleton() {
+export function ActivitySkeleton({ count = 3 }: { count?: number }) {
   return (
-    <div className="space-y-4">
-      {Array.from({ length: 3 }).map((_, index) => (
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4">
+      {Array.from({ length: count }).map((_, index) => (
         <Card key={index} className="p-3 sm:p-4 bg-card/60 backdrop-blur-sm">
           <div className="flex gap-3 sm:gap-4 animate-pulse">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 bg-muted/40 rounded-lg" />
-            <div className="flex-1">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 bg-muted/40 rounded-lg flex-shrink-0" />
+            <div className="flex-1 min-w-0">
               <div className="w-12 sm:w-16 h-3 sm:h-4 bg-muted/40 rounded mb-2" />
               <div className="w-3/4 h-4 sm:h-6 bg-muted/40 rounded mb-2" />
               <div className="w-1/2 h-3 sm:h-4 bg-muted/40 rounded mb-2" />

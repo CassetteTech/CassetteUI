@@ -13,7 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { Home, Music, User, LogOut, Edit } from 'lucide-react';
+import { Music, User, LogOut, Edit } from 'lucide-react';
 import Image from 'next/image';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -43,8 +43,8 @@ export function AppSidebar({ className }: AppSidebarProps) {
   return (
     <Sidebar collapsible="none" className={`h-screen ${className}`}>
       <SidebarHeader>
-        {/* Cassette Logo */}
-        <div className="p-4">
+        {/* Cassette Logo and Theme Switcher */}
+        <div className="p-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Image
               src="/images/app_logo.png"
@@ -54,6 +54,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
               className="h-10 w-auto"
             />
           </Link>
+          <ThemeSwitcher />
         </div>
       </SidebarHeader>
       
@@ -112,27 +113,16 @@ export function AppSidebar({ className }: AppSidebarProps) {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <a
-                    href={KOFI_SUPPORT_URL}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-left"
-                  >
-                    <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="mr-2" />
-                    <span>Support Us</span>
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/')}>
-                  <Link href="/">
-                    <Home className="mr-2 h-4 w-4" />
-                    <span>Home</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {user && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive('/profile') && !pathname.includes('/edit')}>
+                    <Link href={`/profile/${user.username}`}>
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive('/add-music')}>
                   <Link href="/add-music">
@@ -142,36 +132,41 @@ export function AppSidebar({ className }: AppSidebarProps) {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {user && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/profile')}>
-                    <Link href={`/profile/${user.username}`}>
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              {user && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/profile') && pathname.includes('/edit')}>
-                    <Link href={`/profile/${user.username}/edit`}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      <span>Edit Profile</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <>
+                  <div className="my-2 mx-2 border-t border-border" />
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={isActive('/profile') && pathname.includes('/edit')}>
+                      <Link href={`/profile/${user.username}/edit`}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        <span>Edit Profile</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </>
               )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      
+
       <SidebarFooter className="border-t p-4 space-y-2">
-        {/* Theme Switcher */}
-        <div className="flex justify-center">
-          <ThemeSwitcher />
-        </div>
-        
+        {/* Support Us */}
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start text-muted-foreground hover:text-foreground"
+        >
+          <a
+            href={KOFI_SUPPORT_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="mr-2" />
+            <span>Support Us</span>
+          </a>
+        </Button>
+
         {/* Sign Out */}
         {user && (
           <Button
@@ -205,7 +200,7 @@ export function AppSidebarSkeleton({ className }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon" className={className}>
       <SidebarHeader>
-        <div className="p-4">
+        <div className="p-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Image
               src="/images/app_logo.png"
@@ -215,9 +210,10 @@ export function AppSidebarSkeleton({ className }: AppSidebarProps) {
               className="h-10 w-auto"
             />
           </Link>
+          <ThemeSwitcher />
         </div>
       </SidebarHeader>
-      
+
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
@@ -232,16 +228,16 @@ export function AppSidebarSkeleton({ className }: AppSidebarProps) {
             </div>
           </SidebarGroupContent>
         </SidebarGroup>
-        
+
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/')}>
-                  <Link href="/">
-                    <Home className="mr-2 h-4 w-4" />
-                    <span>Home</span>
+                <SidebarMenuButton asChild isActive={isActive('/profile') && !pathname.includes('/edit')}>
+                  <Link href="/profile">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -253,33 +249,42 @@ export function AppSidebarSkeleton({ className }: AppSidebarProps) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/profile')}>
-                  <Link href="/profile">
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
               {user && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/profile') && pathname.includes('/edit')}>
-                    <Link href={`/profile/${user.username}/edit`}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      <span>Edit Profile</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <>
+                  <div className="my-2 mx-2 border-t border-border" />
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={isActive('/profile') && pathname.includes('/edit')}>
+                      <Link href={`/profile/${user.username}/edit`}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        <span>Edit Profile</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </>
               )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      
+
       <SidebarFooter className="border-t p-4 space-y-2">
-        <div className="flex justify-center">
-          <ThemeSwitcher />
-        </div>
+        {/* Support Us */}
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start text-muted-foreground hover:text-foreground"
+        >
+          <a
+            href={KOFI_SUPPORT_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="mr-2" />
+            <span>Support Us</span>
+          </a>
+        </Button>
+
         {user && (
           <Button
             variant="ghost"

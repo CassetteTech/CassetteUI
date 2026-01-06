@@ -59,7 +59,10 @@ export function Layout({ children }: LayoutProps) {
           <Footer />
         </div>
       )}
-      <SupportFloatingButton />
+      {/* Hide floating support button on desktop profile pages since it's in the sidebar */}
+      <div className={isProfilePage ? 'lg:hidden' : ''}>
+        <SupportFloatingButton />
+      </div>
     </div>
   );
 }

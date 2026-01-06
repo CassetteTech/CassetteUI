@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
 import { EditProfileFormComponent } from '@/components/features/profile/edit-profile-form';
+import { EditProfileSkeleton } from '@/components/features/profile/edit-profile-skeleton';
 import { MusicConnectionsFlow } from '@/components/features/music/music-connections-flow';
 import { profileService } from '@/services/profile';
 import { UserBio } from '@/types';
@@ -12,7 +13,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { AppSidebar, AppSidebarSkeleton } from '@/components/layout/app-sidebar';
+import { AppSidebar } from '@/components/layout/app-sidebar';
 
 export default function EditProfilePage() {
   const { username } = useParams();
@@ -74,34 +75,8 @@ export default function EditProfilePage() {
     router.push(`/profile/${user?.username || userIdentifier}`);
   };
 
-  if (isLoading) {
-    return (
-      <>
-        {/* Mobile Loading */}
-        <div className="bg-background lg:hidden">
-          <Container className="min-h-screen bg-transparent p-0">
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-foreground"></div>
-            </div>
-          </Container>
-        </div>
-        
-        {/* Desktop Loading with Sidebar */}
-        <div className="hidden lg:block min-h-screen bg-background">
-          <SidebarProvider defaultOpen={true}>
-            <AppSidebarSkeleton />
-            <SidebarInset>
-              <div className="flex flex-col h-screen overflow-hidden">
-                <div className="flex items-center justify-center flex-1">
-                  <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-foreground"></div>
-                </div>
-              </div>
-            </SidebarInset>
-          </SidebarProvider>
-        </div>
-      </>
-    );
-  }
+  // Show skeleton while loading, actual content when ready
+  const showSkeleton = isLoading && !userBio;
 
   if (error) {
     return (
@@ -125,7 +100,7 @@ export default function EditProfilePage() {
         {/* Desktop Error with Sidebar */}
         <div className="hidden lg:block min-h-screen bg-background">
           <SidebarProvider defaultOpen={true}>
-            <AppSidebarSkeleton />
+            <AppSidebar />
             <SidebarInset>
               <div className="flex flex-col h-screen overflow-hidden">
                 <div className="flex items-center justify-center flex-1">
@@ -148,7 +123,8 @@ export default function EditProfilePage() {
     );
   }
 
-  if (!userBio) {
+  // Show "not found" only after loading completes
+  if (!isLoading && !userBio) {
     return (
       <>
         {/* Mobile Not Found */}
@@ -166,11 +142,11 @@ export default function EditProfilePage() {
             </div>
           </Container>
         </div>
-        
+
         {/* Desktop Not Found with Sidebar */}
         <div className="hidden lg:block min-h-screen bg-background">
           <SidebarProvider defaultOpen={true}>
-            <AppSidebarSkeleton />
+            <AppSidebar />
             <SidebarInset>
               <div className="flex flex-col h-screen overflow-hidden">
                 <div className="flex items-center justify-center flex-1">
@@ -199,36 +175,10 @@ export default function EditProfilePage() {
       <div className="bg-background lg:hidden">
         <Container className="min-h-screen bg-transparent p-0">
           <div className="py-8 px-4">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-foreground mb-2">Edit Your Profile</h1>
-              <p className="text-muted-foreground">Update your profile information and connected services</p>
-            </div>
-
-            {/* Edit Form */}
-            <EditProfileFormComponent
-              initialData={userBio}
-              onSuccess={handleSuccess}
-              onCancel={handleCancel}
-            />
-
-            {/* Music Services Connection */}
-            <div className="mt-8">
-              <MusicConnectionsFlow />
-            </div>
-          </div>
-        </Container>
-      </div>
-
-      {/* Desktop Layout with Sidebar */}
-      <div className="hidden lg:block min-h-screen bg-background">
-        <SidebarProvider defaultOpen={true}>
-          <AppSidebar />
-          
-          {/* Main Content Area */}
-          <SidebarInset>
-            <div className="flex flex-col h-screen overflow-hidden p-6">
-              <div className="flex-1 overflow-y-auto">
+            {showSkeleton ? (
+              <EditProfileSkeleton />
+            ) : userBio ? (
+              <>
                 {/* Header */}
                 <div className="text-center mb-8">
                   <h1 className="text-3xl font-bold text-foreground mb-2">Edit Your Profile</h1>
@@ -243,9 +193,47 @@ export default function EditProfilePage() {
                 />
 
                 {/* Music Services Connection */}
-                <div className="mt-8 max-w-4xl mx-auto">
+                <div className="mt-8">
                   <MusicConnectionsFlow />
                 </div>
+              </>
+            ) : null}
+          </div>
+        </Container>
+      </div>
+
+      {/* Desktop Layout with Sidebar */}
+      <div className="hidden lg:block min-h-screen bg-background">
+        <SidebarProvider defaultOpen={true}>
+          <AppSidebar />
+
+          {/* Main Content Area */}
+          <SidebarInset>
+            <div className="flex flex-col h-screen overflow-hidden p-6">
+              <div className="flex-1 overflow-y-auto">
+                {showSkeleton ? (
+                  <EditProfileSkeleton />
+                ) : userBio ? (
+                  <>
+                    {/* Header */}
+                    <div className="text-center mb-8">
+                      <h1 className="text-3xl font-bold text-foreground mb-2">Edit Your Profile</h1>
+                      <p className="text-muted-foreground">Update your profile information and connected services</p>
+                    </div>
+
+                    {/* Edit Form */}
+                    <EditProfileFormComponent
+                      initialData={userBio}
+                      onSuccess={handleSuccess}
+                      onCancel={handleCancel}
+                    />
+
+                    {/* Music Services Connection */}
+                    <div className="mt-8 max-w-4xl mx-auto">
+                      <MusicConnectionsFlow />
+                    </div>
+                  </>
+                ) : null}
               </div>
             </div>
           </SidebarInset>

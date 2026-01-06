@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
 import { ProfileHeader } from '@/components/features/profile/profile-header';
+import { ProfileHeaderSkeleton } from '@/components/features/profile/profile-header-skeleton';
 import { ProfileTabs, TabType } from '@/components/features/profile/profile-tabs';
-import { ProfileActivity } from '@/components/features/profile/profile-activity';
+import { ProfileActivity, ActivitySkeleton } from '@/components/features/profile/profile-activity';
 import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
 import { profileService } from '@/services/profile';
 import { apiService } from '@/services/api';
@@ -15,7 +16,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { AppSidebar, AppSidebarSkeleton } from '@/components/layout/app-sidebar';
+import { AppSidebar } from '@/components/layout/app-sidebar';
 
 export default function ProfilePage() {
   const { username } = useParams();
@@ -27,7 +28,8 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<TabType>('playlists');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingBio, setIsLoadingBio] = useState(true);
+  const [isLoadingActivity, setIsLoadingActivity] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCurrentUser, setIsCurrentUser] = useState(false);
@@ -65,55 +67,63 @@ export default function ProfilePage() {
       return;
     }
 
-    try {
-      setIsLoading(true);
-      setError(null);
+    setError(null);
+    setIsLoadingBio(true);
+    setIsLoadingActivity(true);
 
-      // Check if this is the current user's profile
-      const isEditMode = userIdentifier === 'edit';
-      const userIdToFetch = isEditMode && user
-        ? user.id
-        : userIdentifier;
+    // Check if this is the current user's profile
+    const isEditMode = userIdentifier === 'edit';
+    const userIdToFetch = isEditMode && user
+      ? user.id
+      : userIdentifier;
 
-      const currentUserCheck = user && (
-        user.id === userIdToFetch ||
-        user.username?.toLowerCase() === userIdToFetch.toLowerCase()
-      );
+    const currentUserCheck = user && (
+      user.id === userIdToFetch ||
+      user.username?.toLowerCase() === userIdToFetch.toLowerCase()
+    );
 
-      if (isEditMode && !currentUserCheck) {
-        throw new Error('You must be logged in to edit your profile');
-      }
+    if (isEditMode && !currentUserCheck) {
+      setError('You must be logged in to edit your profile');
+      setIsLoadingBio(false);
+      setIsLoadingActivity(false);
+      return;
+    }
 
-      // Fetch user bio
-      const bio = await profileService.fetchUserBio(userIdToFetch);
-      
-      // Fetch all activity types initially
-      const activityData = await profileService.fetchUserActivity(userIdToFetch, {
-        page: 1,
-      });
+    // Fetch bio and activity in PARALLEL
+    const [bioResult, activityResult] = await Promise.allSettled([
+      profileService.fetchUserBio(userIdToFetch),
+      profileService.fetchUserActivity(userIdToFetch, { page: 1 })
+    ]);
 
-      // Determine if this is the current user's profile
-      // Use both backend isOwnProfile and client-side validation as fallback
+    // Handle bio result
+    if (bioResult.status === 'fulfilled') {
+      const bio = bioResult.value;
       const clientSideCurrentUserCheck = user ? (
         user.id === bio.id ||
         user.username?.toLowerCase() === bio.username?.toLowerCase()
       ) : false;
       const finalIsCurrentUser = bio.isOwnProfile || clientSideCurrentUserCheck;
-      
+
       setUserBio(bio);
+      setIsCurrentUser(finalIsCurrentUser);
+      setLastLoadedUserId(userIdToFetch);
+    } else {
+      console.error('❌ Error loading bio:', bioResult.reason);
+      setError(bioResult.reason?.message || 'Failed to load profile');
+    }
+    setIsLoadingBio(false);
+
+    // Handle activity result
+    if (activityResult.status === 'fulfilled') {
+      const activityData = activityResult.value;
       setActivityPosts(activityData.items);
       setTotalItems(activityData.totalItems);
       setCurrentPage(activityData.page);
-      setIsCurrentUser(finalIsCurrentUser);
-      setLastLoadedUserId(userIdToFetch);
-      setActiveTab(getOptimalTab(activityData.items)); // Set optimal tab based on content availability
-      
-    } catch (e) {
-      console.error('❌ Error loading profile:', e);
-      setError(e instanceof Error ? e.message : 'Failed to load profile');
-    } finally {
-      setIsLoading(false);
+      setActiveTab(getOptimalTab(activityData.items));
+    } else {
+      console.error('❌ Error loading activity:', activityResult.reason);
     }
+    setIsLoadingActivity(false);
   }, [userIdentifier, user, userBio, lastLoadedUserId, getOptimalTab]);
 
   const enrichActivityPosts = useCallback(async (posts: ActivityPost[]) => {
@@ -150,6 +160,9 @@ export default function ProfilePage() {
 
     if (candidates.length === 0) return;
 
+    // Collect all updates, then apply in ONE batch to prevent multiple re-renders
+    const updates = new Map<string, string>();
+
     await Promise.all(
       candidates.map(async (post) => {
         try {
@@ -159,24 +172,28 @@ export default function ProfilePage() {
           clearTimeout(timeout);
 
           const resolvedImage = resolvePostArtwork(result);
-          if (!resolvedImage) {
-            enrichedPostIdsRef.current.add(post.postId);
-            return;
-          }
-
           enrichedPostIdsRef.current.add(post.postId);
-          setActivityPosts((prev) =>
-            prev.map((item) =>
-              item.postId === post.postId
-                ? { ...item, imageUrl: item.imageUrl ?? resolvedImage }
-                : item,
-            ),
-          );
+
+          if (resolvedImage) {
+            updates.set(post.postId, resolvedImage);
+          }
         } catch {
           enrichedPostIdsRef.current.add(post.postId);
         }
       }),
     );
+
+    // Apply ALL updates in a single state change
+    if (updates.size > 0) {
+      setActivityPosts((prev) =>
+        prev.map((item) => {
+          const newImage = updates.get(item.postId);
+          return newImage && !item.imageUrl
+            ? { ...item, imageUrl: newImage }
+            : item;
+        }),
+      );
+    }
   }, []);
 
   const loadMore = useCallback(async () => {
@@ -236,35 +253,9 @@ export default function ProfilePage() {
   }, [activityPosts, enrichActivityPosts]);
 
 
-  // Mobile loading states
-  if (isLoading) {
-    return (
-      <>
-        {/* Mobile Loading */}
-        <div className="bg-background lg:hidden">
-          <Container className="min-h-screen bg-transparent p-0">
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-foreground"></div>
-            </div>
-          </Container>
-        </div>
-        
-        {/* Desktop Loading with Sidebar */}
-        <div className="hidden lg:block min-h-screen bg-background">
-          <SidebarProvider defaultOpen={true}>
-            <AppSidebarSkeleton />
-            <SidebarInset>
-              <div className="flex flex-col h-screen overflow-hidden">
-                <div className="flex items-center justify-center flex-1">
-                  <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-foreground"></div>
-                </div>
-              </div>
-            </SidebarInset>
-          </SidebarProvider>
-        </div>
-      </>
-    );
-  }
+  // Compute loading states for conditional rendering
+  const showHeaderSkeleton = isLoadingBio && !userBio;
+  const showActivitySkeleton = isLoadingActivity && activityPosts.length === 0;
 
   if (error) {
     return (
@@ -288,7 +279,7 @@ export default function ProfilePage() {
         {/* Desktop Error with Sidebar */}
         <div className="hidden lg:block min-h-screen bg-background">
           <SidebarProvider defaultOpen={true}>
-            <AppSidebarSkeleton />
+            <AppSidebar />
             <SidebarInset>
               <div className="flex flex-col h-screen overflow-hidden">
                 <div className="flex items-center justify-center flex-1">
@@ -311,7 +302,8 @@ export default function ProfilePage() {
     );
   }
 
-  if (!userBio) {
+  // Show "not found" only after loading completes and no userBio
+  if (!isLoadingBio && !userBio) {
     return (
       <>
         {/* Mobile Not Found */}
@@ -333,7 +325,7 @@ export default function ProfilePage() {
         {/* Desktop Not Found with Sidebar */}
         <div className="hidden lg:block min-h-screen bg-background">
           <SidebarProvider defaultOpen={true}>
-            <AppSidebarSkeleton />
+            <AppSidebar />
             <SidebarInset>
               <div className="flex flex-col h-screen overflow-hidden">
                 <div className="flex items-center justify-center flex-1">
@@ -372,13 +364,17 @@ export default function ProfilePage() {
       <div className="bg-background lg:hidden">
         <Container className="min-h-screen bg-transparent p-0">
           <div className="max-w-4xl mx-auto">
-            <ProfileHeader
-              userBio={userBio}
-              isCurrentUser={isCurrentUser}
-              onShare={handleShare}
-              onAddMusic={isCurrentUser ? handleAddMusic : undefined}
-            />
-            {isCurrentUser && (
+            {showHeaderSkeleton ? (
+              <ProfileHeaderSkeleton />
+            ) : userBio ? (
+              <ProfileHeader
+                userBio={userBio}
+                isCurrentUser={isCurrentUser}
+                onShare={handleShare}
+                onAddMusic={isCurrentUser ? handleAddMusic : undefined}
+              />
+            ) : null}
+            {isCurrentUser && !showHeaderSkeleton && (
               <div className="px-4 mb-4">
                 <MusicConnectionsStatus variant="profile" />
               </div>
@@ -389,12 +385,18 @@ export default function ProfilePage() {
                 onTabChange={filterByElementType}
               />
             </div>
-            <ProfileActivity
-              posts={filteredPosts}
-              isLoading={isLoadingMore}
-              onLoadMore={loadMore}
-              hasMore={activityPosts.length < totalItems}
-            />
+            {showActivitySkeleton ? (
+              <div className="p-3 sm:p-4 md:p-6 lg:p-8">
+                <ActivitySkeleton count={6} />
+              </div>
+            ) : (
+              <ProfileActivity
+                posts={filteredPosts}
+                isLoading={isLoadingMore}
+                onLoadMore={loadMore}
+                hasMore={activityPosts.length < totalItems}
+              />
+            )}
           </div>
         </Container>
       </div>
@@ -404,7 +406,7 @@ export default function ProfilePage() {
       <div className="hidden lg:block min-h-screen bg-background">
         <SidebarProvider defaultOpen={true}>
           <AppSidebar />
-          
+
           {/* Main Content Area */}
           <SidebarInset>
             <div className="flex flex-col h-screen overflow-hidden">
@@ -415,12 +417,18 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="flex-1 overflow-y-auto">
-                <ProfileActivity
-                  posts={filteredPosts}
-                  isLoading={isLoadingMore}
-                  onLoadMore={loadMore}
-                  hasMore={activityPosts.length < totalItems}
-                />
+                {showActivitySkeleton ? (
+                  <div className="p-3 sm:p-4 md:p-6 lg:p-8">
+                    <ActivitySkeleton count={6} />
+                  </div>
+                ) : (
+                  <ProfileActivity
+                    posts={filteredPosts}
+                    isLoading={isLoadingMore}
+                    onLoadMore={loadMore}
+                    hasMore={activityPosts.length < totalItems}
+                  />
+                )}
               </div>
             </div>
           </SidebarInset>

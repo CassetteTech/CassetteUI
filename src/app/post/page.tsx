@@ -4,13 +4,15 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useRef, useEffect, useState, Suspense } from 'react';
 import { MusicLinkConversion, ElementType, MediaListTrack } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
-import { ConversionProgress } from '@/components/features/conversion/conversion-progress';
 import { useMusicLinkConversion } from '@/hooks/use-music';
+import { useSimulatedProgress } from '@/hooks/use-simulated-progress';
+import { detectContentType } from '@/utils/content-type-detection';
+import PostClientPage from './[id]/post-client';
 
-// This page now handles:
-// 1. ?id=X - Redirects to /post/X (new canonical route)
-// 2. ?url=X - Converts music link and redirects to /post/{postId} after success
-// 3. ?data=X - Parses JSON payload and redirects to /post/{postId} if available
+// This page handles:
+// 1. ?id=X - Redirects to /post/X (canonical route)
+// 2. ?url=X - Converts music link and renders content directly (no redirect)
+// 3. ?data=X - Parses JSON payload and renders content directly
 
 function PostPageContent() {
   const searchParams = useSearchParams();
@@ -18,6 +20,8 @@ function PostPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  // Store postId after conversion - renders content directly without redirect
+  const [resolvedPostId, setResolvedPostId] = useState<string | null>(null);
 
   const postIdParam = searchParams.get('id');
   const urlParam = searchParams.get('url');
@@ -28,6 +32,16 @@ function PostPageContent() {
   const { mutate: convertLink, isPending: isConverting } = useMusicLinkConversion({
     anonymous: !fromAddMusic
   });
+
+  // Progress simulation for conversion
+  const currentUrl = urlParam ? decodeURIComponent(urlParam) : '';
+  const contentInfo = detectContentType(currentUrl, null);
+  const progressState = useSimulatedProgress(
+    { contentType: contentInfo.type, estimatedCount: contentInfo.estimatedCount },
+    () => {}, // onComplete - not needed since we handle via apiComplete
+    apiComplete
+  );
+  const progressPercent = Math.max(6, Math.min(100, Math.round(progressState.progress)));
 
   // Guards against duplicate conversions
   const hasConvertedRef = useRef(false);
@@ -43,13 +57,19 @@ function PostPageContent() {
   }, []);
 
   useEffect(() => {
-    // Handle ?id= redirect to new canonical route
+    // If we already have a resolved postId, don't process params again
+    // This prevents re-running after URL update via history.replaceState
+    if (resolvedPostId) {
+      return;
+    }
+
+    // Handle ?id= redirect to canonical route (this is the only case we redirect)
     if (postIdParam && !urlParam && !dataParam) {
       router.replace(`/post/${postIdParam}`);
       return;
     }
 
-    // Handle ?url= conversion flow
+    // Handle ?url= conversion flow - render content directly, no redirect
     if (urlParam) {
       const decodedUrl = decodeURIComponent(urlParam);
 
@@ -61,9 +81,11 @@ function PostPageContent() {
       convertLink(decodedUrl, {
         onSuccess: (result) => {
           setApiComplete(true);
-          // Redirect to the new canonical route
+          // Store postId to render content directly - no redirect!
           if (result.postId) {
-            router.replace(`/post/${result.postId}`);
+            setResolvedPostId(result.postId);
+            // Update URL without navigation for shareability
+            window.history.replaceState(null, '', `/post/${result.postId}`);
           }
         },
         onError: (err) => {
@@ -80,9 +102,11 @@ function PostPageContent() {
       try {
         const parsedData = JSON.parse(decodeURIComponent(dataParam));
 
-        // If the data has a postId, redirect to the canonical route
+        // If the data has a postId, use it directly
         if (parsedData.postId) {
-          router.replace(`/post/${parsedData.postId}`);
+          setResolvedPostId(parsedData.postId);
+          setApiComplete(true);
+          window.history.replaceState(null, '', `/post/${parsedData.postId}`);
           return;
         }
 
@@ -158,14 +182,14 @@ function PostPageContent() {
           transformedFromData.tracks = mappedTracks;
         }
 
-        // For ?data= without postId, we need to convert the URL to get a postId
-        // or redirect to a conversion flow. For now, if we have an originalUrl, convert it.
+        // For ?data= without postId, convert the URL to get a postId
         if (transformedFromData.originalUrl) {
           convertLink(transformedFromData.originalUrl, {
             onSuccess: (result) => {
               setApiComplete(true);
               if (result.postId) {
-                router.replace(`/post/${result.postId}`);
+                setResolvedPostId(result.postId);
+                window.history.replaceState(null, '', `/post/${result.postId}`);
               }
             },
             onError: (err) => {
@@ -188,7 +212,7 @@ function PostPageContent() {
     if (!urlParam && !dataParam && !postIdParam) {
       setError('No data provided');
     }
-  }, [searchParams, router, convertLink, postIdParam, urlParam, dataParam]);
+  }, [searchParams, router, convertLink, postIdParam, urlParam, dataParam, resolvedPostId]);
 
   // Show error state
   if (error) {
@@ -213,33 +237,30 @@ function PostPageContent() {
     );
   }
 
-  // Show conversion progress while converting
-  if (isConverting || (urlParam && !apiComplete)) {
-    const currentUrl = urlParam ? decodeURIComponent(urlParam) : '';
-
-    return (
-      <ConversionProgress
-        url={currentUrl}
-        metadata={null}
-        apiComplete={apiComplete}
-        onComplete={() => {
-          console.log('Conversion progress completed');
-        }}
-        onCancel={() => {
-          router.back();
-        }}
-        isDesktop={isDesktop}
-      />
-    );
+  // Once we have a postId, render the content directly - no redirect needed!
+  // This provides a seamless skeleton → content transition
+  if (resolvedPostId) {
+    return <PostClientPage postId={resolvedPostId} />;
   }
 
-  // Show skeleton while redirecting
-  return <EntitySkeleton isDesktop={isDesktop} />;
+  // Show unified skeleton with progress overlay while converting
+  // This is the SAME skeleton that PostClientPage uses, ensuring no layout shift
+  const showProgress = isConverting || (urlParam && !apiComplete);
+
+  return (
+    <EntitySkeleton
+      isDesktop={isDesktop}
+      showProgress={!!showProgress}
+      progressPercent={progressPercent}
+      progressStepName={progressState.currentStepName}
+      onCancel={() => router.back()}
+    />
+  );
 }
 
 export default function PostPage() {
   return (
-    <Suspense fallback={<EntitySkeleton isDesktop={false} />}>
+    <Suspense fallback={<EntitySkeleton />}>
       <PostPageContent />
     </Suspense>
   );

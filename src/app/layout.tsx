@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { Providers } from "@/providers/providers";
 import { Layout } from "@/components/layout/layout";
+import { Toaster } from "@/components/ui/sonner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -72,6 +73,7 @@ export default function RootLayout({
           <Layout>
             {children}
           </Layout>
+          <Toaster position="top-center" richColors />
         </Providers>
       </body>
     </html>

@@ -116,6 +116,17 @@ export class ColorExtractor {
     };
   }
 
+  /**
+   * Check if a hex color is considered "light" (for contrast decisions)
+   * Returns true if the color has high luminance (> 0.5)
+   */
+  static isLightColor(hex: string): boolean {
+    const { r, g, b } = this.hexToRgb(hex);
+    // Relative luminance formula (perceived brightness)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5;
+  }
+
   // ─────────────────────────────────────────────────────────────
   // Image Loading
   // ─────────────────────────────────────────────────────────────

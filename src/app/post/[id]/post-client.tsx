@@ -17,7 +17,7 @@ import { useRouter } from 'next/navigation';
 import { apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
-import { HeartHandshake, Check, Copy } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { detectContentType } from '@/utils/content-type-detection';
@@ -25,25 +25,21 @@ import { detectContentType } from '@/utils/content-type-detection';
 type JoinCassetteCTAProps = {
   onClick: () => void;
   className?: string;
+  accentColor?: string | null;
 };
 
-function JoinCassetteCTA({ onClick, className }: JoinCassetteCTAProps) {
+function JoinCassetteCTA({ onClick, className }: Omit<JoinCassetteCTAProps, 'accentColor'>) {
   return (
-    <div className={`rounded-2xl border border-primary/30 bg-primary/5 p-6 text-center backdrop-blur-sm ${className ?? ''}`}>
-      <h3 className="text-lg font-semibold text-foreground">Create your free Cassette account</h3>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Save your conversions, build collections, and share music with friends once you sign up.
+    <div className={`flex items-center justify-between gap-4 ${className ?? ''}`}>
+      <p className="text-sm text-muted-foreground">
+        <span className="text-foreground font-medium">New here?</span> Create a free account to save your music.
       </p>
-      <div className="mt-5 flex justify-center">
-        <AnimatedButton
-          text="Create free account"
-          onClick={onClick}
-          height={48}
-          width={230}
-          initialPos={6}
-          textStyle="text-base font-bold tracking-wide font-atkinson"
-        />
-      </div>
+      <button
+        onClick={onClick}
+        className="shrink-0 px-4 py-2 text-sm font-semibold rounded-lg transition-colors bg-primary text-white border-2 border-white dark:border-black"
+      >
+        Sign up free
+      </button>
     </div>
   );
 }
@@ -859,29 +855,23 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         {showSignupCTA && (
                           <JoinCassetteCTA onClick={handleSignupClick} />
                         )}
-                        {/* Support Us */}
-                        <div className="p-5 rounded-2xl border border-primary/30 bg-primary/5 backdrop-blur-sm">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-start gap-3 text-left">
-                              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
-                                <HeartHandshake className="h-5 w-5" />
-                              </span>
-                              <div>
-                                <h3 className="text-lg font-semibold text-foreground">Enjoying Cassette?</h3>
-                                <p className="text-sm text-muted-foreground">
-                                  Help us keep building friendly music tools by tipping the team on Ko-fi.
-                                </p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={openKoFiSupport}
-                              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-5 py-2 text-sm font-semibold transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                              aria-label="Support Cassette on Ko-fi"
-                            >
-                              <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={18} height={18} className="rounded-full" />
-                              <span>Support Us</span>
-                            </button>
-                          </div>
+                        {/* Support Us - Minimal */}
+                        <div className="flex items-center justify-between gap-4">
+                          <p className="text-sm text-muted-foreground">
+                            <span className="text-foreground font-medium">Enjoying Cassette?</span> Support us on Ko-fi.
+                          </p>
+                          <button
+                            onClick={openKoFiSupport}
+                            className="shrink-0 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
+                            style={{
+                              backgroundColor: palette?.complementary || 'var(--primary)',
+                              color: palette?.complementary && ColorExtractor.isLightColor(palette.complementary) ? '#1F2327' : '#FFFFFF',
+                            }}
+                            aria-label="Support Cassette on Ko-fi"
+                          >
+                            <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="rounded-full" />
+                            <span>Tip us</span>
+                          </button>
                         </div>
 
                         {/* Report Problem */}
@@ -1204,29 +1194,23 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 <JoinCassetteCTA onClick={handleSignupClick} />
               )}
 
-              {/* Support Us */}
-              <div className="p-5 rounded-2xl border border-primary/30 bg-primary/5 backdrop-blur-sm text-left">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
-                      <HeartHandshake className="h-5 w-5" />
-                    </span>
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground">Enjoying Cassette?</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Tip the team on Ko-fi and help us keep the music sharing going.
-                      </p>
-                    </div>
-                  </div>
-              <button
-                onClick={openKoFiSupport}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-5 py-2 text-sm font-semibold transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                aria-label="Support Cassette on Ko-fi"
-              >
-                <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={18} height={18} className="rounded-full" />
-                <span>Support Us</span>
-              </button>
-                </div>
+              {/* Support Us - Minimal */}
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm text-muted-foreground">
+                  <span className="text-foreground font-medium">Enjoying Cassette?</span> Support us on Ko-fi.
+                </p>
+                <button
+                  onClick={openKoFiSupport}
+                  className="shrink-0 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
+                  style={{
+                    backgroundColor: palette?.complementary || 'var(--primary)',
+                    color: palette?.complementary && ColorExtractor.isLightColor(palette.complementary) ? '#1F2327' : '#FFFFFF',
+                  }}
+                  aria-label="Support Cassette on Ko-fi"
+                >
+                  <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="rounded-full" />
+                  <span>Tip us</span>
+                </button>
               </div>
 
               {/* Report Problem Button */}

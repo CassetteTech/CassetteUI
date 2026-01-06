@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRouter } from 'next/navigation';
+import { pendingActionService } from '@/utils/pending-action';
 
 export default function GoogleCallbackPage() {
   const searchParams = useSearchParams();
@@ -12,6 +13,17 @@ export default function GoogleCallbackPage() {
 
   useEffect(() => {
     const handleCallback = async () => {
+      // Helper to redirect to pending action URL or default
+      const redirectToDestination = () => {
+        const pendingAction = pendingActionService.get();
+        if (pendingAction?.returnUrl) {
+          console.log('🔄 [Google Callback] Redirecting to pending action URL:', pendingAction.returnUrl);
+          window.location.href = pendingAction.returnUrl;
+        } else {
+          router.push('/profile');
+        }
+      };
+
       try {
         console.log('🔄 [Google Callback] Starting callback processing');
         console.log('URL:', window.location.href);
@@ -35,8 +47,8 @@ export default function GoogleCallbackPage() {
             // Add a small delay to ensure state is propagated
             await new Promise(resolve => setTimeout(resolve, 100));
             
-            console.log('🔄 [Google Callback] Redirecting to /profile');
-            router.push('/profile');
+            console.log('🔄 [Google Callback] Redirecting to destination');
+            redirectToDestination();
             return;
           } catch (error) {
             console.error('❌ [Google Callback] OAuth callback failed:', error);
@@ -53,7 +65,7 @@ export default function GoogleCallbackPage() {
           console.log('🔄 [Google Callback] Processing OAuth code exchange');
           const user = await authService.handleGoogleCallback(code, state);
           useAuthStore.getState().setUser(user);
-          router.push('/profile');
+          redirectToDestination();
           return;
         }
 
@@ -79,7 +91,7 @@ export default function GoogleCallbackPage() {
           if (fragmentToken && fragmentRefreshToken) {
             console.log('🔄 [Google Callback] Found tokens in URL fragment');
             await authService.handleOAuthCallback(fragmentToken, fragmentRefreshToken);
-            router.push('/profile');
+            redirectToDestination();
             return;
           }
         }
@@ -94,7 +106,7 @@ export default function GoogleCallbackPage() {
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
           console.log('✅ [Google Callback] User already authenticated:', currentUser);
-          router.push('/profile');
+          redirectToDestination();
         } else {
           console.error('❌ [Google Callback] No valid authentication found');
           console.log('Debug info:', {
@@ -112,7 +124,7 @@ export default function GoogleCallbackPage() {
             const retryUser = await authService.getCurrentUser();
             if (retryUser) {
               console.log('✅ [Google Callback] User found on retry:', retryUser);
-              router.push('/profile');
+              redirectToDestination();
             } else {
               console.error('❌ [Google Callback] Still no authentication after retry');
               router.push('/auth/signin?error=callback-failed');

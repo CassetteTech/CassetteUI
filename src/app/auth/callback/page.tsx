@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/auth';
+import { pendingActionService } from '@/utils/pending-action';
 
 function CallbackContent() {
   const router = useRouter();
@@ -41,7 +42,14 @@ function CallbackContent() {
         .then(() => {
           console.log('🟩 [Callback Page] Success! Redirecting...');
           window.history.replaceState(null, '', window.location.pathname);
-          router.replace('/profile');
+
+          // Check for pending action to redirect back to original page
+          const pendingAction = pendingActionService.get();
+          if (pendingAction?.returnUrl) {
+            window.location.href = pendingAction.returnUrl;
+          } else {
+            router.replace('/profile');
+          }
         })
         .catch((err: Error) => {
           console.error('🟥 [Callback Page] API Error:', err);

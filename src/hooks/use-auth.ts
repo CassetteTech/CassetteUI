@@ -3,6 +3,7 @@ import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { SignInForm, SignUpForm } from '@/types';
 import { useRouter } from 'next/navigation';
+import { pendingActionService } from '@/utils/pending-action';
 
 export const useSignIn = () => {
   const router = useRouter();
@@ -12,7 +13,16 @@ export const useSignIn = () => {
     mutationFn: (data: SignInForm) => authService.signIn(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
-      // Navigate to profile (which will handle onboarding redirect if needed)
+
+      // Check for pending action that needs to resume
+      const pendingAction = pendingActionService.get();
+      if (pendingAction?.returnUrl) {
+        // Redirect back to the original page (e.g., playlist post page)
+        window.location.href = pendingAction.returnUrl;
+        return;
+      }
+
+      // Default: Navigate to profile (which will handle onboarding redirect if needed)
       router.push('/profile');
     },
     onError: (error: Error) => {
@@ -33,6 +43,14 @@ export const useSignUp = () => {
       console.log('✅ [useSignUp] Signup successful:', result);
       // Navigate to profile only if auto-login tokens were returned
       if (result?.token) {
+        // Check for pending action that needs to resume
+        const pendingAction = pendingActionService.get();
+        if (pendingAction?.returnUrl) {
+          // Redirect back to the original page (e.g., playlist post page)
+          window.location.href = pendingAction.returnUrl;
+          return;
+        }
+
         router.push('/profile');
       }
     },

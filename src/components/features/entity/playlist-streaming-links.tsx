@@ -8,6 +8,10 @@ import { apiService } from '@/services/api';
 import { detectContentType } from '@/utils/content-type-detection';
 import { CreatePlaylistResponse, FailedTrack } from '@/types';
 import { ChevronDown, ChevronUp, ExternalLink, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { useAuthState } from '@/hooks/use-auth';
+import { pendingActionService } from '@/utils/pending-action';
+import { platformConnectService } from '@/services/platform-connect';
+import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
 
 type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
 
@@ -48,8 +52,11 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   sourceUrl,
   sourcePlatform,
 }) => {
+  const { isAuthenticated } = useAuthState();
   const [creationStatus, setCreationStatus] = useState<CreationStatus | null>(null);
   const [showFailedTracks, setShowFailedTracks] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [pendingPlatform, setPendingPlatform] = useState<PlatformKey | null>(null);
 
   const providedSourceUrl = sourceUrl?.trim();
   const detectedFromProvided = providedSourceUrl ? detectContentType(providedSourceUrl).platform : null;
@@ -71,10 +78,63 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   const sourceService = sourcePlatformKey ? streamingServices[sourcePlatformKey] : null;
 
   const handleCreatePlaylist = async (platform: PlatformKey) => {
+    const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+    // Case 1: User not logged in - show auth modal
+    if (!isAuthenticated) {
+      setPendingPlatform(platform);
+      setAuthModalOpen(true);
+      return;
+    }
+
+    // Case 2: User logged in - check if they have platform connection
     setCreationStatus({ platform, loading: true });
     setShowFailedTracks(false);
 
     try {
+      const connections = await apiService.getMusicConnections();
+      const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
+      const hasConnection = connections.services?.some(
+        (service: string) => normalize(service) === normalize(platform)
+      );
+
+      if (!hasConnection) {
+        // No connection - trigger OAuth flow
+        pendingActionService.save(
+          pendingActionService.createPlaylistAction(platform, playlistId, currentUrl)
+        );
+
+        if (platform === 'spotify') {
+          // Spotify uses redirect-based OAuth
+          await platformConnectService.connectSpotify(currentUrl);
+          return; // Will redirect to Spotify
+        } else if (platform === 'appleMusic') {
+          // Apple Music uses modal-based auth (no redirect)
+          const success = await platformConnectService.connectAppleMusic(currentUrl);
+          if (success) {
+            // Connected successfully, now create the playlist
+            pendingActionService.clear();
+            const result = await apiService.createPlaylist(playlistId, platform.toLowerCase());
+            setCreationStatus({ platform, loading: false, result });
+          } else {
+            setCreationStatus({
+              platform,
+              loading: false,
+              error: 'Failed to connect to Apple Music. Please try again.',
+            });
+          }
+          return;
+        } else if (platform === 'deezer') {
+          setCreationStatus({
+            platform,
+            loading: false,
+            error: 'Please connect Deezer in your profile settings first.',
+          });
+          return;
+        }
+      }
+
+      // Case 3: Has connection - create playlist directly
       const result = await apiService.createPlaylist(playlistId, platform.toLowerCase());
       setCreationStatus({ platform, loading: false, result });
     } catch (error) {
@@ -83,6 +143,16 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
         loading: false,
         error: error instanceof Error ? error.message : 'Failed to create playlist',
       });
+    }
+  };
+
+  // Save pending action before navigating to auth pages
+  const handleAuthNavigate = () => {
+    if (pendingPlatform) {
+      const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+      pendingActionService.save(
+        pendingActionService.createPlaylistAction(pendingPlatform, playlistId, currentUrl)
+      );
     }
   };
 
@@ -285,6 +355,13 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       </div>
 
       {renderCreationResult()}
+
+      <AuthPromptModal
+        open={authModalOpen}
+        onOpenChange={setAuthModalOpen}
+        platform={pendingPlatform || undefined}
+        onBeforeNavigate={handleAuthNavigate}
+      />
     </div>
   );
 };

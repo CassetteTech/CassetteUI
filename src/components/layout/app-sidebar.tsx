@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useState, useEffect } from 'react';
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import {
   Sidebar,
@@ -22,6 +23,7 @@ import { ThemeSwitcher } from '@/components/layout/theme-switcher';
 import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
 import { usePathname } from 'next/navigation';
 import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
+import { theme } from '@/lib/theme';
 
 interface AppSidebarProps {
   className?: string;
@@ -31,6 +33,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const { user } = useAuthState();
   const { mutate: signOut } = useSignOut();
   const pathname = usePathname();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [indicatorStyle, setIndicatorStyle] = useState<{
+    top: number;
+    height: number;
+    opacity: number;
+    hasPositioned: boolean;
+  }>({ top: 0, height: 0, opacity: 0, hasPositioned: false });
 
   // Helper function to check if a path is active
   const isActive = (path: string) => {
@@ -39,6 +48,42 @@ export function AppSidebar({ className }: AppSidebarProps) {
     }
     return pathname.startsWith(path);
   };
+
+  // Update indicator position when pathname changes
+  useEffect(() => {
+    const updateIndicator = () => {
+      if (!contentRef.current) return;
+
+      const activeButton = contentRef.current.querySelector(
+        '[data-active="true"]'
+      ) as HTMLElement | null;
+
+      if (activeButton) {
+        const containerRect = contentRef.current.getBoundingClientRect();
+        const buttonRect = activeButton.getBoundingClientRect();
+        const newTop = buttonRect.top - containerRect.top;
+        const newHeight = buttonRect.height;
+
+        setIndicatorStyle((prev) => {
+          if (!prev.hasPositioned) {
+            // First time: set position, then reveal in next frame
+            requestAnimationFrame(() => {
+              setIndicatorStyle((p) => ({ ...p, opacity: 1, hasPositioned: true }));
+            });
+            return { top: newTop, height: newHeight, opacity: 0, hasPositioned: false };
+          }
+          // Subsequent: just update position (transitions will animate)
+          return { ...prev, top: newTop, height: newHeight, opacity: 1 };
+        });
+      } else {
+        setIndicatorStyle((prev) => ({ ...prev, opacity: 0 }));
+      }
+    };
+
+    // Small delay to ensure DOM has updated
+    const timeoutId = setTimeout(updateIndicator, 10);
+    return () => clearTimeout(timeoutId);
+  }, [pathname]);
 
   return (
     <Sidebar collapsible="none" className={`h-screen ${className}`}>
@@ -58,7 +103,23 @@ export function AppSidebar({ className }: AppSidebarProps) {
         </div>
       </SidebarHeader>
       
-      <SidebarContent>
+      <SidebarContent className="relative" ref={contentRef}>
+        {/* Sliding indicator */}
+        <div
+          className="absolute left-0 w-1 rounded-r-full z-10"
+          style={{
+            top: indicatorStyle.top,
+            height: indicatorStyle.height,
+            opacity: indicatorStyle.opacity,
+            backgroundColor: theme.colors.brandRed,
+            // No transition until first position is set, then smooth sliding
+            transition: indicatorStyle.hasPositioned
+              ? (indicatorStyle.opacity === 1
+                  ? 'top 300ms ease-out, height 300ms ease-out, opacity 0ms'
+                  : 'top 300ms ease-out, height 300ms ease-out, opacity 500ms ease-out')
+              : 'none',
+          }}
+        />
         {/* User Profile Section */}
         {user ? (
           <SidebarGroup>
@@ -189,6 +250,13 @@ export function AppSidebarSkeleton({ className }: AppSidebarProps) {
   const { user } = useAuthState();
   const { mutate: signOut } = useSignOut();
   const pathname = usePathname();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [indicatorStyle, setIndicatorStyle] = useState<{
+    top: number;
+    height: number;
+    opacity: number;
+    hasPositioned: boolean;
+  }>({ top: 0, height: 0, opacity: 0, hasPositioned: false });
 
   const isActive = (path: string) => {
     if (path === '/') {
@@ -196,6 +264,42 @@ export function AppSidebarSkeleton({ className }: AppSidebarProps) {
     }
     return pathname.startsWith(path);
   };
+
+  // Update indicator position when pathname changes
+  useEffect(() => {
+    const updateIndicator = () => {
+      if (!contentRef.current) return;
+
+      const activeButton = contentRef.current.querySelector(
+        '[data-active="true"]'
+      ) as HTMLElement | null;
+
+      if (activeButton) {
+        const containerRect = contentRef.current.getBoundingClientRect();
+        const buttonRect = activeButton.getBoundingClientRect();
+        const newTop = buttonRect.top - containerRect.top;
+        const newHeight = buttonRect.height;
+
+        setIndicatorStyle((prev) => {
+          if (!prev.hasPositioned) {
+            // First time: set position, then reveal in next frame
+            requestAnimationFrame(() => {
+              setIndicatorStyle((p) => ({ ...p, opacity: 1, hasPositioned: true }));
+            });
+            return { top: newTop, height: newHeight, opacity: 0, hasPositioned: false };
+          }
+          // Subsequent: just update position (transitions will animate)
+          return { ...prev, top: newTop, height: newHeight, opacity: 1 };
+        });
+      } else {
+        setIndicatorStyle((prev) => ({ ...prev, opacity: 0 }));
+      }
+    };
+
+    // Small delay to ensure DOM has updated
+    const timeoutId = setTimeout(updateIndicator, 10);
+    return () => clearTimeout(timeoutId);
+  }, [pathname]);
 
   return (
     <Sidebar collapsible="icon" className={className}>
@@ -214,7 +318,23 @@ export function AppSidebarSkeleton({ className }: AppSidebarProps) {
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="relative" ref={contentRef}>
+        {/* Sliding indicator */}
+        <div
+          className="absolute left-0 w-1 rounded-r-full z-10"
+          style={{
+            top: indicatorStyle.top,
+            height: indicatorStyle.height,
+            opacity: indicatorStyle.opacity,
+            backgroundColor: theme.colors.brandRed,
+            // No transition until first position is set, then smooth sliding
+            transition: indicatorStyle.hasPositioned
+              ? (indicatorStyle.opacity === 1
+                  ? 'top 300ms ease-out, height 300ms ease-out, opacity 0ms'
+                  : 'top 300ms ease-out, height 300ms ease-out, opacity 500ms ease-out')
+              : 'none',
+          }}
+        />
         <SidebarGroup>
           <SidebarGroupContent>
             <div className="p-4">

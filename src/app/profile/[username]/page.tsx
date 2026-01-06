@@ -12,11 +12,6 @@ import { profileService } from '@/services/profile';
 import { apiService } from '@/services/api';
 import { UserBio, ActivityPost } from '@/types';
 import { Container } from '@/components/ui/container';
-import {
-  SidebarInset,
-  SidebarProvider,
-} from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/layout/app-sidebar';
 
 export default function ProfilePage() {
   const { username } = useParams();
@@ -275,28 +270,19 @@ export default function ProfilePage() {
             </div>
           </Container>
         </div>
-        
-        {/* Desktop Error with Sidebar */}
-        <div className="hidden lg:block min-h-screen bg-background">
-          <SidebarProvider defaultOpen={true}>
-            <AppSidebar />
-            <SidebarInset>
-              <div className="flex flex-col h-screen overflow-hidden">
-                <div className="flex items-center justify-center flex-1">
-                  <div className="text-center">
-                    <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
-                    <p className="text-muted-foreground mb-4">{error}</p>
-                    <button
-                      onClick={() => router.back()}
-                      className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-                    >
-                      Go Back
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </SidebarInset>
-          </SidebarProvider>
+
+        {/* Desktop Error - sidebar provided by layout */}
+        <div className="hidden lg:flex items-center justify-center flex-1">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <button
+              onClick={() => router.back()}
+              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
+            >
+              Go Back
+            </button>
+          </div>
         </div>
       </>
     );
@@ -321,28 +307,19 @@ export default function ProfilePage() {
             </div>
           </Container>
         </div>
-        
-        {/* Desktop Not Found with Sidebar */}
-        <div className="hidden lg:block min-h-screen bg-background">
-          <SidebarProvider defaultOpen={true}>
-            <AppSidebar />
-            <SidebarInset>
-              <div className="flex flex-col h-screen overflow-hidden">
-                <div className="flex items-center justify-center flex-1">
-                  <div className="text-center">
-                    <h1 className="text-2xl font-bold text-foreground mb-4">User Not Found</h1>
-                    <p className="text-muted-foreground mb-4">The profile you&apos;re looking for doesn&apos;t exist.</p>
-                    <button
-                      onClick={() => router.back()}
-                      className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-                    >
-                      Go Back
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </SidebarInset>
-          </SidebarProvider>
+
+        {/* Desktop Not Found - sidebar provided by layout */}
+        <div className="hidden lg:flex items-center justify-center flex-1">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-foreground mb-4">User Not Found</h1>
+            <p className="text-muted-foreground mb-4">The profile you&apos;re looking for doesn&apos;t exist.</p>
+            <button
+              onClick={() => router.back()}
+              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
+            >
+              Go Back
+            </button>
+          </div>
         </div>
       </>
     );
@@ -402,37 +379,28 @@ export default function ProfilePage() {
       </div>
 
       {/* --- DESKTOP LAYOUT --- */}
-      {/* This block is hidden by default and becomes visible on `lg` screens */}
-      <div className="hidden lg:block min-h-screen bg-background">
-        <SidebarProvider defaultOpen={true}>
-          <AppSidebar />
-
-          {/* Main Content Area */}
-          <SidebarInset>
-            <div className="flex flex-col h-screen overflow-hidden">
-              <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b">
-                <ProfileTabs
-                  activeTab={activeTab}
-                  onTabChange={filterByElementType}
-                />
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                {showActivitySkeleton ? (
-                  <div className="p-3 sm:p-4 md:p-6 lg:p-8">
-                    <ActivitySkeleton count={6} />
-                  </div>
-                ) : (
-                  <ProfileActivity
-                    posts={filteredPosts}
-                    isLoading={isLoadingMore}
-                    onLoadMore={loadMore}
-                    hasMore={activityPosts.length < totalItems}
-                  />
-                )}
-              </div>
+      {/* Sidebar provided by layout, just render content */}
+      <div className="hidden lg:flex lg:flex-col lg:flex-1">
+        <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b">
+          <ProfileTabs
+            activeTab={activeTab}
+            onTabChange={filterByElementType}
+          />
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {showActivitySkeleton ? (
+            <div className="p-3 sm:p-4 md:p-6 lg:p-8">
+              <ActivitySkeleton count={6} />
             </div>
-          </SidebarInset>
-        </SidebarProvider>
+          ) : (
+            <ProfileActivity
+              posts={filteredPosts}
+              isLoading={isLoadingMore}
+              onLoadMore={loadMore}
+              hasMore={activityPosts.length < totalItems}
+            />
+          )}
+        </div>
       </div>
     </>
   );

@@ -9,7 +9,7 @@ import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList } from '@/components/features/entity/track-list';
 import { AnimatedButton, AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { AnimatedColorBackground } from '@/components/ui/animated-color-background';
-import { ColorExtractor } from '@/services/color-extractor';
+import { ColorExtractor, ColorPalette } from '@/services/color-extractor';
 import { MainContainer } from '@/components/ui/container';
 import { HeadlineText, BodyText, UIText } from '@/components/ui/typography';
 import Image from 'next/image';
@@ -61,7 +61,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const [error, setError] = useState<string | null>(null);
 
   // Animation states
-  const [dominantColor, setDominantColor] = useState<string | null>(null);
+  const [palette, setPalette] = useState<ColorPalette | null>(null);
   const handleSignupClick = () => router.push('/auth/signup');
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
   const [imageError, setImageError] = useState(false);
@@ -294,11 +294,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   // Color extraction function
   const extractColorFromArtwork = async (artworkUrl: string) => {
     try {
-      const result = await ColorExtractor.extractDominantColor(artworkUrl);
-      setDominantColor(result.dominantColor);
+      const result = await ColorExtractor.extractPalette(artworkUrl);
+      setPalette(result);
     } catch (error) {
       console.error('Color extraction failed:', error);
-      setDominantColor('#3B82F6'); // Fallback to blue
+      setPalette(ColorExtractor.getBrandPalette());
     }
   };
 
@@ -323,7 +323,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   if (error) {
     return (
       <div className="min-h-screen relative">
-        <AnimatedColorBackground color={dominantColor} />
+        <AnimatedColorBackground
+          color={palette?.dominant ?? null}
+          gradientColors={palette ? [palette.dominant, palette.muted] : undefined}
+        />
         <div className="relative z-10 min-h-screen flex items-center justify-center">
           <MainContainer className="text-center p-8">
             <div className="mb-4">
@@ -365,7 +368,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   return (
     <div className={useSplitScrollLayout ? "fixed inset-x-0 top-16 bottom-0 overflow-y-auto" : "min-h-screen relative"}>
       {/* Animated Gradient Background */}
-      <AnimatedColorBackground color={dominantColor} />
+      <AnimatedColorBackground
+        color={palette?.dominant ?? null}
+        gradientColors={palette ? [palette.dominant, palette.muted] : undefined}
+      />
 
       <div className={useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"}>
         {isDesktop ? (

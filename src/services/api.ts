@@ -1,5 +1,5 @@
 import { clientConfig } from '@/lib/config-client';
-import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType, MediaListTrack } from '@/types';
+import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType, MediaListTrack, CreatePlaylistResponse } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 
 // interface MusicConnection {
@@ -345,7 +345,7 @@ class ApiService {
     });
   }
 
-  async createPlaylist(playlistId: string, targetPlatform: string) {
+  async createPlaylist(playlistId: string, targetPlatform: string): Promise<CreatePlaylistResponse> {
     const connections = await this.getMusicConnections();
     const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
     const targetKey = normalize(targetPlatform);
@@ -362,9 +362,9 @@ class ApiService {
     if (!hasConnection) {
       throw new Error('No connection found for target platform');
     }
-    return this.request<{ success: boolean }>('/api/v1/convert/createPlaylist', {
+    return this.request<CreatePlaylistResponse>('/api/v1/convert/createPlaylist', {
       method: 'POST',
-      body: JSON.stringify({ PlaylistId: playlistId, TargetPlatform: canonicalTarget}),
+      body: JSON.stringify({ PlaylistId: playlistId, TargetPlatform: canonicalTarget }),
     });
   }
 

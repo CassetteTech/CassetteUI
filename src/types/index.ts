@@ -223,6 +223,25 @@ export interface ConversionApiResponse {
   caption?: string;
 }
 
+// API Response type for playlist creation (snake_case to match backend JSON)
+export interface CreatePlaylistResponse {
+  success: boolean;
+  playlist_id?: string;
+  playlist_url?: string;
+  tracks_added: number;
+  tracks_failed: number;
+  total_tracks: number;
+  error_message?: string;
+  failed_tracks?: FailedTrack[];
+}
+
+export interface FailedTrack {
+  position: number;
+  track_name?: string;
+  artist_name?: string;
+  error_reason?: string;
+}
+
 // API Response type for fetchPostById
 export interface PostByIdResponse {
   success: boolean;

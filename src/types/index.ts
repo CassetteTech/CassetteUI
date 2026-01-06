@@ -20,6 +20,7 @@ export interface ActivityPost {
   elementType: string;
   title: string;
   subtitle?: string;
+  description?: string;
   imageUrl?: string;
   username: string;
   userId: string;

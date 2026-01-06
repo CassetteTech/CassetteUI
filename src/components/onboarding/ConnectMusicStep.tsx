@@ -69,9 +69,6 @@ export function ConnectMusicStep({
     }
   };
 
-  const handleSkipAll = () => {
-    onFinish();
-  };
 
   return (
     <div className="space-y-6">
@@ -145,21 +142,13 @@ export function ConnectMusicStep({
         >
           Back
         </Button>
-        <div className="space-x-2">
-          <Button
-            variant="ghost"
-            onClick={handleSkipAll}
-          >
-            Skip All
-          </Button>
-          <Button
-            onClick={onFinish}
-            className="px-8"
-          >
-            <Music className="w-4 h-4 mr-2" />
-            Finish Setup
-          </Button>
-        </div>
+        <Button
+          onClick={onFinish}
+          className="px-8"
+        >
+          <Music className="w-4 h-4 mr-2" />
+          Finish Setup
+        </Button>
       </div>
     </div>
   );

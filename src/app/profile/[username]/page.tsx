@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
 import { ProfileHeader } from '@/components/features/profile/profile-header';
@@ -8,6 +8,7 @@ import { ProfileTabs, TabType } from '@/components/features/profile/profile-tabs
 import { ProfileActivity } from '@/components/features/profile/profile-activity';
 import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
 import { profileService } from '@/services/profile';
+import { apiService } from '@/services/api';
 import { UserBio, ActivityPost } from '@/types';
 import { Container } from '@/components/ui/container';
 import {
@@ -31,6 +32,7 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [isCurrentUser, setIsCurrentUser] = useState(false);
   const [lastLoadedUserId, setLastLoadedUserId] = useState<string | null>(null);
+  const enrichedPostIdsRef = useRef(new Set<string>());
 
   const userIdentifier = Array.isArray(username) ? username[0] : username;
 
@@ -114,6 +116,69 @@ export default function ProfilePage() {
     }
   }, [userIdentifier, user, userBio, lastLoadedUserId, getOptimalTab]);
 
+  const enrichActivityPosts = useCallback(async (posts: ActivityPost[]) => {
+    const resolveText = (...values: Array<string | null | undefined>) => {
+      for (const value of values) {
+        if (typeof value === 'string' && value.trim() !== '') {
+          return value;
+        }
+      }
+      return undefined;
+    };
+
+    const resolvePostArtwork = (post: {
+      details?: { coverArtUrl?: string; imageUrl?: string };
+      platforms?: Record<string, { artworkUrl?: string; imageUrl?: string; coverArtUrl?: string }>;
+    }) => {
+      if (post.details?.coverArtUrl) return post.details.coverArtUrl;
+      if (post.details?.imageUrl) return post.details.imageUrl;
+      if (post.platforms) {
+        for (const platform of Object.values(post.platforms)) {
+          const artwork = resolveText(platform?.artworkUrl, platform?.imageUrl, platform?.coverArtUrl);
+          if (artwork) return artwork;
+        }
+      }
+      return undefined;
+    };
+
+    const candidates = posts.filter((post) => {
+      if (!post.postId || enrichedPostIdsRef.current.has(post.postId)) return false;
+      const type = post.elementType?.toLowerCase();
+      if (type === 'playlist') return false;
+      return !post.imageUrl;
+    }).slice(0, 4);
+
+    if (candidates.length === 0) return;
+
+    await Promise.all(
+      candidates.map(async (post) => {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 2000);
+          const result = await apiService.fetchPostById(post.postId, { signal: controller.signal });
+          clearTimeout(timeout);
+
+          const resolvedImage = resolvePostArtwork(result);
+          if (!resolvedImage) {
+            enrichedPostIdsRef.current.add(post.postId);
+            return;
+          }
+
+          enrichedPostIdsRef.current.add(post.postId);
+          setActivityPosts((prev) =>
+            prev.map((item) =>
+              item.postId === post.postId
+                ? { ...item, imageUrl: item.imageUrl ?? resolvedImage }
+                : item,
+            ),
+          );
+        } catch {
+          enrichedPostIdsRef.current.add(post.postId);
+        }
+      }),
+    );
+  }, []);
+
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !userIdentifier || activityPosts.length >= totalItems) return;
 
@@ -163,6 +228,12 @@ export default function ProfilePage() {
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  useEffect(() => {
+    if (activityPosts.length > 0) {
+      enrichActivityPosts(activityPosts);
+    }
+  }, [activityPosts, enrichActivityPosts]);
 
 
   // Mobile loading states

@@ -9,7 +9,7 @@ import { StreamingLinks } from '@/components/features/entity/streaming-links';
 import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList } from '@/components/features/entity/track-list';
-import { AnimatedButton } from '@/components/ui/animated-button';
+import { AnimatedButton, AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { AnimatedColorBackground } from '@/components/ui/animated-color-background';
 import { ColorExtractor } from '@/services/color-extractor';
 import { MainContainer } from '@/components/ui/container';
@@ -17,7 +17,7 @@ import { HeadlineText, BodyText, UIText } from '@/components/ui/typography';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { apiService } from '@/services/api';
-import { useMusicLinkConversion } from '@/hooks/use-music';
+import { useAddMusicToProfile, useMusicLinkConversion } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { HeartHandshake, Share2, Check, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -63,7 +63,9 @@ function JoinCassetteCTA({ onClick, className }: JoinCassetteCTAProps) {
 function PostPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuthState();
+  const { isAuthenticated, isLoading, user } = useAuthState();
+  const { mutate: addToProfile, isPending: isAddingToProfile } = useAddMusicToProfile();
+  const [addStatus, setAddStatus] = useState<'idle' | 'added' | 'error'>('idle');
   const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
@@ -76,6 +78,9 @@ function PostPageContent() {
   const handleSignupClick = () => router.push('/auth/signup');
   const postIdParam = searchParams.get('id');
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
+  useEffect(() => {
+    setAddStatus('idle');
+  }, [postData?.postId, postData?.originalUrl]);
 
   const buildShareUrl = useCallback(() => {
     if (typeof window === 'undefined') return '';
@@ -125,9 +130,33 @@ function PostPageContent() {
       }
     }
   }, [buildShareUrl, postData?.metadata?.title, postData?.metadata?.artist]);
+
+  const handleAddToProfile = useCallback(() => {
+    const urlParam = searchParams.get('url');
+    const decodedUrlParam = urlParam ? decodeURIComponent(urlParam) : null;
+    const urlToAdd = postData?.originalUrl || sourceUrlRef.current || decodedUrlParam;
+
+    if (!urlToAdd) {
+      setAddStatus('error');
+      return;
+    }
+
+    addToProfile(
+      { url: urlToAdd, description: postData?.description },
+      {
+        onSuccess: () => setAddStatus('added'),
+        onError: () => setAddStatus('error'),
+      },
+    );
+  }, [addToProfile, postData?.description, postData?.originalUrl, searchParams]);
   
   // Determine if this is from add-music page based on URL params
   const isFromAddMusic = searchParams.get('fromAddMusic') === 'true';
+  const isOwnPost =
+    !!postData?.username &&
+    !!user?.username &&
+    postData.username.toLowerCase() === user.username.toLowerCase();
+  const showAddToProfile = isAuthenticated && !isFromAddMusic && !isOwnPost;
   
   // Use the conversion mutation - anonymous for home page, authenticated for add-music
   const { mutate: convertLink, isPending: isConverting } = useMusicLinkConversion({
@@ -786,6 +815,20 @@ function PostPageContent() {
                       )}
                     </div>
                   )}
+                  {showAddToProfile && (
+                    <div className="mt-5 w-full max-w-xl flex justify-center">
+                      <AnimatedPrimaryButton
+                        text={addStatus === 'added' ? 'Added to Profile' : 'Add Post to Profile'}
+                        onClick={handleAddToProfile}
+                        disabled={isAddingToProfile || addStatus === 'added'}
+                        height={48}
+                        width={260}
+                        initialPos={6}
+                        className="mx-auto shadow-[0_12px_24px_rgba(210,53,53,0.28)]"
+                        textStyle="text-base font-bold tracking-wide font-atkinson"
+                      />
+                    </div>
+                  )}
                   {showSignupCTA && (
                     <JoinCassetteCTA
                       onClick={handleSignupClick}
@@ -1038,6 +1081,20 @@ function PostPageContent() {
                             />
                           )}
                         </div>
+                        {showAddToProfile && (
+                          <div className="flex justify-center">
+                            <AnimatedPrimaryButton
+                              text={addStatus === 'added' ? 'Added to Profile' : 'Add Post to Profile'}
+                              onClick={handleAddToProfile}
+                              disabled={isAddingToProfile || addStatus === 'added'}
+                              height={48}
+                              width={240}
+                              initialPos={6}
+                              className="mx-auto shadow-[0_12px_24px_rgba(210,53,53,0.28)]"
+                              textStyle="text-base font-bold tracking-wide font-atkinson"
+                            />
+                          </div>
+                        )}
                         {showSignupCTA && (
                           <JoinCassetteCTA onClick={handleSignupClick} />
                         )}
@@ -1370,6 +1427,20 @@ function PostPageContent() {
                   />
                 )}
               </div>
+              {showAddToProfile && (
+                <div className="flex justify-center">
+                  <AnimatedPrimaryButton
+                    text={addStatus === 'added' ? 'Added to Profile' : 'Add Post to Profile'}
+                    onClick={handleAddToProfile}
+                    disabled={isAddingToProfile || addStatus === 'added'}
+                    height={48}
+                    width={240}
+                    initialPos={6}
+                    className="mx-auto shadow-[0_12px_24px_rgba(210,53,53,0.28)]"
+                    textStyle="text-base font-bold tracking-wide font-atkinson"
+                  />
+                </div>
+              )}
               {showSignupCTA && (
                 <JoinCassetteCTA onClick={handleSignupClick} />
               )}

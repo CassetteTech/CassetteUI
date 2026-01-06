@@ -319,8 +319,10 @@ class ApiService {
   }
 
   // Fetch post by ID (includes conversion data)
-  async fetchPostById(postId: string): Promise<PostByIdResponse> {
-    return this.request<PostByIdResponse>(`/api/v1/social/posts/${postId}`);
+  async fetchPostById(postId: string, options?: { signal?: AbortSignal }): Promise<PostByIdResponse> {
+    return this.request<PostByIdResponse>(`/api/v1/social/posts/${postId}`, {
+      signal: options?.signal,
+    });
   }
 
   // Music service authentication endpoints

@@ -3,10 +3,11 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-interface TextFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface TextFieldProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
   label?: string;
   error?: string;
   variant?: 'default' | 'auth' | 'music-search';
+  inputSize?: 'default' | 'lg';
   className?: string;
 }
 
@@ -14,6 +15,7 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
   label,
   error,
   variant = 'default',
+  inputSize = 'default',
   className,
   ...props
 }, ref) => {
@@ -23,20 +25,29 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
     'music-search': 'border-text-hint focus:border-primary bg-white',
   };
 
+  const sizes = {
+    default: 'px-3 py-2',
+    lg: 'px-4 py-3',
+  };
+
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-bold text-text-primary mb-1 font-atkinson tracking-wide">
+        <label className={cn(
+          "block font-bold text-text-primary font-atkinson tracking-wide",
+          inputSize === 'lg' ? 'text-sm mb-2' : 'text-sm mb-1'
+        )}>
           {label}
         </label>
       )}
       <input
         ref={ref}
         className={cn(
-          'w-full px-3 py-2 rounded-md border-2 transition-colors duration-200',
+          'w-full rounded-md border-2 transition-colors duration-200',
           'font-atkinson text-sm font-normal tracking-wide',
           'placeholder:text-text-hint placeholder:font-atkinson placeholder:font-normal',
           'focus:outline-none focus:ring-0',
+          sizes[inputSize],
           variants[variant],
           error && 'border-red-500 focus:border-red-500',
           className

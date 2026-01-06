@@ -129,28 +129,28 @@ export function EditProfileFormComponent({
 
 
   return (
-    <div className="max-w-md mx-auto p-6">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <div className="max-w-2xl mx-auto p-6 w-full">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         {/* Avatar Section */}
         <div className="flex justify-center">
           <div className="relative">
-            <Avatar className="w-32 h-32 border-4 border-white/20">
+            <Avatar className="w-40 h-40 border-4 border-white/20">
               <AvatarImage
                 src={watch('avatarUrl')}
                 alt="Profile"
               />
-              <AvatarFallback>P</AvatarFallback>
+              <AvatarFallback className="text-2xl">P</AvatarFallback>
             </Avatar>
             <button
               type="button"
               onClick={handleImageUpload}
-              className="absolute bottom-0 right-0 w-10 h-10 bg-green-500 rounded-full flex items-center justify-center border-4 border-[#1a1a1a] hover:bg-green-600 transition-colors"
+              className="absolute bottom-1 right-1 w-12 h-12 bg-green-500 rounded-full flex items-center justify-center border-4 border-[#1a1a1a] hover:bg-green-600 transition-colors"
             >
               <Image
                 src="/images/ic_edit.png"
                 alt="Edit"
-                width={16}
-                height={16}
+                width={20}
+                height={20}
                 className="invert"
               />
             </button>
@@ -158,7 +158,7 @@ export function EditProfileFormComponent({
         </div>
 
         {/* Form Fields */}
-        <div className="space-y-4">
+        <div className="space-y-6">
           <TextField
             label="Full Name"
             {...register('fullName')}
@@ -174,13 +174,13 @@ export function EditProfileFormComponent({
           />
 
           <div className="w-full">
-            <label className="block text-sm font-bold text-text-primary mb-1 font-atkinson tracking-wide">
+            <label className="block text-base font-bold text-text-primary mb-2 font-atkinson tracking-wide">
               Bio
             </label>
             <textarea
               {...register('bio')}
-              rows={5}
-              className="w-full px-3 py-2 rounded-md border-2 transition-colors duration-200 font-atkinson text-sm font-normal tracking-wide placeholder:text-text-hint placeholder:font-atkinson placeholder:font-normal focus:outline-none focus:ring-0 border-text-hint focus:border-primary text-foreground"
+              rows={6}
+              className="w-full px-4 py-3 rounded-md border-2 transition-colors duration-200 font-atkinson text-base font-normal tracking-wide placeholder:text-text-hint placeholder:font-atkinson placeholder:font-normal focus:outline-none focus:ring-0 border-text-hint focus:border-primary text-foreground bg-transparent"
               placeholder="Tell us about yourself..."
             />
             {errors.bio && (
@@ -193,19 +193,19 @@ export function EditProfileFormComponent({
 
 
         {/* Action Buttons */}
-        <div className="flex gap-3">
+        <div className="flex gap-4 pt-4">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 bg-transparent border border-white/20 text-white py-3 px-6 rounded-lg font-medium hover:bg-white/10 transition-colors"
+            className="flex-1 bg-transparent border border-white/20 text-white py-4 px-8 rounded-lg font-medium text-lg hover:bg-white/10 transition-colors"
           >
             Cancel
           </button>
-          
+
           <button
             type="submit"
             disabled={isLoading || isSaveOnCooldown}
-            className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 px-6 rounded-lg font-medium disabled:opacity-50 transition-all"
+            className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-4 px-8 rounded-lg font-medium text-lg disabled:opacity-50 transition-all"
           >
             {isLoading ? 'Saving...' : 'Save'}
           </button>

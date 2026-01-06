@@ -157,9 +157,9 @@ export default function EditProfilePage() {
             ) : userBio ? (
               <>
                 {/* Header */}
-                <div className="text-center mb-8">
-                  <h1 className="text-3xl font-bold text-foreground mb-2">Edit Your Profile</h1>
-                  <p className="text-muted-foreground">Update your profile information and connected services</p>
+                <div className="text-center mb-10">
+                  <h1 className="text-4xl font-bold text-foreground mb-3">Edit Your Profile</h1>
+                  <p className="text-lg text-muted-foreground">Update your profile information and connected services</p>
                 </div>
 
                 {/* Edit Form */}
@@ -170,7 +170,7 @@ export default function EditProfilePage() {
                 />
 
                 {/* Music Services Connection */}
-                <div className="mt-8">
+                <div className="mt-10">
                   <MusicConnectionsFlow />
                 </div>
               </>
@@ -186,9 +186,9 @@ export default function EditProfilePage() {
         ) : userBio ? (
           <>
             {/* Header */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-foreground mb-2">Edit Your Profile</h1>
-              <p className="text-muted-foreground">Update your profile information and connected services</p>
+            <div className="text-center mb-10">
+              <h1 className="text-4xl font-bold text-foreground mb-3">Edit Your Profile</h1>
+              <p className="text-lg text-muted-foreground">Update your profile information and connected services</p>
             </div>
 
             {/* Edit Form */}
@@ -199,7 +199,7 @@ export default function EditProfilePage() {
             />
 
             {/* Music Services Connection */}
-            <div className="mt-8 max-w-4xl mx-auto">
+            <div className="mt-10 max-w-2xl mx-auto">
               <MusicConnectionsFlow />
             </div>
           </>

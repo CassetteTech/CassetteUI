@@ -5,17 +5,16 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CassetteTape, Github, Linkedin, Mail, Twitter, ChevronDown, Code, TrendingUp, DollarSign, Briefcase, Palette, Users, Zap, X, HeartHandshake, Sparkles, Rocket, Target, ArrowRight } from "lucide-react";
+import { CassetteTape, Github, Linkedin, Mail, Twitter, ChevronDown, Code, TrendingUp, DollarSign, Briefcase, Palette, Users, Zap, X, HeartHandshake, Sparkles, Rocket, Target } from "lucide-react";
 import Tilt from "react-vanilla-tilt";
 import Image from "next/image";
-import Link from "next/link";
 import { openKoFiSupport, KOFI_ICON_SRC } from "@/lib/ko-fi";
 
 const teamMembers = [
   {
     name: "Matt Toppi",
     role: "Lead Engineer",
-    type: "cofounder",
+    type: ["cofounder", "engineer"],
     icon: Code,
     shortBio: "Co-Founder and Lead Engineer with experience building full-stack applications, leading engineering teams, and researching AI applications for enterprise software.",
     fullBio: "Matt is a Co-Founder and the Lead Engineer at Cassette Technologies, and a Software Engineer at Aras Corporation on their Advanced R&D team. He is a startup founder and software engineer who excels in leading teams and building full-stack applications from concept to deployment. He holds a Bachelor of Science in Computer Science from the University of New Hampshire. As a co-founder, Matt has been instrumental in spearheading all technology operations at Cassette.",
@@ -31,7 +30,7 @@ const teamMembers = [
   {
     name: "Brian Davies",
     role: "Head of Finance",
-    type: "cofounder",
+    type: ["cofounder", "marketer"],
     icon: Briefcase,
     shortBio: "Co-founder focused on corporate banking and company valuation, creating opportunities for entrepreneurs.",
     fullBio: "Brian is a co-founder of Cassette Technologies and a Corporate Banking Associate at Huntington National Bank. He holds a Bachelor of Science in Finance from the American University - Kogod School of Business. With a focus on corporate banking and company valuation, Brian aims to create opportunities for both new and established entrepreneurs.",
@@ -209,8 +208,10 @@ export default function TeamPage() {
   type TeamCategory = 'all' | 'cofounder' | 'engineer' | 'marketer' | 'investor';
   const [activeCategory, setActiveCategory] = useState<TeamCategory>('all');
 
-  const getTypeConfig = (type: string) => {
-    switch (type) {
+  const getTypeConfig = (type: string | string[]) => {
+    // Use the first type for styling purposes
+    const primaryType = Array.isArray(type) ? type[0] : type;
+    switch (primaryType) {
       case 'cofounder':
         return {
           bgClass: 'from-primary to-accent',
@@ -266,86 +267,36 @@ export default function TeamPage() {
 
   const filteredMembers = activeCategory === 'all'
     ? teamMembers
-    : teamMembers.filter(member => member.type === activeCategory);
+    : teamMembers.filter(member =>
+        Array.isArray(member.type)
+          ? member.type.includes(activeCategory)
+          : member.type === activeCategory
+      );
+
+  const countByType = (type: TeamCategory) =>
+    teamMembers.filter(m =>
+      Array.isArray(m.type) ? m.type.includes(type) : m.type === type
+    ).length;
 
   const categories = [
     { id: 'all' as TeamCategory, label: 'All Team', icon: Users, count: teamMembers.length },
-    { id: 'cofounder' as TeamCategory, label: 'Co-Founders', icon: Rocket, count: teamMembers.filter(m => m.type === 'cofounder').length },
-    { id: 'engineer' as TeamCategory, label: 'Engineers', icon: Code, count: teamMembers.filter(m => m.type === 'engineer').length },
-    { id: 'marketer' as TeamCategory, label: 'Marketing', icon: TrendingUp, count: teamMembers.filter(m => m.type === 'marketer').length },
-    { id: 'investor' as TeamCategory, label: 'Advisors', icon: Target, count: teamMembers.filter(m => m.type === 'investor').length },
+    { id: 'cofounder' as TeamCategory, label: 'Co-Founders', icon: Rocket, count: countByType('cofounder') },
+    { id: 'engineer' as TeamCategory, label: 'Engineers', icon: Code, count: countByType('engineer') },
+    { id: 'marketer' as TeamCategory, label: 'Marketing', icon: TrendingUp, count: countByType('marketer') },
+    { id: 'investor' as TeamCategory, label: 'Advisors', icon: Target, count: countByType('investor') },
   ];
 
   return (
     <div className="min-h-screen surface-bottom relative overflow-hidden">
       <AnimatedBackground />
 
-      {/* Floating Cassettes with enhanced styling */}
-      <div className="absolute top-20 left-10 opacity-20 hidden md:block">
-        <motion.div
-          initial={{ rotate: 0, scale: 0.8, y: 0 }}
-          animate={{ rotate: 12, scale: 1, y: [0, -20, 0] }}
-          transition={{ duration: 4, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-        >
-          <CassetteTape className="text-primary elev-2" size={48} />
-        </motion.div>
-      </div>
-      <div className="absolute bottom-40 right-16 opacity-15 hidden md:block">
-        <motion.div
-          initial={{ rotate: 0, scale: 0.9, y: 0 }}
-          animate={{ rotate: -6, scale: 1.1, y: [0, 20, 0] }}
-          transition={{ duration: 5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-        >
-          <CassetteTape className="text-accent elev-2" size={64} />
-        </motion.div>
-      </div>
-      <div className="absolute top-1/2 right-10 opacity-10 hidden lg:block">
-        <motion.div
-          initial={{ rotate: 0, scale: 0.7, x: 0 }}
-          animate={{ rotate: 8, scale: 0.9, x: [0, 15, 0] }}
-          transition={{ duration: 6, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-        >
-          <CassetteTape className="text-secondary elev-2" size={56} />
-        </motion.div>
-      </div>
-
-      {/* Additional ambient gradient orbs */}
-      <div className="absolute top-1/3 right-1/4 opacity-[0.06]">
-        <motion.div
-          className="w-32 h-32 bg-gradient-to-r from-primary to-accent rounded-full blur-3xl"
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.06, 0.08, 0.06]
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        ></motion.div>
-      </div>
-      <div className="absolute bottom-1/3 left-1/4 opacity-[0.06]">
-        <motion.div
-          className="w-24 h-24 bg-gradient-to-r from-accent to-secondary rounded-full blur-3xl"
-          animate={{
-            scale: [1, 1.3, 1],
-            opacity: [0.06, 0.09, 0.06]
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        ></motion.div>
-      </div>
-      
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
         {/* Hero Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="text-center mb-24"
+          className="text-center mb-32"
         >
           <motion.div
             initial={{ scale: 0.8, rotate: -5 }}
@@ -371,7 +322,7 @@ export default function TeamPage() {
           </p>
 
           {/* Team Stats */}
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
+          <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12">
             <motion.div
               className="text-center"
               initial={{ opacity: 0, scale: 0.8 }}
@@ -381,7 +332,6 @@ export default function TeamPage() {
               <div className="font-teko text-4xl sm:text-5xl font-bold text-gradient mb-1">9</div>
               <div className="font-roboto text-sm text-muted-foreground uppercase tracking-wider">Team Members</div>
             </motion.div>
-            <div className="hidden sm:block w-px h-12 bg-border"></div>
             <motion.div
               className="text-center"
               initial={{ opacity: 0, scale: 0.8 }}
@@ -391,7 +341,6 @@ export default function TeamPage() {
               <div className="font-teko text-4xl sm:text-5xl font-bold text-gradient mb-1">65K+</div>
               <div className="font-roboto text-sm text-muted-foreground uppercase tracking-wider">Users Served</div>
             </motion.div>
-            <div className="hidden sm:block w-px h-12 bg-border"></div>
             <motion.div
               className="text-center"
               initial={{ opacity: 0, scale: 0.8 }}
@@ -401,45 +350,6 @@ export default function TeamPage() {
               <div className="font-teko text-4xl sm:text-5xl font-bold text-gradient mb-1">∞</div>
               <div className="font-roboto text-sm text-muted-foreground uppercase tracking-wider">Music Connections</div>
             </motion.div>
-          </div>
-
-          {/* Decorative line */}
-          <div className="mt-12 flex items-center justify-center gap-3">
-            <div className="h-[2px] w-16 bg-gradient-to-r from-transparent via-primary to-transparent"></div>
-            <CassetteTape className="text-primary" size={16} />
-            <div className="h-[2px] w-16 bg-gradient-to-r from-transparent via-primary to-transparent"></div>
-          </div>
-        </motion.div>
-
-        {/* Who We Are */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
-          className="mb-24"
-        >
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 mb-5 px-4 py-2 rounded-full surface-middle elev-1">
-              <Users size={16} className="text-accent" />
-              <span className="font-teko text-sm tracking-wider text-accent uppercase">Who We Are</span>
-            </div>
-            <h2 className="font-teko text-4xl sm:text-5xl font-bold text-foreground mb-6 leading-tight">
-              Music Lovers Building for{" "}
-              <span className="text-gradient">Music Lovers</span>
-            </h2>
-            <p className="font-roboto text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              We&apos;re developers, marketers, and creators who share one frustration:{" "}
-              <span className="text-foreground font-medium">music streaming platforms divide us</span>. So we built Cassette to bring everyone together.
-            </p>
-            <div className="mt-8">
-              <Link
-                href="/about"
-                className="inline-flex items-center gap-2 text-primary hover:text-accent transition-colors duration-300 font-medium"
-              >
-                <span>Read our full story and journey</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
           </div>
         </motion.div>
 
@@ -466,7 +376,7 @@ export default function TeamPage() {
           </div>
 
           {/* Category Filter Pills */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-12">
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-16">
             {categories.map((category) => {
               const CategoryIcon = category.icon;
               const isActive = activeCategory === category.id;
@@ -515,7 +425,7 @@ export default function TeamPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.4 }}
-              className="grid md:grid-cols-2 xl:grid-cols-3 gap-6"
+              className="grid md:grid-cols-2 xl:grid-cols-3 gap-8"
             >
               {filteredMembers.length === 0 ? (
                 <motion.div
@@ -587,7 +497,7 @@ export default function TeamPage() {
                           <div className="flex-1">
                             <h3 className="font-teko text-2xl text-foreground font-bold leading-tight">{member.name}</h3>
                             <p className={`font-roboto font-semibold text-sm ${typeConfig.iconColor} mt-0.5`}>{member.role}</p>
-                            {member.type === 'cofounder' && (
+                            {(Array.isArray(member.type) ? member.type.includes('cofounder') : member.type === 'cofounder') && (
                               <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full mt-2 ${typeConfig.iconBg}`}>
                                 <Briefcase size={12} className={typeConfig.iconColor} />
                                 <span className={`text-xs font-medium ${typeConfig.iconColor}`}>Co-Founder</span>
@@ -609,27 +519,11 @@ export default function TeamPage() {
                           {member.shortBio}
                         </p>
 
-                        <div className="mt-auto pt-5 border-t border-border/40 flex items-center justify-between">
+                        <div className="mt-auto pt-5 border-t border-border/40">
                           <div className="text-xs text-muted-foreground flex items-center gap-2 group-hover:text-foreground transition-colors duration-300">
-                            <motion.div
-                              animate={{ y: [0, 3, 0] }}
-                              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                            >
-                              <ChevronDown size={14} className={`${typeConfig.iconColor}`} />
-                            </motion.div>
+                            <ChevronDown size={14} className={typeConfig.iconColor} />
                             <span className="font-medium">Click to learn more</span>
                           </div>
-                          <motion.div
-                            className={`w-2 h-2 rounded-full bg-gradient-to-r ${typeConfig.bgClass} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
-                            animate={{
-                              scale: [1, 1.2, 1],
-                            }}
-                            transition={{
-                              duration: 2,
-                              repeat: Infinity,
-                              ease: "easeInOut"
-                            }}
-                          ></motion.div>
                         </div>
                       </div>
                     </div>
@@ -705,7 +599,7 @@ export default function TeamPage() {
                         <div>
                           <h2 className="font-teko text-3xl text-foreground font-bold mb-2">{member.name}</h2>
                           <p className={`font-roboto font-medium text-lg ${typeConfig.iconColor}`}>{member.role}</p>
-                          {member.type === 'cofounder' && (
+                          {(Array.isArray(member.type) ? member.type.includes('cofounder') : member.type === 'cofounder') && (
                             <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full mt-3 ${typeConfig.iconBg}`}>
                               <Briefcase size={14} className={typeConfig.iconColor} />
                               <span className={`text-sm font-medium ${typeConfig.iconColor}`}>Co-Founder</span>
@@ -979,7 +873,7 @@ export default function TeamPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.55 }}
-          className="mb-20"
+          className="mb-24"
         >
           <div className="relative gradient-border surface-top rounded-[20px] p-8 sm:p-10 md:p-12 backdrop-blur-sm elev-2 overflow-hidden">
             {/* Decorative gradient orb */}

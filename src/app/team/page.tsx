@@ -17,9 +17,9 @@ const teamMembers = [
     role: "Lead Engineer",
     type: "cofounder",
     icon: Code,
-    shortBio: "Co-Founder and Lead Engineer with over three years of experience building full-stack applications and leading engineering teams from concept to deployment.",
-    fullBio: "Matt is a Co-Founder and the Lead Engineer at Cassette Technologies. With over three years of experience, he is a startup founder and software engineer who excels in leading teams and building full-stack applications from concept to deployment. He holds a Bachelor of Science in Computer Science from the University of New Hampshire. As a co-founder, Matt has been instrumental in spearheading all technology operations.",
-    background: "He built and leads the engineering team, architected the company's full-stack platform, and has been a key driver in securing seed funding. His technical expertise is demonstrated in his hands-on development of the core REST API, which has been scaled to support over 65,000 users. His leadership experience extends to his role as Software Team Lead for the NASA Lunabotics program, where he led the development of an autonomous navigation stack for a rover, earning a first-place award at a university research conference. He is also a certified Google Project Management Professional.",
+    shortBio: "Co-Founder and Lead Engineer with experience building full-stack applications, leading engineering teams, and researching AI applications for enterprise software.",
+    fullBio: "Matt is a Co-Founder and the Lead Engineer at Cassette Technologies, and a Software Engineer at Aras Corporation on their Advanced R&D team. He is a startup founder and software engineer who excels in leading teams and building full-stack applications from concept to deployment. He holds a Bachelor of Science in Computer Science from the University of New Hampshire. As a co-founder, Matt has been instrumental in spearheading all technology operations at Cassette.",
+    background: "At Aras Corporation, Matt builds and researches AI-related projects for PLM (Product Lifecycle Management) software on the Advanced R&D team. At Cassette, he built and leads the engineering team, architected the company's full-stack platform, and has been a key driver in securing seed funding. His technical expertise is demonstrated in his hands-on development of the core REST API, which has been scaled to support over 65,000 users. His leadership experience extends to his role as Software Team Lead for the NASA Lunabotics program, where he led the development of an autonomous navigation stack for a rover, earning a first-place award at a university research conference. He is also a certified Google Project Management Professional.",
     expertise: ["Python", "C#/.NET", "SQL", "Distributed Systems", "Machine Learning", "Cloud Technologies"],
     social: {
       github: "#",
@@ -74,6 +74,38 @@ const teamMembers = [
       linkedin: "#",
       twitter: "#",
       email: "mailto:jenna@cassette.tech"
+    }
+  },
+  {
+    name: "Haniyah Ahsanullah",
+    role: "Social Media Marketing Intern",
+    type: "marketer",
+    icon: TrendingUp,
+    shortBio: "Marketing Intern supporting content creation, campaign planning, and social media management with a data-driven approach.",
+    fullBio: "Haniyah is a Marketing Intern at Cassette Technologies, where she supports the marketing team through content creation, campaign planning, and social media management. She is currently pursuing a Marketing major with a Finance minor at The University of Texas at Dallas.",
+    background: "Haniyah has experience in social media marketing, e-commerce, and digital content production, using analytics to guide strategy and strengthen engagement. Her background includes managing and optimizing social media channels, developing content for diverse audiences, and supporting marketing campaigns across multiple platforms.",
+    expertise: ["Content Creation", "Community Engagement", "Canva & Design Tools", "Social Media Marketing", "Analytics"],
+    social: {
+      github: "#",
+      linkedin: "#",
+      twitter: "#",
+      email: "mailto:haniyah@cassette.tech"
+    }
+  },
+  {
+    name: "Vivian Carvalho",
+    role: "Social Media Marketing Intern",
+    type: "marketer",
+    icon: TrendingUp,
+    shortBio: "Social Media Intern and content creator specializing in video editing and short-form content with expertise in community building.",
+    fullBio: "Vivian is a Social Media Intern at Cassette Technologies, and also a content creator on Twitch. She works with the marketing team to create engaging social media posts and manages accounts on all platforms. She is an undergraduate senior studying Business Administration with a Marketing specialization and a Communication minor at American University.",
+    background: "Vivian has been an individual content creator for several years, cultivating her own social media followings through expert video editing, short-form content creation, and community involvement. She has experience managing social media accounts with large followings, creating memorable logos and other key visuals, and collaborating with similar creators.",
+    expertise: ["Video Editing", "Content Creation", "Social Media Marketing", "Graphic Design", "Adobe Premiere Pro", "Capcut", "Procreate"],
+    social: {
+      github: "#",
+      linkedin: "#",
+      twitter: "#",
+      email: "mailto:vivian@cassette.tech"
     }
   },
   {
@@ -346,7 +378,7 @@ export default function TeamPage() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.5 }}
             >
-              <div className="font-teko text-4xl sm:text-5xl font-bold text-gradient mb-1">7</div>
+              <div className="font-teko text-4xl sm:text-5xl font-bold text-gradient mb-1">9</div>
               <div className="font-roboto text-sm text-muted-foreground uppercase tracking-wider">Team Members</div>
             </motion.div>
             <div className="hidden sm:block w-px h-12 bg-border"></div>

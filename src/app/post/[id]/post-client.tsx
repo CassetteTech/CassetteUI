@@ -64,6 +64,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const [dominantColor, setDominantColor] = useState<string | null>(null);
   const handleSignupClick = () => router.push('/auth/signup');
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [imageError, setImageError] = useState(false);
 
   // Ref to track the source URL for add-to-profile
   const sourceUrlRef = useRef<string | null>(null);
@@ -71,6 +72,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
 
   useEffect(() => {
     setAddStatus('idle');
+    setImageError(false);
   }, [postData?.postId, postData?.originalUrl]);
 
   const buildShareUrl = useCallback(() => {
@@ -440,15 +442,14 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   <div className="relative mb-8">
                     <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
                     <Image
-                      src={metadata.artwork || '/images/cassette_logo.png'}
+                      src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
                       alt={metadata.title}
                       width={340}
                       height={340}
                       className="relative rounded-xl object-cover shadow-xl"
                       priority
-                      onError={(e) => {
-                        e.currentTarget.src = '/images/cassette_logo.png';
-                      }}
+                      onError={() => setImageError(true)}
+                      unoptimized={!imageError && !!metadata.artwork}
                     />
                     {isTrack && postData?.previewUrl && (
                       <div className="absolute -bottom-4 -right-4">
@@ -702,15 +703,14 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       <div className="relative mb-6">
                         <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
                         <Image
-                          src={metadata.artwork || '/images/cassette_logo.png'}
+                          src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
                           alt={metadata.title}
                           width={360}
                           height={360}
                           className="relative rounded-xl object-cover shadow-lg"
                           priority
-                          onError={(e) => {
-                            e.currentTarget.src = '/images/cassette_logo.png';
-                          }}
+                          onError={() => setImageError(true)}
+                          unoptimized={!imageError && !!metadata.artwork}
                         />
                         {isTrack && postData?.previewUrl && (
                           <div className="absolute -bottom-4 -right-4">
@@ -968,16 +968,15 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 <div className="relative inline-block">
                   <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
                   <Image
-                    src={metadata.artwork || '/images/cassette_logo.png'}
+                    src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
                     alt={metadata.title}
                     width={0}
                     height={0}
                     sizes="(max-width: 640px) 280px, 320px"
                     className="relative rounded-xl object-cover shadow-lg w-[280px] h-[280px] sm:w-[320px] sm:h-[320px]"
                     priority
-                    onError={(e) => {
-                      e.currentTarget.src = '/images/cassette_logo.png';
-                    }}
+                    onError={() => setImageError(true)}
+                    unoptimized={!imageError && !!metadata.artwork}
                   />
 
                   {/* Play Preview for Tracks only */}

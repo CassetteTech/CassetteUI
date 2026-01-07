@@ -250,6 +250,7 @@ export interface PostByIdResponse {
   postId: string;
   elementType: string;
   musicElementId: string;
+  createdAt?: string;
   details: {
     title?: string;
     name?: string;

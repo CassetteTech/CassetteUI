@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ActivityPost } from '@/types';
 import { Card } from '@/components/ui/card';
 import { AnimatedButton } from '@/components/ui/animated-button';
+import { formatRelativeTime } from '@/lib/utils/format-date';
 
 interface ProfileActivityProps {
   posts: ActivityPost[];
@@ -181,6 +182,12 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
             <p className="text-muted-foreground/80 text-xs">
               <span className="text-muted-foreground/60">from: </span>
               <span className="text-muted-foreground">{post.username}</span>
+              {post.createdAt && (
+                <>
+                  <span className="text-muted-foreground/60 mx-1">·</span>
+                  <span className="text-muted-foreground/60">{formatRelativeTime(post.createdAt)}</span>
+                </>
+              )}
             </p>
           </div>
         </div>

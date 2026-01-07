@@ -7,17 +7,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BodyText } from '@/components/ui/typography';
 import { profileService } from '@/services/profile';
 import { cn } from '@/lib/utils';
+import { formatRelativeTime } from '@/lib/utils/format-date';
 import type { UserBio } from '@/types';
 
 interface PostDescriptionCardProps {
   username: string;
   description: string;
+  createdAt?: string;
   className?: string;
 }
 
 export function PostDescriptionCard({
   username,
   description,
+  createdAt,
   className,
 }: PostDescriptionCardProps) {
   const [profileData, setProfileData] = useState<UserBio | null>(null);
@@ -55,7 +58,7 @@ export function PostDescriptionCard({
         className
       )}
     >
-      <div className="flex items-start gap-3">
+      <div className={cn("flex gap-3", description?.trim() ? "items-start" : "items-center")}>
         <Link href={`/profile/${username}`} className="flex-shrink-0">
           {isLoading ? (
             <Skeleton className="h-10 w-10 rounded-full" />
@@ -80,6 +83,14 @@ export function PostDescriptionCard({
             <span className="text-xs text-muted-foreground">
               shared this
             </span>
+            {createdAt && (
+              <>
+                <span className="text-xs text-muted-foreground">·</span>
+                <span className="text-xs text-muted-foreground">
+                  {formatRelativeTime(createdAt)}
+                </span>
+              </>
+            )}
           </div>
 
           {description && (
@@ -109,6 +120,7 @@ export function PostDescriptionCardSkeleton({ className }: { className?: string 
           <div className="flex items-baseline gap-2">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-3 w-20" />
           </div>
           <Skeleton className="h-4 w-full" />
         </div>

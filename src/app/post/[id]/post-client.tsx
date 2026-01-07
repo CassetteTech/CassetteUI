@@ -54,7 +54,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const { isAuthenticated, isLoading, user } = useAuthState();
   const { mutate: addToProfile, isPending: isAddingToProfile } = useAddMusicToProfile();
   const [addStatus, setAddStatus] = useState<'idle' | 'added' | 'error'>('idle');
-  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; } | null>(null);
+  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; createdAt?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Animation states
@@ -177,7 +177,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             response.platforms?.appleMusic?.url ||
             response.platforms?.deezer?.url ||
             '';
-          const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; } = {
+          const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; createdAt?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; } = {
             originalUrl: originalLink,
             convertedUrls: {},
             metadata: {
@@ -189,6 +189,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             },
             description: response.description || response.caption,
             username: response.username,
+            createdAt: response.createdAt,
             genres: response.details?.genres || response.metadata?.genres || [],
             albumName: response.metadata?.albumName || response.details?.album || '',
             releaseDate: response.metadata?.releaseDate || response.details?.releaseDate || null,
@@ -810,13 +811,12 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           </div>
                         </div>
                         {/* Description */}
-                        {postData?.description?.trim() && (
-                          <PostDescriptionCard
-                            username={postData?.username || 'User'}
-                            description={postData.description}
-                            className="relative z-20"
-                          />
-                        )}
+                        <PostDescriptionCard
+                          username={postData?.username || 'User'}
+                          description={postData?.description || ''}
+                          createdAt={postData?.createdAt}
+                          className="relative z-20"
+                        />
                         {/* Streaming Links */}
                         <div className="p-6 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg relative z-10">
                           <h3 className="text-lg font-semibold text-card-foreground mb-4">Listen Now</h3>
@@ -1132,11 +1132,12 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 </div>
               )}
 
-              {/* Description if available for non-playlists */}
-              {postData?.description?.trim() && !isPlaylist && (
+              {/* User info and description */}
+              {!isPlaylist && (
                 <PostDescriptionCard
                   username={postData?.username || 'User'}
-                  description={postData.description}
+                  description={postData?.description || ''}
+                  createdAt={postData?.createdAt}
                   className="text-left relative z-20"
                 />
               )}

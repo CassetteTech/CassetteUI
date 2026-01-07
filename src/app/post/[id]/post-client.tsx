@@ -119,21 +119,30 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   }, [buildShareUrl, postData?.metadata?.title, postData?.metadata?.artist]);
 
   const handleAddToProfile = useCallback(() => {
-    const urlToAdd = postData?.originalUrl || sourceUrlRef.current;
+    const musicElementId = postData?.musicElementId;
+    const elementType = postData?.metadata?.type;
 
-    if (!urlToAdd) {
+    console.log('🔍 Add to profile:', { musicElementId, elementType });
+
+    if (!musicElementId || elementType === undefined) {
+      console.log('❌ Missing musicElementId or elementType');
       setAddStatus('error');
+      setTimeout(() => setAddStatus('idle'), 3000);
       return;
     }
 
     addToProfile(
-      { url: urlToAdd, description: postData?.description },
+      { musicElementId, elementType, description: postData?.description },
       {
         onSuccess: () => setAddStatus('added'),
-        onError: () => setAddStatus('error'),
+        onError: (error) => {
+          console.error('❌ Add to profile failed:', error);
+          setAddStatus('error');
+          setTimeout(() => setAddStatus('idle'), 3000);
+        },
       },
     );
-  }, [addToProfile, postData?.description, postData?.originalUrl]);
+  }, [addToProfile, postData?.musicElementId, postData?.metadata?.type, postData?.description]);
 
   const isOwnPost =
     !!postData?.username &&
@@ -161,6 +170,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
 
           const originalLink =
             response.originalLink ||
+            (response as unknown as { sourceUrl?: string }).sourceUrl ||
             response.platforms?.spotify?.url ||
             response.platforms?.applemusic?.url ||
             response.platforms?.appleMusic?.url ||
@@ -577,7 +587,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   {showAddToProfile && (
                     <div className="mt-5 w-full max-w-xl flex justify-center">
                       <AnimatedPrimaryButton
-                        text={addStatus === 'added' ? 'Added to Profile' : 'Add Post to Profile'}
+                        text={addStatus === 'added' ? 'Added to Profile' : addStatus === 'error' ? 'Failed to Add' : 'Add Post to Profile'}
                         onClick={handleAddToProfile}
                         disabled={isAddingToProfile || addStatus === 'added'}
                         height={48}
@@ -841,7 +851,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         {showAddToProfile && (
                           <div className="flex justify-center">
                             <AnimatedPrimaryButton
-                              text={addStatus === 'added' ? 'Added to Profile' : 'Add Post to Profile'}
+                              text={addStatus === 'added' ? 'Added to Profile' : addStatus === 'error' ? 'Failed to Add' : 'Add Post to Profile'}
                               onClick={handleAddToProfile}
                               disabled={isAddingToProfile || addStatus === 'added'}
                               height={48}
@@ -1179,7 +1189,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               {showAddToProfile && (
                 <div className="flex justify-center">
                   <AnimatedPrimaryButton
-                    text={addStatus === 'added' ? 'Added to Profile' : 'Add Post to Profile'}
+                    text={addStatus === 'added' ? 'Added to Profile' : addStatus === 'error' ? 'Failed to Add' : 'Add Post to Profile'}
                     onClick={handleAddToProfile}
                     disabled={isAddingToProfile || addStatus === 'added'}
                     height={48}

@@ -318,6 +318,14 @@ class ApiService {
     });
   }
 
+  // Add music element to user's profile by creating a post
+  async addToProfile(musicElementId: string, elementType: string, description?: string): Promise<{ postId: string }> {
+    return this.request('/api/v1/social/posts', {
+      method: 'POST',
+      body: JSON.stringify({ musicElementId, elementType, description }),
+    });
+  }
+
   // Fetch post by ID (includes conversion data)
   async fetchPostById(postId: string, options?: { signal?: AbortSignal }): Promise<PostByIdResponse> {
     return this.request<PostByIdResponse>(`/api/v1/social/posts/${postId}`, {

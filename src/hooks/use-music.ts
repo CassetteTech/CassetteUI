@@ -102,20 +102,12 @@ export const useAddMusicToProfile = () => {
 
   return useMutation({
     mutationFn: (params: {
-      url: string;
+      musicElementId: string;
+      elementType: string;
       description?: string;
-      originalItemDetails?: {
-        title: string;
-        artist: string;
-        type: string;
-        coverArtUrl: string;
-      };
     }) => {
       console.log('🎯 useAddMusicToProfile mutation called with:', params);
-      return musicService.addMusicToUserProfile(params.url, {
-        description: params.description,
-        originalItemDetails: params.originalItemDetails,
-      });
+      return apiService.addToProfile(params.musicElementId, params.elementType, params.description);
     },
     onSuccess: (data) => {
       console.log('✅ Add music to profile successful:', data);

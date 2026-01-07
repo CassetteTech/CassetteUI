@@ -7,6 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { UserBio } from '@/types';
 import { profileService } from '@/services/profile';
+import { authService } from '@/services/auth';
+import { useAuthStore } from '@/stores/auth-store';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { TextField } from '@/components/ui/text-field';
 
@@ -104,15 +106,21 @@ export function EditProfileFormComponent({
     }
 
     setIsLoading(true);
-    
+
     try {
       await profileService.updateProfile({
         username: data.username,
-        fullName: data.fullName,
+        displayName: data.fullName,
         bio: data.bio,
         avatarUrl: data.avatarUrl,
       });
-      
+
+      // Refresh the auth store with updated user data (including bio)
+      const updatedUser = await authService.getCurrentUser();
+      if (updatedUser) {
+        useAuthStore.getState().setUser(updatedUser);
+      }
+
       onSuccess();
     } catch (error) {
       console.error('Error updating profile:', error);

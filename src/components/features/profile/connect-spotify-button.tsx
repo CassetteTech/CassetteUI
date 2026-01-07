@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
+import { authService } from '@/services/auth';
+import { useAuthStore } from '@/stores/auth-store';
 
 interface ConnectSpotifyButtonProps {
   isConnected?: boolean;
@@ -11,11 +13,32 @@ interface ConnectSpotifyButtonProps {
   onDisconnect?: () => void;
 }
 
-export function ConnectSpotifyButton({ 
-  isConnected = false, 
-  onDisconnect 
+export function ConnectSpotifyButton({
+  isConnected = false,
+  onDisconnect
 }: ConnectSpotifyButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingOAuth, setPendingOAuth] = useState(false);
+
+  // Refetch user when tab regains focus after OAuth redirect
+  useEffect(() => {
+    if (!pendingOAuth) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && pendingOAuth) {
+        // Clear pending state immediately to prevent re-fires during async call
+        setPendingOAuth(false);
+        const updatedUser = await authService.getCurrentUser();
+        if (updatedUser) {
+          useAuthStore.getState().setUser(updatedUser);
+        }
+        setIsLoading(false);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [pendingOAuth]);
 
   const handleConnect = async () => {
     setIsLoading(true);
@@ -51,6 +74,8 @@ export function ConnectSpotifyButton({
       // Check if we got the URL successfully
       if (data && data.authUrl) {
         console.log("Received auth URL, redirecting user to Spotify:", data.authUrl);
+        // Set pending OAuth so visibility listener will refetch user when returning
+        setPendingOAuth(true);
         // Open Spotify auth in a new tab
         window.open(data.authUrl, '_blank');
       } else {

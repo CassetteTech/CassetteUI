@@ -293,12 +293,14 @@ class AuthService {
     // Handle both camelCase and PascalCase field names from backend
     const userId = userData.userId || userData.UserId || userData.id;
     const username = userData.username || userData.Username;
-    
+    const bio = userData.bio || userData.Bio;
+
     return {
       id: String(userId || ''),
       email: String(userData.email || userData.Email || ''),
       username: String(username || ''),
       displayName: String(userData.displayName || username || ''),
+      bio: bio ? String(bio) : undefined,
       profilePicture: String(userData.avatarUrl || userData.AvatarUrl || ''),
       isEmailVerified: true, // Assume verified if coming from backend
       isOnboarded: Boolean(userData.isOnboarded || userData.IsOnboarded || false),

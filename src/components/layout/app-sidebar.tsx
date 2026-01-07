@@ -16,23 +16,32 @@ import {
 } from '@/components/ui/sidebar';
 import { Music, User, LogOut, Edit } from 'lucide-react';
 import Image from 'next/image';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/layout/theme-switcher';
-import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
+import { SidebarProfileCard, SidebarProfileCardSkeleton } from '@/components/features/profile/sidebar-profile-card';
 import { usePathname } from 'next/navigation';
 import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { theme } from '@/lib/theme';
+import type { UserBio } from '@/types';
 
 interface AppSidebarProps {
   className?: string;
+  /** Optional profile user to display (when viewing a profile page) */
+  profileUser?: UserBio | null;
+  /** Whether profile user data is loading */
+  isProfileLoading?: boolean;
 }
 
-export function AppSidebar({ className }: AppSidebarProps) {
+export function AppSidebar({ className, profileUser, isProfileLoading }: AppSidebarProps) {
   const { user } = useAuthState();
   const { mutate: signOut } = useSignOut();
   const pathname = usePathname();
+
+  // Determine which user to display in the profile card
+  // If viewing a profile page, show that user; otherwise show logged-in user
+  const displayUser = profileUser ?? user;
+  const isViewingOwnProfile = !profileUser || (user && profileUser.username === user.username);
   const contentRef = useRef<HTMLDivElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState<{
     top: number;
@@ -121,32 +130,19 @@ export function AppSidebar({ className }: AppSidebarProps) {
           }}
         />
         {/* User Profile Section */}
-        {user ? (
+        {isProfileLoading ? (
           <SidebarGroup>
             <SidebarGroupContent>
-              <div className="p-4">
-                <div className="flex items-center gap-3 mb-4">
-                  <Avatar className="h-12 w-12 border-2 border-border/20">
-                    <AvatarImage 
-                      src={user.profilePicture} 
-                      alt={`@${user.username}`}
-                    />
-                    <AvatarFallback className="bg-primary text-white font-atkinson font-bold">
-                      {user.username?.charAt(0)?.toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">
-                      {user.displayName || user.username}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      @{user.username}
-                    </p>
-                  </div>
-                </div>
-                {/* Music Connections Status */}
-                <MusicConnectionsStatus variant="sidebar" />
-              </div>
+              <SidebarProfileCardSkeleton />
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : displayUser ? (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarProfileCard
+                user={displayUser}
+                isCurrentUser={isViewingOwnProfile ?? false}
+              />
             </SidebarGroupContent>
           </SidebarGroup>
         ) : (
@@ -337,15 +333,7 @@ export function AppSidebarSkeleton({ className }: AppSidebarProps) {
         />
         <SidebarGroup>
           <SidebarGroupContent>
-            <div className="p-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-12 w-12 bg-muted rounded-full animate-pulse" />
-                <div className="flex-1 min-w-0">
-                  <div className="h-4 bg-muted rounded animate-pulse mb-1" />
-                  <div className="h-3 bg-muted rounded animate-pulse w-2/3" />
-                </div>
-              </div>
-            </div>
+            <SidebarProfileCardSkeleton />
           </SidebarGroupContent>
         </SidebarGroup>
 

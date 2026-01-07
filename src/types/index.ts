@@ -315,6 +315,7 @@ export interface AuthUser {
   email: string;
   username: string;
   displayName: string;
+  bio?: string;
   profilePicture: string;
   isEmailVerified: boolean;
   isOnboarded: boolean;

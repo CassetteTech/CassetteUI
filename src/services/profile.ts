@@ -293,20 +293,24 @@ export class ProfileService {
 
   async updateProfile(data: {
     username?: string;
-    fullName?: string;
+    displayName?: string;
     bio?: string;
     avatarUrl?: string;
   }): Promise<void> {
     try {
       const url = this.buildApiUrl('/api/v1/profile');
 
+      // Backend expects multipart/form-data via [FromForm] attribute
+      const formData = new FormData();
+      if (data.username) formData.append('Username', data.username);
+      if (data.displayName) formData.append('DisplayName', data.displayName);
+      if (data.bio !== undefined) formData.append('Bio', data.bio);
+      if (data.avatarUrl) formData.append('AvatarUrl', data.avatarUrl);
+
       const response = await fetch(url, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
-        },
-        body: JSON.stringify(data),
+        headers: this.getAuthHeaders(),
+        body: formData,
       });
 
       if (response.status !== 200) {

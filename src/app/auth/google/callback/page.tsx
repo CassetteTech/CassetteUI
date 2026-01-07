@@ -13,11 +13,23 @@ export default function GoogleCallbackPage() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      // Helper to redirect to pending action URL or default
+      // Helper to redirect to pending action URL or default (checks onboarding first)
       const redirectToDestination = () => {
+        const user = useAuthStore.getState().user;
+
+        // Always check onboarding first - don't bypass it for pending actions
+        if (!user?.isOnboarded) {
+          console.log('🔄 [Google Callback] User not onboarded, redirecting to onboarding');
+          // Keep pending action for after onboarding completes
+          router.push('/onboarding');
+          return;
+        }
+
+        // User is onboarded - honor pending action if exists
         const pendingAction = pendingActionService.get();
         if (pendingAction?.returnUrl) {
           console.log('🔄 [Google Callback] Redirecting to pending action URL:', pendingAction.returnUrl);
+          pendingActionService.clear();
           window.location.href = pendingAction.returnUrl;
         } else {
           router.push('/profile');

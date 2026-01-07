@@ -15,6 +15,7 @@ import { AvatarStep } from '@/components/onboarding/AvatarStep';
 import { ConnectMusicStep } from '@/components/onboarding/ConnectMusicStep';
 import { CompletionStep } from '@/components/onboarding/CompletionStep';
 import { authService } from '@/services/auth';
+import { pendingActionService } from '@/utils/pending-action';
 
 // Step definitions (excluding welcome and completion which are special)
 const STEPS = [
@@ -69,7 +70,14 @@ export default function OnboardingPage() {
         return;
       }
       if (user.isOnboarded) {
-        router.replace('/profile');
+        // Check for pending action before redirecting (e.g., user came from playlist page)
+        const pendingAction = pendingActionService.get();
+        if (pendingAction?.returnUrl) {
+          pendingActionService.clear();
+          window.location.href = pendingAction.returnUrl;
+        } else {
+          router.replace('/profile');
+        }
         return;
       }
     }
@@ -181,6 +189,14 @@ export default function OnboardingPage() {
   }, [formData, user, setUser]);
 
   const handleGoToProfile = () => {
+    // Check for pending action (e.g., user came from playlist page to convert)
+    const pendingAction = pendingActionService.get();
+    if (pendingAction?.returnUrl) {
+      pendingActionService.clear();
+      window.location.href = pendingAction.returnUrl;
+      return;
+    }
+
     router.replace(`/profile/${formData.username}`);
   };
 

@@ -26,6 +26,7 @@ function PostPageContent() {
   const postIdParam = searchParams.get('id');
   const urlParam = searchParams.get('url');
   const dataParam = searchParams.get('data');
+  const descriptionParam = searchParams.get('description');
   const fromAddMusic = searchParams.get('fromAddMusic') === 'true';
 
   // Use the conversion mutation
@@ -78,7 +79,7 @@ function PostPageContent() {
       hasConvertedRef.current = true;
       lastUrlRef.current = decodedUrl;
 
-      convertLink(decodedUrl, {
+      convertLink({ url: decodedUrl, description: descriptionParam || undefined }, {
         onSuccess: (result) => {
           setApiComplete(true);
           // Store postId to render content directly - no redirect!
@@ -184,7 +185,7 @@ function PostPageContent() {
 
         // For ?data= without postId, convert the URL to get a postId
         if (transformedFromData.originalUrl) {
-          convertLink(transformedFromData.originalUrl, {
+          convertLink({ url: transformedFromData.originalUrl, description: transformedFromData.description }, {
             onSuccess: (result) => {
               setApiComplete(true);
               if (result.postId) {
@@ -212,7 +213,7 @@ function PostPageContent() {
     if (!urlParam && !dataParam && !postIdParam) {
       setError('No data provided');
     }
-  }, [searchParams, router, convertLink, postIdParam, urlParam, dataParam, resolvedPostId]);
+  }, [searchParams, router, convertLink, postIdParam, urlParam, dataParam, descriptionParam, resolvedPostId]);
 
   // Show error state
   if (error) {

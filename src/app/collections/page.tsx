@@ -65,7 +65,7 @@ export default function CollectionsPage() {
       setIsConverting(true);
       
       // Convert the link and navigate to the post page
-      convertLink(mockUrl, {
+      convertLink({ url: mockUrl, description: item.description }, {
         onSuccess: (result) => {
           // Override the metadata with our collection item data for demo
           const enrichedResult = {
@@ -79,7 +79,7 @@ export default function CollectionsPage() {
             description: item.description,
             username: item.username,
           };
-          
+
           router.push(`/post?data=${encodeURIComponent(JSON.stringify(enrichedResult))}`);
         },
         onError: (error) => {

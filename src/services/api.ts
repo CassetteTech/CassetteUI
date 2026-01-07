@@ -102,9 +102,9 @@ class ApiService {
   }
 
   // Music conversion endpoints
-  async convertMusicLink(url: string, options?: { anonymous?: boolean }): Promise<MusicLinkConversion> {
+  async convertMusicLink(url: string, options?: { anonymous?: boolean; description?: string }): Promise<MusicLinkConversion> {
     console.log('🔄 API Service: convertMusicLink called with:', url, options);
-    
+
     // Generate idempotency key for request deduplication
     const key = typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
@@ -113,7 +113,10 @@ class ApiService {
     const response = await this.request<ConversionApiResponse>('/api/v1/convert', {
       method: 'POST',
       headers: { 'X-Idempotency-Key': key }, // server should honor this
-      body: JSON.stringify({ sourceLink: url }),
+      body: JSON.stringify({
+        sourceLink: url,
+        description: options?.description || undefined
+      }),
       skipAuth: options?.anonymous,
     });
 
@@ -170,7 +173,7 @@ class ApiService {
           album: response.details?.album,
           duration: response.details?.duration
         },
-        description: response.caption || undefined,
+        description: response.description || response.caption || undefined,
         username: response.username || undefined,
         postId: response.postId
       };

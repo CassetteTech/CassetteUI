@@ -222,6 +222,7 @@ export interface ConversionApiResponse {
     };
   };
   caption?: string;
+  description?: string;
 }
 
 // API Response type for playlist creation (snake_case to match backend JSON)
@@ -279,6 +280,7 @@ export interface PostByIdResponse {
     };
   };
   caption?: string;
+  description?: string;
   username?: string;
   originalLink?: string;
 }

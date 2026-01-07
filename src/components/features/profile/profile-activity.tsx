@@ -102,7 +102,9 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
       // You could add a toast notification here
     }
   };
-  const detailText = post.description ?? post.subtitle;
+  // Only use description if it's a non-empty user-provided value
+  const hasDescription = post.description && post.description.trim().length > 0;
+  const detailText = hasDescription ? post.description : post.subtitle;
 
   return (
     <Card className="p-3 sm:p-4 hover:shadow-lg transition-all duration-200 bg-card/60 backdrop-blur-sm hover:bg-card/80">

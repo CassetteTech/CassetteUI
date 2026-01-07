@@ -7,6 +7,7 @@ import { StreamingLinks } from '@/components/features/entity/streaming-links';
 import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList } from '@/components/features/entity/track-list';
+import { PostDescriptionCard } from '@/components/features/post/post-description-card';
 import { AnimatedButton, AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { AnimatedColorBackground } from '@/components/ui/animated-color-background';
 import { ColorExtractor, ColorPalette } from '@/services/color-extractor';
@@ -186,7 +187,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               artwork: artworkVal,
               duration: durationVal,
             },
-            description: response.caption,
+            description: response.description || response.caption,
             username: response.username,
             genres: response.details?.genres || response.metadata?.genres || [],
             albumName: response.metadata?.albumName || response.details?.album || '',
@@ -476,7 +477,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   </div>
                   {/* Info Card (moved from right) */}
                   {(isAlbum || isPlaylist) && (
-                    <div className="p-8 bg-card/30 rounded-xl border border-border/40 backdrop-blur-md shadow-lg w-full max-w-xl">
+                    <div className="p-8 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg w-full max-w-xl">
                       <div className="space-y-6">
                         <HeadlineText className="text-3xl font-bold text-foreground text-center leading-tight">
                           {metadata.title}
@@ -502,7 +503,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         <div className="border-t border-border/30 mx-6" />
                         {isPlaylist ? (
                           <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-3 text-base">
-                            {postData?.description && (
+                            {postData?.description?.trim() && (
                               <div className="w-full text-center mb-2">
                                 <BodyText className="text-muted-foreground italic">{postData.description}</BodyText>
                               </div>
@@ -566,7 +567,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   )}
                   {/* Streaming Links (moved from right) */}
                   {(isAlbum || isPlaylist) && (
-                    <div className="mt-6 p-8 bg-card/40 rounded-2xl border border-border/40 shadow-lg backdrop-blur-md relative z-10 w-full max-w-xl">
+                    <div className="mt-6 p-8 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg relative z-10 w-full max-w-xl">
                       <h3 className="text-xl font-semibold text-card-foreground mb-6 text-center">Listen Now</h3>
                         {isPlaylist ? (
                           <PlaylistStreamingLinks
@@ -623,7 +624,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   <div className="space-y-8">
                     {/* Track list for album/playlist */}
                     {showTracks && (
-                      <div className="bg-card/25 rounded-xl border border-border/30 overflow-hidden shadow-lg backdrop-blur-md">
+                      <div className="rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 overflow-hidden shadow-lg backdrop-blur-md">
                         <div className="p-5 border-b border-border/30 bg-gradient-to-r from-card/20 to-transparent">
                           <h3 className="text-lg font-semibold text-foreground">
                             {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
@@ -743,7 +744,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     <div className="py-8 pb-16 min-h-[calc(100vh-140px)] flex flex-col justify-center">
                       <div className="space-y-6">
                         {/* Info Card */}
-                        <div className="p-5 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
+                        <div className="p-6 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg">
                           <div className="space-y-3">
                             <HeadlineText className="text-xl font-bold text-foreground text-center">
                               {metadata.title}
@@ -809,29 +810,15 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           </div>
                         </div>
                         {/* Description */}
-                        {postData?.description && (
-                          <div className="p-5 bg-card rounded-lg border border-border shadow-sm">
-                            <div className="flex items-start gap-4">
-                              <Image
-                                src="/images/ic_music.png"
-                                alt="User"
-                                width={32}
-                                height={32}
-                                className="rounded-full"
-                              />
-                              <div className="min-w-0 flex-1">
-                                <UIText className="font-bold text-card-foreground mb-2">
-                                  {postData?.username || 'User'}
-                                </UIText>
-                                <BodyText className="text-muted-foreground leading-relaxed">
-                                  {postData?.description}
-                                </BodyText>
-                              </div>
-                            </div>
-                          </div>
+                        {postData?.description?.trim() && (
+                          <PostDescriptionCard
+                            username={postData?.username || 'User'}
+                            description={postData.description}
+                            className="relative z-20"
+                          />
                         )}
                         {/* Streaming Links */}
-                        <div className="p-5 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm relative z-10">
+                        <div className="p-6 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg relative z-10">
                           <h3 className="text-lg font-semibold text-card-foreground mb-4">Listen Now</h3>
                           {isPlaylist ? (
                             <PlaylistStreamingLinks
@@ -1001,7 +988,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               </div>
 
               {/* Track Information Card - Mobile */}
-              <div className="p-6 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
+              <div className="p-6 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg">
                 <div className="space-y-4">
                   {/* Title */}
                   <HeadlineText className="text-2xl font-bold text-foreground text-center leading-tight">
@@ -1033,7 +1020,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   {/* Metadata */}
                   {isPlaylist ? (
                     <div className="space-y-3 text-sm">
-                      {postData?.description && (
+                      {postData?.description?.trim() && (
                         <div className="text-center">
                           <BodyText className="text-muted-foreground italic">{postData.description}</BodyText>
                         </div>
@@ -1127,7 +1114,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
 
               {/* Track list for album/playlist - mobile */}
               {showTracks && (
-                <div className="bg-card/25 rounded-xl border border-border/30 overflow-hidden shadow-lg backdrop-blur-md">
+                <div className="rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 overflow-hidden shadow-lg backdrop-blur-md">
                   <div className="p-4 border-b border-border/30 bg-gradient-to-r from-card/20 to-transparent">
                     <h3 className="text-base font-semibold text-foreground text-center">
                       {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
@@ -1146,30 +1133,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               )}
 
               {/* Description if available for non-playlists */}
-              {postData?.description && !isPlaylist && (
-                <div className="p-5 bg-card/40 rounded-xl border border-border/50 text-left backdrop-blur-sm">
-                  <div className="flex items-start gap-3">
-                    <Image
-                      src="/images/ic_music.png"
-                      alt="User"
-                      width={32}
-                      height={32}
-                      className="rounded-full flex-shrink-0"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <UIText className="font-bold text-foreground text-base mb-2">
-                        {postData?.username || 'User'}
-                      </UIText>
-                      <BodyText className="text-muted-foreground text-base break-words leading-relaxed">
-                        {postData?.description}
-                      </BodyText>
-                    </div>
-                  </div>
-                </div>
+              {postData?.description?.trim() && !isPlaylist && (
+                <PostDescriptionCard
+                  username={postData?.username || 'User'}
+                  description={postData.description}
+                  className="text-left relative z-20"
+                />
               )}
 
               {/* Streaming Links Container */}
-              <div className="p-6 bg-card/50 rounded-2xl border border-border/30 shadow-sm backdrop-blur-sm relative z-10">
+              <div className="p-6 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg relative z-10">
                 <h3 className="text-lg font-semibold text-card-foreground mb-4 text-center">Listen Now</h3>
                 {isPlaylist ? (
                   <PlaylistStreamingLinks

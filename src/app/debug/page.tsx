@@ -11,7 +11,7 @@ export default function DebugPage() {
   
   const handleTest = () => {
     console.log('🧪 Debug: Testing conversion with URL:', testUrl);
-    convertLink(testUrl);
+    convertLink({ url: testUrl });
   };
   
   return (

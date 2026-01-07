@@ -31,9 +31,9 @@ export const useMusicLinkConversion = (options?: { anonymous?: boolean }) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (url: string) => {
-      console.log('🎯 Mutation function called with URL:', url, 'anonymous:', options?.anonymous);
-      return musicService.convertMusicLink(url, options);
+    mutationFn: (params: { url: string; description?: string }) => {
+      console.log('🎯 Mutation function called with URL:', params.url, 'description:', params.description, 'anonymous:', options?.anonymous);
+      return musicService.convertMusicLink(params.url, { ...options, description: params.description });
     },
     onSuccess: (data) => {
       console.log('✅ Mutation successful:', data);

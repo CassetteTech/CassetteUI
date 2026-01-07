@@ -24,6 +24,8 @@ declare global {
       }) => Promise<void>;
       getInstance: () => {
         authorize: () => Promise<string>;
+        unauthorize: () => Promise<void>;
+        isAuthorized: boolean;
       };
     };
   }
@@ -68,8 +70,16 @@ export function ConnectAppleMusicButton({
         },
       });
 
+      const instance = window.MusicKit.getInstance();
+
+      // Clear any cached authorization to force fresh consent
+      // This ensures the user explicitly authorizes THIS Cassette account
+      if (instance.isAuthorized) {
+        await instance.unauthorize();
+      }
+
       // Request user authorization
-      const musicUserToken = await window.MusicKit.getInstance().authorize();
+      const musicUserToken = await instance.authorize();
       
       if (musicUserToken) {
         // Send the user token to our backend for secure storage

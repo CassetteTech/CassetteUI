@@ -5,6 +5,19 @@
 
 import { apiService } from './api';
 
+interface MusicKitInstance {
+  authorize: () => Promise<string>;
+  unauthorize: () => Promise<void>;
+  isAuthorized: boolean;
+}
+
+interface MusicKitWindow {
+  MusicKit: {
+    configure: (config: unknown) => Promise<void>;
+    getInstance: () => MusicKitInstance;
+  };
+}
+
 export type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
 
 const RETURN_URL_PREFIX = 'cassette_platform_return_url_';
@@ -59,13 +72,21 @@ export const platformConnectService = {
       const { developerToken } = await apiService.getAppleMusicDeveloperToken();
 
       // Configure MusicKit
-      await (window as unknown as { MusicKit: { configure: (config: unknown) => Promise<void> } }).MusicKit.configure({
+      await (window as unknown as MusicKitWindow).MusicKit.configure({
         developerToken,
         app: { name: 'Cassette', build: '1.0.0' },
       });
 
+      const instance = (window as unknown as MusicKitWindow).MusicKit.getInstance();
+
+      // Clear any cached authorization to force fresh consent
+      // This ensures the user explicitly authorizes THIS Cassette account
+      if (instance.isAuthorized) {
+        await instance.unauthorize();
+      }
+
       // Authorize user (shows Apple Music modal)
-      const musicUserToken = await (window as unknown as { MusicKit: { getInstance: () => { authorize: () => Promise<string> } } }).MusicKit.getInstance().authorize();
+      const musicUserToken = await instance.authorize();
 
       if (musicUserToken) {
         // Send token to backend to save connection

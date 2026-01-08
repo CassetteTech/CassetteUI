@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { UserBio, ConnectedService } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { VerificationBadge } from '@/components/ui/verification-badge';
 
 interface ProfileHeaderProps {
   userBio: UserBio;
@@ -51,6 +52,10 @@ export function ProfileHeader({
               }`}>
                 {userBio.displayName || userBio.username}
               </span>
+              <VerificationBadge
+                accountType={userBio.accountType}
+                size={isSmallScreen ? 'sm' : isLargeScreen ? 'lg' : 'md'}
+              />
               {isCurrentUser && (
                 <Link href={`/profile/${userBio.username}/edit`} className="hover:scale-105 transition-transform flex-shrink-0">
                   <Image 

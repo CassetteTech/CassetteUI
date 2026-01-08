@@ -7,7 +7,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { UserBio, AuthUser, ConnectedService } from '@/types';
+import { VerificationBadge } from '@/components/ui/verification-badge';
+import type { UserBio, AuthUser, ConnectedService, AccountType } from '@/types';
 
 interface SidebarProfileCardProps {
   /** User data to display - supports both UserBio (from profile API) and AuthUser (from auth store) */
@@ -35,6 +36,14 @@ function getAvatarUrl(user: UserBio | AuthUser): string | undefined {
  */
 function getConnectedServices(user: UserBio | AuthUser): ConnectedService[] {
   return user.connectedServices ?? [];
+}
+
+/**
+ * Get account type from either UserBio or AuthUser
+ * Returns raw value (number or string) to be normalized by VerificationBadge
+ */
+function getAccountType(user: UserBio | AuthUser): AccountType | number | undefined {
+  return user.accountType;
 }
 
 export function SidebarProfileCard({
@@ -72,9 +81,12 @@ export function SidebarProfileCard({
 
         {/* Name + username - left aligned */}
         <div className="space-y-0.5">
-          <p className="font-semibold text-base text-foreground truncate leading-tight">
-            {displayName}
-          </p>
+          <div className="flex items-center gap-1.5">
+            <p className="font-semibold text-base text-foreground truncate leading-tight">
+              {displayName}
+            </p>
+            <VerificationBadge accountType={getAccountType(user)} size="sm" />
+          </div>
           <p className="text-sm text-muted-foreground leading-none">
             @{user.username}
           </p>

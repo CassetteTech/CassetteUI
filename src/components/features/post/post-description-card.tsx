@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BodyText } from '@/components/ui/typography';
+import { VerificationBadge } from '@/components/ui/verification-badge';
 import { useUserBio } from '@/hooks/use-profile';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
@@ -52,12 +53,13 @@ export function PostDescriptionCard({
         </Link>
 
         <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-center gap-2">
             <Link
               href={`/profile/${username}`}
-              className="font-semibold text-foreground text-sm"
+              className="font-semibold text-foreground text-sm flex items-center gap-1"
             >
               {username}
+              <VerificationBadge accountType={profileData?.accountType} size="sm" />
             </Link>
             <span className="text-xs text-muted-foreground">
               shared this

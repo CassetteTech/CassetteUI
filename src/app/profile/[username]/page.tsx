@@ -343,6 +343,7 @@ export default function ProfilePage() {
                 isLoading={isLoadingMore}
                 onLoadMore={loadMore}
                 hasMore={allActivityPosts.length < totalItems}
+                ownerAccountType={userBio?.accountType}
               />
             )}
           </div>
@@ -368,6 +369,7 @@ export default function ProfilePage() {
               isLoading={isLoadingMore}
               onLoadMore={loadMore}
               hasMore={allActivityPosts.length < totalItems}
+              ownerAccountType={userBio?.accountType}
             />
           )}
         </div>

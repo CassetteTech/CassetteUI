@@ -1,3 +1,10 @@
+// Account type enum for verified/team badges
+export enum AccountType {
+  REGULAR = 'Regular',
+  VERIFIED = 'Verified',
+  CASSETTE_TEAM = 'CassetteTeam',
+}
+
 // User & Profile Types
 export interface UserBio {
   id: string;
@@ -6,6 +13,7 @@ export interface UserBio {
   bio: string;
   avatarUrl: string;
   isOwnProfile: boolean;
+  accountType?: AccountType | number; // API returns integer, frontend uses enum
   connectedServices: ConnectedService[];
 }
 
@@ -323,6 +331,7 @@ export interface AuthUser {
   profilePicture: string;
   isEmailVerified: boolean;
   isOnboarded: boolean;
+  accountType?: AccountType | number; // API returns integer, frontend uses enum
   createdAt: string;
   updatedAt: string;
   connectedServices?: ConnectedService[];

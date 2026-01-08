@@ -2,9 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ActivityPost } from '@/types';
+import { ActivityPost, AccountType } from '@/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { VerificationBadge } from '@/components/ui/verification-badge';
 import { formatRelativeTime } from '@/lib/utils/format-date';
 
 interface ProfileActivityProps {
@@ -12,13 +13,15 @@ interface ProfileActivityProps {
   isLoading?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
+  ownerAccountType?: AccountType | number;
 }
 
-export function ProfileActivity({ 
-  posts, 
-  isLoading = false, 
+export function ProfileActivity({
+  posts,
+  isLoading = false,
   onLoadMore,
-  hasMore = false 
+  hasMore = false,
+  ownerAccountType
 }: ProfileActivityProps) {
   if (isLoading && posts.length === 0) {
     return (
@@ -54,7 +57,7 @@ export function ProfileActivity({
       <div className="p-3 sm:p-4 md:p-6 lg:p-8">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4">
           {posts.map((post) => (
-            <ActivityPostItem key={post.postId} post={post} />
+            <ActivityPostItem key={post.postId} post={post} accountType={ownerAccountType} />
           ))}
         </div>
         
@@ -73,7 +76,7 @@ export function ProfileActivity({
   );
 }
 
-function ActivityPostItem({ post }: { post: ActivityPost }) {
+function ActivityPostItem({ post, accountType }: { post: ActivityPost; accountType?: AccountType | number }) {
   const getTypeIcon = (type: string) => {
     const iconMap: Record<string, string> = {
       track: 'music_note',
@@ -181,16 +184,17 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
             )}
             
             {/* From User */}
-            <p className="text-muted-foreground/80 text-xs">
+            <div className="flex items-center gap-1 text-muted-foreground/80 text-xs">
               <span className="text-muted-foreground/60">from: </span>
               <span className="text-muted-foreground">{post.username}</span>
+              <VerificationBadge accountType={accountType} size="sm" />
               {post.createdAt && (
                 <>
                   <span className="text-muted-foreground/60 mx-1">·</span>
                   <span className="text-muted-foreground/60">{formatRelativeTime(post.createdAt)}</span>
                 </>
               )}
-            </p>
+            </div>
           </div>
         </div>
       </Link>

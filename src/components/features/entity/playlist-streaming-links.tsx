@@ -12,6 +12,7 @@ import { useAuthState } from '@/hooks/use-auth';
 import { pendingActionService } from '@/utils/pending-action';
 import { platformConnectService } from '@/services/platform-connect';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
+import { openInAppOrBrowser, isAppleMusicLibraryUrl } from '@/utils/deep-link';
 
 type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
 
@@ -212,22 +213,23 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
             {/* Playlist link */}
             {playlist_url && (
-              <a
-                href={playlist_url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => openInAppOrBrowser(playlist_url)}
                 className={cn(
                   'inline-flex items-center gap-2 px-4 py-2 rounded-full',
                   'bg-green-600 hover:bg-green-700 text-white',
-                  'text-sm font-medium transition-colors w-fit'
+                  'text-sm font-medium transition-colors w-fit cursor-pointer'
                 )}
               >
                 {service && (
                   <Image src={service.icon} alt={serviceName} width={16} height={16} className="object-contain" />
                 )}
-                <span>Open in {serviceName}</span>
+                <span>
+                  {isAppleMusicLibraryUrl(playlist_url) ? 'View in Browser' : `Open in ${serviceName}`}
+                </span>
                 <ExternalLink className="w-3 h-3" />
-              </a>
+              </button>
             )}
 
             {/* Failed tracks section */}

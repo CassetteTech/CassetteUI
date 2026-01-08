@@ -534,18 +534,18 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                 <BodyText className="text-muted-foreground italic">{postData.description}</BodyText>
                               </div>
                             )}
-                            {typeof postData?.trackCount === 'number' && (
-                              <div>
-                                <span className="text-muted-foreground">Tracks: </span>
-                                <span className="font-medium">{postData.trackCount}</span>
-                              </div>
-                            )}
-                            {Array.isArray(postData?.tracks) && postData.tracks.length > 0 && !postData?.trackCount && (
+                            {/* Show track count - prefer actual tracks array length, fall back to trackCount metadata */}
+                            {(Array.isArray(postData?.tracks) && postData.tracks.length > 0) ? (
                               <div>
                                 <span className="text-muted-foreground">Tracks: </span>
                                 <span className="font-medium">{postData.tracks.length}</span>
                               </div>
-                            )}
+                            ) : typeof postData?.trackCount === 'number' && postData.trackCount > 0 ? (
+                              <div>
+                                <span className="text-muted-foreground">Tracks: </span>
+                                <span className="font-medium">{postData.trackCount}</span>
+                              </div>
+                            ) : null}
                             {/* Source attribution badge */}
                             {sourcePlatformKey && resolvedSourceUrl && sourceService && (
                               <a
@@ -1065,20 +1065,22 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           <BodyText className="text-muted-foreground italic">{postData.description}</BodyText>
                         </div>
                       )}
-                      <div className="flex flex-wrap justify-center gap-3">
-                        {typeof postData?.trackCount === 'number' && (
-                          <div>
-                            <span className="text-muted-foreground">Tracks: </span>
-                            <span className="font-medium">{postData.trackCount}</span>
-                          </div>
-                        )}
-                        {Array.isArray(postData?.tracks) && postData.tracks.length > 0 && !postData?.trackCount && (
+                      {/* Show track count - prefer actual tracks array length, fall back to trackCount metadata */}
+                      {(Array.isArray(postData?.tracks) && postData.tracks.length > 0) ? (
+                        <div className="flex flex-wrap justify-center gap-3">
                           <div>
                             <span className="text-muted-foreground">Tracks: </span>
                             <span className="font-medium">{postData.tracks.length}</span>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      ) : typeof postData?.trackCount === 'number' && postData.trackCount > 0 ? (
+                        <div className="flex flex-wrap justify-center gap-3">
+                          <div>
+                            <span className="text-muted-foreground">Tracks: </span>
+                            <span className="font-medium">{postData.trackCount}</span>
+                          </div>
+                        </div>
+                      ) : null}
                       {/* Source attribution badge */}
                       {sourcePlatformKey && resolvedSourceUrl && sourceService && (
                         <a

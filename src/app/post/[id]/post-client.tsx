@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { MusicLinkConversion, ElementType, MediaListTrack } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
-import { StreamingLinks } from '@/components/features/entity/streaming-links';
+import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
 import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList } from '@/components/features/entity/track-list';
@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { detectContentType } from '@/utils/content-type-detection';
@@ -371,6 +371,32 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const useSplitScrollLayout = isDesktop && (isAlbum || isPlaylist);
   const showSignupCTA = !isLoading && !isAuthenticated;
 
+  // Source platform detection for playlist attribution badge
+  const normalizePlatformKey = (platform?: string | null): 'spotify' | 'appleMusic' | 'deezer' | null => {
+    if (!platform) return null;
+    const lowered = platform.toLowerCase();
+    if (lowered === 'spotify') return 'spotify';
+    if (lowered === 'deezer') return 'deezer';
+    if (lowered === 'applemusic' || lowered === 'apple') return 'appleMusic';
+    return null;
+  };
+
+  const providedSourceUrl = (postData?.originalUrl || sourceUrlRef.current)?.trim();
+  const detectedFromProvided = providedSourceUrl ? detectContentType(providedSourceUrl).platform : null;
+  const normalizedFromProp = normalizePlatformKey(postData?.sourcePlatform || sourcePlatformRef.current);
+  const fallbackSourceUrl =
+    (normalizedFromProp ? convertedUrls[normalizedFromProp] : undefined) ||
+    convertedUrls.spotify ||
+    convertedUrls.appleMusic ||
+    convertedUrls.deezer;
+  const resolvedSourceUrl = providedSourceUrl || fallbackSourceUrl || null;
+  const detectedFromResolved = resolvedSourceUrl ? detectContentType(resolvedSourceUrl).platform : null;
+  const sourcePlatformKey =
+    normalizedFromProp ||
+    normalizePlatformKey(detectedFromProvided) ||
+    normalizePlatformKey(detectedFromResolved) ||
+    null;
+  const sourceService = sourcePlatformKey ? streamingServices[sourcePlatformKey] : null;
 
   return (
     <div className={useSplitScrollLayout ? "fixed inset-x-0 top-16 bottom-0 overflow-y-auto" : "min-h-screen relative"}>
@@ -519,6 +545,25 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                 <span className="text-muted-foreground">Tracks: </span>
                                 <span className="font-medium">{postData.tracks.length}</span>
                               </div>
+                            )}
+                            {/* Source attribution badge */}
+                            {sourcePlatformKey && resolvedSourceUrl && sourceService && (
+                              <a
+                                href={resolvedSourceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group w-full mt-2"
+                              >
+                                <Image
+                                  src={sourceService.icon}
+                                  alt={sourceService.name}
+                                  width={16}
+                                  height={16}
+                                  className="opacity-70 group-hover:opacity-100 transition-opacity"
+                                />
+                                <span>from {sourceService.name}</span>
+                                <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                              </a>
                             )}
                           </div>
                         ) : (
@@ -1034,6 +1079,25 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           </div>
                         )}
                       </div>
+                      {/* Source attribution badge */}
+                      {sourcePlatformKey && resolvedSourceUrl && sourceService && (
+                        <a
+                          href={resolvedSourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
+                        >
+                          <Image
+                            src={sourceService.icon}
+                            alt={sourceService.name}
+                            width={16}
+                            height={16}
+                            className="opacity-70 group-hover:opacity-100 transition-opacity"
+                          />
+                          <span>from {sourceService.name}</span>
+                          <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                        </a>
+                      )}
                     </div>
                   ) : isTrack ? (
                     <div className="space-y-2 text-sm">

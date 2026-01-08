@@ -75,7 +75,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     (resolvedSourceUrl
       ? (PLATFORMS.find((platform) => links[platform] === resolvedSourceUrl || links[platform]) as PlatformKey | undefined) || null
       : null);
-  const sourceService = sourcePlatformKey ? streamingServices[sourcePlatformKey] : null;
 
   const handleCreatePlaylist = async (platform: PlatformKey) => {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
@@ -330,28 +329,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
             </button>
           );
         })}
-
-        {resolvedSourceUrl && (
-          <a
-            key="source-link"
-            href={resolvedSourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              'group relative flex items-center justify-center',
-              'px-4 py-2.5 rounded-full transition-all duration-200',
-              'border-2 border-foreground/60 text-foreground',
-              'bg-card/80 hover:bg-card text-sm font-medium backdrop-blur-sm',
-            )}
-          >
-            {sourceService && (
-              <div className="relative w-4 h-4 mr-2">
-                <Image src={sourceService.icon} alt={sourceService.name} width={16} height={16} className="object-contain" />
-              </div>
-            )}
-            <span className="whitespace-nowrap">Open Source Link</span>
-          </a>
-        )}
       </div>
 
       {renderCreationResult()}

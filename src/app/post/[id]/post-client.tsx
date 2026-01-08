@@ -8,7 +8,7 @@ import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-st
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList } from '@/components/features/entity/track-list';
 import { PostDescriptionCard } from '@/components/features/post/post-description-card';
-import { AnimatedButton, AnimatedPrimaryButton } from '@/components/ui/animated-button';
+import { Button } from '@/components/ui/button';
 import { AnimatedColorBackground } from '@/components/ui/animated-color-background';
 import { ColorExtractor, ColorPalette } from '@/services/color-extractor';
 import { MainContainer } from '@/components/ui/container';
@@ -346,13 +346,12 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             <BodyText className="text-text-secondary mb-6">
               This content may have been removed or the link is invalid
             </BodyText>
-            <AnimatedButton
-              text="Go Back"
+            <Button
               onClick={() => router.back()}
-              height={40}
-              width={120}
-              initialPos={4}
-            />
+              className="h-10 px-6"
+            >
+              Go Back
+            </Button>
           </MainContainer>
         </div>
       </div>
@@ -588,16 +587,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   )}
                   {showAddToProfile && (
                     <div className="mt-5 w-full max-w-xl flex justify-center">
-                      <AnimatedPrimaryButton
-                        text={addStatus === 'added' ? 'Added to Profile' : addStatus === 'error' ? 'Failed to Add' : 'Add Post to Profile'}
+                      <Button
                         onClick={handleAddToProfile}
                         disabled={isAddingToProfile || addStatus === 'added'}
-                        height={48}
-                        width={260}
-                        initialPos={6}
-                        className="mx-auto shadow-[0_12px_24px_rgba(210,53,53,0.28)]"
-                        textStyle="text-base font-bold tracking-wide font-atkinson"
-                      />
+                        className="h-12 px-8 font-bold tracking-wide font-atkinson"
+                      >
+                        {addStatus === 'added' ? 'Added to Profile' : addStatus === 'error' ? 'Failed to Add' : 'Add Post to Profile'}
+                      </Button>
                     </div>
                   )}
                   {showSignupCTA && (
@@ -837,16 +833,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         </div>
                         {showAddToProfile && (
                           <div className="flex justify-center">
-                            <AnimatedPrimaryButton
-                              text={addStatus === 'added' ? 'Added to Profile' : addStatus === 'error' ? 'Failed to Add' : 'Add Post to Profile'}
+                            <Button
                               onClick={handleAddToProfile}
                               disabled={isAddingToProfile || addStatus === 'added'}
-                              height={48}
-                              width={240}
-                              initialPos={6}
-                              className="mx-auto shadow-[0_12px_24px_rgba(210,53,53,0.28)]"
-                              textStyle="text-base font-bold tracking-wide font-atkinson"
-                            />
+                              className="h-12 px-8 font-bold tracking-wide font-atkinson"
+                            >
+                              {addStatus === 'added' ? 'Added to Profile' : addStatus === 'error' ? 'Failed to Add' : 'Add Post to Profile'}
+                            </Button>
                           </div>
                         )}
                         {showSignupCTA && (
@@ -1162,16 +1155,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               </div>
               {showAddToProfile && (
                 <div className="flex justify-center">
-                  <AnimatedPrimaryButton
-                    text={addStatus === 'added' ? 'Added to Profile' : addStatus === 'error' ? 'Failed to Add' : 'Add Post to Profile'}
+                  <Button
                     onClick={handleAddToProfile}
                     disabled={isAddingToProfile || addStatus === 'added'}
-                    height={48}
-                    width={240}
-                    initialPos={6}
-                    className="mx-auto shadow-[0_12px_24px_rgba(210,53,53,0.28)]"
-                    textStyle="text-base font-bold tracking-wide font-atkinson"
-                  />
+                    className="h-12 px-8 font-bold tracking-wide font-atkinson"
+                  >
+                    {addStatus === 'added' ? 'Added to Profile' : addStatus === 'error' ? 'Failed to Add' : 'Add Post to Profile'}
+                  </Button>
                 </div>
               )}
               {showSignupCTA && (

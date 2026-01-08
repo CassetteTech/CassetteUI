@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ActivityPost } from '@/types';
 import { Card } from '@/components/ui/card';
-import { AnimatedButton } from '@/components/ui/animated-button';
+import { Button } from '@/components/ui/button';
 import { formatRelativeTime } from '@/lib/utils/format-date';
 
 interface ProfileActivityProps {
@@ -60,13 +60,12 @@ export function ProfileActivity({
         
         {hasMore && onLoadMore && (
           <div className="flex justify-center mt-6">
-            <AnimatedButton
+            <Button
               onClick={onLoadMore}
               disabled={isLoading}
-              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium disabled:opacity-50"
             >
               {isLoading ? 'Loading...' : 'Load More'}
-            </AnimatedButton>
+            </Button>
           </div>
         )}
       </div>
@@ -155,20 +154,23 @@ function ActivityPostItem({ post }: { post: ActivityPost }) {
               </div>
               
               {/* Share Button */}
-              <AnimatedButton
-                onClick={() => {
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.preventDefault();
                   handleShare();
                 }}
-                className="flex-shrink-0 w-8 h-6 sm:w-10 sm:h-7 bg-card/60 border border-border/50 rounded-lg flex items-center justify-center hover:bg-card/80 transition-colors"
+                className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9"
               >
                 <Image
                   src="/images/ic_share.png"
                   alt="Share"
-                  width={10}
-                  height={10}
-                  className="sm:w-3 sm:h-3 opacity-70"
+                  width={14}
+                  height={14}
+                  className="opacity-70"
                 />
-              </AnimatedButton>
+              </Button>
             </div>
             
             {/* Subtitle */}

@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { UserBio, ConnectedService } from '@/types';
-import { AnimatedButton } from '@/components/ui/animated-button';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface ProfileHeaderProps {
@@ -25,7 +25,6 @@ export function ProfileHeader({
   const isLargeScreen = screenWidth > 800;
   
   const avatarSize = isSmallScreen ? 'w-12 h-12' : isLargeScreen ? 'w-24 h-24 lg:w-32 lg:h-32' : 'w-16 h-16';
-  const fontSize = isSmallScreen ? 'text-xs' : isLargeScreen ? 'text-base' : 'text-sm';
   const padding = isSmallScreen ? 'p-3' : isLargeScreen ? 'p-4' : 'p-3';
   
   return (
@@ -89,52 +88,37 @@ export function ProfileHeader({
         
         {/* Action Buttons */}
         <div className="flex gap-3 lg:flex-col lg:gap-4">
-          <AnimatedButton
+          <Button
             onClick={onShare}
-            width={isLargeScreen ? 200 : isSmallScreen ? 120 : 132}
-            height={isSmallScreen ? 32 : isLargeScreen ? 48 : 36}
-            colorTop="#ED2748"
-            colorBottom="#E95E75"
-            borderColorTop="#FF002B"
-            borderColorBottom="#ED2748"
-            radius={12}
-            textStyle={`text-white font-medium ${fontSize}`}
+            className={`rounded-xl gap-2 ${
+              isSmallScreen ? 'h-8 px-3 text-xs' : isLargeScreen ? 'h-12 px-6 text-base' : 'h-9 px-4 text-sm'
+            }`}
           >
-            <div className="flex items-center justify-center gap-2">
-              <Image 
-                src="/images/ic_share.png" 
-                alt="Share" 
-                width={isSmallScreen ? 14 : 16} 
-                height={isSmallScreen ? 14 : 16}
-                className="opacity-90"
-              />
-              <span>Share Profile</span>
-            </div>
-          </AnimatedButton>
-          
+            <Image
+              src="/images/ic_share.png"
+              alt="Share"
+              width={isSmallScreen ? 14 : 16}
+              height={isSmallScreen ? 14 : 16}
+            />
+            <span>Share Profile</span>
+          </Button>
+
           {isCurrentUser && onAddMusic && (
-            <AnimatedButton
+            <Button
+              variant="outline"
               onClick={onAddMusic}
-              width={isLargeScreen ? 200 : isSmallScreen ? 120 : 132}
-              height={isSmallScreen ? 32 : isLargeScreen ? 48 : 36}
-              colorTop="hsl(var(--card))"
-              colorBottom="hsl(var(--muted))"
-              borderColorTop="hsl(var(--border))"
-              borderColorBottom="hsl(var(--border))"
-              radius={12}
-              textStyle={`font-medium ${fontSize} text-card-foreground`}
+              className={`rounded-xl gap-2 ${
+                isSmallScreen ? 'h-8 px-3 text-xs' : isLargeScreen ? 'h-12 px-6 text-base' : 'h-9 px-4 text-sm'
+              }`}
             >
-              <div className="flex items-center justify-center gap-2">
-                <Image 
-                  src="/images/ic_music.png" 
-                  alt="Add Music" 
-                  width={isSmallScreen ? 14 : 16} 
-                  height={isSmallScreen ? 14 : 16}
-                  className="opacity-90"
-                />
-                <span>Add Music</span>
-              </div>
-            </AnimatedButton>
+              <Image
+                src="/images/ic_music.png"
+                alt="Add Music"
+                width={isSmallScreen ? 14 : 16}
+                height={isSmallScreen ? 14 : 16}
+              />
+              <span>Add Music</span>
+            </Button>
           )}
         </div>
       </div>

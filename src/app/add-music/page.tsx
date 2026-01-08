@@ -489,87 +489,81 @@ export default function AddMusicPage() {
     return null;
   }
 
-  // Mobile content component for reuse
-  const MobileContent = () => (
-    <div className="min-h-screen relative">
-      {/* Animated Background */}
-      <AnimatedBackground className="fixed inset-0 z-0" />
-      
-      <div className="relative z-10 min-h-screen">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Header */}
-          <div className="flex items-center justify-between py-6">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-text-primary hover:opacity-75 transition-opacity"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="font-atkinson font-bold">Back</span>
-            </button>
-          </div>
-
-          {/* Profile Section */}
-          <div className="flex items-center justify-center gap-6 mb-8">
-            {user?.profilePicture ? (
-              <Image
-                src={user.profilePicture}
-                alt={user.username}
-                width={60}
-                height={60}
-                className="rounded-full border-2 border-text-primary/20"
-              />
-            ) : (
-              <div className="w-15 h-15 rounded-full bg-text-primary/10 border-2 border-text-primary/20 flex items-center justify-center">
-                <span className="text-text-primary text-2xl font-atkinson font-bold">
-                  {user?.username?.charAt(0)?.toUpperCase() || 'U'}
-                </span>
-              </div>
-            )}
-            <h1 className="text-3xl sm:text-4xl font-atkinson font-bold text-text-primary">
-              Add Music
-            </h1>
-          </div>
-
-          {/* Main Content */}
-          <div className="max-w-2xl mx-auto">
-            <AddMusicForm 
-              isSearchActive={isSearchActive}
-              selectedItem={selectedItem}
-              pastedLinkSource={pastedLinkSource}
-              musicUrl={musicUrl}
-              handleUrlChange={handleUrlChange}
-              handleSearchFocus={handleSearchFocus}
-              handleSearchBlur={handleSearchBlur}
-              handlePaste={handlePaste}
-              clearSelection={clearSelection}
-              description={description}
-              setDescription={setDescription}
-              handleAddToProfile={handleAddToProfile}
-              errorMessage={errorMessage}
-              searchInputRef={searchInputRef}
-              displayData={displayData}
-              isLoadingCharts={isLoadingCharts}
-              isSearchingMusic={isSearchingMusic}
-              handleSelectItem={handleSelectItem}
-              closeSearch={closeSearch}
-              isValidMusicUrl={isValidMusicUrl}
-              router={router}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-
   return (
     <>
       {/* Mobile Layout */}
       <div className="lg:hidden">
-        <MobileContent />
+        <div className="min-h-screen relative">
+          {/* Animated Background */}
+          <AnimatedBackground className="fixed inset-0 z-0" />
+
+          <div className="relative z-10 min-h-screen">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+
+              {/* Header */}
+              <div className="flex items-center justify-between py-6">
+                <button
+                  onClick={() => router.back()}
+                  className="flex items-center gap-2 text-text-primary hover:opacity-75 transition-opacity"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span className="font-atkinson font-bold">Back</span>
+                </button>
+              </div>
+
+              {/* Profile Section */}
+              <div className="flex items-center justify-center gap-6 mb-8">
+                {user?.profilePicture ? (
+                  <Image
+                    src={user.profilePicture}
+                    alt={user.username}
+                    width={60}
+                    height={60}
+                    className="rounded-full border-2 border-text-primary/20"
+                  />
+                ) : (
+                  <div className="w-15 h-15 rounded-full bg-text-primary/10 border-2 border-text-primary/20 flex items-center justify-center">
+                    <span className="text-text-primary text-2xl font-atkinson font-bold">
+                      {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+                    </span>
+                  </div>
+                )}
+                <h1 className="text-3xl sm:text-4xl font-atkinson font-bold text-text-primary">
+                  Add Music
+                </h1>
+              </div>
+
+              {/* Main Content */}
+              <div className="max-w-2xl mx-auto">
+                <AddMusicForm
+                  isSearchActive={isSearchActive}
+                  selectedItem={selectedItem}
+                  pastedLinkSource={pastedLinkSource}
+                  musicUrl={musicUrl}
+                  handleUrlChange={handleUrlChange}
+                  handleSearchFocus={handleSearchFocus}
+                  handleSearchBlur={handleSearchBlur}
+                  handlePaste={handlePaste}
+                  clearSelection={clearSelection}
+                  description={description}
+                  setDescription={setDescription}
+                  handleAddToProfile={handleAddToProfile}
+                  errorMessage={errorMessage}
+                  searchInputRef={searchInputRef}
+                  displayData={displayData}
+                  isLoadingCharts={isLoadingCharts}
+                  isSearchingMusic={isSearchingMusic}
+                  handleSelectItem={handleSelectItem}
+                  closeSearch={closeSearch}
+                  isValidMusicUrl={isValidMusicUrl}
+                  router={router}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Desktop Layout with Sidebar */}

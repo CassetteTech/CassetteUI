@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { UserBio } from '@/types';
@@ -44,6 +44,7 @@ export function EditProfileFormComponent({
     handleSubmit,
     formState: { errors },
     watch,
+    control,
   } = useForm<EditProfileForm>({
     resolver: zodResolver(editProfileSchema),
     defaultValues: {
@@ -55,6 +56,7 @@ export function EditProfileFormComponent({
   });
 
   const watchedUsername = watch('username');
+  const avatarUrl = useWatch({ control, name: 'avatarUrl' });
 
   useEffect(() => {
     const validateUsername = async (username: string) => {
@@ -144,7 +146,7 @@ export function EditProfileFormComponent({
           <div className="relative">
             <Avatar className="w-36 h-36 border-4 border-white/20">
               <AvatarImage
-                src={watch('avatarUrl')}
+                src={avatarUrl}
                 alt="Profile"
               />
               <AvatarFallback className="text-xl">P</AvatarFallback>

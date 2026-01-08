@@ -1,10 +1,6 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -13,35 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { AuthInput } from '@/components/ui/auth-input';
 import { AnimatedBackground } from '@/components/ui/animated-background';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Eye, EyeOff } from 'lucide-react';
-import { useSignIn, useSignInWithProvider } from '@/hooks/use-auth';
-import { SignInForm } from '@/types';
+import { useSignInWithProvider } from '@/hooks/use-auth';
 import Image from 'next/image';
 
-const signInSchema = z.object({
-  email: z.string().email('Please Enter A Valid Email'),
-  password: z.string().min(8, 'Please Enter At-Least 8 Digit Password'),
-});
-
 export default function SignInPage() {
-  const [showPassword, setShowPassword] = useState(false);
-  const { mutate: signIn, isPending: isSigningIn, error: signInError } = useSignIn();
   const { mutate: signInWithProvider, isPending: isSigningInWithProvider } = useSignInWithProvider();
-
-  const form = useForm<SignInForm>({
-    resolver: zodResolver(signInSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
-  });
-
-  const onSubmit = (data: SignInForm) => {
-    signIn(data);
-  };
 
   const handleGoogleSignIn = () => {
     signInWithProvider('google');
@@ -51,7 +24,7 @@ export default function SignInPage() {
     <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Animated Background */}
       <AnimatedBackground className="fixed inset-0 z-0" />
-      
+
       <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
         <div className="w-full max-w-md">
           {/* Logo */}
@@ -72,12 +45,12 @@ export default function SignInPage() {
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Welcome back!</CardTitle>
               <CardDescription>
-                Enter your information below to sign in
+                Sign in to continue to Cassette
               </CardDescription>
             </CardHeader>
             <CardContent>
 
-            {/* Social Sign In */}
+            {/* Google Sign In */}
             <div className="flex flex-col gap-4 mb-6">
               <Button
                 variant="outline"
@@ -96,6 +69,7 @@ export default function SignInPage() {
               </Button>
             </div>
 
+            {/* EMAIL AUTH - TEMPORARILY DISABLED
             <div className="relative mb-6">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
@@ -107,7 +81,6 @@ export default function SignInPage() {
               </div>
             </div>
 
-            {/* Email Sign In Form */}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
@@ -182,6 +155,7 @@ export default function SignInPage() {
                 </Button>
               </form>
             </Form>
+            END EMAIL AUTH - TEMPORARILY DISABLED */}
 
               <div className="text-center text-sm mt-4">
                 Don&apos;t have an account?{' '}
@@ -194,8 +168,8 @@ export default function SignInPage() {
               </div>
             </CardContent>
           </Card>
-          
-          <div className="text-muted-foreground text-center text-xs text-balance">
+
+          <div className="text-muted-foreground text-center text-xs text-balance mt-4">
             By clicking continue, you agree to our{' '}
             <Link href="/terms" className="underline underline-offset-4 hover:text-foreground">
               Terms of Service

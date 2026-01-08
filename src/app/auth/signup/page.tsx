@@ -1,10 +1,6 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -13,59 +9,20 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { AuthInput } from '@/components/ui/auth-input';
 import { AnimatedBackground } from '@/components/ui/animated-background';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Eye, EyeOff, MailCheck } from 'lucide-react';
+import { MailCheck } from 'lucide-react';
 import { useSignUp, useSignInWithProvider } from '@/hooks/use-auth';
-import { SignUpForm } from '@/types';
 import Image from 'next/image';
 
-const signUpSchema = z.object({
-  email: z.string().email('Please Enter A Valid Email'),
-  username: z
-    .string()
-    .min(1, 'Please Enter Username'),
-  password: z
-    .string()
-    .min(8, 'Please Enter At-Least 8 Digit Password'),
-  confirmPassword: z.string().min(1, 'Please Enter Confirm Password'),
-  acceptTerms: z.boolean().refine((val) => val === true, {
-    message: 'Please agree to all the terms and conditions before signing up',
-  }),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Password And Confirm Password Must Be Same",
-  path: ['confirmPassword'],
-});
-
 export default function SignUpPage() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { mutate: signUp, isPending: isSigningUp, error: signUpError, isSuccess, data: signUpResult } = useSignUp();
+  const { isSuccess, data: signUpResult } = useSignUp();
   const { mutate: signInWithProvider, isPending: isSigningInWithProvider } = useSignInWithProvider();
-
-  const form = useForm<SignUpForm>({
-    resolver: zodResolver(signUpSchema),
-    defaultValues: {
-      email: '',
-      username: '',
-      password: '',
-      confirmPassword: '',
-      acceptTerms: true,
-    },
-  });
-
-  const onSubmit = (data: SignUpForm) => {
-    if (isSigningUp) return; // Prevent double submission
-    console.log('📝 [Signup] Form submitted with data:', { ...data, password: '[REDACTED]', confirmPassword: '[REDACTED]' });
-    signUp({ ...data, acceptTerms: true });
-  };
 
   const handleGoogleSignIn = () => {
     signInWithProvider('google');
   };
 
-
+  // Keep email verification screen for users who signed up via email previously
   if (isSuccess && !signUpResult?.token) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
@@ -96,9 +53,9 @@ export default function SignUpPage() {
                 </div>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
+                <Button
+                  variant="outline"
+                  className="w-full"
                   onClick={() => window.location.href = '/auth/signin'}
                 >
                   Return to Sign In
@@ -115,7 +72,7 @@ export default function SignUpPage() {
     <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Animated Background */}
       <AnimatedBackground className="fixed inset-0 z-0" />
-      
+
       <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
         <div className="w-full max-w-md">
           {/* Logo */}
@@ -141,7 +98,7 @@ export default function SignUpPage() {
             </CardHeader>
             <CardContent>
 
-            {/* Social Sign In */}
+            {/* Google Sign In */}
             <div className="flex flex-col gap-4 mb-6">
               <Button
                 variant="outline"
@@ -160,6 +117,7 @@ export default function SignUpPage() {
               </Button>
             </div>
 
+            {/* EMAIL AUTH - TEMPORARILY DISABLED
             <div className="relative mb-6">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
@@ -171,7 +129,6 @@ export default function SignUpPage() {
               </div>
             </div>
 
-            {/* Email Sign Up Form */}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
@@ -298,6 +255,19 @@ export default function SignUpPage() {
                 </Button>
               </form>
             </Form>
+            END EMAIL AUTH - TEMPORARILY DISABLED */}
+
+            <p className="text-xs text-muted-foreground leading-5">
+              By continuing, you agree to our{' '}
+              <Link href="/terms" className="underline hover:underline">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link href="/privacy" className="underline hover:underline">
+                Privacy Policy
+              </Link>
+              .
+            </p>
 
               <div className="text-center text-sm mt-4">
                 Already have an account?{' '}

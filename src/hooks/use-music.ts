@@ -121,3 +121,46 @@ export const useAddMusicToProfile = () => {
     },
   });
 };
+
+export const useUpdatePost = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { postId: string; description: string }) => {
+      console.log('🎯 useUpdatePost mutation called with:', params);
+      return apiService.updatePost(params.postId, params.description);
+    },
+    onSuccess: (_data, variables) => {
+      console.log('✅ Update post successful');
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['user-activity'] });
+      queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    },
+    onError: (error) => {
+      console.error('❌ Update post error:', error);
+    },
+  });
+};
+
+export const useDeletePost = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (postId: string) => {
+      console.log('🎯 useDeletePost mutation called with postId:', postId);
+      return apiService.deletePost(postId);
+    },
+    onSuccess: () => {
+      console.log('✅ Delete post successful');
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['user-activity'] });
+      queryClient.invalidateQueries({ queryKey: ['user-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
+    onError: (error) => {
+      console.error('❌ Delete post error:', error);
+    },
+  });
+};

@@ -8,7 +8,15 @@ import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-st
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList } from '@/components/features/entity/track-list';
 import { PostDescriptionCard } from '@/components/features/post/post-description-card';
+import { EditPostModal } from '@/components/features/post/edit-post-modal';
+import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { AnimatedColorBackground } from '@/components/ui/animated-color-background';
 import { ColorExtractor, ColorPalette } from '@/services/color-extractor';
 import { MainContainer } from '@/components/ui/container';
@@ -18,7 +26,7 @@ import { useRouter } from 'next/navigation';
 import { apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
-import { Check, Copy, ExternalLink } from 'lucide-react';
+import { Check, Copy, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { detectContentType } from '@/utils/content-type-detection';
@@ -62,6 +70,27 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const handleSignupClick = () => router.push('/auth/signup');
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
   const [imageError, setImageError] = useState(false);
+
+  // Edit/Delete modal states
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  // Handle delete success - redirect to profile
+  const handleDeleteSuccess = useCallback(() => {
+    if (postData?.username) {
+      router.push(`/profile/${postData.username}`);
+    } else {
+      router.push('/');
+    }
+  }, [router, postData?.username]);
+
+  // Handle edit success - update local state with new description
+  const handleEditSuccess = useCallback((newDescription: string) => {
+    setPostData((prev) =>
+      prev ? { ...prev, description: newDescription } : prev
+    );
+  }, []);
 
   // Ref to track the source URL for add-to-profile
   const sourceUrlRef = useRef<string | null>(null);
@@ -478,6 +507,33 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     )}
                   </AnimatePresence>
                 </motion.button>
+                {/* More Menu (only for own posts) */}
+                {isOwnPost && (
+                  <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-full"
+                      >
+                        <MoreVertical className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             </div>
             {/* Content Row */}
@@ -758,6 +814,33 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       )}
                     </AnimatePresence>
                   </motion.button>
+                  {/* More Menu (only for own posts) */}
+                  {isOwnPost && (
+                    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="rounded-full"
+                        >
+                          <MoreVertical className="h-5 w-5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               </div>
               <div className="px-8 max-w-7xl mx-auto pb-8">
@@ -998,6 +1081,33 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     )}
                   </AnimatePresence>
                 </motion.button>
+                {/* More Menu (only for own posts) */}
+                {isOwnPost && (
+                  <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-full"
+                      >
+                        <MoreVertical className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             </div>
             <div className="text-center space-y-6">
@@ -1282,6 +1392,28 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           </div>
         )}
       </div>
+
+      {/* Edit Modal - conditionally render to ensure proper cleanup */}
+      {editModalOpen && (
+        <EditPostModal
+          open={editModalOpen}
+          onOpenChange={setEditModalOpen}
+          postId={postId}
+          currentDescription={postData?.description || ''}
+          onSuccess={handleEditSuccess}
+        />
+      )}
+
+      {/* Delete Modal - conditionally render to ensure proper cleanup */}
+      {deleteModalOpen && (
+        <DeletePostModal
+          open={deleteModalOpen}
+          onOpenChange={setDeleteModalOpen}
+          postId={postId}
+          postTitle={postData?.metadata?.title || 'this post'}
+          onSuccess={handleDeleteSuccess}
+        />
+      )}
     </div>
   );
 }

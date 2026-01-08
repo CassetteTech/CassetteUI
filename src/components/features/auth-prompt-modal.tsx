@@ -2,13 +2,13 @@
 
 import { useRouter } from 'next/navigation';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { theme } from '@/lib/theme';
 import { Music2 } from 'lucide-react';
@@ -47,22 +47,22 @@ export function AuthPromptModal({
     : 'your streaming service';
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="mx-4 max-w-md">
-        <DialogHeader className="space-y-4">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full max-w-md">
+        <SheetHeader className="space-y-4">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <Music2 className="h-6 w-6 text-foreground" />
           </div>
-          <DialogTitle className="text-center text-xl font-bold text-foreground">
+          <SheetTitle className="text-center text-xl font-bold text-foreground">
             Create an account to continue
-          </DialogTitle>
-          <DialogDescription className="text-center text-muted-foreground">
+          </SheetTitle>
+          <SheetDescription className="text-center text-muted-foreground">
             Sign up for Cassette to create this playlist on {platformName}.
             You&apos;ll be able to save and share playlists across all your favorite streaming platforms.
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        <DialogFooter className="flex flex-col gap-3 sm:flex-col">
+        <SheetFooter className="flex flex-col gap-3 sm:flex-col">
           <Button
             onClick={handleSignUp}
             className="w-full h-11 font-semibold text-white"
@@ -77,8 +77,8 @@ export function AuthPromptModal({
           >
             Already have an account? Sign in
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
     // Fall back to Spotify ISRC/title search if direct fetch didn't work
     if (!previewUrl && (isrc || title)) {
       console.log('🔍 Falling back to Spotify search');
+      previewUrl = await spotifyService.getPreviewUrl({
         isrc: isrc || undefined,
         title: title || undefined,
         artist: artist || undefined,

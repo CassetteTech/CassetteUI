@@ -1,13 +1,13 @@
 'use client';
 
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from '@/components/ui/sheet';
 import { AnimatedButton } from '@/components/ui/animated-button';
 import { UIText } from '@/components/ui/typography';
 import { theme } from '@/lib/theme';
@@ -18,28 +18,28 @@ interface AppleMusicHelpModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function AppleMusicHelpModal({ 
-  open, 
-  onOpenChange 
+export function AppleMusicHelpModal({
+  open,
+  onOpenChange
 }: AppleMusicHelpModalProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="mx-4 max-h-[95vh] overflow-y-auto max-w-md sm:max-w-7xl lg:max-w-[90vw] xl:max-w-[1400px]">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-foreground">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full max-w-md sm:max-w-lg overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="text-xl font-bold text-foreground">
             Shareable Link Needed
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            It looks like you&apos;ve pasted a link from your personal Apple Music library. 
+          </SheetTitle>
+          <SheetDescription className="text-muted-foreground">
+            It looks like you&apos;ve pasted a link from your personal Apple Music library.
             These links are private and can&apos;t be shared. Please use the &apos;Share&apos; option to get a public link.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="space-y-6">
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="space-y-6 px-4">
           {/* GIF Section - Responsive Container */}
           <div className="bg-muted rounded-lg p-4">
             <div className="flex flex-col items-center">
-              
+
               {/* Mobile GIF - Only on mobile screens */}
               <div className="lg:hidden flex flex-col items-center">
                 <div className="max-w-[280px] aspect-[1290/2796] rounded-lg overflow-hidden">
@@ -54,7 +54,7 @@ export function AppleMusicHelpModal({
                   />
                 </div>
               </div>
-              
+
               {/* Desktop GIF - Only on desktop screens */}
               <div className="hidden lg:flex flex-col items-center">
                 <div className="w-full max-w-6xl rounded-lg overflow-hidden min-h-[500px] lg:min-h-[600px] xl:min-h-[700px]">
@@ -73,7 +73,7 @@ export function AppleMusicHelpModal({
                   />
                 </div>
               </div>
-              
+
             </div>
           </div>
 
@@ -82,7 +82,7 @@ export function AppleMusicHelpModal({
             <UIText className="font-semibold text-foreground">
               How to get a shareable link:
             </UIText>
-            
+
             {/* Desktop Instructions - Only on desktop */}
             <div className="hidden lg:block space-y-2">
               <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground ml-4">
@@ -106,13 +106,13 @@ export function AppleMusicHelpModal({
           {/* Additional Help */}
           <div className="bg-muted rounded-lg p-4">
             <UIText className="text-sm text-muted-foreground">
-              <strong>Note:</strong> Make sure the playlist is set to &ldquo;Public&rdquo; in your Apple Music library. 
+              <strong>Note:</strong> Make sure the playlist is set to &ldquo;Public&rdquo; in your Apple Music library.
               Private playlists cannot be shared even with the share link.
             </UIText>
           </div>
         </div>
 
-        <DialogFooter>
+        <SheetFooter>
           <AnimatedButton
             text="Got It!"
             onClick={() => onOpenChange(false)}
@@ -125,8 +125,8 @@ export function AppleMusicHelpModal({
             borderColorBottom={theme.colors.brandRedD}
             textStyle="text-sm font-semibold text-white"
           />
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

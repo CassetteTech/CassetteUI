@@ -81,10 +81,21 @@ class ApiService {
         throw new Error(error.message || 'API request failed');
       }
 
+      // Handle 204 No Content responses (e.g., DELETE)
+      if (response.status === 204) {
+        console.log('✅ API Response: 204 No Content');
+        return undefined as T;
+      }
+
       let data;
       try {
         const text = await response.text();
         console.log('📝 API Response Text:', text);
+        // Handle empty responses
+        if (!text || text.trim() === '') {
+          console.log('✅ API Response: Empty body');
+          return undefined as T;
+        }
         data = JSON.parse(text);
       } catch (parseError) {
         console.error('❌ JSON Parse Error:', parseError);
@@ -326,6 +337,21 @@ class ApiService {
     return this.request('/api/v1/social/posts', {
       method: 'POST',
       body: JSON.stringify({ musicElementId, elementType, description }),
+    });
+  }
+
+  // Update a post's description
+  async updatePost(postId: string, description: string): Promise<{ postId: string; description: string }> {
+    return this.request(`/api/v1/social/posts/${postId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ description }),
+    });
+  }
+
+  // Delete a post
+  async deletePost(postId: string): Promise<void> {
+    await this.request(`/api/v1/social/posts/${postId}`, {
+      method: 'DELETE',
     });
   }
 

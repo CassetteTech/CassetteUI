@@ -1,14 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BodyText } from '@/components/ui/typography';
-import { profileService } from '@/services/profile';
+import { useUserBio } from '@/hooks/use-profile';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
-import type { UserBio } from '@/types';
 
 interface PostDescriptionCardProps {
   username: string;
@@ -23,28 +21,9 @@ export function PostDescriptionCard({
   createdAt,
   className,
 }: PostDescriptionCardProps) {
-  const [profileData, setProfileData] = useState<UserBio | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!username) {
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchProfile = async () => {
-      try {
-        const bio = await profileService.fetchUserBio(username);
-        setProfileData(bio);
-      } catch (error) {
-        console.error('Failed to fetch profile for post description:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [username]);
+  // Use React Query - will be deduplicated across all PostDescriptionCards
+  // for the same username
+  const { data: profileData, isLoading } = useUserBio(username);
 
   const initial = username?.charAt(0)?.toUpperCase() || 'U';
   const avatarUrl = profileData?.avatarUrl;

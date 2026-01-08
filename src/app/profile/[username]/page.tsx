@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
+import { useUserBio, useUserActivity } from '@/hooks/use-profile';
 import { ProfileHeader } from '@/components/features/profile/profile-header';
 import { ProfileHeaderSkeleton } from '@/components/features/profile/profile-header-skeleton';
 import { ProfileTabs, TabType } from '@/components/features/profile/profile-tabs';
@@ -10,32 +11,59 @@ import { ProfileActivity, ActivitySkeleton } from '@/components/features/profile
 import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
 import { profileService } from '@/services/profile';
 import { apiService } from '@/services/api';
-import { UserBio, ActivityPost } from '@/types';
+import { ActivityPost } from '@/types';
 import { Container } from '@/components/ui/container';
 
 export default function ProfilePage() {
   const { username } = useParams();
   const router = useRouter();
   const { user } = useAuthState();
-  
-  const [userBio, setUserBio] = useState<UserBio | null>(null);
-  const [activityPosts, setActivityPosts] = useState<ActivityPost[]>([]);
+
   const [activeTab, setActiveTab] = useState<TabType>('playlists');
+  const [additionalPosts, setAdditionalPosts] = useState<ActivityPost[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
-  const [isLoadingBio, setIsLoadingBio] = useState(true);
-  const [isLoadingActivity, setIsLoadingActivity] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isCurrentUser, setIsCurrentUser] = useState(false);
-  const [lastLoadedUserId, setLastLoadedUserId] = useState<string | null>(null);
   const enrichedPostIdsRef = useRef(new Set<string>());
 
   const userIdentifier = Array.isArray(username) ? username[0] : username;
 
+  // Check if this is edit mode and determine the actual user to fetch
+  const isEditMode = userIdentifier === 'edit';
+  const userIdToFetch = isEditMode && user ? user.id : userIdentifier;
+
+  // Use React Query for bio and activity - handles deduplication automatically
+  const {
+    data: userBio,
+    isLoading: isLoadingBio,
+    error: bioError
+  } = useUserBio(userIdToFetch);
+
+  const {
+    data: activityData,
+    isLoading: isLoadingActivity,
+    error: activityError
+  } = useUserActivity(userIdToFetch, { page: 1 });
+
+  // Combine initial activity with paginated additional posts
+  const allActivityPosts = useMemo(() => {
+    const initialPosts = activityData?.items ?? [];
+    return [...initialPosts, ...additionalPosts];
+  }, [activityData?.items, additionalPosts]);
+
+  const totalItems = activityData?.totalItems ?? 0;
+
+  // Determine if current user is viewing their own profile
+  const isCurrentUser = useMemo(() => {
+    if (!userBio || !user) return false;
+    return userBio.isOwnProfile ||
+           user.id === userBio.id ||
+           user.username?.toLowerCase() === userBio.username?.toLowerCase();
+  }, [userBio, user]);
+
+  // Determine optimal tab based on content
   const getOptimalTab = useCallback((posts: ActivityPost[]): TabType => {
     const tabPriority: TabType[] = ['playlists', 'tracks', 'artists', 'albums'];
-    
+
     for (const tabType of tabPriority) {
       const hasContent = posts.some(post => {
         if (tabType === 'playlists') return post.elementType.toLowerCase() === 'playlist';
@@ -44,83 +72,21 @@ export default function ProfilePage() {
         if (tabType === 'albums') return post.elementType.toLowerCase() === 'album';
         return false;
       });
-      
-      if (hasContent) {
-        return tabType;
-      }
+
+      if (hasContent) return tabType;
     }
-    
-    // Fallback to playlists if no content found
+
     return 'playlists';
   }, []);
 
-  const loadProfile = useCallback(async () => {
-    if (!userIdentifier) return;
-
-    // Check if we already loaded this user's profile
-    if (lastLoadedUserId === userIdentifier && userBio) {
-      return;
-    }
-
-    setError(null);
-    setIsLoadingBio(true);
-    setIsLoadingActivity(true);
-
-    // Check if this is the current user's profile
-    const isEditMode = userIdentifier === 'edit';
-    const userIdToFetch = isEditMode && user
-      ? user.id
-      : userIdentifier;
-
-    const currentUserCheck = user && (
-      user.id === userIdToFetch ||
-      user.username?.toLowerCase() === userIdToFetch.toLowerCase()
-    );
-
-    if (isEditMode && !currentUserCheck) {
-      setError('You must be logged in to edit your profile');
-      setIsLoadingBio(false);
-      setIsLoadingActivity(false);
-      return;
-    }
-
-    // Fetch bio and activity in PARALLEL
-    const [bioResult, activityResult] = await Promise.allSettled([
-      profileService.fetchUserBio(userIdToFetch),
-      profileService.fetchUserActivity(userIdToFetch, { page: 1 })
-    ]);
-
-    // Handle bio result
-    if (bioResult.status === 'fulfilled') {
-      const bio = bioResult.value;
-      const clientSideCurrentUserCheck = user ? (
-        user.id === bio.id ||
-        user.username?.toLowerCase() === bio.username?.toLowerCase()
-      ) : false;
-      const finalIsCurrentUser = bio.isOwnProfile || clientSideCurrentUserCheck;
-
-      setUserBio(bio);
-      setIsCurrentUser(finalIsCurrentUser);
-      setLastLoadedUserId(userIdToFetch);
-    } else {
-      console.error('❌ Error loading bio:', bioResult.reason);
-      setError(bioResult.reason?.message || 'Failed to load profile');
-    }
-    setIsLoadingBio(false);
-
-    // Handle activity result
-    if (activityResult.status === 'fulfilled') {
-      const activityData = activityResult.value;
-      setActivityPosts(activityData.items);
-      setTotalItems(activityData.totalItems);
-      setCurrentPage(activityData.page);
+  // Set optimal tab when activity data loads
+  useEffect(() => {
+    if (activityData?.items && activityData.items.length > 0) {
       setActiveTab(getOptimalTab(activityData.items));
-    } else {
-      console.error('❌ Error loading activity:', activityResult.reason);
     }
-    setIsLoadingActivity(false);
-  }, [userIdentifier, user, userBio, lastLoadedUserId, getOptimalTab]);
+  }, [activityData?.items, getOptimalTab]);
 
+  // Enrich posts with additional image data
   const enrichActivityPosts = useCallback(async (posts: ActivityPost[]) => {
     const resolveText = (...values: Array<string | null | undefined>) => {
       for (const value of values) {
@@ -155,7 +121,6 @@ export default function ProfilePage() {
 
     if (candidates.length === 0) return;
 
-    // Collect all updates, then apply in ONE batch to prevent multiple re-renders
     const updates = new Map<string, string>();
 
     await Promise.all(
@@ -178,9 +143,8 @@ export default function ProfilePage() {
       }),
     );
 
-    // Apply ALL updates in a single state change
     if (updates.size > 0) {
-      setActivityPosts((prev) =>
+      setAdditionalPosts((prev) =>
         prev.map((item) => {
           const newImage = updates.get(item.postId);
           return newImage && !item.imageUrl
@@ -191,45 +155,43 @@ export default function ProfilePage() {
     }
   }, []);
 
+  // Load more posts (pagination)
   const loadMore = useCallback(async () => {
-    if (isLoadingMore || !userIdentifier || activityPosts.length >= totalItems) return;
+    if (isLoadingMore || !userIdToFetch || allActivityPosts.length >= totalItems) return;
 
     try {
       setIsLoadingMore(true);
       const nextPage = currentPage + 1;
-      
-      const moreActivity = await profileService.fetchUserActivity(userIdentifier, {
+
+      const moreActivity = await profileService.fetchUserActivity(userIdToFetch, {
         page: nextPage,
       });
 
-      setActivityPosts(prev => [...prev, ...moreActivity.items]);
+      setAdditionalPosts(prev => [...prev, ...moreActivity.items]);
       setCurrentPage(nextPage);
     } catch (e) {
-      console.error('❌ Error loading more activity:', e);
-      setError(e instanceof Error ? e.message : 'Failed to load more activity');
+      console.error('Error loading more activity:', e);
     } finally {
       setIsLoadingMore(false);
     }
-  }, [userIdentifier, currentPage, isLoadingMore, activityPosts.length, totalItems]);
+  }, [userIdToFetch, currentPage, isLoadingMore, allActivityPosts.length, totalItems]);
 
   const filterByElementType = useCallback((type: TabType) => {
     if (activeTab === type) return;
-    
     setActiveTab(type);
   }, [activeTab]);
 
   const handleShare = useCallback(() => {
     const shareUrl = `${window.location.origin}/profile/${userBio?.username}`;
-    
+
     if (navigator.share) {
       navigator.share({
-        title: `${userBio?.displayName || userBio?.username}&apos;s Profile`,
-        text: `Check out ${userBio?.displayName || userBio?.username}&apos;s music profile on Cassette`,
+        title: `${userBio?.displayName || userBio?.username}'s Profile`,
+        text: `Check out ${userBio?.displayName || userBio?.username}'s music profile on Cassette`,
         url: shareUrl,
       });
     } else {
       navigator.clipboard.writeText(shareUrl);
-      // You could add a toast notification here
     }
   }, [userBio]);
 
@@ -237,25 +199,40 @@ export default function ProfilePage() {
     router.push('/add-music');
   }, [router]);
 
+  // Enrich posts when they change
   useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
-
-  useEffect(() => {
-    if (activityPosts.length > 0) {
-      enrichActivityPosts(activityPosts);
+    if (allActivityPosts.length > 0) {
+      enrichActivityPosts(allActivityPosts);
     }
-  }, [activityPosts, enrichActivityPosts]);
+  }, [allActivityPosts, enrichActivityPosts]);
 
-
-  // Compute loading states for conditional rendering
+  // Compute loading states
   const showHeaderSkeleton = isLoadingBio && !userBio;
-  const showActivitySkeleton = isLoadingActivity && activityPosts.length === 0;
+  const showActivitySkeleton = isLoadingActivity && allActivityPosts.length === 0;
 
+  // Handle edit mode without auth
+  if (isEditMode && !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
+          <p className="text-muted-foreground mb-4">You must be logged in to edit your profile</p>
+          <button
+            onClick={() => router.push('/auth/login')}
+            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
+          >
+            Log In
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle errors
+  const error = bioError?.message || activityError?.message;
   if (error) {
     return (
       <>
-        {/* Mobile Error */}
         <div className="bg-background lg:hidden">
           <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
             <div className="text-center">
@@ -270,8 +247,6 @@ export default function ProfilePage() {
             </div>
           </Container>
         </div>
-
-        {/* Desktop Error - sidebar provided by layout */}
         <div className="hidden lg:flex items-center justify-center flex-1">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
@@ -292,7 +267,6 @@ export default function ProfilePage() {
   if (!isLoadingBio && !userBio) {
     return (
       <>
-        {/* Mobile Not Found */}
         <div className="bg-background lg:hidden">
           <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
             <div className="text-center">
@@ -307,8 +281,6 @@ export default function ProfilePage() {
             </div>
           </Container>
         </div>
-
-        {/* Desktop Not Found - sidebar provided by layout */}
         <div className="hidden lg:flex items-center justify-center flex-1">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">User Not Found</h1>
@@ -326,7 +298,7 @@ export default function ProfilePage() {
   }
 
   // Filter posts by element type
-  const filteredPosts = activityPosts.filter(post => {
+  const filteredPosts = allActivityPosts.filter(post => {
     if (activeTab === 'playlists') return post.elementType.toLowerCase() === 'playlist';
     if (activeTab === 'tracks') return post.elementType.toLowerCase() === 'track';
     if (activeTab === 'artists') return post.elementType.toLowerCase() === 'artist';
@@ -337,7 +309,6 @@ export default function ProfilePage() {
   return (
     <>
       {/* --- MOBILE & TABLET LAYOUT --- */}
-      {/* This block will be visible on screens smaller than `lg` (1024px) */}
       <div className="bg-background lg:hidden">
         <Container className="min-h-screen bg-transparent p-0">
           <div className="max-w-4xl mx-auto">
@@ -371,7 +342,7 @@ export default function ProfilePage() {
                 posts={filteredPosts}
                 isLoading={isLoadingMore}
                 onLoadMore={loadMore}
-                hasMore={activityPosts.length < totalItems}
+                hasMore={allActivityPosts.length < totalItems}
               />
             )}
           </div>
@@ -379,7 +350,6 @@ export default function ProfilePage() {
       </div>
 
       {/* --- DESKTOP LAYOUT --- */}
-      {/* Sidebar provided by layout, just render content */}
       <div className="hidden lg:flex lg:flex-col lg:flex-1">
         <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b">
           <ProfileTabs
@@ -397,7 +367,7 @@ export default function ProfilePage() {
               posts={filteredPosts}
               isLoading={isLoadingMore}
               onLoadMore={loadMore}
-              hasMore={activityPosts.length < totalItems}
+              hasMore={allActivityPosts.length < totalItems}
             />
           )}
         </div>
@@ -405,4 +375,3 @@ export default function ProfilePage() {
     </>
   );
 }
-            

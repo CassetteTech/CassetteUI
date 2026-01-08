@@ -49,9 +49,7 @@ interface ActivityApiResponse {
 }
 
 export class ProfileService {
-  private bioCache = new Map<string, { bio: UserBio; timestamp: number }>();
-  private activityCache = new Map<string, { activity: PaginatedActivityResponse; timestamp: number }>();
-  private readonly cacheDuration = 5 * 60 * 1000; // 5 minutes
+  // Note: Caching is now handled by React Query (see hooks/use-profile.ts)
   private readonly apiBaseUrl = clientConfig.api.url;
 
   private buildApiUrl(path: string) {

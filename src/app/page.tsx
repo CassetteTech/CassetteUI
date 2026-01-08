@@ -355,6 +355,7 @@ export default function HomePage() {
               <div className={`hidden lg:block search-container transition-all duration-500 ease-out w-full opacity-100 flex-1 overflow-hidden pb-8`} style={{overscrollBehavior: 'contain'}}>
                 <SearchResults
                   results={displayData}
+                  query={debouncedSearchTerm}
                   isLoading={isLoadingCharts}
                   isSearching={isSearchingMusic}
                   showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}
@@ -373,6 +374,7 @@ export default function HomePage() {
             }`}>
               <SearchResults
                 results={displayData}
+                query={debouncedSearchTerm}
                 isLoading={isLoadingCharts}
                 isSearching={isSearchingMusic}
                 showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}

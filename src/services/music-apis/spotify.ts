@@ -176,6 +176,7 @@ class SpotifyService {
         artwork: item.album.images[0]?.url || '',
         duration: item.duration_ms,
         previewUrl: item.preview_url,
+        isExplicit: item.explicit,
         externalUrls: {
           spotify: item.external_urls.spotify,
         },

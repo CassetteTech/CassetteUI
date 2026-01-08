@@ -256,6 +256,7 @@ class AppleMusicService {
         artwork: item.attributes.artwork?.url?.toString().replace('{w}x{h}', '500x500') || '',
         duration: item.attributes.durationInMillis,
         previewUrl: item.attributes.previews?.[0]?.url,
+        isExplicit: item.attributes.contentRating === 'explicit',
         externalUrls: {
           appleMusic: item.attributes.url,
         },
@@ -305,7 +306,7 @@ class AppleMusicService {
     if (data.results?.songs?.[0]?.data) {
       results.tracks = data.results.songs[0].data.map((item: AppleMusicSong) => {
         const artworkUrl = item.attributes.artwork?.url?.toString().replace('{w}x{h}', '500x500') || '';
-        
+
         return {
           id: item.id,
           title: item.attributes.name,
@@ -314,6 +315,7 @@ class AppleMusicService {
           artwork: artworkUrl,
           duration: item.attributes.durationInMillis,
           previewUrl: item.attributes.previews?.[0]?.url,
+          isExplicit: item.attributes.contentRating === 'explicit',
           externalUrls: {
             appleMusic: item.attributes.url,
           },

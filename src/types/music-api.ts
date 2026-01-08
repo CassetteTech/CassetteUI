@@ -32,6 +32,7 @@ export interface AppleMusicSong {
     };
     url: string;
     durationInMillis?: number;
+    contentRating?: 'explicit' | 'clean';
     previews?: Array<{
       url: string;
     }>;
@@ -80,6 +81,7 @@ export interface SpotifySearchResponse {
 export interface SpotifyTrack {
   id: string;
   name: string;
+  explicit: boolean;
   artists: Array<{
     name: string;
   }>;

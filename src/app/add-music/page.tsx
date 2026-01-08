@@ -28,11 +28,12 @@ type SelectedItem = {
 };
 
 // Add Music Form component extracted to prevent recreation on every render
-const AddMusicForm = ({ 
+const AddMusicForm = ({
   isSearchActive,
   selectedItem,
   pastedLinkSource,
   musicUrl,
+  debouncedSearchTerm,
   handleUrlChange,
   handleSearchFocus,
   handleSearchBlur,
@@ -55,6 +56,7 @@ const AddMusicForm = ({
   selectedItem: SelectedItem | null;
   pastedLinkSource: string | null;
   musicUrl: string;
+  debouncedSearchTerm: string;
   handleUrlChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSearchFocus: () => void;
   handleSearchBlur: () => void;
@@ -223,6 +225,7 @@ const AddMusicForm = ({
       <div className="search-container w-full">
         <SearchResults
           results={displayData}
+          query={debouncedSearchTerm}
           isLoading={isLoadingCharts}
           isSearching={isSearchingMusic}
           showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}
@@ -542,6 +545,7 @@ export default function AddMusicPage() {
                   selectedItem={selectedItem}
                   pastedLinkSource={pastedLinkSource}
                   musicUrl={musicUrl}
+                  debouncedSearchTerm={debouncedSearchTerm}
                   handleUrlChange={handleUrlChange}
                   handleSearchFocus={handleSearchFocus}
                   handleSearchBlur={handleSearchBlur}
@@ -583,11 +587,12 @@ export default function AddMusicPage() {
 
                 {/* Add Music Form */}
                 <div className="max-w-2xl mx-auto">
-                  <AddMusicForm 
+                  <AddMusicForm
                     isSearchActive={isSearchActive}
                     selectedItem={selectedItem}
                     pastedLinkSource={pastedLinkSource}
                     musicUrl={musicUrl}
+                    debouncedSearchTerm={debouncedSearchTerm}
                     handleUrlChange={handleUrlChange}
                     handleSearchFocus={handleSearchFocus}
                     handleSearchBlur={handleSearchBlur}

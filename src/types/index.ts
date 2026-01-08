@@ -45,6 +45,7 @@ export interface Track {
   artwork: string;
   duration?: number;
   previewUrl?: string;
+  isExplicit?: boolean;
   externalUrls: {
     spotify?: string;
     appleMusic?: string;

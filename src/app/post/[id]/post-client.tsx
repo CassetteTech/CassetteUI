@@ -806,13 +806,15 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             })()}
                           </div>
                         </div>
-                        {/* Description */}
-                        <PostDescriptionCard
-                          username={postData?.username || 'User'}
-                          description={postData?.description || ''}
-                          createdAt={postData?.createdAt}
-                          className="relative z-20"
-                        />
+                        {/* Description - only show if post has a real user */}
+                        {postData?.username && (
+                          <PostDescriptionCard
+                            username={postData.username}
+                            description={postData?.description || ''}
+                            createdAt={postData?.createdAt}
+                            className="relative z-20"
+                          />
+                        )}
                         {/* Streaming Links */}
                         <div className="p-6 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg relative z-10">
                           <h3 className="text-lg font-semibold text-card-foreground mb-4">Listen Now</h3>
@@ -1125,10 +1127,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 </div>
               )}
 
-              {/* User info and description */}
-              {!isPlaylist && (
+              {/* User info and description - only show if post has a real user */}
+              {!isPlaylist && postData?.username && (
                 <PostDescriptionCard
-                  username={postData?.username || 'User'}
+                  username={postData.username}
                   description={postData?.description || ''}
                   createdAt={postData?.createdAt}
                   className="text-left relative z-20"

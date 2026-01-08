@@ -209,6 +209,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             trackNumber?: number;
             artists?: string[];
             previewUrl?: string;
+            isrc?: string;
+            spotifyTrackId?: string;
+            appleMusicTrackId?: string;
           };
 
           const trackArray = (response.details as { tracks?: ApiAlbumTrack[] } | undefined)?.tracks;
@@ -219,6 +222,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               duration: t.duration,
               artists: Array.isArray(t.artists) ? t.artists : undefined,
               previewUrl: t.previewUrl,
+              isrc: t.isrc,
+              spotifyTrackId: t.spotifyTrackId,
+              appleMusicTrackId: t.appleMusicTrackId,
             }));
             transformedData.tracks = mapped;
           }
@@ -231,6 +237,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             artists?: string[];
             previewUrl?: string | null;
             trackNumber?: number;
+            isrc?: string;
+            spotifyTrackId?: string;
+            appleMusicTrackId?: string;
           };
           const topLevelTracks = (response as unknown as { tracks?: ApiTopLevelTrack[] }).tracks;
           if ((!transformedData.tracks || transformedData.tracks.length === 0) && Array.isArray(topLevelTracks) && topLevelTracks.length > 0) {
@@ -240,6 +249,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               duration: t.duration,
               artists: t.artist ? [t.artist] : Array.isArray(t.artists) ? t.artists : undefined,
               previewUrl: t.previewUrl ?? undefined,
+              isrc: t.isrc,
+              spotifyTrackId: t.spotifyTrackId,
+              appleMusicTrackId: t.appleMusicTrackId,
             }));
             transformedData.tracks = mappedTop;
           }
@@ -679,6 +691,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           variant={isAlbum ? 'album' : 'playlist'}
                           scrollable={false}
                           className="!border-0 !bg-transparent !shadow-none"
+                          sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                         />
                       </div>
                     )}
@@ -1189,6 +1202,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     compact
                     scrollable={true}
                     className="!border-0 !bg-transparent !shadow-none"
+                    sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                   />
                 </div>
               )}

@@ -170,6 +170,7 @@ function PostPageContent() {
           artist?: string;
           artists?: string[];
           previewUrl?: string | null;
+          spotifyTrackId?: string;
         };
 
         if (Array.isArray(parsedData.tracks)) {
@@ -179,6 +180,7 @@ function PostPageContent() {
             duration: t.duration || undefined,
             artists: t.artist ? [t.artist] : Array.isArray(t.artists) ? t.artists : undefined,
             previewUrl: t.previewUrl || undefined,
+            spotifyTrackId: t.spotifyTrackId,
           }));
           transformedFromData.tracks = mappedTracks;
         }

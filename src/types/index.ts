@@ -191,6 +191,11 @@ export interface MediaListTrack {
   duration?: string;
   artists?: string[];
   previewUrl?: string;
+  isrc?: string;
+  // Platform-specific track IDs for fetching preview URLs directly
+  spotifyTrackId?: string;
+  appleMusicTrackId?: string;
+  deezerTrackId?: string;
 }
 
 // API Response type for music link conversion

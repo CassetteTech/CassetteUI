@@ -158,6 +158,132 @@ class SpotifyService {
     return this.transformSearchResults(data);
   }
 
+  /**
+   * Search for a track by ISRC and return its preview URL.
+   * Falls back to searching by track title + artist if ISRC search fails.
+   */
+  async getPreviewUrl(params: { isrc?: string; title?: string; artist?: string }): Promise<string | null> {
+    console.log('🎵 Spotify getPreviewUrl called with:', params);
+
+    const token = await this.getAccessToken();
+    const url = new URL('https://api.spotify.com/v1/search');
+
+    // Try ISRC search first (most accurate)
+    if (params.isrc) {
+      url.searchParams.set('q', `isrc:${params.isrc}`);
+      url.searchParams.set('type', 'track');
+      url.searchParams.set('limit', '1');
+
+      console.log('🔍 Searching Spotify by ISRC:', params.isrc);
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const track = data.tracks?.items?.[0];
+        if (track?.preview_url) {
+          console.log('✅ Found preview URL via ISRC search:', track.preview_url);
+          return track.preview_url;
+        }
+        console.log('⚠️ ISRC search found track but no preview URL');
+      }
+    }
+
+    // Fallback to title + artist search - try simple query first (more flexible)
+    if (params.title) {
+      // Simple search: "title artist" works better than track:/artist: filters
+      const query = params.artist
+        ? `${params.title} ${params.artist}`
+        : params.title;
+
+      url.searchParams.set('q', query);
+      url.searchParams.set('type', 'track');
+      url.searchParams.set('limit', '10');
+      // Add market parameter - may help with preview availability
+      url.searchParams.set('market', 'US');
+
+      console.log('🔍 Searching Spotify by title/artist:', query);
+      console.log('🔗 Full URL:', url.toString());
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const totalTracks = data.tracks?.items?.length || 0;
+        console.log(`📊 Spotify returned ${totalTracks} tracks`);
+
+        // Log preview URL status for all tracks
+        data.tracks?.items?.forEach((t: SpotifyTrack, i: number) => {
+          console.log(`  Track ${i + 1}: "${t.name}" by ${t.artists?.[0]?.name} - preview: ${t.preview_url ? 'YES' : 'NO'}`);
+        });
+
+        // Find the first track with a preview URL
+        const trackWithPreview = data.tracks?.items?.find((t: SpotifyTrack) => t.preview_url);
+        if (trackWithPreview?.preview_url) {
+          console.log('✅ Found preview URL via title search:', trackWithPreview.preview_url);
+          return trackWithPreview.preview_url;
+        }
+        console.log('⚠️ Title search found tracks but none with preview URL');
+      } else {
+        console.error('❌ Spotify search failed:', response.status, await response.text());
+      }
+    }
+
+    console.log('❌ No preview URL found for track');
+    return null;
+  }
+
+  /**
+   * Fetch a track directly by Spotify track ID and return its preview URL.
+   * This uses the direct track endpoint which may still return preview URLs
+   * even though the search endpoint no longer does.
+   */
+  async getPreviewByTrackId(trackId: string): Promise<string | null> {
+    console.log('🎵 Spotify getPreviewByTrackId called for:', trackId);
+
+    try {
+      const token = await this.getAccessToken();
+      const url = `https://api.spotify.com/v1/tracks/${trackId}`;
+
+      console.log('🔍 Fetching Spotify track directly:', trackId);
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('❌ Spotify track fetch failed:', response.status, await response.text());
+        return null;
+      }
+
+      const track = await response.json();
+
+      if (track.preview_url) {
+        console.log('✅ Found preview URL via direct track fetch:', track.preview_url);
+        return track.preview_url;
+      }
+
+      console.log('⚠️ Direct track fetch succeeded but no preview URL available');
+      return null;
+    } catch (error) {
+      console.error('❌ Error fetching track by ID:', error);
+      return null;
+    }
+  }
+
   private transformSearchResults(data: SpotifySearchResponse): MusicSearchResult {
     const results: MusicSearchResult = {
       tracks: [],

@@ -238,6 +238,46 @@ class AppleMusicService {
     return this.transformChartResults(data);
   }
 
+  /**
+   * Fetch a track directly by Apple Music track ID and return its preview URL.
+   */
+  async getPreviewByTrackId(trackId: string): Promise<string | null> {
+    console.log('🎵 Apple Music getPreviewByTrackId called for:', trackId);
+
+    try {
+      const token = await this.getToken();
+      const url = `https://api.music.apple.com/v1/catalog/us/songs/${trackId}`;
+
+      console.log('🔍 Fetching Apple Music track directly:', trackId);
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('❌ Apple Music track fetch failed:', response.status, await response.text());
+        return null;
+      }
+
+      const data = await response.json();
+      const previewUrl = data.data?.[0]?.attributes?.previews?.[0]?.url;
+
+      if (previewUrl) {
+        console.log('✅ Found preview URL via Apple Music direct fetch:', previewUrl);
+        return previewUrl;
+      }
+
+      console.log('⚠️ Apple Music direct fetch succeeded but no preview URL available');
+      return null;
+    } catch (error) {
+      console.error('❌ Error fetching Apple Music track by ID:', error);
+      return null;
+    }
+  }
+
   private transformSearchResults(data: AppleMusicSearchResponse): MusicSearchResult {
     const results: MusicSearchResult = {
       tracks: [],

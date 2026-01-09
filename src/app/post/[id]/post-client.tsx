@@ -597,11 +597,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         <div className="border-t border-border/30 mx-6" />
                         {isPlaylist ? (
                           <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-3 text-base">
-                            {postData?.description?.trim() && (
-                              <div className="w-full text-center mb-2">
-                                <BodyText className="text-muted-foreground italic">{postData.description}</BodyText>
-                              </div>
-                            )}
                             {/* Show track count - prefer actual tracks array length, fall back to trackCount metadata */}
                             {(Array.isArray(postData?.tracks) && postData.tracks.length > 0) ? (
                               <div>
@@ -677,6 +672,15 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         })()}
                       </div>
                     </div>
+                  )}
+                  {/* PostDescriptionCard for album/playlist */}
+                  {postData?.username && (
+                    <PostDescriptionCard
+                      username={postData.username}
+                      description={postData?.description || ''}
+                      createdAt={postData?.createdAt}
+                      className="mt-6 w-full max-w-xl relative z-20"
+                    />
                   )}
                   {/* Streaming Links (moved from right) */}
                   {(isAlbum || isPlaylist) && (
@@ -1183,11 +1187,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   {/* Metadata */}
                   {isPlaylist ? (
                     <div className="space-y-3 text-sm">
-                      {postData?.description?.trim() && (
-                        <div className="text-center">
-                          <BodyText className="text-muted-foreground italic">{postData.description}</BodyText>
-                        </div>
-                      )}
                       {/* Show track count - prefer actual tracks array length, fall back to trackCount metadata */}
                       {(Array.isArray(postData?.tracks) && postData.tracks.length > 0) ? (
                         <div className="flex flex-wrap justify-center gap-3">
@@ -1318,7 +1317,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               )}
 
               {/* User info and description - only show if post has a real user */}
-              {!isPlaylist && postData?.username && (
+              {postData?.username && (
                 <PostDescriptionCard
                   username={postData.username}
                   description={postData?.description || ''}

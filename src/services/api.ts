@@ -385,7 +385,6 @@ class ApiService {
   }
 
   async createPlaylist(playlistId: string, targetPlatform: string): Promise<CreatePlaylistResponse> {
-    const connections = await this.getMusicConnections();
     const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
     const targetKey = normalize(targetPlatform);
     const canonicalMap: Record<string, string> = {
@@ -395,12 +394,21 @@ class ApiService {
     };
     const canonicalTarget = canonicalMap[targetKey] || targetPlatform.toLowerCase();
 
-    const hasConnection = connections.services?.some(service => normalize(service) === targetKey);
-    console.log('createPlaylist connection check:', { connections, targetPlatform, canonicalTarget, hasConnection });
+    // Skip connection check for Spotify if using Cassette's account
+    const skipConnectionCheck = targetKey === 'spotify' && clientConfig.features.useCassetteSpotifyAccount;
 
-    if (!hasConnection) {
-      throw new Error('No connection found for target platform');
+    if (!skipConnectionCheck) {
+      const connections = await this.getMusicConnections();
+      const hasConnection = connections.services?.some(service => normalize(service) === targetKey);
+      console.log('createPlaylist connection check:', { connections, targetPlatform, canonicalTarget, hasConnection });
+
+      if (!hasConnection) {
+        throw new Error('No connection found for target platform');
+      }
+    } else {
+      console.log('createPlaylist: Skipping connection check for Spotify (using Cassette account)');
     }
+
     return this.request<CreatePlaylistResponse>('/api/v1/convert/createPlaylist', {
       method: 'POST',
       body: JSON.stringify({ PlaylistId: playlistId, TargetPlatform: canonicalTarget }),

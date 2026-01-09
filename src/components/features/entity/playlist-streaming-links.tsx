@@ -13,6 +13,7 @@ import { pendingActionService } from '@/utils/pending-action';
 import { platformConnectService } from '@/services/platform-connect';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
 import { openInAppOrBrowser, isAppleMusicLibraryUrl } from '@/utils/deep-link';
+import { clientConfig } from '@/lib/config-client';
 
 type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
 
@@ -92,11 +93,17 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     setShowFailedTracks(false);
 
     try {
-      const connections = await apiService.getMusicConnections();
-      const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
-      const hasConnection = connections.services?.some(
-        (service: string) => normalize(service) === normalize(platform)
-      );
+      // Skip connection check for Spotify if using Cassette's account
+      const skipConnectionCheck = platform === 'spotify' && clientConfig.features.useCassetteSpotifyAccount;
+
+      let hasConnection = skipConnectionCheck;
+      if (!skipConnectionCheck) {
+        const connections = await apiService.getMusicConnections();
+        const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
+        hasConnection = connections.services?.some(
+          (service: string) => normalize(service) === normalize(platform)
+        );
+      }
 
       if (!hasConnection) {
         // No connection - trigger OAuth flow

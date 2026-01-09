@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { streamingServices } from './streaming-links';
-import { apiService } from '@/services/api';
+import { apiService, ApiError } from '@/services/api';
 import { detectContentType } from '@/utils/content-type-detection';
 import { CreatePlaylistResponse, FailedTrack } from '@/types';
 import { ChevronDown, ChevronUp, ExternalLink, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
@@ -145,6 +145,36 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       const result = await apiService.createPlaylist(playlistId, platform.toLowerCase());
       setCreationStatus({ platform, loading: false, result });
     } catch (error) {
+      // Check if this is an auth error requiring re-authentication
+      if (error instanceof ApiError && error.requiresReauth && platform === 'appleMusic') {
+        // Clear the old connection and trigger re-auth flow
+        pendingActionService.save(
+          pendingActionService.createPlaylistAction(platform, playlistId, currentUrl)
+        );
+        const success = await platformConnectService.connectAppleMusic(currentUrl);
+        if (success) {
+          // Reconnected successfully, retry the playlist creation
+          pendingActionService.clear();
+          try {
+            const retryResult = await apiService.createPlaylist(playlistId, platform.toLowerCase());
+            setCreationStatus({ platform, loading: false, result: retryResult });
+          } catch (retryError) {
+            setCreationStatus({
+              platform,
+              loading: false,
+              error: retryError instanceof Error ? retryError.message : 'Failed to create playlist after reconnecting',
+            });
+          }
+        } else {
+          setCreationStatus({
+            platform,
+            loading: false,
+            error: 'Please reconnect your Apple Music account to continue.',
+          });
+        }
+        return;
+      }
+
       setCreationStatus({
         platform,
         loading: false,

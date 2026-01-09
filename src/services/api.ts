@@ -12,6 +12,19 @@ import { detectContentType } from '@/utils/content-type-detection';
 //   expiresAt?: string;
 // }
 
+// Custom error class to preserve API error details
+export class ApiError extends Error {
+  requiresReauth: boolean;
+  errorCode?: string;
+
+  constructor(message: string, requiresReauth = false, errorCode?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.requiresReauth = requiresReauth;
+    this.errorCode = errorCode;
+  }
+}
+
 class ApiService {
   private baseUrl = clientConfig.api.url;
 
@@ -78,7 +91,13 @@ class ApiService {
           message: 'An error occurred',
         }));
         console.error('❌ API Error Response:', error);
-        throw new Error(error.message || 'API request failed');
+        // Check for auth errors that require re-authentication
+        const requiresReauth = error.requires_reauth === true || error.error_code === 'AUTH_EXPIRED';
+        throw new ApiError(
+          error.error || error.message || 'API request failed',
+          requiresReauth,
+          error.error_code
+        );
       }
 
       // Handle 204 No Content responses (e.g., DELETE)

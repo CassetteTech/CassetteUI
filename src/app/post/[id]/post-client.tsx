@@ -1393,27 +1393,23 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         )}
       </div>
 
-      {/* Edit Modal - conditionally render to ensure proper cleanup */}
-      {editModalOpen && (
-        <EditPostModal
-          open={editModalOpen}
-          onOpenChange={setEditModalOpen}
-          postId={postId}
-          currentDescription={postData?.description || ''}
-          onSuccess={handleEditSuccess}
-        />
-      )}
+      {/* Edit Modal - always render to allow Radix UI animations */}
+      <EditPostModal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        postId={postId}
+        currentDescription={postData?.description || ''}
+        onSuccess={handleEditSuccess}
+      />
 
-      {/* Delete Modal - conditionally render to ensure proper cleanup */}
-      {deleteModalOpen && (
-        <DeletePostModal
-          open={deleteModalOpen}
-          onOpenChange={setDeleteModalOpen}
-          postId={postId}
-          postTitle={postData?.metadata?.title || 'this post'}
-          onSuccess={handleDeleteSuccess}
-        />
-      )}
+      {/* Delete Modal - always render to allow Radix UI animations */}
+      <DeletePostModal
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        postId={postId}
+        postTitle={postData?.metadata?.title || 'this post'}
+        onSuccess={handleDeleteSuccess}
+      />
     </div>
   );
 }

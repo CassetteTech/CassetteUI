@@ -258,25 +258,21 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
         </Link>
       </Card>
 
-      {/* Edit Modal - conditionally render to ensure proper cleanup */}
-      {editModalOpen && (
-        <EditPostModal
-          open={editModalOpen}
-          onOpenChange={setEditModalOpen}
-          postId={post.postId}
-          currentDescription={post.description || ''}
-        />
-      )}
+      {/* Edit Modal - always render to allow Radix UI animations */}
+      <EditPostModal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        postId={post.postId}
+        currentDescription={post.description || ''}
+      />
 
-      {/* Delete Modal - conditionally render to ensure proper cleanup */}
-      {deleteModalOpen && (
-        <DeletePostModal
-          open={deleteModalOpen}
-          onOpenChange={setDeleteModalOpen}
-          postId={post.postId}
-          postTitle={post.title}
-        />
-      )}
+      {/* Delete Modal - always render to allow Radix UI animations */}
+      <DeletePostModal
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        postId={post.postId}
+        postTitle={post.title}
+      />
     </>
   );
 }

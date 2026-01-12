@@ -332,7 +332,7 @@ export class ProfileService {
 
       // Backend expects multipart/form-data via [FromForm] attribute
       const formData = new FormData();
-      if (data.username) formData.append('Username', data.username);
+      if (data.username) formData.append('Username', data.username.trim().toLowerCase());
       if (data.displayName) formData.append('DisplayName', data.displayName);
       if (data.bio !== undefined) formData.append('Bio', data.bio);
       if (data.avatarFile) formData.append('avatar', data.avatarFile);
@@ -359,7 +359,8 @@ export class ProfileService {
 
   async checkUsernameAvailability(username: string): Promise<boolean> {
     try {
-      const url = this.buildApiUrl(`/api/v1/user/check-username/${username}`);
+      const normalized = username.trim().toLowerCase();
+      const url = this.buildApiUrl(`/api/v1/user/check-username/${normalized}`);
 
       const response = await fetch(url, {
         method: 'GET',

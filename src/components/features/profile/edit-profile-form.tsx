@@ -9,6 +9,7 @@ import { UserBio } from '@/types';
 import { profileService } from '@/services/profile';
 import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
+import { useInvalidateProfileQueries } from '@/hooks/use-profile';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { TextField } from '@/components/ui/text-field';
 
@@ -52,6 +53,7 @@ export function EditProfileFormComponent({
     formState: { errors },
     watch,
     control,
+    reset,
   } = useForm<EditProfileForm>({
     resolver: zodResolver(editProfileSchema),
     defaultValues: {
@@ -65,6 +67,8 @@ export function EditProfileFormComponent({
   const watchedUsername = watch('username');
   const avatarUrl = useWatch({ control, name: 'avatarUrl' });
   const activeAvatarUrl = avatarPreviewUrl || avatarUrl;
+  const { invalidateBio } = useInvalidateProfileQueries();
+  const normalizeUsername = (value: string) => value.trim().toLowerCase();
 
   useEffect(() => {
     return () => {
@@ -76,12 +80,14 @@ export function EditProfileFormComponent({
 
   useEffect(() => {
     const validateUsername = async (username: string) => {
-      if (username === initialData?.username) {
+      if (normalizeUsername(username) === normalizeUsername(initialData?.username || '')) {
         setUsernameError(null);
         return true;
       }
 
-      const isAvailable = await profileService.checkUsernameAvailability(username);
+      const isAvailable = await profileService.checkUsernameAvailability(
+        normalizeUsername(username),
+      );
       if (!isAvailable) {
         setUsernameError('Username already exists. Please choose a different one.');
         return false;
@@ -100,6 +106,22 @@ export function EditProfileFormComponent({
     return () => clearTimeout(timeoutId);
   }, [watchedUsername, initialData?.username]);
 
+  useEffect(() => {
+    reset({
+      fullName: initialData?.displayName || '',
+      username: initialData?.username || '',
+      bio: initialData?.bio || '',
+      avatarUrl: initialData?.avatarUrl || '',
+    });
+    setAvatarError(null);
+    setUsernameError(null);
+    setAvatarFile(null);
+    if (avatarPreviewUrl) {
+      URL.revokeObjectURL(avatarPreviewUrl);
+      setAvatarPreviewUrl(null);
+    }
+  }, [initialData, reset, avatarPreviewUrl]);
+
   const startCooldown = () => {
     setIsSaveOnCooldown(true);
     setTimeout(() => setIsSaveOnCooldown(false), 3000);
@@ -107,6 +129,7 @@ export function EditProfileFormComponent({
 
   const onSubmit = async (data: EditProfileForm) => {
     if (isSaveOnCooldown) return;
+    const normalizedUsername = normalizeUsername(data.username);
 
     if (usernameError) {
       startCooldown();
@@ -114,8 +137,10 @@ export function EditProfileFormComponent({
     }
 
     // Check username availability one more time before submitting
-    if (data.username !== initialData?.username) {
-      const isAvailable = await profileService.checkUsernameAvailability(data.username);
+    if (normalizedUsername !== normalizeUsername(initialData?.username || '')) {
+      const isAvailable = await profileService.checkUsernameAvailability(
+        normalizedUsername,
+      );
       if (!isAvailable) {
         setUsernameError('Username already exists. Please choose a different one.');
         startCooldown();
@@ -127,7 +152,7 @@ export function EditProfileFormComponent({
 
     try {
       await profileService.updateProfile({
-        username: data.username,
+        username: normalizedUsername,
         displayName: data.fullName,
         bio: data.bio,
         avatarUrl: avatarFile ? undefined : data.avatarUrl,
@@ -139,6 +164,9 @@ export function EditProfileFormComponent({
       if (updatedUser) {
         useAuthStore.getState().setUser(updatedUser);
       }
+
+      if (initialData?.id) invalidateBio(initialData.id);
+      if (initialData?.username) invalidateBio(initialData.username);
 
       onSuccess();
     } catch (error) {

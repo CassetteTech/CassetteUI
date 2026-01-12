@@ -110,7 +110,8 @@ export default function OnboardingPage() {
 
       // Create FormData for file upload
       const form = new FormData();
-      form.append('username', formData.username);
+      const normalizedUsername = formData.username.trim().toLowerCase();
+      form.append('username', normalizedUsername);
       form.append('displayName', formData.displayName);
       form.append('isOnboarded', 'true');
 

@@ -108,6 +108,7 @@ export const useUpdateProfile = () => {
       displayName?: string;
       bio?: string;
       avatarUrl?: string;
+      avatarFile?: File | null;
     }) => profileService.updateProfile(data),
     onSuccess: () => {
       // Invalidate all bio queries to refresh profile data

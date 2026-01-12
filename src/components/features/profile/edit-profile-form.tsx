@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,6 +11,9 @@ import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { TextField } from '@/components/ui/text-field';
+
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const editProfileSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
@@ -38,6 +41,10 @@ export function EditProfileFormComponent({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaveOnCooldown, setIsSaveOnCooldown] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -57,6 +64,15 @@ export function EditProfileFormComponent({
 
   const watchedUsername = watch('username');
   const avatarUrl = useWatch({ control, name: 'avatarUrl' });
+  const activeAvatarUrl = avatarPreviewUrl || avatarUrl;
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewUrl) {
+        URL.revokeObjectURL(avatarPreviewUrl);
+      }
+    };
+  }, [avatarPreviewUrl]);
 
   useEffect(() => {
     const validateUsername = async (username: string) => {
@@ -114,7 +130,8 @@ export function EditProfileFormComponent({
         username: data.username,
         displayName: data.fullName,
         bio: data.bio,
-        avatarUrl: data.avatarUrl,
+        avatarUrl: avatarFile ? undefined : data.avatarUrl,
+        avatarFile,
       });
 
       // Refresh the auth store with updated user data (including bio)
@@ -133,8 +150,45 @@ export function EditProfileFormComponent({
   };
 
   const handleImageUpload = () => {
-    // TODO: Implement image upload functionality
-    alert('Image upload functionality coming soon');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+
+    if (!file) {
+      setAvatarError(null);
+      return;
+    }
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setAvatarError('Please use a JPEG, PNG, or WebP image.');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      setAvatarError('File size must be 5MB or less.');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    setAvatarError(null);
+    setAvatarFile(file);
+
+    if (avatarPreviewUrl) {
+      URL.revokeObjectURL(avatarPreviewUrl);
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreviewUrl(previewUrl);
   };
 
 
@@ -146,7 +200,7 @@ export function EditProfileFormComponent({
           <div className="relative">
             <Avatar className="w-36 h-36 border-4 border-white/20">
               <AvatarImage
-                src={avatarUrl}
+                src={activeAvatarUrl}
                 alt="Profile"
               />
               <AvatarFallback className="text-xl">P</AvatarFallback>
@@ -164,8 +218,23 @@ export function EditProfileFormComponent({
                 className="invert"
               />
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleAvatarFileChange}
+              className="hidden"
+            />
           </div>
         </div>
+        <div className="text-center text-xs text-muted-foreground">
+          JPEG, PNG, or WebP. Max 5MB.
+        </div>
+        {avatarError && (
+          <p className="text-center text-sm font-normal text-red-500 font-atkinson">
+            {avatarError}
+          </p>
+        )}
 
         {/* Form Fields */}
         <div className="space-y-5">

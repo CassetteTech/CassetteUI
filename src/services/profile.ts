@@ -52,6 +52,37 @@ export class ProfileService {
   // Note: Caching is now handled by React Query (see hooks/use-profile.ts)
   private readonly apiBaseUrl = clientConfig.api.url;
 
+  private normalizeUserBio(data: Record<string, unknown>): UserBio {
+    const nestedUser =
+      data.user && typeof data.user === 'object' ? (data.user as Record<string, unknown>) : null;
+    const merged = nestedUser ? { ...data, ...nestedUser } : data;
+
+    return {
+      id: String(merged.id || merged.userId || merged.UserId || ''),
+      username: String(merged.username || merged.Username || ''),
+      displayName: String(
+        merged.displayName ||
+          merged.DisplayName ||
+          merged.username ||
+          merged.Username ||
+          '',
+      ),
+      bio: String(merged.bio ?? merged.Bio ?? ''),
+      avatarUrl: String(
+        merged.avatarUrl ||
+          merged.AvatarUrl ||
+          merged.profilePicture ||
+          merged.ProfilePicture ||
+          '',
+      ),
+      isOwnProfile: Boolean(merged.isOwnProfile ?? merged.IsOwnProfile ?? false),
+      connectedServices: (merged.connectedServices ||
+        merged.ConnectedServices ||
+        []) as UserBio['connectedServices'],
+      accountType: (merged.accountType ?? merged.AccountType) as UserBio['accountType'],
+    };
+  }
+
   private buildApiUrl(path: string) {
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
     const baseUrl = this.apiBaseUrl?.trim();
@@ -91,8 +122,8 @@ export class ProfileService {
       });
 
       if (response.status === 200) {
-        const data = await response.json();
-        return data as UserBio;
+        const data = (await response.json()) as Record<string, unknown>;
+        return this.normalizeUserBio(data);
       }
 
       if (response.status === 404) {
@@ -294,6 +325,7 @@ export class ProfileService {
     displayName?: string;
     bio?: string;
     avatarUrl?: string;
+    avatarFile?: File | null;
   }): Promise<void> {
     try {
       const url = this.buildApiUrl('/api/v1/profile');
@@ -303,7 +335,8 @@ export class ProfileService {
       if (data.username) formData.append('Username', data.username);
       if (data.displayName) formData.append('DisplayName', data.displayName);
       if (data.bio !== undefined) formData.append('Bio', data.bio);
-      if (data.avatarUrl) formData.append('AvatarUrl', data.avatarUrl);
+      if (data.avatarFile) formData.append('avatar', data.avatarFile);
+      if (data.avatarUrl && !data.avatarFile) formData.append('AvatarUrl', data.avatarUrl);
 
       const response = await fetch(url, {
         method: 'PUT',

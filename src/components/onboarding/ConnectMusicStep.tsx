@@ -41,13 +41,13 @@ const MUSIC_SERVICES = [
     description: 'Connect to share playlists',
     bgColor: 'bg-gradient-to-br from-[#FA233B] to-[#FB5C74]',
   },
-  {
-    id: 'deezer' as PlatformKey,
-    name: 'Deezer',
-    iconSrc: '/images/deezer_logo_colored.png',
-    description: 'Connect for music sharing',
-    bgColor: 'bg-black',
-  },
+  // {
+  //   id: 'deezer' as PlatformKey,
+  //   name: 'Deezer',
+  //   iconSrc: '/images/deezer_logo_colored.png',
+  //   description: 'Connect for music sharing',
+  //   bgColor: 'bg-black',
+  // },
 ];
 
 export function ConnectMusicStep({
@@ -132,12 +132,12 @@ export function ConnectMusicStep({
           }
           break;
 
-        case 'deezer':
-          // Deezer not yet implemented
-          toast.info('Coming Soon', {
-            description: 'Deezer connection will be available soon.',
-          });
-          break;
+        // case 'deezer':
+        //   // Deezer not yet implemented
+        //   toast.info('Coming Soon', {
+        //     description: 'Deezer connection will be available soon.',
+        //   });
+        //   break;
       }
     } catch (error) {
       console.error(`Failed to connect ${service.name}:`, error);

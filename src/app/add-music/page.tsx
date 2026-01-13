@@ -273,8 +273,7 @@ export default function AddMusicPage() {
     const lowerText = text.toLowerCase();
     return lowerText.includes('spotify.com') ||
            lowerText.includes('apple.com/music') ||
-           lowerText.includes('music.apple.com') ||
-           lowerText.includes('deezer.com');
+           lowerText.includes('music.apple.com');
   };
 
   // Handle URL paste detection
@@ -288,8 +287,6 @@ export default function AddMusicPage() {
       source = 'Spotify';
     } else if (lowerUrl.includes('apple.com/music') || lowerUrl.includes('music.apple.com')) {
       source = 'Apple Music';
-    } else if (lowerUrl.includes('deezer.com')) {
-      source = 'Deezer';
     }
     
     setPastedLinkSource(source);
@@ -388,10 +385,9 @@ export default function AddMusicPage() {
         ...(displayData.playlists || [])
       ];
       
-      const matchingItem = allItems.find(item => {
-        const itemUrl = item.externalUrls?.spotify || 
-                       item.externalUrls?.appleMusic || 
-                       item.externalUrls?.deezer;
+        const matchingItem = allItems.find(item => {
+          const itemUrl = item.externalUrls?.spotify || 
+                       item.externalUrls?.appleMusic;
         const itemTitle = 'name' in item ? item.name : item.title;
         return itemUrl === url || itemTitle === title;
       });

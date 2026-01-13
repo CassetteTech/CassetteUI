@@ -140,10 +140,9 @@ function ConnectedServices({ services, isSmallScreen, isLargeScreen }: { service
       'apple': '/images/social_images/ic_apple.png',
       'youtube': '/images/social_images/ic_yt_music.png',
       'tidal': '/images/social_images/ic_tidal.png',
-      'deezer': '/images/social_images/ic_deezer.png',
     };
     
-    return iconMap[normalize(serviceType)] || '/images/social_images/ic_spotify.png';
+    return iconMap[normalize(serviceType)];
   };
 
   const getServiceColor = (serviceType: string) => {
@@ -152,7 +151,6 @@ function ConnectedServices({ services, isSmallScreen, isLargeScreen }: { service
       'apple': 'text-gray-300',
       'youtube': 'text-red-500',
       'tidal': 'text-blue-500',
-      'deezer': 'text-purple-500',
     };
     
     return colorMap[normalize(serviceType)] || 'text-gray-400';
@@ -167,20 +165,25 @@ function ConnectedServices({ services, isSmallScreen, isLargeScreen }: { service
   
   return (
     <div className="flex gap-2 overflow-x-auto max-w-full">
-      {services.map((service, index) => (
-        <div
-          key={`${service.serviceType}-${index}`}
-          className={`flex-shrink-0 ${iconSize} rounded-full ${padding} ${getServiceColor(service.serviceType)} bg-opacity-20 border border-current`}
-        >
-          <Image
-            src={getServiceIcon(service.serviceType)}
-            alt={service.serviceType}
-            width={isSmallScreen ? 16 : isLargeScreen ? 24 : 20}
-            height={isSmallScreen ? 16 : isLargeScreen ? 24 : 20}
-            className="w-full h-full object-contain"
-          />
-        </div>
-      ))}
+      {services.map((service, index) => {
+        const iconSrc = getServiceIcon(service.serviceType);
+        if (!iconSrc) return null;
+
+        return (
+          <div
+            key={`${service.serviceType}-${index}`}
+            className={`flex-shrink-0 ${iconSize} rounded-full ${padding} ${getServiceColor(service.serviceType)} bg-opacity-20 border border-current`}
+          >
+            <Image
+              src={iconSrc}
+              alt={service.serviceType}
+              width={isSmallScreen ? 16 : isLargeScreen ? 24 : 20}
+              height={isSmallScreen ? 16 : isLargeScreen ? 24 : 20}
+              className="w-full h-full object-contain"
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

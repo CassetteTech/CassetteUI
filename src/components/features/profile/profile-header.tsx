@@ -157,10 +157,9 @@ function ConnectedServices({
       'apple': '/images/apple_music_logo_colored.png',
       'youtube': '/images/social_images/ic_yt_music.png',
       'tidal': '/images/social_images/ic_tidal.png',
-      'deezer': '/images/deezer_logo_colored.png',
     };
-
-    return iconMap[normalized] || '/images/spotify_logo_colored.png';
+    
+    return iconMap[normalized];
   };
 
   const getServiceColor = (serviceType: string) => {
@@ -171,7 +170,6 @@ function ConnectedServices({
       'apple': 'bg-[#FA233B]/20 border-[#FA233B]/50',
       'youtube': 'bg-red-500/20 border-red-500/50',
       'tidal': 'bg-blue-500/20 border-blue-500/50',
-      'deezer': 'bg-purple-500/20 border-purple-500/50',
     };
 
     return colorMap[normalized] || 'bg-gray-400/20 border-gray-400/50';
@@ -198,20 +196,25 @@ function ConnectedServices({
 
   return (
     <div className="flex gap-2 overflow-x-auto max-w-full">
-      {displayItems.map((item) => (
-        <div
-          key={item.key}
-          className={`flex-shrink-0 ${iconSize} rounded-lg p-1.5 ${getServiceColor(item.type)} border`}
-        >
-          <Image
-            src={getServiceIcon(item.type)}
-            alt={item.type}
-            width={isSmallScreen ? 20 : isLargeScreen ? 28 : 24}
-            height={isSmallScreen ? 20 : isLargeScreen ? 28 : 24}
-            className="w-full h-full object-contain"
-          />
-        </div>
-      ))}
+      {displayItems.map((item) => {
+        const iconSrc = getServiceIcon(item.type);
+        if (!iconSrc) return null;
+
+        return (
+          <div
+            key={item.key}
+            className={`flex-shrink-0 ${iconSize} rounded-lg p-1.5 ${getServiceColor(item.type)} border`}
+          >
+            <Image
+              src={iconSrc}
+              alt={item.type}
+              width={isSmallScreen ? 20 : isLargeScreen ? 28 : 24}
+              height={isSmallScreen ? 20 : isLargeScreen ? 28 : 24}
+              className="w-full h-full object-contain"
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

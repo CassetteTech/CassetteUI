@@ -119,8 +119,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     
     // Try to find a valid URL from the item
     const url = item.externalUrls?.spotify || 
-                item.externalUrls?.appleMusic || 
-                item.externalUrls?.deezer;
+                item.externalUrls?.appleMusic;
     
     console.log('📎 Selected URL:', url);
     

@@ -127,7 +127,6 @@ function PostPageContent() {
             parsedData.platforms?.spotify?.url ||
             parsedData.platforms?.applemusic?.url ||
             parsedData.platforms?.appleMusic?.url ||
-            parsedData.platforms?.deezer?.url ||
             ''
           ),
           convertedUrls: {},
@@ -156,7 +155,7 @@ function PostPageContent() {
             if (!data?.url) return;
             let platformKey = platform.toLowerCase();
             if (platformKey === 'applemusic') platformKey = 'appleMusic';
-            if (['spotify', 'applemusic', 'appleMusic', 'deezer'].includes(platform)) {
+            if (['spotify', 'applemusic', 'appleMusic'].includes(platform)) {
               (transformedFromData.convertedUrls as Record<string, string>)[platformKey] = data.url;
             }
           });

@@ -16,7 +16,7 @@ const dummyUserBio = {
   displayName: "Matt Toppi",
   bio: "🎵 Music enthusiast | Playlist curator | Always discovering new sounds",
   avatarUrl: "/images/demo/matt-avatar.jpg",
-  connectedServices: ["spotify", "apple-music", "deezer"]
+  connectedServices: ["spotify", "apple-music"]
 };
 
 const dummyActivityPosts = {

@@ -13,7 +13,7 @@ interface ProfileTabsProps {
 export function ProfileTabs({ activeTab, onTabChange }: ProfileTabsProps) {
   const tabs: { key: TabType; label: string }[] = [
     { key: 'playlists', label: 'Playlists' },
-    { key: 'tracks', label: 'Songs' },
+    { key: 'tracks', label: 'Tracks' },
     { key: 'artists', label: 'Artists' },
     { key: 'albums', label: 'Albums' },
   ];

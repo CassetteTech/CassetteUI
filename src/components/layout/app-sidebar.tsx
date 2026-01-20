@@ -23,20 +23,24 @@ import { SidebarProfileCard, SidebarProfileCardSkeleton } from '@/components/fea
 import { usePathname } from 'next/navigation';
 import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { theme } from '@/lib/theme';
-import type { UserBio } from '@/types';
+import { useUserBio } from '@/hooks/use-profile';
 
 interface AppSidebarProps {
   className?: string;
-  /** Optional profile user to display (when viewing a profile page) */
-  profileUser?: UserBio | null;
-  /** Whether profile user data is loading */
-  isProfileLoading?: boolean;
 }
 
-export function AppSidebar({ className, profileUser, isProfileLoading }: AppSidebarProps) {
+export function AppSidebar({ className }: AppSidebarProps) {
   const { user } = useAuthState();
   const { mutate: signOut } = useSignOut();
   const pathname = usePathname();
+
+  // Extract username from /profile/[username] routes to fetch profile data
+  const profileUsername = pathname?.startsWith('/profile/')
+    ? pathname.split('/')[2]
+    : undefined;
+
+  // Fetch profile user when on a profile page (hook handles caching and deduplication)
+  const { data: profileUser, isLoading: isProfileLoading } = useUserBio(profileUsername);
 
   // Determine which user to display in the profile card
   // If viewing a profile page, show that user; otherwise show logged-in user
@@ -55,10 +59,11 @@ export function AppSidebar({ className, profileUser, isProfileLoading }: AppSide
     if (path === '/') {
       return pathname === '/';
     }
-    return pathname.startsWith(path);
+    return pathname?.startsWith(path);
   };
 
-  // Update indicator position when pathname changes
+  // Update indicator position when pathname changes or when user/profile data loads
+  // (menu items are conditionally rendered based on user state, and profile card affects layout)
   useEffect(() => {
     const updateIndicator = () => {
       if (!contentRef.current) return;
@@ -89,10 +94,13 @@ export function AppSidebar({ className, profileUser, isProfileLoading }: AppSide
       }
     };
 
-    // Small delay to ensure DOM has updated
-    const timeoutId = setTimeout(updateIndicator, 10);
+    // Don't calculate position while profile is loading (layout will shift)
+    if (isProfileLoading) return;
+
+    // Delay to ensure DOM has fully settled after layout changes
+    const timeoutId = setTimeout(updateIndicator, 100);
     return () => clearTimeout(timeoutId);
-  }, [pathname]);
+  }, [pathname, user, displayUser, isProfileLoading]);
 
   return (
     <Sidebar collapsible="none" className={`h-screen ${className}`}>
@@ -242,7 +250,7 @@ export function AppSidebar({ className, profileUser, isProfileLoading }: AppSide
 }
 
 // Skeleton version for loading states
-export function AppSidebarSkeleton({ className }: AppSidebarProps) {
+export function AppSidebarSkeleton({ className }: { className?: string }) {
   const { user } = useAuthState();
   const { mutate: signOut } = useSignOut();
   const pathname = usePathname();

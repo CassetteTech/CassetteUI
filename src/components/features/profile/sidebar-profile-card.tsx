@@ -61,7 +61,7 @@ export function SidebarProfileCard({
   const initial = user.username?.charAt(0)?.toUpperCase() || 'U';
 
   return (
-    <div className={`mx-2 p-4 rounded-xl bg-card/50 border border-border/30 transition-colors hover:bg-card/70 ${className}`}>
+    <div className={`mx-2 p-4 rounded-xl bg-card/50 border border-border/30 transition-colors hover:bg-card/70 min-h-[156px] ${className}`}>
       <div className="flex flex-col gap-3">
         {/* Top row: Avatar left, Connected services top right */}
         <div className="flex items-start justify-between">
@@ -117,7 +117,7 @@ export function SidebarProfileCard({
  */
 export function SidebarProfileCardSkeleton({ className = '' }: { className?: string }) {
   return (
-    <div className={`mx-2 p-4 rounded-xl bg-card/50 border border-border/30 ${className}`}>
+    <div className={`mx-2 p-4 rounded-xl bg-card/50 border border-border/30 min-h-[156px] ${className}`}>
       <div className="flex flex-col gap-3">
         {/* Top row: Avatar left, services top right */}
         <div className="flex items-start justify-between">

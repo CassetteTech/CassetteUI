@@ -12,11 +12,6 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { SearchResults } from '@/components/features/search-results';
 import { MusicSearchResult } from '@/types';
 import Image from 'next/image';
-import {
-  SidebarInset,
-  SidebarProvider,
-} from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/layout/app-sidebar';
 
 type SelectedItem = {
   id: string;
@@ -570,52 +565,43 @@ export default function AddMusicPage() {
         </div>
       </div>
 
-      {/* Desktop Layout with Sidebar */}
-      <div className="hidden lg:block min-h-screen bg-background">
-        <SidebarProvider defaultOpen={true}>
-          <AppSidebar />
-          
-          {/* Main Content Area */}
-          <SidebarInset>
-            <div className="flex flex-col h-screen overflow-hidden p-6">
-              <div className="flex-1 overflow-y-auto">
-                {/* Header */}
-                <div className="text-center mb-8">
-                  <h1 className="text-3xl font-bold text-foreground mb-2">Add Music</h1>
-                  <p className="text-muted-foreground">Search or paste a link to add music to your profile</p>
-                </div>
+      {/* Desktop Layout - content only (sidebar handled by parent layout) */}
+      <div className="hidden lg:flex lg:flex-col lg:h-screen lg:overflow-hidden p-6">
+        <div className="flex-1 overflow-y-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-foreground mb-2">Add Music</h1>
+            <p className="text-muted-foreground">Search or paste a link to add music to your profile</p>
+          </div>
 
-                {/* Add Music Form */}
-                <div className="max-w-2xl mx-auto">
-                  <AddMusicForm
-                    isSearchActive={isSearchActive}
-                    selectedItem={selectedItem}
-                    pastedLinkSource={pastedLinkSource}
-                    musicUrl={musicUrl}
-                    debouncedSearchTerm={debouncedSearchTerm}
-                    handleUrlChange={handleUrlChange}
-                    handleSearchFocus={handleSearchFocus}
-                    handleSearchBlur={handleSearchBlur}
-                    handlePaste={handlePaste}
-                    clearSelection={clearSelection}
-                    description={description}
-                    setDescription={setDescription}
-                    handleAddToProfile={handleAddToProfile}
-                    errorMessage={errorMessage}
-                    searchInputRef={searchInputRef}
-                    displayData={displayData}
-                    isLoadingCharts={isLoadingCharts}
-                    isSearchingMusic={isSearchingMusic}
-                    handleSelectItem={handleSelectItem}
-                    closeSearch={closeSearch}
-                    isValidMusicUrl={isValidMusicUrl}
-                    router={router}
-                  />
-                </div>
-              </div>
-            </div>
-          </SidebarInset>
-        </SidebarProvider>
+          {/* Add Music Form */}
+          <div className="max-w-2xl mx-auto">
+            <AddMusicForm
+              isSearchActive={isSearchActive}
+              selectedItem={selectedItem}
+              pastedLinkSource={pastedLinkSource}
+              musicUrl={musicUrl}
+              debouncedSearchTerm={debouncedSearchTerm}
+              handleUrlChange={handleUrlChange}
+              handleSearchFocus={handleSearchFocus}
+              handleSearchBlur={handleSearchBlur}
+              handlePaste={handlePaste}
+              clearSelection={clearSelection}
+              description={description}
+              setDescription={setDescription}
+              handleAddToProfile={handleAddToProfile}
+              errorMessage={errorMessage}
+              searchInputRef={searchInputRef}
+              displayData={displayData}
+              isLoadingCharts={isLoadingCharts}
+              isSearchingMusic={isSearchingMusic}
+              handleSelectItem={handleSelectItem}
+              closeSearch={closeSearch}
+              isValidMusicUrl={isValidMusicUrl}
+              router={router}
+            />
+          </div>
+        </div>
       </div>
     </>
   );

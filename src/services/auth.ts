@@ -163,6 +163,36 @@ class AuthService {
     useAuthStore.getState().signOut();
   }
 
+  async deleteAccount(): Promise<void> {
+    const token = this.getAccessToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    console.log('🔄 [Auth] Starting account deletion request');
+
+    const response = await fetch(`${API_URL}/api/v1/auth/account`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    console.log('📦 [Auth] Delete account response:', data);
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || 'Failed to delete account');
+    }
+
+    console.log('✅ [Auth] Account deleted successfully, clearing local data');
+
+    // Clear tokens and sign out
+    this.clearTokens();
+    useAuthStore.getState().signOut();
+  }
+
   async signInWithProvider(provider: 'google' | 'apple') {
     if (provider !== 'google') {
       throw new Error('Only Google sign-in is implemented.');

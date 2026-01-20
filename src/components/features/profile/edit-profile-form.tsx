@@ -11,6 +11,8 @@ import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { TextField } from '@/components/ui/text-field';
+import { DeleteAccountModal } from './delete-account-modal';
+import { AlertTriangle } from 'lucide-react';
 
 const editProfileSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
@@ -38,6 +40,7 @@ export function EditProfileFormComponent({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaveOnCooldown, setIsSaveOnCooldown] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const {
     register,
@@ -221,7 +224,39 @@ export function EditProfileFormComponent({
             {isLoading ? 'Saving...' : 'Save'}
           </button>
         </div>
+
+        {/* Danger Zone */}
+        <div className="mt-12 pt-8">
+          <div className="rounded-lg border border-[#FF004C]/30 bg-[#FF004C]/5 p-5">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FF004C]/10">
+                <AlertTriangle className="h-5 w-5 text-[#FF004C]" />
+              </div>
+              <div className="flex-1 space-y-3">
+                <div>
+                  <h3 className="text-base font-semibold text-[#FF004C]">Danger Zone</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Permanently delete your account and all associated data. This action cannot be undone.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(true)}
+                  className="inline-flex items-center gap-2 bg-transparent border border-[#FF004C]/50 text-[#FF004C] py-2 px-4 rounded-md text-sm font-medium hover:bg-[#FF004C]/10 hover:border-[#FF004C] transition-all"
+                >
+                  Delete Account
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </form>
+
+      <DeleteAccountModal
+        open={showDeleteModal}
+        onOpenChange={setShowDeleteModal}
+        username={initialData?.username || ''}
+      />
     </div>
   );
 }

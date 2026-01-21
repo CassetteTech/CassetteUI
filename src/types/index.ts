@@ -15,12 +15,24 @@ export interface UserBio {
   isOwnProfile: boolean;
   accountType?: AccountType | number; // API returns integer, frontend uses enum
   connectedServices: ConnectedService[];
+  platformPreferences?: PlatformPreferenceInfo[];
 }
 
 export interface ConnectedService {
   serviceType: string;
   connectedAt: string;
   profileUrl?: string;
+}
+
+export interface PlatformPreference {
+  platform: 'Spotify' | 'AppleMusic' | 'Deezer';
+  isAuthenticated: boolean;
+  addedAt: string;
+}
+
+export interface PlatformPreferenceInfo {
+  platform: string;
+  addedAt: string;
 }
 
 export interface ActivityPost {

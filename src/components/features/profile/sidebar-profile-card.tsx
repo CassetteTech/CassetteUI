@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { VerificationBadge } from '@/components/ui/verification-badge';
-import type { UserBio, AuthUser, ConnectedService, AccountType } from '@/types';
+import type { UserBio, AuthUser, ConnectedService, AccountType, PlatformPreferenceInfo } from '@/types';
 
 interface SidebarProfileCardProps {
   /** User data to display - supports both UserBio (from profile API) and AuthUser (from auth store) */
@@ -39,6 +39,16 @@ function getConnectedServices(user: UserBio | AuthUser): ConnectedService[] {
 }
 
 /**
+ * Get platform preferences from UserBio (AuthUser doesn't have this yet)
+ */
+function getPlatformPreferences(user: UserBio | AuthUser): PlatformPreferenceInfo[] | undefined {
+  if ('platformPreferences' in user) {
+    return user.platformPreferences;
+  }
+  return undefined;
+}
+
+/**
  * Get account type from either UserBio or AuthUser
  * Returns raw value (number or string) to be normalized by VerificationBadge
  */
@@ -56,6 +66,7 @@ export function SidebarProfileCard({
 
   const avatarUrl = getAvatarUrl(user);
   const connectedServices = getConnectedServices(user);
+  const platformPreferences = getPlatformPreferences(user);
   const displayName = user.displayName || user.username;
   const bio = user.bio || '';
   const initial = user.username?.charAt(0)?.toUpperCase() || 'U';
@@ -75,6 +86,7 @@ export function SidebarProfileCard({
           {/* Connected services - top right */}
           <MusicConnectionsStatus
             variant="sidebar-enhanced"
+            platformPreferencesOverride={platformPreferences}
             connectedServicesOverride={connectedServices}
           />
         </div>

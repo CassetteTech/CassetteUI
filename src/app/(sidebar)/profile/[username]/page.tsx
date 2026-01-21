@@ -324,7 +324,11 @@ export default function ProfilePage() {
             ) : null}
             {isCurrentUser && !showHeaderSkeleton && (
               <div className="px-4 mb-4">
-                <MusicConnectionsStatus variant="profile" />
+                <MusicConnectionsStatus
+                  variant="profile"
+                  platformPreferencesOverride={userBio?.platformPreferences}
+                  connectedServicesOverride={userBio?.connectedServices}
+                />
               </div>
             )}
             <div className="sticky top-0 z-10">

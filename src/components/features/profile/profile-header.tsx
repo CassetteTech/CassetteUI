@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { UserBio, ConnectedService } from '@/types';
+import { UserBio, ConnectedService, PlatformPreferenceInfo } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { VerificationBadge } from '@/components/ui/verification-badge';
@@ -86,9 +86,14 @@ export function ProfileHeader({
           </p>
         )}
         
-        {/* Connected Services */}
+        {/* Connected Services / Platform Preferences */}
         <div className="flex items-center mb-4">
-          <ConnectedServices services={userBio.connectedServices} isSmallScreen={isSmallScreen} isLargeScreen={isLargeScreen} />
+          <ConnectedServices
+            services={userBio.connectedServices}
+            platformPreferences={userBio.platformPreferences}
+            isSmallScreen={isSmallScreen}
+            isLargeScreen={isLargeScreen}
+          />
         </div>
         
         {/* Action Buttons */}
@@ -131,52 +136,78 @@ export function ProfileHeader({
   );
 }
 
-function ConnectedServices({ services, isSmallScreen, isLargeScreen }: { services: ConnectedService[], isSmallScreen: boolean, isLargeScreen: boolean }) {
-  const normalize = (value: unknown) => (typeof value === 'string' ? value : value ? String(value) : '').toLowerCase();
+function ConnectedServices({
+  services,
+  platformPreferences,
+  isSmallScreen,
+  isLargeScreen
+}: {
+  services: ConnectedService[];
+  platformPreferences?: PlatformPreferenceInfo[];
+  isSmallScreen: boolean;
+  isLargeScreen: boolean;
+}) {
+  const normalize = (value: unknown) => (typeof value === 'string' ? value : value ? String(value) : '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
   const getServiceIcon = (serviceType: string) => {
+    const normalized = normalize(serviceType);
     const iconMap: Record<string, string> = {
-      'spotify': '/images/social_images/ic_spotify.png',
-      'apple': '/images/social_images/ic_apple.png',
+      'spotify': '/images/spotify_logo_colored.png',
+      'applemusic': '/images/apple_music_logo_colored.png',
+      'apple': '/images/apple_music_logo_colored.png',
       'youtube': '/images/social_images/ic_yt_music.png',
       'tidal': '/images/social_images/ic_tidal.png',
-      'deezer': '/images/social_images/ic_deezer.png',
+      'deezer': '/images/deezer_logo_colored.png',
     };
-    
-    return iconMap[normalize(serviceType)] || '/images/social_images/ic_spotify.png';
+
+    return iconMap[normalized] || '/images/spotify_logo_colored.png';
   };
 
   const getServiceColor = (serviceType: string) => {
+    const normalized = normalize(serviceType);
     const colorMap: Record<string, string> = {
-      'spotify': 'text-green-500',
-      'apple': 'text-gray-300',
-      'youtube': 'text-red-500',
-      'tidal': 'text-blue-500',
-      'deezer': 'text-purple-500',
+      'spotify': 'bg-[#1DB954]/20 border-[#1DB954]/50',
+      'applemusic': 'bg-[#FA233B]/20 border-[#FA233B]/50',
+      'apple': 'bg-[#FA233B]/20 border-[#FA233B]/50',
+      'youtube': 'bg-red-500/20 border-red-500/50',
+      'tidal': 'bg-blue-500/20 border-blue-500/50',
+      'deezer': 'bg-purple-500/20 border-purple-500/50',
     };
-    
-    return colorMap[normalize(serviceType)] || 'text-gray-400';
+
+    return colorMap[normalized] || 'bg-gray-400/20 border-gray-400/50';
   };
 
-  if (!services || services.length === 0) {
+  // Use platformPreferences if available, fall back to connectedServices
+  const displayItems: Array<{ type: string; key: string }> = [];
+
+  if (platformPreferences && platformPreferences.length > 0) {
+    platformPreferences.forEach((pref, index) => {
+      displayItems.push({ type: pref.platform, key: `pref-${pref.platform}-${index}` });
+    });
+  } else if (services && services.length > 0) {
+    services.forEach((service, index) => {
+      displayItems.push({ type: service.serviceType, key: `service-${service.serviceType}-${index}` });
+    });
+  }
+
+  if (displayItems.length === 0) {
     return null;
   }
 
-  const iconSize = isSmallScreen ? 'w-5 h-5' : isLargeScreen ? 'w-7 h-7' : 'w-6 h-6';
-  const padding = isSmallScreen ? 'p-1' : 'p-1';
-  
+  const iconSize = isSmallScreen ? 'w-7 h-7' : isLargeScreen ? 'w-9 h-9' : 'w-8 h-8';
+
   return (
     <div className="flex gap-2 overflow-x-auto max-w-full">
-      {services.map((service, index) => (
+      {displayItems.map((item) => (
         <div
-          key={`${service.serviceType}-${index}`}
-          className={`flex-shrink-0 ${iconSize} rounded-full ${padding} ${getServiceColor(service.serviceType)} bg-opacity-20 border border-current`}
+          key={item.key}
+          className={`flex-shrink-0 ${iconSize} rounded-lg p-1.5 ${getServiceColor(item.type)} border`}
         >
           <Image
-            src={getServiceIcon(service.serviceType)}
-            alt={service.serviceType}
-            width={isSmallScreen ? 16 : isLargeScreen ? 24 : 20}
-            height={isSmallScreen ? 16 : isLargeScreen ? 24 : 20}
+            src={getServiceIcon(item.type)}
+            alt={item.type}
+            width={isSmallScreen ? 20 : isLargeScreen ? 28 : 24}
+            height={isSmallScreen ? 20 : isLargeScreen ? 28 : 24}
             className="w-full h-full object-contain"
           />
         </div>

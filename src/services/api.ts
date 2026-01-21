@@ -1,5 +1,5 @@
 import { clientConfig } from '@/lib/config-client';
-import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType, MediaListTrack, CreatePlaylistResponse } from '@/types';
+import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType, MediaListTrack, CreatePlaylistResponse, PlatformPreference } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 
 // interface MusicConnection {
@@ -440,6 +440,24 @@ class ApiService {
 
   async disconnectMusicService(service: string) {
     return this.request<{ success: boolean }>(`/api/v1/music-services/${service}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Platform preference endpoints (separate from OAuth authentication)
+  async getPlatformPreferences() {
+    return this.request<{ success: boolean; preferences: PlatformPreference[] }>('/api/v1/music-services/preferences');
+  }
+
+  async setPlatformPreferences(platforms: string[]) {
+    return this.request<{ success: boolean; preferences: PlatformPreference[]; message?: string }>('/api/v1/music-services/preferences', {
+      method: 'POST',
+      body: JSON.stringify({ platforms }),
+    });
+  }
+
+  async removePlatformPreference(platform: string) {
+    return this.request<{ success: boolean; message?: string }>(`/api/v1/music-services/preferences/${platform}`, {
       method: 'DELETE',
     });
   }

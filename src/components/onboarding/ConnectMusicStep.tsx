@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { Music, Check, ExternalLink, Loader2 } from 'lucide-react';
+import { Music, Check, Loader2 } from 'lucide-react';
 import Image from 'next/image';
-import { platformConnectService, type PlatformKey } from '@/services/platform-connect';
+import { platformConnectService } from '@/services/platform-connect';
 import { apiService } from '@/services/api';
+import { Switch } from '@/components/ui/switch';
 
 interface FormData {
   username: string;
@@ -25,55 +26,85 @@ interface ConnectMusicStepProps {
   isLastStep: boolean;
 }
 
+interface PlatformState {
+  isSelected: boolean;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}
 
 const MUSIC_SERVICES = [
   {
-    id: 'spotify' as PlatformKey,
+    id: 'Spotify' as const,
     name: 'Spotify',
     iconSrc: '/images/spotify_logo_colored.png',
-    description: 'Connect to share and discover music',
+    description: 'Add Spotify to your profile',
     bgColor: 'bg-[#1DB954]',
+    requiresAuth: false,
   },
   {
-    id: 'appleMusic' as PlatformKey,
+    id: 'AppleMusic' as const,
     name: 'Apple Music',
     iconSrc: '/images/apple_music_logo_colored.png',
-    description: 'Connect to share playlists',
+    description: 'Connect to create playlists',
     bgColor: 'bg-gradient-to-br from-[#FA233B] to-[#FB5C74]',
+    requiresAuth: true,
   },
   {
-    id: 'deezer' as PlatformKey,
+    id: 'Deezer' as const,
     name: 'Deezer',
     iconSrc: '/images/deezer_logo_colored.png',
-    description: 'Connect for music sharing',
+    description: 'Add Deezer to your profile',
     bgColor: 'bg-black',
+    requiresAuth: false,
   },
 ];
+
+type ServiceId = 'Spotify' | 'AppleMusic' | 'Deezer';
 
 export function ConnectMusicStep({
   onBack,
   onNext,
   isLastStep,
 }: ConnectMusicStepProps) {
-  const [connectedServices, setConnectedServices] = useState<string[]>([]);
-  const [isConnecting, setIsConnecting] = useState<string | null>(null);
-  const [isLoadingConnections, setIsLoadingConnections] = useState(true);
+  const [platformStates, setPlatformStates] = useState<Record<ServiceId, PlatformState>>({
+    Spotify: { isSelected: false, isAuthenticated: false, isLoading: false },
+    AppleMusic: { isSelected: false, isAuthenticated: false, isLoading: false },
+    Deezer: { isSelected: false, isAuthenticated: false, isLoading: false },
+  });
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
 
-  // Fetch existing connections on mount
+  // Fetch existing preferences and auth status on mount
   useEffect(() => {
-    async function fetchConnections() {
+    async function fetchPreferences() {
       try {
-        const response = await apiService.getMusicConnections();
-        if (response.services && response.services.length > 0) {
-          setConnectedServices(response.services);
+        const response = await apiService.getPlatformPreferences();
+        if (response.preferences) {
+          const newStates: Record<ServiceId, PlatformState> = {
+            Spotify: { isSelected: false, isAuthenticated: false, isLoading: false },
+            AppleMusic: { isSelected: false, isAuthenticated: false, isLoading: false },
+            Deezer: { isSelected: false, isAuthenticated: false, isLoading: false },
+          };
+
+          response.preferences.forEach(pref => {
+            const platform = pref.platform as ServiceId;
+            if (newStates[platform]) {
+              newStates[platform] = {
+                isSelected: true,
+                isAuthenticated: pref.isAuthenticated,
+                isLoading: false,
+              };
+            }
+          });
+
+          setPlatformStates(newStates);
         }
       } catch (error) {
-        console.error('Failed to fetch music connections:', error);
+        console.error('Failed to fetch platform preferences:', error);
       } finally {
-        setIsLoadingConnections(false);
+        setIsLoadingPreferences(false);
       }
     }
-    fetchConnections();
+    fetchPreferences();
   }, []);
 
   // Check URL params for connection success (after OAuth redirect)
@@ -83,85 +114,117 @@ export function ConnectMusicStep({
     const appleMusicConnected = params.get('applemusic_connected');
 
     if (spotifyConnected === 'true') {
-      setConnectedServices(prev => [...new Set([...prev, 'spotify'])]);
-      toast.success('Spotify connected!', {
-        description: 'Your account has been linked successfully.',
-      });
-      // Clean URL
+      setPlatformStates(prev => ({
+        ...prev,
+        Spotify: { ...prev.Spotify, isSelected: true, isAuthenticated: true },
+      }));
+      toast.success('Spotify connected!');
       window.history.replaceState({}, '', window.location.pathname);
     }
 
     if (appleMusicConnected === 'true') {
-      setConnectedServices(prev => [...new Set([...prev, 'appleMusic'])]);
-      toast.success('Apple Music connected!', {
-        description: 'Your account has been linked successfully.',
-      });
+      setPlatformStates(prev => ({
+        ...prev,
+        AppleMusic: { ...prev.AppleMusic, isSelected: true, isAuthenticated: true },
+      }));
+      toast.success('Apple Music connected!');
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
 
-  const handleConnect = async (serviceId: PlatformKey) => {
+  const handleToggle = async (serviceId: ServiceId) => {
     const service = MUSIC_SERVICES.find(s => s.id === serviceId);
     if (!service) return;
 
-    setIsConnecting(serviceId);
+    const currentState = platformStates[serviceId];
+    const newIsSelected = !currentState.isSelected;
+
+    // If turning on and requires auth (Apple Music), trigger auth flow
+    if (newIsSelected && service.requiresAuth) {
+      setPlatformStates(prev => ({
+        ...prev,
+        [serviceId]: { ...prev[serviceId], isLoading: true },
+      }));
+
+      try {
+        const returnUrl = window.location.pathname;
+        const success = await platformConnectService.connectAppleMusic(returnUrl);
+
+        if (success) {
+          // Save preference after successful auth
+          await apiService.setPlatformPreferences([
+            ...Object.entries(platformStates)
+              .filter(([id, state]) => state.isSelected && id !== serviceId)
+              .map(([id]) => id),
+            serviceId,
+          ]);
+
+          setPlatformStates(prev => ({
+            ...prev,
+            [serviceId]: { isSelected: true, isAuthenticated: true, isLoading: false },
+          }));
+          toast.success(`${service.name} connected!`);
+        } else {
+          setPlatformStates(prev => ({
+            ...prev,
+            [serviceId]: { ...prev[serviceId], isLoading: false },
+          }));
+          toast.error(`Failed to connect ${service.name}`, {
+            description: 'Authorization was cancelled or failed.',
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to connect ${service.name}:`, error);
+        setPlatformStates(prev => ({
+          ...prev,
+          [serviceId]: { ...prev[serviceId], isLoading: false },
+        }));
+        toast.error(`Failed to connect ${service.name}`);
+      }
+      return;
+    }
+
+    // For Spotify/Deezer, just toggle the preference
+    setPlatformStates(prev => ({
+      ...prev,
+      [serviceId]: { ...prev[serviceId], isLoading: true },
+    }));
 
     try {
-      // Store return URL so we come back to onboarding after OAuth
-      const returnUrl = window.location.pathname;
+      const newSelectedPlatforms = Object.entries(platformStates)
+        .filter(([id, state]) => {
+          if (id === serviceId) return newIsSelected;
+          return state.isSelected;
+        })
+        .map(([id]) => id);
 
-      switch (serviceId) {
-        case 'spotify':
-          // This will redirect to Spotify OAuth
-          await platformConnectService.connectSpotify(returnUrl);
-          // Note: Page will redirect, so we won't reach here
-          break;
+      await apiService.setPlatformPreferences(newSelectedPlatforms);
 
-        case 'appleMusic':
-          // Apple Music uses a modal, not redirect
-          const success = await platformConnectService.connectAppleMusic(returnUrl);
-          if (success) {
-            setConnectedServices(prev => [...prev, serviceId]);
-            toast.success(`${service.name} connected!`, {
-              description: 'Your account has been linked successfully.',
-            });
-          } else {
-            toast.error(`Failed to connect ${service.name}`, {
-              description: 'Authorization was cancelled or failed.',
-            });
-          }
-          break;
+      setPlatformStates(prev => ({
+        ...prev,
+        [serviceId]: {
+          ...prev[serviceId],
+          isSelected: newIsSelected,
+          isLoading: false,
+        },
+      }));
 
-        case 'deezer':
-          // Deezer not yet implemented
-          toast.info('Coming Soon', {
-            description: 'Deezer connection will be available soon.',
-          });
-          break;
+      if (newIsSelected) {
+        toast.success(`${service.name} added to your profile`);
+      } else {
+        toast.info(`${service.name} removed from your profile`);
       }
     } catch (error) {
-      console.error(`Failed to connect ${service.name}:`, error);
-      toast.error(`Failed to connect ${service.name}`, {
-        description: error instanceof Error ? error.message : 'Please try again later.',
-      });
-    } finally {
-      setIsConnecting(null);
+      console.error(`Failed to update ${service.name} preference:`, error);
+      setPlatformStates(prev => ({
+        ...prev,
+        [serviceId]: { ...prev[serviceId], isLoading: false },
+      }));
+      toast.error(`Failed to update ${service.name}`);
     }
   };
 
-  const handleDisconnect = async (serviceId: string) => {
-    const service = MUSIC_SERVICES.find(s => s.id === serviceId);
-    if (!service) return;
-
-    try {
-      await apiService.disconnectMusicService(serviceId);
-      setConnectedServices(prev => prev.filter(id => id !== serviceId));
-      toast.info(`${service.name} disconnected`);
-    } catch (error) {
-      console.error(`Failed to disconnect ${service.name}:`, error);
-      toast.error(`Failed to disconnect ${service.name}`);
-    }
-  };
+  const selectedCount = Object.values(platformStates).filter(s => s.isSelected).length;
 
   const handlePrimaryAction = () => {
     onNext();
@@ -176,19 +239,18 @@ export function ConnectMusicStep({
       className="space-y-6"
     >
       <div className="text-center text-muted-foreground mb-6">
-        <p>Connect your music streaming services to enhance your experience.</p>
-        <p className="text-xs mt-1 text-muted-foreground/70">You can always add these later in settings</p>
+        <p>Select the streaming services you use.</p>
+        <p className="text-xs mt-1 text-muted-foreground/70">You can always change these later in settings</p>
       </div>
 
-      {isLoadingConnections ? (
+      {isLoadingPreferences ? (
         <div className="flex justify-center py-8">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
         <div className="space-y-3">
           {MUSIC_SERVICES.map((service, index) => {
-            const isConnected = connectedServices.includes(service.id);
-            const isLoading = isConnecting === service.id;
+            const state = platformStates[service.id];
 
             return (
               <motion.div
@@ -197,7 +259,7 @@ export function ConnectMusicStep({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className={`p-4 transition-all duration-200 ${isConnected ? 'border-green-500/50 bg-green-500/5' : ''}`}>
+                <Card className={`p-4 transition-all duration-200 ${state.isSelected ? 'border-green-500/50 bg-green-500/5' : ''}`}>
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       {/* Service Icon */}
@@ -218,59 +280,22 @@ export function ConnectMusicStep({
                       </div>
                     </div>
 
-                    {/* Action Button */}
-                    <div className="flex-shrink-0">
-                      <AnimatePresence mode="wait">
-                        {isConnected ? (
-                          <motion.div
-                            key="connected"
-                            initial={{ scale: 0.8, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.8, opacity: 0 }}
-                            className="flex items-center gap-2"
-                          >
-                            <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
-                              <Check className="w-4 h-4" />
-                              Connected
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDisconnect(service.id)}
-                              className="text-muted-foreground text-xs h-7 px-2"
-                            >
-                              Disconnect
-                            </Button>
-                          </motion.div>
-                        ) : (
-                          <motion.div
-                            key="connect"
-                            initial={{ scale: 0.8, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.8, opacity: 0 }}
-                          >
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleConnect(service.id)}
-                              disabled={isLoading}
-                              className="gap-1.5"
-                            >
-                              {isLoading ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Connecting...
-                                </>
-                              ) : (
-                                <>
-                                  <ExternalLink className="w-4 h-4" />
-                                  Connect
-                                </>
-                              )}
-                            </Button>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                    {/* Toggle/Status */}
+                    <div className="flex-shrink-0 flex items-center gap-2">
+                      {state.isLoading ? (
+                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                      ) : (
+                        <>
+                          {state.isSelected && (
+                            <Check className="w-4 h-4 text-green-600" />
+                          )}
+                          <Switch
+                            checked={state.isSelected}
+                            onCheckedChange={() => handleToggle(service.id)}
+                            disabled={state.isLoading}
+                          />
+                        </>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -282,7 +307,7 @@ export function ConnectMusicStep({
 
       {/* Success Message */}
       <AnimatePresence>
-        {connectedServices.length > 0 && (
+        {selectedCount > 0 && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -293,9 +318,9 @@ export function ConnectMusicStep({
               <div className="flex items-center gap-2">
                 <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
                 <p className="text-sm text-green-700 dark:text-green-400">
-                  {connectedServices.length === 1
-                    ? 'Great! You\'ve connected 1 music service.'
-                    : `Great! You've connected ${connectedServices.length} music services.`}
+                  {selectedCount === 1
+                    ? 'Great! You\'ve selected 1 streaming service.'
+                    : `Great! You've selected ${selectedCount} streaming services.`}
                 </p>
               </div>
             </div>
@@ -309,7 +334,7 @@ export function ConnectMusicStep({
           Back
         </Button>
         <div className="flex gap-2">
-          {connectedServices.length === 0 && (
+          {selectedCount === 0 && (
             <Button
               variant="ghost"
               onClick={handlePrimaryAction}

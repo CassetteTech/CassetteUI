@@ -8,69 +8,86 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-
-interface MusicConnection {
-  serviceType: string;
-  isConnected: boolean;
-  connectedAt?: string;
-  isValid?: boolean;
-  accessToken?: string;
-  refreshToken?: string;
-  tokenExpiration?: string;
-}
-
-
+import { PlatformPreferenceInfo } from '@/types';
 
 interface MusicConnectionsStatusProps {
   variant?: 'sidebar' | 'sidebar-enhanced' | 'profile' | 'compact';
   className?: string;
-  /** Optional external user's connected services (for viewing other profiles) */
+  /** Optional external user's platform preferences (for viewing other profiles) */
+  platformPreferencesOverride?: PlatformPreferenceInfo[];
+  /** Legacy: Optional external user's connected services (for backward compatibility) */
   connectedServicesOverride?: Array<{ serviceType: string; connectedAt?: string }>;
 }
+
+const PLATFORM_CONFIG: Record<string, { name: string; iconSrc: string }> = {
+  spotify: {
+    name: 'Spotify',
+    iconSrc: '/images/spotify_logo_colored.png',
+  },
+  applemusic: {
+    name: 'Apple Music',
+    iconSrc: '/images/apple_music_logo_colored.png',
+  },
+  deezer: {
+    name: 'Deezer',
+    iconSrc: '/images/deezer_logo_colored.png',
+  },
+};
 
 export function MusicConnectionsStatus({
   variant = 'sidebar',
   className = "",
+  platformPreferencesOverride,
   connectedServicesOverride
 }: MusicConnectionsStatusProps) {
   const { user, isLoading } = useAuthStore();
-  const normalize = (value: unknown) => (typeof value === 'string' ? value : value ? String(value) : '').toLowerCase();
+  const normalize = (value: unknown) => (typeof value === 'string' ? value : value ? String(value) : '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
   // When override is provided, we have the data - don't use auth store loading state
-  const hasOverride = connectedServicesOverride !== undefined;
+  const hasOverride = platformPreferencesOverride !== undefined || connectedServicesOverride !== undefined;
 
-  // Get connected services - use override if provided (for viewing other profiles)
-  const connectedServices = connectedServicesOverride ?? user?.connectedServices ?? [];
+  // Get platforms to display - prefer platformPreferences, fall back to connectedServices for backward compatibility
+  let displayPlatforms: Array<{ platform: string; name: string; iconSrc: string }> = [];
 
-  // Transform to our format and add missing services
-  const connections: MusicConnection[] = [];
+  if (platformPreferencesOverride && platformPreferencesOverride.length > 0) {
+    // Use platform preferences (new system)
+    displayPlatforms = platformPreferencesOverride
+      .map(pref => {
+        const normalizedPlatform = normalize(pref.platform);
+        const config = PLATFORM_CONFIG[normalizedPlatform];
+        if (config) {
+          return { platform: normalizedPlatform, ...config };
+        }
+        return null;
+      })
+      .filter((p): p is NonNullable<typeof p> => p !== null);
+  } else if (connectedServicesOverride && connectedServicesOverride.length > 0) {
+    // Fall back to connected services (legacy)
+    displayPlatforms = connectedServicesOverride
+      .map(service => {
+        const normalizedPlatform = normalize(service.serviceType);
+        const config = PLATFORM_CONFIG[normalizedPlatform];
+        if (config) {
+          return { platform: normalizedPlatform, ...config };
+        }
+        return null;
+      })
+      .filter((p): p is NonNullable<typeof p> => p !== null);
+  } else if (user?.connectedServices) {
+    // Use auth store data
+    displayPlatforms = user.connectedServices
+      .map(service => {
+        const normalizedPlatform = normalize(service.serviceType);
+        const config = PLATFORM_CONFIG[normalizedPlatform];
+        if (config) {
+          return { platform: normalizedPlatform, ...config };
+        }
+        return null;
+      })
+      .filter((p): p is NonNullable<typeof p> => p !== null);
+  }
 
-  // Add connected services
-  connectedServices.forEach(service => {
-    connections.push({
-      serviceType: service.serviceType,
-      isConnected: true,
-      connectedAt: service.connectedAt,
-    });
-  });
-
-  // Add missing services as disconnected
-  const serviceTypes = ['Spotify', 'AppleMusic'];
-  serviceTypes.forEach(serviceType => {
-    // Check both capitalized and lowercase versions
-    const exists = connections.find(conn =>
-      normalize(conn.serviceType) === serviceType.toLowerCase()
-    );
-    if (!exists) {
-      connections.push({
-        serviceType,
-        isConnected: false
-      });
-    }
-  });
-
-  const connectedServicesFiltered = connections.filter(conn => conn.isConnected);
-  const hasConnections = connectedServicesFiltered.length > 0;
+  const hasConnections = displayPlatforms.length > 0;
 
   // Only show loading state if we're using auth store data (no override) and it's loading
   if (isLoading && !hasOverride) {
@@ -115,26 +132,15 @@ export function MusicConnectionsStatus({
 
     return (
       <div className={`flex items-center gap-2 ${className}`}>
-        {connectedServicesFiltered.map(conn => (
-          <div key={conn.serviceType} className="relative">
-            {normalize(conn.serviceType) === 'spotify' && (
-              <Image
-                src="/images/spotify_logo_colored.png"
-                alt="Spotify"
-                width={20}
-                height={20}
-                className="rounded"
-              />
-            )}
-            {normalize(conn.serviceType) === 'applemusic' && (
-              <Image
-                src="/images/apple_music_logo_colored.png"
-                alt="Apple Music"
-                width={20}
-                height={20}
-                className="rounded"
-              />
-            )}
+        {displayPlatforms.map(platform => (
+          <div key={platform.platform} className="relative">
+            <Image
+              src={platform.iconSrc}
+              alt={platform.name}
+              width={20}
+              height={20}
+              className="rounded"
+            />
           </div>
         ))}
       </div>
@@ -148,69 +154,27 @@ export function MusicConnectionsStatus({
       return null;
     }
 
-    // Helper to check service type - handles both string and numeric enum values
-    // Backend enum: 0 = Spotify, 1 = AppleMusic, 2 = Deezer
-    const isSpotify = (serviceType: string | number) => {
-      if (typeof serviceType === 'number') {
-        return serviceType === 0;
-      }
-      const normalized = normalize(serviceType);
-      return normalized === 'spotify' || normalized === '0';
-    };
-
-    const isAppleMusic = (serviceType: string | number) => {
-      if (typeof serviceType === 'number') {
-        return serviceType === 1;
-      }
-      const normalized = normalize(serviceType).replace(/\s+/g, '');
-      return normalized === 'applemusic' || normalized === 'apple_music' || normalized === 'apple' || normalized === '1';
-    };
-
-    const getServiceName = (serviceType: string | number) => {
-      if (isSpotify(serviceType)) return 'Spotify';
-      if (isAppleMusic(serviceType)) return 'Apple Music';
-      return String(serviceType);
-    };
-
-    const getServiceIcon = (serviceType: string | number): string | null => {
-      if (isSpotify(serviceType)) return '/images/spotify_logo_colored.png';
-      if (isAppleMusic(serviceType)) return '/images/apple_music_logo_colored.png';
-      console.warn('[MusicConnectionsStatus] Unknown service type:', serviceType);
-      return null;
-    };
-
     return (
       <div className={`flex items-center gap-2.5 ${className}`}>
-        {connectedServicesFiltered.map(conn => {
-          const iconSrc = getServiceIcon(conn.serviceType);
-          const serviceName = getServiceName(conn.serviceType);
-
-          return (
-            <Tooltip key={conn.serviceType}>
-              <TooltipTrigger asChild>
-                <div className="relative group cursor-default">
-                  {iconSrc ? (
-                    <Image
-                      src={iconSrc}
-                      alt={serviceName}
-                      width={24}
-                      height={24}
-                      className="rounded-md transition-transform group-hover:scale-110"
-                    />
-                  ) : (
-                    <div className="w-6 h-6 bg-muted rounded-md flex items-center justify-center">
-                      <Music className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                  )}
-                  <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-card" />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={4}>
-                {serviceName} Connected
-              </TooltipContent>
-            </Tooltip>
-          );
-        })}
+        {displayPlatforms.map(platform => (
+          <Tooltip key={platform.platform}>
+            <TooltipTrigger asChild>
+              <div className="relative group cursor-default">
+                <Image
+                  src={platform.iconSrc}
+                  alt={platform.name}
+                  width={24}
+                  height={24}
+                  className="rounded-md transition-transform group-hover:scale-110"
+                />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-card" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={4}>
+              {platform.name}
+            </TooltipContent>
+          </Tooltip>
+        ))}
       </div>
     );
   }
@@ -224,55 +188,33 @@ export function MusicConnectionsStatus({
             {/* Desktop version - with text */}
             <div className="hidden md:flex items-center gap-3">
               <div className="flex items-center gap-2">
-                {connectedServicesFiltered.map(conn => (
-                  <div key={conn.serviceType} className="relative">
-                    {normalize(conn.serviceType) === 'spotify' && (
-                      <Image
-                        src="/images/spotify_logo_colored.png"
-                        alt="Spotify Connected"
-                        width={24}
-                        height={24}
-                        className="rounded-sm"
-                      />
-                    )}
-                    {normalize(conn.serviceType) === 'applemusic' && (
-                      <Image
-                        src="/images/apple_music_logo_colored.png"
-                        alt="Apple Music Connected"
-                        width={24}
-                        height={24}
-                        className="rounded-sm"
-                      />
-                    )}
-                  </div>
+                {displayPlatforms.map(platform => (
+                  <Image
+                    key={platform.platform}
+                    src={platform.iconSrc}
+                    alt={platform.name}
+                    width={24}
+                    height={24}
+                    className="rounded-sm"
+                  />
                 ))}
               </div>
-              <span className="text-sm text-muted-foreground">Connected</span>
+              <span className="text-sm text-muted-foreground">
+                {displayPlatforms.length === 1 ? displayPlatforms[0].name : 'Connected'}
+              </span>
             </div>
-            
+
             {/* Mobile version - only icons */}
             <div className="flex md:hidden items-center gap-2">
-              {connectedServicesFiltered.map(conn => (
-                <div key={conn.serviceType} className="relative">
-                  {normalize(conn.serviceType) === 'spotify' && (
-                    <Image
-                      src="/images/spotify_logo_colored.png"
-                      alt="Spotify Connected"
-                      width={28}
-                      height={28}
-                      className="rounded-md shadow-sm"
-                    />
-                  )}
-                  {normalize(conn.serviceType) === 'applemusic' && (
-                    <Image
-                      src="/images/apple_music_logo_colored.png"
-                      alt="Apple Music Connected"
-                      width={28}
-                      height={28}
-                      className="rounded-md shadow-sm"
-                    />
-                  )}
-                </div>
+              {displayPlatforms.map(platform => (
+                <Image
+                  key={platform.platform}
+                  src={platform.iconSrc}
+                  alt={platform.name}
+                  width={28}
+                  height={28}
+                  className="rounded-md shadow-sm"
+                />
               ))}
             </div>
           </>
@@ -281,7 +223,7 @@ export function MusicConnectionsStatus({
             <div className="w-5 h-5 bg-muted/50 rounded-md flex items-center justify-center">
               <Music className="h-3 w-3 text-muted-foreground" />
             </div>
-            <span className="text-xs text-muted-foreground">No services connected</span>
+            <span className="text-xs text-muted-foreground">No services selected</span>
           </div>
         )}
       </div>
@@ -295,32 +237,21 @@ export function MusicConnectionsStatus({
         {hasConnections ? (
           <>
             <div className="flex items-center gap-1">
-              {connectedServicesFiltered.map(conn => (
-                <div key={conn.serviceType} className="relative">
-                  {normalize(conn.serviceType) === 'spotify' && (
-                    <Image
-                      src="/images/spotify_logo_colored.png"
-                      alt="Spotify"
-                      width={14}
-                      height={14}
-                      className="rounded-sm"
-                    />
-                  )}
-                  {normalize(conn.serviceType) === 'applemusic' && (
-                    <Image
-                      src="/images/apple_music_logo_colored.png"
-                      alt="Apple Music"
-                      width={14}
-                      height={14}
-                      className="rounded-sm"
-                    />
-                  )}
+              {displayPlatforms.map(platform => (
+                <div key={platform.platform} className="relative">
+                  <Image
+                    src={platform.iconSrc}
+                    alt={platform.name}
+                    width={14}
+                    height={14}
+                    className="rounded-sm"
+                  />
                   <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full"></div>
                 </div>
               ))}
             </div>
             <span className="text-xs text-muted-foreground">
-              {connectedServicesFiltered.length} connected
+              {displayPlatforms.length} selected
             </span>
           </>
         ) : (

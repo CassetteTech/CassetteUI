@@ -1,152 +1,212 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ConnectSpotifyButton } from '@/components/features/profile/connect-spotify-button';
-import { ConnectAppleMusicButton } from '@/components/features/profile/connect-apple-music-button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { ChevronDown, ChevronUp, Loader2, Check } from 'lucide-react';
+import { toast } from 'sonner';
+import Image from 'next/image';
 import { apiService } from '@/services/api';
+import { platformConnectService } from '@/services/platform-connect';
 
-interface MusicConnection {
-  serviceType: string;
-  isConnected: boolean;
-  connectedAt?: string;
-  isValid?: boolean;
-  accessToken?: string;
-  refreshToken?: string;
-  tokenExpiration?: string;
+interface PlatformState {
+  isSelected: boolean;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  addedAt?: string;
 }
+
+type ServiceId = 'Spotify' | 'AppleMusic' | 'Deezer';
+
+const MUSIC_SERVICES = [
+  {
+    id: 'Spotify' as ServiceId,
+    name: 'Spotify',
+    iconSrc: '/images/spotify_logo_colored.png',
+    bgColor: 'bg-[#1DB954]',
+    requiresAuth: false,
+    description: 'Share music and create playlists',
+  },
+  {
+    id: 'AppleMusic' as ServiceId,
+    name: 'Apple Music',
+    iconSrc: '/images/apple_music_logo_colored.png',
+    bgColor: 'bg-gradient-to-br from-[#FA233B] to-[#FB5C74]',
+    requiresAuth: true,
+    description: 'Requires authorization for playlists',
+  },
+  {
+    id: 'Deezer' as ServiceId,
+    name: 'Deezer',
+    iconSrc: '/images/deezer_logo_colored.png',
+    bgColor: 'bg-black',
+    requiresAuth: false,
+    description: 'Share music from Deezer',
+  },
+];
 
 interface MusicConnectionsFlowProps {
   className?: string;
   onConnectionChange?: (hasConnections: boolean) => void;
 }
 
-export function MusicConnectionsFlow({ 
+export function MusicConnectionsFlow({
   className = "",
   onConnectionChange
 }: MusicConnectionsFlowProps) {
-  const [connections, setConnections] = useState<MusicConnection[]>([]);
+  const [platformStates, setPlatformStates] = useState<Record<ServiceId, PlatformState>>({
+    Spotify: { isSelected: false, isAuthenticated: false, isLoading: false },
+    AppleMusic: { isSelected: false, isAuthenticated: false, isLoading: false },
+    Deezer: { isSelected: false, isAuthenticated: false, isLoading: false },
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
-    const fetchConnections = async () => {
+    const fetchPreferences = async () => {
       try {
-        console.log('MusicConnectionsFlow: Fetching connections from API...');
+        console.log('MusicConnectionsFlow: Fetching preferences from API...');
+        const response = await apiService.getPlatformPreferences();
 
-        const { services = [] } = await apiService.getMusicConnections();
-        const normalized = services.map((s) => (typeof s === 'string' ? s : String(s)).toLowerCase());
-        const normalizedClean = normalized.map((s) => s.replace(/[^a-z0-9]/gi, ''));
-        const mapped: MusicConnection[] = [];
+        if (response.preferences) {
+          const newStates: Record<ServiceId, PlatformState> = {
+            Spotify: { isSelected: false, isAuthenticated: false, isLoading: false },
+            AppleMusic: { isSelected: false, isAuthenticated: false, isLoading: false },
+            Deezer: { isSelected: false, isAuthenticated: false, isLoading: false },
+          };
 
-        if (normalizedClean.includes('spotify')) {
-          mapped.push({
-            serviceType: 'Spotify',
-            isConnected: true,
-            connectedAt: new Date().toISOString(),
-            isValid: true,
+          response.preferences.forEach(pref => {
+            const platform = pref.platform as ServiceId;
+            if (newStates[platform]) {
+              newStates[platform] = {
+                isSelected: true,
+                isAuthenticated: pref.isAuthenticated,
+                isLoading: false,
+                addedAt: pref.addedAt,
+              };
+            }
           });
+
+          setPlatformStates(newStates);
+          console.log('MusicConnectionsFlow: Loaded preferences:', newStates);
+
+          const hasConnections = Object.values(newStates).some(s => s.isSelected);
+          onConnectionChange?.(hasConnections);
         }
-
-        if (normalizedClean.includes('applemusic')) {
-          mapped.push({
-            serviceType: 'AppleMusic',
-            isConnected: true,
-            connectedAt: new Date().toISOString(),
-            isValid: true,
-          });
-        }
-
-        ['Spotify', 'AppleMusic'].forEach(serviceType => {
-          if (!mapped.find(conn => conn.serviceType === serviceType)) {
-            mapped.push({
-              serviceType,
-              isConnected: false
-            });
-          }
-        });
-
-        console.log('MusicConnectionsFlow: Transformed connections:', mapped);
-        setConnections(mapped);
       } catch (error) {
-        console.error('MusicConnectionsFlow: Failed to fetch music connections:', error);
-        setConnections([
-          { serviceType: 'Spotify', isConnected: false },
-          { serviceType: 'AppleMusic', isConnected: false },
-        ]);
+        console.error('MusicConnectionsFlow: Failed to fetch preferences:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchConnections();
-  }, []);
+    fetchPreferences();
+  }, [onConnectionChange]);
 
-  const handleSpotifyConnect = () => {
-    setConnections(prev => {
-      const updated = prev.map(conn => 
-        conn.serviceType === 'Spotify' 
-          ? { ...conn, isConnected: true, connectedAt: new Date().toISOString() }
-          : conn
-      );
-      const hasConnections = updated.some(conn => conn.isConnected);
-      onConnectionChange?.(hasConnections);
-      return updated;
-    });
+  const handleToggle = async (serviceId: ServiceId) => {
+    const service = MUSIC_SERVICES.find(s => s.id === serviceId);
+    if (!service) return;
+
+    const currentState = platformStates[serviceId];
+    const newIsSelected = !currentState.isSelected;
+
+    // If turning on and requires auth (Apple Music), trigger auth flow
+    if (newIsSelected && service.requiresAuth) {
+      setPlatformStates(prev => ({
+        ...prev,
+        [serviceId]: { ...prev[serviceId], isLoading: true },
+      }));
+
+      try {
+        const returnUrl = window.location.pathname;
+        const success = await platformConnectService.connectAppleMusic(returnUrl);
+
+        if (success) {
+          // Save preference after successful auth
+          const newSelectedPlatforms = Object.entries(platformStates)
+            .filter(([id, state]) => state.isSelected || id === serviceId)
+            .map(([id]) => id);
+
+          await apiService.setPlatformPreferences(newSelectedPlatforms);
+
+          setPlatformStates(prev => {
+            const updated = {
+              ...prev,
+              [serviceId]: { isSelected: true, isAuthenticated: true, isLoading: false },
+            };
+            onConnectionChange?.(Object.values(updated).some(s => s.isSelected));
+            return updated;
+          });
+          toast.success(`${service.name} connected!`);
+        } else {
+          setPlatformStates(prev => ({
+            ...prev,
+            [serviceId]: { ...prev[serviceId], isLoading: false },
+          }));
+          toast.error(`Failed to connect ${service.name}`, {
+            description: 'Authorization was cancelled or failed.',
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to connect ${service.name}:`, error);
+        setPlatformStates(prev => ({
+          ...prev,
+          [serviceId]: { ...prev[serviceId], isLoading: false },
+        }));
+        toast.error(`Failed to connect ${service.name}`);
+      }
+      return;
+    }
+
+    // For Spotify/Deezer (or turning off Apple Music), just toggle the preference
+    setPlatformStates(prev => ({
+      ...prev,
+      [serviceId]: { ...prev[serviceId], isLoading: true },
+    }));
+
+    try {
+      const newSelectedPlatforms = Object.entries(platformStates)
+        .filter(([id, state]) => {
+          if (id === serviceId) return newIsSelected;
+          return state.isSelected;
+        })
+        .map(([id]) => id);
+
+      await apiService.setPlatformPreferences(newSelectedPlatforms);
+
+      setPlatformStates(prev => {
+        const updated = {
+          ...prev,
+          [serviceId]: {
+            ...prev[serviceId],
+            isSelected: newIsSelected,
+            isLoading: false,
+          },
+        };
+        onConnectionChange?.(Object.values(updated).some(s => s.isSelected));
+        return updated;
+      });
+
+      if (newIsSelected) {
+        toast.success(`${service.name} added to your profile`);
+      } else {
+        toast.info(`${service.name} removed from your profile`);
+      }
+    } catch (error) {
+      console.error(`Failed to update ${service.name} preference:`, error);
+      setPlatformStates(prev => ({
+        ...prev,
+        [serviceId]: { ...prev[serviceId], isLoading: false },
+      }));
+      toast.error(`Failed to update ${service.name}`);
+    }
   };
 
-  const handleSpotifyDisconnect = () => {
-    setConnections(prev => {
-      const updated = prev.map(conn => 
-        conn.serviceType === 'Spotify' 
-          ? { ...conn, isConnected: false, connectedAt: undefined }
-          : conn
-      );
-      const hasConnections = updated.some(conn => conn.isConnected);
-      onConnectionChange?.(hasConnections);
-      return updated;
-    });
-  };
-
-  const handleAppleMusicConnect = () => {
-    setConnections(prev => {
-      const updated = prev.map(conn => 
-        conn.serviceType === 'AppleMusic' 
-          ? { ...conn, isConnected: true, connectedAt: new Date().toISOString() }
-          : conn
-      );
-      const hasConnections = updated.some(conn => conn.isConnected);
-      onConnectionChange?.(hasConnections);
-      return updated;
-    });
-  };
-
-  const handleAppleMusicDisconnect = () => {
-    setConnections(prev => {
-      const updated = prev.map(conn => 
-        conn.serviceType === 'AppleMusic' 
-          ? { ...conn, isConnected: false, connectedAt: undefined }
-          : conn
-      );
-      const hasConnections = updated.some(conn => conn.isConnected);
-      onConnectionChange?.(hasConnections);
-      return updated;
-    });
-  };
-
-  const spotifyConnection = connections.find(conn => conn.serviceType === 'Spotify');
-  const appleMusicConnection = connections.find(conn => conn.serviceType === 'AppleMusic');
-  const hasConnections = connections.some(conn => conn.isConnected);
-  const hasDisconnectedServices = connections.some(conn => !conn.isConnected);
-
-  console.log('🎵 MusicConnectionsFlow: All connections:', connections);
-  console.log('🎵 MusicConnectionsFlow: Spotify connection:', spotifyConnection);
-  console.log('🎵 MusicConnectionsFlow: Apple Music connection:', appleMusicConnection);
-  console.log('🎵 MusicConnectionsFlow: Has connections:', hasConnections);
-  console.log('🎵 MusicConnectionsFlow: Has disconnected services:', hasDisconnectedServices);
+  const selectedPlatforms = MUSIC_SERVICES.filter(s => platformStates[s.id].isSelected);
+  const hasConnections = selectedPlatforms.length > 0;
+  const hasUnselectedServices = selectedPlatforms.length < MUSIC_SERVICES.length;
 
   if (isLoading) {
     return (
@@ -155,13 +215,13 @@ export function MusicConnectionsFlow({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-lg">Music Services</CardTitle>
-              <CardDescription>Loading your connections...</CardDescription>
+              <CardDescription>Loading your preferences...</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center p-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         </CardContent>
       </Card>
@@ -175,9 +235,9 @@ export function MusicConnectionsFlow({
           <div>
             <CardTitle className="text-lg">Music Services</CardTitle>
             <CardDescription>
-              {hasConnections 
-                ? "Connected services for easier music discovery"
-                : "Connect your streaming services for easier music discovery"
+              {hasConnections
+                ? "Streaming services on your profile"
+                : "Select the streaming services you use"
               }
             </CardDescription>
           </div>
@@ -188,7 +248,7 @@ export function MusicConnectionsFlow({
               onClick={() => setIsExpanded(!isExpanded)}
               className="flex items-center gap-1"
             >
-              {hasDisconnectedServices ? 'Connect More' : 'Manage'}
+              {hasUnselectedServices ? 'Add More' : 'Manage'}
               {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
           )}
@@ -199,71 +259,74 @@ export function MusicConnectionsFlow({
         {hasConnections && !isExpanded && (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
-              {connections
-                .filter(conn => conn.isConnected)
-                .map(conn => (
-                  <Badge key={conn.serviceType} variant="secondary" className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    {conn.serviceType === 'Spotify' ? 'Spotify' : 'Apple Music'}
-                  </Badge>
-                ))}
+              {selectedPlatforms.map(service => (
+                <Badge key={service.id} variant="secondary" className="flex items-center gap-1.5 py-1 px-2">
+                  <Image
+                    src={service.iconSrc}
+                    alt={service.name}
+                    width={16}
+                    height={16}
+                    className="rounded-sm"
+                  />
+                  {service.name}
+                </Badge>
+              ))}
             </div>
-            {hasDisconnectedServices && (
+            {hasUnselectedServices && (
               <p className="text-sm text-muted-foreground">
-                Connect more services to discover music from all your platforms
+                Click &quot;Add More&quot; to add additional streaming services
               </p>
             )}
           </div>
         )}
 
-        {/* Connection Flow */}
+        {/* Full Platform List */}
         {(!hasConnections || isExpanded) && (
-          <div className="space-y-4">
-            {hasDisconnectedServices && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {!spotifyConnection?.isConnected && (
-                  <ConnectSpotifyButton
-                    isConnected={spotifyConnection?.isConnected}
-                    onConnect={handleSpotifyConnect}
-                    onDisconnect={handleSpotifyDisconnect}
-                  />
-                )}
-                
-                {!appleMusicConnection?.isConnected && (
-                  <ConnectAppleMusicButton
-                    isConnected={appleMusicConnection?.isConnected}
-                    onConnect={handleAppleMusicConnect}
-                    onDisconnect={handleAppleMusicDisconnect}
-                  />
-                )}
-              </div>
-            )}
+          <div className="space-y-3">
+            {MUSIC_SERVICES.map(service => {
+              const state = platformStates[service.id];
 
-            {/* Connected Services Detail */}
-            {hasConnections && isExpanded && (
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm">Connected Services</h4>
-                <div className="space-y-2">
-                  {connections
-                    .filter(conn => conn.isConnected)
-                    .map(conn => (
-                      <div key={conn.serviceType} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          <span className="capitalize font-medium">
-                            {conn.serviceType === 'Spotify' ? 'Spotify' : 'Apple Music'}
-                          </span>
-                        </div>
-                        {conn.connectedAt && (
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(conn.connectedAt).toLocaleDateString()}
-                          </span>
+              return (
+                <div
+                  key={service.id}
+                  className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                    state.isSelected ? 'bg-green-500/5 border-green-500/30' : 'bg-muted/50 border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg ${service.bgColor} flex items-center justify-center p-1.5`}>
+                      <Image
+                        src={service.iconSrc}
+                        alt={service.name}
+                        width={28}
+                        height={28}
+                        className="object-contain"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{service.name}</span>
+                        {state.isSelected && (
+                          <Check className="w-4 h-4 text-green-600" />
                         )}
                       </div>
-                    ))}
+                      <p className="text-xs text-muted-foreground">{service.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {state.isLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Switch
+                        checked={state.isSelected}
+                        onCheckedChange={() => handleToggle(service.id)}
+                        disabled={state.isLoading}
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })}
           </div>
         )}
       </CardContent>

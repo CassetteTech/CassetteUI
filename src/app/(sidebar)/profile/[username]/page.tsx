@@ -356,7 +356,7 @@ export default function ProfilePage() {
       </div>
 
       {/* --- DESKTOP LAYOUT --- */}
-      <div className="hidden lg:flex lg:flex-col lg:flex-1">
+      <div className="hidden lg:flex lg:flex-col lg:flex-1 lg:min-h-0">
         <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b">
           <ProfileTabs
             activeTab={activeTab}

@@ -119,11 +119,13 @@ export function EditProfileFormComponent({
     setAvatarError(null);
     setUsernameError(null);
     setAvatarFile(null);
-    if (avatarPreviewUrl) {
-      URL.revokeObjectURL(avatarPreviewUrl);
-      setAvatarPreviewUrl(null);
-    }
-  }, [initialData, reset, avatarPreviewUrl]);
+    setAvatarPreviewUrl((current) => {
+      if (current) {
+        URL.revokeObjectURL(current);
+      }
+      return null;
+    });
+  }, [initialData, reset]);
 
   const startCooldown = () => {
     setIsSaveOnCooldown(true);

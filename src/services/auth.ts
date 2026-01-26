@@ -39,7 +39,7 @@ class AuthService {
     const payload = {
       email: email.toLowerCase().trim(),
       password,
-      username: username.trim(),
+      username: username.trim().toLowerCase(),
     };
 
     console.log('🔄 [Auth] Starting signup request');

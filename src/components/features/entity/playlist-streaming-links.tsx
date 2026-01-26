@@ -15,13 +15,13 @@ import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
 import { openInAppOrBrowser, isAppleMusicLibraryUrl } from '@/utils/deep-link';
 import { clientConfig } from '@/lib/config-client';
 
-type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
+type PlatformKey = 'spotify' | 'appleMusic';
 
 interface PlaylistStreamingLinksProps {
   links: {
     spotify?: string;
     appleMusic?: string;
-    deezer?: string;
+    // deezer?: string;
   };
   className?: string;
   playlistId: string;
@@ -36,13 +36,12 @@ interface CreationStatus {
   error?: string;
 }
 
-const PLATFORMS: Array<PlatformKey> = ['spotify', 'appleMusic', 'deezer'];
+const PLATFORMS: Array<PlatformKey> = ['spotify', 'appleMusic'];
 
 const normalizePlatformKey = (platform?: string | null): PlatformKey | null => {
   if (!platform) return null;
   const lowered = platform.toLowerCase();
   if (lowered === 'spotify') return 'spotify';
-  if (lowered === 'deezer') return 'deezer';
   if (lowered === 'applemusic' || lowered === 'apple') return 'appleMusic';
   return null;
 };
@@ -66,8 +65,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   const fallbackSourceUrl =
     (normalizedFromProp ? links[normalizedFromProp] : undefined) ||
     links.spotify ||
-    links.appleMusic ||
-    links.deezer;
+    links.appleMusic;
   const resolvedSourceUrl = providedSourceUrl || fallbackSourceUrl || null;
   const detectedFromResolved = resolvedSourceUrl ? detectContentType(resolvedSourceUrl).platform : null;
   const sourcePlatformKey =
@@ -131,14 +129,15 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
             });
           }
           return;
-        } else if (platform === 'deezer') {
-          setCreationStatus({
-            platform,
-            loading: false,
-            error: 'Please connect Deezer in your profile settings first.',
-          });
-          return;
         }
+        // } else if (platform === 'deezer') {
+        //   setCreationStatus({
+        //     platform,
+        //     loading: false,
+        //     error: 'Please connect Deezer in your profile settings first.',
+        //   });
+        //   return;
+        // }
       }
 
       // Case 3: Has connection - create playlist directly

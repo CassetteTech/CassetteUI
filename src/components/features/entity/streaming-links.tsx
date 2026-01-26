@@ -36,13 +36,13 @@ export const streamingServices: Record<string, StreamingService> = {
     bgColor: 'bg-red-50',
     borderColor: 'border-red-400',
   },
-  deezer: {
-    name: 'Deezer',
-    icon: '/images/deezer_logo_colored.png',
-    color: '#FF6B3D',
-    bgColor: 'bg-orange-50',
-    borderColor: 'border-orange-400',
-  },
+  // deezer: {
+  //   name: 'Deezer',
+  //   icon: '/images/deezer_logo_colored.png',
+  //   color: '#FF6B3D',
+  //   bgColor: 'bg-orange-50',
+  //   borderColor: 'border-orange-400',
+  // },
   tidal: {
     name: 'Tidal',
     icon: '/images/social_images/ic_tidal.png',

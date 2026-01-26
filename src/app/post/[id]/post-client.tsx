@@ -204,7 +204,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             response.platforms?.spotify?.url ||
             response.platforms?.applemusic?.url ||
             response.platforms?.appleMusic?.url ||
-            response.platforms?.deezer?.url ||
             '';
           const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; createdAt?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; } = {
             originalUrl: originalLink,
@@ -305,7 +304,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             // Extract preview URL
             transformedData.previewUrl = response.details?.previewUrl ||
                                        response.platforms?.spotify?.previewUrl ||
-                                       response.platforms?.deezer?.previewUrl ||
                                        response.platforms?.applemusic?.previewUrl ||
                                        response.platforms?.appleMusic?.previewUrl;
           }
@@ -413,11 +411,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const showSignupCTA = !isLoading && !isAuthenticated;
 
   // Source platform detection for playlist attribution badge
-  const normalizePlatformKey = (platform?: string | null): 'spotify' | 'appleMusic' | 'deezer' | null => {
+  const normalizePlatformKey = (platform?: string | null): 'spotify' | 'appleMusic' | null => {
     if (!platform) return null;
     const lowered = platform.toLowerCase();
     if (lowered === 'spotify') return 'spotify';
-    if (lowered === 'deezer') return 'deezer';
     if (lowered === 'applemusic' || lowered === 'apple') return 'appleMusic';
     return null;
   };
@@ -428,8 +425,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const fallbackSourceUrl =
     (normalizedFromProp ? convertedUrls[normalizedFromProp] : undefined) ||
     convertedUrls.spotify ||
-    convertedUrls.appleMusic ||
-    convertedUrls.deezer;
+    convertedUrls.appleMusic;
   const resolvedSourceUrl = providedSourceUrl || fallbackSourceUrl || null;
   const detectedFromResolved = resolvedSourceUrl ? detectContentType(resolvedSourceUrl).platform : null;
   const sourcePlatformKey =
@@ -691,7 +687,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             links={convertedUrls}
                             className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                             playlistId={postData?.musicElementId || ''}
-                            sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
+                            sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic}
                             sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                           />
                         ) : (
@@ -968,7 +964,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                               links={convertedUrls}
                               className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                               playlistId={postData?.musicElementId || ''}
-                              sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
+                              sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic}
                               sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                             />
                           ) : (
@@ -1334,7 +1330,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     links={convertedUrls}
                     className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                     playlistId={postData?.musicElementId || ''}
-                    sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
+                    sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic}
                     sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                   />
                 ) : (

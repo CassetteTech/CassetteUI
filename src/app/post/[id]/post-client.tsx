@@ -407,6 +407,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const isPlaylist = metadata.type === ElementType.PLAYLIST || detectedTypeFromUrl === 'playlist';
   const typeLabel = isTrack ? 'Track' : isAlbum ? 'Album' : isArtist ? 'Artist' : 'Playlist';
   const showTracks = (isAlbum || isPlaylist) && Array.isArray(postData?.tracks) && (postData.tracks?.length ?? 0) > 0;
+  const playlistTrackCount = Array.isArray(postData?.tracks) && postData.tracks.length > 0
+    ? postData.tracks.length
+    : typeof postData?.trackCount === 'number'
+      ? postData.trackCount
+      : undefined;
   const useSplitScrollLayout = isDesktop && (isAlbum || isPlaylist);
   const showSignupCTA = !isLoading && !isAuthenticated;
 
@@ -687,6 +692,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             links={convertedUrls}
                             className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                             playlistId={postData?.musicElementId || ''}
+                            playlistTrackCount={playlistTrackCount}
                             sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic}
                             sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                           />
@@ -964,6 +970,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                               links={convertedUrls}
                               className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                               playlistId={postData?.musicElementId || ''}
+                              playlistTrackCount={playlistTrackCount}
                               sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic}
                               sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                             />
@@ -1330,6 +1337,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     links={convertedUrls}
                     className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                     playlistId={postData?.musicElementId || ''}
+                    playlistTrackCount={playlistTrackCount}
                     sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic}
                     sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                   />

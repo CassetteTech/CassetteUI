@@ -25,6 +25,7 @@ interface PlaylistStreamingLinksProps {
   };
   className?: string;
   playlistId: string;
+  playlistTrackCount?: number;
   sourceUrl?: string;
   sourcePlatform?: string;
 }
@@ -37,6 +38,7 @@ interface CreationStatus {
 }
 
 const PLATFORMS: Array<PlatformKey> = ['spotify', 'appleMusic'];
+const PLAYLIST_CONVERSION_LIMIT = 200;
 
 const normalizePlatformKey = (platform?: string | null): PlatformKey | null => {
   if (!platform) return null;
@@ -50,6 +52,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   links,
   className,
   playlistId,
+  playlistTrackCount,
   sourceUrl,
   sourcePlatform,
 }) => {
@@ -58,6 +61,8 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   const [showFailedTracks, setShowFailedTracks] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [pendingPlatform, setPendingPlatform] = useState<PlatformKey | null>(null);
+  const conversionBlocked =
+    typeof playlistTrackCount === 'number' && playlistTrackCount > PLAYLIST_CONVERSION_LIMIT;
 
   const providedSourceUrl = sourceUrl?.trim();
   const detectedFromProvided = providedSourceUrl ? detectContentType(providedSourceUrl).platform : null;
@@ -78,6 +83,15 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
   const handleCreatePlaylist = async (platform: PlatformKey) => {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+    if (conversionBlocked) {
+      setCreationStatus({
+        platform,
+        loading: false,
+        error: `Playlist conversions are limited to ${PLAYLIST_CONVERSION_LIMIT} tracks. This playlist has ${playlistTrackCount}.`,
+      });
+      return;
+    }
 
     // Case 1: User not logged in - show auth modal
     if (!isAuthenticated) {
@@ -314,6 +328,13 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
         className,
       )}
     >
+      {conversionBlocked && (
+        <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            Playlist conversions are limited to {PLAYLIST_CONVERSION_LIMIT} tracks. This playlist has {playlistTrackCount}.
+          </p>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2 justify-center">
         {PLATFORMS.map((platform) => {
           const isSourcePlatform = sourcePlatformKey === platform;
@@ -329,7 +350,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
             'px-4 py-2.5 rounded-full transition-all duration-200',
             'border-2 border-foreground/60 text-foreground',
             'bg-card/80 hover:bg-card text-sm font-medium backdrop-blur-sm',
-            isLoading && 'opacity-50 cursor-not-allowed',
+            (isLoading || conversionBlocked) && 'opacity-50 cursor-not-allowed',
             isCreated && 'border-green-500 bg-green-500/10',
           );
 
@@ -351,7 +372,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
               key={platform}
               type="button"
               className={commonClasses}
-              disabled={isLoading}
+              disabled={isLoading || conversionBlocked}
               onClick={() => handleCreatePlaylist(platform)}
             >
               {isLoading ? (

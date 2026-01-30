@@ -15,6 +15,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ProfileDemo } from '@/components/demo/profile-demo';
 import { AppleMusicHelpModal } from '@/components/features/apple-music-help-modal';
+import { StageHoverCard } from '@/components/features/stage-hover-card';
 
 export default function HomePage() {
   const router = useRouter();
@@ -266,9 +267,11 @@ export default function HomePage() {
                     className="block h-auto flex-1 min-w-0"
                     priority
                   />
-                  <span className="shrink-0 -ml-3 mb-[8%] font-teko font-black text-base sm:text-lg lg:text-xl tracking-wide [-webkit-text-fill-color:#FFFFFF] [-webkit-text-stroke:3.5px_#3B3E41] [paint-order:stroke_fill]">
-                    alpha.
-                  </span>
+                  <StageHoverCard>
+                    <span className="shrink-0 -ml-3 mb-[8%] font-teko font-black text-base sm:text-lg lg:text-xl tracking-wide [-webkit-text-fill-color:#FFFFFF] [-webkit-text-stroke:3.5px_#3B3E41] [paint-order:stroke_fill] cursor-pointer">
+                      alpha.
+                    </span>
+                  </StageHoverCard>
                 </div>
 
                 {/* Tagline */}

@@ -257,15 +257,20 @@ export default function HomePage() {
               {/* Logo Section */}
               <div className={`${logoClasses} w-full lg:min-h-screen lg:flex lg:flex-col lg:justify-center`}>
               <div className="text-center mb-6 sm:mb-8 lg:text-center lg:mb-0 lg:-mt-[25px]">
-                <Image
-                  src="/images/cassette_words_logo.png"
-                  alt="Cassette"
-                  width={750}
-                  height={750}
-                  className="mx-auto w-[85%] h-auto mb-3 sm:mb-5 lg:mx-auto lg:w-[600px]"
-                  priority
-                />
-                
+                <div className="flex items-end w-[85%] lg:w-[600px] mx-auto mb-3 sm:mb-5">
+                  <Image
+                    src="/images/cassette_words_logo.png"
+                    alt="Cassette"
+                    width={2612}
+                    height={1123}
+                    className="block h-auto flex-1 min-w-0"
+                    priority
+                  />
+                  <span className="shrink-0 -ml-3 mb-[8%] font-teko font-black text-base sm:text-lg lg:text-xl tracking-wide [-webkit-text-fill-color:#FFFFFF] [-webkit-text-stroke:3.5px_#3B3E41] [paint-order:stroke_fill]">
+                    alpha.
+                  </span>
+                </div>
+
                 {/* Tagline */}
                 <div className={taglineClasses}>
                   <div className="max-w-2xl mx-auto px-6 sm:px-8 md:px-10 lg:mx-auto lg:px-0 lg:max-w-[600px]">

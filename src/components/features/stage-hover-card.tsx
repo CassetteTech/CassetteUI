@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import {
   HoverCard,
   HoverCardTrigger,
@@ -29,13 +30,22 @@ export function StageHoverCard({ children }: StageHoverCardProps) {
       </HoverCardTrigger>
       <HoverCardContent className="w-72">
         <div className="space-y-2">
-          <p className="text-sm font-semibold">Welcome to the Cassette Alpha!</p>
+          <div className="flex items-center gap-2">
+            <Image
+              src="/images/cassette_logo.png"
+              alt="Cassette"
+              width={24}
+              height={24}
+              className="shrink-0"
+            />
+            <p className="text-sm font-semibold">Welcome to the Cassette Alpha!</p>
+          </div>
           <p className="text-xs text-muted-foreground">
             Cassette is in its earliest stage. Here&apos;s what to expect:
           </p>
           <ul className="list-disc list-inside space-y-1 text-xs text-muted-foreground">
             <li>Features may change or be added frequently</li>
-            <li>You might encounter bugs. We'd love to hear about them</li>
+            <li>You might encounter bugs. We&apos;d love to hear about them</li>
             <li>Your feedback directly shapes the product</li>
             <li>Core experience: share music &amp; build your music profile</li>
           </ul>

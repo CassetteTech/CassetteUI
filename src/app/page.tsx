@@ -258,20 +258,25 @@ export default function HomePage() {
               {/* Logo Section */}
               <div className={`${logoClasses} w-full lg:min-h-screen lg:flex lg:flex-col lg:justify-center`}>
               <div className="text-center mb-6 sm:mb-8 lg:text-center lg:mb-0 lg:-mt-[25px]">
-                <div className="flex items-end w-[85%] lg:w-[600px] mx-auto mb-3 sm:mb-5">
-                  <Image
-                    src="/images/cassette_words_logo.png"
-                    alt="Cassette"
-                    width={2612}
-                    height={1123}
-                    className="block h-auto flex-1 min-w-0"
-                    priority
-                  />
-                  <StageHoverCard>
-                    <span className="shrink-0 -ml-3 mb-[8%] font-teko font-black text-base sm:text-lg lg:text-xl tracking-wide [-webkit-text-fill-color:#FFFFFF] [-webkit-text-stroke:3.5px_#3B3E41] [paint-order:stroke_fill] cursor-pointer">
-                      alpha.
-                    </span>
-                  </StageHoverCard>
+                {/* Logo + alpha layout (stacked on mobile, inline on desktop) */}
+                <div className="flex w-[85%] lg:w-[600px] mx-auto mb-3 sm:mb-5 flex-col items-center lg:flex-row lg:items-end">
+                  <div className="w-full lg:flex-1 lg:min-w-0">
+                    <Image
+                      src="/images/cassette_words_logo.png"
+                      alt="Cassette"
+                      width={2612}
+                      height={1123}
+                      className="block h-auto w-full"
+                      priority
+                    />
+                  </div>
+                  <div className="-mt-10 sm:-mt-9 shrink-0 lg:mt-0 lg:-ml-3 lg:mb-[8%]">
+                    <StageHoverCard>
+                      <span className="font-teko font-black text-base sm:text-lg lg:text-xl tracking-wide [-webkit-text-fill-color:#FFFFFF] [-webkit-text-stroke:3.5px_#3B3E41] [paint-order:stroke_fill] cursor-pointer">
+                        alpha.
+                      </span>
+                    </StageHoverCard>
+                  </div>
                 </div>
 
                 {/* Tagline */}

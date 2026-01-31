@@ -260,7 +260,7 @@ export default function HomePage() {
               <div className="text-center mb-6 sm:mb-8 lg:text-center lg:mb-0 lg:-mt-[25px]">
                 {/* Logo + alpha layout (stacked on mobile, inline on desktop) */}
                 <div className="flex w-[85%] lg:w-[600px] mx-auto mb-3 sm:mb-5 flex-col items-center lg:flex-row lg:items-end">
-                  <div className="w-full lg:flex-1 lg:min-w-0">
+                  <div className="w-full lg:flex-1 lg:min-w-0 -mb-[clamp(1.5rem,6vw,3.5rem)] lg:mb-0">
                     <Image
                       src="/images/cassette_words_logo.png"
                       alt="Cassette"
@@ -270,7 +270,7 @@ export default function HomePage() {
                       priority
                     />
                   </div>
-                  <div className="-mt-10 sm:-mt-9 shrink-0 lg:mt-0 lg:-ml-3 lg:mb-[8%]">
+                  <div className="mt-0 shrink-0 lg:mt-0 lg:-ml-3 lg:mb-[8%]">
                     <StageHoverCard>
                       <span className="font-teko font-black text-base sm:text-lg lg:text-xl tracking-wide [-webkit-text-fill-color:#FFFFFF] [-webkit-text-stroke:3.5px_#3B3E41] [paint-order:stroke_fill] cursor-pointer">
                         alpha.

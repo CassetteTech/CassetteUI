@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { Spinner } from '@/components/ui/spinner';
 
 interface AudioPreviewProps {
   previewUrl?: string;
@@ -75,7 +76,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ previewUrl, classNam
         {/* Play/Pause icon overlay */}
         <div className="absolute inset-0 flex items-center justify-center">
           {isLoading ? (
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
+            <Spinner size="md" variant="white" />
           ) : (
             <svg 
               className="w-7 h-7 text-white" 

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { Spinner } from '@/components/ui/spinner';
 
 interface PlayPreviewProps {
   previewUrl?: string;
@@ -125,10 +126,7 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
             aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
           >
             {isLoading ? (
-              <div className={cn(
-                "animate-spin rounded-full border-2 border-transparent border-t-white",
-                isExpanded ? "h-3 w-3" : "h-4 w-4"
-              )} />
+              <Spinner size={isExpanded ? "xs" : "sm"} variant="white" />
             ) : (
               <svg 
                 className={cn(
@@ -209,10 +207,7 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
           aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
         >
           {isLoading ? (
-            <div className={cn(
-              "animate-spin rounded-full border-2 border-transparent border-t-white",
-              isExpanded ? "h-5 w-5" : "h-6 w-6"
-            )} />
+            <Spinner size={isExpanded ? "sm" : "md"} variant="white" />
           ) : (
             <svg 
               className={cn(

@@ -11,6 +11,7 @@ import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
 import { SearchResults } from '@/components/features/search-results';
 import { MusicSearchResult } from '@/types';
+import { PageLoader } from '@/components/ui/page-loader';
 import Image from 'next/image';
 
 type SelectedItem = {
@@ -468,14 +469,7 @@ export default function AddMusicPage() {
 
   // Show loading while checking auth
   if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a] flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-          <p className="text-white font-atkinson">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader message="Loading..." />;
   }
 
   // Don't render if not authenticated (will redirect)

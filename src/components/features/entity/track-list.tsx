@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import { Spinner } from '@/components/ui/spinner';
 
 export interface TrackListItem {
   trackNumber?: number;
@@ -233,7 +234,7 @@ export const TrackList: React.FC<TrackListProps> = ({
                         (isActive || isPlaying || isLoadingTrack) ? "opacity-100" : "opacity-0 group-hover/play:opacity-100"
                       )}>
                         {isLoadingTrack ? (
-                          <div className="animate-spin rounded-full border border-transparent border-t-muted-foreground/70 w-3 h-3" />
+                          <Spinner size="xs" variant="muted" />
                         ) : (
                           <svg
                             className="w-3 h-3 text-muted-foreground/80"

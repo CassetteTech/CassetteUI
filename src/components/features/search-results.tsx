@@ -4,6 +4,7 @@ import { UIText } from '@/components/ui/typography';
 import { Badge } from '@/components/ui/badge';
 import { Track, Album, Artist, Playlist } from '@/types';
 import { rankSearchResults, RankedItem } from '@/utils/search-ranking';
+import { Spinner } from '@/components/ui/spinner';
 
 interface SearchResultsProps {
   results?: {
@@ -136,7 +137,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   if (isLoading || isSearching) {
     return (
       <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+        <Spinner size="lg" variant="primary" className="mx-auto mb-4" />
         <UIText className="text-muted-foreground">
           {isSearching ? 'Searching...' : 'Loading top charts...'}
         </UIText>

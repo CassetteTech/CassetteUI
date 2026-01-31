@@ -6,6 +6,7 @@ import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRouter } from 'next/navigation';
 import { pendingActionService } from '@/utils/pending-action';
+import { PageLoader } from '@/components/ui/page-loader';
 
 export default function GoogleCallbackPage() {
   const searchParams = useSearchParams();
@@ -153,12 +154,9 @@ export default function GoogleCallbackPage() {
   }, [searchParams, router]);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="flex flex-col items-center space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        <p className="text-foreground font-atkinson">Completing Google sign in...</p>
-        <p className="text-muted-foreground text-sm">Please wait while we process your authentication.</p>
-      </div>
-    </div>
+    <PageLoader
+      message="Completing Google sign in..."
+      subtitle="Please wait while we process your authentication."
+    />
   );
 }

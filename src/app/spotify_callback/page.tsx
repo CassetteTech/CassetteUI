@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { platformConnectService } from '@/services/platform-connect';
 import { pendingActionService } from '@/utils/pending-action';
+import { PageLoader } from '@/components/ui/page-loader';
 
 export default function SpotifyCallbackPage() {
   const router = useRouter();
@@ -122,12 +123,9 @@ export default function SpotifyCallbackPage() {
   }, [searchParams, router]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a] flex items-center justify-center">
-      <div className="flex flex-col items-center space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
-        <p className="text-white font-atkinson">Connecting your Spotify account...</p>
-        <p className="text-gray-400 text-sm">Please wait while we securely save your connection.</p>
-      </div>
-    </div>
+    <PageLoader
+      message="Connecting your Spotify account..."
+      subtitle="Please wait while we securely save your connection."
+    />
   );
 }

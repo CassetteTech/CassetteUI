@@ -5,6 +5,7 @@ import { ConnectAppleMusicButton } from './connect-apple-music-button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuthStore } from '@/stores/auth-store';
 import Image from 'next/image';
+import { Spinner } from '@/components/ui/spinner';
 
 export function MusicServicesConnection() {
   const { user, isLoading } = useAuthStore();
@@ -41,7 +42,7 @@ export function MusicServicesConnection() {
       <Card className="w-full max-w-md bg-card/50 backdrop-blur-sm border-muted/50">
         <CardContent className="p-4">
           <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            <Spinner size="md" variant="primary" />
           </div>
         </CardContent>
       </Card>

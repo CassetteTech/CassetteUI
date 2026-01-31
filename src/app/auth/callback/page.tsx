@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/auth';
 import { pendingActionService } from '@/utils/pending-action';
+import { PageLoader } from '@/components/ui/page-loader';
 
 function CallbackContent() {
   const router = useRouter();
@@ -74,12 +75,7 @@ function CallbackContent() {
     );
   }
 
-  return (
-    <div className="flex h-screen flex-col items-center justify-center gap-4">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600" />
-      <p className="font-medium">{status}</p>
-    </div>
-  );
+  return <PageLoader message={status} />;
 }
 
 export default function OAuthCallbackPage() {

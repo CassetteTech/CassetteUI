@@ -61,7 +61,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   const [showFailedTracks, setShowFailedTracks] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [pendingPlatform, setPendingPlatform] = useState<PlatformKey | null>(null);
-  const conversionBlocked =
+  const conversionLimitExceeded =
     typeof playlistTrackCount === 'number' && playlistTrackCount > PLAYLIST_CONVERSION_LIMIT;
 
   const providedSourceUrl = sourceUrl?.trim();
@@ -83,15 +83,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
   const handleCreatePlaylist = async (platform: PlatformKey) => {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
-
-    if (conversionBlocked) {
-      setCreationStatus({
-        platform,
-        loading: false,
-        error: `Playlist conversions are limited to ${PLAYLIST_CONVERSION_LIMIT} tracks. This playlist has ${playlistTrackCount}.`,
-      });
-      return;
-    }
 
     // Case 1: User not logged in - show auth modal
     if (!isAuthenticated) {
@@ -328,33 +319,34 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
         className,
       )}
     >
-      {conversionBlocked && (
+      {conversionLimitExceeded && (
         <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
           <p className="text-sm text-amber-700 dark:text-amber-300">
-            Playlist conversions are limited to {PLAYLIST_CONVERSION_LIMIT} tracks. This playlist has {playlistTrackCount}.
+            This playlist has {playlistTrackCount} tracks. We&apos;ll convert the first {PLAYLIST_CONVERSION_LIMIT} tracks.
           </p>
         </div>
       )}
       <div className="flex flex-wrap gap-2 justify-center">
         {PLATFORMS.map((platform) => {
           const isSourcePlatform = sourcePlatformKey === platform;
-          const url = isSourcePlatform && resolvedSourceUrl ? resolvedSourceUrl : links[platform];
+          const url = links[platform];
           const service = streamingServices[platform];
           if (!service) return null;
 
           const isLoading = creationStatus?.platform === platform && creationStatus.loading;
           const isCreated = creationStatus?.platform === platform && creationStatus.result?.success;
+          const shouldShowConvertButton = isSourcePlatform || !url;
 
           const commonClasses = cn(
             'group relative flex items-center justify-center',
             'px-4 py-2.5 rounded-full transition-all duration-200',
             'border-2 border-foreground/60 text-foreground',
             'bg-card/80 hover:bg-card text-sm font-medium backdrop-blur-sm',
-            (isLoading || conversionBlocked) && 'opacity-50 cursor-not-allowed',
+            isLoading && 'opacity-50 cursor-not-allowed',
             isCreated && 'border-green-500 bg-green-500/10',
           );
 
-          return url ? (
+          return !shouldShowConvertButton && url ? (
             <a
               key={platform}
               href={url}
@@ -365,14 +357,14 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
               <div className="relative w-4 h-4 mr-2">
                 <Image src={service.icon} alt={service.name} width={16} height={16} className="object-contain" />
               </div>
-              <span className="whitespace-nowrap">Convert to {service.name}</span>
+              <span className="whitespace-nowrap">Open in {service.name}</span>
             </a>
-          ) : isSourcePlatform && resolvedSourceUrl ? null : (
+          ) : (
             <button
               key={platform}
               type="button"
               className={commonClasses}
-              disabled={isLoading || conversionBlocked}
+              disabled={isLoading}
               onClick={() => handleCreatePlaylist(platform)}
             >
               {isLoading ? (

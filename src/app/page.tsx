@@ -97,7 +97,7 @@ export default function HomePage() {
       }
       
       // Check if it's a music service but potentially unsupported
-      const supportedServices = ['spotify.com', 'music.apple.com'];
+      const supportedServices = ['spotify.com', 'music.apple.com', 'deezer.com'];
       const isMusicService = supportedServices.some(service => hostname.includes(service));
       
       if (!isMusicService && (
@@ -107,14 +107,14 @@ export default function HomePage() {
         hostname.includes('tidal.com') ||
         hostname.includes('amazon.com')
       )) {
-        return "This music service isn't supported yet. Please use a link from Spotify or Apple Music.";
+        return "This music service isn't supported yet. Please use a link from Spotify, Apple Music, or Deezer.";
       }
       
       // Check for obviously non-music links
       if (!isMusicService && url.length > 10) {
         const commonNonMusicDomains = ['google.com', 'facebook.com', 'twitter.com', 'instagram.com', 'tiktok.com'];
         if (commonNonMusicDomains.some(domain => hostname.includes(domain))) {
-          return "This doesn't look like a music link or that service isn't supported yet. Please paste a link from Spotify or Apple Music.";
+          return "This doesn't look like a music link or that service isn't supported yet. Please paste a link from Spotify, Apple Music, or Deezer.";
         }
       }
       
@@ -193,7 +193,8 @@ export default function HomePage() {
     const linkLower = pastedText.toLowerCase();
     const isSupported = linkLower.includes('spotify.com') || 
                        linkLower.includes('apple.com/music') || 
-                       linkLower.includes('music.apple.com');
+                       linkLower.includes('music.apple.com') || 
+                       linkLower.includes('deezer.com');
 
     if (isSupported && !isSearchingMusic) {
       // Navigate immediately for link conversion

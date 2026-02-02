@@ -49,9 +49,17 @@ const MUSIC_SERVICES = [
     bgColor: 'bg-gradient-to-br from-[#FA233B] to-[#FB5C74]',
     requiresAuth: true,
   },
+  {
+    id: 'Deezer' as const,
+    name: 'Deezer',
+    iconSrc: '/images/deezer_logo_colored.png',
+    description: 'Add Deezer to your profile',
+    bgColor: 'bg-black',
+    requiresAuth: false,
+  },
 ];
 
-type ServiceId = 'Spotify' | 'AppleMusic';
+type ServiceId = 'Spotify' | 'AppleMusic' | 'Deezer';
 
 export function ConnectMusicStep({
   onBack,
@@ -61,6 +69,7 @@ export function ConnectMusicStep({
   const [platformStates, setPlatformStates] = useState<Record<ServiceId, PlatformState>>({
     Spotify: { isSelected: false, isAuthenticated: false, isLoading: false },
     AppleMusic: { isSelected: false, isAuthenticated: false, isLoading: false },
+    Deezer: { isSelected: false, isAuthenticated: false, isLoading: false },
   });
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
 
@@ -73,6 +82,7 @@ export function ConnectMusicStep({
           const newStates: Record<ServiceId, PlatformState> = {
             Spotify: { isSelected: false, isAuthenticated: false, isLoading: false },
             AppleMusic: { isSelected: false, isAuthenticated: false, isLoading: false },
+            Deezer: { isSelected: false, isAuthenticated: false, isLoading: false },
           };
 
           response.preferences.forEach(pref => {
@@ -174,7 +184,7 @@ export function ConnectMusicStep({
       return;
     }
 
-    // For Spotify, just toggle the preference
+    // For Spotify/Deezer, just toggle the preference
     setPlatformStates(prev => ({
       ...prev,
       [serviceId]: { ...prev[serviceId], isLoading: true },

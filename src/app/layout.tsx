@@ -31,7 +31,7 @@ const teko = Teko({
 export const metadata: Metadata = {
   title: "Cassette - Share Your Music",
   description: "Share your favorite music across all platforms. Connect with friends and discover new tunes.",
-  keywords: ["music", "social", "spotify", "apple music", "sharing"],
+  keywords: ["music", "social", "spotify", "apple music", "deezer", "sharing"],
   authors: [{ name: "Cassette Team" }],
   openGraph: {
     title: "Cassette - Share Your Music",

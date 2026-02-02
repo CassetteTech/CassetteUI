@@ -544,9 +544,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             {/* Content Row */}
             <div className="flex gap-8 flex-1 min-h-0">
               {/* Left: fixed panel */}
-              <div className="flex-[2] sticky top-0 h-full">
+              <div className="flex-[2] sticky top-0 h-full overflow-y-auto no-scrollbar">
                 {/* Make the left column fill the available height and center content vertically */}
-                <div className="h-full flex flex-col items-center justify-center min-w-0">
+                <div className="min-h-full flex flex-col items-center justify-start min-w-0 pt-2 pb-[calc(6rem+env(safe-area-inset-bottom))]">
                   <UIText className="text-foreground font-bold mb-8 uppercase tracking-wider text-lg">
                     {typeLabel}
                   </UIText>
@@ -727,7 +727,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   )}
                   {/* Report Problem (moved to left to keep right-only track list) */}
                   {(isAlbum || isPlaylist) && (
-                    <div className="mt-6 flex justify-center w-full max-w-xl">
+                    <div className="mt-6 mb-[calc(6rem+env(safe-area-inset-bottom))] flex justify-center w-full max-w-xl">
                       <button className="flex items-center gap-2 px-6 py-3 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-base font-medium">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1019,7 +1019,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         </div>
 
                         {/* Report Problem */}
-                        <div className="flex justify-center">
+                        <div className="mb-[calc(6rem+env(safe-area-inset-bottom))] flex justify-center">
                           <button className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1123,7 +1123,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             </div>
             <div className="text-center space-y-6">
               {/* Element Type */}
-              <div>
+              <div className="mb-[calc(6rem+env(safe-area-inset-bottom))]">
                 <UIText className="text-foreground font-bold mb-8 uppercase tracking-wider text-lg">
                   {typeLabel}
                 </UIText>

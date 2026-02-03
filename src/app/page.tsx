@@ -15,6 +15,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ProfileDemo } from '@/components/demo/profile-demo';
 import { AppleMusicHelpModal } from '@/components/features/apple-music-help-modal';
+import { StageHoverCard } from '@/components/features/stage-hover-card';
 
 export default function HomePage() {
   const router = useRouter();
@@ -258,15 +259,27 @@ export default function HomePage() {
               {/* Logo Section */}
               <div className={`${logoClasses} w-full lg:min-h-screen lg:flex lg:flex-col lg:justify-center`}>
               <div className="text-center mb-6 sm:mb-8 lg:text-center lg:mb-0 lg:-mt-[25px]">
-                <Image
-                  src="/images/cassette_words_logo.png"
-                  alt="Cassette"
-                  width={750}
-                  height={750}
-                  className="mx-auto w-[85%] h-auto mb-3 sm:mb-5 lg:mx-auto lg:w-[600px]"
-                  priority
-                />
-                
+                {/* Logo + alpha layout (stacked on mobile, inline on desktop) */}
+                <div className="flex w-[85%] lg:w-[600px] mx-auto mb-3 sm:mb-5 flex-col items-center lg:flex-row lg:items-end">
+                  <div className="w-full lg:flex-1 lg:min-w-0 -mb-[clamp(1.5rem,6vw,3.5rem)] lg:mb-0">
+                    <Image
+                      src="/images/cassette_words_logo.png"
+                      alt="Cassette"
+                      width={2612}
+                      height={1123}
+                      className="block h-auto w-full"
+                      priority
+                    />
+                  </div>
+                  <div className="mt-0 shrink-0 lg:mt-0 lg:-ml-3 lg:mb-[8%]">
+                    <StageHoverCard>
+                      <span className="font-teko font-black text-base sm:text-lg lg:text-xl tracking-wide [-webkit-text-fill-color:#FFFFFF] [-webkit-text-stroke:3.5px_#3B3E41] [paint-order:stroke_fill] cursor-pointer">
+                        alpha.
+                      </span>
+                    </StageHoverCard>
+                  </div>
+                </div>
+
                 {/* Tagline */}
                 <div className={taglineClasses}>
                   <div className="max-w-2xl mx-auto px-6 sm:px-8 md:px-10 lg:mx-auto lg:px-0 lg:max-w-[600px]">
@@ -355,6 +368,7 @@ export default function HomePage() {
               <div className={`hidden lg:block search-container transition-all duration-500 ease-out w-full opacity-100 flex-1 overflow-hidden pb-8`} style={{overscrollBehavior: 'contain'}}>
                 <SearchResults
                   results={displayData}
+                  query={debouncedSearchTerm}
                   isLoading={isLoadingCharts}
                   isSearching={isSearchingMusic}
                   showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}
@@ -373,6 +387,7 @@ export default function HomePage() {
             }`}>
               <SearchResults
                 results={displayData}
+                query={debouncedSearchTerm}
                 isLoading={isLoadingCharts}
                 isSearching={isSearchingMusic}
                 showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}

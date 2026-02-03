@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AnimatedBackground } from '@/components/ui/animated-background';
 import { CollectionGrid, CollectionItemData } from '@/components/features/collection/collection-grid';
 import { useMusicLinkConversion } from '@/hooks/use-music';
+import { Spinner } from '@/components/ui/spinner';
 
 // Sample collection items from the Flutter collection_items.dart
 const collectionItems: CollectionItemData[] = [
@@ -65,7 +66,7 @@ export default function CollectionsPage() {
       setIsConverting(true);
       
       // Convert the link and navigate to the post page
-      convertLink(mockUrl, {
+      convertLink({ url: mockUrl, description: item.description }, {
         onSuccess: (result) => {
           // Override the metadata with our collection item data for demo
           const enrichedResult = {
@@ -79,7 +80,7 @@ export default function CollectionsPage() {
             description: item.description,
             username: item.username,
           };
-          
+
           router.push(`/post?data=${encodeURIComponent(JSON.stringify(enrichedResult))}`);
         },
         onError: (error) => {
@@ -121,7 +122,7 @@ export default function CollectionsPage() {
           {isConverting && (
             <div className="fixed inset-0 bg-cream/80 backdrop-blur-sm flex items-center justify-center z-50">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-primary mx-auto mb-4"></div>
+                <Spinner size="xl" variant="primary" className="mx-auto mb-4" />
                 <p className="text-text-primary font-bold">
                   Loading music details...
                 </p>

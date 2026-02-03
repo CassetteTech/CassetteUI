@@ -1,10 +1,6 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -13,62 +9,20 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { AuthInput } from '@/components/ui/auth-input';
 import { AnimatedBackground } from '@/components/ui/animated-background';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Eye, EyeOff, MailCheck } from 'lucide-react';
+import { MailCheck } from 'lucide-react';
 import { useSignUp, useSignInWithProvider } from '@/hooks/use-auth';
-import { SignUpForm } from '@/types';
 import Image from 'next/image';
 
-const signUpSchema = z.object({
-  email: z.string().email('Please Enter A Valid Email'),
-  username: z
-    .string()
-    .min(1, 'Please Enter Username'),
-  password: z
-    .string()
-    .min(8, 'Please Enter At-Least 8 Digit Password'),
-  confirmPassword: z.string().min(1, 'Please Enter Confirm Password'),
-  acceptTerms: z.boolean().refine((val) => val === true, {
-    message: 'Please agree to all the terms and conditions before signing up',
-  }),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Password And Confirm Password Must Be Same",
-  path: ['confirmPassword'],
-});
-
 export default function SignUpPage() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { mutate: signUp, isPending: isSigningUp, error: signUpError, isSuccess, data: signUpResult } = useSignUp();
+  const { isSuccess, data: signUpResult } = useSignUp();
   const { mutate: signInWithProvider, isPending: isSigningInWithProvider } = useSignInWithProvider();
-
-  const form = useForm<SignUpForm>({
-    resolver: zodResolver(signUpSchema),
-    defaultValues: {
-      email: '',
-      username: '',
-      password: '',
-      confirmPassword: '',
-      acceptTerms: false,
-    },
-  });
-
-  const onSubmit = (data: SignUpForm) => {
-    if (isSigningUp) return; // Prevent double submission
-    console.log('📝 [Signup] Form submitted with data:', { ...data, password: '[REDACTED]', confirmPassword: '[REDACTED]' });
-    signUp(data);
-  };
 
   const handleGoogleSignIn = () => {
     signInWithProvider('google');
   };
 
-  const handleAppleSignIn = () => {
-    signInWithProvider('apple');
-  };
-
+  // Keep email verification screen for users who signed up via email previously
   if (isSuccess && !signUpResult?.token) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
@@ -99,9 +53,9 @@ export default function SignUpPage() {
                 </div>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
+                <Button
+                  variant="outline"
+                  className="w-full"
                   onClick={() => window.location.href = '/auth/signin'}
                 >
                   Return to Sign In
@@ -118,7 +72,7 @@ export default function SignUpPage() {
     <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Animated Background */}
       <AnimatedBackground className="fixed inset-0 z-0" />
-      
+
       <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
         <div className="w-full max-w-md">
           {/* Logo */}
@@ -144,7 +98,7 @@ export default function SignUpPage() {
             </CardHeader>
             <CardContent>
 
-            {/* Social Sign In */}
+            {/* Google Sign In */}
             <div className="flex flex-col gap-4 mb-6">
               <Button
                 variant="outline"
@@ -161,24 +115,9 @@ export default function SignUpPage() {
                 />
                 Continue with Google
               </Button>
-              
-              <Button
-                variant="outline"
-                onClick={handleAppleSignIn}
-                disabled={isSigningInWithProvider}
-                className="w-full border-borderLight bg-white hover:bg-brandCreamL text-foreground shadow-sm hover:shadow transition-all dark:bg-black/40 dark:hover:bg-black/60 dark:border-white/20"
-              >
-                <Image
-                  src="/images/apple_music_logo_colored.png"
-                  alt="Apple"
-                  width={20}
-                  height={20}
-                  className="mr-2"
-                />
-                Continue with Apple
-              </Button>
             </div>
 
+            {/* EMAIL AUTH - TEMPORARILY DISABLED
             <div className="relative mb-6">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
@@ -190,7 +129,6 @@ export default function SignUpPage() {
               </div>
             </div>
 
-            {/* Email Sign Up Form */}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
@@ -290,35 +228,17 @@ export default function SignUpPage() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="acceptTerms"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <input
-                          type="checkbox"
-                          checked={field.value}
-                          onChange={field.onChange}
-                          className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="text-sm font-normal">
-                          I have read and agreed to the{' '}
-                          <Link href="/terms" className="underline hover:underline">
-                            Terms of Service
-                          </Link>{' '}
-                          and{' '}
-                          <Link href="/privacy" className="underline hover:underline">
-                            Privacy Policy
-                          </Link>
-                        </FormLabel>
-                        <FormMessage />
-                      </div>
-                    </FormItem>
-                  )}
-                />
+                <p className="text-xs text-muted-foreground leading-5">
+                  By clicking Sign Up, you agree to our{' '}
+                  <Link href="/terms" className="underline hover:underline">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link href="/privacy" className="underline hover:underline">
+                    Privacy Policy
+                  </Link>
+                  . You may receive SMS Notifications from us and can opt out any time.
+                </p>
 
                 {signUpError && (
                   <div className="text-sm text-destructive">
@@ -331,10 +251,23 @@ export default function SignUpPage() {
                   disabled={isSigningUp}
                   className="w-full"
                 >
-                  {isSigningUp ? 'Creating account...' : 'Create account'}
+                  {isSigningUp ? 'Signing up...' : 'Sign Up'}
                 </Button>
               </form>
             </Form>
+            END EMAIL AUTH - TEMPORARILY DISABLED */}
+
+            <p className="text-xs text-muted-foreground leading-5">
+              By continuing, you agree to our{' '}
+              <Link href="/terms" className="underline hover:underline">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link href="/privacy" className="underline hover:underline">
+                Privacy Policy
+              </Link>
+              .
+            </p>
 
               <div className="text-center text-sm mt-4">
                 Already have an account?{' '}
@@ -347,18 +280,6 @@ export default function SignUpPage() {
               </div>
             </CardContent>
           </Card>
-          
-          <div className="text-muted-foreground text-center text-xs text-balance">
-            By creating an account, you agree to our{' '}
-            <Link href="/terms" className="underline underline-offset-4 hover:text-foreground">
-              Terms of Service
-            </Link>{' '}
-            and{' '}
-            <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
-              Privacy Policy
-            </Link>
-            .
-          </div>
         </div>
       </div>
     </div>

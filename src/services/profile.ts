@@ -5,8 +5,35 @@ interface ActivityItemPayload {
   postId: string;
   elementType: string;
   title: string;
+  name?: string;
+  elementName?: string;
+  elementTitle?: string;
+  artistName?: string;
+  albumName?: string;
   subtitle?: string;
+  description?: string;
+  caption?: string;
   imageUrl?: string;
+  coverArtUrl?: string;
+  artworkUrl?: string;
+  artwork?: string;
+  image?: string;
+  details?: {
+    coverArtUrl?: string;
+    imageUrl?: string;
+    artworkUrl?: string;
+    artwork?: string;
+    title?: string;
+    name?: string;
+    artist?: string;
+    album?: string;
+    description?: string;
+    caption?: string;
+  };
+  metadata?: {
+    artwork?: string;
+  };
+  platforms?: Record<string, { artworkUrl?: string; imageUrl?: string; coverArtUrl?: string }>;
   username: string;
   userId: string;
   createdAt: string;
@@ -22,10 +49,39 @@ interface ActivityApiResponse {
 }
 
 export class ProfileService {
-  private bioCache = new Map<string, { bio: UserBio; timestamp: number }>();
-  private activityCache = new Map<string, { activity: PaginatedActivityResponse; timestamp: number }>();
-  private readonly cacheDuration = 5 * 60 * 1000; // 5 minutes
+  // Note: Caching is now handled by React Query (see hooks/use-profile.ts)
   private readonly apiBaseUrl = clientConfig.api.url;
+
+  private normalizeUserBio(data: Record<string, unknown>): UserBio {
+    const nestedUser =
+      data.user && typeof data.user === 'object' ? (data.user as Record<string, unknown>) : null;
+    const merged = nestedUser ? { ...data, ...nestedUser } : data;
+
+    return {
+      id: String(merged.id || merged.userId || merged.UserId || ''),
+      username: String(merged.username || merged.Username || ''),
+      displayName: String(
+        merged.displayName ||
+          merged.DisplayName ||
+          merged.username ||
+          merged.Username ||
+          '',
+      ),
+      bio: String(merged.bio ?? merged.Bio ?? ''),
+      avatarUrl: String(
+        merged.avatarUrl ||
+          merged.AvatarUrl ||
+          merged.profilePicture ||
+          merged.ProfilePicture ||
+          '',
+      ),
+      isOwnProfile: Boolean(merged.isOwnProfile ?? merged.IsOwnProfile ?? false),
+      connectedServices: (merged.connectedServices ||
+        merged.ConnectedServices ||
+        []) as UserBio['connectedServices'],
+      accountType: (merged.accountType ?? merged.AccountType) as UserBio['accountType'],
+    };
+  }
 
   private buildApiUrl(path: string) {
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -40,12 +96,18 @@ export class ProfileService {
     return `${base}${normalizedPath}`;
   }
 
+  private getAuthHeaders(): Record<string, string> {
+    if (typeof window === 'undefined') return {};
+    const token = localStorage.getItem('access_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   async fetchUserBio(userIdentifier: string): Promise<UserBio> {
     try {
       const path =
         userIdentifier === 'edit'
-          ? '/api/v1.0/profile/edit/bio'
-          : `/api/v1.0/profile/${userIdentifier}/bio`;
+          ? '/api/v1/profile/edit/bio'
+          : `/api/v1/profile/${userIdentifier}/bio`;
 
       const url = this.buildApiUrl(path);
 
@@ -55,13 +117,13 @@ export class ProfileService {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          // Add auth headers if needed
+          ...this.getAuthHeaders(),
         },
       });
 
       if (response.status === 200) {
-        const data = await response.json();
-        return data as UserBio;
+        const data = (await response.json()) as Record<string, unknown>;
+        return this.normalizeUserBio(data);
       }
 
       if (response.status === 404) {
@@ -90,8 +152,8 @@ export class ProfileService {
 
       const path =
         userIdentifier === 'edit'
-          ? '/api/v1.0/profile/edit/activity'
-          : `/api/v1.0/profile/${userIdentifier}/activity`;
+          ? '/api/v1/profile/edit/activity'
+          : `/api/v1/profile/${userIdentifier}/activity`;
 
       const url = this.buildApiUrl(path);
 
@@ -112,23 +174,87 @@ export class ProfileService {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          // Add auth headers if needed
+          ...this.getAuthHeaders(),
         },
       });
 
       if (response.status === 200) {
         const json = (await response.json()) as ActivityApiResponse;
+        const resolveText = (...values: Array<string | null | undefined>) => {
+          for (const value of values) {
+            if (typeof value === 'string' && value.trim() !== '') {
+              return value;
+            }
+          }
+          return undefined;
+        };
+        const extractTitleFromDescription = (description?: string) => {
+          if (!description) return undefined;
+          const match = description.match(/Converted\s+(?:Track|Album|Artist|Playlist)\s+-\s+(.+?)\s+from/i);
+          return match?.[1]?.trim();
+        };
+        const resolvePlatformArtwork = (
+          platforms?: Record<string, { artworkUrl?: string; imageUrl?: string; coverArtUrl?: string }>
+        ) => {
+          if (!platforms) return undefined;
+          for (const platform of Object.values(platforms)) {
+            const artwork = resolveText(platform?.artworkUrl, platform?.imageUrl, platform?.coverArtUrl);
+            if (artwork) return artwork;
+          }
+          return undefined;
+        };
         const items: ActivityPost[] =
-          json.items?.map((item) => ({
-            postId: item.postId,
-            elementType: item.elementType,
-            title: item.title,
-            subtitle: item.subtitle,
-            imageUrl: item.imageUrl,
-            username: item.username,
-            userId: item.userId,
-            createdAt: item.createdAt,
-          })) ?? [];
+          json.items?.map((item) => {
+            const elementType = item.elementType?.toLowerCase();
+            const resolvedDescription = resolveText(
+              item.description,
+              item.caption,
+              item.details?.description,
+              item.details?.caption,
+            );
+            const resolvedTitle = resolveText(
+              item.title,
+              item.name,
+              item.elementTitle,
+              item.elementName,
+              item.details?.title,
+              item.details?.name,
+              item.albumName,
+              elementType === 'artist' ? item.artistName ?? item.details?.artist ?? item.subtitle : undefined,
+              extractTitleFromDescription(resolvedDescription),
+            );
+            const resolvedSubtitle = resolveText(
+              item.subtitle,
+              item.details?.artist,
+              item.details?.album,
+              item.details?.name,
+            );
+            const resolvedImageUrl = resolveText(
+              item.imageUrl,
+              item.coverArtUrl,
+              item.artworkUrl,
+              item.artwork,
+              item.image,
+              item.details?.coverArtUrl,
+              item.details?.imageUrl,
+              item.details?.artworkUrl,
+              item.details?.artwork,
+              item.metadata?.artwork,
+              resolvePlatformArtwork(item.platforms),
+            );
+
+            return {
+              postId: item.postId,
+              elementType: item.elementType,
+              title: resolvedTitle || 'Untitled',
+              subtitle: resolvedSubtitle,
+              description: resolvedDescription,
+              imageUrl: resolvedImageUrl,
+              username: item.username,
+              userId: item.userId,
+              createdAt: item.createdAt,
+            };
+          }) ?? [];
 
         return {
           items,
@@ -196,20 +322,26 @@ export class ProfileService {
 
   async updateProfile(data: {
     username?: string;
-    fullName?: string;
+    displayName?: string;
     bio?: string;
     avatarUrl?: string;
+    avatarFile?: File | null;
   }): Promise<void> {
     try {
-      const url = this.buildApiUrl('/api/v1.0/user/profile');
+      const url = this.buildApiUrl('/api/v1/profile');
+
+      // Backend expects multipart/form-data via [FromForm] attribute
+      const formData = new FormData();
+      if (data.username) formData.append('Username', data.username.trim().toLowerCase());
+      if (data.displayName) formData.append('DisplayName', data.displayName);
+      if (data.bio !== undefined) formData.append('Bio', data.bio);
+      if (data.avatarFile) formData.append('avatar', data.avatarFile);
+      if (data.avatarUrl && !data.avatarFile) formData.append('AvatarUrl', data.avatarUrl);
 
       const response = await fetch(url, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          // Add auth headers if needed
-        },
-        body: JSON.stringify(data),
+        headers: this.getAuthHeaders(),
+        body: formData,
       });
 
       if (response.status !== 200) {
@@ -227,13 +359,14 @@ export class ProfileService {
 
   async checkUsernameAvailability(username: string): Promise<boolean> {
     try {
-      const url = this.buildApiUrl(`/api/v1.0/user/check-username/${username}`);
+      const normalized = username.trim().toLowerCase();
+      const url = this.buildApiUrl(`/api/v1/user/check-username/${normalized}`);
 
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          // Add auth headers if needed
+          ...this.getAuthHeaders(),
         },
       });
 

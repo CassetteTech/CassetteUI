@@ -31,9 +31,9 @@ export const useMusicLinkConversion = (options?: { anonymous?: boolean }) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (url: string) => {
-      console.log('🎯 Mutation function called with URL:', url, 'anonymous:', options?.anonymous);
-      return musicService.convertMusicLink(url, options);
+    mutationFn: (params: { url: string; description?: string }) => {
+      console.log('🎯 Mutation function called with URL:', params.url, 'description:', params.description, 'anonymous:', options?.anonymous);
+      return musicService.convertMusicLink(params.url, { ...options, description: params.description });
     },
     onSuccess: (data) => {
       console.log('✅ Mutation successful:', data);
@@ -102,20 +102,12 @@ export const useAddMusicToProfile = () => {
 
   return useMutation({
     mutationFn: (params: {
-      url: string;
+      musicElementId: string;
+      elementType: string;
       description?: string;
-      originalItemDetails?: {
-        title: string;
-        artist: string;
-        type: string;
-        coverArtUrl: string;
-      };
     }) => {
       console.log('🎯 useAddMusicToProfile mutation called with:', params);
-      return musicService.addMusicToUserProfile(params.url, {
-        description: params.description,
-        originalItemDetails: params.originalItemDetails,
-      });
+      return apiService.addToProfile(params.musicElementId, params.elementType, params.description);
     },
     onSuccess: (data) => {
       console.log('✅ Add music to profile successful:', data);
@@ -126,6 +118,49 @@ export const useAddMusicToProfile = () => {
     },
     onError: (error) => {
       console.error('❌ Add music to profile error:', error);
+    },
+  });
+};
+
+export const useUpdatePost = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { postId: string; description: string }) => {
+      console.log('🎯 useUpdatePost mutation called with:', params);
+      return apiService.updatePost(params.postId, params.description);
+    },
+    onSuccess: (_data, variables) => {
+      console.log('✅ Update post successful');
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['user-activity'] });
+      queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    },
+    onError: (error) => {
+      console.error('❌ Update post error:', error);
+    },
+  });
+};
+
+export const useDeletePost = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (postId: string) => {
+      console.log('🎯 useDeletePost mutation called with postId:', postId);
+      return apiService.deletePost(postId);
+    },
+    onSuccess: () => {
+      console.log('✅ Delete post successful');
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['user-activity'] });
+      queryClient.invalidateQueries({ queryKey: ['user-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
+    onError: (error) => {
+      console.error('❌ Delete post error:', error);
     },
   });
 };

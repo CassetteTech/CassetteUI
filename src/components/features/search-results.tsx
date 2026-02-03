@@ -3,6 +3,8 @@ import Image from 'next/image';
 import { UIText } from '@/components/ui/typography';
 import { Badge } from '@/components/ui/badge';
 import { Track, Album, Artist, Playlist } from '@/types';
+import { rankSearchResults, RankedItem } from '@/utils/search-ranking';
+import { Spinner } from '@/components/ui/spinner';
 
 interface SearchResultsProps {
   results?: {
@@ -11,6 +13,7 @@ interface SearchResultsProps {
     artists: Artist[];
     playlists: Playlist[];
   };
+  query?: string;
   isLoading: boolean;
   isSearching: boolean;
   showSearchResults: boolean;
@@ -21,6 +24,7 @@ interface SearchResultsProps {
 
 export const SearchResults: React.FC<SearchResultsProps> = ({
   results,
+  query = '',
   isLoading,
   isSearching,
   showSearchResults,
@@ -28,25 +32,20 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   onClose,
   SkeletonComponent,
 }) => {
-  // Combine all results into a single array with type information
+  // Combine all results into a single array with intelligent ranking
   const allResults = React.useMemo(() => {
     if (!results) return [];
-    
-    const items: Array<{
-      id: string;
-      title: string;
-      artist?: string;
-      type: 'track' | 'album' | 'artist' | 'playlist';
-      artwork: string;
-      externalUrls?: {
-        spotify?: string;
-        appleMusic?: string;
-        deezer?: string;
-      };
-    }> = [];
+
+    // Use smart ranking when we have a search query
+    if (query && query.length > 0) {
+      return rankSearchResults(results, query);
+    }
+
+    // Fallback to simple ordering for top charts (no query)
+    const items: RankedItem[] = [];
 
     // Add tracks
-    results.tracks.forEach(track => {
+    results.tracks.forEach((track) => {
       items.push({
         id: track.id,
         title: track.title,
@@ -54,11 +53,12 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         type: 'track',
         artwork: track.artwork,
         externalUrls: track.externalUrls,
+        isExplicit: track.isExplicit,
       });
     });
 
     // Add albums
-    results.albums.forEach(album => {
+    results.albums.forEach((album) => {
       items.push({
         id: album.id,
         title: album.title,
@@ -70,7 +70,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     });
 
     // Add artists
-    results.artists.forEach(artist => {
+    results.artists.forEach((artist) => {
       items.push({
         id: artist.id,
         title: artist.name,
@@ -81,7 +81,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     });
 
     // Add playlists
-    results.playlists.forEach(playlist => {
+    results.playlists.forEach((playlist) => {
       items.push({
         id: playlist.id,
         title: playlist.title,
@@ -93,7 +93,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     });
 
     return items.slice(0, 50); // Limit to 50 results
-  }, [results]);
+  }, [results, query]);
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -138,7 +138,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   if (isLoading || isSearching) {
     return (
       <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+        <Spinner size="lg" variant="primary" className="mx-auto mb-4" />
         <UIText className="text-muted-foreground">
           {isSearching ? 'Searching...' : 'Loading top charts...'}
         </UIText>

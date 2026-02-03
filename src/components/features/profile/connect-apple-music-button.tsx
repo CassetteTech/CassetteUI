@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
-import { clientConfig } from '@/lib/config-client';
+import { apiService } from '@/services/api';
+import { authService } from '@/services/auth';
+import { useAuthStore } from '@/stores/auth-store';
 
 interface ConnectAppleMusicButtonProps {
   isConnected?: boolean;
@@ -24,10 +26,13 @@ declare global {
       }) => Promise<void>;
       getInstance: () => {
         authorize: () => Promise<string>;
+        unauthorize: () => Promise<void>;
+        isAuthorized: boolean;
       };
     };
   }
 }
+
 
 export function ConnectAppleMusicButton({ 
   isConnected = false, 
@@ -35,8 +40,21 @@ export function ConnectAppleMusicButton({
   onDisconnect 
 }: ConnectAppleMusicButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const developerToken = clientConfig.appleMusic.developerToken;
+  const [developerToken, setDeveloperToken] = useState<string | null>(null);
 
+  // Fetch the developer token on component mount
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const response = await apiService.getAppleMusicDeveloperToken();
+        setDeveloperToken(response.developerToken);
+      } catch (error) {
+        console.error('Failed to fetch Apple Music developer token:', error);
+      }
+    };
+
+    fetchToken();
+  }, []);
   const handleConnect = async () => {
     if (!developerToken) {
       console.error('Developer token not available');
@@ -54,20 +72,27 @@ export function ConnectAppleMusicButton({
         },
       });
 
+      const instance = window.MusicKit.getInstance();
+
+      // Clear any cached authorization to force fresh consent
+      // This ensures the user explicitly authorizes THIS Cassette account
+      if (instance.isAuthorized) {
+        await instance.unauthorize();
+      }
+
       // Request user authorization
-      const musicUserToken = await window.MusicKit.getInstance().authorize();
+      const musicUserToken = await instance.authorize();
       
       if (musicUserToken) {
         // Send the user token to our backend for secure storage
-        const response = await fetch('/api/auth/apple-music/save-token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token: musicUserToken }),
-        });
+        const response = await apiService.connectAppleMusic(musicUserToken);
 
-        if (response.ok) {
+        if (response.success) {
+          // Refetch user to get updated connectedServices and update auth store
+          const updatedUser = await authService.getCurrentUser();
+          if (updatedUser) {
+            useAuthStore.getState().setUser(updatedUser);
+          }
           onConnect?.();
         } else {
           throw new Error('Failed to save Apple Music token');

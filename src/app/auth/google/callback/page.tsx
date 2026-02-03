@@ -5,6 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRouter } from 'next/navigation';
+import { pendingActionService } from '@/utils/pending-action';
+import { PageLoader } from '@/components/ui/page-loader';
 
 export default function GoogleCallbackPage() {
   const searchParams = useSearchParams();
@@ -12,6 +14,29 @@ export default function GoogleCallbackPage() {
 
   useEffect(() => {
     const handleCallback = async () => {
+      // Helper to redirect to pending action URL or default (checks onboarding first)
+      const redirectToDestination = () => {
+        const user = useAuthStore.getState().user;
+
+        // Always check onboarding first - don't bypass it for pending actions
+        if (!user?.isOnboarded) {
+          console.log('🔄 [Google Callback] User not onboarded, redirecting to onboarding');
+          // Keep pending action for after onboarding completes
+          router.push('/onboarding');
+          return;
+        }
+
+        // User is onboarded - honor pending action if exists
+        const pendingAction = pendingActionService.get();
+        if (pendingAction?.returnUrl) {
+          console.log('🔄 [Google Callback] Redirecting to pending action URL:', pendingAction.returnUrl);
+          pendingActionService.clear();
+          window.location.href = pendingAction.returnUrl;
+        } else {
+          router.push('/profile');
+        }
+      };
+
       try {
         console.log('🔄 [Google Callback] Starting callback processing');
         console.log('URL:', window.location.href);
@@ -35,8 +60,8 @@ export default function GoogleCallbackPage() {
             // Add a small delay to ensure state is propagated
             await new Promise(resolve => setTimeout(resolve, 100));
             
-            console.log('🔄 [Google Callback] Redirecting to /profile');
-            router.push('/profile');
+            console.log('🔄 [Google Callback] Redirecting to destination');
+            redirectToDestination();
             return;
           } catch (error) {
             console.error('❌ [Google Callback] OAuth callback failed:', error);
@@ -53,7 +78,7 @@ export default function GoogleCallbackPage() {
           console.log('🔄 [Google Callback] Processing OAuth code exchange');
           const user = await authService.handleGoogleCallback(code, state);
           useAuthStore.getState().setUser(user);
-          router.push('/profile');
+          redirectToDestination();
           return;
         }
 
@@ -79,7 +104,7 @@ export default function GoogleCallbackPage() {
           if (fragmentToken && fragmentRefreshToken) {
             console.log('🔄 [Google Callback] Found tokens in URL fragment');
             await authService.handleOAuthCallback(fragmentToken, fragmentRefreshToken);
-            router.push('/profile');
+            redirectToDestination();
             return;
           }
         }
@@ -94,7 +119,7 @@ export default function GoogleCallbackPage() {
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
           console.log('✅ [Google Callback] User already authenticated:', currentUser);
-          router.push('/profile');
+          redirectToDestination();
         } else {
           console.error('❌ [Google Callback] No valid authentication found');
           console.log('Debug info:', {
@@ -112,7 +137,7 @@ export default function GoogleCallbackPage() {
             const retryUser = await authService.getCurrentUser();
             if (retryUser) {
               console.log('✅ [Google Callback] User found on retry:', retryUser);
-              router.push('/profile');
+              redirectToDestination();
             } else {
               console.error('❌ [Google Callback] Still no authentication after retry');
               router.push('/auth/signin?error=callback-failed');
@@ -129,12 +154,9 @@ export default function GoogleCallbackPage() {
   }, [searchParams, router]);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="flex flex-col items-center space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        <p className="text-foreground font-atkinson">Completing Google sign in...</p>
-        <p className="text-muted-foreground text-sm">Please wait while we process your authentication.</p>
-      </div>
-    </div>
+    <PageLoader
+      message="Completing Google sign in..."
+      subtitle="Please wait while we process your authentication."
+    />
   );
 }

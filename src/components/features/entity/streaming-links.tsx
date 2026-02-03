@@ -76,7 +76,8 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({ links, className
         {availableLinks.map(([platform, url]) => {
           const service = streamingServices[platform];
           if (!service || !url) return null;
-          
+          console.log('mapping a streaming link for', platform, url);
+          console.log('service', service);
           return (
             <a
               key={platform}

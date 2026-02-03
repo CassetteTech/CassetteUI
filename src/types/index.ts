@@ -1,3 +1,10 @@
+// Account type enum for verified/team badges
+export enum AccountType {
+  REGULAR = 'Regular',
+  VERIFIED = 'Verified',
+  CASSETTE_TEAM = 'CassetteTeam',
+}
+
 // User & Profile Types
 export interface UserBio {
   id: string;
@@ -6,7 +13,9 @@ export interface UserBio {
   bio: string;
   avatarUrl: string;
   isOwnProfile: boolean;
+  accountType?: AccountType | number; // API returns integer, frontend uses enum
   connectedServices: ConnectedService[];
+  platformPreferences?: PlatformPreferenceInfo[];
 }
 
 export interface ConnectedService {
@@ -15,11 +24,23 @@ export interface ConnectedService {
   profileUrl?: string;
 }
 
+export interface PlatformPreference {
+  platform: 'Spotify' | 'AppleMusic' | 'Deezer';
+  isAuthenticated: boolean;
+  addedAt: string;
+}
+
+export interface PlatformPreferenceInfo {
+  platform: string;
+  addedAt: string;
+}
+
 export interface ActivityPost {
   postId: string;
   elementType: string;
   title: string;
   subtitle?: string;
+  description?: string;
   imageUrl?: string;
   username: string;
   userId: string;
@@ -44,6 +65,7 @@ export interface Track {
   artwork: string;
   duration?: number;
   previewUrl?: string;
+  isExplicit?: boolean;
   externalUrls: {
     spotify?: string;
     appleMusic?: string;
@@ -181,6 +203,11 @@ export interface MediaListTrack {
   duration?: string;
   artists?: string[];
   previewUrl?: string;
+  isrc?: string;
+  // Platform-specific track IDs for fetching preview URLs directly
+  spotifyTrackId?: string;
+  appleMusicTrackId?: string;
+  deezerTrackId?: string;
 }
 
 // API Response type for music link conversion
@@ -221,6 +248,26 @@ export interface ConversionApiResponse {
     };
   };
   caption?: string;
+  description?: string;
+}
+
+// API Response type for playlist creation (snake_case to match backend JSON)
+export interface CreatePlaylistResponse {
+  success: boolean;
+  playlist_id?: string;
+  playlist_url?: string;
+  tracks_added: number;
+  tracks_failed: number;
+  total_tracks: number;
+  error_message?: string;
+  failed_tracks?: FailedTrack[];
+}
+
+export interface FailedTrack {
+  position: number;
+  track_name?: string;
+  artist_name?: string;
+  error_reason?: string;
 }
 
 // API Response type for fetchPostById
@@ -229,6 +276,7 @@ export interface PostByIdResponse {
   postId: string;
   elementType: string;
   musicElementId: string;
+  createdAt?: string;
   details: {
     title?: string;
     name?: string;
@@ -259,6 +307,7 @@ export interface PostByIdResponse {
     };
   };
   caption?: string;
+  description?: string;
   username?: string;
   originalLink?: string;
 }
@@ -267,7 +316,6 @@ export interface PostByIdResponse {
 export interface SignInForm {
   email: string;
   password: string;
-  acceptTerms: boolean;
 }
 
 export interface SignUpForm {
@@ -296,9 +344,11 @@ export interface AuthUser {
   email: string;
   username: string;
   displayName: string;
+  bio?: string;
   profilePicture: string;
   isEmailVerified: boolean;
   isOnboarded: boolean;
+  accountType?: AccountType | number; // API returns integer, frontend uses enum
   createdAt: string;
   updatedAt: string;
   connectedServices?: ConnectedService[];

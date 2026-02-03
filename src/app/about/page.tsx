@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileDemo } from "@/components/demo/profile-demo";
 import { openKoFiSupport, KOFI_ICON_SRC } from "@/lib/ko-fi";
+import { useAuthState } from "@/hooks/use-auth";
 
 /**
  * About Page (Revamped)
@@ -32,6 +33,9 @@ import { openKoFiSupport, KOFI_ICON_SRC } from "@/lib/ko-fi";
  */
 
 export default function AboutPage() {
+  const { isAuthenticated } = useAuthState();
+  const primaryCtaHref = isAuthenticated ? "/" : "/auth/signup";
+
   return (
     <div className="relative min-h-screen surface-bottom overflow-hidden">
       <AnimatedBackground />
@@ -76,18 +80,10 @@ export default function AboutPage() {
                   size="lg"
                   className="font-teko text-xl px-9 py-7 rounded-xl bg-gradient-to-r from-primary to-accent text-foreground elev-2 hover:elev-3 transition-all duration-300 hover:scale-105 bordered-glow group"
                 >
-                  <Link href="/auth/signup">
+                  <Link href={primaryCtaHref}>
                     <span>Create Your Universal Link</span>
                     <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
                   </Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                  className="font-teko text-xl px-9 py-7 rounded-xl gradient-border-hover surface-top elev-1 hover:elev-2 transition-all duration-300"
-                >
-                  <Link href="/profile">Explore Profiles</Link>
                 </Button>
               </div>
 

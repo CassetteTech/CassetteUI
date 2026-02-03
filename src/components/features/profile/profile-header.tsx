@@ -2,9 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { UserBio, ConnectedService } from '@/types';
-import { AnimatedButton } from '@/components/ui/animated-button';
+import { UserBio, ConnectedService, PlatformPreferenceInfo } from '@/types';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { VerificationBadge } from '@/components/ui/verification-badge';
 
 interface ProfileHeaderProps {
   userBio: UserBio;
@@ -25,7 +26,6 @@ export function ProfileHeader({
   const isLargeScreen = screenWidth > 800;
   
   const avatarSize = isSmallScreen ? 'w-12 h-12' : isLargeScreen ? 'w-24 h-24 lg:w-32 lg:h-32' : 'w-16 h-16';
-  const fontSize = isSmallScreen ? 'text-xs' : isLargeScreen ? 'text-base' : 'text-sm';
   const padding = isSmallScreen ? 'p-3' : isLargeScreen ? 'p-4' : 'p-3';
   
   return (
@@ -52,6 +52,10 @@ export function ProfileHeader({
               }`}>
                 {userBio.displayName || userBio.username}
               </span>
+              <VerificationBadge
+                accountType={userBio.accountType}
+                size={isSmallScreen ? 'sm' : isLargeScreen ? 'lg' : 'md'}
+              />
               {isCurrentUser && (
                 <Link href={`/profile/${userBio.username}/edit`} className="hover:scale-105 transition-transform flex-shrink-0">
                   <Image 
@@ -82,59 +86,49 @@ export function ProfileHeader({
           </p>
         )}
         
-        {/* Connected Services */}
+        {/* Connected Services / Platform Preferences */}
         <div className="flex items-center mb-4">
-          <ConnectedServices services={userBio.connectedServices} isSmallScreen={isSmallScreen} isLargeScreen={isLargeScreen} />
+          <ConnectedServices
+            services={userBio.connectedServices}
+            platformPreferences={userBio.platformPreferences}
+            isSmallScreen={isSmallScreen}
+            isLargeScreen={isLargeScreen}
+          />
         </div>
         
         {/* Action Buttons */}
         <div className="flex gap-3 lg:flex-col lg:gap-4">
-          <AnimatedButton
+          <Button
             onClick={onShare}
-            width={isLargeScreen ? 200 : isSmallScreen ? 120 : 132}
-            height={isSmallScreen ? 32 : isLargeScreen ? 48 : 36}
-            colorTop="#ED2748"
-            colorBottom="#E95E75"
-            borderColorTop="#FF002B"
-            borderColorBottom="#ED2748"
-            radius={12}
-            textStyle={`text-white font-medium ${fontSize}`}
+            className={`rounded-xl gap-2 ${
+              isSmallScreen ? 'h-8 px-3 text-xs' : isLargeScreen ? 'h-12 px-6 text-base' : 'h-9 px-4 text-sm'
+            }`}
           >
-            <div className="flex items-center justify-center gap-2">
-              <Image 
-                src="/images/ic_share.png" 
-                alt="Share" 
-                width={isSmallScreen ? 14 : 16} 
-                height={isSmallScreen ? 14 : 16}
-                className="opacity-90"
-              />
-              <span>Share Profile</span>
-            </div>
-          </AnimatedButton>
-          
+            <Image
+              src="/images/ic_share.png"
+              alt="Share"
+              width={isSmallScreen ? 14 : 16}
+              height={isSmallScreen ? 14 : 16}
+            />
+            <span>Share Profile</span>
+          </Button>
+
           {isCurrentUser && onAddMusic && (
-            <AnimatedButton
+            <Button
+              variant="outline"
               onClick={onAddMusic}
-              width={isLargeScreen ? 200 : isSmallScreen ? 120 : 132}
-              height={isSmallScreen ? 32 : isLargeScreen ? 48 : 36}
-              colorTop="hsl(var(--card))"
-              colorBottom="hsl(var(--muted))"
-              borderColorTop="hsl(var(--border))"
-              borderColorBottom="hsl(var(--border))"
-              radius={12}
-              textStyle={`font-medium ${fontSize} text-card-foreground`}
+              className={`rounded-xl gap-2 ${
+                isSmallScreen ? 'h-8 px-3 text-xs' : isLargeScreen ? 'h-12 px-6 text-base' : 'h-9 px-4 text-sm'
+              }`}
             >
-              <div className="flex items-center justify-center gap-2">
-                <Image 
-                  src="/images/ic_music.png" 
-                  alt="Add Music" 
-                  width={isSmallScreen ? 14 : 16} 
-                  height={isSmallScreen ? 14 : 16}
-                  className="opacity-90"
-                />
-                <span>Add Music</span>
-              </div>
-            </AnimatedButton>
+              <Image
+                src="/images/ic_music.png"
+                alt="Add Music"
+                width={isSmallScreen ? 14 : 16}
+                height={isSmallScreen ? 14 : 16}
+              />
+              <span>Add Music</span>
+            </Button>
           )}
         </div>
       </div>
@@ -142,50 +136,78 @@ export function ProfileHeader({
   );
 }
 
-function ConnectedServices({ services, isSmallScreen, isLargeScreen }: { services: ConnectedService[], isSmallScreen: boolean, isLargeScreen: boolean }) {
+function ConnectedServices({
+  services,
+  platformPreferences,
+  isSmallScreen,
+  isLargeScreen
+}: {
+  services: ConnectedService[];
+  platformPreferences?: PlatformPreferenceInfo[];
+  isSmallScreen: boolean;
+  isLargeScreen: boolean;
+}) {
+  const normalize = (value: unknown) => (typeof value === 'string' ? value : value ? String(value) : '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
   const getServiceIcon = (serviceType: string) => {
+    const normalized = normalize(serviceType);
     const iconMap: Record<string, string> = {
-      'spotify': '/images/social_images/ic_spotify.png',
-      'apple': '/images/social_images/ic_apple.png',
+      'spotify': '/images/spotify_logo_colored.png',
+      'applemusic': '/images/apple_music_logo_colored.png',
+      'apple': '/images/apple_music_logo_colored.png',
       'youtube': '/images/social_images/ic_yt_music.png',
       'tidal': '/images/social_images/ic_tidal.png',
-      'deezer': '/images/social_images/ic_deezer.png',
+      'deezer': '/images/deezer_logo_colored.png',
     };
-    
-    return iconMap[serviceType.toLowerCase()] || '/images/social_images/ic_spotify.png';
+
+    return iconMap[normalized] || '/images/spotify_logo_colored.png';
   };
 
   const getServiceColor = (serviceType: string) => {
+    const normalized = normalize(serviceType);
     const colorMap: Record<string, string> = {
-      'spotify': 'text-green-500',
-      'apple': 'text-gray-300',
-      'youtube': 'text-red-500',
-      'tidal': 'text-blue-500',
-      'deezer': 'text-purple-500',
+      'spotify': 'bg-[#1DB954]/20 border-[#1DB954]/50',
+      'applemusic': 'bg-[#FA233B]/20 border-[#FA233B]/50',
+      'apple': 'bg-[#FA233B]/20 border-[#FA233B]/50',
+      'youtube': 'bg-red-500/20 border-red-500/50',
+      'tidal': 'bg-blue-500/20 border-blue-500/50',
+      'deezer': 'bg-purple-500/20 border-purple-500/50',
     };
-    
-    return colorMap[serviceType.toLowerCase()] || 'text-gray-400';
+
+    return colorMap[normalized] || 'bg-gray-400/20 border-gray-400/50';
   };
 
-  if (!services || services.length === 0) {
+  // Use platformPreferences if available, fall back to connectedServices
+  const displayItems: Array<{ type: string; key: string }> = [];
+
+  if (platformPreferences && platformPreferences.length > 0) {
+    platformPreferences.forEach((pref, index) => {
+      displayItems.push({ type: pref.platform, key: `pref-${pref.platform}-${index}` });
+    });
+  } else if (services && services.length > 0) {
+    services.forEach((service, index) => {
+      displayItems.push({ type: service.serviceType, key: `service-${service.serviceType}-${index}` });
+    });
+  }
+
+  if (displayItems.length === 0) {
     return null;
   }
 
-  const iconSize = isSmallScreen ? 'w-5 h-5' : isLargeScreen ? 'w-7 h-7' : 'w-6 h-6';
-  const padding = isSmallScreen ? 'p-1' : 'p-1';
-  
+  const iconSize = isSmallScreen ? 'w-7 h-7' : isLargeScreen ? 'w-9 h-9' : 'w-8 h-8';
+
   return (
     <div className="flex gap-2 overflow-x-auto max-w-full">
-      {services.map((service, index) => (
+      {displayItems.map((item) => (
         <div
-          key={`${service.serviceType}-${index}`}
-          className={`flex-shrink-0 ${iconSize} rounded-full ${padding} ${getServiceColor(service.serviceType)} bg-opacity-20 border border-current`}
+          key={item.key}
+          className={`flex-shrink-0 ${iconSize} rounded-lg p-1.5 ${getServiceColor(item.type)} border`}
         >
           <Image
-            src={getServiceIcon(service.serviceType)}
-            alt={service.serviceType}
-            width={isSmallScreen ? 16 : isLargeScreen ? 24 : 20}
-            height={isSmallScreen ? 16 : isLargeScreen ? 24 : 20}
+            src={getServiceIcon(item.type)}
+            alt={item.type}
+            width={isSmallScreen ? 20 : isLargeScreen ? 28 : 24}
+            height={isSmallScreen ? 20 : isLargeScreen ? 28 : 24}
             className="w-full h-full object-contain"
           />
         </div>

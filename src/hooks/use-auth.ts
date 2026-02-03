@@ -3,6 +3,7 @@ import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { SignInForm, SignUpForm } from '@/types';
 import { useRouter } from 'next/navigation';
+import { pendingActionService } from '@/utils/pending-action';
 
 export const useSignIn = () => {
   const router = useRouter();
@@ -12,7 +13,26 @@ export const useSignIn = () => {
     mutationFn: (data: SignInForm) => authService.signIn(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
-      // Navigate to profile (which will handle onboarding redirect if needed)
+
+      // Get the user from store (already set by authService.signIn)
+      const user = useAuthStore.getState().user;
+      const pendingAction = pendingActionService.get();
+
+      // Always check onboarding first - don't bypass it for pending actions
+      if (!user?.isOnboarded) {
+        // Keep pending action for after onboarding completes
+        router.push('/onboarding');
+        return;
+      }
+
+      // User is onboarded - honor pending action if exists
+      if (pendingAction?.returnUrl) {
+        pendingActionService.clear();
+        window.location.href = pendingAction.returnUrl;
+        return;
+      }
+
+      // Default: Navigate to profile
       router.push('/profile');
     },
     onError: (error: Error) => {
@@ -33,6 +53,24 @@ export const useSignUp = () => {
       console.log('✅ [useSignUp] Signup successful:', result);
       // Navigate to profile only if auto-login tokens were returned
       if (result?.token) {
+        // Get the user from store (already set by authService.signUp)
+        const user = useAuthStore.getState().user;
+        const pendingAction = pendingActionService.get();
+
+        // Always check onboarding first - don't bypass it for pending actions
+        if (!user?.isOnboarded) {
+          // Keep pending action for after onboarding completes
+          router.push('/onboarding');
+          return;
+        }
+
+        // User is onboarded - honor pending action if exists
+        if (pendingAction?.returnUrl) {
+          pendingActionService.clear();
+          window.location.href = pendingAction.returnUrl;
+          return;
+        }
+
         router.push('/profile');
       }
     },

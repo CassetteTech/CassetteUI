@@ -80,6 +80,13 @@ export const useSimulatedProgress = (
   const progressIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const startTimeRef = useRef<number | null>(null);
   const hasShownLongWaitMessageRef = useRef(false);
+  const hasInitializedRef = useRef(false);
+
+  // Use ref for apiComplete to avoid stale closure issues in scheduled timeouts
+  const apiCompleteRef = useRef(apiComplete);
+  useEffect(() => {
+    apiCompleteRef.current = apiComplete;
+  }, [apiComplete]);
 
   // Track elapsed time and keep the progress bar feeling alive
   useEffect(() => {
@@ -99,13 +106,29 @@ export const useSimulatedProgress = (
           return { ...prev, elapsedMs: elapsed };
         }
 
-        const baseRatio = totalPlannedDuration > 0
-          ? Math.min(elapsed / totalPlannedDuration, 0.92)
-          : 0.92;
-        const overtime = elapsed > totalPlannedDuration
-          ? Math.min((elapsed - totalPlannedDuration) / 5000, 0.08)
-          : 0;
-        const nextProgress = Math.min(99.5, (baseRatio + overtime) * 100);
+        // Read from ref to get latest value
+        const apiDone = apiCompleteRef.current;
+
+        // If API is done, jump to 100%
+        if (apiDone) {
+          return {
+            ...prev,
+            elapsedMs: elapsed,
+            progress: 100
+          };
+        }
+
+        // Asymptotic slowdown - progress approaches CEILING but decelerates
+        const CEILING = 92;
+        const DECAY_FACTOR = 0.0004; // How quickly we slow down
+
+        // Exponential decay: progress = CEILING * (1 - e^(-k*t))
+        // This naturally slows down as it approaches the ceiling
+        const rawProgress = CEILING * (1 - Math.exp(-DECAY_FACTOR * elapsed));
+
+        // Add micro-variations to keep it feeling alive (subtle oscillation)
+        const wobble = Math.sin(elapsed / 500) * 0.3;
+        const nextProgress = Math.min(CEILING - 0.5, rawProgress + wobble);
 
         return {
           ...prev,
@@ -138,10 +161,13 @@ export const useSimulatedProgress = (
     }
   }, [state.isComplete]);
 
-  // Smart step timing logic
-  const getStepDelay = useCallback((stepIndex: number, isLastStep: boolean, apiDone: boolean) => {
+  // Smart step timing logic - reads from ref to avoid stale closure
+  const getStepDelay = useCallback((stepIndex: number, isLastStep: boolean) => {
     const step = STEP_CONFIGS[contentType][stepIndex];
     if (!step) return 0;
+
+    // Read from ref to get latest API status
+    const apiDone = apiCompleteRef.current;
 
     if (apiDone) {
       // When the API is already done we sprint through remaining steps for snappy completion
@@ -187,12 +213,12 @@ export const useSimulatedProgress = (
     trackMatchingIntervalRef.current = matchingInterval;
   }, [contentType, estimatedCount]);
 
-  // Advance to next step
+  // Advance to next step - uses refs to avoid stale closures
   const advanceStep = useCallback(() => {
     setState(prev => {
       const nextStep = prev.currentStep + 1;
       const steps = STEP_CONFIGS[contentType];
-      
+
       if (nextStep >= steps.length) {
         // Simulation complete
         onComplete?.();
@@ -204,14 +230,17 @@ export const useSimulatedProgress = (
           isWaitingForApi: false
         };
       }
-      
+
       const currentStepConfig = steps[nextStep];
       const isLastStep = nextStep === steps.length - 1;
-      
+
+      // Read from ref to get latest API status
+      const apiDone = apiCompleteRef.current;
+
       // Don't schedule next step if in rapid completion mode
       if (!rapidCompletionRef.current) {
-        const delay = getStepDelay(nextStep, isLastStep, apiComplete || false);
-        
+        const delay = getStepDelay(nextStep, isLastStep);
+
         if (delay !== null) {
           // Schedule next step advancement
           stepTimeoutRef.current = setTimeout(() => {
@@ -222,16 +251,16 @@ export const useSimulatedProgress = (
           console.log('⏸️ Pausing on last step - waiting for API response');
         }
       }
-      
+
       return {
         ...prev,
         currentStep: nextStep,
         currentStepName: currentStepConfig.name,
         statusMessage: `${currentStepConfig.name}...`,
-        isWaitingForApi: !apiComplete
+        isWaitingForApi: !apiDone
       };
     });
-  }, [contentType, onComplete, getStepDelay, apiComplete]);
+  }, [contentType, onComplete, getStepDelay]);
 
   // Rapid completion when API finishes first
   const enterRapidCompletionMode = useCallback(() => {
@@ -305,30 +334,30 @@ export const useSimulatedProgress = (
     }
   }, [apiComplete, state.isComplete, state.elapsedMs, state.matchedCount, contentType, estimatedCount]);
 
-  // Start simulation
+  // Start simulation - runs once on mount, uses refs for mutable state
   useEffect(() => {
+    // Prevent re-initialization if already started
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+
     // Progressive disclosure timeline
     const timeouts: NodeJS.Timeout[] = [];
 
     // Start first step immediately (after base delay)
     timeouts.push(setTimeout(() => {
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         statusMessage: STEP_CONFIGS[contentType][0].name + '...'
       }));
-      
+
       // Start first step with smart timing
-      const delay = getStepDelay(
-        0,
-        STEP_CONFIGS[contentType].length === 1,
-        apiComplete || false
-      );
+      const delay = getStepDelay(0, STEP_CONFIGS[contentType].length === 1);
       if (delay !== null) {
         stepTimeoutRef.current = setTimeout(() => {
           advanceStep();
         }, delay);
       }
-      
+
     }, baseDelay));
 
     // 2s: Show track list for playlists only
@@ -344,8 +373,10 @@ export const useSimulatedProgress = (
       timeouts.forEach(clearTimeout);
       if (stepTimeoutRef.current) clearTimeout(stepTimeoutRef.current);
       if (trackMatchingIntervalRef.current) clearInterval(trackMatchingIntervalRef.current);
+      // Reset initialization flag so StrictMode second run works correctly
+      hasInitializedRef.current = false;
     };
-  }, [contentType, baseDelay, advanceStep, simulateTrackMatching, getStepDelay, apiComplete]);
+  }, [contentType, baseDelay, advanceStep, simulateTrackMatching, getStepDelay]);
 
   return {
     ...state,

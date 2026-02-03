@@ -2,6 +2,9 @@
 
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { platformConnectService } from '@/services/platform-connect';
+import { pendingActionService } from '@/utils/pending-action';
+import { PageLoader } from '@/components/ui/page-loader';
 
 export default function SpotifyCallbackPage() {
   const router = useRouter();
@@ -13,15 +16,47 @@ export default function SpotifyCallbackPage() {
       const state = searchParams.get('state');
       const error = searchParams.get('error');
 
+      // Helper to get return URL from storage
+      const getReturnUrl = (): string | null => {
+        const platformReturnUrl = platformConnectService.getReturnUrl('spotify');
+        if (platformReturnUrl) return platformReturnUrl;
+        const pendingAction = pendingActionService.get();
+        return pendingAction?.returnUrl || null;
+      };
+
+      // Helper to redirect with optional query param
+      const redirectTo = (baseUrl: string, param?: string) => {
+        const separator = baseUrl.includes('?') ? '&' : '?';
+        window.location.href = param ? `${baseUrl}${separator}${param}` : baseUrl;
+      };
+
+      // Helper to clean up stored URLs
+      const cleanupStorage = () => {
+        platformConnectService.clearReturnUrl('spotify');
+        // Note: Don't clear pending action here - it will be used/cleared on the post page
+      };
+
       if (error) {
         console.error('Spotify authorization error:', error);
-        router.replace('/profile?error=spotify-auth-denied');
+        const returnUrl = getReturnUrl();
+        cleanupStorage();
+        if (returnUrl) {
+          redirectTo(returnUrl, 'error=spotify-auth-denied');
+        } else {
+          router.replace('/profile?error=spotify-auth-denied');
+        }
         return;
       }
 
       if (!code || !state) {
         console.error('Missing code or state in Spotify callback');
-        router.replace('/profile?error=spotify-invalid-callback');
+        const returnUrl = getReturnUrl();
+        cleanupStorage();
+        if (returnUrl) {
+          redirectTo(returnUrl, 'error=spotify-invalid-callback');
+        } else {
+          router.replace('/profile?error=spotify-invalid-callback');
+        }
         return;
       }
 
@@ -53,16 +88,34 @@ export default function SpotifyCallbackPage() {
           // Follow the redirect from the API
           window.location.href = response.url;
         } else if (response.ok) {
-          // Success - redirect to profile and refresh the page to show new connection
-          // Using window.location.href to force a full page reload and data refetch
-          window.location.href = '/profile?success=spotify-connected';
+          // Success - redirect to return URL or profile
+          const returnUrl = getReturnUrl();
+          cleanupStorage();
+          if (returnUrl) {
+            // Return to original page (e.g., playlist post page)
+            redirectTo(returnUrl, 'spotify_connected=true');
+          } else {
+            window.location.href = '/profile?success=spotify-connected';
+          }
         } else {
           // Error - redirect with error message
-          router.replace('/profile?error=spotify-callback-failed');
+          const returnUrl = getReturnUrl();
+          cleanupStorage();
+          if (returnUrl) {
+            redirectTo(returnUrl, 'error=spotify-callback-failed');
+          } else {
+            router.replace('/profile?error=spotify-callback-failed');
+          }
         }
       } catch (error) {
         console.error('Callback processing error:', error);
-        router.replace('/profile?error=spotify-callback-failed');
+        const returnUrl = getReturnUrl();
+        cleanupStorage();
+        if (returnUrl) {
+          redirectTo(returnUrl, 'error=spotify-callback-failed');
+        } else {
+          router.replace('/profile?error=spotify-callback-failed');
+        }
       }
     };
 
@@ -70,12 +123,9 @@ export default function SpotifyCallbackPage() {
   }, [searchParams, router]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a] flex items-center justify-center">
-      <div className="flex flex-col items-center space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
-        <p className="text-white font-atkinson">Connecting your Spotify account...</p>
-        <p className="text-gray-400 text-sm">Please wait while we securely save your connection.</p>
-      </div>
-    </div>
+    <PageLoader
+      message="Connecting your Spotify account..."
+      subtitle="Please wait while we securely save your connection."
+    />
   );
 }

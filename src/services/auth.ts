@@ -39,7 +39,7 @@ class AuthService {
     const payload = {
       email: email.toLowerCase().trim(),
       password,
-      username: username.trim(),
+      username: username.trim().toLowerCase(),
     };
 
     console.log('🔄 [Auth] Starting signup request');
@@ -107,11 +107,7 @@ class AuthService {
     throw new Error('Invalid response from server');
   }
 
-  async signIn({ email, password, acceptTerms }: SignInForm) {
-    if (!acceptTerms) {
-      throw new Error('Please agree to all the terms and conditions before Signing in');
-    }
-
+  async signIn({ email, password }: SignInForm) {
     const response = await fetch(`${API_URL}/api/v1/auth/signin`, {
       method: 'POST',
       headers: {
@@ -163,6 +159,36 @@ class AuthService {
     }
 
     // Clear local storage and update store
+    this.clearTokens();
+    useAuthStore.getState().signOut();
+  }
+
+  async deleteAccount(): Promise<void> {
+    const token = this.getAccessToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    console.log('🔄 [Auth] Starting account deletion request');
+
+    const response = await fetch(`${API_URL}/api/v1/auth/account`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    console.log('📦 [Auth] Delete account response:', data);
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || 'Failed to delete account');
+    }
+
+    console.log('✅ [Auth] Account deleted successfully, clearing local data');
+
+    // Clear tokens and sign out
     this.clearTokens();
     useAuthStore.getState().signOut();
   }
@@ -297,12 +323,14 @@ class AuthService {
     // Handle both camelCase and PascalCase field names from backend
     const userId = userData.userId || userData.UserId || userData.id;
     const username = userData.username || userData.Username;
-    
+    const bio = userData.bio || userData.Bio;
+
     return {
       id: String(userId || ''),
       email: String(userData.email || userData.Email || ''),
       username: String(username || ''),
       displayName: String(userData.displayName || username || ''),
+      bio: bio ? String(bio) : undefined,
       profilePicture: String(userData.avatarUrl || userData.AvatarUrl || ''),
       isEmailVerified: true, // Assume verified if coming from backend
       isOnboarded: Boolean(userData.isOnboarded || userData.IsOnboarded || false),

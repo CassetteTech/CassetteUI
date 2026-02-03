@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AnimatedButton } from '@/components/ui/animated-button';
+import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { UrlBar } from '@/components/ui/url-bar';
 import { UIText } from '@/components/ui/typography';
 import { AnimatedBackground } from '@/components/ui/animated-background';
@@ -11,12 +11,8 @@ import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
 import { SearchResults } from '@/components/features/search-results';
 import { MusicSearchResult } from '@/types';
+import { PageLoader } from '@/components/ui/page-loader';
 import Image from 'next/image';
-import {
-  SidebarInset,
-  SidebarProvider,
-} from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/layout/app-sidebar';
 
 type SelectedItem = {
   id: string;
@@ -28,11 +24,12 @@ type SelectedItem = {
 };
 
 // Add Music Form component extracted to prevent recreation on every render
-const AddMusicForm = ({ 
+const AddMusicForm = ({
   isSearchActive,
   selectedItem,
   pastedLinkSource,
   musicUrl,
+  debouncedSearchTerm,
   handleUrlChange,
   handleSearchFocus,
   handleSearchBlur,
@@ -55,6 +52,7 @@ const AddMusicForm = ({
   selectedItem: SelectedItem | null;
   pastedLinkSource: string | null;
   musicUrl: string;
+  debouncedSearchTerm: string;
   handleUrlChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSearchFocus: () => void;
   handleSearchBlur: () => void;
@@ -138,8 +136,8 @@ const AddMusicForm = ({
                   </div>
                 )}
                 <div className="flex-1">
-                  <p className="font-atkinson font-bold text-text-primary">{selectedItem.title}</p>
-                  {selectedItem.artist && <p className="text-text-secondary text-sm">{selectedItem.artist}</p>}
+                  <p className="font-atkinson font-bold text-[#1F2327]">{selectedItem.title}</p>
+                  {selectedItem.artist && <p className="text-[#1F2327] text-sm">{selectedItem.artist}</p>}
                   <span className="inline-block px-2 py-1 bg-primary/10 text-primary text-xs font-bold rounded uppercase">
                     {selectedItem.type}
                   </span>
@@ -189,7 +187,7 @@ const AddMusicForm = ({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Let us know a little bit about this song or playlist!"
               rows={6}
-              className="relative w-full p-4 bg-white border-2 border-foreground rounded-lg font-atkinson text-text-primary placeholder:text-textHint resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              className="relative w-full p-4 bg-white border-2 border-foreground rounded-lg font-atkinson text-[#1F2327] placeholder:text-textHint resize-none focus:outline-none focus:ring-2 focus:ring-primary"
               autoComplete="off"
               spellCheck="false"
             />
@@ -200,19 +198,15 @@ const AddMusicForm = ({
         {/* Add to Profile Button */}
         {!isSearchActive && (
           <div className="text-center">
-          <AnimatedButton
+          <AnimatedPrimaryButton
             text="Add to Profile"
             onClick={handleAddToProfile}
             disabled={!selectedItem && !musicUrl.trim()}
-            height={48}
+            height={52}
             width={280}
             initialPos={6}
-            colorTop="#1F2327"
-            colorBottom="#595C5E"
-            borderColorTop="#1F2327"
-            borderColorBottom="#1F2327"
-            className="mx-auto"
-            textStyle="text-lg font-bold tracking-wide font-atkinson text-white"
+            className="mx-auto shadow-[0_14px_32px_rgba(210,53,53,0.35)]"
+            textStyle="text-lg font-bold tracking-wide font-atkinson"
           />
           
           {errorMessage && (
@@ -227,6 +221,7 @@ const AddMusicForm = ({
       <div className="search-container w-full">
         <SearchResults
           results={displayData}
+          query={debouncedSearchTerm}
           isLoading={isLoadingCharts}
           isSearching={isSearchingMusic}
           showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}
@@ -478,14 +473,7 @@ export default function AddMusicPage() {
 
   // Show loading while checking auth
   if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a] flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-          <p className="text-white font-atkinson">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader message="Loading..." />;
   }
 
   // Don't render if not authenticated (will redirect)
@@ -493,57 +481,101 @@ export default function AddMusicPage() {
     return null;
   }
 
-  // Mobile content component for reuse
-  const MobileContent = () => (
-    <div className="min-h-screen relative">
-      {/* Animated Background */}
-      <AnimatedBackground className="fixed inset-0 z-0" />
-      
-      <div className="relative z-10 min-h-screen">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Header */}
-          <div className="flex items-center justify-between py-6">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-text-primary hover:opacity-75 transition-opacity"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="font-atkinson font-bold">Back</span>
-            </button>
-          </div>
+  return (
+    <>
+      {/* Mobile Layout */}
+      <div className="lg:hidden">
+        <div className="min-h-screen relative">
+          {/* Animated Background */}
+          <AnimatedBackground className="fixed inset-0 z-0" />
 
-          {/* Profile Section */}
-          <div className="flex items-center justify-center gap-6 mb-8">
-            {user?.profilePicture ? (
-              <Image
-                src={user.profilePicture}
-                alt={user.username}
-                width={60}
-                height={60}
-                className="rounded-full border-2 border-text-primary/20"
-              />
-            ) : (
-              <div className="w-15 h-15 rounded-full bg-text-primary/10 border-2 border-text-primary/20 flex items-center justify-center">
-                <span className="text-text-primary text-2xl font-atkinson font-bold">
-                  {user?.username?.charAt(0)?.toUpperCase() || 'U'}
-                </span>
+          <div className="relative z-10 min-h-screen">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+
+              {/* Header */}
+              <div className="flex items-center justify-between py-6">
+                <button
+                  onClick={() => router.back()}
+                  className="flex items-center gap-2 text-text-primary hover:opacity-75 transition-opacity"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span className="font-atkinson font-bold">Back</span>
+                </button>
               </div>
-            )}
-            <h1 className="text-3xl sm:text-4xl font-atkinson font-bold text-text-primary">
-              Add Music
-            </h1>
+
+              {/* Profile Section */}
+              <div className="flex items-center justify-center gap-6 mb-8">
+                {user?.profilePicture ? (
+                  <Image
+                    src={user.profilePicture}
+                    alt={user.username}
+                    width={60}
+                    height={60}
+                    className="rounded-full border-2 border-text-primary/20"
+                  />
+                ) : (
+                  <div className="w-15 h-15 rounded-full bg-text-primary/10 border-2 border-text-primary/20 flex items-center justify-center">
+                    <span className="text-text-primary text-2xl font-atkinson font-bold">
+                      {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+                    </span>
+                  </div>
+                )}
+                <h1 className="text-3xl sm:text-4xl font-atkinson font-bold text-text-primary">
+                  Add Music
+                </h1>
+              </div>
+
+              {/* Main Content */}
+              <div className="max-w-2xl mx-auto">
+                <AddMusicForm
+                  isSearchActive={isSearchActive}
+                  selectedItem={selectedItem}
+                  pastedLinkSource={pastedLinkSource}
+                  musicUrl={musicUrl}
+                  debouncedSearchTerm={debouncedSearchTerm}
+                  handleUrlChange={handleUrlChange}
+                  handleSearchFocus={handleSearchFocus}
+                  handleSearchBlur={handleSearchBlur}
+                  handlePaste={handlePaste}
+                  clearSelection={clearSelection}
+                  description={description}
+                  setDescription={setDescription}
+                  handleAddToProfile={handleAddToProfile}
+                  errorMessage={errorMessage}
+                  searchInputRef={searchInputRef}
+                  displayData={displayData}
+                  isLoadingCharts={isLoadingCharts}
+                  isSearchingMusic={isSearchingMusic}
+                  handleSelectItem={handleSelectItem}
+                  closeSearch={closeSearch}
+                  isValidMusicUrl={isValidMusicUrl}
+                  router={router}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Layout - content only (sidebar handled by parent layout) */}
+      <div className="hidden lg:flex lg:flex-col lg:h-screen lg:overflow-hidden p-6">
+        <div className="flex-1 overflow-y-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-foreground mb-2">Add Music</h1>
+            <p className="text-muted-foreground">Search or paste a link to add music to your profile</p>
           </div>
 
-          {/* Main Content */}
+          {/* Add Music Form */}
           <div className="max-w-2xl mx-auto">
-            <AddMusicForm 
+            <AddMusicForm
               isSearchActive={isSearchActive}
               selectedItem={selectedItem}
               pastedLinkSource={pastedLinkSource}
               musicUrl={musicUrl}
+              debouncedSearchTerm={debouncedSearchTerm}
               handleUrlChange={handleUrlChange}
               handleSearchFocus={handleSearchFocus}
               handleSearchBlur={handleSearchBlur}
@@ -564,63 +596,6 @@ export default function AddMusicPage() {
             />
           </div>
         </div>
-      </div>
-    </div>
-  );
-
-
-  return (
-    <>
-      {/* Mobile Layout */}
-      <div className="lg:hidden">
-        <MobileContent />
-      </div>
-
-      {/* Desktop Layout with Sidebar */}
-      <div className="hidden lg:block min-h-screen bg-background">
-        <SidebarProvider defaultOpen={true}>
-          <AppSidebar />
-          
-          {/* Main Content Area */}
-          <SidebarInset>
-            <div className="flex flex-col h-screen overflow-hidden p-6">
-              <div className="flex-1 overflow-y-auto">
-                {/* Header */}
-                <div className="text-center mb-8">
-                  <h1 className="text-3xl font-bold text-foreground mb-2">Add Music</h1>
-                  <p className="text-muted-foreground">Search or paste a link to add music to your profile</p>
-                </div>
-
-                {/* Add Music Form */}
-                <div className="max-w-2xl mx-auto">
-                  <AddMusicForm 
-                    isSearchActive={isSearchActive}
-                    selectedItem={selectedItem}
-                    pastedLinkSource={pastedLinkSource}
-                    musicUrl={musicUrl}
-                    handleUrlChange={handleUrlChange}
-                    handleSearchFocus={handleSearchFocus}
-                    handleSearchBlur={handleSearchBlur}
-                    handlePaste={handlePaste}
-                    clearSelection={clearSelection}
-                    description={description}
-                    setDescription={setDescription}
-                    handleAddToProfile={handleAddToProfile}
-                    errorMessage={errorMessage}
-                    searchInputRef={searchInputRef}
-                    displayData={displayData}
-                    isLoadingCharts={isLoadingCharts}
-                    isSearchingMusic={isSearchingMusic}
-                    handleSelectItem={handleSelectItem}
-                    closeSearch={closeSearch}
-                    isValidMusicUrl={isValidMusicUrl}
-                    router={router}
-                  />
-                </div>
-              </div>
-            </div>
-          </SidebarInset>
-        </SidebarProvider>
       </div>
     </>
   );

@@ -1,15 +1,28 @@
 import { clientConfig } from '@/lib/config-client';
-import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType, MediaListTrack } from '@/types';
+import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType, MediaListTrack, CreatePlaylistResponse, PlatformPreference } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 
-interface MusicConnection {
-  id: string;
-  userId: string;
-  service: string;
-  serviceUserId?: string;
-  serviceUsername?: string;
-  connectedAt: string;
-  expiresAt?: string;
+// interface MusicConnection {
+//   id: string;
+//   userId: string;
+//   service: string;
+//   serviceUserId?: string;
+//   serviceUsername?: string;
+//   connectedAt: string;
+//   expiresAt?: string;
+// }
+
+// Custom error class to preserve API error details
+export class ApiError extends Error {
+  requiresReauth: boolean;
+  errorCode?: string;
+
+  constructor(message: string, requiresReauth = false, errorCode?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.requiresReauth = requiresReauth;
+    this.errorCode = errorCode;
+  }
 }
 
 class ApiService {
@@ -78,13 +91,30 @@ class ApiService {
           message: 'An error occurred',
         }));
         console.error('❌ API Error Response:', error);
-        throw new Error(error.message || 'API request failed');
+        // Check for auth errors that require re-authentication
+        const requiresReauth = error.requires_reauth === true || error.error_code === 'AUTH_EXPIRED';
+        throw new ApiError(
+          error.error || error.message || 'API request failed',
+          requiresReauth,
+          error.error_code
+        );
+      }
+
+      // Handle 204 No Content responses (e.g., DELETE)
+      if (response.status === 204) {
+        console.log('✅ API Response: 204 No Content');
+        return undefined as T;
       }
 
       let data;
       try {
         const text = await response.text();
         console.log('📝 API Response Text:', text);
+        // Handle empty responses
+        if (!text || text.trim() === '') {
+          console.log('✅ API Response: Empty body');
+          return undefined as T;
+        }
         data = JSON.parse(text);
       } catch (parseError) {
         console.error('❌ JSON Parse Error:', parseError);
@@ -102,9 +132,9 @@ class ApiService {
   }
 
   // Music conversion endpoints
-  async convertMusicLink(url: string, options?: { anonymous?: boolean }): Promise<MusicLinkConversion> {
+  async convertMusicLink(url: string, options?: { anonymous?: boolean; description?: string }): Promise<MusicLinkConversion> {
     console.log('🔄 API Service: convertMusicLink called with:', url, options);
-    
+
     // Generate idempotency key for request deduplication
     const key = typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
@@ -113,7 +143,10 @@ class ApiService {
     const response = await this.request<ConversionApiResponse>('/api/v1/convert', {
       method: 'POST',
       headers: { 'X-Idempotency-Key': key }, // server should honor this
-      body: JSON.stringify({ sourceLink: url }),
+      body: JSON.stringify({
+        sourceLink: url,
+        description: options?.description || undefined
+      }),
       skipAuth: options?.anonymous,
     });
 
@@ -170,7 +203,7 @@ class ApiService {
           album: response.details?.album,
           duration: response.details?.duration
         },
-        description: response.caption || undefined,
+        description: response.description || response.caption || undefined,
         username: response.username || undefined,
         postId: response.postId
       };
@@ -318,9 +351,34 @@ class ApiService {
     });
   }
 
+  // Add music element to user's profile by creating a post
+  async addToProfile(musicElementId: string, elementType: string, description?: string): Promise<{ postId: string }> {
+    return this.request('/api/v1/social/posts', {
+      method: 'POST',
+      body: JSON.stringify({ musicElementId, elementType, description }),
+    });
+  }
+
+  // Update a post's description
+  async updatePost(postId: string, description: string): Promise<{ postId: string; description: string }> {
+    return this.request(`/api/v1/social/posts/${postId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ description }),
+    });
+  }
+
+  // Delete a post
+  async deletePost(postId: string): Promise<void> {
+    await this.request(`/api/v1/social/posts/${postId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Fetch post by ID (includes conversion data)
-  async fetchPostById(postId: string): Promise<PostByIdResponse> {
-    return this.request<PostByIdResponse>(`/api/v1/social/posts/${postId}`);
+  async fetchPostById(postId: string, options?: { signal?: AbortSignal }): Promise<PostByIdResponse> {
+    return this.request<PostByIdResponse>(`/api/v1/social/posts/${postId}`, {
+      signal: options?.signal,
+    });
   }
 
   // Music service authentication endpoints
@@ -345,12 +403,61 @@ class ApiService {
     });
   }
 
+  async createPlaylist(playlistId: string, targetPlatform: string): Promise<CreatePlaylistResponse> {
+    const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
+    const targetKey = normalize(targetPlatform);
+    const canonicalMap: Record<string, string> = {
+      spotify: 'spotify',
+      applemusic: 'applemusic',
+      deezer: 'deezer',
+    };
+    const canonicalTarget = canonicalMap[targetKey] || targetPlatform.toLowerCase();
+
+    // Skip connection check for Spotify if using Cassette's account
+    const skipConnectionCheck = targetKey === 'spotify' && clientConfig.features.useCassetteSpotifyAccount;
+
+    if (!skipConnectionCheck) {
+      const connections = await this.getMusicConnections();
+      const hasConnection = connections.services?.some(service => normalize(service) === targetKey);
+      console.log('createPlaylist connection check:', { connections, targetPlatform, canonicalTarget, hasConnection });
+
+      if (!hasConnection) {
+        throw new Error('No connection found for target platform');
+      }
+    } else {
+      console.log('createPlaylist: Skipping connection check for Spotify (using Cassette account)');
+    }
+
+    return this.request<CreatePlaylistResponse>('/api/v1/convert/createPlaylist', {
+      method: 'POST',
+      body: JSON.stringify({ PlaylistId: playlistId, TargetPlatform: canonicalTarget }),
+    });
+  }
+
   async getMusicConnections() {
-    return this.request<{ connections: MusicConnection[] }>('/api/v1/music-services/connected');
+    return this.request<{ services: string[] }>('/api/v1/music-services/connected');
   }
 
   async disconnectMusicService(service: string) {
     return this.request<{ success: boolean }>(`/api/v1/music-services/${service}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Platform preference endpoints (separate from OAuth authentication)
+  async getPlatformPreferences() {
+    return this.request<{ success: boolean; preferences: PlatformPreference[] }>('/api/v1/music-services/preferences');
+  }
+
+  async setPlatformPreferences(platforms: string[]) {
+    return this.request<{ success: boolean; preferences: PlatformPreference[]; message?: string }>('/api/v1/music-services/preferences', {
+      method: 'POST',
+      body: JSON.stringify({ platforms }),
+    });
+  }
+
+  async removePlatformPreference(platform: string) {
+    return this.request<{ success: boolean; message?: string }>(`/api/v1/music-services/preferences/${platform}`, {
       method: 'DELETE',
     });
   }

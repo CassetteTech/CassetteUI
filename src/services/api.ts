@@ -469,12 +469,28 @@ class ApiService {
   // Lambda warmup
   async warmupLambdas() {
     if (!clientConfig.features.enableLambdaWarmup) return;
-    
+
     try {
       return this.request('/api/v1/warmup', { method: 'POST' });
     } catch (error) {
       console.warn('Lambda warmup failed:', error);
     }
+  }
+
+  // Issue reporting
+  async reportIssue(data: {
+    reportType: string;
+    sourceContext: string;
+    pageUrl: string;
+    sourceLink?: string;
+    description?: string;
+    context?: Record<string, unknown>;
+  }): Promise<{ success: boolean; message?: string; issueId?: string }> {
+    console.log('📝 API Service: reportIssue called with:', data);
+    return this.request('/api/v1/issues', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 }
 

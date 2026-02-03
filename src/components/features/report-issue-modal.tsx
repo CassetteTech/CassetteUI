@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -52,11 +52,6 @@ export function ReportIssueModal({
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async () => {
-    if (!description.trim()) {
-      setErrorMessage('Please provide a description of the issue.');
-      return;
-    }
-
     setIsSubmitting(true);
     setErrorMessage('');
 
@@ -66,7 +61,7 @@ export function ReportIssueModal({
         sourceContext,
         pageUrl: typeof window !== 'undefined' ? window.location.href : '',
         sourceLink,
-        description: description.trim(),
+        description: description.trim() || undefined,
         context: {
           ...conversionData,
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -115,19 +110,19 @@ export function ReportIssueModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="mx-4 max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-foreground">
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <SheetContent side="right" className="w-full max-w-md overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="text-xl font-bold text-foreground">
             Report a Problem
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground">
+          </SheetTitle>
+          <SheetDescription className="text-muted-foreground">
             Help us improve Cassette by reporting issues you encounter.
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
         {submitStatus === 'success' ? (
-          <div className="flex flex-col items-center py-6 gap-3">
+          <div className="flex flex-col items-center py-6 gap-3 px-4">
             <CheckCircle2 className="h-12 w-12 text-green-500" />
             <p className="text-center text-foreground font-medium">
               Thank you for your report!
@@ -138,7 +133,7 @@ export function ReportIssueModal({
           </div>
         ) : (
           <>
-            <div className="space-y-4">
+            <div className="space-y-4 px-4">
               {/* Report Type Selection */}
               <div className="space-y-2">
                 <Label>Issue Type</Label>
@@ -148,7 +143,7 @@ export function ReportIssueModal({
                       key={option.value}
                       type="button"
                       onClick={() => setReportType(option.value)}
-                      className={`text-left p-3 rounded-lg border transition-colors ${
+                      className={`text-left p-2.5 rounded-lg border transition-colors ${
                         reportType === option.value
                           ? 'border-primary bg-primary/10'
                           : 'border-border hover:border-primary/50'
@@ -163,13 +158,15 @@ export function ReportIssueModal({
 
               {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">
+                  Description <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
                 <Textarea
                   id="description"
-                  placeholder="Please describe what happened and what you expected to happen..."
+                  placeholder="Any additional details that might help us investigate..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  rows={4}
+                  rows={3}
                   className="resize-none"
                 />
               </div>
@@ -191,9 +188,9 @@ export function ReportIssueModal({
               )}
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <SheetFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <Button
-                variant="outline"
+                variant="ghost"
                 onClick={() => handleOpenChange(false)}
                 disabled={isSubmitting}
               >
@@ -209,10 +206,10 @@ export function ReportIssueModal({
                   'Submit Report'
                 )}
               </Button>
-            </DialogFooter>
+            </SheetFooter>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

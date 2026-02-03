@@ -27,7 +27,7 @@ import { useRouter } from 'next/navigation';
 import { apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
-import { Check, Copy, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { AlertCircle, Check, Copy, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { detectContentType } from '@/utils/content-type-detection';
@@ -730,10 +730,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   {/* Report Problem (moved to left to keep right-only track list) */}
                   {(isAlbum || isPlaylist) && (
                     <div className="mt-6 mb-[calc(6rem+env(safe-area-inset-bottom))] flex justify-center w-full max-w-xl">
-                      <button onClick={() => setReportModalOpen(true)} className="flex items-center gap-2 px-6 py-3 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-base font-medium">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                      <button
+                        onClick={() => setReportModalOpen(true)}
+                        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <AlertCircle className="w-4 h-4" />
                         <span>Report a Problem</span>
                       </button>
                     </div>
@@ -1022,10 +1023,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
 
                         {/* Report Problem */}
                         <div className="mb-[calc(6rem+env(safe-area-inset-bottom))] flex justify-center">
-                          <button onClick={() => setReportModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                          <button
+                            onClick={() => setReportModalOpen(true)}
+                            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <AlertCircle className="w-4 h-4" />
                             <span>Report a Problem</span>
                           </button>
                         </div>
@@ -1389,12 +1391,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               </div>
 
               {/* Report Problem Button */}
-              <div>
-                <button onClick={() => setReportModalOpen(true)} className="flex items-center gap-2 px-6 py-3 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors font-medium relative z-50">
-                  <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="font-medium">Report a Problem</span>
+              <div className="flex justify-center">
+                <button
+                  onClick={() => setReportModalOpen(true)}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <AlertCircle className="w-4 h-4" />
+                  <span>Report a Problem</span>
                 </button>
               </div>
             </div>

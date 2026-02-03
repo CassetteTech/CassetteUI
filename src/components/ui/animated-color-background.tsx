@@ -44,7 +44,7 @@ export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = (
            ${secondary}26 78%,
            ${secondary}00 92%`;
 
-      return `linear-gradient(180deg, ${stops})`;
+      return `linear-gradient(0deg, ${stops})`;
     }
 
     // Single color gradient (original behavior)
@@ -64,7 +64,7 @@ export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = (
          ${color}26 75%,
          ${color}00 90%`;
 
-    return `linear-gradient(180deg, ${gradientStops})`;
+    return `linear-gradient(0deg, ${gradientStops})`;
   };
 
   return (

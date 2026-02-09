@@ -299,6 +299,7 @@ export default function ProfilePage() {
 
   // Filter posts by element type
   const filteredPosts = allActivityPosts.filter(post => {
+    if (!isCurrentUser && post.privacy?.toLowerCase() === 'private') return false;
     if (activeTab === 'playlists') return post.elementType.toLowerCase() === 'playlist';
     if (activeTab === 'tracks') return post.elementType.toLowerCase() === 'track';
     if (activeTab === 'artists') return post.elementType.toLowerCase() === 'artist';

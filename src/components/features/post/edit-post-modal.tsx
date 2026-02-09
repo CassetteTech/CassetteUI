@@ -11,9 +11,11 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useUpdatePost } from '@/hooks/use-music';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { PostPrivacy } from '@/types';
 
 const MAX_DESCRIPTION_LENGTH = 500;
 
@@ -22,7 +24,8 @@ interface EditPostModalProps {
   onOpenChange: (open: boolean) => void;
   postId: string;
   currentDescription: string;
-  onSuccess?: (newDescription: string) => void;
+  currentPrivacy?: PostPrivacy;
+  onSuccess?: (data: { description: string; privacy: PostPrivacy }) => void;
 }
 
 export function EditPostModal({
@@ -30,24 +33,27 @@ export function EditPostModal({
   onOpenChange,
   postId,
   currentDescription,
+  currentPrivacy = 'public',
   onSuccess,
 }: EditPostModalProps) {
   const [description, setDescription] = useState(currentDescription);
+  const [privacy, setPrivacy] = useState<PostPrivacy>(currentPrivacy);
   const updatePost = useUpdatePost();
 
   // Reset description when modal opens with new data
   useEffect(() => {
     if (open) {
       setDescription(currentDescription);
+      setPrivacy(currentPrivacy);
     }
-  }, [open, currentDescription]);
+  }, [open, currentDescription, currentPrivacy]);
 
   const handleSave = async () => {
     try {
-      await updatePost.mutateAsync({ postId, description });
+      await updatePost.mutateAsync({ postId, description, privacy });
       toast.success('Post updated successfully');
       onOpenChange(false);
-      onSuccess?.(description);
+      onSuccess?.({ description, privacy });
     } catch (error) {
       console.error('Failed to update post:', error);
       toast.error('Failed to update post. Please try again.');
@@ -85,6 +91,23 @@ export function EditPostModal({
           <div className={`text-right text-sm ${isOverLimit ? 'text-destructive' : 'text-muted-foreground'}`}>
             {charactersRemaining} characters remaining
           </div>
+        </div>
+
+        <div className="space-y-2 px-4">
+          <Label htmlFor="post-privacy" className="text-sm text-foreground">Post visibility</Label>
+          <select
+            id="post-privacy"
+            value={privacy}
+            onChange={(e) => setPrivacy(e.target.value as PostPrivacy)}
+            disabled={updatePost.isPending}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <option value="public">Public</option>
+            <option value="private">Private</option>
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Private posts only appear on your profile to you. Anyone with the link can still view them.
+          </p>
         </div>
 
         <SheetFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">

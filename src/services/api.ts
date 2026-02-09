@@ -359,11 +359,19 @@ class ApiService {
     });
   }
 
-  // Update a post's description
-  async updatePost(postId: string, description: string): Promise<{ postId: string; description: string }> {
+  // Update a post's description and/or privacy
+  async updatePost(
+    postId: string,
+    description?: string,
+    privacy?: string
+  ): Promise<{ postId: string; description?: string; privacy?: string }> {
+    const payload: Record<string, unknown> = {};
+    if (description !== undefined) payload.description = description;
+    if (privacy !== undefined) payload.privacy = privacy;
+
     return this.request(`/api/v1/social/posts/${postId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ description }),
+      body: JSON.stringify(payload),
     });
   }
 

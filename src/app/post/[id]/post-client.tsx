@@ -10,7 +10,7 @@ import { TrackList } from '@/components/features/entity/track-list';
 import { PostDescriptionCard } from '@/components/features/post/post-description-card';
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
-import { ReportIssueModal } from '@/components/features/report-issue-modal';
+import { useReportIssue } from '@/providers/report-issue-provider';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -75,8 +75,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   // Edit/Delete modal states
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [reportModalOpen, setReportModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const { openReportModal } = useReportIssue();
 
   // Handle delete success - redirect to profile
   const handleDeleteSuccess = useCallback(() => {
@@ -740,7 +740,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   {(isAlbum || isPlaylist) && (
                     <div className="mt-6 mb-[calc(6rem+env(safe-area-inset-bottom))] flex justify-center w-full max-w-xl">
                       <button
-                        onClick={() => setReportModalOpen(true)}
+                        onClick={() => openReportModal({
+                          sourceContext: 'post_view',
+                          sourceLink: postData?.originalUrl || sourceUrlRef.current || '',
+                          conversionData: {
+                            elementType: metadata.type,
+                            title: metadata.title,
+                            artist: metadata.artist,
+                            platforms: postData?.convertedUrls,
+                          },
+                        })}
                         className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <AlertCircle className="w-4 h-4" />
@@ -1035,7 +1044,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         {/* Report Problem */}
                         <div className="mb-[calc(6rem+env(safe-area-inset-bottom))] flex justify-center">
                           <button
-                            onClick={() => setReportModalOpen(true)}
+                            onClick={() => openReportModal({
+                          sourceContext: 'post_view',
+                          sourceLink: postData?.originalUrl || sourceUrlRef.current || '',
+                          conversionData: {
+                            elementType: metadata.type,
+                            title: metadata.title,
+                            artist: metadata.artist,
+                            platforms: postData?.convertedUrls,
+                          },
+                        })}
                             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                           >
                             <AlertCircle className="w-4 h-4" />
@@ -1406,7 +1424,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               {/* Report Problem Button */}
               <div className="flex justify-center">
                 <button
-                  onClick={() => setReportModalOpen(true)}
+                  onClick={() => openReportModal({
+                    sourceContext: 'post_view',
+                    sourceLink: postData?.originalUrl || sourceUrlRef.current || '',
+                    conversionData: {
+                      elementType: metadata.type,
+                      title: metadata.title,
+                      artist: metadata.artist,
+                      platforms: postData?.convertedUrls,
+                    },
+                  })}
                   className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <AlertCircle className="w-4 h-4" />
@@ -1437,19 +1464,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         onSuccess={handleDeleteSuccess}
       />
 
-      {/* Report Issue Modal */}
-      <ReportIssueModal
-        open={reportModalOpen}
-        onOpenChange={setReportModalOpen}
-        sourceContext="post_view"
-        sourceLink={postData?.originalUrl || sourceUrlRef.current || ''}
-        conversionData={{
-          elementType: metadata.type,
-          title: metadata.title,
-          artist: metadata.artist,
-          platforms: postData?.convertedUrls,
-        }}
-      />
     </div>
   );
 }

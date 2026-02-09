@@ -14,7 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { Music, User, LogOut, Edit } from 'lucide-react';
+import { Music, User, LogOut, Edit, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -22,6 +22,7 @@ import { ThemeSwitcher } from '@/components/layout/theme-switcher';
 import { SidebarProfileCard, SidebarProfileCardSkeleton } from '@/components/features/profile/sidebar-profile-card';
 import { usePathname } from 'next/navigation';
 import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
+import { useReportIssue } from '@/providers/report-issue-provider';
 import { theme } from '@/lib/theme';
 import { useUserBio } from '@/hooks/use-profile';
 
@@ -32,6 +33,7 @@ interface AppSidebarProps {
 export function AppSidebar({ className }: AppSidebarProps) {
   const { user } = useAuthState();
   const { mutate: signOut } = useSignOut();
+  const { openReportModal } = useReportIssue();
   const pathname = usePathname();
 
   // Extract username from /profile/[username] routes to fetch profile data
@@ -232,6 +234,17 @@ export function AppSidebar({ className }: AppSidebarProps) {
           </a>
         </Button>
 
+        {/* Report a Problem */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start text-muted-foreground hover:text-foreground"
+          onClick={() => openReportModal()}
+        >
+          <AlertCircle className="mr-2 h-4 w-4" />
+          <span>Report a Problem</span>
+        </Button>
+
         {/* Sign Out */}
         {user && (
           <Button
@@ -253,6 +266,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
 export function AppSidebarSkeleton({ className }: { className?: string }) {
   const { user } = useAuthState();
   const { mutate: signOut } = useSignOut();
+  const { openReportModal } = useReportIssue();
   const pathname = usePathname();
   const contentRef = useRef<HTMLDivElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState<{
@@ -399,6 +413,17 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
             <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="mr-2" />
             <span>Support Us</span>
           </a>
+        </Button>
+
+        {/* Report a Problem */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start text-muted-foreground hover:text-foreground"
+          onClick={() => openReportModal()}
+        >
+          <AlertCircle className="mr-2 h-4 w-4" />
+          <span>Report a Problem</span>
         </Button>
 
         {user && (

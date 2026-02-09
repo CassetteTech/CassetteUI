@@ -3,11 +3,12 @@
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Music, User, Edit, LogOut, Info, Users } from 'lucide-react';
+import { Home, Music, User, Edit, LogOut, Info, Users, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
+import { useReportIssue } from '@/providers/report-issue-provider';
 
 interface NavigationLinksProps {
   onLinkClick?: () => void; // To close the menu after a click
@@ -25,6 +26,7 @@ const navItems = [
 export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
   const { user } = useAuthState();
   const { mutate: signOut } = useSignOut();
+  const { openReportModal } = useReportIssue();
   const pathname = usePathname();
 
   const handleSignOut = () => {
@@ -83,8 +85,19 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
             </Link>
           );
         })}
+        {/* Report a Problem */}
+        <button
+          onClick={() => { openReportModal(); onLinkClick?.(); }}
+          className={cn(
+            'flex items-center gap-4 p-4 rounded-lg text-lg font-medium transition-colors',
+            'text-foreground hover:bg-muted w-full text-left'
+          )}
+        >
+          <AlertCircle className="h-6 w-6" />
+          <span>Report a Problem</span>
+        </button>
       </div>
-      
+
       {/* Sign Out */}
       {user && (
         <div className="pt-4 mt-auto">

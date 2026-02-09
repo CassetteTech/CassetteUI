@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -45,7 +45,21 @@ export function ReportIssueModal({
   sourceLink,
   conversionData,
 }: ReportIssueModalProps) {
-  const [reportType, setReportType] = useState<ReportType>('conversion_issue');
+  const hasConversionContext = !!(sourceLink || conversionData);
+  const defaultReportType = hasConversionContext ? 'conversion_issue' : 'ui_bug';
+  const [reportType, setReportType] = useState<ReportType>(defaultReportType);
+
+  const filteredReportTypes = hasConversionContext
+    ? reportTypeOptions
+    : reportTypeOptions.filter(opt => ['ui_bug', 'general_feedback'].includes(opt.value));
+
+  // Sync reportType when modal opens with different context
+  useEffect(() => {
+    if (open) {
+      setReportType(defaultReportType);
+    }
+  }, [open, defaultReportType]);
+
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -79,7 +93,7 @@ export function ReportIssueModal({
           setTimeout(() => {
             setSubmitStatus('idle');
             setDescription('');
-            setReportType('conversion_issue');
+            setReportType(defaultReportType);
           }, 300);
         }, 2000);
       } else {
@@ -138,7 +152,7 @@ export function ReportIssueModal({
               <div className="space-y-2">
                 <Label>Issue Type</Label>
                 <div className="grid gap-2">
-                  {reportTypeOptions.map((option) => (
+                  {filteredReportTypes.map((option) => (
                     <button
                       key={option.value}
                       type="button"

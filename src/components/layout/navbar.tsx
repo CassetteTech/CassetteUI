@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthState } from '@/hooks/use-auth';
-import { ChevronDown, Info, Users, Shield, FileText } from 'lucide-react';
+import { ChevronDown, Info, Users, Shield, FileText, AlertCircle } from 'lucide-react';
 import { ThemeSwitcher } from './theme-switcher';
 import { NavigationLinks } from './navigation-links';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
+import { useReportIssue } from '@/providers/report-issue-provider';
 
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ import {
 
 export function Navbar() {
   const { user, isAuthenticated } = useAuthState();
+  const { openReportModal } = useReportIssue();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
@@ -85,6 +87,14 @@ export function Navbar() {
                       <FileText className="h-4 w-4" />
                       <span>Terms</span>
                     </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-border/20" />
+                  <DropdownMenuItem
+                    onClick={() => openReportModal()}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors cursor-pointer"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Report a Problem</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

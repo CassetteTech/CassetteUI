@@ -15,34 +15,45 @@ const dummyUserBio = {
   username: "matttoppi",
   displayName: "Matt Toppi",
   bio: "🎵 Music enthusiast | Playlist curator | Always discovering new sounds",
-  avatarUrl: "/images/demo/matt_profile_pic.png",
+  avatarUrl: "/images/cassette_logo.png",
   connectedServices: ["spotify", "apple-music", "deezer"]
 };
 
 const dummyActivityPosts = {
   playlists: [
-    { id: 1, title: "Chillhop", image: "/images/demo/chillhop.png", tracks: 25 },
-    { id: 2, title: "Nostalgia Mix", image: "/images/demo/nostalgia-mix.png", tracks: 40 },
-    { id: 3, title: "Cassette Tech Rewind 2025!", image: "/images/demo/cassette-tech-rewind-2025.png", tracks: 35 },
-    { id: 4, title: "2000s Girly Pop", image: "/images/demo/2000s-girly-pop.png", tracks: 20 }
+    { id: 1, title: "Summer Vibes 2024", image: "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/e8/43/5f/e8435ffa-b6b9-b171-40ab-4ff3959ab661/886443919266.jpg/200x200bb.jpg", tracks: 25 },
+    { id: 2, title: "Chill Study Session", image: "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/dd/50/c7/dd50c790-99ac-d3d0-5ab8-e3891fb8fd52/634904032463.png/200x200bb.jpg", tracks: 40 },
+    { id: 3, title: "Workout Energy", image: "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/39/25/2d/39252d65-2d50-b991-0962-f7a98a761271/00602517483507.rgb.jpg/200x200bb.jpg", tracks: 35 },
+    { id: 4, title: "Late Night Jazz", image: "https://is1-ssl.mzstatic.com/image/thumb/Music/7f/9f/d6/mzi.vtnaewef.jpg/200x200bb.jpg", tracks: 20 },
+    { id: 5, title: "Road Trip Anthems", image: "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/48/53/43/485343e3-dd6a-0034-faec-f4b6403f8108/13UMGIM63890.rgb.jpg/200x200bb.jpg", tracks: 30 },
+    { id: 6, title: "Indie Discoveries", image: "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/6d/db/fc/6ddbfc02-1a96-a4ce-eb86-b3822757b6fe/735910620207_cover.jpg/200x200bb.jpg", tracks: 18 },
+    { id: 7, title: "90s Nostalgia", image: "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/45/b2/24/45b224b7-baa4-c320-9e3b-fd37dcfcdcb1/mzi.nkvwvqxf.jpg/200x200bb.jpg", tracks: 22 }
   ],
   tracks: [
     { id: 1, title: "Swim Between Trees", artist: "Flipturn", image: "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/6e/09/d9/6e09d9bd-2a54-57f0-b254-a1fb1aa6803a/25355.jpg/100x100bb.jpg" },
-    { id: 2, title: "Time", artist: "Pink Floyd", image: "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/8f/50/cb/8f50cba0-1ab8-deb0-c21f-1750cc3b2201/23UMGIM65578.rgb.jpg/100x100bb.jpg" },
-    { id: 3, title: "Daft Punk is Playing at My House", artist: "LCD Soundsystem", image: "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/77/61/e7/7761e73a-706b-91b6-743e-d42721f4ee18/859744966031.jpg/100x100bb.jpg" },
-    { id: 4, title: "Feels Like Summer", artist: "Childish Gambino", image: "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/77/61/e7/7761e73a-706b-91b6-743e-d42721f4ee18/859744966031.jpg/100x100bb.jpg" }
+    { id: 2, title: "Time", artist: "Pink Floyd", image: "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/3e/76/b0/3e76b0e3-762b-2286-a019-8afb19cee541/886445635829.jpg/100x100bb.jpg" },
+    { id: 3, title: "Midnight City", artist: "M83", image: "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/cb/7b/a9/cb7ba903-b5f1-cc21-90db-7a81b7aa0997/724596951057.jpg/100x100bb.jpg" },
+    { id: 4, title: "Redbone", artist: "Childish Gambino", image: "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/e5/bc/65/e5bc6574-1f2a-24a7-6fe0-d17fd32b9869/886447214268.jpg/100x100bb.jpg" },
+    { id: 5, title: "Let It Happen", artist: "Tame Impala", image: "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/a8/2e/b4/a82eb490-f30a-a321-461a-0383c88fec95/15UMGIM23316.rgb.jpg/100x100bb.jpg" },
+    { id: 6, title: "Do I Wanna Know?", artist: "Arctic Monkeys", image: "https://is1-ssl.mzstatic.com/image/thumb/Music113/v4/cc/0f/2d/cc0f2d02-5ff1-10e7-eea2-76863a55dbad/887828031795.png/100x100bb.jpg" }
   ],
   artists: [
     { id: 1, name: "The Weeknd", image: "/images/demo/artist_weeknd.jpg", genre: "R&B/Pop" },
     { id: 2, name: "Tame Impala", image: "/images/demo/artist_tameimpala.jpg", genre: "Psychedelic Rock" },
     { id: 3, name: "Frank Ocean", image: "/images/demo/artist_frankocean.jpg", genre: "Alternative R&B" },
-    { id: 4, name: "Arctic Monkeys", image: "/images/demo/artist_arcticmonkeys.jpg", genre: "Indie Rock" }
+    { id: 4, name: "Arctic Monkeys", image: "/images/demo/artist_arcticmonkeys.jpg", genre: "Indie Rock" },
+    { id: 5, name: "Tyler, the Creator", image: "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6f/e3/09/6fe30938-89fb-e4ae-d67a-648746c26db1/196871668248.jpg/100x100bb.jpg", genre: "Hip-Hop/Rap" },
+    { id: 6, name: "Kendrick Lamar", image: "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/ab/16/ef/ab16efe9-e7f1-66ec-021c-5592a23f0f9e/17UMGIM88793.rgb.jpg/100x100bb.jpg", genre: "Hip-Hop" },
+    { id: 7, name: "Radiohead", image: "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/07/60/ba/0760ba0f-148c-b18f-d0ff-169ee96f3af5/634904078164.png/100x100bb.jpg", genre: "Alternative Rock" }
   ],
   albums: [
-    { id: 1, title: "After Hours", artist: "The Weeknd", image: "/images/demo/after-hours-album.png", year: 2020 },
-    { id: 2, title: "Currents", artist: "Tame Impala", image: "/images/demo/currents-album.png", year: 2015 },
-    { id: 3, title: "Blond", artist: "Frank Ocean", image: "/images/demo/blond-album.png", year: 2016 },
-    { id: 4, title: "AM", artist: "Arctic Monkeys", image: "/images/demo/am-album.png", year: 2013 }
+    { id: 1, title: "After Hours", artist: "The Weeknd", image: "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/2b/b9/fe/2bb9fef5-d7f3-8345-25a9-db0e79fde4e4/20UMGIM11048.rgb.jpg/100x100bb.jpg", year: 2020 },
+    { id: 2, title: "Currents", artist: "Tame Impala", image: "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/a8/2e/b4/a82eb490-f30a-a321-461a-0383c88fec95/15UMGIM23316.rgb.jpg/100x100bb.jpg", year: 2015 },
+    { id: 3, title: "Blonde", artist: "Frank Ocean", image: "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/bb/45/68/bb4568f3-68cd-619d-fbcb-4e179916545d/BlondCover-Final.jpg/100x100bb.jpg", year: 2016 },
+    { id: 4, title: "AM", artist: "Arctic Monkeys", image: "https://is1-ssl.mzstatic.com/image/thumb/Music113/v4/cc/0f/2d/cc0f2d02-5ff1-10e7-eea2-76863a55dbad/887828031795.png/100x100bb.jpg", year: 2013 },
+    { id: 5, title: "IGOR", artist: "Tyler, the Creator", image: "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6f/e3/09/6fe30938-89fb-e4ae-d67a-648746c26db1/196871668248.jpg/100x100bb.jpg", year: 2019 },
+    { id: 6, title: "good kid, m.A.A.d city", artist: "Kendrick Lamar", image: "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/36/86/ec/3686ec99-dec4-0a01-8b74-2d8a9a0263a7/12UMGIM52988.rgb.jpg/100x100bb.jpg", year: 2012 },
+    { id: 7, title: "In Rainbows", artist: "Radiohead", image: "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/dd/50/c7/dd50c790-99ac-d3d0-5ab8-e3891fb8fd52/634904032463.png/100x100bb.jpg", year: 2007 }
   ]
 };
 
@@ -79,20 +90,22 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
     switch (activeTab) {
       case 'playlists':
         return (
-          <div className="grid grid-cols-2 gap-2 p-3">
+          <div className="space-y-1 p-3">
             {dummyActivityPosts.playlists.map((playlist) => (
-              <div key={playlist.id} className="space-y-1">
-                <div className="aspect-square rounded-md bg-muted overflow-hidden">
-                  <Image 
-                    src={playlist.image} 
+              <div key={playlist.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
+                  <Image
+                    src={playlist.image}
                     alt={playlist.title}
-                    width={200}
-                    height={200}
+                    width={40}
+                    height={40}
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="font-medium text-xs truncate text-foreground">{playlist.title}</h3>
-                <p className="text-xs text-muted-foreground">{playlist.tracks} tracks</p>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-xs truncate text-foreground">{playlist.title}</h4>
+                  <p className="text-xs text-muted-foreground truncate">{playlist.tracks} tracks</p>
+                </div>
               </div>
             ))}
           </div>
@@ -103,9 +116,9 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
           <div className="space-y-1 p-3">
             {dummyActivityPosts.tracks.map((track) => (
               <div key={track.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                <div className="w-10 h-10 rounded bg-muted overflow-hidden flex-shrink-0">
-                  <Image 
-                    src={track.image} 
+                <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
+                  <Image
+                    src={track.image}
                     alt={track.title}
                     width={40}
                     height={40}
@@ -123,20 +136,22 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
 
       case 'artists':
         return (
-          <div className="grid grid-cols-2 gap-3 p-3">
+          <div className="space-y-1 p-3">
             {dummyActivityPosts.artists.map((artist) => (
-              <div key={artist.id} className="flex flex-col items-center text-center space-y-1">
-                <div className="w-16 h-16 rounded-full bg-muted overflow-hidden">
-                  <Image 
-                    src={artist.image} 
+              <div key={artist.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
+                  <Image
+                    src={artist.image}
                     alt={artist.name}
-                    width={64}
-                    height={64}
+                    width={40}
+                    height={40}
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="font-medium text-xs text-foreground">{artist.name}</h3>
-                <p className="text-xs text-muted-foreground">{artist.genre}</p>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-xs truncate text-foreground">{artist.name}</h4>
+                  <p className="text-xs text-muted-foreground truncate">{artist.genre}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -147,9 +162,9 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
           <div className="space-y-1 p-3">
             {dummyActivityPosts.albums.map((album) => (
               <div key={album.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                <div className="w-10 h-10 rounded bg-muted overflow-hidden flex-shrink-0">
-                  <Image 
-                    src={album.image} 
+                <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
+                  <Image
+                    src={album.image}
                     alt={album.title}
                     width={40}
                     height={40}

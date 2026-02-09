@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
 import { useUserBio, useUserActivity } from '@/hooks/use-profile';
@@ -10,9 +10,16 @@ import { ProfileTabs, TabType } from '@/components/features/profile/profile-tabs
 import { ProfileActivity, ActivitySkeleton } from '@/components/features/profile/profile-activity';
 import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
 import { profileService } from '@/services/profile';
-import { apiService } from '@/services/api';
+import { applyCachedArtwork } from '@/services/profile-artwork-cache';
 import { ActivityPost } from '@/types';
 import { Container } from '@/components/ui/container';
+
+const TAB_ELEMENT_TYPE: Record<TabType, string> = {
+  playlists: 'Playlist',
+  tracks: 'Track',
+  artists: 'Artist',
+  albums: 'Album',
+};
 
 export default function ProfilePage() {
   const { username } = useParams();
@@ -23,7 +30,6 @@ export default function ProfilePage() {
   const [additionalPosts, setAdditionalPosts] = useState<ActivityPost[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const enrichedPostIdsRef = useRef(new Set<string>());
 
   const userIdentifier = Array.isArray(username) ? username[0] : username;
 
@@ -42,12 +48,12 @@ export default function ProfilePage() {
     data: activityData,
     isLoading: isLoadingActivity,
     error: activityError
-  } = useUserActivity(userIdToFetch, { page: 1 });
+  } = useUserActivity(userIdToFetch, { page: 1, elementType: TAB_ELEMENT_TYPE[activeTab] });
 
   // Combine initial activity with paginated additional posts
   const allActivityPosts = useMemo(() => {
     const initialPosts = activityData?.items ?? [];
-    return [...initialPosts, ...additionalPosts];
+    return applyCachedArtwork([...initialPosts, ...additionalPosts]);
   }, [activityData?.items, additionalPosts]);
 
   const totalItems = activityData?.totalItems ?? 0;
@@ -60,100 +66,11 @@ export default function ProfilePage() {
            user.username?.toLowerCase() === userBio.username?.toLowerCase();
   }, [userBio, user]);
 
-  // Determine optimal tab based on content
-  const getOptimalTab = useCallback((posts: ActivityPost[]): TabType => {
-    const tabPriority: TabType[] = ['playlists', 'tracks', 'artists', 'albums'];
-
-    for (const tabType of tabPriority) {
-      const hasContent = posts.some(post => {
-        if (tabType === 'playlists') return post.elementType.toLowerCase() === 'playlist';
-        if (tabType === 'tracks') return post.elementType.toLowerCase() === 'track';
-        if (tabType === 'artists') return post.elementType.toLowerCase() === 'artist';
-        if (tabType === 'albums') return post.elementType.toLowerCase() === 'album';
-        return false;
-      });
-
-      if (hasContent) return tabType;
-    }
-
-    return 'playlists';
-  }, []);
-
-  // Set optimal tab when activity data loads
+  // Reset tab pagination when user or tab changes
   useEffect(() => {
-    if (activityData?.items && activityData.items.length > 0) {
-      setActiveTab(getOptimalTab(activityData.items));
-    }
-  }, [activityData?.items, getOptimalTab]);
-
-  // Enrich posts with additional image data
-  const enrichActivityPosts = useCallback(async (posts: ActivityPost[]) => {
-    const resolveText = (...values: Array<string | null | undefined>) => {
-      for (const value of values) {
-        if (typeof value === 'string' && value.trim() !== '') {
-          return value;
-        }
-      }
-      return undefined;
-    };
-
-    const resolvePostArtwork = (post: {
-      details?: { coverArtUrl?: string; imageUrl?: string };
-      platforms?: Record<string, { artworkUrl?: string; imageUrl?: string; coverArtUrl?: string }>;
-    }) => {
-      if (post.details?.coverArtUrl) return post.details.coverArtUrl;
-      if (post.details?.imageUrl) return post.details.imageUrl;
-      if (post.platforms) {
-        for (const platform of Object.values(post.platforms)) {
-          const artwork = resolveText(platform?.artworkUrl, platform?.imageUrl, platform?.coverArtUrl);
-          if (artwork) return artwork;
-        }
-      }
-      return undefined;
-    };
-
-    const candidates = posts.filter((post) => {
-      if (!post.postId || enrichedPostIdsRef.current.has(post.postId)) return false;
-      const type = post.elementType?.toLowerCase();
-      if (type === 'playlist') return false;
-      return !post.imageUrl;
-    }).slice(0, 4);
-
-    if (candidates.length === 0) return;
-
-    const updates = new Map<string, string>();
-
-    await Promise.all(
-      candidates.map(async (post) => {
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 2000);
-          const result = await apiService.fetchPostById(post.postId, { signal: controller.signal });
-          clearTimeout(timeout);
-
-          const resolvedImage = resolvePostArtwork(result);
-          enrichedPostIdsRef.current.add(post.postId);
-
-          if (resolvedImage) {
-            updates.set(post.postId, resolvedImage);
-          }
-        } catch {
-          enrichedPostIdsRef.current.add(post.postId);
-        }
-      }),
-    );
-
-    if (updates.size > 0) {
-      setAdditionalPosts((prev) =>
-        prev.map((item) => {
-          const newImage = updates.get(item.postId);
-          return newImage && !item.imageUrl
-            ? { ...item, imageUrl: newImage }
-            : item;
-        }),
-      );
-    }
-  }, []);
+    setAdditionalPosts([]);
+    setCurrentPage(1);
+  }, [userIdToFetch, activeTab]);
 
   // Load more posts (pagination)
   const loadMore = useCallback(async () => {
@@ -165,6 +82,7 @@ export default function ProfilePage() {
 
       const moreActivity = await profileService.fetchUserActivity(userIdToFetch, {
         page: nextPage,
+        elementType: TAB_ELEMENT_TYPE[activeTab],
       });
 
       setAdditionalPosts(prev => [...prev, ...moreActivity.items]);
@@ -174,7 +92,7 @@ export default function ProfilePage() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [userIdToFetch, currentPage, isLoadingMore, allActivityPosts.length, totalItems]);
+  }, [userIdToFetch, currentPage, isLoadingMore, allActivityPosts.length, totalItems, activeTab]);
 
   const filterByElementType = useCallback((type: TabType) => {
     if (activeTab === type) return;
@@ -198,13 +116,6 @@ export default function ProfilePage() {
   const handleAddMusic = useCallback(() => {
     router.push('/add-music');
   }, [router]);
-
-  // Enrich posts when they change
-  useEffect(() => {
-    if (allActivityPosts.length > 0) {
-      enrichActivityPosts(allActivityPosts);
-    }
-  }, [allActivityPosts, enrichActivityPosts]);
 
   // Compute loading states
   const showHeaderSkeleton = isLoadingBio && !userBio;
@@ -297,12 +208,9 @@ export default function ProfilePage() {
     );
   }
 
-  // Filter posts by element type
+  // Keep privacy filtering on the selected tab payload
   const filteredPosts = allActivityPosts.filter(post => {
-    if (activeTab === 'playlists') return post.elementType.toLowerCase() === 'playlist';
-    if (activeTab === 'tracks') return post.elementType.toLowerCase() === 'track';
-    if (activeTab === 'artists') return post.elementType.toLowerCase() === 'artist';
-    if (activeTab === 'albums') return post.elementType.toLowerCase() === 'album';
+    if (!isCurrentUser && post.privacy?.toLowerCase() === 'private') return false;
     return true;
   });
 

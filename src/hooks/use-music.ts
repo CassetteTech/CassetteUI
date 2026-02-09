@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { musicService } from '@/services/music';
 import { apiService } from '@/services/api';
 import { useMusicStore } from '@/stores/music-store';
+import { seedArtworkCache } from '@/services/profile-artwork-cache';
 
 export const useMusicSearch = (query: string) => {
   const { setSearchResults, setIsSearching } = useMusicStore();
@@ -37,6 +38,7 @@ export const useMusicLinkConversion = (options?: { anonymous?: boolean }) => {
     },
     onSuccess: (data) => {
       console.log('✅ Mutation successful:', data);
+      seedArtworkCache(data.postId, data.metadata?.artwork);
       queryClient.invalidateQueries({ queryKey: ['music-search'] });
     },
     onError: (error) => {
@@ -105,12 +107,14 @@ export const useAddMusicToProfile = () => {
       musicElementId: string;
       elementType: string;
       description?: string;
+      artworkUrl?: string;
     }) => {
       console.log('🎯 useAddMusicToProfile mutation called with:', params);
       return apiService.addToProfile(params.musicElementId, params.elementType, params.description);
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       console.log('✅ Add music to profile successful:', data);
+      seedArtworkCache(data.postId, variables.artworkUrl);
       // Invalidate profile-related queries to refresh the user's profile
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['user-posts'] });
@@ -126,9 +130,9 @@ export const useUpdatePost = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (params: { postId: string; description: string }) => {
+    mutationFn: (params: { postId: string; description: string; privacy?: string }) => {
       console.log('🎯 useUpdatePost mutation called with:', params);
-      return apiService.updatePost(params.postId, params.description);
+      return apiService.updatePost(params.postId, params.description, params.privacy);
     },
     onSuccess: (_data, variables) => {
       console.log('✅ Update post successful');

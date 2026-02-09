@@ -308,7 +308,7 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
         </div>
 
         {/* BOTTOM CALLOUT */}
-        <div className="absolute -bottom-48 left-1/2 -translate-x-1/2">
+        <div className="absolute -bottom-[12.5rem] left-1/2 -translate-x-1/2">
           {/* retro window frame */}
           <div className="relative w-72 h-32">
             <div className="absolute inset-0 bg-white rounded-xl outline outline-1 outline-black shadow-[1px_1px_0px_1px_rgba(0,0,0,1)]">
@@ -335,11 +335,11 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
           {/* Horizontal segment right */}
           <div className="absolute w-8 h-0.5 -right-8 -translate-y-1/2" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Vertical segment down - adjusted to reach middle of label */}
-          <div className="absolute h-[552px] w-0.5 -right-8 top-0" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
+          <div className="absolute h-[560px] w-0.5 -right-8 top-0" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Horizontal segment to label */}
-          <div className="absolute w-4 h-0.5 -right-8 top-[552px]" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
+          <div className="absolute w-4 h-0.5 -right-8 top-[560px]" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Arrow head pointing left */}
-          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-r-[8px] border-t-transparent border-b-transparent -right-4 top-[553px] -translate-y-1/2" style={{ borderRightColor: arrowColor || 'hsl(var(--foreground))' }} />
+          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-r-[8px] border-t-transparent border-b-transparent -right-4 top-[561px] -translate-y-1/2" style={{ borderRightColor: arrowColor || 'hsl(var(--foreground))' }} />
         </div>
       </div>
     </div>

@@ -63,7 +63,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const { isAuthenticated, isLoading, user } = useAuthState();
   const { mutate: addToProfile, isPending: isAddingToProfile } = useAddMusicToProfile();
   const [addStatus, setAddStatus] = useState<'idle' | 'added' | 'error'>('idle');
-  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; createdAt?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; } | null>(null);
+  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; createdAt?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; privacy?: string; } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Animation states
@@ -88,9 +88,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   }, [router, postData?.username]);
 
   // Handle edit success - update local state with new description
-  const handleEditSuccess = useCallback((newDescription: string) => {
+  const handleEditSuccess = useCallback((updated: { description: string; privacy: string }) => {
     setPostData((prev) =>
-      prev ? { ...prev, description: newDescription } : prev
+      prev ? { ...prev, description: updated.description, privacy: updated.privacy } : prev
     );
   }, []);
 
@@ -164,7 +164,12 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     }
 
     addToProfile(
-      { musicElementId, elementType, description: postData?.description },
+      {
+        musicElementId,
+        elementType,
+        description: postData?.description,
+        artworkUrl: postData?.metadata?.artwork,
+      },
       {
         onSuccess: () => setAddStatus('added'),
         onError: (error) => {
@@ -174,7 +179,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         },
       },
     );
-  }, [addToProfile, postData?.musicElementId, postData?.metadata?.type, postData?.description]);
+  }, [addToProfile, postData?.musicElementId, postData?.metadata?.type, postData?.description, postData?.metadata?.artwork]);
 
   const isOwnPost =
     !!postData?.username &&
@@ -208,7 +213,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             response.platforms?.appleMusic?.url ||
             response.platforms?.deezer?.url ||
             '';
-          const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; createdAt?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; } = {
+          const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; createdAt?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; privacy?: string; } = {
             originalUrl: originalLink,
             convertedUrls: {},
             metadata: {
@@ -221,6 +226,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             description: response.description || response.caption,
             username: response.username,
             createdAt: response.createdAt,
+            privacy: response.privacy,
             genres: response.details?.genres || response.metadata?.genres || [],
             albumName: response.metadata?.albumName || response.details?.album || '',
             releaseDate: response.metadata?.releaseDate || response.details?.releaseDate || null,
@@ -1411,6 +1417,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         onOpenChange={setEditModalOpen}
         postId={postId}
         currentDescription={postData?.description || ''}
+        currentPrivacy={(postData?.privacy as 'public' | 'private' | 'subscriber' | undefined) ?? 'public'}
         onSuccess={handleEditSuccess}
       />
 

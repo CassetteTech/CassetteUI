@@ -1,5 +1,5 @@
 import { clientConfig } from '@/lib/config-client';
-import { ActivityPost, PaginatedActivityResponse, UserBio } from '@/types';
+import { ActivityPost, PaginatedActivityResponse, UserBio, PostPrivacy } from '@/types';
 
 interface ActivityItemPayload {
   postId: string;
@@ -37,6 +37,7 @@ interface ActivityItemPayload {
   username: string;
   userId: string;
   createdAt: string;
+  privacy?: PostPrivacy;
 }
 
 interface ActivityApiResponse {
@@ -250,6 +251,7 @@ export class ProfileService {
               subtitle: resolvedSubtitle,
               description: resolvedDescription,
               imageUrl: resolvedImageUrl,
+              privacy: item.privacy ?? 'public',
               username: item.username,
               userId: item.userId,
               createdAt: item.createdAt,

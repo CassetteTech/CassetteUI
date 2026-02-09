@@ -35,6 +35,8 @@ export interface PlatformPreferenceInfo {
   addedAt: string;
 }
 
+export type PostPrivacy = 'public' | 'private' | 'subscriber';
+
 export interface ActivityPost {
   postId: string;
   elementType: string;
@@ -42,6 +44,7 @@ export interface ActivityPost {
   subtitle?: string;
   description?: string;
   imageUrl?: string;
+  privacy?: PostPrivacy;
   username: string;
   userId: string;
   createdAt: string;
@@ -277,6 +280,7 @@ export interface PostByIdResponse {
   elementType: string;
   musicElementId: string;
   createdAt?: string;
+  privacy?: PostPrivacy;
   details: {
     title?: string;
     name?: string;

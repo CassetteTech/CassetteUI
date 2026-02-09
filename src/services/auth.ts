@@ -2,6 +2,7 @@
 
 import { useAuthStore } from '@/stores/auth-store';
 import { AuthUser, SignInForm, SignUpForm, ConnectedService } from '@/types';
+import { prefetchProfileArtwork } from '@/services/profile-artwork-cache';
 
 // Use your local API URL for development
 const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -9,6 +10,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC
 class AuthService {
   private sessionIntervalId: number | null = null;
   private initialized = false;
+  
+  private warmProfileArtworkCache(user: AuthUser | null) {
+    const userIdentifier = user?.username || user?.id;
+    if (!userIdentifier) return;
+    void prefetchProfileArtwork(userIdentifier).catch(() => {});
+  }
 
   // Store tokens securely
   private setTokens(accessToken: string, refreshToken: string) {
@@ -91,6 +98,7 @@ class AuthService {
         // Update auth store with the proper auth user format
         const authUser = this.mapToAuthUser(normalizedUser);
         useAuthStore.getState().setUser(authUser);
+        this.warmProfileArtworkCache(authUser);
         
         console.log('✅ [Auth] Auth user stored in state:', authUser);
         
@@ -136,7 +144,9 @@ class AuthService {
     localStorage.setItem('user_data', JSON.stringify(normalizedUser));
     
     // Update auth store
-    useAuthStore.getState().setUser(this.mapToAuthUser(normalizedUser));
+    const authUser = this.mapToAuthUser(normalizedUser);
+    useAuthStore.getState().setUser(authUser);
+    this.warmProfileArtworkCache(authUser);
 
     return data;
   }
@@ -236,6 +246,7 @@ class AuthService {
     const fresh = await this.getCurrentUser().catch(() => null);
     const authUser = fresh ?? this.mapToAuthUser(data.user);
     useAuthStore.getState().setUser(authUser);
+    this.warmProfileArtworkCache(authUser);
 
     return authUser;
   }
@@ -265,6 +276,7 @@ class AuthService {
       }
 
       useAuthStore.getState().setUser(user);
+      this.warmProfileArtworkCache(user);
       try { localStorage.setItem('user_data', JSON.stringify(user)); } catch {}
       console.log('🟩 [AuthService] User successfully set in store:', user.email);
       
@@ -426,7 +438,11 @@ class AuthService {
 
     let cancelled = false;
     this.getCurrentUser()
-      .then((u) => !cancelled && setUser(u))
+      .then((u) => {
+        if (cancelled) return;
+        setUser(u);
+        this.warmProfileArtworkCache(u);
+      })
       .finally(() => !cancelled && setLoading(false));
 
     this.sessionIntervalId = window.setInterval(() => {

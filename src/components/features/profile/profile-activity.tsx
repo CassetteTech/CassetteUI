@@ -165,6 +165,11 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
                     </span>
                     {post.elementType.toUpperCase()}
                   </div>
+                  {isOwnPost && post.privacy?.toLowerCase() === 'private' && (
+                    <div className="inline-flex items-center px-2 py-1 mb-2 ml-2 bg-muted/40 border border-muted-foreground/20 rounded text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Private
+                    </div>
+                  )}
 
                   {/* Title */}
                   <h3 className="text-foreground font-semibold text-sm sm:text-base md:text-lg mb-1 truncate">
@@ -264,6 +269,7 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
         onOpenChange={setEditModalOpen}
         postId={post.postId}
         currentDescription={post.description || ''}
+        currentPrivacy={post.privacy}
       />
 
       {/* Delete Modal - always render to allow Radix UI animations */}

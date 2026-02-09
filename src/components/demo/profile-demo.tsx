@@ -15,16 +15,16 @@ const dummyUserBio = {
   username: "matttoppi",
   displayName: "Matt Toppi",
   bio: "🎵 Music enthusiast | Playlist curator | Always discovering new sounds",
-  avatarUrl: "/images/demo/matt-avatar.jpg",
+  avatarUrl: "/images/demo/matt_profile_pic.png",
   connectedServices: ["spotify", "apple-music", "deezer"]
 };
 
 const dummyActivityPosts = {
   playlists: [
-    { id: 1, title: "Summer Vibes 2024", image: "/images/demo/summer-vibes-playlist.jpg", tracks: 25 },
-    { id: 2, title: "Chill Study Session", image: "/images/demo/chill-study-playlist.jpg", tracks: 40 },
-    { id: 3, title: "Workout Energy", image: "/images/demo/workout-energy-playlist.jpg", tracks: 35 },
-    { id: 4, title: "Late Night Jazz", image: "/images/demo/late-night-jazz-playlist.jpg", tracks: 20 }
+    { id: 1, title: "Chillhop", image: "/images/demo/chillhop.png", tracks: 25 },
+    { id: 2, title: "Nostalgia Mix", image: "/images/demo/nostalgia-mix.png", tracks: 40 },
+    { id: 3, title: "Cassette Tech Rewind 2025!", image: "/images/demo/cassette-tech-rewind-2025.png", tracks: 35 },
+    { id: 4, title: "2000s Girly Pop", image: "/images/demo/2000s-girly-pop.png", tracks: 20 }
   ],
   tracks: [
     { id: 1, title: "Swim Between Trees", artist: "Flipturn", image: "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/6e/09/d9/6e09d9bd-2a54-57f0-b254-a1fb1aa6803a/25355.jpg/100x100bb.jpg" },
@@ -39,10 +39,10 @@ const dummyActivityPosts = {
     { id: 4, name: "Arctic Monkeys", image: "/images/demo/artist_arcticmonkeys.jpg", genre: "Indie Rock" }
   ],
   albums: [
-    { id: 1, title: "After Hours", artist: "The Weeknd", image: "/images/demo/after-hours-album.jpg", year: 2020 },
-    { id: 2, title: "Currents", artist: "Tame Impala", image: "/images/demo/currents-album.jpg", year: 2015 },
-    { id: 3, title: "Blonde", artist: "Frank Ocean", image: "/images/demo/blonde-album.jpg", year: 2016 },
-    { id: 4, title: "AM", artist: "Arctic Monkeys", image: "/images/demo/am-album.jpg", year: 2013 }
+    { id: 1, title: "After Hours", artist: "The Weeknd", image: "/images/demo/after-hours-album.png", year: 2020 },
+    { id: 2, title: "Currents", artist: "Tame Impala", image: "/images/demo/currents-album.png", year: 2015 },
+    { id: 3, title: "Blond", artist: "Frank Ocean", image: "/images/demo/blond-album.png", year: 2016 },
+    { id: 4, title: "AM", artist: "Arctic Monkeys", image: "/images/demo/am-album.png", year: 2013 }
   ]
 };
 
@@ -293,7 +293,7 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
         </div>
 
         {/* BOTTOM CALLOUT */}
-        <div className="absolute -bottom-48 left-1/2 -translate-x-1/2">
+        <div className="absolute -bottom-[12.5rem] left-1/2 -translate-x-1/2">
           {/* retro window frame */}
           <div className="relative w-72 h-32">
             <div className="absolute inset-0 bg-white rounded-xl outline outline-1 outline-black shadow-[1px_1px_0px_1px_rgba(0,0,0,1)]">
@@ -320,11 +320,11 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
           {/* Horizontal segment right */}
           <div className="absolute w-8 h-0.5 -right-8 -translate-y-1/2" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Vertical segment down - adjusted to reach middle of label */}
-          <div className="absolute h-[552px] w-0.5 -right-8 top-0" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
+          <div className="absolute h-[560px] w-0.5 -right-8 top-0" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Horizontal segment to label */}
-          <div className="absolute w-4 h-0.5 -right-8 top-[552px]" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
+          <div className="absolute w-4 h-0.5 -right-8 top-[560px]" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Arrow head pointing left */}
-          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-r-[8px] border-t-transparent border-b-transparent -right-4 top-[553px] -translate-y-1/2" style={{ borderRightColor: arrowColor || 'hsl(var(--foreground))' }} />
+          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-r-[8px] border-t-transparent border-b-transparent -right-4 top-[561px] -translate-y-1/2" style={{ borderRightColor: arrowColor || 'hsl(var(--foreground))' }} />
         </div>
       </div>
     </div>

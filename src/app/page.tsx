@@ -11,6 +11,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { theme } from '@/lib/theme';
 import { SearchResults } from '@/components/features/search-results';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ChevronDown } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ProfileDemo } from '@/components/demo/profile-demo';
@@ -30,7 +31,8 @@ export default function HomePage() {
   const [searchBarVisible, setSearchBarVisible] = useState(false);
   const [bottomVisible, setBottomVisible] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  
+  const [hasScrolled, setHasScrolled] = useState(false);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const debouncedSearchTerm = useDebounce(musicUrl, 300); // 300ms debounce for better responsiveness
   
@@ -73,6 +75,25 @@ export default function HomePage() {
     timeouts.push(setTimeout(() => setIsInitialLoad(false), 2100));
 
     return () => timeouts.forEach(clearTimeout);
+  }, []);
+
+  // Fade out scroll indicator once user scrolls (delayed to ignore scroll restoration)
+  useEffect(() => {
+    let baselineY = 0;
+    const handleScroll = () => {
+      if (window.scrollY - baselineY > 50) {
+        setHasScrolled(true);
+        window.removeEventListener('scroll', handleScroll);
+      }
+    };
+    const timeout = setTimeout(() => {
+      baselineY = window.scrollY;
+      window.addEventListener('scroll', handleScroll, { passive: true });
+    }, 2200);
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   const validateMusicLink = (url: string): string | null => {
@@ -252,12 +273,15 @@ export default function HomePage() {
           <div className="h-16 lg:h-0"></div>
 
           {/* Main Content Container */}
-          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] relative lg:min-h-screen lg:max-w-[1600px] lg:mx-auto lg:block lg:pr-[500px] lg:p-0">
+          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] relative lg:max-w-[1600px] lg:mx-auto lg:block lg:pr-[500px] lg:p-0">
             
             {/* Left Column - Logo and Profile Demo */}
             <div className="w-full lg:flex lg:flex-col lg:items-center lg:justify-start lg:px-12" style={{overscrollBehavior: 'contain'}}>
               {/* Logo Section */}
-              <div className={`${logoClasses} w-full lg:min-h-screen lg:flex lg:flex-col lg:justify-center`}>
+              <div className={`${logoClasses} relative w-full lg:min-h-[calc(100vh-4rem)] lg:flex lg:flex-col lg:items-center`}>
+              {/* Top spacer — pushes content to center */}
+              <div className="hidden lg:block lg:flex-1" />
+
               <div className="text-center mb-6 sm:mb-8 lg:text-center lg:mb-0 lg:-mt-[25px]">
                 {/* Logo + alpha layout (stacked on mobile, inline on desktop) */}
                 <div className="flex w-[85%] lg:w-[600px] mx-auto mb-3 sm:mb-5 flex-col items-center lg:flex-row lg:items-end">
@@ -286,6 +310,19 @@ export default function HomePage() {
                     <UIText className="text-center text-foreground font-bold leading-relaxed text-xs sm:text-sm md:text-base lg:text-xl lg:text-center">
                       Express yourself through your favorite songs and playlists - wherever you stream them
                     </UIText>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom spacer keeps logo/tagline vertically balanced */}
+              <div className="hidden lg:block lg:flex-1" />
+
+              {/* Scroll indicator pinned to hero bottom */}
+              <div className="pointer-events-none hidden lg:flex absolute bottom-8 left-1/2 -translate-x-1/2 z-20">
+                <div className={`flex flex-col items-center gap-1 transition-opacity duration-500 ${!isInitialLoad && !hasScrolled ? 'opacity-70' : 'opacity-0'}`}>
+                  <span className="text-[10px] tracking-[0.2em] uppercase text-foreground font-semibold">Scroll</span>
+                  <div className="animate-bounce">
+                    <ChevronDown className="w-4 h-4 text-foreground" />
                   </div>
                 </div>
               </div>

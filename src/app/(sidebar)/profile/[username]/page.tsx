@@ -14,6 +14,13 @@ import { applyCachedArtwork } from '@/services/profile-artwork-cache';
 import { ActivityPost } from '@/types';
 import { Container } from '@/components/ui/container';
 
+const TAB_ELEMENT_TYPE: Record<TabType, string> = {
+  playlists: 'Playlist',
+  tracks: 'Track',
+  artists: 'Artist',
+  albums: 'Album',
+};
+
 export default function ProfilePage() {
   const { username } = useParams();
   const router = useRouter();
@@ -41,7 +48,7 @@ export default function ProfilePage() {
     data: activityData,
     isLoading: isLoadingActivity,
     error: activityError
-  } = useUserActivity(userIdToFetch, { page: 1 });
+  } = useUserActivity(userIdToFetch, { page: 1, elementType: TAB_ELEMENT_TYPE[activeTab] });
 
   // Combine initial activity with paginated additional posts
   const allActivityPosts = useMemo(() => {
@@ -59,31 +66,11 @@ export default function ProfilePage() {
            user.username?.toLowerCase() === userBio.username?.toLowerCase();
   }, [userBio, user]);
 
-  // Determine optimal tab based on content
-  const getOptimalTab = useCallback((posts: ActivityPost[]): TabType => {
-    const tabPriority: TabType[] = ['playlists', 'tracks', 'artists', 'albums'];
-
-    for (const tabType of tabPriority) {
-      const hasContent = posts.some(post => {
-        if (tabType === 'playlists') return post.elementType.toLowerCase() === 'playlist';
-        if (tabType === 'tracks') return post.elementType.toLowerCase() === 'track';
-        if (tabType === 'artists') return post.elementType.toLowerCase() === 'artist';
-        if (tabType === 'albums') return post.elementType.toLowerCase() === 'album';
-        return false;
-      });
-
-      if (hasContent) return tabType;
-    }
-
-    return 'playlists';
-  }, []);
-
-  // Set optimal tab when activity data loads
+  // Reset tab pagination when user or tab changes
   useEffect(() => {
-    if (activityData?.items && activityData.items.length > 0) {
-      setActiveTab(getOptimalTab(activityData.items));
-    }
-  }, [activityData?.items, getOptimalTab]);
+    setAdditionalPosts([]);
+    setCurrentPage(1);
+  }, [userIdToFetch, activeTab]);
 
   // Load more posts (pagination)
   const loadMore = useCallback(async () => {
@@ -95,6 +82,7 @@ export default function ProfilePage() {
 
       const moreActivity = await profileService.fetchUserActivity(userIdToFetch, {
         page: nextPage,
+        elementType: TAB_ELEMENT_TYPE[activeTab],
       });
 
       setAdditionalPosts(prev => [...prev, ...moreActivity.items]);
@@ -104,7 +92,7 @@ export default function ProfilePage() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [userIdToFetch, currentPage, isLoadingMore, allActivityPosts.length, totalItems]);
+  }, [userIdToFetch, currentPage, isLoadingMore, allActivityPosts.length, totalItems, activeTab]);
 
   const filterByElementType = useCallback((type: TabType) => {
     if (activeTab === type) return;
@@ -220,13 +208,9 @@ export default function ProfilePage() {
     );
   }
 
-  // Filter posts by element type
+  // Keep privacy filtering on the selected tab payload
   const filteredPosts = allActivityPosts.filter(post => {
     if (!isCurrentUser && post.privacy?.toLowerCase() === 'private') return false;
-    if (activeTab === 'playlists') return post.elementType.toLowerCase() === 'playlist';
-    if (activeTab === 'tracks') return post.elementType.toLowerCase() === 'track';
-    if (activeTab === 'artists') return post.elementType.toLowerCase() === 'artist';
-    if (activeTab === 'albums') return post.elementType.toLowerCase() === 'album';
     return true;
   });
 

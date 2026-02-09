@@ -38,6 +38,7 @@ interface ActivityItemPayload {
   userId: string;
   createdAt: string;
   privacy?: PostPrivacy;
+  conversionSuccessCount?: number;
 }
 
 interface ActivityApiResponse {
@@ -252,6 +253,7 @@ export class ProfileService {
               description: resolvedDescription,
               imageUrl: resolvedImageUrl,
               privacy: item.privacy ?? 'public',
+              conversionSuccessCount: item.conversionSuccessCount,
               username: item.username,
               userId: item.userId,
               createdAt: item.createdAt,

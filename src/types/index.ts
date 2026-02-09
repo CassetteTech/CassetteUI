@@ -45,6 +45,7 @@ export interface ActivityPost {
   description?: string;
   imageUrl?: string;
   privacy?: PostPrivacy;
+  conversionSuccessCount?: number;
   username: string;
   userId: string;
   createdAt: string;
@@ -197,6 +198,7 @@ export interface MusicLinkConversion {
   description?: string;
   username?: string;
   postId?: string;
+  conversionSuccessCount?: number;
   tracks?: MediaListTrack[];
 }
 
@@ -218,6 +220,7 @@ export interface ConversionApiResponse {
   success: boolean;
   errorMessage?: string;
   postId: string;
+  conversionSuccessCount?: number;
   userId?: string | null;
   username?: string | null;
   elementType: string;
@@ -281,6 +284,7 @@ export interface PostByIdResponse {
   musicElementId: string;
   createdAt?: string;
   privacy?: PostPrivacy;
+  conversionSuccessCount?: number;
   details: {
     title?: string;
     name?: string;

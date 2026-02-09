@@ -25,6 +25,7 @@ interface PlaylistStreamingLinksProps {
   };
   className?: string;
   playlistId: string;
+  postId?: string;
   playlistTrackCount?: number;
   sourceUrl?: string;
   sourcePlatform?: string;
@@ -53,6 +54,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   links,
   className,
   playlistId,
+  postId,
   playlistTrackCount,
   sourceUrl,
   sourcePlatform,
@@ -126,7 +128,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
           if (success) {
             // Connected successfully, now create the playlist
             pendingActionService.clear();
-            const result = await apiService.createPlaylist(playlistId, platform.toLowerCase());
+            const result = await apiService.createPlaylist(playlistId, platform.toLowerCase(), postId);
             setCreationStatus({ platform, loading: false, result });
           } else {
             setCreationStatus({
@@ -147,7 +149,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       }
 
       // Case 3: Has connection - create playlist directly
-      const result = await apiService.createPlaylist(playlistId, platform.toLowerCase());
+      const result = await apiService.createPlaylist(playlistId, platform.toLowerCase(), postId);
       setCreationStatus({ platform, loading: false, result });
     } catch (error) {
       // Check if this is an auth error requiring re-authentication
@@ -161,7 +163,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
           // Reconnected successfully, retry the playlist creation
           pendingActionService.clear();
           try {
-            const retryResult = await apiService.createPlaylist(playlistId, platform.toLowerCase());
+            const retryResult = await apiService.createPlaylist(playlistId, platform.toLowerCase(), postId);
             setCreationStatus({ platform, loading: false, result: retryResult });
           } catch (retryError) {
             setCreationStatus({

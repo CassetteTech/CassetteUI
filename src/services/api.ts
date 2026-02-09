@@ -145,7 +145,7 @@ class ApiService {
       headers: { 'X-Idempotency-Key': key }, // server should honor this
       body: JSON.stringify({
         sourceLink: url,
-        description: options?.description || undefined
+        description: options?.description || undefined,
       }),
       skipAuth: options?.anonymous,
     });
@@ -205,7 +205,8 @@ class ApiService {
         },
         description: response.description || response.caption || undefined,
         username: response.username || undefined,
-        postId: response.postId
+        postId: response.postId,
+        conversionSuccessCount: response.conversionSuccessCount,
       };
 
       // Map album/playlist tracks when provided by the API
@@ -411,7 +412,7 @@ class ApiService {
     });
   }
 
-  async createPlaylist(playlistId: string, targetPlatform: string): Promise<CreatePlaylistResponse> {
+  async createPlaylist(playlistId: string, targetPlatform: string, postId?: string): Promise<CreatePlaylistResponse> {
     const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
     const targetKey = normalize(targetPlatform);
     const canonicalMap: Record<string, string> = {
@@ -438,7 +439,7 @@ class ApiService {
 
     return this.request<CreatePlaylistResponse>('/api/v1/convert/createPlaylist', {
       method: 'POST',
-      body: JSON.stringify({ PlaylistId: playlistId, TargetPlatform: canonicalTarget }),
+      body: JSON.stringify({ PlaylistId: playlistId, TargetPlatform: canonicalTarget, PostId: postId || undefined }),
     });
   }
 

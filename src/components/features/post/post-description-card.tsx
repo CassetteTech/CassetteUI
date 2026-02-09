@@ -8,11 +8,13 @@ import { VerificationBadge } from '@/components/ui/verification-badge';
 import { useUserBio } from '@/hooks/use-profile';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
+import { CheckCircle2 } from 'lucide-react';
 
 interface PostDescriptionCardProps {
   username: string;
   description: string;
   createdAt?: string;
+  conversionSuccessCount?: number;
   className?: string;
 }
 
@@ -20,6 +22,7 @@ export function PostDescriptionCard({
   username,
   description,
   createdAt,
+  conversionSuccessCount,
   className,
 }: PostDescriptionCardProps) {
   // Use React Query - will be deduplicated across all PostDescriptionCards
@@ -28,6 +31,10 @@ export function PostDescriptionCard({
 
   const initial = username?.charAt(0)?.toUpperCase() || 'U';
   const avatarUrl = profileData?.avatarUrl;
+  const hasConversionCount = typeof conversionSuccessCount === 'number';
+  const formattedCount = hasConversionCount
+    ? new Intl.NumberFormat('en-US').format(Math.max(0, conversionSuccessCount))
+    : null;
 
   return (
     <div
@@ -78,6 +85,15 @@ export function PostDescriptionCard({
             <BodyText className="text-foreground/90 text-sm leading-relaxed break-words">
               {description}
             </BodyText>
+          )}
+
+          {hasConversionCount && (
+            <div className="pt-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {formattedCount} successful conversions
+              </span>
+            </div>
           )}
         </div>
       </div>

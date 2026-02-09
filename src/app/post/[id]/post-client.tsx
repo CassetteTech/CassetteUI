@@ -63,7 +63,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const { isAuthenticated, isLoading, user } = useAuthState();
   const { mutate: addToProfile, isPending: isAddingToProfile } = useAddMusicToProfile();
   const [addStatus, setAddStatus] = useState<'idle' | 'added' | 'error'>('idle');
-  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; createdAt?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; privacy?: string; } | null>(null);
+  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; createdAt?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; privacy?: string; conversionSuccessCount?: number; } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Animation states
@@ -213,7 +213,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             response.platforms?.appleMusic?.url ||
             response.platforms?.deezer?.url ||
             '';
-          const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; createdAt?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; privacy?: string; } = {
+          const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; createdAt?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; privacy?: string; conversionSuccessCount?: number; } = {
             originalUrl: originalLink,
             convertedUrls: {},
             metadata: {
@@ -227,6 +227,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             username: response.username,
             createdAt: response.createdAt,
             privacy: response.privacy,
+            conversionSuccessCount: response.conversionSuccessCount,
             genres: response.details?.genres || response.metadata?.genres || [],
             albumName: response.metadata?.albumName || response.details?.album || '',
             releaseDate: response.metadata?.releaseDate || response.details?.releaseDate || null,
@@ -692,6 +693,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       username={postData.username}
                       description={postData?.description || ''}
                       createdAt={postData?.createdAt}
+                      conversionSuccessCount={isPlaylist ? postData?.conversionSuccessCount : undefined}
                       className="mt-6 w-full max-w-xl relative z-20"
                     />
                   )}
@@ -704,6 +706,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             links={convertedUrls}
                             className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                             playlistId={postData?.musicElementId || ''}
+                            postId={postData?.postId || postId}
                             playlistTrackCount={playlistTrackCount}
                             sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
                             sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
@@ -972,6 +975,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             username={postData.username}
                             description={postData?.description || ''}
                             createdAt={postData?.createdAt}
+                            conversionSuccessCount={isPlaylist ? postData?.conversionSuccessCount : undefined}
                             className="relative z-20"
                           />
                         )}
@@ -983,6 +987,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                               links={convertedUrls}
                               className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                               playlistId={postData?.musicElementId || ''}
+                              postId={postData?.postId || postId}
                               playlistTrackCount={playlistTrackCount}
                               sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
                               sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
@@ -1339,6 +1344,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   username={postData.username}
                   description={postData?.description || ''}
                   createdAt={postData?.createdAt}
+                  conversionSuccessCount={isPlaylist ? postData?.conversionSuccessCount : undefined}
                   className="text-left relative z-20"
                 />
               )}
@@ -1351,6 +1357,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     links={convertedUrls}
                     className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                     playlistId={postData?.musicElementId || ''}
+                    postId={postData?.postId || postId}
                     playlistTrackCount={playlistTrackCount}
                     sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
                     sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}

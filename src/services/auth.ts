@@ -10,10 +10,29 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC
 class AuthService {
   private sessionIntervalId: number | null = null;
   private initialized = false;
+  private lastArtworkWarmupUserId: string | null = null;
+
+  private resolveAvatarUrl(userData: Record<string, unknown>): string {
+    return String(
+      userData.avatarUrl ||
+      userData.AvatarUrl ||
+      userData.profilePicture ||
+      userData.ProfilePicture ||
+      ''
+    );
+  }
   
   private warmProfileArtworkCache(user: AuthUser | null) {
     const userIdentifier = user?.username || user?.id;
     if (!userIdentifier) return;
+    if (this.lastArtworkWarmupUserId === userIdentifier) return;
+
+    // Avoid duplicate load pressure when profile page is already requesting activity.
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/profile')) {
+      return;
+    }
+
+    this.lastArtworkWarmupUserId = userIdentifier;
     void prefetchProfileArtwork(userIdentifier).catch(() => {});
   }
 
@@ -88,7 +107,7 @@ class AuthService {
           username: data.user.username || data.user.Username,
           email: data.user.email || data.user.Email,
           bio: data.user.bio || data.user.Bio || null,
-          avatarUrl: data.user.avatarUrl || data.user.AvatarUrl || null,
+          avatarUrl: this.resolveAvatarUrl(data.user),
           joinDate: data.user.joinDate || data.user.JoinDate || new Date().toISOString(),
         };
         
@@ -343,7 +362,7 @@ class AuthService {
       username: String(username || ''),
       displayName: String(userData.displayName || username || ''),
       bio: bio ? String(bio) : undefined,
-      profilePicture: String(userData.avatarUrl || userData.AvatarUrl || ''),
+      profilePicture: this.resolveAvatarUrl(userData),
       isEmailVerified: true, // Assume verified if coming from backend
       isOnboarded: Boolean(userData.isOnboarded || userData.IsOnboarded || false),
       createdAt: String(userData.joinDate || userData.createdAt || new Date().toISOString()),

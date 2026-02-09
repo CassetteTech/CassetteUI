@@ -3,11 +3,14 @@ import { apiService } from '@/services/api';
 import { profileService } from '@/services/profile';
 
 const CACHE_KEY = 'profile_artwork_cache_v1';
+const PREFETCH_SESSION_KEY = 'profile_artwork_prefetched_users_v1';
 const MAX_CACHE_ENTRIES = 300;
 
 const memoryCache = new Map<string, string>();
 const inFlightPrefetch = new Set<string>();
 let hydratedFromStorage = false;
+let prefetchedUsersHydrated = false;
+const prefetchedUsers = new Set<string>();
 
 function resolveText(...values: Array<string | null | undefined>) {
   for (const value of values) {
@@ -63,6 +66,31 @@ function persistToStorage() {
   }
 }
 
+function hydratePrefetchedUsers() {
+  if (prefetchedUsersHydrated || typeof window === 'undefined') return;
+  prefetchedUsersHydrated = true;
+
+  try {
+    const raw = sessionStorage.getItem(PREFETCH_SESSION_KEY);
+    if (!raw) return;
+    const entries = JSON.parse(raw) as string[];
+    for (const entry of entries) {
+      if (entry) prefetchedUsers.add(entry);
+    }
+  } catch {
+    // ignore malformed values
+  }
+}
+
+function persistPrefetchedUsers() {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(PREFETCH_SESSION_KEY, JSON.stringify(Array.from(prefetchedUsers)));
+  } catch {
+    // ignore storage quota/private mode failures
+  }
+}
+
 function setArtwork(postId: string, artworkUrl: string) {
   if (!postId || !artworkUrl) return;
   hydrateFromStorage();
@@ -87,12 +115,12 @@ export function seedArtworkCache(postId: string | undefined, artworkUrl: string 
 
 function getArtwork(postId: string) {
   if (!postId) return undefined;
-  hydrateFromStorage();
   return memoryCache.get(postId);
 }
 
 export function applyCachedArtwork(posts: ActivityPost[]): ActivityPost[] {
   if (!posts.length) return posts;
+  hydrateFromStorage();
 
   return posts.map((post) => {
     if (post.imageUrl || !post.postId) return post;
@@ -109,7 +137,8 @@ export async function prefetchProfileArtwork(
   const maxBackfill = options.maxBackfill ?? 8;
   const key = `${userIdentifier}:${pageSize}:${maxBackfill}`;
 
-  if (!userIdentifier || inFlightPrefetch.has(key)) return;
+  hydratePrefetchedUsers();
+  if (!userIdentifier || inFlightPrefetch.has(key) || prefetchedUsers.has(userIdentifier)) return;
   inFlightPrefetch.add(key);
 
   try {
@@ -126,10 +155,18 @@ export async function prefetchProfileArtwork(
     await Promise.all(
       candidates.map(async (post) => {
         try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 2000);
-          const result = await apiService.fetchPostById(post.postId, { signal: controller.signal });
-          clearTimeout(timeout);
+          const supportsAbortTimeout =
+            typeof AbortSignal !== 'undefined' &&
+            typeof (AbortSignal as typeof AbortSignal & { timeout?: (ms: number) => AbortSignal }).timeout === 'function';
+
+          const signal = supportsAbortTimeout
+            ? (AbortSignal as typeof AbortSignal & { timeout: (ms: number) => AbortSignal }).timeout(2000)
+            : undefined;
+
+          const result = await apiService.fetchPostById(
+            post.postId,
+            signal ? { signal } : undefined,
+          );
 
           const artwork = resolvePostArtwork(result);
           if (artwork) {
@@ -141,6 +178,8 @@ export async function prefetchProfileArtwork(
       }),
     );
   } finally {
+    prefetchedUsers.add(userIdentifier);
+    persistPrefetchedUsers();
     inFlightPrefetch.delete(key);
   }
 }

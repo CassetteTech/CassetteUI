@@ -164,7 +164,12 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     }
 
     addToProfile(
-      { musicElementId, elementType, description: postData?.description },
+      {
+        musicElementId,
+        elementType,
+        description: postData?.description,
+        artworkUrl: postData?.metadata?.artwork,
+      },
       {
         onSuccess: () => setAddStatus('added'),
         onError: (error) => {
@@ -174,7 +179,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         },
       },
     );
-  }, [addToProfile, postData?.musicElementId, postData?.metadata?.type, postData?.description]);
+  }, [addToProfile, postData?.musicElementId, postData?.metadata?.type, postData?.description, postData?.metadata?.artwork]);
 
   const isOwnPost =
     !!postData?.username &&

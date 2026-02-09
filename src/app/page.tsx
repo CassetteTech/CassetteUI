@@ -329,9 +329,9 @@ export default function HomePage() {
             </div>
 
               {/* Profile Demo Section - Below Logo - Desktop only */}
-              <div className={`${bottomContentClasses} w-full lg:mt-[2vh] lg:pt-32 hidden lg:block`}>
+              <div className={`${bottomContentClasses} w-full lg:mt-[2vh] lg:pt-32 pb-[28rem] hidden lg:block`}>
                 <ProfileDemo />
-                
+
                 {/* CTA Button - Desktop only, under profile demo */}
                 {!isAuthenticated && (
                   <div className="mt-64 text-center pb-32">
@@ -435,9 +435,9 @@ export default function HomePage() {
             </div>
 
             {/* Profile Demo Section - Mobile only */}
-            <div className={`${bottomContentClasses} w-full mt-32 pt-16 lg:hidden`}>
+            <div className={`${bottomContentClasses} w-full mt-32 pt-16 pb-[28rem] lg:hidden`}>
               <ProfileDemo />
-              
+
               {/* CTA Button - Mobile only, under profile demo */}
               {!isAuthenticated && (
                 <div className="mt-48 text-center px-4 w-full">

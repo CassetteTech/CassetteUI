@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { apiService } from '@/services/api';
 import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
+import { platformConnectService } from '@/services/platform-connect';
 
 interface ConnectAppleMusicButtonProps {
   isConnected?: boolean;
@@ -63,40 +64,17 @@ export function ConnectAppleMusicButton({
 
     setIsLoading(true);
     try {
-      // Configure MusicKit with the developer token
-      await window.MusicKit.configure({
-        developerToken: developerToken,
-        app: {
-          name: 'Cassette',
-          build: '1.0.0',
-        },
-      });
+      const success = await platformConnectService.connectAppleMusic(window.location.pathname);
 
-      const instance = window.MusicKit.getInstance();
-
-      // Clear any cached authorization to force fresh consent
-      // This ensures the user explicitly authorizes THIS Cassette account
-      if (instance.isAuthorized) {
-        await instance.unauthorize();
-      }
-
-      // Request user authorization
-      const musicUserToken = await instance.authorize();
-      
-      if (musicUserToken) {
-        // Send the user token to our backend for secure storage
-        const response = await apiService.connectAppleMusic(musicUserToken);
-
-        if (response.success) {
-          // Refetch user to get updated connectedServices and update auth store
-          const updatedUser = await authService.getCurrentUser();
-          if (updatedUser) {
-            useAuthStore.getState().setUser(updatedUser);
-          }
-          onConnect?.();
-        } else {
-          throw new Error('Failed to save Apple Music token');
+      if (success) {
+        // Refetch user to get updated connectedServices and update auth store
+        const updatedUser = await authService.getCurrentUser();
+        if (updatedUser) {
+          useAuthStore.getState().setUser(updatedUser);
         }
+        onConnect?.();
+      } else {
+        throw new Error('Failed to connect to Apple Music');
       }
     } catch (error) {
       console.error('Failed to connect to Apple Music:', error);

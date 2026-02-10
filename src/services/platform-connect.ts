@@ -21,6 +21,24 @@ interface MusicKitWindow {
 export type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
 
 const RETURN_URL_PREFIX = 'cassette_platform_return_url_';
+const APPLE_AUTH_TIMEOUT_MS = 60_000;
+const APPLE_UNAUTHORIZE_TIMEOUT_MS = 5_000;
+const APPLE_BACKEND_SAVE_TIMEOUT_MS = 20_000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
 
 export const platformConnectService = {
   /**
@@ -69,28 +87,44 @@ export const platformConnectService = {
     }
 
     try {
+      const musicKit = (window as unknown as MusicKitWindow).MusicKit;
+      if (!musicKit) {
+        throw new Error('Apple Music SDK did not load. Please refresh and try again.');
+      }
+
       const { developerToken } = await apiService.getAppleMusicDeveloperToken();
 
       // Configure MusicKit
-      await (window as unknown as MusicKitWindow).MusicKit.configure({
+      await musicKit.configure({
         developerToken,
         app: { name: 'Cassette', build: '1.0.0' },
       });
 
-      const instance = (window as unknown as MusicKitWindow).MusicKit.getInstance();
+      const instance = musicKit.getInstance();
 
-      // Clear any cached authorization to force fresh consent
-      // This ensures the user explicitly authorizes THIS Cassette account
+      // Best-effort reset. On some mobile sessions this can hang, so cap wait time.
       if (instance.isAuthorized) {
-        await instance.unauthorize();
+        await withTimeout(
+          instance.unauthorize(),
+          APPLE_UNAUTHORIZE_TIMEOUT_MS,
+          'Apple Music reset took too long.'
+        ).catch(() => {});
       }
 
       // Authorize user (shows Apple Music modal)
-      const musicUserToken = await instance.authorize();
+      const musicUserToken = await withTimeout(
+        instance.authorize(),
+        APPLE_AUTH_TIMEOUT_MS,
+        'Apple Music authorization timed out. Please try again.'
+      );
 
       if (musicUserToken) {
         // Send token to backend to save connection
-        const response = await apiService.connectAppleMusic(musicUserToken);
+        const response = await withTimeout(
+          apiService.connectAppleMusic(musicUserToken),
+          APPLE_BACKEND_SAVE_TIMEOUT_MS,
+          'Saving Apple Music connection timed out. Please try again.'
+        );
         return response.success;
       }
 

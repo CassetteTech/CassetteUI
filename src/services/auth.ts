@@ -372,6 +372,10 @@ class AuthService {
     };
   }
 
+  normalizeAuthUser(userData: Record<string, unknown>): AuthUser {
+    return this.mapToAuthUser(userData);
+  }
+
   async getCurrentUser(): Promise<AuthUser | null> {
     const token = this.getAccessToken();
     if (!token) {

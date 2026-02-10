@@ -160,9 +160,10 @@ export default function OnboardingPage() {
 
         if (freshUser) {
           setUser(freshUser);
-        } else if (data.user) {
+        } else if (data.user && typeof data.user === 'object') {
           // Fallback to response data if session refresh fails
-          setUser(data.user);
+          // Ensure auth store shape is normalized (profilePicture, connectedServices, etc.)
+          setUser(authService.normalizeAuthUser(data.user as Record<string, unknown>));
         } else if (user) {
           // Last resort fallback
           const updatedUser = {

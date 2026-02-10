@@ -339,7 +339,10 @@ export class ProfileService {
       if (data.username) formData.append('Username', data.username.trim().toLowerCase());
       if (data.displayName) formData.append('DisplayName', data.displayName);
       if (data.bio !== undefined) formData.append('Bio', data.bio);
-      if (data.avatarFile) formData.append('avatar', data.avatarFile);
+      if (data.avatarFile) {
+        formData.append('avatar', data.avatarFile, data.avatarFile.name);
+        formData.append('Avatar', data.avatarFile, data.avatarFile.name);
+      }
       if (data.avatarUrl && !data.avatarFile) formData.append('AvatarUrl', data.avatarUrl);
 
       const response = await fetch(url, {

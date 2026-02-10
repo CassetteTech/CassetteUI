@@ -116,7 +116,8 @@ export default function OnboardingPage() {
       form.append('isOnboarded', 'true');
 
       if (formData.avatarFile) {
-        form.append('avatar', formData.avatarFile);
+        form.append('avatar', formData.avatarFile, formData.avatarFile.name);
+        form.append('Avatar', formData.avatarFile, formData.avatarFile.name);
       }
 
       const response = await fetch(`${API_URL}/api/v1/profile`, {

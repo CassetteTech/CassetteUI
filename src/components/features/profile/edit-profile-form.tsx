@@ -14,6 +14,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { TextField } from '@/components/ui/text-field';
 import { DeleteAccountModal } from './delete-account-modal';
 import { AlertTriangle } from 'lucide-react';
+import { normalizeAvatarForUpload } from '@/lib/utils/avatar-upload';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -189,7 +190,7 @@ export function EditProfileFormComponent({
     fileInputRef.current?.click();
   };
 
-  const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
 
     if (!file) {
@@ -213,14 +214,15 @@ export function EditProfileFormComponent({
       return;
     }
 
+    const normalizedFile = await normalizeAvatarForUpload(file);
     setAvatarError(null);
-    setAvatarFile(file);
+    setAvatarFile(normalizedFile);
 
     if (avatarPreviewUrl) {
       URL.revokeObjectURL(avatarPreviewUrl);
     }
 
-    const previewUrl = URL.createObjectURL(file);
+    const previewUrl = URL.createObjectURL(normalizedFile);
     setAvatarPreviewUrl(previewUrl);
   };
 

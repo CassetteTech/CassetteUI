@@ -667,7 +667,7 @@ export default function TeamPage() {
                               animate={{ opacity: 1, scale: 1 }}
                               exit={{ opacity: 0, scale: 0.8 }}
                               transition={{ duration: 0.2, delay: 0.25 + (idx * 0.03) }}
-                              className={`px-4 py-2 text-sm rounded-full border font-medium ${typeConfig.iconBg} ${typeConfig.iconColor} ${typeConfig.borderColor}`}
+                              className={`px-4 py-2 text-sm rounded-full border font-medium ${typeConfig.iconBg} text-muted-foreground ${typeConfig.borderColor}`}
                             >
                               {skill}
                             </motion.span>

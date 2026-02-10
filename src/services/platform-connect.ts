@@ -23,6 +23,7 @@ export type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
 const RETURN_URL_PREFIX = 'cassette_platform_return_url_';
 const APPLE_AUTH_TIMEOUT_MS = 60_000;
 const APPLE_BACKEND_SAVE_TIMEOUT_MS = 20_000;
+let appleMusicReadyPromise: Promise<void> | null = null;
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -40,6 +41,28 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: st
 }
 
 export const platformConnectService = {
+  async preloadAppleMusic(): Promise<void> {
+    const musicKit = (window as unknown as MusicKitWindow).MusicKit;
+    if (!musicKit) {
+      throw new Error('Apple Music SDK did not load. Please refresh and try again.');
+    }
+
+    if (!appleMusicReadyPromise) {
+      appleMusicReadyPromise = (async () => {
+        const { developerToken } = await apiService.getAppleMusicDeveloperToken();
+        await musicKit.configure({
+          developerToken,
+          app: { name: 'Cassette', build: '1.0.0' },
+        });
+      })().catch((error) => {
+        appleMusicReadyPromise = null;
+        throw error;
+      });
+    }
+
+    return appleMusicReadyPromise;
+  },
+
   /**
    * Initiate Spotify OAuth flow with return URL
    * Redirects in same tab (not new window) for cleaner UX
@@ -91,13 +114,8 @@ export const platformConnectService = {
         throw new Error('Apple Music SDK did not load. Please refresh and try again.');
       }
 
-      const { developerToken } = await apiService.getAppleMusicDeveloperToken();
-
-      // Configure MusicKit
-      await musicKit.configure({
-        developerToken,
-        app: { name: 'Cassette', build: '1.0.0' },
-      });
+      // Preload/configure ahead of user action when possible to preserve mobile gesture flow.
+      await this.preloadAppleMusic();
 
       const instance = musicKit.getInstance();
 

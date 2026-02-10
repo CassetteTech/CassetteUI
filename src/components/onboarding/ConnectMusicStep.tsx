@@ -77,6 +77,10 @@ export function ConnectMusicStep({
   useEffect(() => {
     async function fetchPreferences() {
       try {
+        void platformConnectService.preloadAppleMusic().catch((error) => {
+          console.warn('Apple Music preload failed:', error);
+        });
+
         const response = await apiService.getPlatformPreferences();
         if (response.preferences) {
           const newStates: Record<ServiceId, PlatformState> = {

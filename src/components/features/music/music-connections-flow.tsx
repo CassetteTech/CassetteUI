@@ -67,6 +67,10 @@ export function MusicConnectionsFlow({
   useEffect(() => {
     const fetchPreferences = async () => {
       try {
+        void platformConnectService.preloadAppleMusic().catch((error) => {
+          console.warn('Apple Music preload failed:', error);
+        });
+
         console.log('MusicConnectionsFlow: Fetching preferences from API...');
         const response = await apiService.getPlatformPreferences();
 

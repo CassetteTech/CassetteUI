@@ -173,8 +173,8 @@ export function Navbar() {
 
       {/* Mobile Menu - Overlay */}
       <div className={cn(
-        "md:hidden absolute top-full left-0 right-0 bg-background border-b border-border/20 shadow-lg overflow-hidden transition-all duration-300 ease-in-out",
-        isMobileMenuOpen ? "max-h-[600px]" : "max-h-0"
+        "md:hidden absolute top-full left-0 right-0 bg-background border-b border-border/20 shadow-lg transition-all duration-300 ease-in-out",
+        isMobileMenuOpen ? "max-h-[calc(100vh-4rem)] overflow-y-auto" : "max-h-0 overflow-hidden"
       )}>
         <div className="container mx-auto px-4 py-4">
           {/* User Profile Section - only show for authenticated users */}

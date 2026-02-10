@@ -4,7 +4,6 @@ import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Music, User, Edit, LogOut, Info, Users, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
@@ -96,22 +95,19 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
           <AlertCircle className="h-6 w-6" />
           <span>Report a Problem</span>
         </button>
-      </div>
-
-      {/* Sign Out */}
-      {user && (
-        <div className="pt-4 mt-auto">
-          <Button
-            variant="ghost"
-            size="lg"
-            className="w-full justify-start text-muted-foreground hover:text-foreground h-12"
+        {user && (
+          <button
             onClick={handleSignOut}
+            className={cn(
+              'flex items-center gap-4 p-4 rounded-lg text-lg font-medium transition-colors',
+              'text-foreground hover:bg-muted w-full text-left'
+            )}
           >
-            <LogOut className="mr-4 h-6 w-6" />
-            <span className="text-lg">Sign Out</span>
-          </Button>
-        </div>
-      )}
+            <LogOut className="h-6 w-6" />
+            <span>Sign Out</span>
+          </button>
+        )}
+      </div>
     </nav>
   );
 }

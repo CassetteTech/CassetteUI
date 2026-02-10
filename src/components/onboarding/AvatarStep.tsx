@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Upload, User, Camera, X, ImagePlus } from 'lucide-react';
-import { normalizeAvatarForUpload } from '@/lib/utils/avatar-upload';
 
 interface FormData {
   username: string;
@@ -46,7 +45,7 @@ export function AvatarStep({
     };
   }, [previewUrl]);
 
-  const processFile = useCallback(async (file: File) => {
+  const processFile = useCallback((file: File) => {
     // Validate file type
     if (!ALLOWED_TYPES.includes(file.type)) {
       toast.error('Invalid file type', {
@@ -63,8 +62,7 @@ export function AvatarStep({
       return;
     }
 
-    const normalizedFile = await normalizeAvatarForUpload(file);
-    updateFormData({ avatarFile: normalizedFile });
+    updateFormData({ avatarFile: file });
 
     // Cleanup previous preview URL
     if (previewUrl) {
@@ -72,15 +70,15 @@ export function AvatarStep({
     }
 
     // Create new preview URL
-    const url = URL.createObjectURL(normalizedFile);
+    const url = URL.createObjectURL(file);
     setPreviewUrl(url);
     toast.success('Photo uploaded!');
   }, [previewUrl, updateFormData]);
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      await processFile(file);
+      processFile(file);
     }
   };
 
@@ -96,14 +94,14 @@ export function AvatarStep({
     setIsDragging(false);
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
 
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      await processFile(file);
+      processFile(file);
     }
   };
 

@@ -155,7 +155,10 @@ export function MusicConnectionsFlow({
           ...prev,
           [serviceId]: { ...prev[serviceId], isLoading: false },
         }));
-        toast.error(`Failed to connect ${service.name}`);
+        const message = error instanceof Error ? error.message : 'Please try again.';
+        toast.error(`Failed to connect ${service.name}`, {
+          description: message,
+        });
       }
       return;
     }

@@ -22,7 +22,6 @@ export type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
 
 const RETURN_URL_PREFIX = 'cassette_platform_return_url_';
 const APPLE_AUTH_TIMEOUT_MS = 60_000;
-const APPLE_UNAUTHORIZE_TIMEOUT_MS = 5_000;
 const APPLE_BACKEND_SAVE_TIMEOUT_MS = 20_000;
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
@@ -101,15 +100,6 @@ export const platformConnectService = {
       });
 
       const instance = musicKit.getInstance();
-
-      // Best-effort reset. On some mobile sessions this can hang, so cap wait time.
-      if (instance.isAuthorized) {
-        await withTimeout(
-          instance.unauthorize(),
-          APPLE_UNAUTHORIZE_TIMEOUT_MS,
-          'Apple Music reset took too long.'
-        ).catch(() => {});
-      }
 
       // Authorize user (shows Apple Music modal)
       const musicUserToken = await withTimeout(

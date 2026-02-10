@@ -21,7 +21,7 @@ export const useSignIn = () => {
       // Always check onboarding first - don't bypass it for pending actions
       if (!user?.isOnboarded) {
         // Keep pending action for after onboarding completes
-        router.push('/onboarding');
+        window.location.href = '/onboarding';
         return;
       }
 
@@ -60,7 +60,7 @@ export const useSignUp = () => {
         // Always check onboarding first - don't bypass it for pending actions
         if (!user?.isOnboarded) {
           // Keep pending action for after onboarding completes
-          router.push('/onboarding');
+          window.location.href = '/onboarding';
           return;
         }
 

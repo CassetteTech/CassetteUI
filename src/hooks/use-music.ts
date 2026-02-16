@@ -40,6 +40,14 @@ export const useMusicLinkConversion = (options?: { anonymous?: boolean }) => {
       console.log('✅ Mutation successful:', data);
       seedArtworkCache(data.postId, data.metadata?.artwork);
       queryClient.invalidateQueries({ queryKey: ['music-search'] });
+
+      // Authenticated conversion responses include username; refresh profile-related caches.
+      if (typeof data?.username === 'string' && data.username.trim() !== '') {
+        queryClient.invalidateQueries({ queryKey: ['user-activity'], refetchType: 'all' });
+        queryClient.invalidateQueries({ queryKey: ['user-bio'], refetchType: 'all' });
+        queryClient.invalidateQueries({ queryKey: ['user-posts'], refetchType: 'all' });
+        queryClient.invalidateQueries({ queryKey: ['profile'], refetchType: 'all' });
+      }
     },
     onError: (error) => {
       console.error('❌ Mutation error:', error);
@@ -117,8 +125,8 @@ export const useAddMusicToProfile = () => {
       seedArtworkCache(data.postId, variables.artworkUrl);
       // Invalidate profile-related queries to refresh the user's profile
       queryClient.invalidateQueries({ queryKey: ['profile'] });
-      queryClient.invalidateQueries({ queryKey: ['user-posts'] });
-      queryClient.invalidateQueries({ queryKey: ['user-activity'] });
+      queryClient.invalidateQueries({ queryKey: ['user-posts'], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ['user-activity'], refetchType: 'all' });
     },
     onError: (error) => {
       console.error('❌ Add music to profile error:', error);

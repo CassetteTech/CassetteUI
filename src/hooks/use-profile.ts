@@ -50,6 +50,7 @@ export const useUserActivity = (
     queryFn: () =>
       profileService.fetchUserActivity(userIdentifier!, { page, pageSize, elementType }),
     enabled: !!userIdentifier && enabled,
+    refetchOnMount: 'always',
     staleTime: 1000 * 60 * 2, // 2 minutes (activity changes more frequently)
     gcTime: 1000 * 60 * 5, // 5 minutes
   });

@@ -68,8 +68,8 @@ function artistMatchesQuery(artistName: string, query: string): boolean {
   // Query is contained in artist name (e.g., "drake" matches "Drake")
   if (normalizedArtist.includes(normalizedQuery)) return true;
 
-  // Artist name is contained in query (e.g., "drake songs" -> "drake")
-  if (normalizedQuery.includes(normalizedArtist) && normalizedArtist.length >= 3) return true;
+  // Artist name is contained in query (e.g., "drake songs" -> "drake", "u2 songs" -> "u2")
+  if (normalizedQuery.includes(normalizedArtist)) return true;
 
   return false;
 }

@@ -224,7 +224,7 @@ const AddMusicForm = ({
           query={debouncedSearchTerm}
           isLoading={isLoadingCharts}
           isSearching={isSearchingMusic}
-          showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}
+          showSearchResults={musicUrl.length >= 2 && !musicUrl.includes('http')}
           onSelectItem={handleSelectItem}
           onClose={closeSearch}
         />
@@ -260,7 +260,7 @@ export default function AddMusicPage() {
   );
   
   // Decide what data to display
-  const displayData = debouncedSearchTerm.length > 2 && !debouncedSearchTerm.includes('http') 
+  const displayData = debouncedSearchTerm.length >= 2 && !debouncedSearchTerm.includes('http') 
     ? searchResultsData 
     : topCharts;
 

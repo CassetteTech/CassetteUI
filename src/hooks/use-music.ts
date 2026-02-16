@@ -11,7 +11,7 @@ export const useMusicSearch = (query: string) => {
   const result = useQuery({
     queryKey: ['music-search', query],
     queryFn: () => musicService.searchMusic(query),
-    enabled: !!query && query.length > 2,
+    enabled: !!query && query.length >= 2,
   });
 
   // Handle success/error manually in useEffect

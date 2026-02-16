@@ -50,7 +50,7 @@ export default function HomePage() {
   );
   
   // Decide what data to display
-  const displayData = debouncedSearchTerm.length > 2 && !debouncedSearchTerm.includes('http') 
+  const displayData = debouncedSearchTerm.length >= 2 && !debouncedSearchTerm.includes('http') 
     ? searchResultsData 
     : topCharts;
 
@@ -408,7 +408,7 @@ export default function HomePage() {
                   query={debouncedSearchTerm}
                   isLoading={isLoadingCharts}
                   isSearching={isSearchingMusic}
-                  showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}
+                  showSearchResults={musicUrl.length >= 2 && !musicUrl.includes('http')}
                   onSelectItem={handleSelectItem}
                   onClose={closeSearch}
                   SkeletonComponent={Skeleton}
@@ -427,7 +427,7 @@ export default function HomePage() {
                 query={debouncedSearchTerm}
                 isLoading={isLoadingCharts}
                 isSearching={isSearchingMusic}
-                showSearchResults={musicUrl.length > 2 && !musicUrl.includes('http')}
+                showSearchResults={musicUrl.length >= 2 && !musicUrl.includes('http')}
                 onSelectItem={handleSelectItem}
                 onClose={closeSearch}
                 SkeletonComponent={Skeleton}

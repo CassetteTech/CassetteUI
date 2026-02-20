@@ -1069,7 +1069,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           )
         ) : (
           // Mobile Layout
-          <div className="px-4 sm:px-8 md:px-12 pb-8 mt-16 max-w-lg mx-auto">
+          <div className="px-4 sm:px-6 md:px-8 pb-8 mt-16 max-w-lg mx-auto">
             {/* Header Toolbar */}
             <div className="pt-4 pb-6 max-w-7xl mx-auto w-full">
               <div className="flex items-center justify-between gap-3">
@@ -1154,10 +1154,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 )}
               </div>
             </div>
-            <div className="text-center space-y-6">
+            <div className="text-center space-y-4 sm:space-y-6">
               {/* Element Type */}
-              <div className="mb-[calc(6rem+env(safe-area-inset-bottom))]">
-                <UIText className="text-foreground font-bold mb-8 uppercase tracking-wider text-lg">
+              <div>
+                <UIText className="text-foreground font-bold mb-4 sm:mb-6 uppercase tracking-wider text-sm sm:text-base">
                   {typeLabel}
                 </UIText>
               </div>
@@ -1172,8 +1172,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     alt={metadata.title}
                     width={0}
                     height={0}
-                    sizes="(max-width: 640px) 280px, 320px"
-                    className="relative rounded-xl object-cover shadow-lg w-[280px] h-[280px] sm:w-[320px] sm:h-[320px]"
+                    sizes="(max-width: 640px) 220px, 280px"
+                    className="relative rounded-xl object-cover shadow-lg w-[220px] h-[220px] sm:w-[280px] sm:h-[280px]"
                     priority
                     onError={() => setImageError(true)}
                     unoptimized={!imageError && !!metadata.artwork}
@@ -1195,17 +1195,17 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               </div>
 
               {/* Track Information Card - Mobile */}
-              <div className="p-6 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg">
-                <div className="space-y-4">
+              <div className="p-4 sm:p-5 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg">
+                <div className="space-y-3 sm:space-y-4">
                   {/* Title */}
-                  <HeadlineText className="text-2xl font-bold text-foreground text-center leading-tight">
+                  <HeadlineText className="text-lg sm:text-xl font-bold text-foreground text-center leading-tight">
                     {metadata.title}
                   </HeadlineText>
 
                   {/* Artists with roles (show for Track/Album) */}
                   {(isTrack || isAlbum) && (
                     <div className="text-center">
-                      <BodyText className="text-base text-muted-foreground">
+                      <BodyText className="text-sm sm:text-base text-muted-foreground">
                         {postData?.details?.artists && postData.details.artists.length > 0 ? (
                           postData.details.artists.map((artist, idx) => (
                             <span key={idx}>
@@ -1323,7 +1323,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           {filteredGenres.map((genre, index) => (
                             <span
                               key={index}
-                              className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-muted/30 text-muted-foreground border border-border/50"
+                              className="inline-flex items-center px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium bg-muted/30 text-muted-foreground border border-border/50"
                             >
                               {genre}
                             </span>
@@ -1338,8 +1338,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               {/* Track list for album/playlist - mobile */}
               {showTracks && (
                 <div className="rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 overflow-hidden shadow-lg backdrop-blur-md">
-                  <div className="p-4 border-b border-border/30 bg-gradient-to-r from-card/20 to-transparent">
-                    <h3 className="text-base font-semibold text-foreground text-center">
+                  <div className="p-3 sm:p-4 border-b border-border/30 bg-gradient-to-r from-card/20 to-transparent">
+                    <h3 className="text-sm sm:text-base font-semibold text-foreground text-center">
                       {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
                     </h3>
                   </div>
@@ -1368,8 +1368,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               )}
 
               {/* Streaming Links Container */}
-              <div className="p-6 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg relative z-10">
-                <h3 className="text-lg font-semibold text-card-foreground mb-4 text-center">Listen Now</h3>
+              <div className="p-4 sm:p-5 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg relative z-10">
+                <h3 className="text-base sm:text-lg font-semibold text-card-foreground mb-3 sm:mb-4 text-center">Listen Now</h3>
                 {isPlaylist ? (
                   <PlaylistStreamingLinks
                     links={convertedUrls}

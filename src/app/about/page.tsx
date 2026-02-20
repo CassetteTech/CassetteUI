@@ -65,7 +65,7 @@ export default function AboutPage() {
                 </span>
               </div>
 
-              <h1 className="mt-8 font-teko text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-foreground leading-none">
+              <h1 className="mt-8 font-teko text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground leading-none">
                 Your Music, <span className="text-gradient">Everywhere.</span>
               </h1>
 
@@ -78,7 +78,7 @@ export default function AboutPage() {
                 <Button
                   asChild
                   size="lg"
-                  className="font-teko text-xl px-9 py-7 rounded-xl bg-gradient-to-r from-primary to-accent text-foreground elev-2 hover:elev-3 transition-all duration-300 hover:scale-105 bordered-glow group"
+                  className="font-teko text-lg sm:text-xl px-6 py-4 sm:px-9 sm:py-7 rounded-xl bg-gradient-to-r from-primary to-accent text-foreground elev-2 hover:elev-3 transition-all duration-300 hover:scale-105 bordered-glow group"
                 >
                   <Link href={primaryCtaHref}>
                     <span>Create Your Universal Link</span>
@@ -218,7 +218,7 @@ export default function AboutPage() {
           >
             <div className="relative">
               <div className="absolute -inset-3 rounded-[20px] bg-gradient-to-r from-primary/15 to-secondary/15 blur-2xl opacity-30" />
-              <div className="relative gradient-border rounded-[20px] surface-top backdrop-blur-md p-10 md:p-14 elev-2 overflow-hidden">
+              <div className="relative gradient-border rounded-[20px] surface-top backdrop-blur-md p-6 sm:p-8 md:p-14 elev-2 overflow-hidden">
                 {/* Mesh background */}
                 <div className="absolute inset-0 mesh-gradient opacity-30"></div>
 
@@ -440,7 +440,7 @@ export default function AboutPage() {
 
         {/* Support CTA */}
         <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 mt-16">
-          <div className="relative gradient-border rounded-[20px] surface-top backdrop-blur-sm elev-2 p-8 sm:p-10 md:p-12 overflow-hidden">
+          <div className="relative gradient-border rounded-[20px] surface-top backdrop-blur-sm elev-2 p-5 sm:p-8 md:p-12 overflow-hidden">
             {/* Decorative gradient orb */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div>
 
@@ -494,7 +494,7 @@ export default function AboutPage() {
               transition={{ duration: 0.7 }}
               className="lg:col-span-5 flex justify-center lg:justify-end"
             >
-              <div className="relative w-full max-w-[520px] min-h-[1200px] flex items-center justify-center py-24 lg:py-32">
+              <div className="relative w-full max-w-[520px] min-h-[800px] sm:min-h-[1000px] lg:min-h-[1200px] flex items-center justify-center py-12 sm:py-24 lg:py-32">
                 <div className="absolute -inset-4 rounded-[18px] bg-gradient-to-b from-primary/20 to-secondary/20 blur-2xl opacity-30" />
                 <div className="relative rounded-[18px] border border-border/60 surface-top backdrop-blur-md elev-3 w-full overflow-visible">
                   {/* Header Section */}
@@ -801,8 +801,7 @@ export default function AboutPage() {
                 id="kofiframe"
                 src="https://ko-fi.com/cassettetech/?hidefeed=true&widget=true&embed=true&preview=true"
                 title="cassettetech"
-                className="w-full rounded-2xl"
-                height={712}
+                className="w-full rounded-2xl h-[400px] sm:h-[550px] md:h-[712px]"
                 style={{ border: "none", background: "#f9f9f9" }}
               />
             </div>
@@ -821,7 +820,7 @@ export default function AboutPage() {
             <Button
               asChild
               size="lg"
-              className="font-teko text-lg bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-foreground px-8 py-6 rounded-xl"
+              className="font-teko text-lg bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-foreground px-6 py-4 sm:px-8 sm:py-6 rounded-xl"
             >
               <Link href="/auth/signup">
                 Start Sharing Free
@@ -832,7 +831,7 @@ export default function AboutPage() {
               asChild
               variant="outline"
               size="lg"
-              className="font-teko text-lg bg-transparent text-foreground border-borderDark hover:bg-bgSubtle/50 px-8 py-6 rounded-xl"
+              className="font-teko text-lg bg-transparent text-foreground border-borderDark hover:bg-bgSubtle/50 px-6 py-4 sm:px-8 sm:py-6 rounded-xl"
             >
               <Link href="/profile">See Examples</Link>
             </Button>

@@ -39,7 +39,7 @@ export function PostDescriptionCard({
   return (
     <div
       className={cn(
-        'p-5 rounded-xl',
+        'p-3 sm:p-4 md:p-5 rounded-xl',
         'border border-border',
         'bg-card',
         className
@@ -48,9 +48,9 @@ export function PostDescriptionCard({
       <div className={cn("flex gap-3", description?.trim() ? "items-start" : "items-center")}>
         <Link href={`/profile/${username}`} className="flex-shrink-0">
           {isLoading ? (
-            <Skeleton className="h-10 w-10 rounded-full" />
+            <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-full" />
           ) : (
-            <Avatar className="h-10 w-10 ring-1 ring-border">
+            <Avatar className="h-8 w-8 sm:h-10 sm:w-10 ring-1 ring-border">
               <AvatarImage src={avatarUrl} alt={`@${username}`} className="object-cover" />
               <AvatarFallback className="bg-muted text-muted-foreground font-atkinson font-semibold text-sm">
                 {initial}
@@ -105,14 +105,14 @@ export function PostDescriptionCardSkeleton({ className }: { className?: string 
   return (
     <div
       className={cn(
-        'p-5 rounded-xl',
+        'p-3 sm:p-4 md:p-5 rounded-xl',
         'border border-border',
         'bg-card',
         className
       )}
     >
       <div className="flex items-start gap-3">
-        <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
+        <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-full flex-shrink-0" />
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-baseline gap-2">
             <Skeleton className="h-4 w-24" />

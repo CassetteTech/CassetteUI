@@ -190,25 +190,25 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           </div>
 
           {/* Results List */}
-          <div className="max-h-[400px] lg:max-h-[calc(100vh-20rem)] overflow-y-auto">
+          <div className="max-h-[calc(100vh-10rem)] lg:max-h-[calc(100vh-20rem)] overflow-y-auto">
             {allResults.map((item, index) => (
               <div
                 key={`${item.type}-${item.id}-${index}`}
-                className="flex items-center gap-3 p-3 hover:bg-brandCreamL transition-colors cursor-pointer border-b border-brandCreamD last:border-b-0"
+                className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 hover:bg-brandCreamL transition-colors cursor-pointer border-b border-brandCreamD last:border-b-0"
                 onMouseDown={(e) => {
                   e.preventDefault(); // Prevent blur
                   handleItemClick(item);
                 }}
               >
                 {/* Album Art */}
-                <div className="flex-shrink-0 relative w-12 h-12 rounded-md overflow-hidden border border-borderLight">
+                <div className="flex-shrink-0 relative w-10 h-10 sm:w-12 sm:h-12 rounded-md overflow-hidden border border-borderLight">
                   {item.artwork ? (
                     <Image
                       src={item.artwork}
                       alt={item.title}
                       width={48}
                       height={48}
-                      className="object-cover"
+                      className="object-cover w-full h-full"
                       onError={(e) => {
                         console.error('🖼️ Image load error:', {
                           src: item.artwork,
@@ -218,20 +218,20 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                       }}
                     />
                   ) : SkeletonComponent ? (
-                    <SkeletonComponent className="w-12 h-12 rounded-md" />
+                    <SkeletonComponent className="w-10 h-10 sm:w-12 sm:h-12 rounded-md" />
                   ) : (
                     <div className="w-full h-full bg-brandCreamD flex items-center justify-center">
-                      <svg 
-                        className="w-6 h-6 text-textHint" 
-                        fill="none" 
-                        stroke="currentColor" 
+                      <svg
+                        className="w-5 h-5 sm:w-6 sm:h-6 text-textHint"
+                        fill="none"
+                        stroke="currentColor"
                         viewBox="0 0 24 24"
                       >
-                        <path 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                          strokeWidth={2} 
-                          d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" 
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
                         />
                       </svg>
                     </div>
@@ -240,33 +240,35 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-brandBlack truncate text-sm">
-                    {item.title}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-semibold text-brandBlack truncate text-sm">
+                      {item.title}
+                    </p>
+                    <Badge
+                      className={`shrink-0 text-[9px] sm:text-[10px] font-bold uppercase leading-none px-1 py-0.5 ${getTypeColor(item.type)}`}
+                    >
+                      {item.type}
+                    </Badge>
+                  </div>
                   {item.artist && (
                     <p className="text-textSecondary text-xs truncate">
                       {item.artist}
                     </p>
                   )}
-                  <Badge 
-                    className={`mt-1 text-[10px] font-bold uppercase ${getTypeColor(item.type)}`}
-                  >
-                    {item.type}
-                  </Badge>
                 </div>
 
                 {/* Arrow */}
-                <svg 
-                  className="w-4 h-4 text-textHint flex-shrink-0" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <svg
+                  className="w-4 h-4 text-textHint flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M9 5l7 7-7 7" 
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
                   />
                 </svg>
               </div>

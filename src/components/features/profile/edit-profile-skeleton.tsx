@@ -4,11 +4,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export function EditProfileSkeleton() {
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-xl mx-auto">
       {/* Header skeleton */}
       <div className="text-center mb-8">
-        <Skeleton className="h-9 w-64 mx-auto mb-2" />
-        <Skeleton className="h-5 w-80 mx-auto" />
+        <Skeleton className="h-9 w-48 sm:w-64 mx-auto mb-2" />
+        <Skeleton className="h-5 w-64 sm:w-80 mx-auto" />
       </div>
 
       {/* Avatar skeleton */}

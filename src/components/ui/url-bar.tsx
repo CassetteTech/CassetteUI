@@ -10,7 +10,7 @@ function UrlBar({ className, variant = "dark", hasError = false, ...props }: Url
   return (
     <div
       className={cn(
-        "w-full h-16 sm:h-20 md:h-24 rounded-lg sm:rounded-xl md:rounded-2xl border relative transition-colors duration-300",
+        "w-full h-12 sm:h-14 md:h-16 lg:h-20 rounded-lg sm:rounded-xl md:rounded-2xl border relative transition-colors duration-300",
         variant === "dark"
           ? "bg-bgSubtle border-brandCreamD"
           : "bg-white border-brandBlack",

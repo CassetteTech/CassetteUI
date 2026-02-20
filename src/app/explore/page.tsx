@@ -109,7 +109,7 @@ export default function ExplorePage() {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <h1 className="font-teko text-5xl sm:text-6xl font-bold text-foreground tracking-tight uppercase">
+          <h1 className="font-teko text-4xl sm:text-5xl md:text-6xl font-bold text-foreground tracking-tight uppercase">
             Explore
           </h1>
           <p className="mt-3 text-muted-foreground">
@@ -133,7 +133,7 @@ export default function ExplorePage() {
             transition={{ duration: 0.4 }}
           >
             <div className="flex items-end gap-2">
-              <h1 className="font-teko text-6xl sm:text-7xl lg:text-[5.5rem] font-bold text-foreground tracking-tight uppercase leading-[0.85]">
+              <h1 className="font-teko text-4xl sm:text-5xl md:text-6xl lg:text-[5.5rem] font-bold text-foreground tracking-tight uppercase leading-[0.85]">
                 Explore
               </h1>
               <div className="w-2.5 h-2.5 rounded-full bg-primary mb-3 sm:mb-4 shrink-0" />

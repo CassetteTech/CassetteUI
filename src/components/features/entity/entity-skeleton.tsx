@@ -268,7 +268,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
   onCancel
 }) => {
   return (
-    <div className="px-4 sm:px-8 md:px-12 pb-8 mt-16 max-w-lg mx-auto">
+    <div className="px-4 sm:px-6 md:px-8 pb-8 mt-16 max-w-lg mx-auto">
       {/* Header Toolbar - inside the main container, matching PostClientPage */}
       <div className="pt-4 pb-6 max-w-7xl mx-auto w-full">
         <div className="flex items-center justify-between gap-3">
@@ -288,17 +288,17 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
         </div>
       </div>
 
-      <div className="text-center space-y-6">
+      <div className="text-center space-y-4 sm:space-y-6">
         {/* Element Type - matches PostClientPage structure */}
         <div>
-          <Skeleton className="h-5 w-16 mx-auto mb-8" />
+          <Skeleton className="h-5 w-16 mx-auto mb-4 sm:mb-6" />
         </div>
 
         {/* Album Art Container - matches PostClientPage dimensions */}
         <div>
           <div className="relative inline-block">
             <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
-            <Skeleton className="relative w-[280px] h-[280px] sm:w-[320px] sm:h-[320px] rounded-xl" />
+            <Skeleton className="relative w-[220px] h-[220px] sm:w-[280px] sm:h-[280px] rounded-xl" />
 
             {/* Progress Overlay */}
             <ProgressOverlay
@@ -311,7 +311,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
         </div>
 
         {/* Track Information Card - Mobile */}
-        <div className="p-6 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
+        <div className="p-4 sm:p-5 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
           <div className="space-y-4">
             {/* Title */}
             <Skeleton className="h-7 w-48 mx-auto" />
@@ -342,7 +342,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
         </div>
 
         {/* Streaming Links Container */}
-        <div className="p-6 bg-card/50 rounded-2xl border border-border/30 shadow-sm backdrop-blur-sm relative z-10">
+        <div className="p-4 sm:p-5 bg-card/50 rounded-2xl border border-border/30 shadow-sm backdrop-blur-sm relative z-10">
           <Skeleton className="h-5 w-24 mx-auto mb-4" />
           <div className="grid grid-cols-3 gap-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (

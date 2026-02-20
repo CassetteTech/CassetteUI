@@ -226,12 +226,12 @@ export function EditProfileFormComponent({
 
 
   return (
-    <div className="max-w-xl mx-auto p-6 w-full">
+    <div className="max-w-xl mx-auto p-4 sm:p-6 w-full">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Avatar Section */}
         <div className="flex justify-center">
           <div className="relative">
-            <Avatar className="w-36 h-36 border-4 border-white/20">
+            <Avatar className="w-24 h-24 sm:w-36 sm:h-36 border-4 border-border/20">
               <AvatarImage
                 src={activeAvatarUrl}
                 alt="Profile"
@@ -241,7 +241,7 @@ export function EditProfileFormComponent({
             <button
               type="button"
               onClick={handleImageUpload}
-              className="absolute bottom-0 right-0 w-11 h-11 bg-green-500 rounded-full flex items-center justify-center border-4 border-[#1a1a1a] hover:bg-green-600 transition-colors"
+              className="absolute bottom-0 right-0 w-9 h-9 sm:w-11 sm:h-11 bg-green-500 rounded-full flex items-center justify-center border-4 border-background hover:bg-green-600 transition-colors"
             >
               <Image
                 src="/images/ic_edit.png"
@@ -310,7 +310,7 @@ export function EditProfileFormComponent({
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 bg-transparent border border-white/20 text-white py-3.5 px-6 rounded-lg font-medium hover:bg-white/10 transition-colors"
+            className="flex-1 bg-transparent border border-border text-foreground py-3.5 px-6 rounded-lg font-medium hover:bg-muted/50 transition-colors"
           >
             Cancel
           </button>
@@ -325,7 +325,7 @@ export function EditProfileFormComponent({
         </div>
 
         {/* Danger Zone */}
-        <div className="mt-12 pt-8">
+        <div className="mt-8 pt-6 sm:mt-12 sm:pt-8">
           <div className="rounded-lg border border-[#FF004C]/30 bg-[#FF004C]/5 p-5">
             <div className="flex items-start gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FF004C]/10">

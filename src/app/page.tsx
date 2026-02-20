@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import { ProfileDemo } from '@/components/demo/profile-demo';
 import { AppleMusicHelpModal } from '@/components/features/apple-music-help-modal';
 import { StageHoverCard } from '@/components/features/stage-hover-card';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function HomePage() {
   const router = useRouter();
@@ -249,13 +250,9 @@ export default function HomePage() {
     taglineVisible && !isSearchActive ? 'opacity-100' : 'opacity-0 lg:opacity-100'
   }`;
 
-  const searchBarClasses = `transition-all duration-500 ease-out ${
-    searchBarVisible 
-      ? (isSearchActive 
-          ? 'transform -translate-y-[calc(50vh-18rem)] sm:-translate-y-[calc(50vh-10rem)] md:-translate-y-64 lg:transform-none' 
-          : 'transform translate-y-0')
-      : 'opacity-0 transform translate-y-8'
-  }`;
+  const searchBarClasses = isSearchActive
+    ? 'fixed top-16 left-0 right-0 z-40 bg-background pt-3 pb-2 shadow-sm lg:top-0 lg:bg-transparent lg:pt-0 lg:pb-0 lg:left-auto lg:shadow-none'
+    : '';
 
   const bottomContentClasses = `transition-all duration-1000 ease-out ${
     bottomVisible && !isSearchActive ? 'opacity-100' : 'opacity-0 lg:opacity-100'
@@ -353,8 +350,19 @@ export default function HomePage() {
             </div>
 
             {/* Search Bar Section - Right Column */}
-            <div className={`${searchBarClasses} w-full lg:fixed lg:top-0 lg:right-[max(calc((100vw-1600px)/2),0px)] lg:h-screen lg:w-[500px] lg:flex lg:flex-col lg:px-12 lg:pt-24 lg:z-10 lg:overflow-hidden`} style={{overscrollBehavior: 'contain'}}>
-              <div className="w-[85vw] mx-auto mb-6 sm:mb-8 lg:w-full lg:mb-4">
+            <motion.div
+              layout
+              initial={{ opacity: 0, y: 32 }}
+              animate={{ opacity: searchBarVisible ? 1 : 0, y: searchBarVisible ? 0 : 32 }}
+              transition={{
+                layout: { type: 'spring', damping: 28, stiffness: 260 },
+                opacity: { duration: 0.5, ease: 'easeOut' },
+                y: { duration: 0.5, ease: 'easeOut' },
+              }}
+              className={`${searchBarClasses} w-full lg:fixed lg:top-0 lg:right-[max(calc((100vw-1600px)/2),0px)] lg:h-screen lg:w-[500px] lg:flex lg:flex-col lg:px-12 lg:pt-24 lg:z-10 lg:overflow-hidden`}
+              style={{overscrollBehavior: 'contain'}}
+            >
+              <div className={`w-[85vw] mx-auto lg:w-full lg:mb-4 ${isSearchActive ? 'mb-2' : 'mb-6 sm:mb-8'}`}>
                 <div className="relative">
                   <UrlBar 
                     variant="light"
@@ -414,34 +422,41 @@ export default function HomePage() {
                   SkeletonComponent={Skeleton}
                 />
               </div>
-            </div>
+            </motion.div>
 
             {/* Search Results Container - Mobile/Tablet positioning */}
-            <div className={`lg:hidden search-container transition-all duration-500 ease-out w-full ${
-              isSearchActive 
-                ? 'opacity-100 transform -translate-y-[calc(50vh-18rem)] sm:-translate-y-[calc(50vh-10rem)] md:-translate-y-64' 
-                : 'opacity-0 transform translate-y-0 pointer-events-none h-0 overflow-hidden'
-            }`}>
-              <SearchResults
-                results={displayData}
-                query={debouncedSearchTerm}
-                isLoading={isLoadingCharts}
-                isSearching={isSearchingMusic}
-                showSearchResults={musicUrl.length >= 2 && !musicUrl.includes('http')}
-                onSelectItem={handleSelectItem}
-                onClose={closeSearch}
-                SkeletonComponent={Skeleton}
-              />
-            </div>
+            <AnimatePresence>
+              {isSearchActive && (
+                <motion.div
+                  key="mobile-search-results"
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 24 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+                  className="lg:hidden search-container fixed top-[8.5rem] left-0 right-0 bottom-0 z-40 overflow-y-auto bg-background"
+                >
+                  <SearchResults
+                    results={displayData}
+                    query={debouncedSearchTerm}
+                    isLoading={isLoadingCharts}
+                    isSearching={isSearchingMusic}
+                    showSearchResults={musicUrl.length >= 2 && !musicUrl.includes('http')}
+                    onSelectItem={handleSelectItem}
+                    onClose={closeSearch}
+                    SkeletonComponent={Skeleton}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Profile Demo Section - Mobile only */}
-            <div className={`${bottomContentClasses} w-full mt-32 pt-16 pb-[28rem] lg:hidden`}>
+            <div className={`${bottomContentClasses} w-full mt-12 sm:mt-20 pt-8 sm:pt-16 pb-[14rem] sm:pb-[28rem] lg:hidden`}>
               <ProfileDemo />
 
               {/* CTA Button - Mobile only, under profile demo */}
               {!isAuthenticated && (
-                <div className="mt-48 text-center px-4 w-full">
-                  <div className="mb-48">
+                <div className="mt-12 sm:mt-24 text-center px-4 w-full">
+                  <div className="mb-12 sm:mb-24">
                     <AnimatedButton
                       text="Create Your Free Account!"
                       onClick={() => window.location.href = '/auth/signup'}

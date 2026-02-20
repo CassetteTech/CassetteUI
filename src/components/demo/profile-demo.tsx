@@ -183,9 +183,9 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
   };
 
   return (
-    <div className="flex items-center justify-center py-8 lg:py-16">
+    <div className="flex items-center justify-center py-4 sm:py-8 lg:py-16">
       {/* Phone + call-outs wrapper */}
-      <div className="relative">
+      <div className="relative overflow-x-clip">
         {/* Phone Body */}
         <div className="w-80 h-[640px] bg-black rounded-[2.5rem] p-2 shadow-2xl">
           {/* Screen */}
@@ -273,7 +273,7 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
         <div className="absolute -left-1 top-28 w-1 h-8 bg-black rounded-l-lg"></div>
 
         {/* TOP CALLOUT */}
-        <div className="absolute -top-48 left-1/2 -translate-x-1/2">
+        <div className="absolute -top-48 left-1/2 -translate-x-1/2 hidden sm:block">
           {/* retro window frame */}
           <div className="relative w-72 h-32">
             <div className="absolute inset-0 bg-white rounded-xl outline outline-1 outline-black shadow-[1px_1px_0px_1px_rgba(0,0,0,1)]">
@@ -296,7 +296,7 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
         </div>
 
         {/* Arrow from Add Music button to top label */}
-        <div className="absolute top-[216px] left-[12px]">
+        <div className="absolute top-[216px] left-[12px] hidden sm:block">
           {/* Horizontal segment left */}
           <div className="absolute w-8 h-0.5 -left-8 -translate-y-1/2" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Vertical segment up - adjusted to reach middle of label (label is h-32, so middle is 16 from top) */}
@@ -308,7 +308,7 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
         </div>
 
         {/* BOTTOM CALLOUT */}
-        <div className="absolute -bottom-[12.5rem] left-1/2 -translate-x-1/2">
+        <div className="absolute -bottom-[12.5rem] left-1/2 -translate-x-1/2 hidden sm:block">
           {/* retro window frame */}
           <div className="relative w-72 h-32">
             <div className="absolute inset-0 bg-white rounded-xl outline outline-1 outline-black shadow-[1px_1px_0px_1px_rgba(0,0,0,1)]">
@@ -331,7 +331,7 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
         </div>
 
         {/* Arrow from Share Profile button to bottom label */}
-        <div className="absolute top-[216px] right-[12px]">
+        <div className="absolute top-[216px] right-[12px] hidden sm:block">
           {/* Horizontal segment right */}
           <div className="absolute w-8 h-0.5 -right-8 -translate-y-1/2" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
           {/* Vertical segment down - adjusted to reach middle of label */}

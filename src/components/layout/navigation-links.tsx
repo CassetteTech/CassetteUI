@@ -74,13 +74,13 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
               href={item.href}
               onClick={onLinkClick}
               className={cn(
-                'flex items-center gap-4 p-4 rounded-lg text-lg font-medium transition-colors',
+                'flex items-center gap-3 p-3 sm:gap-4 sm:p-4 rounded-lg text-base sm:text-lg font-medium transition-colors',
                 isActive(item.href)
                   ? 'bg-primary text-primary-foreground'
                   : 'text-foreground hover:bg-muted'
               )}
             >
-              <item.icon className="h-6 w-6" />
+              <item.icon className="h-5 w-5 sm:h-6 sm:w-6" />
               <span>{item.text}</span>
             </Link>
           );
@@ -89,22 +89,22 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
         <button
           onClick={() => { openReportModal(); onLinkClick?.(); }}
           className={cn(
-            'flex items-center gap-4 p-4 rounded-lg text-lg font-medium transition-colors',
+            'flex items-center gap-3 p-3 sm:gap-4 sm:p-4 rounded-lg text-base sm:text-lg font-medium transition-colors',
             'text-foreground hover:bg-muted w-full text-left'
           )}
         >
-          <AlertCircle className="h-6 w-6" />
+          <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6" />
           <span>Report a Problem</span>
         </button>
         {user && (
           <button
             onClick={handleSignOut}
             className={cn(
-              'flex items-center gap-4 p-4 rounded-lg text-lg font-medium transition-colors',
+              'flex items-center gap-3 p-3 sm:gap-4 sm:p-4 rounded-lg text-base sm:text-lg font-medium transition-colors',
               'text-foreground hover:bg-muted w-full text-left'
             )}
           >
-            <LogOut className="h-6 w-6" />
+            <LogOut className="h-5 w-5 sm:h-6 sm:w-6" />
             <span>Sign Out</span>
           </button>
         )}

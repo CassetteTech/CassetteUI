@@ -97,9 +97,9 @@ export default function CollectionsPage() {
       <AnimatedBackground className="fixed inset-0 z-0" />
       
       <div className="relative z-10 min-h-screen">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
           {/* Header */}
-          <div className="mb-8 flex items-center justify-between">
+          <div className="mb-4 sm:mb-6 md:mb-8 flex items-center justify-between">
             <button
               onClick={() => router.back()}
               className="flex items-center gap-2 text-text-primary hover:opacity-70 transition-opacity"

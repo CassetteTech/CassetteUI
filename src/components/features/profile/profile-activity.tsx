@@ -48,7 +48,7 @@ export function ProfileActivity({
   if (posts.length === 0) {
     return (
       <div className="min-h-screen lg:min-h-0 lg:h-full">
-        <div className="flex flex-col items-center justify-center p-8 sm:p-12 text-center h-full">
+        <div className="flex flex-col items-center justify-center p-4 sm:p-8 md:p-12 text-center h-full">
           <div className="w-12 h-12 sm:w-16 sm:h-16 mb-4 opacity-50">
             <Image
               src="/images/ic_music.png"

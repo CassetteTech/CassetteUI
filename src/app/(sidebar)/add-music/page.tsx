@@ -73,15 +73,19 @@ const AddMusicForm = ({
 }) => (
   <>
     {/* Search/Input Section */}
-    <div className="mb-8">
-      <UIText className="text-center text-text-primary font-atkinson font-bold mb-6 text-sm sm:text-base">
-        Search or paste a link below to add music to your profile
-      </UIText>
-        
-        <div className="mb-6">
-          <label className="block text-text-primary font-atkinson font-bold mb-3 text-sm">
-            Music link or search
-          </label>
+    <div className={isSearchActive ? "fixed top-16 left-0 right-0 z-40 bg-background px-4 pt-3 pb-2 shadow-sm lg:static lg:z-auto lg:bg-transparent lg:px-0 lg:pt-0 lg:pb-0 lg:shadow-none" : "mb-4 sm:mb-6 md:mb-8"}>
+      {!isSearchActive && (
+        <UIText className="text-center text-text-primary font-atkinson font-bold mb-6 text-sm sm:text-base">
+          Search or paste a link below to add music to your profile
+        </UIText>
+      )}
+
+        <div className={isSearchActive ? "" : "mb-6"}>
+          {!isSearchActive && (
+            <label className="block text-text-primary font-atkinson font-bold mb-3 text-sm">
+              Music link or search
+            </label>
+          )}
           
           {!selectedItem && !pastedLinkSource && (
             <UrlBar variant="light" className="w-full">
@@ -176,7 +180,7 @@ const AddMusicForm = ({
 
         {/* Description Field */}
         {!isSearchActive && (
-          <div className="mb-8">
+          <div className="mb-4 sm:mb-6 md:mb-8">
           <label className="block text-text-primary font-atkinson font-bold mb-3 text-sm">
             Description
           </label>
@@ -218,7 +222,7 @@ const AddMusicForm = ({
 
     {/* Search Results Container */}
     {isSearchActive && (
-      <div className="search-container w-full">
+      <div className="search-container w-full fixed top-[8.5rem] left-0 right-0 bottom-0 z-40 overflow-y-auto bg-background lg:static lg:z-auto lg:overflow-visible lg:bg-transparent">
         <SearchResults
           results={displayData}
           query={debouncedSearchTerm}
@@ -492,21 +496,24 @@ export default function AddMusicPage() {
           <div className="relative z-10 min-h-screen">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
 
-              {/* Header */}
-              <div className="flex items-center justify-between py-6">
-                <button
-                  onClick={() => router.back()}
-                  className="flex items-center gap-2 text-text-primary hover:opacity-75 transition-opacity"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                  <span className="font-atkinson font-bold">Back</span>
-                </button>
-              </div>
+              {/* Header - hide when search active */}
+              {!isSearchActive && (
+                <div className="flex items-center justify-between py-6">
+                  <button
+                    onClick={() => router.back()}
+                    className="flex items-center gap-2 text-text-primary hover:opacity-75 transition-opacity"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    <span className="font-atkinson font-bold">Back</span>
+                  </button>
+                </div>
+              )}
 
-              {/* Profile Section */}
-              <div className="flex items-center justify-center gap-6 mb-8">
+              {/* Profile Section - hide when search active */}
+              {!isSearchActive && (
+              <div className="flex items-center justify-center gap-3 sm:gap-6 mb-4 sm:mb-6 md:mb-8">
                 {user?.profilePicture ? (
                   <Image
                     src={user.profilePicture}
@@ -522,10 +529,11 @@ export default function AddMusicPage() {
                     </span>
                   </div>
                 )}
-                <h1 className="text-3xl sm:text-4xl font-atkinson font-bold text-text-primary">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-atkinson font-bold text-text-primary">
                   Add Music
                 </h1>
               </div>
+              )}
 
               {/* Main Content */}
               <div className="max-w-2xl mx-auto">

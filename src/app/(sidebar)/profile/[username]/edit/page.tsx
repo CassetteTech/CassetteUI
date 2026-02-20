@@ -151,14 +151,14 @@ export default function EditProfilePage() {
       {/* Mobile Layout */}
       <div className="bg-background lg:hidden">
         <Container className="min-h-screen bg-transparent p-0">
-          <div className="py-8 px-4">
+          <div className="py-4 sm:py-6 md:py-8 px-4">
             {showSkeleton ? (
               <EditProfileSkeleton />
             ) : userBio ? (
               <>
                 {/* Header */}
-                <div className="text-center mb-8">
-                  <h1 className="text-3xl font-bold text-foreground mb-2">Edit Your Profile</h1>
+                <div className="text-center mb-4 sm:mb-6 md:mb-8">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Edit Your Profile</h1>
                   <p className="text-muted-foreground">Update your profile information and connected services</p>
                 </div>
 
@@ -170,7 +170,7 @@ export default function EditProfilePage() {
                 />
 
                 {/* Music Services Connection */}
-                <div className="mt-8">
+                <div className="mt-6 sm:mt-8">
                   <MusicConnectionsFlow />
                 </div>
               </>

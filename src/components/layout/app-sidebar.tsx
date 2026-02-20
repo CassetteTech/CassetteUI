@@ -14,7 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { Music, User, LogOut, Edit, AlertCircle } from 'lucide-react';
+import { Music, Compass, User, LogOut, Edit, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -190,6 +190,14 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/explore')}>
+                  <Link href="/explore">
+                    <Compass className="mr-2 h-4 w-4" />
+                    <span>Explore</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive('/add-music')}>
                   <Link href="/add-music">
@@ -368,6 +376,14 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
                   <Link href="/profile">
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/explore')}>
+                  <Link href="/explore">
+                    <Compass className="mr-2 h-4 w-4" />
+                    <span>Explore</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

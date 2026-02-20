@@ -99,6 +99,13 @@ export function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            <Link
+              href="/explore"
+              className="hidden md:inline-flex items-center text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted"
+            >
+              Explore
+            </Link>
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4">

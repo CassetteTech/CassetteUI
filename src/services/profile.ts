@@ -35,7 +35,7 @@ interface ActivityItemPayload {
   };
   platforms?: Record<string, { artworkUrl?: string; imageUrl?: string; coverArtUrl?: string }>;
   username: string;
-  userId: string;
+  userId?: string;
   createdAt: string;
   privacy?: PostPrivacy;
   conversionSuccessCount?: number;
@@ -44,6 +44,7 @@ interface ActivityItemPayload {
 interface ActivityApiResponse {
   items?: ActivityItemPayload[];
   page?: number;
+  pageSize?: number;
   totalItems?: number;
   totalPages?: number;
   hasNext?: boolean;
@@ -102,6 +103,109 @@ export class ProfileService {
     if (typeof window === 'undefined') return {};
     const token = localStorage.getItem('access_token');
     return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  private mapActivityResponse(
+    json: ActivityApiResponse,
+    page: number,
+    pageSize: number,
+  ): PaginatedActivityResponse {
+    const resolveText = (...values: Array<string | null | undefined>) => {
+      for (const value of values) {
+        if (typeof value === 'string' && value.trim() !== '') {
+          return value;
+        }
+      }
+      return undefined;
+    };
+
+    const extractTitleFromDescription = (description?: string) => {
+      if (!description) return undefined;
+      const match = description.match(/Converted\s+(?:Track|Album|Artist|Playlist)\s+-\s+(.+?)\s+from/i);
+      return match?.[1]?.trim();
+    };
+
+    const resolvePlatformArtwork = (
+      platforms?: Record<string, { artworkUrl?: string; imageUrl?: string; coverArtUrl?: string }>
+    ) => {
+      if (!platforms) return undefined;
+      for (const platform of Object.values(platforms)) {
+        const artwork = resolveText(platform?.artworkUrl, platform?.imageUrl, platform?.coverArtUrl);
+        if (artwork) return artwork;
+      }
+      return undefined;
+    };
+
+    const items: ActivityPost[] =
+      json.items?.map((item) => {
+        const elementType = item.elementType?.toLowerCase();
+        const resolvedDescription = resolveText(
+          item.description,
+          item.caption,
+          item.details?.description,
+          item.details?.caption,
+        );
+        const resolvedTitle = resolveText(
+          item.title,
+          item.name,
+          item.elementTitle,
+          item.elementName,
+          item.details?.title,
+          item.details?.name,
+          item.albumName,
+          elementType === 'artist' ? item.artistName ?? item.details?.artist ?? item.subtitle : undefined,
+          extractTitleFromDescription(resolvedDescription),
+        );
+        const resolvedSubtitle = resolveText(
+          item.subtitle,
+          item.details?.artist,
+          item.details?.album,
+          item.details?.name,
+        );
+        const resolvedImageUrl = resolveText(
+          item.imageUrl,
+          item.coverArtUrl,
+          item.artworkUrl,
+          item.artwork,
+          item.image,
+          item.details?.coverArtUrl,
+          item.details?.imageUrl,
+          item.details?.artworkUrl,
+          item.details?.artwork,
+          item.metadata?.artwork,
+          resolvePlatformArtwork(item.platforms),
+        );
+
+        return {
+          postId: item.postId,
+          elementType: item.elementType,
+          title: resolvedTitle || 'Untitled',
+          subtitle: resolvedSubtitle,
+          description: resolvedDescription,
+          imageUrl: resolvedImageUrl,
+          privacy: item.privacy ?? 'public',
+          conversionSuccessCount: item.conversionSuccessCount,
+          username: item.username,
+          userId: item.userId ?? '',
+          createdAt: item.createdAt,
+        };
+      }) ?? [];
+
+    const resolvedPage = json.page ?? page;
+    const resolvedPageSize = json.pageSize ?? pageSize;
+    const resolvedTotalItems = json.totalItems ?? 0;
+    const resolvedTotalPages =
+      json.totalPages ??
+      (resolvedPageSize > 0 ? Math.ceil(resolvedTotalItems / resolvedPageSize) : 0);
+
+    return {
+      items,
+      page: resolvedPage,
+      totalItems: resolvedTotalItems,
+      totalPages: resolvedTotalPages,
+      hasNext: json.hasNext ?? resolvedPage < resolvedTotalPages,
+      hasPrevious: json.hasPrevious ?? resolvedPage > 1,
+    };
   }
 
   async fetchUserBio(userIdentifier: string): Promise<UserBio> {
@@ -182,92 +286,7 @@ export class ProfileService {
 
       if (response.status === 200) {
         const json = (await response.json()) as ActivityApiResponse;
-        const resolveText = (...values: Array<string | null | undefined>) => {
-          for (const value of values) {
-            if (typeof value === 'string' && value.trim() !== '') {
-              return value;
-            }
-          }
-          return undefined;
-        };
-        const extractTitleFromDescription = (description?: string) => {
-          if (!description) return undefined;
-          const match = description.match(/Converted\s+(?:Track|Album|Artist|Playlist)\s+-\s+(.+?)\s+from/i);
-          return match?.[1]?.trim();
-        };
-        const resolvePlatformArtwork = (
-          platforms?: Record<string, { artworkUrl?: string; imageUrl?: string; coverArtUrl?: string }>
-        ) => {
-          if (!platforms) return undefined;
-          for (const platform of Object.values(platforms)) {
-            const artwork = resolveText(platform?.artworkUrl, platform?.imageUrl, platform?.coverArtUrl);
-            if (artwork) return artwork;
-          }
-          return undefined;
-        };
-        const items: ActivityPost[] =
-          json.items?.map((item) => {
-            const elementType = item.elementType?.toLowerCase();
-            const resolvedDescription = resolveText(
-              item.description,
-              item.caption,
-              item.details?.description,
-              item.details?.caption,
-            );
-            const resolvedTitle = resolveText(
-              item.title,
-              item.name,
-              item.elementTitle,
-              item.elementName,
-              item.details?.title,
-              item.details?.name,
-              item.albumName,
-              elementType === 'artist' ? item.artistName ?? item.details?.artist ?? item.subtitle : undefined,
-              extractTitleFromDescription(resolvedDescription),
-            );
-            const resolvedSubtitle = resolveText(
-              item.subtitle,
-              item.details?.artist,
-              item.details?.album,
-              item.details?.name,
-            );
-            const resolvedImageUrl = resolveText(
-              item.imageUrl,
-              item.coverArtUrl,
-              item.artworkUrl,
-              item.artwork,
-              item.image,
-              item.details?.coverArtUrl,
-              item.details?.imageUrl,
-              item.details?.artworkUrl,
-              item.details?.artwork,
-              item.metadata?.artwork,
-              resolvePlatformArtwork(item.platforms),
-            );
-
-            return {
-              postId: item.postId,
-              elementType: item.elementType,
-              title: resolvedTitle || 'Untitled',
-              subtitle: resolvedSubtitle,
-              description: resolvedDescription,
-              imageUrl: resolvedImageUrl,
-              privacy: item.privacy ?? 'public',
-              conversionSuccessCount: item.conversionSuccessCount,
-              username: item.username,
-              userId: item.userId,
-              createdAt: item.createdAt,
-            };
-          }) ?? [];
-
-        return {
-          items,
-          page: json.page || page,
-          totalItems: json.totalItems || 0,
-          totalPages: json.totalPages || 0,
-          hasNext: json.hasNext || false,
-          hasPrevious: json.hasPrevious || false,
-        };
+        return this.mapActivityResponse(json, page, pageSize);
       }
 
       if (response.status === 404) {
@@ -279,6 +298,47 @@ export class ProfileService {
       throw new Error('Failed to load activity');
     } catch (e) {
       console.log('�?O Activity fetch error:', e);
+      throw e;
+    }
+  }
+
+  async fetchExploreActivity(
+    options: {
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ): Promise<PaginatedActivityResponse> {
+    try {
+      const { page = 1, pageSize = 20 } = options;
+      const path = '/api/v1/social/explore';
+      const url = this.buildApiUrl(path);
+
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        pageSize: pageSize.toString(),
+      });
+
+      const requestUrl = `${url}?${queryParams}`;
+
+      console.log('dY"? Fetching explore activity from:', requestUrl);
+
+      const response = await fetch(requestUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+      });
+
+      if (response.status === 200) {
+        const json = (await response.json()) as ActivityApiResponse;
+        return this.mapActivityResponse(json, page, pageSize);
+      }
+
+      console.log('�?O Error fetching explore activity:', response.status);
+      throw new Error('Failed to load explore activity');
+    } catch (e) {
+      console.log('�?O Explore activity fetch error:', e);
       throw e;
     }
   }

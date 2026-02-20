@@ -27,12 +27,12 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/search" className="text-muted-foreground hover:text-foreground">
-                  Search
+                <Link href="/explore" className="text-muted-foreground hover:text-foreground">
+                  Explore
                 </Link>
               </li>
               <li>
-                <Link href="/add" className="text-muted-foreground hover:text-foreground">
+                <Link href="/add-music" className="text-muted-foreground hover:text-foreground">
                   Add Music
                 </Link>
               </li>
@@ -44,8 +44,8 @@ export function Footer() {
             <h3 className="font-semibold mb-4">Support</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/help" className="text-muted-foreground hover:text-foreground">
-                  Help Center
+                <Link href="/about" className="text-muted-foreground hover:text-foreground">
+                  About
                 </Link>
               </li>
               <li>

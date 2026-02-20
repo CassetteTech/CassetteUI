@@ -3,7 +3,7 @@
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Music, User, Edit, LogOut, Info, Users, AlertCircle } from 'lucide-react';
+import { Home, Compass, Music, User, Edit, LogOut, Info, Users, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
@@ -15,6 +15,7 @@ interface NavigationLinksProps {
 
 const navItems = [
   { href: '/', icon: Home, text: 'Home', auth: false },
+  { href: '/explore', icon: Compass, text: 'Explore', auth: false },
   { href: '/about', icon: Info, text: 'About', auth: false },
   { href: '/team', icon: Users, text: 'Team', auth: false },
   { href: '/add-music', icon: Music, text: 'Add Music', auth: true },

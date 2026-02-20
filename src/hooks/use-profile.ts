@@ -11,6 +11,8 @@ export const profileQueryKeys = {
   activity: (userIdentifier: string, page?: number, elementType?: string) =>
     ['user-activity', userIdentifier, page, elementType] as const,
   allActivity: (userIdentifier: string) => ['user-activity', userIdentifier] as const,
+  exploreActivity: (page?: number, pageSize?: number) =>
+    ['explore-activity', page, pageSize] as const,
 };
 
 /**
@@ -94,6 +96,25 @@ export const useUserPlaylists = (
   options: Omit<ActivityQueryOptions, 'elementType'> = {}
 ) => {
   return useUserActivity(userIdentifier, { ...options, elementType: 'Playlist' });
+};
+
+interface ExploreQueryOptions {
+  page?: number;
+  pageSize?: number;
+  enabled?: boolean;
+}
+
+export const useExploreActivity = (options: ExploreQueryOptions = {}) => {
+  const { page = 1, pageSize = 20, enabled = true } = options;
+
+  return useQuery<PaginatedActivityResponse, Error>({
+    queryKey: profileQueryKeys.exploreActivity(page, pageSize),
+    queryFn: () => profileService.fetchExploreActivity({ page, pageSize }),
+    enabled,
+    refetchOnMount: 'always',
+    staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 5,
+  });
 };
 
 /**

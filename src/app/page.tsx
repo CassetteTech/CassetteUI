@@ -24,6 +24,7 @@ export default function HomePage() {
   const [musicUrl, setMusicUrl] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchBarOpacity, setSearchBarOpacity] = useState(1);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   
   // Animation states
@@ -164,7 +165,19 @@ export default function HomePage() {
   };
 
   const handleSearchFocus = () => {
-    setIsSearchActive(true);
+    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+    if (isDesktop) {
+      // Desktop: search bar is always fixed in right column, no reposition needed
+      setIsSearchActive(true);
+      return;
+    }
+    // Mobile: fade out, reposition while invisible, then fade in
+    setSearchBarOpacity(0);
+    setTimeout(() => {
+      setIsSearchActive(true);
+      setSearchBarOpacity(1);
+      window.scrollTo(0, 0);
+    }, 120);
   };
 
   const handleSearchBlur = () => {
@@ -353,10 +366,10 @@ export default function HomePage() {
             <motion.div
               layout
               initial={{ opacity: 0, y: 32 }}
-              animate={{ opacity: searchBarVisible ? 1 : 0, y: searchBarVisible ? 0 : 32 }}
+              animate={{ opacity: searchBarVisible ? searchBarOpacity : 0, y: searchBarVisible ? 0 : 32 }}
               transition={{
                 layout: { type: 'spring', damping: 28, stiffness: 260 },
-                opacity: { duration: 0.5, ease: 'easeOut' },
+                opacity: { duration: 0.12, ease: 'easeOut' },
                 y: { duration: 0.5, ease: 'easeOut' },
               }}
               className={`${searchBarClasses} w-full lg:fixed lg:top-0 lg:right-[max(calc((100vw-1600px)/2),0px)] lg:h-screen lg:w-[500px] lg:flex lg:flex-col lg:px-12 lg:pt-24 lg:z-10 lg:overflow-hidden`}
@@ -432,7 +445,7 @@ export default function HomePage() {
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 24 }}
-                  transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 250, delay: 0.08 }}
                   className="lg:hidden search-container fixed top-[8.5rem] left-0 right-0 bottom-0 z-40 overflow-y-auto bg-background"
                 >
                   <SearchResults

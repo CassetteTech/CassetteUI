@@ -13,6 +13,7 @@ import { profileService } from '@/services/profile';
 import { applyCachedArtwork } from '@/services/profile-artwork-cache';
 import { ActivityPost } from '@/types';
 import { Container } from '@/components/ui/container';
+import { BackButton } from '@/components/ui/back-button';
 
 const TAB_ELEMENT_TYPE: Record<TabType, string> = {
   playlists: 'Playlist',
@@ -149,12 +150,7 @@ export default function ProfilePage() {
             <div className="text-center">
               <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
               <p className="text-muted-foreground mb-4">{error}</p>
-              <button
-                onClick={() => router.back()}
-                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-              >
-                Go Back
-              </button>
+              <BackButton variant="button" fallbackRoute="/" />
             </div>
           </Container>
         </div>
@@ -162,12 +158,7 @@ export default function ProfilePage() {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
             <p className="text-muted-foreground mb-4">{error}</p>
-            <button
-              onClick={() => router.back()}
-              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-            >
-              Go Back
-            </button>
+            <BackButton variant="button" fallbackRoute="/" />
           </div>
         </div>
       </>
@@ -183,12 +174,7 @@ export default function ProfilePage() {
             <div className="text-center">
               <h1 className="text-2xl font-bold text-foreground mb-4">User Not Found</h1>
               <p className="text-muted-foreground mb-4">The profile you&apos;re looking for doesn&apos;t exist.</p>
-              <button
-                onClick={() => router.back()}
-                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-              >
-                Go Back
-              </button>
+              <BackButton variant="button" fallbackRoute="/" />
             </div>
           </Container>
         </div>
@@ -196,12 +182,7 @@ export default function ProfilePage() {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">User Not Found</h1>
             <p className="text-muted-foreground mb-4">The profile you&apos;re looking for doesn&apos;t exist.</p>
-            <button
-              onClick={() => router.back()}
-              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-            >
-              Go Back
-            </button>
+            <BackButton variant="button" fallbackRoute="/" />
           </div>
         </div>
       </>
@@ -220,6 +201,12 @@ export default function ProfilePage() {
       <div className="bg-background lg:hidden">
         <Container className="min-h-screen bg-transparent p-0">
           <div className="max-w-4xl mx-auto">
+            {/* Back button — only for other users' profiles */}
+            {!isCurrentUser && userBio && (
+              <div className="px-4 pt-4">
+                <BackButton fallbackRoute="/explore" />
+              </div>
+            )}
             {showHeaderSkeleton ? (
               <ProfileHeaderSkeleton />
             ) : userBio ? (

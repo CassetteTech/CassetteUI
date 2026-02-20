@@ -12,6 +12,7 @@ import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { Button } from '@/components/ui/button';
+import { BackButton } from '@/components/ui/back-button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -396,12 +397,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             <BodyText className="text-text-secondary mb-6">
               This content may have been removed or the link is invalid
             </BodyText>
-            <Button
-              onClick={() => router.back()}
-              className="h-10 px-6"
-            >
-              Go Back
-            </Button>
+            <BackButton variant="button" buttonVariant="default" fallbackRoute="/explore" className="h-10" />
           </MainContainer>
         </div>
       </div>
@@ -469,18 +465,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             {/* Header Toolbar */}
             <div className="pt-4 pb-4 px-3 shrink-0 max-w-7xl mx-auto w-full">
               <div className="flex items-center justify-between gap-3">
-                <button
-                  onClick={() => router.back()}
-                  className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity"
-                >
-                  <Image
-                    src="/images/ic_back.png"
-                    alt="Back"
-                    width={16}
-                    height={16}
-                    className="object-contain"
-                  />
-                </button>
+                <BackButton fallbackRoute="/explore" />
                 <motion.button
                   className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
                     copyState === 'copied'
@@ -793,18 +778,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               {/* Header Toolbar */}
               <div className="pt-4 pb-6 px-3 relative z-20 max-w-7xl mx-auto w-full">
                 <div className="flex items-center justify-between gap-3">
-                  <button
-                    onClick={() => router.back()}
-                    className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity"
-                  >
-                    <Image
-                      src="/images/ic_back.png"
-                      alt="Back"
-                      width={16}
-                      height={16}
-                      className="object-contain"
-                    />
-                  </button>
+                  <BackButton fallbackRoute="/explore" />
                   <motion.button
                     className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
                       copyState === 'copied'
@@ -1073,18 +1047,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             {/* Header Toolbar */}
             <div className="pt-4 pb-6 max-w-7xl mx-auto w-full">
               <div className="flex items-center justify-between gap-3">
-                  <button
-                    onClick={() => router.back()}
-                    className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity"
-                  >
-                  <Image
-                    src="/images/ic_back.png"
-                    alt="Back"
-                    width={16}
-                    height={16}
-                    className="object-contain"
-                  />
-                </button>
+                <BackButton fallbackRoute="/explore" />
                 <motion.button
                   className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
                     copyState === 'copied'

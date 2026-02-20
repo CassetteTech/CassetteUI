@@ -8,6 +8,7 @@ import { useMusicLinkConversion } from '@/hooks/use-music';
 import { useSimulatedProgress } from '@/hooks/use-simulated-progress';
 import { detectContentType } from '@/utils/content-type-detection';
 import PostClientPage from './[id]/post-client';
+import { BackButton } from '@/components/ui/back-button';
 
 // This page handles:
 // 1. ?id=X - Redirects to /post/X (canonical route)
@@ -229,12 +230,7 @@ function PostPageContent() {
           </div>
           <h2 className="text-xl font-bold text-foreground mb-2">Unable to load content</h2>
           <p className="text-muted-foreground mb-6">{error}</p>
-          <button
-            onClick={() => router.back()}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
-          >
-            Go Back
-          </button>
+          <BackButton variant="button" buttonVariant="default" fallbackRoute="/" />
         </div>
       </div>
     );

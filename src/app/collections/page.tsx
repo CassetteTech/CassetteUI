@@ -6,6 +6,7 @@ import { AnimatedBackground } from '@/components/ui/animated-background';
 import { CollectionGrid, CollectionItemData } from '@/components/features/collection/collection-grid';
 import { useMusicLinkConversion } from '@/hooks/use-music';
 import { Spinner } from '@/components/ui/spinner';
+import { BackButton } from '@/components/ui/back-button';
 
 // Sample collection items from the Flutter collection_items.dart
 const collectionItems: CollectionItemData[] = [
@@ -100,15 +101,7 @@ export default function CollectionsPage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
           {/* Header */}
           <div className="mb-4 sm:mb-6 md:mb-8 flex items-center justify-between">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-text-primary hover:opacity-70 transition-opacity"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="font-atkinson font-bold">Back</span>
-            </button>
+            <BackButton fallbackRoute="/explore" label="Back" />
           </div>
           
           {/* Collection Grid */}

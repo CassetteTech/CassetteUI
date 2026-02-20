@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import * as THREE from 'three';
+import { BackButton } from '@/components/ui/back-button';
 import styles from './twisted-torus-loader.module.css';
 
 interface TwistedTorusLoaderProps {
@@ -139,15 +140,7 @@ export const TwistedTorusLoader: React.FC<TwistedTorusLoaderProps> = ({
       {/* Header Toolbar */}
       <div className="absolute top-0 left-0 right-0 z-10 pt-4 pb-6 px-3">
         <div className="flex items-center justify-between">
-          <button className="flex items-center gap-2 text-foreground">
-            <Image
-              src="/images/ic_back.png"
-              alt="Back"
-              width={16}
-              height={16}
-              className="object-contain"
-            />
-          </button>
+          <BackButton className="pointer-events-none opacity-50" />
           <div className="flex items-center gap-3">
             <div className="w-6 h-6 bg-muted rounded animate-pulse" />
           </div>

@@ -155,7 +155,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-4 mb-8 animate-in fade-in duration-300">
+    <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 md:px-4 mb-4 sm:mb-8 animate-in fade-in duration-300">
       {/* Search Results Container with retro shadow effect */}
       <div className="relative">
         {/* Bottom shadow layer */}
@@ -164,8 +164,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         {/* Main container */}
         <div className="relative bg-white rounded-lg border-2 border-brandBlack">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b-2 border-brandBlack">
-            <h3 className="text-lg font-bold text-brandBlack font-atkinson">
+          <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 border-b-2 border-brandBlack">
+            <h3 className="text-sm sm:text-lg font-bold text-brandBlack font-atkinson">
               {showSearchResults ? 'Search Results' : 'Top Charts'}
             </h3>
             <button
@@ -194,7 +194,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             {allResults.map((item, index) => (
               <div
                 key={`${item.type}-${item.id}-${index}`}
-                className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 hover:bg-brandCreamL transition-colors cursor-pointer border-b border-brandCreamD last:border-b-0"
+                className="flex items-center gap-2 sm:gap-3 px-2 py-1.5 sm:p-3 hover:bg-brandCreamL transition-colors cursor-pointer border-b border-brandCreamD last:border-b-0"
                 onMouseDown={(e) => {
                   e.preventDefault(); // Prevent blur
                   handleItemClick(item);

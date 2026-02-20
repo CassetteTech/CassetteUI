@@ -13,6 +13,7 @@ import { SearchResults } from '@/components/features/search-results';
 import { MusicSearchResult } from '@/types';
 import { PageLoader } from '@/components/ui/page-loader';
 import Image from 'next/image';
+import { BackButton } from '@/components/ui/back-button';
 
 type SelectedItem = {
   id: string;
@@ -46,7 +47,8 @@ const AddMusicForm = ({
   handleSelectItem,
   closeSearch,
   isValidMusicUrl,
-  router
+  router,
+  searchBarOpacity
 }: {
   isSearchActive: boolean;
   selectedItem: SelectedItem | null;
@@ -70,10 +72,11 @@ const AddMusicForm = ({
   closeSearch: () => void;
   isValidMusicUrl: (text: string) => boolean;
   router: ReturnType<typeof useRouter>;
+  searchBarOpacity: number;
 }) => (
   <>
     {/* Search/Input Section */}
-    <div className={isSearchActive ? "fixed top-16 left-0 right-0 z-40 bg-background px-4 pt-3 pb-2 shadow-sm lg:static lg:z-auto lg:bg-transparent lg:px-0 lg:pt-0 lg:pb-0 lg:shadow-none" : "mb-4 sm:mb-6 md:mb-8"}>
+    <div className={isSearchActive ? "fixed top-16 left-0 right-0 z-40 bg-background px-4 pt-3 pb-2 shadow-sm lg:static lg:z-auto lg:bg-transparent lg:px-0 lg:pt-0 lg:pb-4 lg:shadow-none" : "mb-4 sm:mb-6 md:mb-8"} style={{ opacity: searchBarOpacity, transition: 'opacity 120ms ease-out' }}>
       {!isSearchActive && (
         <UIText className="text-center text-text-primary font-atkinson font-bold mb-6 text-sm sm:text-base">
           Search or paste a link below to add music to your profile
@@ -116,6 +119,7 @@ const AddMusicForm = ({
                 }}
                 placeholder="Search or paste your music link here"
                 className="w-full h-full bg-transparent border-none outline-none text-center text-[#1F2327] placeholder:text-textHint px-3 sm:px-4 md:px-6 text-sm sm:text-base"
+                style={{ fontSize: '16px', touchAction: 'manipulation' }}
               />
             </UrlBar>
           )}
@@ -222,7 +226,7 @@ const AddMusicForm = ({
 
     {/* Search Results Container */}
     {isSearchActive && (
-      <div className="search-container w-full fixed top-[8.5rem] left-0 right-0 bottom-0 z-40 overflow-y-auto bg-background lg:static lg:z-auto lg:overflow-visible lg:bg-transparent">
+      <div key="search-results" className="search-container w-full fixed top-[8.5rem] left-0 right-0 bottom-0 z-40 overflow-y-auto bg-background lg:static lg:z-auto lg:overflow-visible lg:bg-transparent animate-in fade-in slide-in-from-bottom-5 duration-500">
         <SearchResults
           results={displayData}
           query={debouncedSearchTerm}
@@ -245,6 +249,7 @@ export default function AddMusicPage() {
   const [musicUrl, setMusicUrl] = useState(prefilledUrl);
   const [description, setDescription] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchBarOpacity, setSearchBarOpacity] = useState(1);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
   const [pastedLinkSource, setPastedLinkSource] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -314,7 +319,18 @@ export default function AddMusicPage() {
 
   const handleSearchFocus = () => {
     if (!selectedItem && !pastedLinkSource) {
-      setIsSearchActive(true);
+      const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+      if (isDesktop) {
+        setIsSearchActive(true);
+        return;
+      }
+      // Mobile: fade out, reposition while invisible, then fade in
+      setSearchBarOpacity(0);
+      setTimeout(() => {
+        setIsSearchActive(true);
+        setSearchBarOpacity(1);
+        window.scrollTo(0, 0);
+      }, 120);
     }
   };
 
@@ -499,15 +515,7 @@ export default function AddMusicPage() {
               {/* Header - hide when search active */}
               {!isSearchActive && (
                 <div className="flex items-center justify-between py-6">
-                  <button
-                    onClick={() => router.back()}
-                    className="flex items-center gap-2 text-text-primary hover:opacity-75 transition-opacity"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                    <span className="font-atkinson font-bold">Back</span>
-                  </button>
+                  <BackButton fallbackRoute="/" label="Back" />
                 </div>
               )}
 
@@ -560,6 +568,7 @@ export default function AddMusicPage() {
                   closeSearch={closeSearch}
                   isValidMusicUrl={isValidMusicUrl}
                   router={router}
+                  searchBarOpacity={searchBarOpacity}
                 />
               </div>
             </div>
@@ -601,6 +610,7 @@ export default function AddMusicPage() {
               closeSearch={closeSearch}
               isValidMusicUrl={isValidMusicUrl}
               router={router}
+              searchBarOpacity={searchBarOpacity}
             />
           </div>
         </div>

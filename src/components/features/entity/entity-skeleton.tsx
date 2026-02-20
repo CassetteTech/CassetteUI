@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
+import { BackButton } from '@/components/ui/back-button';
 
 interface EntitySkeletonProps {
   isDesktop?: boolean;
@@ -156,18 +157,7 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
       {/* Header Toolbar - matches PostClientPage desktop header position */}
       <div className="pt-4 pb-6 px-3 relative z-20 max-w-7xl mx-auto w-full">
         <div className="flex items-center justify-between gap-3">
-          <button
-            className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity"
-            onClick={onCancel}
-          >
-            <Image
-              src="/images/ic_back.png"
-              alt="Back"
-              width={16}
-              height={16}
-              className="object-contain"
-            />
-          </button>
+          <BackButton onClick={onCancel} fallbackRoute="/explore" />
           <Skeleton className="h-9 w-28 rounded-full" />
         </div>
       </div>
@@ -272,18 +262,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
       {/* Header Toolbar - inside the main container, matching PostClientPage */}
       <div className="pt-4 pb-6 max-w-7xl mx-auto w-full">
         <div className="flex items-center justify-between gap-3">
-          <button
-            className="flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity"
-            onClick={onCancel}
-          >
-            <Image
-              src="/images/ic_back.png"
-              alt="Back"
-              width={16}
-              height={16}
-              className="object-contain"
-            />
-          </button>
+          <BackButton onClick={onCancel} fallbackRoute="/explore" />
           <Skeleton className="h-9 w-20 rounded-full" />
         </div>
       </div>

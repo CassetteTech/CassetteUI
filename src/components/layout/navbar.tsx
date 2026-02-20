@@ -33,11 +33,11 @@ export function Navbar() {
           <div className="flex items-center space-x-8">
             <Link href="/" className="flex items-center">
               <Image
-                src="/images/cassette_words_logo.png"
+                src="/images/app_logo.png"
                 alt="Cassette"
                 width={120}
                 height={32}
-                className="h-[80%] w-auto"
+                className="h-8 w-auto"
               />
             </Link>
             

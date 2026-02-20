@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Music, Disc3, Mic2, ListMusic, Compass, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BackButton } from '@/components/ui/back-button';
 
 const PAGE_SIZE = 20;
 
@@ -127,6 +128,9 @@ export default function ExplorePage() {
         <div className="absolute inset-0 mesh-gradient opacity-50" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-6 sm:pb-8">
+          <div className="mb-4">
+            <BackButton fallbackRoute="/" />
+          </div>
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}

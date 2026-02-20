@@ -9,6 +9,7 @@ import { MusicConnectionsFlow } from '@/components/features/music/music-connecti
 import { profileService } from '@/services/profile';
 import { UserBio } from '@/types';
 import { Container } from '@/components/ui/container';
+import { BackButton } from '@/components/ui/back-button';
 
 export default function EditProfilePage() {
   const { username } = useParams();
@@ -82,12 +83,7 @@ export default function EditProfilePage() {
             <div className="text-center">
               <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
               <p className="text-muted-foreground mb-4">{error}</p>
-              <button
-                onClick={() => router.back()}
-                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-              >
-                Go Back
-              </button>
+              <BackButton variant="button" fallbackRoute="/" />
             </div>
           </Container>
         </div>
@@ -97,12 +93,7 @@ export default function EditProfilePage() {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
             <p className="text-muted-foreground mb-4">{error}</p>
-            <button
-              onClick={() => router.back()}
-              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-            >
-              Go Back
-            </button>
+            <BackButton variant="button" fallbackRoute="/" />
           </div>
         </div>
       </>
@@ -119,12 +110,7 @@ export default function EditProfilePage() {
             <div className="text-center">
               <h1 className="text-2xl font-bold text-foreground mb-4">Profile Not Found</h1>
               <p className="text-muted-foreground mb-4">The profile you&apos;re trying to edit doesn&apos;t exist.</p>
-              <button
-                onClick={() => router.back()}
-                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-              >
-                Go Back
-              </button>
+              <BackButton variant="button" fallbackRoute="/" />
             </div>
           </Container>
         </div>
@@ -134,12 +120,7 @@ export default function EditProfilePage() {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">Profile Not Found</h1>
             <p className="text-muted-foreground mb-4">The profile you&apos;re trying to edit doesn&apos;t exist.</p>
-            <button
-              onClick={() => router.back()}
-              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-            >
-              Go Back
-            </button>
+            <BackButton variant="button" fallbackRoute="/" />
           </div>
         </div>
       </>
@@ -152,6 +133,10 @@ export default function EditProfilePage() {
       <div className="bg-background lg:hidden">
         <Container className="min-h-screen bg-transparent p-0">
           <div className="py-4 sm:py-6 md:py-8 px-4">
+            {/* Back to profile */}
+            <div className="mb-4">
+              <BackButton route={`/profile/${user?.username || userIdentifier}`} />
+            </div>
             {showSkeleton ? (
               <EditProfileSkeleton />
             ) : userBio ? (

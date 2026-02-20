@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { profileService } from '@/services/profile';
-import { UserBio, PaginatedActivityResponse } from '@/types';
+import { analyticsService } from '@/services/analytics';
+import { UserBio, PaginatedActivityResponse, ProfileAnalyticsSummary } from '@/types';
 
 /**
  * Query keys for profile-related queries.
@@ -13,6 +14,7 @@ export const profileQueryKeys = {
   allActivity: (userIdentifier: string) => ['user-activity', userIdentifier] as const,
   exploreActivity: (page?: number, pageSize?: number) =>
     ['explore-activity', page, pageSize] as const,
+  analytics: (userIdentifier: string) => ['profile-analytics', userIdentifier] as const,
 };
 
 /**
@@ -113,6 +115,25 @@ export const useExploreActivity = (options: ExploreQueryOptions = {}) => {
     enabled,
     refetchOnMount: 'always',
     staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 5,
+  });
+};
+
+interface ProfileAnalyticsQueryOptions {
+  enabled?: boolean;
+}
+
+export const useProfileAnalytics = (
+  userIdentifier: string | undefined,
+  options: ProfileAnalyticsQueryOptions = {}
+) => {
+  const { enabled = true } = options;
+
+  return useQuery<ProfileAnalyticsSummary, Error>({
+    queryKey: profileQueryKeys.analytics(userIdentifier ?? ''),
+    queryFn: () => analyticsService.fetchProfileAnalytics(userIdentifier!),
+    enabled: !!userIdentifier && enabled,
+    staleTime: 1000 * 60,
     gcTime: 1000 * 60 * 5,
   });
 };

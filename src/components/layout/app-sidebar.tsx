@@ -14,7 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { Music, Compass, User, LogOut, Edit, AlertCircle } from 'lucide-react';
+import { Music, Compass, User, LogOut, Edit, AlertCircle, BarChart3 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -182,7 +182,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
             <SidebarMenu>
               {user && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/profile') && !pathname.includes('/edit')}>
+                  <SidebarMenuButton asChild isActive={isActive('/profile') && !pathname.includes('/edit') && !pathname.includes('/analytics')}>
                     <Link href={`/profile/${user.username}`}>
                       <User className="mr-2 h-4 w-4" />
                       <span>Profile</span>
@@ -209,6 +209,14 @@ export function AppSidebar({ className }: AppSidebarProps) {
               {user && (
                 <>
                   <div className="my-2 mx-2 border-t border-border" />
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={isActive('/profile') && pathname.includes('/analytics')}>
+                      <Link href={`/profile/${user.username}/analytics`}>
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        <span>Analytics</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={isActive('/profile') && pathname.includes('/edit')}>
                       <Link href={`/profile/${user.username}/edit`}>
@@ -372,7 +380,7 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/profile') && !pathname.includes('/edit')}>
+                <SidebarMenuButton asChild isActive={isActive('/profile') && !pathname.includes('/edit') && !pathname.includes('/analytics')}>
                   <Link href="/profile">
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
@@ -398,6 +406,14 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
               {user && (
                 <>
                   <div className="my-2 mx-2 border-t border-border" />
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={isActive('/profile') && pathname.includes('/analytics')}>
+                      <Link href={`/profile/${user.username}/analytics`}>
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        <span>Analytics</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={isActive('/profile') && pathname.includes('/edit')}>
                       <Link href={`/profile/${user.username}/edit`}>

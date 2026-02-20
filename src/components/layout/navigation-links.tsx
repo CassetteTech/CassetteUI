@@ -3,7 +3,7 @@
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Compass, Music, User, Edit, LogOut, Info, Users, AlertCircle } from 'lucide-react';
+import { Home, Compass, Music, User, Edit, LogOut, Info, Users, AlertCircle, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
@@ -20,6 +20,7 @@ const navItems = [
   { href: '/team', icon: Users, text: 'Team', auth: false },
   { href: '/add-music', icon: Music, text: 'Add Music', auth: true },
   { href: '/profile', icon: User, text: 'Profile', auth: true },
+  { href: '/profile/analytics', icon: BarChart3, text: 'Analytics', auth: true },
   { href: '/profile/edit', icon: Edit, text: 'Edit Profile', auth: true },
 ];
 
@@ -36,7 +37,8 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
-    if (path === '/profile') return pathname.startsWith('/profile') && !pathname.includes('/edit');
+    if (path === '/profile') return pathname.startsWith('/profile') && !pathname.includes('/edit') && !pathname.includes('/analytics');
+    if (path === '/profile/analytics') return pathname.includes('/analytics');
     if (path === '/profile/edit') return pathname.includes('/edit');
     return pathname.startsWith(path);
   };

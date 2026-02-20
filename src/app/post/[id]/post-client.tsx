@@ -25,6 +25,7 @@ import { HeadlineText, BodyText, UIText } from '@/components/ui/typography';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { apiService } from '@/services/api';
+import { analyticsService } from '@/services/analytics';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { AlertCircle, Check, Copy, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
@@ -97,11 +98,33 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   // Ref to track the source URL for add-to-profile
   const sourceUrlRef = useRef<string | null>(null);
   const sourcePlatformRef = useRef<string | null>(null);
+  const trackedPostViewRef = useRef<string | null>(null);
 
   useEffect(() => {
     setAddStatus('idle');
     setImageError(false);
   }, [postData?.postId, postData?.originalUrl]);
+
+  const trackPostClick = useCallback((payload: { platform: string; url: string }) => {
+    const activePostId = postData?.postId || postId;
+    if (!activePostId || !payload.url) return;
+
+    void analyticsService
+      .trackPostClick(activePostId, payload.platform, payload.url, 'post_page_streaming_link')
+      .catch(() => {});
+  }, [postData?.postId, postId]);
+
+  useEffect(() => {
+    if (!postData) return;
+
+    const activePostId = postData.postId || postId;
+    if (!activePostId || trackedPostViewRef.current === activePostId) {
+      return;
+    }
+
+    trackedPostViewRef.current = activePostId;
+    void analyticsService.trackPostView(activePostId, 'post_page').catch(() => {});
+  }, [postData, postId]);
 
   const buildShareUrl = useCallback(() => {
     if (typeof window === 'undefined') return '';
@@ -629,6 +652,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                 href={resolvedSourceUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                onClick={() => trackPostClick({ platform: sourcePlatformKey, url: resolvedSourceUrl })}
                                 className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group w-full mt-2"
                               >
                                 <Image
@@ -710,11 +734,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             playlistTrackCount={playlistTrackCount}
                             sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
                             sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                            onLinkClick={trackPostClick}
                           />
                         ) : (
                           <StreamingLinks
                             links={convertedUrls}
                             className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                            onLinkClick={trackPostClick}
                         />
                       )}
                     </div>
@@ -1000,11 +1026,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                               playlistTrackCount={playlistTrackCount}
                               sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
                               sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                              onLinkClick={trackPostClick}
                             />
                           ) : (
                             <StreamingLinks
                               links={convertedUrls}
                               className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                              onLinkClick={trackPostClick}
                             />
                           )}
                         </div>
@@ -1249,6 +1277,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           href={resolvedSourceUrl}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() => trackPostClick({ platform: sourcePlatformKey, url: resolvedSourceUrl })}
                           className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
                         >
                           <Image
@@ -1379,11 +1408,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     playlistTrackCount={playlistTrackCount}
                     sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
                     sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                    onLinkClick={trackPostClick}
                   />
                 ) : (
                   <StreamingLinks
                     links={convertedUrls}
                     className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                    onLinkClick={trackPostClick}
                   />
                 )}
               </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
 import { useUserBio, useUserActivity } from '@/hooks/use-profile';
@@ -11,10 +11,11 @@ import { ProfileActivity, ActivitySkeleton } from '@/components/features/profile
 import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
 import { profileService } from '@/services/profile';
 import { applyCachedArtwork } from '@/services/profile-artwork-cache';
+import { analyticsService } from '@/services/analytics';
 import { ActivityPost } from '@/types';
 import { Container } from '@/components/ui/container';
 
-const TAB_ELEMENT_TYPE: Record<TabType, string> = {
+const TAB_ELEMENT_TYPE: Partial<Record<TabType, string>> = {
   playlists: 'Playlist',
   tracks: 'Track',
   artists: 'Artist',
@@ -30,12 +31,15 @@ export default function ProfilePage() {
   const [additionalPosts, setAdditionalPosts] = useState<ActivityPost[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const trackedProfileRef = useRef<string | null>(null);
 
   const userIdentifier = Array.isArray(username) ? username[0] : username;
 
   // Check if this is edit mode and determine the actual user to fetch
   const isEditMode = userIdentifier === 'edit';
   const userIdToFetch = isEditMode && user ? user.id : userIdentifier;
+
+  const selectedElementType = TAB_ELEMENT_TYPE[activeTab];
 
   // Use React Query for bio and activity - handles deduplication automatically
   const {
@@ -48,7 +52,10 @@ export default function ProfilePage() {
     data: activityData,
     isLoading: isLoadingActivity,
     error: activityError
-  } = useUserActivity(userIdToFetch, { page: 1, elementType: TAB_ELEMENT_TYPE[activeTab] });
+  } = useUserActivity(userIdToFetch, {
+    page: 1,
+    elementType: selectedElementType
+  });
 
   // Combine initial activity with paginated additional posts
   const allActivityPosts = useMemo(() => {
@@ -66,6 +73,16 @@ export default function ProfilePage() {
            user.username?.toLowerCase() === userBio.username?.toLowerCase();
   }, [userBio, user]);
 
+  useEffect(() => {
+    if (!userBio?.username) return;
+
+    const trackingKey = userBio.id || userBio.username.toLowerCase();
+    if (trackedProfileRef.current === trackingKey) return;
+    trackedProfileRef.current = trackingKey;
+
+    void analyticsService.trackProfileView(userBio.username, 'profile_page').catch(() => {});
+  }, [userBio?.id, userBio?.username]);
+
   // Reset tab pagination when user or tab changes
   useEffect(() => {
     setAdditionalPosts([]);
@@ -82,7 +99,7 @@ export default function ProfilePage() {
 
       const moreActivity = await profileService.fetchUserActivity(userIdToFetch, {
         page: nextPage,
-        elementType: TAB_ELEMENT_TYPE[activeTab],
+        elementType: selectedElementType,
       });
 
       setAdditionalPosts(prev => [...prev, ...moreActivity.items]);
@@ -92,7 +109,7 @@ export default function ProfilePage() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [userIdToFetch, currentPage, isLoadingMore, allActivityPosts.length, totalItems, activeTab]);
+  }, [userIdToFetch, currentPage, isLoadingMore, allActivityPosts.length, totalItems, selectedElementType]);
 
   const filterByElementType = useCallback((type: TabType) => {
     if (activeTab === type) return;

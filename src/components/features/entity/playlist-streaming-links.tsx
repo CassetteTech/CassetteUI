@@ -29,6 +29,7 @@ interface PlaylistStreamingLinksProps {
   playlistTrackCount?: number;
   sourceUrl?: string;
   sourcePlatform?: string;
+  onLinkClick?: (payload: { platform: string; url: string }) => void;
 }
 
 interface CreationStatus {
@@ -58,6 +59,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   playlistTrackCount,
   sourceUrl,
   sourcePlatform,
+  onLinkClick,
 }) => {
   const { isAuthenticated } = useAuthState();
   const [creationStatus, setCreationStatus] = useState<CreationStatus | null>(null);
@@ -259,7 +261,10 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
             {playlist_url && (
               <button
                 type="button"
-                onClick={() => openInAppOrBrowser(playlist_url)}
+                onClick={() => {
+                  onLinkClick?.({ platform: creationStatus.platform, url: playlist_url });
+                  openInAppOrBrowser(playlist_url);
+                }}
                 className={cn(
                   'inline-flex items-center gap-2 px-4 py-2 rounded-full',
                   'bg-green-600 hover:bg-green-700 text-white',
@@ -355,6 +360,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
               href={url}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => onLinkClick?.({ platform, url })}
               className={commonClasses}
             >
               <div className="relative w-4 h-4 mr-2">

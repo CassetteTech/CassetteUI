@@ -60,6 +60,33 @@ export interface PaginatedActivityResponse {
   hasPrevious: boolean;
 }
 
+export interface ProfileAnalyticsTopPost {
+  postId: string;
+  elementType: string;
+  privacy: PostPrivacy;
+  createdAt: string;
+  title: string;
+  views: number;
+  uniqueViewers: number;
+  clicks: number;
+  uniqueClickers: number;
+  lastInteractionAt?: string | null;
+}
+
+export interface ProfileAnalyticsSummary {
+  userId: string;
+  username: string;
+  profileVisitsTotal: number;
+  profileVisitorsUnique: number;
+  postViewsTotal: number;
+  postViewersUnique: number;
+  outboundClicksTotal: number;
+  outboundClickersUnique: number;
+  topPosts: ProfileAnalyticsTopPost[];
+}
+
+export type ProfileAnalyticsResponse = ProfileAnalyticsSummary;
+
 // Music Types
 export interface Track {
   id: string;

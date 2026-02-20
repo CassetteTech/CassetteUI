@@ -11,6 +11,7 @@ interface StreamingLinksProps {
     youtubeMusic?: string;
   };
   className?: string;
+  onLinkClick?: (payload: { platform: string; url: string }) => void;
 }
 
 export interface StreamingService {
@@ -59,7 +60,7 @@ export const streamingServices: Record<string, StreamingService> = {
   },
 };
 
-export const StreamingLinks: React.FC<StreamingLinksProps> = ({ links, className }) => {
+export const StreamingLinks: React.FC<StreamingLinksProps> = ({ links, className, onLinkClick }) => {
   const availableLinks = Object.entries(links).filter(([, url]) => url);
   
   if (availableLinks.length === 0) {
@@ -84,6 +85,7 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({ links, className
               href={url}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => onLinkClick?.({ platform, url })}
               className={cn(
                 "group relative flex items-center justify-center",
                 "px-4 py-2.5 rounded-full transition-all duration-200",

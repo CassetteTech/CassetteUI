@@ -1,20 +1,18 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { AnimatedButton } from '@/components/ui/animated-button';
 import { UrlBar } from '@/components/ui/url-bar';
 import { UIText } from '@/components/ui/typography';
 import { AnimatedBackground } from '@/components/ui/animated-background';
 import { useTopCharts, useMusicSearch } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
-import { theme } from '@/lib/theme';
 import { SearchResults } from '@/components/features/search-results';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronDown } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ProfileDemo } from '@/components/demo/profile-demo';
+import { HomeDemoSection } from '@/components/demo/home-demo-section';
 import { AppleMusicHelpModal } from '@/components/features/apple-music-help-modal';
 import { StageHoverCard } from '@/components/features/stage-hover-card';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -338,27 +336,9 @@ export default function HomePage() {
               </div>
             </div>
 
-              {/* Profile Demo Section - Below Logo - Desktop only */}
-              <div className={`${bottomContentClasses} w-full lg:mt-[2vh] lg:pt-32 pb-[28rem] hidden lg:block`}>
-                <ProfileDemo />
-
-                {/* CTA Button - Desktop only, under profile demo */}
-                {!isAuthenticated && (
-                  <div className="mt-64 text-center pb-32">
-                    <AnimatedButton
-                      text="Create Your Free Account!"
-                      onClick={() => window.location.href = '/auth/signup'}
-                      height={48}
-                      width={280}
-                      initialPos={6}
-                      colorTop={theme.colors.brandRed}
-                      colorBottom={theme.colors.brandRedD}
-                      borderColorTop={theme.colors.brandRed}
-                      borderColorBottom={theme.colors.brandRedD}
-                      textStyle="text-lg sm:text-xl font-bold tracking-wide font-atkinson text-white"
-                    />
-                  </div>
-                )}
+              {/* Demo Section - Below Logo - Desktop only */}
+              <div className={`${bottomContentClasses} w-full lg:mt-[2vh] lg:pt-16 pb-32 hidden lg:block`}>
+                <HomeDemoSection isAuthenticated={isAuthenticated} />
               </div>
             </div>
 
@@ -462,30 +442,9 @@ export default function HomePage() {
               )}
             </AnimatePresence>
 
-            {/* Profile Demo Section - Mobile only */}
-            <div className={`${bottomContentClasses} w-full mt-12 sm:mt-20 pt-8 sm:pt-16 pb-[14rem] sm:pb-[28rem] lg:hidden`}>
-              <ProfileDemo />
-
-              {/* CTA Button - Mobile only, under profile demo */}
-              {!isAuthenticated && (
-                <div className="mt-12 sm:mt-24 text-center px-4 w-full">
-                  <div className="mb-12 sm:mb-24">
-                    <AnimatedButton
-                      text="Create Your Free Account!"
-                      onClick={() => window.location.href = '/auth/signup'}
-                      height={48}
-                      width={280}
-                      initialPos={6}
-                      colorTop={theme.colors.brandRed}
-                      colorBottom={theme.colors.brandRedD}
-                      borderColorTop={theme.colors.brandRed}
-                      borderColorBottom={theme.colors.brandRedD}
-                      className="mx-auto"
-                      textStyle="text-lg sm:text-xl font-bold tracking-wide font-atkinson text-white"
-                    />
-                  </div>
-                </div>
-              )}
+            {/* Demo Section - Mobile only */}
+            <div className={`${bottomContentClasses} w-full mt-12 sm:mt-20 pt-8 sm:pt-16 pb-24 sm:pb-32 lg:hidden`}>
+              <HomeDemoSection isAuthenticated={isAuthenticated} />
             </div>
 
             {/* Remove loading state - handled in post page now */}

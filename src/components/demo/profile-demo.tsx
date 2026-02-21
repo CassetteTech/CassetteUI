@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -53,20 +54,47 @@ const dummyActivityPosts = {
     { id: 4, title: "AM", artist: "Arctic Monkeys", image: "https://is1-ssl.mzstatic.com/image/thumb/Music113/v4/cc/0f/2d/cc0f2d02-5ff1-10e7-eea2-76863a55dbad/887828031795.png/100x100bb.jpg", year: 2013 },
     { id: 5, title: "IGOR", artist: "Tyler, the Creator", image: "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6f/e3/09/6fe30938-89fb-e4ae-d67a-648746c26db1/196871668248.jpg/100x100bb.jpg", year: 2019 },
     { id: 6, title: "good kid, m.A.A.d city", artist: "Kendrick Lamar", image: "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/36/86/ec/3686ec99-dec4-0a01-8b74-2d8a9a0263a7/12UMGIM52988.rgb.jpg/100x100bb.jpg", year: 2012 },
-    { id: 7, title: "In Rainbows", artist: "Radiohead", image: "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/dd/50/c7/dd50c790-99ac-d3d0-5ab8-e3891fb8fd52/634904032463.png/100x100bb.jpg", year: 2007 }
+    { id: 7, title: "In Rainbows", artist: "Radiohead", image: "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/dd/50/c7/dd50c790-99ac-d3d0-5ab8-e3891fb8fd52/634904032463.png/200x200bb.jpg", year: 2007 }
   ]
 };
 
+// Tab content slide animation
+const tabContentVariants = {
+  enter: { opacity: 0, x: 12 },
+  center: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -12 },
+};
+
+// Annotation slide-in from left
+const annotationLeft = {
+  hidden: { opacity: 0, x: 20 },
+  visible: (i: number) => ({
+    opacity: 1,
+    x: 0,
+    transition: { delay: 0.8 + i * 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] as const },
+  }),
+};
+
+// Annotation slide-in from right
+const annotationRight = {
+  hidden: { opacity: 0, x: -20 },
+  visible: (i: number) => ({
+    opacity: 1,
+    x: 0,
+    transition: { delay: 0.8 + i * 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] as const },
+  }),
+};
+
 interface ProfileDemoProps {
-  arrowColor?: string;
+  annotations?: boolean;
 }
 
-export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
+export function ProfileDemo({ annotations = true }: ProfileDemoProps) {
   const [activeTab, setActiveTab] = useState<TabType>('playlists');
 
   const handleShare = () => {
     const shareUrl = 'https://cassette.tech/';
-    
+
     if (navigator.share) {
       navigator.share({
         title: `${dummyUserBio.displayName}'s Profile`,
@@ -78,7 +106,6 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
     }
   };
 
-
   const tabs: { key: TabType; label: string }[] = [
     { key: 'playlists', label: 'Playlists' },
     { key: 'tracks', label: 'Tracks' },
@@ -87,261 +114,212 @@ export function ProfileDemo({ arrowColor }: ProfileDemoProps = {}) {
   ];
 
   const renderContent = () => {
-    switch (activeTab) {
-      case 'playlists':
-        return (
-          <div className="space-y-1 p-3">
-            {dummyActivityPosts.playlists.map((playlist) => (
-              <div key={playlist.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
-                  <Image
-                    src={playlist.image}
-                    alt={playlist.title}
-                    width={40}
-                    height={40}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-xs truncate text-foreground">{playlist.title}</h4>
-                  <p className="text-xs text-muted-foreground truncate">{playlist.tracks} tracks</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
+    const items = (() => {
+      switch (activeTab) {
+        case 'playlists':
+          return dummyActivityPosts.playlists.map((p) => ({ id: p.id, image: p.image, line1: p.title, line2: `${p.tracks} tracks` }));
+        case 'tracks':
+          return dummyActivityPosts.tracks.map((t) => ({ id: t.id, image: t.image, line1: t.title, line2: t.artist }));
+        case 'artists':
+          return dummyActivityPosts.artists.map((a) => ({ id: a.id, image: a.image, line1: a.name, line2: a.genre }));
+        case 'albums':
+          return dummyActivityPosts.albums.map((a) => ({ id: a.id, image: a.image, line1: a.title, line2: `${a.artist} \u2022 ${a.year}` }));
+      }
+    })();
 
-      case 'tracks':
-        return (
-          <div className="space-y-1 p-3">
-            {dummyActivityPosts.tracks.map((track) => (
-              <div key={track.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
-                  <Image
-                    src={track.image}
-                    alt={track.title}
-                    width={40}
-                    height={40}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-xs truncate text-foreground">{track.title}</h4>
-                  <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-
-      case 'artists':
-        return (
-          <div className="space-y-1 p-3">
-            {dummyActivityPosts.artists.map((artist) => (
-              <div key={artist.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
-                  <Image
-                    src={artist.image}
-                    alt={artist.name}
-                    width={40}
-                    height={40}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-xs truncate text-foreground">{artist.name}</h4>
-                  <p className="text-xs text-muted-foreground truncate">{artist.genre}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-
-      case 'albums':
-        return (
-          <div className="space-y-1 p-3">
-            {dummyActivityPosts.albums.map((album) => (
-              <div key={album.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
-                  <Image
-                    src={album.image}
-                    alt={album.title}
-                    width={40}
-                    height={40}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-xs truncate text-foreground">{album.title}</h4>
-                  <p className="text-xs text-muted-foreground truncate">{album.artist} • {album.year}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-    }
+    return (
+      <div className="space-y-1 p-3">
+        {items.map((item, idx) => (
+          <motion.div
+            key={item.id}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.04, duration: 0.3, ease: 'easeOut' }}
+            className="flex items-center gap-2 p-2 rounded-none border-b border-border/40 hover:bg-muted/30 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-sm bg-muted overflow-hidden flex-shrink-0 border border-border/50">
+              <Image src={item.image} alt={item.line1} width={40} height={40} className="w-full h-full object-cover" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-medium text-xs truncate text-foreground">{item.line1}</h4>
+              <p className="text-xs text-muted-foreground truncate">{item.line2}</p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    );
   };
 
   return (
-    <div className="flex items-center justify-center py-4 sm:py-8 lg:py-16">
-      {/* Phone + call-outs wrapper */}
-      <div className="relative overflow-x-clip">
-        {/* Phone Body */}
-        <div className="w-80 h-[640px] bg-black rounded-[2.5rem] p-2 shadow-2xl">
-          {/* Screen */}
-          <div className="w-full h-full bg-background rounded-[2rem] overflow-hidden relative">
-            {/* Screen Content */}
-            <div className="h-full flex flex-col pt-8">
-              {/* Profile Header */}
-              <div className="p-3 space-y-3">
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-12 h-12">
-                    <Image src={dummyUserBio.avatarUrl} alt={dummyUserBio.displayName} width={48} height={48} />
-                  </Avatar>
-                  <div>
-                    <h1 className="text-sm font-bold text-foreground">{dummyUserBio.displayName}</h1>
-                    <p className="text-xs text-muted-foreground">@{dummyUserBio.username}</p>
+    <div className="flex items-center justify-center py-4 sm:py-8 lg:py-12">
+      <motion.div
+        className="relative"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.3 }}
+      >
+        {/* Phone (static) */}
+        <div className="relative z-10">
+          {/* Phone Body */}
+          <div className="relative w-72 sm:w-80 h-[580px] sm:h-[640px] bg-black rounded-[2.5rem] p-2 shadow-2xl">
+            {/* Screen */}
+            <div className="w-full h-full bg-background rounded-[2rem] overflow-hidden relative">
+              {/* Screen Content */}
+              <div className="h-full flex flex-col pt-8 overflow-hidden">
+                {/* Profile Header */}
+                <div className="p-3 space-y-3 min-w-0">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-12 h-12">
+                      <Image src={dummyUserBio.avatarUrl} alt={dummyUserBio.displayName} width={48} height={48} />
+                    </Avatar>
+                    <div>
+                      <h1 className="text-sm font-bold text-foreground">{dummyUserBio.displayName}</h1>
+                      <p className="text-xs text-muted-foreground">@{dummyUserBio.username}</p>
+                    </div>
+                  </div>
+
+                  <p className="text-xs leading-relaxed text-foreground">{dummyUserBio.bio}</p>
+
+                  <div className="flex gap-2">
+                    {dummyUserBio.connectedServices.map((service) => (
+                      <div key={service} className="w-6 h-6 relative">
+                        <Image
+                          src={`/images/${service === 'apple-music' ? 'apple_music' : service}_logo_colored.png`}
+                          alt={service}
+                          width={24}
+                          height={24}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-1.5 min-w-0">
+                    <Button className="flex-1 min-w-0 h-7 sm:h-8 border-2 border-gray-400 px-2" variant="outline">
+                      <Music className="mr-1 h-3 w-3 flex-shrink-0" />
+                      <span className="text-[10px] sm:text-xs truncate">Add Music</span>
+                    </Button>
+                    <Button className="flex-1 min-w-0 h-7 sm:h-8 text-white px-2" style={{ backgroundColor: theme.colors.brandRed }} onClick={handleShare}>
+                      <Share2 className="mr-1 h-3 w-3 flex-shrink-0" />
+                      <span className="text-[10px] sm:text-xs truncate">Share Profile</span>
+                    </Button>
                   </div>
                 </div>
 
-                <p className="text-xs leading-relaxed text-foreground">{dummyUserBio.bio}</p>
-
-                <div className="flex gap-2">
-                  {dummyUserBio.connectedServices.map((service) => (
-                    <div key={service} className="w-6 h-6 relative">
-                      <Image
-                        src={`/images/${service === 'apple-music' ? 'apple_music' : service}_logo_colored.png`}
-                        alt={service}
-                        width={24}
-                        height={24}
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                  ))}
+                {/* Tabs */}
+                <div className="sticky top-0 z-10 bg-background border-t">
+                  <div className="p-3">
+                    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabType)} className="w-full">
+                      <TabsList className="flex h-10 items-center justify-start rounded-none w-full p-1 bg-muted border-2 border-border">
+                        {tabs.map((tab) => (
+                          <TabsTrigger
+                            key={tab.key}
+                            value={tab.key}
+                            className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-none px-1 sm:px-2 py-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-normal sm:tracking-wider transition-all duration-100 text-muted-foreground hover:text-foreground data-[state=active]:text-white font-teko"
+                            style={{
+                              backgroundColor: activeTab === tab.key ? theme.colors.brandRed : undefined,
+                              height: activeTab === tab.key ? '32px' : '28px',
+                            }}
+                          >
+                            {tab.label}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </Tabs>
+                  </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button className="flex-1 h-8 border-2 border-gray-400" variant="outline">
-                    <Music className="mr-2 h-3 w-3" />
-                    <span className="text-xs">Add Music</span>
-                  </Button>
-                  <Button className="flex-1 h-8 text-white" style={{ backgroundColor: theme.colors.brandRed }} onClick={handleShare}>
-                    <Share2 className="mr-2 h-3 w-3" />
-                    <span className="text-xs">Share Profile</span>
-                  </Button>
-                </div>
-              </div>
-
-              {/* Tabs */}
-              <div className="sticky top-0 z-10 bg-background border-t">
-                <div className="p-3">
-                  <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabType)} className="w-full">
-                    <TabsList className="flex h-10 items-center justify-start rounded-lg w-full p-1 bg-muted/50 backdrop-blur-sm border border-border/50">
-                      {tabs.map((tab) => (
-                        <TabsTrigger
-                          key={tab.key}
-                          value={tab.key}
-                          className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 py-2 text-xs font-medium transition-all duration-200 data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground data-[state=active]:text-white"
-                          style={{
-                            backgroundColor: activeTab === tab.key ? theme.colors.brandRed : undefined,
-                            height: activeTab === tab.key ? '32px' : '28px',
-                          }}
-                        >
-                          {tab.label}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                  </Tabs>
+                {/* Content with tab transition */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeTab}
+                      variants={tabContentVariants}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                    >
+                      {renderContent()}
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
               </div>
 
-              {/* Content */}
-              <div className="flex-1 overflow-auto">
-                {renderContent()}
-              </div>
-            </div>
-
-            {/* Phone Notch */}
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-6 bg-black rounded-b-2xl"></div>
-          </div>
-        </div>
-
-        {/* Phone Details */}
-        <div className="absolute -right-1 top-20 w-1 h-12 bg-black rounded-r-lg"></div>
-        <div className="absolute -right-1 top-36 w-1 h-16 bg-black rounded-r-lg"></div>
-        <div className="absolute -right-1 top-56 w-1 h-16 bg-black rounded-r-lg"></div>
-        <div className="absolute -left-1 top-28 w-1 h-8 bg-black rounded-l-lg"></div>
-
-        {/* TOP CALLOUT */}
-        <div className="absolute -top-48 left-1/2 -translate-x-1/2 hidden sm:block">
-          {/* retro window frame */}
-          <div className="relative w-72 h-32">
-            <div className="absolute inset-0 bg-white rounded-xl outline outline-1 outline-black shadow-[1px_1px_0px_1px_rgba(0,0,0,1)]">
-              {/* "browser chrome" bars */}
-              <div className="absolute left-0 top-0 w-full h-7 bg-white outline outline-1 outline-black">
-                {([6, 9, 12, 15, 18, 21] as const).map((y) => (
-                  <div key={y} className="absolute left-1 right-1 h-px bg-black" style={{ top: y }} />
-                ))}
-                <div className="absolute left-8 top-1 w-4 h-4 bg-white border border-black" />
-              </div>
-
-              {/* label text */}
-              <div className="flex items-center justify-center h-full px-4 pt-7">
-                <p className="text-center text-black font-['Atkinson_Hyperlegible'] font-bold text-xl leading-snug">
-                  Add music to your profile <br />from any streaming platform!
-                </p>
-              </div>
+              {/* Phone Notch */}
+              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-6 bg-black rounded-b-2xl"></div>
             </div>
           </div>
+
+          {/* Phone Details */}
+          <div className="absolute -right-1 top-20 w-1 h-12 bg-black rounded-r-lg"></div>
+          <div className="absolute -right-1 top-36 w-1 h-16 bg-black rounded-r-lg"></div>
+          <div className="absolute -right-1 top-56 w-1 h-16 bg-black rounded-r-lg"></div>
+          <div className="absolute -left-1 top-28 w-1 h-8 bg-black rounded-l-lg"></div>
         </div>
 
-        {/* Arrow from Add Music button to top label */}
-        <div className="absolute top-[216px] left-[12px] hidden sm:block">
-          {/* Horizontal segment left */}
-          <div className="absolute w-8 h-0.5 -left-8 -translate-y-1/2" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
-          {/* Vertical segment up - adjusted to reach middle of label (label is h-32, so middle is 16 from top) */}
-          <div className="absolute h-[346px] w-0.5 -left-8 -top-[346px]" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
-          {/* Horizontal segment to label */}
-          <div className="absolute w-4 h-0.5 -left-8 -top-[347px]" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
-          {/* Arrow head pointing right */}
-          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-l-[8px] border-t-transparent border-b-transparent -left-4 -top-[346px] -translate-y-1/2" style={{ borderLeftColor: arrowColor || 'hsl(var(--foreground))' }} />
-        </div>
+        {/* Animated floating annotations */}
+        {annotations && (
+          <>
+            {/* Left annotation — slides in from right toward phone */}
+            <motion.div
+              custom={0}
+              variants={annotationLeft}
+              className="absolute z-0 left-0 top-[185px] sm:top-[195px] -translate-x-[calc(100%+24px)] hidden sm:flex items-center gap-2"
+            >
+              <span className="bg-background border-2 border-foreground/20 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-foreground shadow-[3px_3px_0px_0px] shadow-foreground/10 whitespace-nowrap font-teko">
+                Add from any platform
+              </span>
+              <motion.div
+                className="w-4 h-0.5 bg-foreground/30"
+                initial={{ scaleX: 0 }}
+                whileInView={{ scaleX: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 1.1, duration: 0.3 }}
+                style={{ originX: 0 }}
+              />
+            </motion.div>
 
-        {/* BOTTOM CALLOUT */}
-        <div className="absolute -bottom-[12.5rem] left-1/2 -translate-x-1/2 hidden sm:block">
-          {/* retro window frame */}
-          <div className="relative w-72 h-32">
-            <div className="absolute inset-0 bg-white rounded-xl outline outline-1 outline-black shadow-[1px_1px_0px_1px_rgba(0,0,0,1)]">
-              {/* "browser chrome" bars */}
-              <div className="absolute left-0 top-0 w-full h-7 bg-white outline outline-1 outline-black">
-                {([6, 9, 12, 15, 18, 21] as const).map((y) => (
-                  <div key={y} className="absolute left-1 right-1 h-px bg-black" style={{ top: y }} />
-                ))}
-                <div className="absolute left-4 top-1 w-4 h-4 bg-white border border-black" />
-              </div>
+            {/* Right annotation 1 */}
+            <motion.div
+              custom={1}
+              variants={annotationRight}
+              className="absolute z-0 right-0 top-[228px] sm:top-[238px] translate-x-[calc(100%+24px)] hidden sm:flex items-center gap-2"
+            >
+              <motion.div
+                className="w-4 h-0.5 bg-foreground/30"
+                initial={{ scaleX: 0 }}
+                whileInView={{ scaleX: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 1.25, duration: 0.3 }}
+                style={{ originX: 1 }}
+              />
+              <span className="bg-background border-2 border-foreground/20 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-foreground shadow-[3px_3px_0px_0px] shadow-foreground/10 whitespace-nowrap font-teko">
+                Smart sharing
+              </span>
+            </motion.div>
 
-              {/* label text */}
-              <div className="flex items-center justify-center h-full px-4 pt-7">
-                <p className="text-center text-black font-['Atkinson_Hyperlegible'] font-bold text-xl leading-snug">
-                  Share smart links <br />with friends
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Arrow from Share Profile button to bottom label */}
-        <div className="absolute top-[216px] right-[12px] hidden sm:block">
-          {/* Horizontal segment right */}
-          <div className="absolute w-8 h-0.5 -right-8 -translate-y-1/2" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
-          {/* Vertical segment down - adjusted to reach middle of label */}
-          <div className="absolute h-[560px] w-0.5 -right-8 top-0" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
-          {/* Horizontal segment to label */}
-          <div className="absolute w-4 h-0.5 -right-8 top-[560px]" style={{ backgroundColor: arrowColor || 'hsl(var(--foreground))' }} />
-          {/* Arrow head pointing left */}
-          <div className="absolute w-0 h-0 border-t-[6px] border-b-[6px] border-r-[8px] border-t-transparent border-b-transparent -right-4 top-[561px] -translate-y-1/2" style={{ borderRightColor: arrowColor || 'hsl(var(--foreground))' }} />
-        </div>
-      </div>
+            {/* Right annotation 2 */}
+            <motion.div
+              custom={2}
+              variants={annotationRight}
+              className="absolute z-0 right-0 top-[290px] sm:top-[305px] translate-x-[calc(100%+24px)] hidden sm:flex items-center gap-2"
+            >
+              <motion.div
+                className="w-4 h-0.5 bg-foreground/30"
+                initial={{ scaleX: 0 }}
+                whileInView={{ scaleX: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 1.4, duration: 0.3 }}
+                style={{ originX: 1 }}
+              />
+              <span className="bg-background border-2 border-foreground/20 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-foreground shadow-[3px_3px_0px_0px] shadow-foreground/10 whitespace-nowrap font-teko">
+                Organize by type
+              </span>
+            </motion.div>
+          </>
+        )}
+      </motion.div>
     </div>
   );
 }

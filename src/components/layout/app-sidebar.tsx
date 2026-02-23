@@ -14,7 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { Music, Compass, User, LogOut, Edit, AlertCircle } from 'lucide-react';
+import { Music, Compass, User, LogOut, Edit, AlertCircle, Shield } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -25,6 +25,7 @@ import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { theme } from '@/lib/theme';
 import { useUserBio } from '@/hooks/use-profile';
+import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 
 interface AppSidebarProps {
   className?: string;
@@ -55,6 +56,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
     opacity: number;
     hasPositioned: boolean;
   }>({ top: 0, height: 0, opacity: 0, hasPositioned: false });
+  const canSeeInternalDashboard = isCassetteInternalAccount(user?.accountType ?? null);
 
   // Helper function to check if a path is active
   const isActive = (path: string) => {
@@ -206,6 +208,16 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {canSeeInternalDashboard && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive('/internal')}>
+                    <Link href="/internal">
+                      <Shield className="mr-2 h-4 w-4" />
+                      <span>Internal</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {user && (
                 <>
                   <div className="my-2 mx-2 border-t border-border" />
@@ -283,6 +295,7 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
     opacity: number;
     hasPositioned: boolean;
   }>({ top: 0, height: 0, opacity: 0, hasPositioned: false });
+  const canSeeInternalDashboard = isCassetteInternalAccount(user?.accountType ?? null);
 
   const isActive = (path: string) => {
     if (path === '/') {
@@ -395,6 +408,16 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {canSeeInternalDashboard && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive('/internal')}>
+                    <Link href="/internal">
+                      <Shield className="mr-2 h-4 w-4" />
+                      <span>Internal</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {user && (
                 <>
                   <div className="my-2 mx-2 border-t border-border" />

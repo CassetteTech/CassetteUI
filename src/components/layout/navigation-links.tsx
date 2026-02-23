@@ -3,22 +3,33 @@
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Compass, Music, User, Edit, LogOut, Info, Users, AlertCircle } from 'lucide-react';
+import { Home, Compass, Music, User, Edit, LogOut, Info, Users, AlertCircle, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { useReportIssue } from '@/providers/report-issue-provider';
+import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
+import type { ComponentType } from 'react';
 
 interface NavigationLinksProps {
   onLinkClick?: () => void; // To close the menu after a click
 }
 
-const navItems = [
+interface NavItem {
+  href: string;
+  icon: ComponentType<{ className?: string }>;
+  text: string;
+  auth: boolean;
+  internalOnly?: boolean;
+}
+
+const navItems: NavItem[] = [
   { href: '/', icon: Home, text: 'Home', auth: false },
   { href: '/explore', icon: Compass, text: 'Explore', auth: false },
   { href: '/about', icon: Info, text: 'About', auth: false },
   { href: '/team', icon: Users, text: 'Team', auth: false },
   { href: '/add-music', icon: Music, text: 'Add Music', auth: true },
+  { href: '/internal', icon: Shield, text: 'Internal', auth: true, internalOnly: true },
   { href: '/profile', icon: User, text: 'Profile', auth: true },
   { href: '/profile/edit', icon: Edit, text: 'Edit Profile', auth: true },
 ];
@@ -40,6 +51,7 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
     if (path === '/profile/edit') return pathname.includes('/edit');
     return pathname.startsWith(path);
   };
+  const canSeeInternalDashboard = isCassetteInternalAccount(user?.accountType ?? null);
   
   // Dynamically adjust profile links
   const dynamicNavItems = navItems.map(item => {
@@ -68,6 +80,7 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
       <div className="flex-1 space-y-2">
         {dynamicNavItems.map((item) => {
           if (item.auth && !user) return null;
+          if (item.internalOnly && !canSeeInternalDashboard) return null;
           return (
             <Link
               key={item.href}

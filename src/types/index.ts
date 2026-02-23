@@ -361,3 +361,85 @@ export interface AuthUser {
   updatedAt: string;
   connectedServices?: ConnectedService[];
 }
+
+// Internal dashboard types
+export interface InternalUserSummary {
+  userId: string;
+  username: string;
+  email: string;
+  accountType: AccountType | number | string;
+  isOnboarded: boolean;
+  joinDate: string;
+  connectedServicesCount: number;
+}
+
+export interface InternalUsersResponse {
+  items: InternalUserSummary[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  actorCanAssignVerified: boolean;
+}
+
+export interface InternalConnectedService {
+  serviceType: string;
+  connectedAt: string;
+  isValid: boolean;
+}
+
+export interface InternalUserDetail extends InternalUserSummary {
+  authUserId: string;
+  displayName?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  canAssignVerified: boolean;
+  connectedServices: InternalConnectedService[];
+}
+
+export interface InternalUserDetailResponse {
+  user: InternalUserDetail;
+  actorCanAssignVerified: boolean;
+}
+
+export interface InternalAccountTypeAuditEntry {
+  id: number;
+  targetUserId: string;
+  actorUserId: string;
+  actorUsername?: string | null;
+  actorEmail?: string | null;
+  beforeAccountType: AccountType | number | string;
+  afterAccountType: AccountType | number | string;
+  reason: string;
+  createdAt: string;
+}
+
+export interface InternalIssueSummary {
+  id: string;
+  userId?: string | null;
+  username?: string | null;
+  userEmail?: string | null;
+  reportType: string;
+  sourceContext: string;
+  pageUrl: string;
+  sourceLink?: string | null;
+  createdAt: string;
+}
+
+export interface InternalIssuesResponse {
+  items: InternalIssueSummary[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface InternalIssueDetail extends InternalIssueSummary {
+  payload: string;
+}
+
+export interface UpdateInternalAccountTypeRequest {
+  accountType: 'Regular' | 'Verified' | 'CassetteTeam';
+  canAssignVerified?: boolean;
+  reason: string;
+}

@@ -25,7 +25,8 @@ export function isCassetteInternalAccount(accountType?: string | number | null):
     return accountType === 2;
   }
 
-  return accountType.toLowerCase() === 'cassetteteam';
+  const normalized = accountType.trim().toLowerCase();
+  return normalized === '2' || normalized === 'cassetteteam' || normalized === 'cassette_team';
 }
 
 export function isDevSuppressed(explicitDevFlag?: boolean): boolean {

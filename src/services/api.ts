@@ -1,5 +1,19 @@
 import { clientConfig } from '@/lib/config-client';
-import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType, MediaListTrack, CreatePlaylistResponse, PlatformPreference } from '@/types';
+import {
+  MusicLinkConversion,
+  PostByIdResponse,
+  ConversionApiResponse,
+  ElementType,
+  MediaListTrack,
+  CreatePlaylistResponse,
+  PlatformPreference,
+  InternalUsersResponse,
+  InternalUserDetailResponse,
+  InternalAccountTypeAuditEntry,
+  InternalIssuesResponse,
+  InternalIssueDetail,
+  UpdateInternalAccountTypeRequest,
+} from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent, surfaceFromRoute } from '@/lib/analytics/client';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
@@ -75,10 +89,17 @@ class ApiService {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit & { skipAuth?: boolean } = {}
+    options: RequestInit & { skipAuth?: boolean; timeoutMs?: number } = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const headers = options.skipAuth ? { 'Content-Type': 'application/json' } : await this.getAuthHeaders();
+    const { skipAuth, timeoutMs = 60000, signal: externalSignal, ...requestOptions } = options;
+    const headers = skipAuth ? { 'Content-Type': 'application/json' } : await this.getAuthHeaders();
+    const timeoutController = new AbortController();
+    const timeoutHandle = setTimeout(() => timeoutController.abort(), timeoutMs);
+
+    if (externalSignal) {
+      externalSignal.addEventListener('abort', () => timeoutController.abort(), { once: true });
+    }
 
     console.log('🌐 API Request:', {
       url,
@@ -88,10 +109,11 @@ class ApiService {
 
     try {
       const response = await fetch(url, {
-        ...options,
+        ...requestOptions,
+        signal: timeoutController.signal,
         headers: {
           ...headers,
-          ...options.headers,
+          ...requestOptions.headers,
         },
       });
 
@@ -138,10 +160,18 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('❌ API Request Failed:', error);
+      const aborted = error instanceof DOMException
+        ? error.name === 'AbortError'
+        : error instanceof Error && error.name === 'AbortError';
+      if (aborted) {
+        throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s: ${endpoint}`);
+      }
       if (error instanceof TypeError && error.message.includes('fetch')) {
         throw new Error(`Cannot connect to API at ${url}. Is your local server running on port 5000?`);
       }
       throw error;
+    } finally {
+      clearTimeout(timeoutHandle);
     }
   }
 
@@ -352,6 +382,111 @@ class ApiService {
     return this.request(
       `/api/v1/social/posts/user/${userId}?page=${page}&limit=${limit}`
     );
+  }
+
+  // Internal dashboard endpoints
+  async getInternalUsers(params: {
+    q?: string;
+    accountType?: string;
+    isOnboarded?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}): Promise<InternalUsersResponse> {
+    const query = new URLSearchParams();
+    if (params.q) query.set('q', params.q);
+    if (params.accountType) query.set('accountType', params.accountType);
+    if (params.isOnboarded) query.set('isOnboarded', params.isOnboarded);
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request<InternalUsersResponse>(`/api/v1/internal/users${suffix}`, {
+      timeoutMs: 20000,
+    });
+  }
+
+  async getInternalUserById(userId: string): Promise<InternalUserDetailResponse> {
+    return this.request<InternalUserDetailResponse>(`/api/v1/internal/users/${userId}`, {
+      timeoutMs: 20000,
+    });
+  }
+
+  async updateInternalUserInternalAccess(
+    userId: string,
+    payload: UpdateInternalAccountTypeRequest
+  ): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(`/api/v1/internal/users/${userId}/internal-access`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+      timeoutMs: 20000,
+    });
+  }
+
+  // Backward-compatible alias for older callers
+  async updateInternalUserAccountType(
+    userId: string,
+    payload: UpdateInternalAccountTypeRequest
+  ): Promise<{ success: boolean }> {
+    return this.updateInternalUserInternalAccess(userId, payload);
+  }
+
+  async getInternalUserAccountTypeAudit(userId: string, limit = 100): Promise<InternalAccountTypeAuditEntry[]> {
+    return this.request<InternalAccountTypeAuditEntry[]>(
+      `/api/v1/internal/users/${userId}/account-type-audit?limit=${limit}`,
+      {
+        timeoutMs: 20000,
+      }
+    );
+  }
+
+  async getInternalIssues(params: {
+    q?: string;
+    reportType?: string;
+    sourceContext?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}): Promise<InternalIssuesResponse> {
+    const query = new URLSearchParams();
+    if (params.q) query.set('q', params.q);
+    if (params.reportType) query.set('reportType', params.reportType);
+    if (params.sourceContext) query.set('sourceContext', params.sourceContext);
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request<InternalIssuesResponse>(`/api/v1/internal/issues${suffix}`, {
+      timeoutMs: 20000,
+    });
+  }
+
+  async getInternalIssueById(issueId: string): Promise<InternalIssueDetail> {
+    return this.request<InternalIssueDetail>(`/api/v1/internal/issues/${issueId}`, {
+      timeoutMs: 20000,
+    });
+  }
+
+  async exportInternalUsersCsv(params: {
+    q?: string;
+    accountType?: string;
+    isOnboarded?: string;
+  } = {}): Promise<Blob> {
+    const query = new URLSearchParams();
+    if (params.q) query.set('q', params.q);
+    if (params.accountType) query.set('accountType', params.accountType);
+    if (params.isOnboarded) query.set('isOnboarded', params.isOnboarded);
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+
+    const url = `${this.baseUrl}/api/v1/internal/users/export${suffix}`;
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to export CSV' }));
+      throw new ApiError(error.message || 'Failed to export CSV');
+    }
+
+    return response.blob();
   }
 
   // Social endpoints

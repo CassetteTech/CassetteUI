@@ -17,6 +17,8 @@ interface AuthPromptModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   platform?: string;
+  title?: string;
+  description?: string;
   onBeforeNavigate?: () => void;
 }
 
@@ -24,6 +26,8 @@ export function AuthPromptModal({
   open,
   onOpenChange,
   platform,
+  title,
+  description,
   onBeforeNavigate,
 }: AuthPromptModalProps) {
   const router = useRouter();
@@ -46,6 +50,11 @@ export function AuthPromptModal({
       : platform.charAt(0).toUpperCase() + platform.slice(1)
     : 'your streaming service';
 
+  const promptTitle = title || 'Create an account to continue';
+  const promptDescription =
+    description ||
+    `Sign up for Cassette to create this playlist on ${platformName}. You'll be able to save and share playlists across all your favorite streaming platforms.`;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full max-w-md">
@@ -54,11 +63,10 @@ export function AuthPromptModal({
             <Music2 className="h-6 w-6 text-foreground" />
           </div>
           <SheetTitle className="text-center text-xl font-bold text-foreground">
-            Create an account to continue
+            {promptTitle}
           </SheetTitle>
           <SheetDescription className="text-center text-muted-foreground">
-            Sign up for Cassette to create this playlist on {platformName}.
-            You&apos;ll be able to save and share playlists across all your favorite streaming platforms.
+            {promptDescription}
           </SheetDescription>
         </SheetHeader>
 

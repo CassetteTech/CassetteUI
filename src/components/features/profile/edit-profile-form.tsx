@@ -26,6 +26,7 @@ const editProfileSchema = z.object({
     .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
   bio: z.string().optional(),
   avatarUrl: z.string().optional(),
+  likedPostsPrivacy: z.enum(['public', 'private']),
 });
 
 type EditProfileForm = z.infer<typeof editProfileSchema>;
@@ -64,6 +65,7 @@ export function EditProfileFormComponent({
       username: initialData?.username || '',
       bio: initialData?.bio || '',
       avatarUrl: initialData?.avatarUrl || '',
+      likedPostsPrivacy: initialData?.likedPostsPrivacy || initialData?.likedPostsVisibility || (initialData?.showLikedPosts === false ? 'private' : 'public'),
     },
   });
 
@@ -115,6 +117,7 @@ export function EditProfileFormComponent({
       username: initialData?.username || '',
       bio: initialData?.bio || '',
       avatarUrl: initialData?.avatarUrl || '',
+      likedPostsPrivacy: initialData?.likedPostsPrivacy || initialData?.likedPostsVisibility || (initialData?.showLikedPosts === false ? 'private' : 'public'),
     });
     setAvatarError(null);
     setUsernameError(null);
@@ -162,6 +165,7 @@ export function EditProfileFormComponent({
         bio: data.bio,
         avatarUrl: avatarFile ? undefined : data.avatarUrl,
         avatarFile,
+        likedPostsPrivacy: data.likedPostsPrivacy,
       });
 
       // Refresh the auth store with updated user data (including bio)
@@ -302,6 +306,33 @@ export function EditProfileFormComponent({
                 {errors.bio.message}
               </p>
             )}
+          </div>
+
+          <div className="w-full">
+            <label className="block text-sm font-bold text-text-primary mb-2 font-atkinson tracking-wide">
+              Liked Posts Visibility
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
+                <input
+                  type="radio"
+                  value="public"
+                  {...register('likedPostsPrivacy')}
+                />
+                <span>Public</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
+                <input
+                  type="radio"
+                  value="private"
+                  {...register('likedPostsPrivacy')}
+                />
+                <span>Private</span>
+              </label>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Controls whether other users can see your Liked tab on your profile.
+            </p>
           </div>
         </div>
 

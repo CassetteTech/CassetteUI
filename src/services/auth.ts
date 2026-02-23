@@ -377,6 +377,7 @@ class AuthService {
     const bio = userData.bio || userData.Bio;
     const isOnboardedRaw = userData.isOnboarded ?? userData.IsOnboarded ?? userData.is_onboarded;
     const accountTypeRaw = userData.accountType ?? userData.AccountType ?? userData.account_type;
+    const likedPostsPrivacyRaw = userData.likedPostsPrivacy ?? userData.LikedPostsPrivacy;
 
     return {
       id: String(userId || ''),
@@ -384,6 +385,12 @@ class AuthService {
       username: String(username || ''),
       displayName: String(userData.displayName || userData.DisplayName || username || ''),
       bio: bio ? String(bio) : undefined,
+      likedPostsPrivacy:
+        likedPostsPrivacyRaw === 'private'
+          ? 'private'
+          : likedPostsPrivacyRaw === 'public'
+            ? 'public'
+            : undefined,
       profilePicture: this.resolveAvatarUrl(userData),
       isEmailVerified: true, // Assume verified if coming from backend
       isOnboarded: isOnboardedRaw === true || isOnboardedRaw === 'true' || isOnboardedRaw === 1 || isOnboardedRaw === '1',

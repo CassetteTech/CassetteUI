@@ -10,6 +10,7 @@ import { TrackList } from '@/components/features/entity/track-list';
 import { PostDescriptionCard } from '@/components/features/post/post-description-card';
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
+import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { Button } from '@/components/ui/button';
 import { BackButton } from '@/components/ui/back-button';
@@ -25,7 +26,7 @@ import { MainContainer } from '@/components/ui/container';
 import { HeadlineText, BodyText, UIText } from '@/components/ui/typography';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { apiService } from '@/services/api';
+import { ApiError, apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { AlertCircle, Check, Copy, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
@@ -33,6 +34,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 type JoinCassetteCTAProps = {
   onClick: () => void;
@@ -75,10 +78,20 @@ type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
   sourcePlatform?: string;
   privacy?: string;
   conversionSuccessCount?: number | null;
+  likeCount?: number;
+  likedByCurrentUser?: boolean;
+};
+
+type PostLikeResponse = {
+  success: boolean;
+  postId: string;
+  liked: boolean;
+  likeCount: number;
 };
 
 export default function PostClientPage({ postId }: PostClientPageProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { isAuthenticated, isLoading, user } = useAuthState();
   const { mutate: addToProfile, isPending: isAddingToProfile } = useAddMusicToProfile();
   const [addStatus, setAddStatus] = useState<'idle' | 'added' | 'error'>('idle');
@@ -95,6 +108,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isLikePending, setIsLikePending] = useState(false);
+  const [likeAuthPromptOpen, setLikeAuthPromptOpen] = useState(false);
   const { openReportModal } = useReportIssue();
 
   // Handle delete success - redirect to profile
@@ -222,6 +237,80 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const isOwnPost = isOwnPostById || isOwnPostByUsername;
   const showAddToProfile = isAuthenticated && !isOwnPost;
 
+  const handleToggleLike = useCallback(async () => {
+    const currentPostId = postData?.postId || postId;
+    if (!currentPostId || isLikePending) return;
+
+    if (!isAuthenticated) {
+      setLikeAuthPromptOpen(true);
+      return;
+    }
+
+    const previousLiked = Boolean(postData?.likedByCurrentUser);
+    const previousLikeCount = Math.max(0, postData?.likeCount ?? 0);
+    const optimisticLiked = !previousLiked;
+    const optimisticLikeCount = Math.max(0, previousLikeCount + (optimisticLiked ? 1 : -1));
+
+    setIsLikePending(true);
+    setPostData((prev) =>
+      prev
+        ? {
+            ...prev,
+            likedByCurrentUser: optimisticLiked,
+            likeCount: optimisticLikeCount,
+          }
+        : prev
+    );
+
+    try {
+      const response = (previousLiked
+        ? await apiService.unlikePost(currentPostId)
+        : await apiService.likePost(currentPostId)) as PostLikeResponse;
+
+      setPostData((prev) =>
+        prev
+          ? {
+              ...prev,
+              likedByCurrentUser: response.liked,
+              likeCount: Math.max(0, response.likeCount),
+            }
+          : prev
+      );
+
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['user-liked-activity'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['user-activity'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['explore-activity'], refetchType: 'all' }),
+      ]);
+    } catch (error) {
+      setPostData((prev) =>
+        prev && (prev.postId || postId) === currentPostId
+          ? {
+              ...prev,
+              likedByCurrentUser: previousLiked,
+              likeCount: previousLikeCount,
+            }
+          : prev
+      );
+
+      if (error instanceof ApiError && error.status === 401) {
+        setLikeAuthPromptOpen(true);
+      } else {
+        toast.error('Failed to update like. Please try again.');
+      }
+    } finally {
+      setIsLikePending(false);
+    }
+  }, [
+    isAuthenticated,
+    isLikePending,
+    postData?.likeCount,
+    postData?.likedByCurrentUser,
+    postData?.postId,
+    postId,
+    queryClient,
+  ]);
+
   // Fetch post data
   useEffect(() => {
     const fetchPost = async () => {
@@ -264,6 +353,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             createdAt: response.createdAt,
             privacy: response.privacy,
             conversionSuccessCount: response.conversionSuccessCount,
+            likeCount: typeof response.likeCount === 'number' ? response.likeCount : 0,
+            likedByCurrentUser: Boolean(response.likedByCurrentUser),
             genres: response.details?.genres || response.metadata?.genres || [],
             albumName: response.metadata?.albumName || response.details?.album || '',
             releaseDate: response.metadata?.releaseDate || response.details?.releaseDate || null,
@@ -741,6 +832,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       description={postData?.description || ''}
                       createdAt={postData?.createdAt}
                       conversionSuccessCount={ownerVisibleConversionCount}
+                      likeCount={postData?.likeCount ?? 0}
+                      likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                      isLikePending={isLikePending}
+                      onToggleLike={handleToggleLike}
                       className="mt-6 w-full max-w-xl relative z-20"
                     />
                   )}
@@ -1025,6 +1120,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             description={postData?.description || ''}
                             createdAt={postData?.createdAt}
                             conversionSuccessCount={ownerVisibleConversionCount}
+                            likeCount={postData?.likeCount ?? 0}
+                            likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                            isLikePending={isLikePending}
+                            onToggleLike={handleToggleLike}
                             className="relative z-20"
                           />
                         )}
@@ -1409,6 +1508,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   description={postData?.description || ''}
                   createdAt={postData?.createdAt}
                   conversionSuccessCount={ownerVisibleConversionCount}
+                  likeCount={postData?.likeCount ?? 0}
+                  likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                  isLikePending={isLikePending}
+                  onToggleLike={handleToggleLike}
                   className="text-left relative z-20"
                 />
               )}
@@ -1512,6 +1615,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         postId={postId}
         postTitle={postData?.metadata?.title || 'this post'}
         onSuccess={handleDeleteSuccess}
+      />
+
+      <AuthPromptModal
+        open={likeAuthPromptOpen}
+        onOpenChange={setLikeAuthPromptOpen}
+        title="Sign in to like posts"
+        description="Create an account or sign in to like posts and keep track of your favorites."
       />
 
     </div>

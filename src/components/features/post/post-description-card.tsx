@@ -8,13 +8,17 @@ import { VerificationBadge } from '@/components/ui/verification-badge';
 import { useUserBio } from '@/hooks/use-profile';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Heart } from 'lucide-react';
 
 interface PostDescriptionCardProps {
   username: string;
   description: string;
   createdAt?: string;
   conversionSuccessCount?: number;
+  likeCount?: number;
+  likedByCurrentUser?: boolean;
+  isLikePending?: boolean;
+  onToggleLike?: () => void;
   className?: string;
 }
 
@@ -23,6 +27,10 @@ export function PostDescriptionCard({
   description,
   createdAt,
   conversionSuccessCount,
+  likeCount,
+  likedByCurrentUser,
+  isLikePending = false,
+  onToggleLike,
   className,
 }: PostDescriptionCardProps) {
   // Use React Query - will be deduplicated across all PostDescriptionCards
@@ -35,6 +43,9 @@ export function PostDescriptionCard({
   const formattedCount = hasConversionCount
     ? new Intl.NumberFormat('en-US').format(Math.max(0, conversionSuccessCount))
     : null;
+  const normalizedLikeCount = Math.max(0, likeCount ?? 0);
+  const formattedLikeCount = new Intl.NumberFormat('en-US').format(normalizedLikeCount);
+  const hasLikeData = typeof likeCount === 'number';
 
   return (
     <div
@@ -87,12 +98,39 @@ export function PostDescriptionCard({
             </BodyText>
           )}
 
-          {hasConversionCount && (
-            <div className="pt-2">
+          {(hasConversionCount || hasLikeData) && (
+            <div className="pt-2 flex items-center gap-2 flex-wrap">
+              {hasLikeData && (
+                <button
+                  type="button"
+                  onClick={onToggleLike}
+                  disabled={!onToggleLike || isLikePending}
+                  aria-label={likedByCurrentUser ? 'Unlike post' : 'Like post'}
+                  aria-pressed={likedByCurrentUser}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                    likedByCurrentUser
+                      ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300'
+                      : 'border-border bg-muted/50 text-muted-foreground hover:bg-muted',
+                    isLikePending && 'opacity-70'
+                  )}
+                >
+                  <Heart
+                    className={cn(
+                      'h-3.5 w-3.5',
+                      likedByCurrentUser ? 'fill-current' : 'fill-none'
+                    )}
+                  />
+                  <span>{formattedLikeCount}</span>
+                </button>
+              )}
+
+              {hasConversionCount && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {formattedCount} successful conversions
               </span>
+              )}
             </div>
           )}
         </div>

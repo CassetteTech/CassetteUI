@@ -61,9 +61,7 @@ export function SidebarProfileCard({
   isCurrentUser: _isCurrentUser = false,
   className = '',
 }: SidebarProfileCardProps) {
-  // _isCurrentUser is available for future use (e.g., showing edit indicator)
   void _isCurrentUser;
-
   const avatarUrl = getAvatarUrl(user);
   const connectedServices = getConnectedServices(user);
   const platformPreferences = getPlatformPreferences(user);

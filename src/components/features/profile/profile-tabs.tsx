@@ -2,20 +2,29 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { theme } from "@/lib/theme";
+import { Globe, Lock } from 'lucide-react';
 
-export type TabType = 'playlists' | 'tracks' | 'artists' | 'albums';
+export type TabType = 'playlists' | 'tracks' | 'artists' | 'albums' | 'liked';
 
 interface ProfileTabsProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
+  showLikedTab?: boolean;
+  likedTabVisibility?: 'public' | 'private';
 }
 
-export function ProfileTabs({ activeTab, onTabChange }: ProfileTabsProps) {
+export function ProfileTabs({
+  activeTab,
+  onTabChange,
+  showLikedTab = true,
+  likedTabVisibility = 'public',
+}: ProfileTabsProps) {
   const tabs: { key: TabType; label: string }[] = [
     { key: 'playlists', label: 'Playlists' },
     { key: 'tracks', label: 'Tracks' },
     { key: 'artists', label: 'Artists' },
     { key: 'albums', label: 'Albums' },
+    ...(showLikedTab ? [{ key: 'liked' as TabType, label: 'Liked' }] : []),
   ];
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -81,7 +90,14 @@ export function ProfileTabs({ activeTab, onTabChange }: ProfileTabsProps) {
               }
             `}
           >
-            {tab.label}
+            <span className="inline-flex items-center gap-1.5">
+              <span>{tab.label}</span>
+              {tab.key === 'liked' && (
+                likedTabVisibility === 'private'
+                  ? <Lock className="h-3.5 w-3.5" />
+                  : <Globe className="h-3.5 w-3.5" />
+              )}
+            </span>
           </button>
         ))}
       </div>

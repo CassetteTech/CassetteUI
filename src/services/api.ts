@@ -380,8 +380,16 @@ class ApiService {
 
   async getUserPosts(userId: string, page = 1, limit = 10) {
     return this.request(
-      `/api/v1/social/posts/user/${userId}?page=${page}&limit=${limit}`
+      `/api/v1/social/users/${userId}/posts?page=${page}&pageSize=${limit}`
     );
+  }
+
+  async getUserPostCount(userId: string): Promise<number> {
+    const response = await this.request<{ totalItems?: number }>(
+      `/api/v1/social/users/${userId}/posts?page=1&pageSize=1`,
+      { timeoutMs: 15000 }
+    );
+    return typeof response.totalItems === 'number' ? response.totalItems : 0;
   }
 
   // Internal dashboard endpoints

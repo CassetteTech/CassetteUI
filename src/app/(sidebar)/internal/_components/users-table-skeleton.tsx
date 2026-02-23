@@ -16,6 +16,7 @@ export function UsersTableSkeleton() {
             <TableCell><Skeleton className="h-4 w-10" /></TableCell>
             <TableCell><Skeleton className="h-4 w-28" /></TableCell>
             <TableCell><Skeleton className="h-4 w-6" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-8" /></TableCell>
           </TableRow>
         ))}
       </div>

@@ -37,6 +37,7 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
                 <TableHead>Onboarded</TableHead>
                 <TableHead>Join Date</TableHead>
                 <TableHead>Connected</TableHead>
+                <TableHead>Posts</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -67,6 +68,7 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
               <TableHead>Onboarded</TableHead>
               <TableHead>Join Date</TableHead>
               <TableHead>Connected</TableHead>
+              <TableHead>Posts</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -91,6 +93,7 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
                   </TableCell>
                   <TableCell>{formatDate(u.joinDate)}</TableCell>
                   <TableCell>{u.connectedServicesCount}</TableCell>
+                  <TableCell>{u.postCount ?? 0}</TableCell>
                 </TableRow>
               );
             })}
@@ -117,6 +120,7 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
               <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                 <span>{u.isOnboarded ? 'Onboarded' : 'Not onboarded'}</span>
                 <span>{u.connectedServicesCount} services</span>
+                <span>{u.postCount ?? 0} posts</span>
               </div>
             </div>
           );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Users, AlertCircle, Shield } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -21,6 +21,7 @@ import { UsersTab } from './users-tab';
 import { IssuesTab } from './issues-tab';
 
 export function InternalDashboardShell() {
+  const usersRequestIdRef = useRef(0);
   const [activeTab, setActiveTab] = useState<'users' | 'issues'>('users');
 
   // ─── Users state ───────────────────────────────────────────────────
@@ -64,9 +65,56 @@ export function InternalDashboardShell() {
   );
 
   // ─── Data loading ──────────────────────────────────────────────────
+  const hydratePostCountsIfNeeded = async (users: InternalUserSummary[], requestId: number) => {
+    if (!users.length) return;
+
+    const counts = new Map<string, number>();
+    const workerCount = Math.min(5, users.length);
+    let cursor = 0;
+
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (true) {
+        const idx = cursor;
+        cursor += 1;
+        if (idx >= users.length) break;
+
+        const user = users[idx];
+        try {
+          const detail = await apiService.getInternalUserById(user.userId);
+          const detailCount = Number(detail.user.postCount);
+          if (Number.isFinite(detailCount)) {
+            counts.set(user.userId, detailCount);
+            continue;
+          }
+
+          const fallbackCount = await apiService.getUserPostCount(user.userId);
+          counts.set(user.userId, fallbackCount);
+        } catch {
+          counts.set(user.userId, 0);
+        }
+      }
+    });
+
+    await Promise.all(workers);
+    if (requestId !== usersRequestIdRef.current) return;
+
+    setUsersResponse((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map((item) => ({
+          ...item,
+          postCount: counts.get(item.userId) ?? item.postCount ?? 0,
+        })),
+      };
+    });
+  };
+
   const loadUsers = async () => {
     setUsersLoading(true);
     setUsersError(null);
+    const requestId = usersRequestIdRef.current + 1;
+    usersRequestIdRef.current = requestId;
     try {
       const response = await apiService.getInternalUsers({
         q: debouncedUserSearch || undefined,
@@ -75,7 +123,23 @@ export function InternalDashboardShell() {
         page: usersPage,
         pageSize: PAGE_SIZE,
       });
-      setUsersResponse(response);
+      const normalizedItems = response.items.map((item) => {
+        const parsedPostCount = Number(item.postCount);
+        return {
+          ...item,
+          postCount: Number.isFinite(parsedPostCount) ? parsedPostCount : 0,
+        };
+      });
+
+      setUsersResponse({
+        ...response,
+        items: normalizedItems,
+      });
+
+      const allZero = normalizedItems.every((item) => (item.postCount ?? 0) === 0);
+      if (allZero) {
+        void hydratePostCountsIfNeeded(normalizedItems, requestId);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load users';
       setUsersError(message);

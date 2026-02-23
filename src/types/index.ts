@@ -371,6 +371,7 @@ export interface InternalUserSummary {
   isOnboarded: boolean;
   joinDate: string;
   connectedServicesCount: number;
+  postCount: number;
 }
 
 export interface InternalUsersResponse {

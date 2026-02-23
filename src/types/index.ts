@@ -282,9 +282,10 @@ export interface PostByIdResponse {
   postId: string;
   elementType: string;
   musicElementId: string;
+  userId?: string | null;
   createdAt?: string;
   privacy?: PostPrivacy;
-  conversionSuccessCount?: number;
+  conversionSuccessCount?: number | null;
   details: {
     title?: string;
     name?: string;

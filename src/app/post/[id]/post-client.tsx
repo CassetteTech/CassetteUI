@@ -60,12 +60,29 @@ interface PostClientPageProps {
   postId: string;
 }
 
+type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
+  previewUrl?: string;
+  description?: string;
+  username?: string;
+  userId?: string | null;
+  createdAt?: string;
+  genres?: string[];
+  albumName?: string;
+  releaseDate?: string | null;
+  trackCount?: number;
+  details?: { artists?: Array<{ name: string; role: string; }>; };
+  musicElementId?: string;
+  sourcePlatform?: string;
+  privacy?: string;
+  conversionSuccessCount?: number | null;
+};
+
 export default function PostClientPage({ postId }: PostClientPageProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading, user } = useAuthState();
   const { mutate: addToProfile, isPending: isAddingToProfile } = useAddMusicToProfile();
   const [addStatus, setAddStatus] = useState<'idle' | 'added' | 'error'>('idle');
-  const [postData, setPostData] = useState<MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; createdAt?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; privacy?: string; conversionSuccessCount?: number; } | null>(null);
+  const [postData, setPostData] = useState<PostPageData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Animation states
@@ -193,10 +210,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     );
   }, [addToProfile, postData?.musicElementId, postData?.metadata?.type, postData?.description, postData?.metadata?.artwork]);
 
-  const isOwnPost =
+  const isOwnPostById =
+    !!postData?.userId &&
+    !!user?.id &&
+    postData.userId.toLowerCase() === user.id.toLowerCase();
+  const isOwnPostByUsername =
+    !postData?.userId &&
     !!postData?.username &&
     !!user?.username &&
     postData.username.toLowerCase() === user.username.toLowerCase();
+  const isOwnPost = isOwnPostById || isOwnPostByUsername;
   const showAddToProfile = isAuthenticated && !isOwnPost;
 
   // Fetch post data
@@ -225,7 +248,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             response.platforms?.appleMusic?.url ||
             response.platforms?.deezer?.url ||
             '';
-          const transformedData: MusicLinkConversion & { previewUrl?: string; description?: string; username?: string; createdAt?: string; genres?: string[]; albumName?: string; releaseDate?: string | null; trackCount?: number; details?: { artists?: Array<{ name: string; role: string; }>; }; musicElementId?: string; sourcePlatform?: string; privacy?: string; conversionSuccessCount?: number; } = {
+          const transformedData: PostPageData = {
             originalUrl: originalLink,
             convertedUrls: {},
             metadata: {
@@ -237,6 +260,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             },
             description: response.description || response.caption,
             username: response.username,
+            userId: response.userId ?? null,
             createdAt: response.createdAt,
             privacy: response.privacy,
             conversionSuccessCount: response.conversionSuccessCount,
@@ -434,6 +458,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const isPlaylist = metadata.type === ElementType.PLAYLIST || detectedTypeFromUrl === 'playlist';
   const typeLabel = isTrack ? 'Track' : isAlbum ? 'Album' : isArtist ? 'Artist' : 'Playlist';
   const showTracks = (isAlbum || isPlaylist) && Array.isArray(postData?.tracks) && (postData.tracks?.length ?? 0) > 0;
+  const ownerVisibleConversionCount =
+    isPlaylist && isOwnPost && typeof postData?.conversionSuccessCount === 'number'
+      ? postData.conversionSuccessCount
+      : undefined;
   const playlistTrackCount = Array.isArray(postData?.tracks) && postData.tracks.length > 0
     ? postData.tracks.length
     : typeof postData?.trackCount === 'number'
@@ -712,7 +740,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       username={postData.username}
                       description={postData?.description || ''}
                       createdAt={postData?.createdAt}
-                      conversionSuccessCount={isPlaylist ? postData?.conversionSuccessCount : undefined}
+                      conversionSuccessCount={ownerVisibleConversionCount}
                       className="mt-6 w-full max-w-xl relative z-20"
                     />
                   )}
@@ -996,7 +1024,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             username={postData.username}
                             description={postData?.description || ''}
                             createdAt={postData?.createdAt}
-                            conversionSuccessCount={isPlaylist ? postData?.conversionSuccessCount : undefined}
+                            conversionSuccessCount={ownerVisibleConversionCount}
                             className="relative z-20"
                           />
                         )}
@@ -1380,7 +1408,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   username={postData.username}
                   description={postData?.description || ''}
                   createdAt={postData?.createdAt}
-                  conversionSuccessCount={isPlaylist ? postData?.conversionSuccessCount : undefined}
+                  conversionSuccessCount={ownerVisibleConversionCount}
                   className="text-left relative z-20"
                 />
               )}

@@ -100,6 +100,21 @@ export class ProfileService {
               ? 'public'
               : undefined
           : undefined;
+    const rawPlatformPreferences = (merged.platformPreferences ?? merged.PlatformPreferences) as
+      | Array<Record<string, unknown>>
+      | undefined;
+    const platformPreferences = rawPlatformPreferences
+      ?.map((pref) => {
+        const platformValue = pref.platform ?? pref.Platform;
+        if (!platformValue) return null;
+
+        const addedAtValue = pref.addedAt ?? pref.AddedAt;
+        return {
+          platform: String(platformValue),
+          addedAt: String(addedAtValue ?? ''),
+        };
+      })
+      .filter((pref): pref is { platform: string; addedAt: string } => pref !== null);
 
     return {
       id: String(merged.id || merged.Id || merged.userId || merged.UserId || ''),
@@ -130,6 +145,7 @@ export class ProfileService {
         merged.ConnectedServiceTypes ||
         merged.ConnectedServices ||
         []) as UserBio['connectedServices'],
+      platformPreferences,
       accountType: (merged.accountType ?? merged.AccountType ?? merged.account_type) as UserBio['accountType'],
     };
   }

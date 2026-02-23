@@ -1,7 +1,12 @@
+'use client';
+
 import Link from 'next/link';
 import { Music } from 'lucide-react';
+import { useAuthState } from '@/hooks/use-auth';
 
 export function Footer() {
+  const { user } = useAuthState();
+
   return (
     <footer className="border-t bg-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -31,11 +36,13 @@ export function Footer() {
                   Explore
                 </Link>
               </li>
-              <li>
-                <Link href="/add-music" className="text-muted-foreground hover:text-foreground">
-                  Add Music
-                </Link>
-              </li>
+              {user && (
+                <li>
+                  <Link href="/add-music" className="text-muted-foreground hover:text-foreground">
+                    Add Music
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
 

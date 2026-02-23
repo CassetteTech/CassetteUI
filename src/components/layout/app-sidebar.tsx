@@ -200,14 +200,16 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/add-music')}>
-                  <Link href="/add-music">
-                    <Music className="mr-2 h-4 w-4" />
-                    <span>Add Music</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {user && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive('/add-music')}>
+                    <Link href="/add-music">
+                      <Music className="mr-2 h-4 w-4" />
+                      <span>Add Music</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {canSeeInternalDashboard && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={isActive('/internal')}>
@@ -400,14 +402,16 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/add-music')}>
-                  <Link href="/add-music">
-                    <Music className="mr-2 h-4 w-4" />
-                    <span>Add Music</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {user && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive('/add-music')}>
+                    <Link href="/add-music">
+                      <Music className="mr-2 h-4 w-4" />
+                      <span>Add Music</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {canSeeInternalDashboard && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={isActive('/internal')}>

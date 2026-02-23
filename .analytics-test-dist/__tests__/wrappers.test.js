@@ -213,6 +213,9 @@ async function collectCapturedPayloads(fetchPayloads, beaconPayloads) {
 });
 (0, node_test_1.default)('cassette team actor classification is account-type based', () => {
     strict_1.default.equal((0, internal_suppression_1.isCassetteInternalAccount)('CassetteTeam'), true);
+    strict_1.default.equal((0, internal_suppression_1.isCassetteInternalAccount)('cassette_team'), true);
+    strict_1.default.equal((0, internal_suppression_1.isCassetteInternalAccount)('Cassette Team'), true);
+    strict_1.default.equal((0, internal_suppression_1.isCassetteInternalAccount)('cassette-team'), true);
     strict_1.default.equal((0, internal_suppression_1.isCassetteInternalAccount)(2), true);
     strict_1.default.equal((0, internal_suppression_1.isCassetteInternalAccount)('Verified'), false);
     strict_1.default.equal((0, internal_suppression_1.isCassetteInternalAccount)('Regular'), false);

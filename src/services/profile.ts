@@ -82,7 +82,7 @@ export class ProfileService {
       connectedServices: (merged.connectedServices ||
         merged.ConnectedServices ||
         []) as UserBio['connectedServices'],
-      accountType: (merged.accountType ?? merged.AccountType) as UserBio['accountType'],
+      accountType: (merged.accountType ?? merged.AccountType ?? merged.account_type) as UserBio['accountType'],
     };
   }
 

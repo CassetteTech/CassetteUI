@@ -375,17 +375,19 @@ class AuthService {
     const userId = userData.userId || userData.UserId || userData.id;
     const username = userData.username || userData.Username;
     const bio = userData.bio || userData.Bio;
+    const isOnboardedRaw = userData.isOnboarded ?? userData.IsOnboarded ?? userData.is_onboarded;
+    const accountTypeRaw = userData.accountType ?? userData.AccountType ?? userData.account_type;
 
     return {
       id: String(userId || ''),
       email: String(userData.email || userData.Email || ''),
       username: String(username || ''),
-      displayName: String(userData.displayName || username || ''),
+      displayName: String(userData.displayName || userData.DisplayName || username || ''),
       bio: bio ? String(bio) : undefined,
       profilePicture: this.resolveAvatarUrl(userData),
       isEmailVerified: true, // Assume verified if coming from backend
-      isOnboarded: Boolean(userData.isOnboarded || userData.IsOnboarded || false),
-      accountType: (userData.accountType ?? userData.AccountType) as AuthUser['accountType'],
+      isOnboarded: isOnboardedRaw === true || isOnboardedRaw === 'true' || isOnboardedRaw === 1 || isOnboardedRaw === '1',
+      accountType: accountTypeRaw as AuthUser['accountType'],
       createdAt: String(userData.joinDate || userData.createdAt || new Date().toISOString()),
       updatedAt: String(userData.updatedAt || new Date().toISOString()),
       // Include connected services from backend

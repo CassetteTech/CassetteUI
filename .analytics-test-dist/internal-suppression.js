@@ -30,7 +30,12 @@ function isCassetteInternalAccount(accountType) {
     if (typeof accountType === 'number') {
         return accountType === 2;
     }
-    return accountType.toLowerCase() === 'cassetteteam';
+    const normalized = accountType.trim().toLowerCase();
+    if (normalized === '2')
+        return true;
+    // Accept common API/text variants: CassetteTeam, cassette_team, cassette team, cassette-team.
+    const compact = normalized.replace(/[^a-z0-9]/g, '');
+    return compact === 'cassetteteam';
 }
 function isDevSuppressed(explicitDevFlag) {
     if (explicitDevFlag !== undefined) {

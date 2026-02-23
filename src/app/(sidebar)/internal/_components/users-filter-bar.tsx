@@ -49,7 +49,7 @@ export function UsersFilterBar({
       </div>
       <Select
         value={accountTypeFilter || 'all'}
-        onValueChange={(v) => onAccountTypeFilterChange(v === 'all' ? '' : v)}
+        onValueChange={(v: string) => onAccountTypeFilterChange(v === 'all' ? '' : v)}
       >
         <SelectTrigger className="w-full">
           <SelectValue placeholder="All account types" />
@@ -63,7 +63,7 @@ export function UsersFilterBar({
       </Select>
       <Select
         value={onboardedFilter || 'all'}
-        onValueChange={(v) => onOnboardedFilterChange(v === 'all' ? '' : v)}
+        onValueChange={(v: string) => onOnboardedFilterChange(v === 'all' ? '' : v)}
       >
         <SelectTrigger className="w-full">
           <SelectValue placeholder="All onboarding states" />

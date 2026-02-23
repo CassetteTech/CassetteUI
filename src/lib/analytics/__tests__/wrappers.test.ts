@@ -256,6 +256,9 @@ test('suppression logic blocks internal/demo routes but not cassette team actors
 
 test('cassette team actor classification is account-type based', () => {
   assert.equal(isCassetteInternalAccount('CassetteTeam'), true);
+  assert.equal(isCassetteInternalAccount('cassette_team'), true);
+  assert.equal(isCassetteInternalAccount('Cassette Team'), true);
+  assert.equal(isCassetteInternalAccount('cassette-team'), true);
   assert.equal(isCassetteInternalAccount(2), true);
   assert.equal(isCassetteInternalAccount('Verified'), false);
   assert.equal(isCassetteInternalAccount('Regular'), false);

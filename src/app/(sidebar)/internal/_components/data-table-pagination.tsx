@@ -35,7 +35,7 @@ export function DataTablePagination({
   };
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-xs text-muted-foreground">
         Page {page} of {safeTotalPages} &middot; {totalItems} {itemLabel}
       </p>
@@ -63,7 +63,7 @@ export function DataTablePagination({
             key={p}
             variant={p === page ? 'default' : 'outline'}
             size="icon"
-            className="h-8 w-8"
+            className="hidden h-8 w-8 sm:inline-flex"
             disabled={isLoading}
             onClick={() => onPageChange(p)}
           >

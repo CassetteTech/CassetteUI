@@ -26,7 +26,11 @@ export function isCassetteInternalAccount(accountType?: string | number | null):
   }
 
   const normalized = accountType.trim().toLowerCase();
-  return normalized === '2' || normalized === 'cassetteteam' || normalized === 'cassette_team';
+  if (normalized === '2') return true;
+
+  // Accept common API/text variants: CassetteTeam, cassette_team, cassette team, cassette-team.
+  const compact = normalized.replace(/[^a-z0-9]/g, '');
+  return compact === 'cassetteteam';
 }
 
 export function isDevSuppressed(explicitDevFlag?: boolean): boolean {

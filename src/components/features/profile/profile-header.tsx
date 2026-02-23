@@ -83,7 +83,7 @@ export function ProfileHeader({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-3 lg:flex-col lg:gap-4">
+        <div className="flex flex-wrap gap-3 lg:flex-col lg:gap-4">
           <Button
             onClick={onShare}
             className="rounded-xl gap-2 h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm lg:h-12 lg:px-6 lg:text-base"
@@ -123,7 +123,7 @@ export function ProfileHeader({
             >
               <Link href="/internal">
                 <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span>Internal Dashboard</span>
+                <span>Internal</span>
               </Link>
             </Button>
           )}

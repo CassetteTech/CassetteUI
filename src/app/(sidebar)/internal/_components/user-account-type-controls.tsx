@@ -73,7 +73,7 @@ export function UserAccountTypeControls({
         </label>
         <Select
           value={targetType}
-          onValueChange={(v) => onTargetTypeChange(v as 'Regular' | 'Verified' | 'CassetteTeam')}
+          onValueChange={(v: string) => onTargetTypeChange(v as 'Regular' | 'Verified' | 'CassetteTeam')}
           disabled={updatingAccountType}
         >
           <SelectTrigger id="internal-target-account-type">

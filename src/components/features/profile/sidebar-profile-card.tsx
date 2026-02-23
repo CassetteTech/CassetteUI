@@ -56,6 +56,16 @@ function getAccountType(user: UserBio | AuthUser): AccountType | number | undefi
   return user.accountType;
 }
 
+/**
+ * Get total likes received from UserBio (AuthUser doesn't include this field).
+ */
+function getTotalLikesReceived(user: UserBio | AuthUser): number | undefined {
+  if ('totalLikesReceived' in user && typeof user.totalLikesReceived === 'number') {
+    return user.totalLikesReceived;
+  }
+  return undefined;
+}
+
 export function SidebarProfileCard({
   user,
   isCurrentUser: _isCurrentUser = false,
@@ -68,6 +78,7 @@ export function SidebarProfileCard({
   const displayName = user.displayName || user.username;
   const bio = user.bio || '';
   const initial = user.username?.charAt(0)?.toUpperCase() || 'U';
+  const totalLikesReceived = getTotalLikesReceived(user);
 
   return (
     <div className={`mx-2 p-4 rounded-xl bg-card/50 border border-border/30 transition-colors hover:bg-card/70 min-h-[156px] ${className}`}>
@@ -116,6 +127,15 @@ export function SidebarProfileCard({
               </TooltipContent>
             )}
           </Tooltip>
+        )}
+
+        {typeof totalLikesReceived === 'number' && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">
+              {Math.max(0, totalLikesReceived).toLocaleString()}
+            </span>
+            <span>likes received</span>
+          </div>
         )}
       </div>
     </div>

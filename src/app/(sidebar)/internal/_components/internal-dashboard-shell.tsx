@@ -28,6 +28,8 @@ export function InternalDashboardShell() {
   const [userSearch, setUserSearch] = useState('');
   const [userAccountTypeFilter, setUserAccountTypeFilter] = useState('');
   const [userOnboardedFilter, setUserOnboardedFilter] = useState('');
+  const [userSortBy, setUserSortBy] = useState<'joinDate' | 'likesAllTime' | 'likes30d'>('likesAllTime');
+  const [userSortDirection, setUserSortDirection] = useState<'asc' | 'desc'>('desc');
   const [usersPage, setUsersPage] = useState(1);
   const [usersResponse, setUsersResponse] = useState<InternalUsersResponse | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -120,14 +122,20 @@ export function InternalDashboardShell() {
         q: debouncedUserSearch || undefined,
         accountType: userAccountTypeFilter || undefined,
         isOnboarded: userOnboardedFilter || undefined,
+        sortBy: userSortBy,
+        sortDirection: userSortDirection,
         page: usersPage,
         pageSize: PAGE_SIZE,
       });
       const normalizedItems = response.items.map((item) => {
         const parsedPostCount = Number(item.postCount);
+        const parsedLikesAllTime = Number(item.likesReceivedAllTime);
+        const parsedLikes30d = Number(item.likesReceived30d);
         return {
           ...item,
           postCount: Number.isFinite(parsedPostCount) ? parsedPostCount : 0,
+          likesReceivedAllTime: Number.isFinite(parsedLikesAllTime) ? parsedLikesAllTime : 0,
+          likesReceived30d: Number.isFinite(parsedLikes30d) ? parsedLikes30d : 0,
         };
       });
 
@@ -150,6 +158,8 @@ export function InternalDashboardShell() {
     debouncedUserSearch,
     userAccountTypeFilter,
     userOnboardedFilter,
+    userSortBy,
+    userSortDirection,
     usersPage,
     hydratePostCountsIfNeeded,
   ]);
@@ -295,6 +305,8 @@ export function InternalDashboardShell() {
         q: debouncedUserSearch || undefined,
         accountType: userAccountTypeFilter || undefined,
         isOnboarded: userOnboardedFilter || undefined,
+        sortBy: userSortBy,
+        sortDirection: userSortDirection,
       });
 
       const url = window.URL.createObjectURL(blob);
@@ -328,6 +340,16 @@ export function InternalDashboardShell() {
     setUsersPage(1);
   };
 
+  const handleUserSortByChange = (value: 'joinDate' | 'likesAllTime' | 'likes30d') => {
+    setUserSortBy(value);
+    setUsersPage(1);
+  };
+
+  const handleUserSortDirectionChange = (value: 'asc' | 'desc') => {
+    setUserSortDirection(value);
+    setUsersPage(1);
+  };
+
   const handleIssueSearchChange = (value: string) => {
     setIssueSearch(value);
     setIssuesPage(1);
@@ -352,7 +374,7 @@ export function InternalDashboardShell() {
     >
       {/* Header: title + tab switcher — stays fixed on desktop */}
       <div className="px-4 pt-6 pb-4 md:px-6 lg:px-8 lg:border-b lg:bg-background/80 lg:backdrop-blur-sm">
-        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4">
+        <div className="flex w-full flex-col gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
               <Shield className="h-4 w-4 text-primary" />
@@ -389,7 +411,7 @@ export function InternalDashboardShell() {
 
       {/* Content: only this area scrolls on desktop */}
       <div className="lg:flex-1 lg:overflow-y-auto">
-        <div className="mx-auto w-full max-w-[1400px] px-4 md:px-6 lg:px-8 py-6">
+        <div className="w-full px-4 md:px-6 lg:px-8 py-6">
           <TabsContent value="users">
             <UsersTab
               search={userSearch}
@@ -398,6 +420,10 @@ export function InternalDashboardShell() {
               onAccountTypeFilterChange={handleUserAccountTypeFilterChange}
               onboardedFilter={userOnboardedFilter}
               onOnboardedFilterChange={handleUserOnboardedFilterChange}
+              sortBy={userSortBy}
+              onSortByChange={handleUserSortByChange}
+              sortDirection={userSortDirection}
+              onSortDirectionChange={handleUserSortDirectionChange}
               usersResponse={usersResponse}
               usersLoading={usersLoading}
               usersError={usersError}

@@ -331,35 +331,37 @@ export default function ProfilePage() {
       </div>
 
       {/* --- DESKTOP LAYOUT --- */}
-      <div className="hidden lg:flex lg:flex-col lg:flex-1 lg:min-h-0">
-        <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b">
-          <ProfileTabs
-            activeTab={activeTab}
-            onTabChange={filterByElementType}
-            showLikedTab={likedSectionVisible}
-            likedTabVisibility={likedTabVisibility}
-          />
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {showActivitySkeleton ? (
-            <div className="p-3 sm:p-4 md:p-6 lg:p-8">
-              <ActivitySkeleton count={6} />
-            </div>
-          ) : isLikedTabPrivateError ? (
-            <div className="p-8 text-center text-muted-foreground">
-              Liked posts are private
-            </div>
-          ) : (
-            <ProfileActivity
-              posts={displayPosts}
-              isLoading={isLoadingMore}
-              onLoadMore={loadMore}
-              hasMore={allActivityPosts.length < totalItems}
-              ownerAccountType={userBio?.accountType}
-              isCurrentUser={isCurrentUser}
-              currentUserId={user?.id}
+      <div className="hidden lg:flex lg:flex-1 lg:min-h-0">
+        <div className="min-w-0 flex-1 flex flex-col">
+          <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b">
+            <ProfileTabs
+              activeTab={activeTab}
+              onTabChange={filterByElementType}
+              showLikedTab={likedSectionVisible}
+              likedTabVisibility={likedTabVisibility}
             />
-          )}
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {showActivitySkeleton ? (
+              <div className="p-3 sm:p-4 md:p-6 lg:p-8">
+                <ActivitySkeleton count={6} />
+              </div>
+            ) : isLikedTabPrivateError ? (
+              <div className="p-8 text-center text-muted-foreground">
+                Liked posts are private
+              </div>
+            ) : (
+              <ProfileActivity
+                posts={displayPosts}
+                isLoading={isLoadingMore}
+                onLoadMore={loadMore}
+                hasMore={allActivityPosts.length < totalItems}
+                ownerAccountType={userBio?.accountType}
+                isCurrentUser={isCurrentUser}
+                currentUserId={user?.id}
+              />
+            )}
+          </div>
         </div>
       </div>
     </>

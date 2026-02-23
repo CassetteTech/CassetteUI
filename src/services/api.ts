@@ -400,6 +400,8 @@ class ApiService {
     q?: string;
     accountType?: string;
     isOnboarded?: string;
+    sortBy?: 'joinDate' | 'likesAllTime' | 'likes30d';
+    sortDirection?: 'asc' | 'desc';
     page?: number;
     pageSize?: number;
   } = {}): Promise<InternalUsersResponse> {
@@ -407,6 +409,8 @@ class ApiService {
     if (params.q) query.set('q', params.q);
     if (params.accountType) query.set('accountType', params.accountType);
     if (params.isOnboarded) query.set('isOnboarded', params.isOnboarded);
+    if (params.sortBy) query.set('sortBy', params.sortBy);
+    if (params.sortDirection) query.set('sortDirection', params.sortDirection);
     if (params.page) query.set('page', String(params.page));
     if (params.pageSize) query.set('pageSize', String(params.pageSize));
     const suffix = query.toString() ? `?${query.toString()}` : '';
@@ -478,11 +482,15 @@ class ApiService {
     q?: string;
     accountType?: string;
     isOnboarded?: string;
+    sortBy?: 'joinDate' | 'likesAllTime' | 'likes30d';
+    sortDirection?: 'asc' | 'desc';
   } = {}): Promise<Blob> {
     const query = new URLSearchParams();
     if (params.q) query.set('q', params.q);
     if (params.accountType) query.set('accountType', params.accountType);
     if (params.isOnboarded) query.set('isOnboarded', params.isOnboarded);
+    if (params.sortBy) query.set('sortBy', params.sortBy);
+    if (params.sortDirection) query.set('sortDirection', params.sortDirection);
     const suffix = query.toString() ? `?${query.toString()}` : '';
 
     const url = `${this.baseUrl}/api/v1/internal/users/export${suffix}`;

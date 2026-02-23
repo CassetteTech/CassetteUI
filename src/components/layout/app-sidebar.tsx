@@ -36,18 +36,26 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const { openReportModal } = useReportIssue();
   const pathname = usePathname();
 
-  // Extract username from /profile/[username] routes to fetch profile data
-  const profileUsername = pathname?.startsWith('/profile/')
+  // Extract username from /profile/[username] routes.
+  const rawProfileSegment = pathname?.startsWith('/profile/')
     ? pathname.split('/')[2]
     : undefined;
+  const profileUsername = rawProfileSegment && rawProfileSegment !== 'edit'
+    ? rawProfileSegment
+    : undefined;
+  const sidebarUserIdentifier = profileUsername ?? user?.username;
+  const isViewingProfileRoute = Boolean(profileUsername);
 
-  // Fetch profile user when on a profile page (hook handles caching and deduplication)
-  const { data: profileUser, isLoading: isProfileLoading } = useUserBio(profileUsername);
+  // Keep a short-lived cached copy (1 minute TTL) for likes + profile card data in the sidebar.
+  const { data: sidebarUserBio, isLoading: isSidebarUserLoading } = useUserBio(sidebarUserIdentifier, {
+    staleTime: 1000 * 60,
+    gcTime: 1000 * 60 * 10,
+  });
 
   // Determine which user to display in the profile card
-  // If viewing a profile page, show that user; otherwise show logged-in user
-  const displayUser = profileUser ?? user;
-  const isViewingOwnProfile = !profileUser || (user && profileUser.username === user.username);
+  // If viewing a profile page, avoid showing the wrong user while loading.
+  const displayUser = sidebarUserBio ?? (isViewingProfileRoute ? undefined : user);
+  const isViewingOwnProfile = Boolean(user && displayUser && displayUser.username === user.username);
   const contentRef = useRef<HTMLDivElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState<{
     top: number;
@@ -97,13 +105,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
       }
     };
 
-    // Don't calculate position while profile is loading (layout will shift)
-    if (isProfileLoading) return;
+    // Don't calculate position while profile section is loading (layout can shift)
+    if (isSidebarUserLoading) return;
 
     // Delay to ensure DOM has fully settled after layout changes
     const timeoutId = setTimeout(updateIndicator, 100);
     return () => clearTimeout(timeoutId);
-  }, [pathname, user, displayUser, isProfileLoading]);
+  }, [pathname, user, displayUser, isSidebarUserLoading]);
 
   return (
     <Sidebar collapsible="none" className={`h-screen ${className}`}>
@@ -141,7 +149,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
           }}
         />
         {/* User Profile Section */}
-        {isProfileLoading ? (
+        {isSidebarUserLoading && !displayUser ? (
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarProfileCardSkeleton />
@@ -191,14 +199,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/explore')}>
-                  <Link href="/explore">
-                    <Compass className="mr-2 h-4 w-4" />
-                    <span>Explore</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
               {user && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={isActive('/add-music')}>
@@ -238,6 +238,21 @@ export function AppSidebar({ className }: AppSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4 space-y-2">
+        {/* Explore */}
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start text-muted-foreground hover:text-foreground"
+        >
+          <Link href="/explore">
+            <Compass className="mr-2 h-4 w-4" />
+            <span>Explore</span>
+          </Link>
+        </Button>
+
+        <div className="border-t border-border" />
+
         {/* Support Us */}
         <Button
           asChild
@@ -393,14 +408,6 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/explore')}>
-                  <Link href="/explore">
-                    <Compass className="mr-2 h-4 w-4" />
-                    <span>Explore</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
               {user && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={isActive('/add-music')}>
@@ -440,6 +447,21 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4 space-y-2">
+        {/* Explore */}
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start text-muted-foreground hover:text-foreground"
+        >
+          <Link href="/explore">
+            <Compass className="mr-2 h-4 w-4" />
+            <span>Explore</span>
+          </Link>
+        </Button>
+
+        <div className="border-t border-border" />
+
         {/* Support Us */}
         <Button
           asChild

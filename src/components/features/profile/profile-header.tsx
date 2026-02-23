@@ -22,6 +22,8 @@ export function ProfileHeader({
   onShare,
   onAddMusic
 }: ProfileHeaderProps) {
+  const totalLikesReceived = Number(userBio.totalLikesReceived ?? 0);
+
   return (
     <div className="text-card-foreground p-3 sm:p-4 lg:bg-transparent lg:p-0">
       <div className="flex flex-col gap-3 bg-transparent p-4 lg:p-0 rounded-lg lg:rounded-none">
@@ -80,6 +82,11 @@ export function ProfileHeader({
             services={userBio.connectedServices}
             platformPreferences={userBio.platformPreferences}
           />
+        </div>
+
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="font-semibold text-card-foreground">{totalLikesReceived.toLocaleString()}</span>
+          <span>likes received</span>
         </div>
 
         {/* Action Buttons */}

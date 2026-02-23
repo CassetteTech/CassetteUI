@@ -17,6 +17,7 @@ export interface UserBio {
   likedPostsVisibility?: 'public' | 'private';
   showLikedPosts?: boolean;
   accountType?: AccountType | number; // API returns integer, frontend uses enum
+  totalLikesReceived?: number;
   connectedServices: ConnectedService[];
   platformPreferences?: PlatformPreferenceInfo[];
 }
@@ -381,6 +382,8 @@ export interface InternalUserSummary {
   joinDate: string;
   connectedServicesCount: number;
   postCount: number;
+  likesReceivedAllTime: number;
+  likesReceived30d: number;
 }
 
 export interface InternalUsersResponse {

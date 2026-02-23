@@ -167,6 +167,14 @@ export function UserDetailPanel({
                   ))}
                 </div>
               </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Likes (All)</p>
+                <p className="text-xs font-medium">{Number(user.likesReceivedAllTime ?? 0).toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Likes (30d)</p>
+                <p className="text-xs font-medium">{Number(user.likesReceived30d ?? 0).toLocaleString()}</p>
+              </div>
             </div>
 
             {/* Account Type Controls */}

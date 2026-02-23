@@ -21,13 +21,28 @@ export const profileQueryKeys = {
  * React Query handles deduplication - multiple components can call this
  * with the same userIdentifier and only one network request is made.
  */
-export const useUserBio = (userIdentifier: string | undefined) => {
+interface UserBioQueryOptions {
+  enabled?: boolean;
+  staleTime?: number;
+  gcTime?: number;
+}
+
+export const useUserBio = (
+  userIdentifier: string | undefined,
+  options: UserBioQueryOptions = {}
+) => {
+  const {
+    enabled = true,
+    staleTime = 1000 * 60 * 5,
+    gcTime = 1000 * 60 * 10,
+  } = options;
+
   return useQuery<UserBio, Error>({
     queryKey: profileQueryKeys.bio(userIdentifier ?? ''),
     queryFn: () => profileService.fetchUserBio(userIdentifier!),
-    enabled: !!userIdentifier,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
+    enabled: !!userIdentifier && enabled,
+    staleTime,
+    gcTime,
   });
 };
 

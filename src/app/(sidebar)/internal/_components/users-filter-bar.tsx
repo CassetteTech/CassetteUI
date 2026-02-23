@@ -18,6 +18,10 @@ interface UsersFilterBarProps {
   onAccountTypeFilterChange: (value: string) => void;
   onboardedFilter: string;
   onOnboardedFilterChange: (value: string) => void;
+  sortBy: 'joinDate' | 'likesAllTime' | 'likes30d';
+  onSortByChange: (value: 'joinDate' | 'likesAllTime' | 'likes30d') => void;
+  sortDirection: 'asc' | 'desc';
+  onSortDirectionChange: (value: 'asc' | 'desc') => void;
   isLoading: boolean;
   downloadingCsv: boolean;
   onRefresh: () => void;
@@ -31,13 +35,17 @@ export function UsersFilterBar({
   onAccountTypeFilterChange,
   onboardedFilter,
   onOnboardedFilterChange,
+  sortBy,
+  onSortByChange,
+  sortDirection,
+  onSortDirectionChange,
   isLoading,
   downloadingCsv,
   onRefresh,
   onExportCsv,
 }: UsersFilterBarProps) {
   return (
-    <div className="grid gap-3 md:grid-cols-4">
+    <div className="grid gap-3 md:grid-cols-6">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         <Input
@@ -72,6 +80,31 @@ export function UsersFilterBar({
           <SelectItem value="all">All onboarding states</SelectItem>
           <SelectItem value="true">Onboarded</SelectItem>
           <SelectItem value="false">Not onboarded</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select
+        value={sortBy}
+        onValueChange={(v: 'joinDate' | 'likesAllTime' | 'likes30d') => onSortByChange(v)}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Sort by" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="likesAllTime">Likes (all-time)</SelectItem>
+          <SelectItem value="likes30d">Likes (30d)</SelectItem>
+          <SelectItem value="joinDate">Join date</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select
+        value={sortDirection}
+        onValueChange={(v: 'asc' | 'desc') => onSortDirectionChange(v)}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Direction" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="desc">Descending</SelectItem>
+          <SelectItem value="asc">Ascending</SelectItem>
         </SelectContent>
       </Select>
       <div className="flex gap-2">

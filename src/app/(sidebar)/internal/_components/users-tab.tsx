@@ -18,6 +18,10 @@ interface UsersTabProps {
   onAccountTypeFilterChange: (value: string) => void;
   onboardedFilter: string;
   onOnboardedFilterChange: (value: string) => void;
+  sortBy: 'joinDate' | 'likesAllTime' | 'likes30d';
+  onSortByChange: (value: 'joinDate' | 'likesAllTime' | 'likes30d') => void;
+  sortDirection: 'asc' | 'desc';
+  onSortDirectionChange: (value: 'asc' | 'desc') => void;
 
   // Table state
   usersResponse: InternalUsersResponse | null;
@@ -61,6 +65,10 @@ export function UsersTab({
   onAccountTypeFilterChange,
   onboardedFilter,
   onOnboardedFilterChange,
+  sortBy,
+  onSortByChange,
+  sortDirection,
+  onSortDirectionChange,
   usersResponse,
   usersLoading,
   usersError,
@@ -103,6 +111,10 @@ export function UsersTab({
               onAccountTypeFilterChange={onAccountTypeFilterChange}
               onboardedFilter={onboardedFilter}
               onOnboardedFilterChange={onOnboardedFilterChange}
+              sortBy={sortBy}
+              onSortByChange={onSortByChange}
+              sortDirection={sortDirection}
+              onSortDirectionChange={onSortDirectionChange}
               isLoading={usersLoading}
               downloadingCsv={downloadingCsv}
               onRefresh={onRefresh}

@@ -27,17 +27,19 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
     return (
       <>
         {/* Desktop skeleton */}
-        <div className="hidden lg:block">
+        <div className="hidden lg:block overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Username</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Account Type</TableHead>
-                <TableHead>Onboarded</TableHead>
-                <TableHead>Join Date</TableHead>
-                <TableHead>Connected</TableHead>
-                <TableHead>Posts</TableHead>
+                <TableHead className="whitespace-nowrap">Username</TableHead>
+                <TableHead className="whitespace-nowrap">Email</TableHead>
+                <TableHead className="whitespace-nowrap">Account Type</TableHead>
+                <TableHead className="whitespace-nowrap">Onboarded</TableHead>
+                <TableHead className="whitespace-nowrap">Join Date</TableHead>
+                <TableHead className="whitespace-nowrap">Connected</TableHead>
+                <TableHead className="whitespace-nowrap">Posts</TableHead>
+                <TableHead className="whitespace-nowrap">Likes (All)</TableHead>
+                <TableHead className="whitespace-nowrap">Likes (30d)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -58,17 +60,19 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
   return (
     <>
       {/* Desktop table */}
-      <div className="hidden lg:block">
+      <div className="hidden lg:block overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Username</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Account Type</TableHead>
-              <TableHead>Onboarded</TableHead>
-              <TableHead>Join Date</TableHead>
-              <TableHead>Connected</TableHead>
-              <TableHead>Posts</TableHead>
+              <TableHead className="whitespace-nowrap">Username</TableHead>
+              <TableHead className="whitespace-nowrap">Email</TableHead>
+              <TableHead className="whitespace-nowrap">Account Type</TableHead>
+              <TableHead className="whitespace-nowrap">Onboarded</TableHead>
+              <TableHead className="whitespace-nowrap">Join Date</TableHead>
+              <TableHead className="whitespace-nowrap">Connected</TableHead>
+              <TableHead className="whitespace-nowrap">Posts</TableHead>
+              <TableHead className="whitespace-nowrap">Likes (All)</TableHead>
+              <TableHead className="whitespace-nowrap">Likes (30d)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -81,19 +85,21 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
                   className={`cursor-pointer transition-colors ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : 'hover:bg-muted/40'}`}
                   onClick={() => onSelectUser(u)}
                 >
-                  <TableCell className="font-medium">{u.username}</TableCell>
-                  <TableCell>{u.email}</TableCell>
-                  <TableCell>
+                  <TableCell className="font-medium whitespace-nowrap">{u.username}</TableCell>
+                  <TableCell className="whitespace-nowrap">{u.email}</TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <Badge variant={accountTypeBadgeVariant(accountType)} className={accountTypeBadgeClassName(accountType)}>{accountType}</Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <Badge variant={u.isOnboarded ? 'default' : 'outline'} className={u.isOnboarded ? 'bg-success text-white' : ''}>
                       {u.isOnboarded ? 'Yes' : 'No'}
                     </Badge>
                   </TableCell>
-                  <TableCell>{formatDate(u.joinDate)}</TableCell>
-                  <TableCell>{u.connectedServicesCount}</TableCell>
-                  <TableCell>{u.postCount ?? 0}</TableCell>
+                  <TableCell className="whitespace-nowrap">{formatDate(u.joinDate)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{u.connectedServicesCount}</TableCell>
+                  <TableCell className="whitespace-nowrap">{u.postCount ?? 0}</TableCell>
+                  <TableCell className="whitespace-nowrap">{Number(u.likesReceivedAllTime ?? 0).toLocaleString()}</TableCell>
+                  <TableCell className="whitespace-nowrap">{Number(u.likesReceived30d ?? 0).toLocaleString()}</TableCell>
                 </TableRow>
               );
             })}
@@ -121,6 +127,8 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
                 <span>{u.isOnboarded ? 'Onboarded' : 'Not onboarded'}</span>
                 <span>{u.connectedServicesCount} services</span>
                 <span>{u.postCount ?? 0} posts</span>
+                <span>{Number(u.likesReceivedAllTime ?? 0).toLocaleString()} all-time likes</span>
+                <span>{Number(u.likesReceived30d ?? 0).toLocaleString()} 30d likes</span>
               </div>
             </div>
           );

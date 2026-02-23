@@ -141,6 +141,12 @@ export class ProfileService {
       showLikedPosts: normalizedLikedPostsPrivacy
         ? normalizedLikedPostsPrivacy === 'public'
         : Boolean(merged.showLikedPosts ?? merged.ShowLikedPosts ?? true),
+      totalLikesReceived: Number(
+        merged.totalLikesReceived ??
+        merged.TotalLikesReceived ??
+        merged.total_likes_received ??
+        0
+      ) || 0,
       connectedServices: (merged.connectedServices ||
         merged.ConnectedServiceTypes ||
         merged.ConnectedServices ||

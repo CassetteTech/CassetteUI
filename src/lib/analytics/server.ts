@@ -27,7 +27,7 @@ export async function captureServerEvent<E extends AnalyticsEventName>(
 
   const withActor: AnalyticsBaseProps = {
     ...props,
-    internal_actor: props.internal_actor ?? isCassetteInternalAccount(props.account_type),
+    internal_actor: isCassetteInternalAccount(props.account_type),
   };
   const sanitized = sanitizeAnalyticsProps(withCoreAction(event, withActor));
 

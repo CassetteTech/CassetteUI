@@ -342,10 +342,9 @@ const insightDefinitions = [
       insight: 'TRENDS',
       interval: 'day',
       display: 'ActionsBar',
-      events: elementTypes.map((elementType) => postPlatformConversionEvent({
-        name: `post_platform_conversion_clicked (${elementType})`,
-        elementType,
-      })),
+      events: [postPlatformConversionEvent()],
+      breakdown: 'element_type',
+      breakdown_type: 'event',
     },
   },
   {
@@ -542,10 +541,9 @@ const internalInsightDefinitions = withInternalActorFilter([
       insight: 'TRENDS',
       interval: 'day',
       display: 'ActionsBar',
-      events: elementTypes.map((elementType) => postPlatformConversionEvent({
-        name: `post_platform_conversion_clicked (${elementType})`,
-        elementType,
-      })),
+      events: [postPlatformConversionEvent()],
+      breakdown: 'element_type',
+      breakdown_type: 'event',
     },
   },
   {
@@ -676,7 +674,21 @@ async function listAll(path) {
 
 async function upsertInsight(definition, dashboardId) {
   const insights = await listAll(`${scopePath}/insights/`);
-  const existing = insights.find((insight) => insight.name === definition.name);
+  const namedMatches = insights.filter((insight) => insight.name === definition.name);
+
+  if (namedMatches.length > 1) {
+    const ids = namedMatches.map((insight) => insight.id).filter(Boolean).join(', ');
+    console.warn(`Multiple insights named "${definition.name}" found (${ids || 'unknown ids'}).`);
+  }
+
+  let existing = namedMatches[0];
+  if (dashboardId && namedMatches.length > 1) {
+    const attached = namedMatches.find((insight) => Array.isArray(insight.dashboards)
+      && insight.dashboards.includes(dashboardId));
+    if (attached) {
+      existing = attached;
+    }
+  }
 
   const payload = {
     name: definition.name,
@@ -687,7 +699,7 @@ async function upsertInsight(definition, dashboardId) {
   };
 
   if (existing) {
-    console.log(`Updating insight: ${definition.name}`);
+    console.log(`Updating insight: ${definition.name} (${existing.id})`);
     if (dryRun) return { ...existing, id: existing.id || `${definition.key}-existing` };
     return await api(`${scopePath}/insights/${existing.id}/`, { method: 'PATCH', body: payload });
   }

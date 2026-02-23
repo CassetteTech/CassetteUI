@@ -710,7 +710,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   </div>
                   {/* Info Card (moved from right) */}
                   {(isAlbum || isPlaylist) && (
-                    <div className="p-8 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg w-full max-w-xl">
+                    <div className="p-8 rounded-2xl border border-border bg-card shadow-lg w-full max-w-xl">
                       <div className="space-y-6">
                         <HeadlineText className="text-3xl font-bold text-foreground text-center leading-tight">
                           {metadata.title}
@@ -841,7 +841,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   )}
                   {/* Streaming Links (moved from right) */}
                   {(isAlbum || isPlaylist) && (
-                    <div className="mt-6 p-8 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg relative z-10 w-full max-w-xl">
+                    <div className="mt-6 p-8 rounded-2xl border border-border bg-card shadow-lg relative z-10 w-full max-w-xl">
                       <h3 className="text-xl font-semibold text-card-foreground mb-6 text-center">Listen Now</h3>
                         {isPlaylist ? (
                           <PlaylistStreamingLinks
@@ -911,8 +911,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   <div className="space-y-8">
                     {/* Track list for album/playlist */}
                     {showTracks && (
-                      <div className="rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 overflow-hidden shadow-lg backdrop-blur-md">
-                        <div className="p-5 border-b border-border/30 bg-gradient-to-r from-card/20 to-transparent">
+                      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-lg">
+                        <div className="p-5 border-b border-border bg-muted/50">
                           <h3 className="text-lg font-semibold text-foreground">
                             {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
                           </h3>
@@ -1048,7 +1048,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     <div className="py-8 pb-16 min-h-[calc(100vh-140px)] flex flex-col justify-center">
                       <div className="space-y-6">
                         {/* Info Card */}
-                        <div className="p-6 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg">
+                        <div className="p-6 rounded-2xl border border-border bg-card shadow-lg">
                           <div className="space-y-3">
                             <HeadlineText className="text-xl font-bold text-foreground text-center">
                               {metadata.title}
@@ -1128,7 +1128,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           />
                         )}
                         {/* Streaming Links */}
-                        <div className="p-6 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg relative z-10">
+                        <div className="p-6 rounded-2xl border border-border bg-card shadow-lg relative z-10">
                           <h3 className="text-lg font-semibold text-card-foreground mb-4">Listen Now</h3>
                           {isPlaylist ? (
                             <PlaylistStreamingLinks
@@ -1327,7 +1327,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               </div>
 
               {/* Track Information Card - Mobile */}
-              <div className="p-4 sm:p-5 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg">
+              <div className="p-4 sm:p-5 rounded-2xl border border-border bg-card shadow-lg">
                 <div className="space-y-3 sm:space-y-4">
                   {/* Title */}
                   <HeadlineText className="text-lg sm:text-xl font-bold text-foreground text-center leading-tight">
@@ -1482,8 +1482,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
 
               {/* Track list for album/playlist - mobile */}
               {showTracks && (
-                <div className="rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 overflow-hidden shadow-lg backdrop-blur-md">
-                  <div className="p-3 sm:p-4 border-b border-border/30 bg-gradient-to-r from-card/20 to-transparent">
+                <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-lg">
+                  <div className="p-3 sm:p-4 border-b border-border bg-muted/50">
                     <h3 className="text-sm sm:text-base font-semibold text-foreground text-center">
                       {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
                     </h3>
@@ -1517,7 +1517,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               )}
 
               {/* Streaming Links Container */}
-              <div className="p-4 sm:p-5 rounded-2xl border border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shadow-lg relative z-10">
+              <div className="p-4 sm:p-5 rounded-2xl border border-border bg-card shadow-lg relative z-10">
                 <h3 className="text-base sm:text-lg font-semibold text-card-foreground mb-3 sm:mb-4 text-center">Listen Now</h3>
                 {isPlaylist ? (
                   <PlaylistStreamingLinks

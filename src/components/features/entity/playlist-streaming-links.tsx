@@ -382,8 +382,8 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   return (
     <div
       className={cn(
-        'p-3 sm:p-4 md:p-6 rounded-2xl bg-foreground/5 border border-foreground/10',
-        'shadow-sm backdrop-blur-sm',
+        'p-3 sm:p-4 md:p-6 rounded-2xl bg-card border border-border',
+        'shadow-sm',
         className,
       )}
     >
@@ -408,8 +408,8 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
           const commonClasses = cn(
             'group relative flex items-center justify-center',
             'px-3 py-2 sm:px-4 sm:py-2.5 rounded-full transition-all duration-200',
-            'border-2 border-foreground/60 text-foreground',
-            'bg-card/80 hover:bg-card text-sm font-medium backdrop-blur-sm',
+            'border-2 border-border text-foreground',
+            'bg-muted hover:bg-muted/80 text-sm font-medium',
             isLoading && 'opacity-50 cursor-not-allowed',
             isCreated && 'border-success bg-success/10',
           );

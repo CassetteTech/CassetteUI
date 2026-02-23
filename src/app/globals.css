@@ -629,6 +629,17 @@
     --pullquote-bg: 210 10% 22%;           /* Dark tint for pull-quotes */
     --number-display: 349 89% 65%;         /* Decorative numbers */
   }
+
+  /* Force light surface colors regardless of theme (e.g. search bar) */
+  .force-light-surface {
+    --card: 44 100% 97%;
+    --card-foreground: 210 10% 14%;
+    --border: 35 25% 75%;
+    --muted: 38 30% 85%;
+    --muted-foreground: 30 20% 38%;
+    --foreground: 210 10% 14%;
+    --input: 38 30% 85%;
+  }
 }
 
 @layer base {

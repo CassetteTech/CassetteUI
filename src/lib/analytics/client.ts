@@ -350,7 +350,7 @@ export async function captureClientEvent<E extends AnalyticsEventName>(
     source_surface: props.source_surface || sharedContext.source_surface || surfaceFromRoute(route),
     is_authenticated: props.is_authenticated ?? sharedContext.is_authenticated,
     user_id: props.user_id || sharedContext.user_id,
-    internal_actor: props.internal_actor ?? resolveInternalActor(props.account_type ?? sharedContext.account_type),
+    internal_actor: resolveInternalActor(props.account_type ?? sharedContext.account_type),
   };
 
   if (shouldSuppressClientCapture({

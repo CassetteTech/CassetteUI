@@ -501,7 +501,7 @@ export default function HomePage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 24 }}
                   transition={{ type: 'spring', damping: 25, stiffness: 250, delay: 0.08 }}
-                  className="lg:hidden search-container fixed top-[8.5rem] left-0 right-0 bottom-0 z-40 overflow-y-auto bg-background"
+                  className="lg:hidden search-container fixed top-[8.5rem] left-0 right-0 bottom-0 z-40 overflow-y-auto bg-card force-light-surface"
                 >
                   <SearchResults
                     results={displayData}

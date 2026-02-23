@@ -83,8 +83,8 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
   
   return (
     <div className={cn(
-      "p-3 sm:p-4 md:p-6 rounded-2xl bg-foreground/5 border border-foreground/10",
-      "shadow-sm backdrop-blur-sm",
+      "p-3 sm:p-4 md:p-6 rounded-2xl bg-card border border-border",
+      "shadow-sm",
       className
     )}>
       <div className="flex flex-wrap gap-2 justify-center">
@@ -134,9 +134,9 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                 "group relative flex items-center justify-center",
                 "px-3 py-2 sm:px-4 sm:py-2.5 rounded-full transition-all duration-200",
                 "hover:scale-105 hover:shadow-lg",
-                "border-2 border-foreground/60 text-foreground",
-                "bg-card/80 hover:bg-card",
-                "text-sm font-medium backdrop-blur-sm"
+                "border-2 border-border text-foreground",
+                "bg-muted hover:bg-muted/80",
+                "text-sm font-medium"
               )}
             >
               {/* Icon */}

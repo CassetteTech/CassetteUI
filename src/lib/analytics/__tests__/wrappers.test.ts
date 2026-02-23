@@ -245,6 +245,42 @@ test('identifyClientUser respects internal/demo suppression', { concurrency: fal
   process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
 });
 
+test('captureClientEvent derives internal_actor from account_type only', { concurrency: false }, async () => {
+  const previousKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  const previousDevFlag = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV;
+  process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_test_key';
+  process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = 'true';
+  resetAnalyticsContextForTests();
+
+  const mocks = setupBrowserMocks('/profile/test');
+  await captureClientEvent('profile_viewed', {
+    route: '/profile/test',
+    source_surface: 'profile',
+    account_type: 'Regular',
+    internal_actor: true,
+  });
+
+  await captureClientEvent('profile_viewed', {
+    route: '/profile/test',
+    source_surface: 'profile',
+    account_type: 'CassetteTeam',
+    internal_actor: false,
+  });
+
+  const captured = await collectCapturedPayloads(mocks.fetchPayloads, mocks.beaconPayloads);
+  const profileEvents = captured.filter((payload) => payload.event === 'profile_viewed');
+
+  const regularProps = profileEvents[0]?.properties as Record<string, unknown> | undefined;
+  const teamProps = profileEvents[1]?.properties as Record<string, unknown> | undefined;
+
+  assert.equal(regularProps?.internal_actor, false);
+  assert.equal(teamProps?.internal_actor, true);
+
+  mocks.restore();
+  process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
+  process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
+});
+
 test('suppression logic blocks internal/demo routes but not cassette team actors', () => {
   assert.equal(isInternalOrDemoRoute('/debug'), true);
   assert.equal(isInternalOrDemoRoute('/demo/profile'), true);

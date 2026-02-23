@@ -156,10 +156,7 @@ export const TrackList: React.FC<TrackListProps> = ({
   return (
     <div
       className={cn(
-        // Enhanced glass morphism container
-        'rounded-xl border border-border/30 bg-card/20 backdrop-blur-md overflow-hidden shadow-lg',
-        // Subtle inner glow effect
-        'before:absolute before:inset-0 before:rounded-xl before:bg-gradient-to-br before:from-white/10 before:to-transparent before:pointer-events-none before:z-0',
+        'rounded-xl border border-border bg-card overflow-hidden shadow-lg',
         'relative',
         className
       )}
@@ -172,7 +169,7 @@ export const TrackList: React.FC<TrackListProps> = ({
       )}>
         {/* Header for desktop */}
         <div className={cn(
-          'hidden sm:grid grid-cols-[auto_1fr_auto] px-4 py-3 text-xs text-muted-foreground/70 border-b border-border/20 sticky top-0 bg-card/80 backdrop-blur-md z-10 font-semibold',
+          'hidden sm:grid grid-cols-[auto_1fr_auto] px-4 py-3 text-xs text-muted-foreground/70 border-b border-border sticky top-0 bg-card z-10 font-semibold',
           compact && 'hidden'
         )}
         >

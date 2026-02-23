@@ -161,7 +161,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         <div className="absolute inset-0 translate-x-1 translate-y-1 bg-muted-foreground rounded-lg" />
 
         {/* Main container */}
-        <div className="relative bg-card rounded-lg border-2 border-foreground">
+        <div className="relative bg-card rounded-lg border-2 border-foreground force-light-surface">
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 border-b-2 border-foreground">
             <h3 className="text-sm sm:text-lg font-bold text-foreground font-atkinson">

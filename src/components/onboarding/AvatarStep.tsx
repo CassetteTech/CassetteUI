@@ -238,23 +238,12 @@ export function AvatarStep({
         <Button variant="outline" onClick={onBack}>
           Back
         </Button>
-        <div className="flex gap-2">
-          {!formData.avatarFile && (
-            <Button
-              variant="ghost"
-              onClick={handlePrimaryAction}
-              className="text-muted-foreground"
-            >
-              Skip for now
-            </Button>
-          )}
-          <Button
-            onClick={handlePrimaryAction}
-            className="px-8"
-          >
-            {isLastStep ? 'Finish' : 'Next'}
-          </Button>
-        </div>
+        <Button
+          onClick={handlePrimaryAction}
+          className="px-8"
+        >
+          {isLastStep ? 'Finish' : 'Next'}
+        </Button>
       </div>
     </motion.div>
   );

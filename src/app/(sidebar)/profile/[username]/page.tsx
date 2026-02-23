@@ -120,7 +120,7 @@ export default function ProfilePage() {
     } else {
       navigator.clipboard.writeText(shareUrl);
     }
-  }, [userBio]);
+  }, [userBio, user]);
 
   useEffect(() => {
     if (!userBio) return;
@@ -131,7 +131,7 @@ export default function ProfilePage() {
       user_id: user?.id,
       is_authenticated: Boolean(user),
     });
-  }, [userBio?.username, user?.id, user]);
+  }, [userBio, user]);
 
   const handleAddMusic = useCallback(() => {
     router.push('/add-music');

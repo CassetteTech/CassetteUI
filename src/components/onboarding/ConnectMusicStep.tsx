@@ -340,24 +340,13 @@ export function ConnectMusicStep({
         <Button variant="outline" onClick={onBack}>
           Back
         </Button>
-        <div className="flex gap-2">
-          {selectedCount === 0 && (
-            <Button
-              variant="ghost"
-              onClick={handlePrimaryAction}
-              className="text-muted-foreground"
-            >
-              Skip for now
-            </Button>
-          )}
-          <Button
-            onClick={handlePrimaryAction}
-            className="px-8 gap-2"
-          >
-            <Music className="w-4 h-4" />
-            {isLastStep ? 'Finish Setup' : 'Next'}
-          </Button>
-        </div>
+        <Button
+          onClick={handlePrimaryAction}
+          className="px-8 gap-2"
+        >
+          <Music className="w-4 h-4" />
+          {isLastStep ? 'Finish Setup' : 'Next'}
+        </Button>
       </div>
     </motion.div>
   );

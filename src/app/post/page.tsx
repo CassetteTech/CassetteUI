@@ -237,7 +237,7 @@ function PostPageContent() {
     if (!urlParam && !dataParam && !postIdParam) {
       setError('No data provided');
     }
-  }, [searchParams, router, convertLink, postIdParam, urlParam, dataParam, descriptionParam, resolvedPostId]);
+  }, [searchParams, router, convertLink, postIdParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvedPostId]);
 
   // Show error state
   if (error) {

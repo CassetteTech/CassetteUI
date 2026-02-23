@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import {
@@ -12,6 +12,7 @@ import {
 } from '@/lib/analytics/client';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const pathname = usePathname();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -52,6 +53,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       accountType: user.accountType,
     });
   }, [user?.id, user?.accountType, isAuthenticated]);
+
+  useEffect(() => {
+    if (isLoading || !user) {
+      return;
+    }
+
+    if (!user.isOnboarded && !pathname.startsWith('/onboarding')) {
+      router.replace('/onboarding');
+    }
+  }, [isLoading, user, pathname, router]);
 
   return <>{children}</>;
 }

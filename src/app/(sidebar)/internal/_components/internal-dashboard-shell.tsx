@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Users, AlertCircle, Shield } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -65,7 +65,7 @@ export function InternalDashboardShell() {
   );
 
   // ─── Data loading ──────────────────────────────────────────────────
-  const hydratePostCountsIfNeeded = async (users: InternalUserSummary[], requestId: number) => {
+  const hydratePostCountsIfNeeded = useCallback(async (users: InternalUserSummary[], requestId: number) => {
     if (!users.length) return;
 
     const counts = new Map<string, number>();
@@ -108,9 +108,9 @@ export function InternalDashboardShell() {
         })),
       };
     });
-  };
+  }, []);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setUsersLoading(true);
     setUsersError(null);
     const requestId = usersRequestIdRef.current + 1;
@@ -146,7 +146,13 @@ export function InternalDashboardShell() {
     } finally {
       setUsersLoading(false);
     }
-  };
+  }, [
+    debouncedUserSearch,
+    userAccountTypeFilter,
+    userOnboardedFilter,
+    usersPage,
+    hydratePostCountsIfNeeded,
+  ]);
 
   const loadUserDetails = async (userId: string) => {
     setSelectedUserLoading(true);
@@ -181,7 +187,7 @@ export function InternalDashboardShell() {
     }
   };
 
-  const loadIssues = async () => {
+  const loadIssues = useCallback(async () => {
     setIssuesLoading(true);
     setIssuesError(null);
     try {
@@ -199,7 +205,7 @@ export function InternalDashboardShell() {
     } finally {
       setIssuesLoading(false);
     }
-  };
+  }, [debouncedIssueSearch, issueReportTypeFilter, issueSourceContextFilter, issuesPage]);
 
   const loadIssueDetail = async (issueId: string) => {
     setSelectedIssueLoading(true);
@@ -217,13 +223,13 @@ export function InternalDashboardShell() {
   // ─── Effects ───────────────────────────────────────────────────────
   useEffect(() => {
     void loadUsers();
-  }, [debouncedUserSearch, userAccountTypeFilter, userOnboardedFilter, usersPage]);
+  }, [loadUsers]);
 
   useEffect(() => {
     if (activeTab === 'issues') {
       void loadIssues();
     }
-  }, [activeTab, debouncedIssueSearch, issueReportTypeFilter, issueSourceContextFilter, issuesPage]);
+  }, [activeTab, loadIssues]);
 
   // ─── Handlers ──────────────────────────────────────────────────────
   const handleSelectUser = async (summary: InternalUserSummary) => {

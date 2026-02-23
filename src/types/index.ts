@@ -13,6 +13,9 @@ export interface UserBio {
   bio: string;
   avatarUrl: string;
   isOwnProfile: boolean;
+  likedPostsPrivacy?: 'public' | 'private';
+  likedPostsVisibility?: 'public' | 'private';
+  showLikedPosts?: boolean;
   accountType?: AccountType | number; // API returns integer, frontend uses enum
   connectedServices: ConnectedService[];
   platformPreferences?: PlatformPreferenceInfo[];
@@ -49,6 +52,8 @@ export interface ActivityPost {
   username: string;
   userId: string;
   createdAt: string;
+  likeCount?: number;
+  likedByCurrentUser?: boolean;
 }
 
 export interface PaginatedActivityResponse {
@@ -286,6 +291,8 @@ export interface PostByIdResponse {
   createdAt?: string;
   privacy?: PostPrivacy;
   conversionSuccessCount?: number | null;
+  likeCount?: number;
+  likedByCurrentUser?: boolean;
   details: {
     title?: string;
     name?: string;
@@ -354,6 +361,7 @@ export interface AuthUser {
   username: string;
   displayName: string;
   bio?: string;
+  likedPostsPrivacy?: 'public' | 'private';
   profilePicture: string;
   isEmailVerified: boolean;
   isOnboarded: boolean;

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
-import { useUserBio, useUserActivity } from '@/hooks/use-profile';
+import { useUserBio, useUserActivity, useUserLikedPosts } from '@/hooks/use-profile';
 import { ProfileHeader } from '@/components/features/profile/profile-header';
 import { ProfileHeaderSkeleton } from '@/components/features/profile/profile-header-skeleton';
 import { ProfileTabs, TabType } from '@/components/features/profile/profile-tabs';
@@ -16,7 +16,7 @@ import { Container } from '@/components/ui/container';
 import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 
-const TAB_ELEMENT_TYPE: Record<TabType, string> = {
+const TAB_ELEMENT_TYPE: Partial<Record<TabType, string>> = {
   playlists: 'Playlist',
   tracks: 'Track',
   artists: 'Artist',
@@ -45,12 +45,49 @@ export default function ProfilePage() {
     isLoading: isLoadingBio,
     error: bioError
   } = useUserBio(userIdToFetch);
+  const isCurrentUser = Boolean(
+    userBio &&
+    user &&
+    (
+      userBio.isOwnProfile ||
+      user.id === userBio.id ||
+      user.username?.toLowerCase() === userBio.username?.toLowerCase()
+    )
+  );
+  const likedSectionVisible =
+    isCurrentUser ||
+    (userBio?.likedPostsPrivacy
+      ? userBio.likedPostsPrivacy === 'public'
+      : userBio?.showLikedPosts !== false);
+  const likedTabVisibility: 'public' | 'private' =
+    userBio?.likedPostsPrivacy || userBio?.likedPostsVisibility || (userBio?.showLikedPosts === false ? 'private' : 'public');
+
+  const isLikedTab = activeTab === 'liked';
+  const likedPostsUserId = userBio?.id || (isEditMode && user ? user.id : undefined);
 
   const {
-    data: activityData,
-    isLoading: isLoadingActivity,
-    error: activityError
-  } = useUserActivity(userIdToFetch, { page: 1, elementType: TAB_ELEMENT_TYPE[activeTab] });
+    data: regularActivityData,
+    isLoading: isLoadingRegularActivity,
+    error: regularActivityError
+  } = useUserActivity(userIdToFetch, {
+    page: 1,
+    elementType: TAB_ELEMENT_TYPE[activeTab],
+    enabled: !isLikedTab
+  });
+
+  const {
+    data: likedActivityData,
+    isLoading: isLoadingLikedActivity,
+    error: likedActivityError
+  } = useUserLikedPosts(likedPostsUserId, {
+    page: 1,
+    enabled: isLikedTab && likedSectionVisible
+  });
+
+  const activityData = isLikedTab ? likedActivityData : regularActivityData;
+  const isLoadingActivity = isLikedTab ? isLoadingLikedActivity : isLoadingRegularActivity;
+  const activityError = isLikedTab ? likedActivityError : regularActivityError;
+  const isLikedTabPrivateError = isLikedTab && activityError?.message === 'Liked posts are private';
 
   // Combine initial activity with paginated additional posts
   const allActivityPosts = useMemo(() => {
@@ -60,13 +97,11 @@ export default function ProfilePage() {
 
   const totalItems = activityData?.totalItems ?? 0;
 
-  // Determine if current user is viewing their own profile
-  const isCurrentUser = useMemo(() => {
-    if (!userBio || !user) return false;
-    return userBio.isOwnProfile ||
-           user.id === userBio.id ||
-           user.username?.toLowerCase() === userBio.username?.toLowerCase();
-  }, [userBio, user]);
+  useEffect(() => {
+    if (!likedSectionVisible && activeTab === 'liked') {
+      setActiveTab('playlists');
+    }
+  }, [activeTab, likedSectionVisible]);
 
   // Reset tab pagination when user or tab changes
   useEffect(() => {
@@ -76,16 +111,25 @@ export default function ProfilePage() {
 
   // Load more posts (pagination)
   const loadMore = useCallback(async () => {
-    if (isLoadingMore || !userIdToFetch || allActivityPosts.length >= totalItems) return;
+    if (isLoadingMore || allActivityPosts.length >= totalItems) return;
 
     try {
       setIsLoadingMore(true);
       const nextPage = currentPage + 1;
-
-      const moreActivity = await profileService.fetchUserActivity(userIdToFetch, {
-        page: nextPage,
-        elementType: TAB_ELEMENT_TYPE[activeTab],
-      });
+      const moreActivity = isLikedTab
+        ? (
+            likedPostsUserId
+              ? await profileService.fetchUserLikedPosts(likedPostsUserId, { page: nextPage })
+              : { items: [] }
+          )
+        : (
+            userIdToFetch
+              ? await profileService.fetchUserActivity(userIdToFetch, {
+                  page: nextPage,
+                  elementType: TAB_ELEMENT_TYPE[activeTab],
+                })
+              : { items: [] }
+          );
 
       setAdditionalPosts(prev => [...prev, ...moreActivity.items]);
       setCurrentPage(nextPage);
@@ -94,7 +138,16 @@ export default function ProfilePage() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [userIdToFetch, currentPage, isLoadingMore, allActivityPosts.length, totalItems, activeTab]);
+  }, [
+    activeTab,
+    allActivityPosts.length,
+    currentPage,
+    isLikedTab,
+    isLoadingMore,
+    likedPostsUserId,
+    totalItems,
+    userIdToFetch
+  ]);
 
   const filterByElementType = useCallback((type: TabType) => {
     if (activeTab === type) return;
@@ -141,6 +194,13 @@ export default function ProfilePage() {
   const showHeaderSkeleton = isLoadingBio && !userBio;
   const showActivitySkeleton = isLoadingActivity && allActivityPosts.length === 0;
 
+  // Keep privacy filtering on the selected tab payload
+  const filteredPosts = allActivityPosts.filter(post => {
+    if (!isCurrentUser && post.privacy?.toLowerCase() === 'private') return false;
+    return true;
+  });
+  const displayPosts = filteredPosts;
+
   // Handle edit mode without auth
   if (isEditMode && !user) {
     return (
@@ -160,7 +220,7 @@ export default function ProfilePage() {
   }
 
   // Handle errors
-  const error = bioError?.message || activityError?.message;
+  const error = bioError?.message || (isLikedTabPrivateError ? undefined : activityError?.message);
   if (error) {
     return (
       <>
@@ -208,12 +268,6 @@ export default function ProfilePage() {
     );
   }
 
-  // Keep privacy filtering on the selected tab payload
-  const filteredPosts = allActivityPosts.filter(post => {
-    if (!isCurrentUser && post.privacy?.toLowerCase() === 'private') return false;
-    return true;
-  });
-
   return (
     <>
       {/* --- MOBILE & TABLET LAYOUT --- */}
@@ -249,20 +303,27 @@ export default function ProfilePage() {
               <ProfileTabs
                 activeTab={activeTab}
                 onTabChange={filterByElementType}
+                showLikedTab={likedSectionVisible}
+                likedTabVisibility={likedTabVisibility}
               />
             </div>
             {showActivitySkeleton ? (
               <div className="p-3 sm:p-4 md:p-6 lg:p-8">
                 <ActivitySkeleton count={6} />
               </div>
+            ) : isLikedTabPrivateError ? (
+              <div className="p-8 text-center text-muted-foreground">
+                Liked posts are private
+              </div>
             ) : (
               <ProfileActivity
-                posts={filteredPosts}
+                posts={displayPosts}
                 isLoading={isLoadingMore}
                 onLoadMore={loadMore}
                 hasMore={allActivityPosts.length < totalItems}
                 ownerAccountType={userBio?.accountType}
                 isCurrentUser={isCurrentUser}
+                currentUserId={user?.id}
               />
             )}
           </div>
@@ -275,6 +336,8 @@ export default function ProfilePage() {
           <ProfileTabs
             activeTab={activeTab}
             onTabChange={filterByElementType}
+            showLikedTab={likedSectionVisible}
+            likedTabVisibility={likedTabVisibility}
           />
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -282,14 +345,19 @@ export default function ProfilePage() {
             <div className="p-3 sm:p-4 md:p-6 lg:p-8">
               <ActivitySkeleton count={6} />
             </div>
+          ) : isLikedTabPrivateError ? (
+            <div className="p-8 text-center text-muted-foreground">
+              Liked posts are private
+            </div>
           ) : (
             <ProfileActivity
-              posts={filteredPosts}
+              posts={displayPosts}
               isLoading={isLoadingMore}
               onLoadMore={loadMore}
               hasMore={allActivityPosts.length < totalItems}
               ownerAccountType={userBio?.accountType}
               isCurrentUser={isCurrentUser}
+              currentUserId={user?.id}
             />
           )}
         </div>

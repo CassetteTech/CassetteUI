@@ -25,6 +25,7 @@ interface ProfileActivityProps {
   hasMore?: boolean;
   ownerAccountType?: AccountType | number;
   isCurrentUser?: boolean;
+  currentUserId?: string;
 }
 
 export function ProfileActivity({
@@ -33,7 +34,8 @@ export function ProfileActivity({
   onLoadMore,
   hasMore = false,
   ownerAccountType,
-  isCurrentUser = false
+  isCurrentUser = false,
+  currentUserId
 }: ProfileActivityProps) {
   if (isLoading && posts.length === 0) {
     return (
@@ -69,7 +71,17 @@ export function ProfileActivity({
       <div className="p-3 sm:p-4 md:p-6 lg:p-8">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4">
           {posts.map((post) => (
-            <ActivityPostItem key={post.postId} post={post} accountType={ownerAccountType} isOwnPost={isCurrentUser} />
+            <ActivityPostItem
+              key={post.postId}
+              post={post}
+              accountType={ownerAccountType}
+              isOwnPost={
+                isCurrentUser &&
+                !!currentUserId &&
+                !!post.userId &&
+                post.userId.toLowerCase() === currentUserId.toLowerCase()
+              }
+            />
           ))}
         </div>
         

@@ -32,12 +32,14 @@ import { sanitizeDomain } from '@/lib/analytics/sanitize';
 export class ApiError extends Error {
   requiresReauth: boolean;
   errorCode?: string;
+  status?: number;
 
-  constructor(message: string, requiresReauth = false, errorCode?: string) {
+  constructor(message: string, requiresReauth = false, errorCode?: string, status?: number) {
     super(message);
     this.name = 'ApiError';
     this.requiresReauth = requiresReauth;
     this.errorCode = errorCode;
+    this.status = status;
   }
 }
 
@@ -132,7 +134,8 @@ class ApiService {
         throw new ApiError(
           error.error || error.message || 'API request failed',
           requiresReauth,
-          error.error_code
+          error.error_code,
+          response.status
         );
       }
 

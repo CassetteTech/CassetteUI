@@ -11,6 +11,7 @@ export const profileQueryKeys = {
   activity: (userIdentifier: string, page?: number, elementType?: string) =>
     ['user-activity', userIdentifier, page, elementType] as const,
   allActivity: (userIdentifier: string) => ['user-activity', userIdentifier] as const,
+  likedActivity: (userId: string, page?: number) => ['user-liked-activity', userId, page] as const,
   exploreActivity: (page?: number, pageSize?: number) =>
     ['explore-activity', page, pageSize] as const,
 };
@@ -96,6 +97,25 @@ export const useUserPlaylists = (
   options: Omit<ActivityQueryOptions, 'elementType'> = {}
 ) => {
   return useUserActivity(userIdentifier, { ...options, elementType: 'Playlist' });
+};
+
+/**
+ * Fetches posts liked by a user.
+ */
+export const useUserLikedPosts = (
+  userId: string | undefined,
+  options: Omit<ActivityQueryOptions, 'elementType'> = {}
+) => {
+  const { page = 1, pageSize = 20, enabled = true } = options;
+
+  return useQuery<PaginatedActivityResponse, Error>({
+    queryKey: profileQueryKeys.likedActivity(userId ?? '', page),
+    queryFn: () => profileService.fetchUserLikedPosts(userId!, { page, pageSize }),
+    enabled: !!userId && enabled,
+    refetchOnMount: 'always',
+    staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 5,
+  });
 };
 
 interface ExploreQueryOptions {

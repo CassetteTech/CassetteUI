@@ -28,7 +28,7 @@ export function Layout({ children }: LayoutProps) {
   }, []);
 
   const isAuthPage = pathname?.startsWith('/auth');
-  const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/add-music');
+  const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/add-music') || pathname?.startsWith('/internal');
   const isHomePage = pathname === '/';
   const isPostPage = pathname?.startsWith('/post');
 

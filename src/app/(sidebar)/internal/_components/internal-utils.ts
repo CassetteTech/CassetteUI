@@ -29,11 +29,19 @@ export function accountTypeBadgeVariant(
   type: ReturnType<typeof normalizeAccountType>
 ): 'default' | 'secondary' | 'outline' | 'destructive' {
   switch (type) {
-    case 'Verified':
-      return 'default';
     case 'CassetteTeam':
-      return 'secondary';
+      return 'default'; // bg-primary = brand red
+    case 'Verified':
+      return 'default'; // color overridden via accountTypeBadgeClassName
     default:
       return 'outline';
   }
+}
+
+/** Extra classes for account-type badges (e.g. Verified → info blue). */
+export function accountTypeBadgeClassName(
+  type: ReturnType<typeof normalizeAccountType>
+): string {
+  if (type === 'Verified') return 'bg-[hsl(var(--info))] text-white';
+  return '';
 }

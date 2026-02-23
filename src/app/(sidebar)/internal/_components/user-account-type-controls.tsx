@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { accountTypeBadgeVariant } from './internal-utils';
+import { accountTypeBadgeVariant, accountTypeBadgeClassName } from './internal-utils';
 
 interface UserAccountTypeControlsProps {
   currentType: 'Regular' | 'Verified' | 'CassetteTeam' | 'Unknown';
@@ -123,9 +123,9 @@ export function UserAccountTypeControls({
             <AlertDialogDescription asChild>
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm">
-                  <Badge variant={accountTypeBadgeVariant(currentType)}>{currentType}</Badge>
+                  <Badge variant={accountTypeBadgeVariant(currentType)} className={accountTypeBadgeClassName(currentType)}>{currentType}</Badge>
                   <span className="text-muted-foreground">&rarr;</span>
-                  <Badge variant={accountTypeBadgeVariant(targetType)}>{targetType}</Badge>
+                  <Badge variant={accountTypeBadgeVariant(targetType)} className={accountTypeBadgeClassName(targetType)}>{targetType}</Badge>
                 </div>
                 <div className="text-xs">
                   <span className="font-medium">CanAssignVerified:</span>{' '}

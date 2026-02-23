@@ -275,21 +275,25 @@ export function InternalDashboardShell() {
 
   // ─── Render ────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background px-4 py-6 md:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
-            <Shield className="h-4 w-4 text-primary" />
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => setActiveTab(value as 'users' | 'issues')}
+      className="flex flex-col bg-background lg:flex-1 lg:min-h-0"
+    >
+      {/* Header: title + tab switcher — stays fixed on desktop */}
+      <div className="px-4 pt-6 pb-4 md:px-6 lg:px-8 lg:border-b lg:bg-background/80 lg:backdrop-blur-sm">
+        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
+              <Shield className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold tracking-tight">Internal Dashboard</h1>
+              <p className="text-xs text-muted-foreground">
+                CassetteTeam operations &middot; User management &middot; Issue intake
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">Internal Dashboard</h1>
-            <p className="text-xs text-muted-foreground">
-              CassetteTeam operations &middot; User management &middot; Issue intake
-            </p>
-          </div>
-        </div>
-
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'users' | 'issues')} className="gap-4">
           <TabsList>
             <TabsTrigger value="users" className="gap-2">
               <Users className="h-4 w-4" />
@@ -310,7 +314,12 @@ export function InternalDashboardShell() {
               )}
             </TabsTrigger>
           </TabsList>
+        </div>
+      </div>
 
+      {/* Content: only this area scrolls on desktop */}
+      <div className="lg:flex-1 lg:overflow-y-auto">
+        <div className="mx-auto w-full max-w-[1400px] px-4 md:px-6 lg:px-8 py-6">
           <TabsContent value="users">
             <UsersTab
               search={userSearch}
@@ -365,8 +374,8 @@ export function InternalDashboardShell() {
               onSelectIssue={handleSelectIssue}
             />
           </TabsContent>
-        </Tabs>
+        </div>
       </div>
-    </div>
+    </Tabs>
   );
 }

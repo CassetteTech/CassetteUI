@@ -2,10 +2,12 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { Shield } from 'lucide-react';
 import { UserBio, ConnectedService, PlatformPreferenceInfo } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { VerificationBadge } from '@/components/ui/verification-badge';
+import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 
 interface ProfileHeaderProps {
   userBio: UserBio;
@@ -110,6 +112,19 @@ export function ProfileHeader({
                 className="w-3.5 h-3.5 sm:w-4 sm:h-4"
               />
               <span>Add Music</span>
+            </Button>
+          )}
+
+          {isCurrentUser && isCassetteInternalAccount(userBio.accountType) && (
+            <Button
+              variant="outline"
+              asChild
+              className="rounded-xl gap-2 h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm lg:h-12 lg:px-6 lg:text-base"
+            >
+              <Link href="/internal">
+                <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>Internal Dashboard</span>
+              </Link>
             </Button>
           )}
         </div>

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { InternalAccountTypeAuditEntry } from '@/types';
-import { normalizeAccountType, formatDate, accountTypeBadgeVariant } from './internal-utils';
+import { normalizeAccountType, formatDate, accountTypeBadgeVariant, accountTypeBadgeClassName } from './internal-utils';
 import { EmptyState } from './empty-state';
 
 interface AuditLogTimelineProps {
@@ -63,11 +63,11 @@ export function AuditLogTimeline({ entries, isLoading }: AuditLogTimelineProps) 
                     />
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant={accountTypeBadgeVariant(before)} className="text-xs">
+                        <Badge variant={accountTypeBadgeVariant(before)} className={`text-xs ${accountTypeBadgeClassName(before)}`}>
                           {before}
                         </Badge>
                         <span className="text-xs text-muted-foreground">&rarr;</span>
-                        <Badge variant={accountTypeBadgeVariant(after)} className="text-xs">
+                        <Badge variant={accountTypeBadgeVariant(after)} className={`text-xs ${accountTypeBadgeClassName(after)}`}>
                           {after}
                         </Badge>
                       </div>

@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { InternalUserDetail } from '@/types';
-import { normalizeAccountType, formatDate, accountTypeBadgeVariant } from './internal-utils';
+import { normalizeAccountType, formatDate, accountTypeBadgeVariant, accountTypeBadgeClassName } from './internal-utils';
 import { UserAccountTypeControls } from './user-account-type-controls';
 import { EmptyState } from './empty-state';
 
@@ -105,7 +105,7 @@ export function UserDetailPanel({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-semibold truncate">{user.displayName || user.username}</p>
-                  <Badge variant={accountTypeBadgeVariant(selectedUserAccountType)} className="shrink-0 text-xs">
+                  <Badge variant={accountTypeBadgeVariant(selectedUserAccountType)} className={`shrink-0 text-xs ${accountTypeBadgeClassName(selectedUserAccountType)}`}>
                     {selectedUserAccountType}
                   </Badge>
                 </div>

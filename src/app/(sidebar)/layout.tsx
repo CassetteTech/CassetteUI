@@ -16,10 +16,10 @@ export default function SidebarLayout({ children }: SidebarLayoutProps) {
       </div>
 
       {/* Desktop: persistent sidebar with content area */}
-      <div className="hidden lg:block min-h-screen bg-background">
-        <SidebarProvider defaultOpen={true}>
+      <div className="hidden lg:block h-screen overflow-hidden bg-background">
+        <SidebarProvider defaultOpen={true} className="h-full min-h-0">
           <AppSidebar />
-          <SidebarInset>
+          <SidebarInset className="overflow-y-auto">
             {children}
           </SidebarInset>
         </SidebarProvider>

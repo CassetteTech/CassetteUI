@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import type { InternalUserSummary } from '@/types';
-import { normalizeAccountType, formatDate, accountTypeBadgeVariant } from './internal-utils';
+import { normalizeAccountType, formatDate, accountTypeBadgeVariant, accountTypeBadgeClassName } from './internal-utils';
 import { UsersTableSkeleton, UsersCardSkeleton } from './users-table-skeleton';
 import { EmptyState } from './empty-state';
 
@@ -82,7 +82,7 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
                   <TableCell className="font-medium">{u.username}</TableCell>
                   <TableCell>{u.email}</TableCell>
                   <TableCell>
-                    <Badge variant={accountTypeBadgeVariant(accountType)}>{accountType}</Badge>
+                    <Badge variant={accountTypeBadgeVariant(accountType)} className={accountTypeBadgeClassName(accountType)}>{accountType}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={u.isOnboarded ? 'default' : 'outline'} className={u.isOnboarded ? 'bg-success text-white' : ''}>
@@ -111,7 +111,7 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium text-sm">{u.username}</span>
-                <Badge variant={accountTypeBadgeVariant(accountType)} className="text-xs">{accountType}</Badge>
+                <Badge variant={accountTypeBadgeVariant(accountType)} className={`text-xs ${accountTypeBadgeClassName(accountType)}`}>{accountType}</Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-1">{u.email}</p>
               <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">

@@ -14,7 +14,7 @@ export function JourneyTimeline() {
         className="mb-12"
       >
         {/* Section label */}
-        <p className="font-teko text-xs tracking-[0.25em] uppercase text-muted-foreground mb-4">
+        <p className="section-label text-muted-foreground mb-4">
           Our Journey
         </p>
 
@@ -26,6 +26,9 @@ export function JourneyTimeline() {
           The story of how we&apos;re breaking down barriers in music sharing
         </p>
       </motion.div>
+
+      {/* Editorial rule before grid */}
+      <div className="editorial-rule mb-12" />
 
       {/* Milestone cards grid */}
       <div className="grid md:grid-cols-2 gap-6">
@@ -43,15 +46,10 @@ export function JourneyTimeline() {
                 ease: [0.23, 1, 0.32, 1],
               }}
             >
-              <div className="surface-top border border-foreground/15 dark:border-border rounded-lg p-8 h-full hover:-translate-y-1 hover:shadow-[6px_6px_0_hsl(var(--border))] transition-all duration-150 ease-linear">
-                {/* Accent bar */}
-                <div className={`h-[2px] w-10 ${milestone.accentBar} mb-4`} />
-
-                {/* Editorial number */}
-                <span
-                  className={`font-teko text-2xl font-bold ${milestone.numberColor} leading-none block mb-4`}
-                >
-                  {milestone.number}
+              <div className={`surface-top border border-foreground/15 dark:border-border border-t-4 ${milestone.borderTop} rounded-lg p-8 h-full relative overflow-hidden hover:-translate-y-1 hover:shadow-[6px_6px_0_hsl(var(--border))] transition-all duration-150 ease-linear`}>
+                {/* Watermark year */}
+                <span className="font-teko text-6xl sm:text-8xl font-bold text-foreground/[0.04] absolute -top-2 right-3 leading-none pointer-events-none select-none">
+                  {milestone.year}
                 </span>
 
                 <MilestoneIcon

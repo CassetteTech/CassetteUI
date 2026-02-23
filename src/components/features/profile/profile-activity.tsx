@@ -159,7 +159,7 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1 min-w-0">
                   {/* Type Badge */}
-                  <div className="inline-flex items-center gap-1 px-2 py-1 mb-2 bg-red-500/15 border border-red-500/30 rounded text-xs font-bold text-red-600">
+                  <div className="inline-flex items-center gap-1 px-2 py-1 mb-2 bg-destructive/15 border border-destructive/30 rounded text-xs font-bold text-destructive">
                     <span className="material-icons text-xs">
                       {getTypeIcon(post.elementType)}
                     </span>

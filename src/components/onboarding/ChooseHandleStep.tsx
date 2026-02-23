@@ -112,7 +112,7 @@ export function ChooseHandleStep({
       case 'checking':
         return <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />;
       case 'available':
-        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+        return <CheckCircle2 className="w-4 h-4 text-success-text" />;
       case 'taken':
         return <XCircle className="w-4 h-4 text-destructive" />;
       case 'invalid':
@@ -169,7 +169,7 @@ export function ChooseHandleStep({
               placeholder="your_username"
               value={formData.username}
               onChange={(e) => updateFormData({ username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
-              className={`pr-10 ${errors.username || usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'border-destructive focus-visible:ring-destructive' : usernameStatus === 'available' ? 'border-green-500 focus-visible:ring-green-500' : ''}`}
+              className={`pr-10 ${errors.username || usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'border-destructive focus-visible:ring-destructive' : usernameStatus === 'available' ? 'border-success focus-visible:ring-success' : ''}`}
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               {getUsernameStatusIcon()}
@@ -182,7 +182,7 @@ export function ChooseHandleStep({
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
               className={`text-xs flex items-center gap-1 ${
-                usernameStatus === 'available' ? 'text-green-500' :
+                usernameStatus === 'available' ? 'text-success-text' :
                 usernameStatus === 'checking' ? 'text-muted-foreground' :
                 'text-destructive'
               }`}

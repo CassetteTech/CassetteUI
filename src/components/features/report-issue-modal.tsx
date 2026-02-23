@@ -137,7 +137,7 @@ export function ReportIssueModal({
 
         {submitStatus === 'success' ? (
           <div className="flex flex-col items-center py-6 gap-3 px-4">
-            <CheckCircle2 className="h-12 w-12 text-green-500" />
+            <CheckCircle2 className="h-12 w-12 text-success-text" />
             <p className="text-center text-foreground font-medium">
               Thank you for your report!
             </p>

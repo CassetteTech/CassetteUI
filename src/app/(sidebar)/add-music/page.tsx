@@ -81,14 +81,14 @@ const AddMusicForm = ({
     {/* Search/Input Section */}
     <div className={isSearchActive ? "fixed top-16 left-0 right-0 z-40 bg-background px-4 pt-3 pb-2 shadow-sm lg:static lg:z-auto lg:bg-transparent lg:px-0 lg:pt-0 lg:pb-4 lg:shadow-none" : "mb-4 sm:mb-6 md:mb-8"} style={{ opacity: searchBarOpacity, transition: 'opacity 120ms ease-out' }}>
       {!isSearchActive && (
-        <UIText className="text-center text-text-primary font-atkinson font-bold mb-6 text-sm sm:text-base">
+        <UIText className="text-center text-foreground font-atkinson font-bold mb-6 text-sm sm:text-base">
           Search or paste a link below to add music to your profile
         </UIText>
       )}
 
         <div className={isSearchActive ? "" : "mb-6"}>
           {!isSearchActive && (
-            <label className="block text-text-primary font-atkinson font-bold mb-3 text-sm">
+            <label className="block text-foreground font-atkinson font-bold mb-3 text-sm">
               Music link or search
             </label>
           )}
@@ -121,7 +121,7 @@ const AddMusicForm = ({
                   }
                 }}
                 placeholder="Search or paste your music link here"
-                className="w-full h-full bg-transparent border-none outline-none text-center text-[#1F2327] placeholder:text-textHint px-3 sm:px-4 md:px-6 text-sm sm:text-base"
+                className="w-full h-full bg-transparent border-none outline-none text-center text-foreground placeholder:text-muted-foreground px-3 sm:px-4 md:px-6 text-sm sm:text-base"
                 style={{ fontSize: '16px', touchAction: 'manipulation' }}
               />
             </UrlBar>
@@ -129,7 +129,7 @@ const AddMusicForm = ({
           
           {/* Selected Item Display */}
           {selectedItem && (
-            <div className="mt-4 p-4 bg-white rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px_var(--brand-black)]">
+            <div className="mt-4 p-4 bg-card rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
               <div className="flex items-center gap-3">
                 {selectedItem.coverArtUrl ? (
                   <Image
@@ -140,43 +140,43 @@ const AddMusicForm = ({
                     className="rounded-md"
                   />
                 ) : (
-                  <div className="w-12 h-12 bg-gray-200 rounded-md flex items-center justify-center">
-                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center">
+                    <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                     </svg>
                   </div>
                 )}
                 <div className="flex-1">
-                  <p className="font-atkinson font-bold text-[#1F2327]">{selectedItem.title}</p>
-                  {selectedItem.artist && <p className="text-[#1F2327] text-sm">{selectedItem.artist}</p>}
+                  <p className="font-atkinson font-bold text-foreground">{selectedItem.title}</p>
+                  {selectedItem.artist && <p className="text-foreground text-sm">{selectedItem.artist}</p>}
                   <span className="inline-block px-2 py-1 bg-primary/10 text-primary text-xs font-bold rounded uppercase">
                     {selectedItem.type}
                   </span>
                 </div>
-                <button onClick={clearSelection} className="p-1 hover:bg-gray-100 rounded">
-                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button onClick={clearSelection} className="p-1 hover:bg-muted rounded">
+                  <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
             </div>
           )}
-          
+
           {/* Pasted Link Display */}
           {pastedLinkSource && !selectedItem && (
-            <div className="mt-4 p-4 bg-white rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px_var(--brand-black)]">
+            <div className="mt-4 p-4 bg-card rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 text-success-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <p className="font-atkinson font-bold text-text-primary">{pastedLinkSource} link pasted</p>
-                  <p className="text-text-secondary text-sm truncate">{musicUrl}</p>
+                  <p className="font-atkinson font-bold text-foreground">{pastedLinkSource} link pasted</p>
+                  <p className="text-muted-foreground text-sm truncate">{musicUrl}</p>
                 </div>
-                <button onClick={clearSelection} className="p-1 hover:bg-gray-100 rounded">
-                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button onClick={clearSelection} className="p-1 hover:bg-muted rounded">
+                  <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -188,17 +188,17 @@ const AddMusicForm = ({
         {/* Description Field */}
         {!isSearchActive && (
           <div className="mb-4 sm:mb-6 md:mb-8">
-          <label className="block text-text-primary font-atkinson font-bold mb-3 text-sm">
+          <label className="block text-foreground font-atkinson font-bold mb-3 text-sm">
             Description
           </label>
           <div className="relative">
-            <div className="absolute inset-0 translate-x-1 translate-y-1 bg-gray-400 rounded-lg" />
+            <div className="absolute inset-0 translate-x-1 translate-y-1 bg-muted-foreground rounded-lg" />
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Let us know a little bit about this song or playlist!"
               rows={6}
-              className="relative w-full p-4 bg-white border-2 border-foreground rounded-lg font-atkinson text-[#1F2327] placeholder:text-textHint resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              className="relative w-full p-4 bg-card border-2 border-foreground rounded-lg font-atkinson text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary"
               autoComplete="off"
               spellCheck="false"
             />
@@ -593,16 +593,16 @@ export default function AddMusicPage() {
                     alt={user.username}
                     width={60}
                     height={60}
-                    className="rounded-full border-2 border-text-primary/20"
+                    className="rounded-full border-2 border-foreground/20"
                   />
                 ) : (
-                  <div className="w-15 h-15 rounded-full bg-text-primary/10 border-2 border-text-primary/20 flex items-center justify-center">
-                    <span className="text-text-primary text-2xl font-atkinson font-bold">
+                  <div className="w-15 h-15 rounded-full bg-foreground/10 border-2 border-foreground/20 flex items-center justify-center">
+                    <span className="text-foreground text-2xl font-atkinson font-bold">
                       {user?.username?.charAt(0)?.toUpperCase() || 'U'}
                     </span>
                   </div>
                 )}
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-atkinson font-bold text-text-primary">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-atkinson font-bold text-foreground">
                   Add Music
                 </h1>
               </div>

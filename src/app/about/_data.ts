@@ -25,10 +25,10 @@ export const sectionColors: Record<string, SectionColorConfig> = {
     iconBg: "bg-primary/10",
   },
   problem: {
-    accentBar: "bg-accentTeal",
-    numberColor: "text-accentTeal/25",
-    iconColor: "text-accentTeal",
-    iconBg: "bg-accentTeal/10",
+    accentBar: "bg-info",
+    numberColor: "text-info-text/25",
+    iconColor: "text-info-text",
+    iconBg: "bg-info/10",
   },
   support: {
     accentBar: "bg-primary",
@@ -43,10 +43,10 @@ export const sectionColors: Record<string, SectionColorConfig> = {
     iconBg: "bg-warning/10",
   },
   vision: {
-    accentBar: "bg-accentTeal",
-    numberColor: "text-accentTeal/25",
-    iconColor: "text-accentTeal",
-    iconBg: "bg-accentTeal/10",
+    accentBar: "bg-info",
+    numberColor: "text-info-text/25",
+    iconColor: "text-info-text",
+    iconBg: "bg-info/10",
   },
   supporters: {
     accentBar: "bg-warning",
@@ -94,6 +94,7 @@ export interface Milestone {
   description: string;
   icon: LucideIcon;
   accentBar: string;
+  borderTop: string;
   iconColor: string;
   numberColor: string;
 }
@@ -107,6 +108,7 @@ export const milestones: Milestone[] = [
       "Co-founders met at American University, frustrated by the inability to share music across platforms. The idea for Cassette was born.",
     icon: Stars,
     accentBar: "bg-primary",
+    borderTop: "border-t-primary",
     iconColor: "text-primary",
     numberColor: "text-primary/25",
   },
@@ -117,9 +119,10 @@ export const milestones: Milestone[] = [
     description:
       "Pitched into American University\u2019s accelerator program. Built initial prototype and assembled our founding team of engineers and marketers.",
     icon: Zap,
-    accentBar: "bg-accentTeal",
-    iconColor: "text-accentTeal",
-    numberColor: "text-accentTeal/25",
+    accentBar: "bg-info",
+    borderTop: "border-t-info",
+    iconColor: "text-info-text",
+    numberColor: "text-info-text/25",
   },
   {
     number: "03",
@@ -128,9 +131,10 @@ export const milestones: Milestone[] = [
     description:
       "Successfully completed crowdfunding campaign. Launched platform publicly and began scaling to thousands of users.",
     icon: Radio,
-    accentBar: "bg-accentLilac",
-    iconColor: "text-accentLilac",
-    numberColor: "text-accentLilac/25",
+    accentBar: "bg-accentRoyal",
+    borderTop: "border-t-accentRoyal",
+    iconColor: "text-accentRoyal",
+    numberColor: "text-accentRoyal/25",
   },
   {
     number: "04",
@@ -140,6 +144,7 @@ export const milestones: Milestone[] = [
       "Secured seed funding, scaled REST API to support 65,000+ users, established international partnerships, and continued innovation.",
     icon: Music2,
     accentBar: "bg-warning",
+    borderTop: "border-t-warning",
     iconColor: "text-warning",
     numberColor: "text-warning/25",
   },
@@ -164,9 +169,9 @@ export const featureCards: FeatureCard[] = [
     title: "Universal Music Links",
     description:
       "Drop any URL\u2014Spotify, Apple, YouTube\u2014and get one elegant Cassette link that adapts to every listener.",
-    accentBar: "bg-accentTeal",
-    iconColor: "text-accentTeal",
-    numberColor: "text-accentTeal/25",
+    accentBar: "bg-info",
+    iconColor: "text-info-text",
+    numberColor: "text-info-text/25",
   },
   {
     number: "02",
@@ -174,9 +179,9 @@ export const featureCards: FeatureCard[] = [
     title: "Your Music Identity",
     description:
       "Your profile becomes a home for your taste\u2014playlists, recent finds, top artists\u2014beautifully organized in one place.",
-    accentBar: "bg-accentLilac",
-    iconColor: "text-accentLilac",
-    numberColor: "text-accentLilac/25",
+    accentBar: "bg-accentRoyal",
+    iconColor: "text-accentRoyal",
+    numberColor: "text-accentRoyal/25",
   },
 ];
 

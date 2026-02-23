@@ -28,8 +28,8 @@ export const CollectionGrid: React.FC<CollectionGridProps> = ({
   if (items.length === 0) {
     return (
       <div className="text-center py-12">
-        <HeadlineText className="text-text-secondary mb-2">No items in your collection</HeadlineText>
-        <p className="text-text-secondary">Start adding music to see it here!</p>
+        <HeadlineText className="text-muted-foreground mb-2">No items in your collection</HeadlineText>
+        <p className="text-muted-foreground">Start adding music to see it here!</p>
       </div>
     );
   }

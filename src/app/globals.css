@@ -130,11 +130,11 @@
 
   /* ─── Inner Glow for Interactive Elements ──────────────────────────────── */
   .inner-glow {
-    box-shadow: inset 0 0 20px rgba(var(--primary), 0.1);
+    box-shadow: inset 0 0 20px hsl(var(--primary) / 0.1);
   }
 
   .dark .inner-glow {
-    box-shadow: inset 0 0 20px rgba(var(--primary), 0.15);
+    box-shadow: inset 0 0 20px hsl(var(--primary) / 0.15);
   }
 
   /* ─── Gradient Borders ──────────────────────────────────────────────────── */
@@ -291,11 +291,11 @@
   /* ─── Mesh Gradient Background ──────────────────────────────────────────── */
   .mesh-gradient {
     background:
-      radial-gradient(at 27% 37%, hsla(var(--primary), 0.05) 0px, transparent 50%),
-      radial-gradient(at 97% 21%, hsla(var(--secondary), 0.05) 0px, transparent 50%),
-      radial-gradient(at 52% 99%, hsla(var(--accent), 0.03) 0px, transparent 50%),
-      radial-gradient(at 10% 29%, hsla(var(--primary), 0.04) 0px, transparent 50%),
-      radial-gradient(at 97% 96%, hsla(var(--accent), 0.04) 0px, transparent 50%);
+      radial-gradient(at 27% 37%, hsl(var(--primary) / 0.05) 0px, transparent 50%),
+      radial-gradient(at 97% 21%, hsl(var(--secondary) / 0.05) 0px, transparent 50%),
+      radial-gradient(at 52% 99%, hsl(var(--accent) / 0.03) 0px, transparent 50%),
+      radial-gradient(at 10% 29%, hsl(var(--primary) / 0.04) 0px, transparent 50%),
+      radial-gradient(at 97% 96%, hsl(var(--accent) / 0.04) 0px, transparent 50%);
   }
 
   /* ─── Bordered Glow ─────────────────────────────────────────────────────── */
@@ -351,135 +351,283 @@
   /* ─── Pulse Glow ────────────────────────────────────────────────────────── */
   @keyframes pulse-glow {
     0%, 100% {
-      box-shadow: 0 0 20px rgba(var(--primary), 0.1);
+      box-shadow: 0 0 20px hsl(var(--primary) / 0.1);
     }
     50% {
-      box-shadow: 0 0 30px rgba(var(--primary), 0.2);
+      box-shadow: 0 0 30px hsl(var(--primary) / 0.2);
     }
   }
 
   .pulse-glow {
     animation: pulse-glow 3s ease-in-out infinite;
   }
+
+  /* ─── Editorial Section Wrappers ─────────────────────────────────────── */
+  .section-dark {
+    background: hsl(var(--section-dark));
+    color: hsl(var(--section-dark-fg));
+  }
+
+  .section-wine {
+    background: hsl(var(--section-wine));
+    color: hsl(var(--section-wine-fg));
+  }
+
+  .section-navy {
+    background: hsl(var(--section-navy));
+    color: hsl(var(--section-navy-fg));
+  }
+
+  .section-cream {
+    background: hsl(var(--section-cream));
+    color: hsl(var(--section-cream-fg));
+  }
+
+  /* ─── Editorial Rules (print-inspired separators) ────────────────────── */
+  .editorial-rule {
+    height: 1px;
+    background: hsl(var(--editorial-rule));
+  }
+
+  .editorial-rule-double {
+    height: 0;
+    border-top: 3px solid hsl(var(--editorial-rule));
+    border-bottom: 1px solid hsl(var(--editorial-rule));
+    padding-top: 4px;
+  }
+
+  .editorial-rule-thick {
+    height: 4px;
+    background: hsl(var(--editorial-rule));
+  }
+
+  .editorial-rule-dashed {
+    height: 0;
+    border-top: 1px dashed hsl(var(--editorial-rule-subtle));
+  }
+
+  /* ─── Pull Quote (editorial blockquote treatment) ────────────────────── */
+  .pullquote {
+    position: relative;
+    padding: 2rem 2.5rem;
+    background: hsl(var(--pullquote-bg));
+    border-left: 4px solid hsl(var(--primary));
+    border-radius: var(--radius);
+  }
+
+  .pullquote::before {
+    content: '\201C';
+    font-family: var(--font-teko), 'Teko', sans-serif;
+    font-size: 6rem;
+    line-height: 1;
+    position: absolute;
+    top: -0.5rem;
+    left: 1rem;
+    color: hsl(var(--primary) / 0.15);
+    pointer-events: none;
+  }
+
+  /* ─── Display Number (oversized editorial watermark) ─────────────────── */
+  .display-number {
+    font-family: var(--font-teko), 'Teko', sans-serif;
+    font-weight: 700;
+    font-size: 8rem;
+    line-height: 0.8;
+    color: hsl(var(--number-display) / 0.07);
+    position: absolute;
+    top: -0.5rem;
+    right: 1rem;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* ─── Section Label (editorial labeling with line) ───────────────────── */
+  .section-label {
+    font-family: var(--font-teko), 'Teko', sans-serif;
+    font-size: 0.6875rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .section-label::before {
+    content: '';
+    display: inline-block;
+    width: 1.5rem;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.4;
+  }
+
+  /* ─── Inset Panel (editorial callout box) ────────────────────────────── */
+  .inset-panel {
+    background: hsl(var(--pullquote-bg));
+    border: 1px solid hsl(var(--border));
+    padding: 1.5rem 2rem;
+    position: relative;
+    border-radius: var(--radius);
+  }
+
+  .inset-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)));
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
 }
 
 @layer base {
   :root {
-    /* ─── NEW: Shadcn/UI Base Variables (Light Mode) ────────────────────────── */
-    --background: 44 43% 92%; /* brandCream: #F8F0DE */
-    --foreground: 210 10% 14%; /* brandBlack: #1F2327 */
-    --card: 44 100% 97%;      /* brandCreamL: #FFF8EC */
-    --card-foreground: 210 10% 14%; /* brandBlack: #1F2327 */
-    --popover: 44 100% 97%;    /* brandCreamL: #FFF8EC */
-    --popover-foreground: 210 10% 14%; /* brandBlack: #1F2327 */
-    --primary: 349 84% 55%;   /* brandRed: #ED2748 */
-    --primary-foreground: 0 0% 100%; /* white: #FFFFFF */
-    --secondary: 210 10% 35%; /* gray600: #56595C */
-    --secondary-foreground: 0 0% 100%; /* white: #FFFFFF */
-    --muted: 43 27% 88%;      /* brandCreamD: #E0D9C8 */
-    --muted-foreground: 210 10% 35%; /* gray600: #56595C */
-    --accent: 349 89% 68%;    /* brandRedL: #F36A84 */
-    --accent-foreground: 210 10% 14%; /* brandBlack: #1F2327 */
-    --destructive: 344 100% 50%; /* danger: #FF004C */
-    --destructive-foreground: 0 0% 100%; /* white: #FFFFFF */
-    --border: 210 9% 89%;     /* gray200: #E1E3E5 */
-    --input: 43 27% 88%;      /* brandCreamD: #E0D9C8 */
-    --ring: 349 84% 55%;      /* brandRed: #ED2748 */
+    --background: 44 43% 92%; /* #F8F0DE */
+    --foreground: 210 10% 14%; /* #1F2327 */
+    --card: 44 100% 97%; /* #FFF8EC */
+    --card-foreground: 210 10% 14%; /* #1F2327 */
+    --popover: 44 100% 97%; /* #FFF8EC */
+    --popover-foreground: 210 10% 14%; /* #1F2327 */
+    --primary: 350 76% 52%; /* #E22645 */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    --secondary: 30 40% 22%; /* #4A3218 */
+    --secondary-foreground: 44 43% 92%; /* #F8F0DE */
+    --muted: 38 30% 85%; /* #DDD0B8 */
+    --muted-foreground: 30 20% 38%; /* #6B5A42 */
+    --accent: 350 60% 90%; /* #F5D0D6 */
+    --accent-foreground: 210 10% 14%; /* #1F2327 */
+    --destructive: 348 74% 45%; /* #C81E3F */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+    --border: 35 25% 75%; /* #CBBFA8 */
+    --input: 38 30% 85%; /* #DDD0B8 */
+    --ring: 350 76% 52%; /* #E22645 */
     --radius: 0.5rem;
 
-    /* ─── NEW: Custom Cassette Brand & UI Tokens ─────────────────────────────── */
-    --brand-red: 349 84% 55%;      /* #ED2748 */
-    --brand-red-l: 349 89% 68%;    /* #F36A84 */
-    --brand-red-d: 349 71% 37%;    /* #A31B34 */
-    --brand-black: 210 10% 14%;    /* #1F2327 */
-    --brand-black-l: 210 10% 19%;  /* #2B3035 */
-    --brand-black-d: 210 10% 7%;   /* #0D0F11 */
-    --brand-cream: 44 43% 92%;     /* #F8F0DE */
-    --brand-cream-l: 44 100% 97%;  /* #FFF8EC */
-    --brand-cream-d: 43 27% 88%;   /* #E0D9C8 */
+    --accent-royal: 235 86% 65%; /* #5865F2 */
+    --accent-royal-foreground: 0 0% 100%; /* #FFFFFF */
 
-    --success: 142 71% 45%;        /* #1ED760 */
-    --info: 206 100% 50%;         /* #0093FF */
-    --warning: 39 100% 50%;       /* #FFB300 */
-    --danger: 344 100% 50%;        /* #FF004C */
+    --success: 140 59% 30%; /* #1F7A3E */
+    --success-text: 140 59% 30%; /* #1F7A3E */
+    --success-foreground: 0 0% 100%; /* #FFFFFF */
 
-    --accent-teal: 176 100% 35%;   /* #00B3A4 */
-    --accent-lilac: 256 100% 73%;  /* #9A75FF */
-    
-    --text-primary: 210 10% 14%;   /* on light */
-    --text-on-dark: 44 43% 92%;    /* on dark */
-    --text-secondary: 210 5% 45%;  /* #75787C */
-    --text-hint: 213 4% 61%;       /* #9A9DA1 */
+    --info: 212 100% 39%; /* #005EC7 */
+    --info-text: 212 100% 39%; /* #005EC7 */
+    --info-foreground: 0 0% 100%; /* #FFFFFF */
 
-    --bg-canvas: 210 10% 7%;       /* #0D0F11 */
-    --bg-elevated: 210 10% 14%;    /* #1F2327 */
-    --bg-subtle: 210 10% 19%;      /* #2B3035 */
-    --bg-cream: 44 43% 92%;        /* #F8F0DE */
+    --warning: 39 100% 30%; /* #9A6400 */
+    --warning-text: 39 100% 30%; /* #9A6400 */
+    --warning-foreground: 0 0% 100%; /* #FFFFFF */
 
-    --border-light: 210 9% 89%;    /* #E1E3E5 */
-    --border-dark: 213 7% 17%;     /* #2A2D30 */
+    --platform-spotify: 141 73% 42%; /* #1DB954 */
+    --platform-apple-music: 353 96% 56%; /* #FA233B */
+    --platform-youtube: 0 100% 50%; /* #FF0000 */
+    --platform-tidal: 217 91% 60%; /* #3B82F6 */
+    --platform-deezer: 20 100% 61%; /* #FF6B3D */
+    --platform-foreground: 0 0% 100%; /* #FFFFFF */
 
-    --overlay-scrim: 15 17 19 / 0.78; /* #0F1113 */
-    --divider-light: 210 9% 89%;   /* #E1E3E5 */
-    --divider-dark: 0 0% 20%;      /* #333 */
+    --chart-1: 350 76% 52%;
+    --chart-2: 235 86% 65%;
+    --chart-3: 39 100% 30%;
+    --chart-4: 212 100% 39%;
+    --chart-5: 38 30% 85%;
 
-    /* Button Colors - using new tokens */
-    --btn-primary-top: 349 84% 55%;       /* brandRed */
-    --btn-primary-bottom: 349 71% 37%;    /* brandRedD */
-    --btn-primary-border: 344 100% 50%;   /* danger */
-    --btn-convert-top: 210 10% 14%;       /* brandBlack */
-    --btn-convert-bottom: 210 10% 35%;    /* gray600 */
-    --btn-convert-border: 210 10% 14%;    /* brandBlack */
+    --sidebar-background: 44 100% 97%;
+    --sidebar-foreground: 210 10% 14%;
+    --sidebar-primary: 350 76% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 38 30% 85%;
+    --sidebar-accent-foreground: 210 10% 14%;
+    --sidebar-border: 35 25% 75%;
+    --sidebar-ring: 350 76% 52%;
 
-    /* Chart colors */
-    --chart-1: 349 84% 55%;    /* brandRed */
-    --chart-2: 349 89% 68%;    /* brandRedL */
-    --chart-3: 39 100% 50%;    /* warning */
-    --chart-4: 44 43% 92%;     /* brandCream */
-    --chart-5: 210 10% 35%;    /* gray600 */
-
-    /* Sidebar colors */
-    --sidebar-background: 0 0% 100%;       /* white */
-    --sidebar-foreground: 210 10% 14%;     /* brandBlack */
-    --sidebar-primary: 349 84% 55%;        /* brandRed */
-    --sidebar-primary-foreground: 0 0% 100%; /* white */
-    --sidebar-accent: 44 43% 92%;          /* brandCream */
-    --sidebar-accent-foreground: 210 10% 14%; /* brandBlack */
-    --sidebar-border: 210 9% 89%;          /* borderLight */
-    --sidebar-ring: 349 84% 55%;           /* brandRed */
+    /* ─── Editorial Section Backgrounds ─────────────────────────────────── */
+    --section-dark: 210 10% 16%;           /* Deep charcoal #242930 */
+    --section-dark-fg: 44 43% 92%;         /* Beige text on dark */
+    --section-wine: 348 45% 22%;           /* Burgundy #522028 */
+    --section-wine-fg: 44 43% 92%;         /* Beige text on wine */
+    --section-navy: 220 40% 18%;           /* Deep navy #1B2740 */
+    --section-navy-fg: 44 43% 92%;         /* Beige text on navy */
+    --section-cream: 42 50% 95%;           /* Warm cream #FAF5EA */
+    --section-cream-fg: 210 10% 14%;       /* Charcoal text on cream */
+    --editorial-rule: 210 10% 14%;         /* Strong rule lines */
+    --editorial-rule-subtle: 35 25% 65%;   /* Lighter rule lines */
+    --pullquote-bg: 38 40% 90%;            /* Warm tint for pull-quotes */
+    --number-display: 350 76% 52%;         /* Decorative numbers */
   }
 
   .dark {
-    /* ─── NEW: Shadcn/UI Base Variables (Dark Mode) ────────────────────────── */
-    --background: 210 10% 14%;    /* brandBlack: #1F2327 */
-    --foreground: 44 43% 92%;     /* brandCream: #F8F0DE */
-    --card: 210 10% 19%;          /* brandBlackL: #2B3035 */
-    --card-foreground: 44 43% 92%;/* brandCream: #F8F0DE */
-    --popover: 210 10% 19%;       /* brandBlackL: #2B3035 */
-    --popover-foreground: 44 43% 92%; /* brandCream: #F8F0DE */
-    --primary: 349 89% 68%;       /* brandRedL: #F36A84 - Lighter for dark mode */
-    --primary-foreground: 210 10% 14%; /* brandBlack: #1F2327 */
-    --secondary: 213 7% 17%;      /* gray800: #2A2D30 */
-    --secondary-foreground: 44 43% 92%; /* brandCream: #F8F0DE */
-    --muted: 210 10% 19%;         /* brandBlackL: #2B3035 */
-    --muted-foreground: 213 4% 61%; /* gray400: #9A9DA1 */
-    --accent: 349 71% 37%;        /* brandRedD: #A31B34 - Pressed/Hover */
-    --accent-foreground: 44 43% 92%; /* brandCream: #F8F0DE */
-    --destructive: 344 100% 50%;  /* danger: #FF004C */
-    --destructive-foreground: 0 0% 100%; /* white: #FFFFFF */
-    --border: 213 7% 17%;         /* borderDark: #2A2D30 */
-    --input: 210 10% 19%;         /* brandBlackL: #2B3035 */
-    --ring: 349 89% 68%;          /* brandRedL: #F36A84 */
+    --background: 210 10% 14%; /* #1F2327 */
+    --foreground: 44 43% 92%; /* #F8F0DE */
+    --card: 210 10% 17%; /* #252A2F */
+    --card-foreground: 44 43% 92%; /* #F8F0DE */
+    --popover: 210 10% 17%; /* #252A2F */
+    --popover-foreground: 44 43% 92%; /* #F8F0DE */
+    --primary: 349 89% 65%; /* #F05070 */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    --secondary: 210 8% 26%; /* #3A3F44 */
+    --secondary-foreground: 44 43% 92%; /* #F8F0DE */
+    --muted: 210 10% 19%; /* #2B3035 */
+    --muted-foreground: 213 4% 61%; /* #9A9DA1 */
+    --accent: 349 71% 25%; /* #6E1222 */
+    --accent-foreground: 44 43% 92%; /* #F8F0DE */
+    --destructive: 348 74% 45%; /* #C81E3F */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+    --border: 213 7% 22%; /* #333740 */
+    --input: 210 10% 19%; /* #2B3035 */
+    --ring: 349 89% 65%; /* #F05070 */
 
-    /* ─── NEW: Custom Dark Theme Overrides ──────────────────────────────────── */
-    --text-primary: 44 43% 92%;   /* textOnDark: #F8F0DE */
-    --bg-cream: 210 10% 14%;       /* Use dark background instead of cream */
+    --accent-royal: 235 86% 65%; /* #5865F2 */
+    --accent-royal-foreground: 0 0% 100%; /* #FFFFFF */
 
-    --sidebar-background: 210 10% 19%;     /* brandBlackL: #2B3035 */
-    --sidebar-foreground: 44 43% 92%;      /* brandCream: #F8F0DE */
-    --sidebar-accent: 213 7% 17%;          /* gray800: #2A2D30 */
-    --sidebar-accent-foreground: 44 43% 92%; /* brandCream: #F8F0DE */
-    --sidebar-border: 213 7% 17%;          /* borderDark: #2A2D30 */
+    --success: 140 59% 30%; /* #1F7A3E */
+    --success-text: 143 66% 58%; /* #4DDB84 */
+    --success-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --info: 212 100% 39%; /* #005EC7 */
+    --info-text: 215 100% 74%; /* #7CB3FF */
+    --info-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --warning: 39 100% 30%; /* #9A6400 */
+    --warning-text: 41 100% 70%; /* #FFCF66 */
+    --warning-foreground: 210 10% 14%; /* #1F2327 */
+
+    --platform-spotify: 141 73% 42%;
+    --platform-apple-music: 353 96% 56%;
+    --platform-youtube: 0 100% 50%;
+    --platform-tidal: 217 91% 60%;
+    --platform-deezer: 20 100% 61%;
+    --platform-foreground: 0 0% 100%;
+
+    --chart-1: 349 89% 65%;
+    --chart-2: 235 86% 65%;
+    --chart-3: 39 100% 30%;
+    --chart-4: 212 100% 39%;
+    --chart-5: 210 10% 19%;
+
+    --sidebar-background: 210 10% 17%;
+    --sidebar-foreground: 44 43% 92%;
+    --sidebar-primary: 349 89% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 10% 19%;
+    --sidebar-accent-foreground: 44 43% 92%;
+    --sidebar-border: 213 7% 22%;
+    --sidebar-ring: 349 89% 65%;
+
+    /* ─── Editorial Section Backgrounds (inverted for dark mode) ────────── */
+    --section-dark: 44 30% 88%;            /* Warm light cream */
+    --section-dark-fg: 210 10% 14%;        /* Charcoal text on cream */
+    --section-wine: 348 40% 82%;           /* Dusty rose #DEB5BA */
+    --section-wine-fg: 210 10% 14%;        /* Dark text on rose */
+    --section-navy: 220 30% 85%;           /* Soft steel blue #CCDAEA */
+    --section-navy-fg: 210 10% 14%;        /* Dark text on blue */
+    --section-cream: 210 10% 19%;          /* Dark surface */
+    --section-cream-fg: 44 43% 92%;        /* Beige text on dark */
+    --editorial-rule: 44 43% 92%;          /* Beige rule lines */
+    --editorial-rule-subtle: 213 7% 35%;   /* Subtle rule lines */
+    --pullquote-bg: 210 10% 22%;           /* Dark tint for pull-quotes */
+    --number-display: 349 89% 65%;         /* Decorative numbers */
   }
 }
 

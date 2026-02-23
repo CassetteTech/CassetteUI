@@ -30,11 +30,12 @@ export interface TeamMember {
 }
 
 export interface TypeConfig {
-  color: string;        // Tailwind color token (e.g. "primary", "accentTeal")
+  color: string;        // Tailwind color token (e.g. "primary", "info", "accentRoyal")
   iconBg: string;
   iconColor: string;
   borderColor: string;
   accentBar: string;    // bg class for accent bars
+  borderLeft: string;   // border-l class for editorial card borders
   numberColor: string;  // text class for editorial numbers
   label: string;
   icon: LucideIcon;
@@ -155,15 +156,15 @@ export function getTypeConfig(type: string | string[]): TypeConfig {
   const primaryType = Array.isArray(type) ? type[0] : type;
   switch (primaryType) {
     case "cofounder":
-      return { color: "primary", iconBg: "bg-primary/10", iconColor: "text-primary", borderColor: "border-primary/20", accentBar: "bg-primary", numberColor: "text-primary/25", label: "Co-Founder", icon: Rocket };
+      return { color: "primary", iconBg: "bg-primary/10", iconColor: "text-primary", borderColor: "border-primary/20", accentBar: "bg-primary", borderLeft: "border-l-primary", numberColor: "text-primary/25", label: "Co-Founder", icon: Rocket };
     case "engineer":
-      return { color: "accentTeal", iconBg: "bg-accentTeal/10", iconColor: "text-accentTeal", borderColor: "border-accentTeal/20", accentBar: "bg-accentTeal", numberColor: "text-accentTeal/25", label: "Engineer", icon: Code };
+      return { color: "info", iconBg: "bg-info/10", iconColor: "text-info-text", borderColor: "border-info/20", accentBar: "bg-info", borderLeft: "border-l-info", numberColor: "text-info-text/25", label: "Engineer", icon: Code };
     case "marketer":
-      return { color: "accentLilac", iconBg: "bg-accentLilac/10", iconColor: "text-accentLilac", borderColor: "border-accentLilac/20", accentBar: "bg-accentLilac", numberColor: "text-accentLilac/25", label: "Marketing", icon: TrendingUp };
+      return { color: "accentRoyal", iconBg: "bg-accentRoyal/10", iconColor: "text-accentRoyal", borderColor: "border-accentRoyal/20", accentBar: "bg-accentRoyal", borderLeft: "border-l-accentRoyal", numberColor: "text-accentRoyal/25", label: "Marketing", icon: TrendingUp };
     case "investor":
-      return { color: "warning", iconBg: "bg-warning/10", iconColor: "text-warning", borderColor: "border-warning/20", accentBar: "bg-warning", numberColor: "text-warning/25", label: "Advisor", icon: Target };
+      return { color: "warning", iconBg: "bg-warning/10", iconColor: "text-warning", borderColor: "border-warning/20", accentBar: "bg-warning", borderLeft: "border-l-warning", numberColor: "text-warning/25", label: "Advisor", icon: Target };
     default:
-      return { color: "muted", iconBg: "bg-muted/10", iconColor: "text-muted-foreground", borderColor: "border-border", accentBar: "bg-muted", numberColor: "text-muted-foreground/25", label: "Team", icon: Users };
+      return { color: "muted", iconBg: "bg-muted/10", iconColor: "text-muted-foreground", borderColor: "border-border", accentBar: "bg-muted", borderLeft: "border-l-muted", numberColor: "text-muted-foreground/25", label: "Team", icon: Users };
   }
 }
 
@@ -171,8 +172,8 @@ export function getTypeConfig(type: string | string[]): TypeConfig {
 export const categoryColors: Record<TeamCategory, { activeBg: string; activeBorder: string; countBg: string }> = {
   all:       { activeBg: "bg-foreground text-background", activeBorder: "border-foreground", countBg: "bg-background/20 text-background" },
   cofounder: { activeBg: "bg-primary text-primary-foreground", activeBorder: "border-primary", countBg: "bg-primary-foreground/20 text-primary-foreground" },
-  engineer:  { activeBg: "bg-accentTeal text-white", activeBorder: "border-accentTeal", countBg: "bg-white/20 text-white" },
-  marketer:  { activeBg: "bg-accentLilac text-white", activeBorder: "border-accentLilac", countBg: "bg-white/20 text-white" },
+  engineer:  { activeBg: "bg-info text-info-foreground", activeBorder: "border-info", countBg: "bg-info-foreground/20 text-info-foreground" },
+  marketer:  { activeBg: "bg-accentRoyal text-accentRoyal-foreground", activeBorder: "border-accentRoyal", countBg: "bg-accentRoyal-foreground/20 text-accentRoyal-foreground" },
   investor:  { activeBg: "bg-warning text-foreground", activeBorder: "border-warning", countBg: "bg-foreground/15 text-foreground" },
 };
 

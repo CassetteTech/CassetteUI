@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { theme } from '@/lib/theme';
 
 interface AnimatedButtonProps {
   text?: string;
@@ -65,11 +64,10 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
     onMouseDown?.();
   };
 
-  // NEW: Use theme tokens as defaults
-  const defaultTopColor = colorTop || theme.colors.btnPrimaryTop;
-  const defaultBottomColor = colorBottom || theme.colors.brandRedL;
-  const defaultTopBorderColor = borderColorTop || theme.colors.btnPrimaryBorder;
-  const defaultBottomBorderColor = borderColorBottom || theme.colors.brandRedD;
+  const defaultTopColor = colorTop || 'hsl(var(--primary))';
+  const defaultBottomColor = colorBottom || 'hsl(var(--accent))';
+  const defaultTopBorderColor = borderColorTop || 'hsl(var(--ring))';
+  const defaultBottomBorderColor = borderColorBottom || 'hsl(var(--primary))';
 
   return (
     <button
@@ -128,34 +126,34 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
   );
 };
 
-// Preset button variants using theme tokens
+// Preset button variants using CSS tokens
 export const AnimatedPrimaryButton: React.FC<Omit<AnimatedButtonProps, 'colorTop' | 'colorBottom'>> = (props) => (
   <AnimatedButton
     {...props}
-    colorTop={theme.colors.btnPrimaryTop}
-    colorBottom={theme.colors.brandRedL}
-    borderColorTop={theme.colors.btnPrimaryBorder}
-    borderColorBottom={theme.colors.brandRed}
+    colorTop='hsl(var(--primary))'
+    colorBottom='hsl(var(--accent))'
+    borderColorTop='hsl(var(--ring))'
+    borderColorBottom='hsl(var(--primary))'
   />
 );
 
 export const AnimatedConvertButton: React.FC<Omit<AnimatedButtonProps, 'colorTop' | 'colorBottom'>> = (props) => (
   <AnimatedButton
     {...props}
-    colorTop={theme.colors.btnConvertTop}
-    colorBottom={theme.colors.btnConvertBottom}
-    borderColorTop={theme.colors.btnConvertBorder}
-    borderColorBottom={theme.colors.btnConvertBorder}
+    colorTop='hsl(var(--secondary))'
+    colorBottom='hsl(var(--muted-foreground))'
+    borderColorTop='hsl(var(--secondary))'
+    borderColorBottom='hsl(var(--secondary))'
   />
 );
 
 export const AnimatedFreeAccountButton: React.FC<Omit<AnimatedButtonProps, 'colorTop' | 'colorBottom' | 'textStyle'>> = (props) => (
   <AnimatedButton
     {...props}
-    colorTop={theme.colors.btnPrimaryTop}
-    colorBottom={theme.colors.brandRedL}
-    borderColorTop={theme.colors.btnPrimaryBorder}
-    borderColorBottom={theme.colors.brandRed}
+    colorTop='hsl(var(--primary))'
+    colorBottom='hsl(var(--accent))'
+    borderColorTop='hsl(var(--ring))'
+    borderColorBottom='hsl(var(--primary))'
     textStyle="text-xl font-bold tracking-wide"
   />
 );

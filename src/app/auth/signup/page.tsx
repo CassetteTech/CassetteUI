@@ -104,7 +104,7 @@ export default function SignUpPage() {
                 variant="outline"
                 onClick={handleGoogleSignIn}
                 disabled={isSigningInWithProvider}
-                className="w-full border-borderLight bg-white hover:bg-brandCreamL text-foreground shadow-sm hover:shadow transition-all dark:bg-black/40 dark:hover:bg-black/60 dark:border-white/20"
+                className="w-full border-border bg-background hover:bg-muted/50 text-foreground shadow-sm hover:shadow transition-all dark:bg-black/40 dark:hover:bg-black/60 dark:border-white/20"
               >
                 <Image
                   src="/images/social_images/ic_auth_google.png"

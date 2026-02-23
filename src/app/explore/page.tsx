@@ -18,7 +18,7 @@ const PAGE_SIZE = 20;
 
 /* ── Type styling config ─────────────────────────────────────────
    Each element type gets a unique icon + color scheme derived from
-   the existing theme tokens (brandRed, accentLilac, accentTeal, info).
+   the existing theme tokens (primary, accentRoyal, info).
    This makes type identification instant at a glance.
 ──────────────────────────────────────────────────────────────────── */
 
@@ -39,20 +39,20 @@ const TYPE_STYLES: Record<string, TypeStyle> = {
   album: {
     icon: Disc3,
     label: 'Album',
-    badge: 'bg-accentLilac/20 text-accentLilac border-accentLilac/25',
-    accent: 'bg-accentLilac',
+    badge: 'bg-accentRoyal/20 text-accentRoyal border-accentRoyal/25',
+    accent: 'bg-accentRoyal',
   },
   artist: {
     icon: Mic2,
     label: 'Artist',
-    badge: 'bg-accentTeal/20 text-accentTeal border-accentTeal/25',
-    accent: 'bg-accentTeal',
+    badge: 'bg-info/20 text-info-text border-info/25',
+    accent: 'bg-info',
   },
   playlist: {
     icon: ListMusic,
     label: 'Playlist',
-    badge: 'bg-brandRed/20 text-brandRed border-brandRed/25',
-    accent: 'bg-brandRed',
+    badge: 'bg-primary/20 text-primary border-primary/25',
+    accent: 'bg-primary',
   },
 };
 

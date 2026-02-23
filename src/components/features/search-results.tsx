@@ -104,8 +104,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         // Use warning color for albums
         return 'bg-warning/10 text-warning border-warning/20';
       case 'artist':
-        // Use a restrained accent color for artists
-        return 'bg-accentLilac/10 text-accentLilac border-accentLilac/20';
+        return 'bg-accentRoyal/10 text-accentRoyal border-accentRoyal/20';
       case 'playlist':
         // Use success color for playlists
         return 'bg-success/10 text-success border-success/20';
@@ -159,22 +158,22 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
       {/* Search Results Container with retro shadow effect */}
       <div className="relative">
         {/* Bottom shadow layer */}
-        <div className="absolute inset-0 translate-x-1 translate-y-1 bg-textSecondary rounded-lg" />
-        
+        <div className="absolute inset-0 translate-x-1 translate-y-1 bg-muted-foreground rounded-lg" />
+
         {/* Main container */}
-        <div className="relative bg-white rounded-lg border-2 border-brandBlack">
+        <div className="relative bg-card rounded-lg border-2 border-foreground">
           {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 border-b-2 border-brandBlack">
-            <h3 className="text-sm sm:text-lg font-bold text-brandBlack font-atkinson">
+          <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 border-b-2 border-foreground">
+            <h3 className="text-sm sm:text-lg font-bold text-foreground font-atkinson">
               {showSearchResults ? 'Search Results' : 'Top Charts'}
             </h3>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-brandCreamD rounded transition-colors lg:hidden"
+              className="p-1 hover:bg-muted rounded transition-colors lg:hidden"
               aria-label="Close search results"
             >
-              <svg 
-                className="w-5 h-5 text-brandBlack" 
+              <svg
+                className="w-5 h-5 text-foreground"
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
@@ -194,14 +193,14 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             {allResults.map((item, index) => (
               <div
                 key={`${item.type}-${item.id}-${index}`}
-                className="flex items-center gap-2 sm:gap-3 px-2 py-1.5 sm:p-3 hover:bg-brandCreamL transition-colors cursor-pointer border-b border-brandCreamD last:border-b-0"
+                className="flex items-center gap-2 sm:gap-3 px-2 py-1.5 sm:p-3 hover:bg-muted/50 transition-colors cursor-pointer border-b border-border last:border-b-0"
                 onMouseDown={(e) => {
                   e.preventDefault(); // Prevent blur
                   handleItemClick(item);
                 }}
               >
                 {/* Album Art */}
-                <div className="flex-shrink-0 relative w-10 h-10 sm:w-12 sm:h-12 rounded-md overflow-hidden border border-borderLight">
+                <div className="flex-shrink-0 relative w-10 h-10 sm:w-12 sm:h-12 rounded-md overflow-hidden border border-border">
                   {item.artwork ? (
                     <Image
                       src={item.artwork}
@@ -220,9 +219,9 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                   ) : SkeletonComponent ? (
                     <SkeletonComponent className="w-10 h-10 sm:w-12 sm:h-12 rounded-md" />
                   ) : (
-                    <div className="w-full h-full bg-brandCreamD flex items-center justify-center">
+                    <div className="w-full h-full bg-muted flex items-center justify-center">
                       <svg
-                        className="w-5 h-5 sm:w-6 sm:h-6 text-textHint"
+                        className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -241,7 +240,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <p className="font-semibold text-brandBlack truncate text-sm">
+                    <p className="font-semibold text-foreground truncate text-sm">
                       {item.title}
                     </p>
                     <Badge
@@ -251,7 +250,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                     </Badge>
                   </div>
                   {item.artist && (
-                    <p className="text-textSecondary text-xs truncate">
+                    <p className="text-muted-foreground text-xs truncate">
                       {item.artist}
                     </p>
                   )}
@@ -259,7 +258,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
                 {/* Arrow */}
                 <svg
-                  className="w-4 h-4 text-textHint flex-shrink-0"
+                  className="w-4 h-4 text-muted-foreground flex-shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

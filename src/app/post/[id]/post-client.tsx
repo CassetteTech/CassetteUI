@@ -48,7 +48,7 @@ function JoinCassetteCTA({ onClick, className }: Omit<JoinCassetteCTAProps, 'acc
       </p>
       <button
         onClick={onClick}
-        className="shrink-0 px-4 py-2 text-sm font-semibold rounded-lg transition-colors bg-primary text-white border-2 border-white dark:border-black"
+        className="shrink-0 px-4 py-2 text-sm font-semibold rounded-lg transition-colors bg-primary text-primary-foreground border-2 border-primary"
       >
         Sign up free
       </button>
@@ -518,7 +518,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 <motion.button
                   className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
                     copyState === 'copied'
-                      ? 'bg-green-500/20 text-green-600 border-green-500/30'
+                      ? 'bg-success/20 text-success-text border-success/30'
                       : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
                   }`}
                   onClick={handleShare}
@@ -848,7 +848,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   <motion.button
                     className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
                       copyState === 'copied'
-                        ? 'bg-green-500/20 text-green-600 border-green-500/30'
+                        ? 'bg-success/20 text-success-text border-success/30'
                         : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
                     }`}
                     onClick={handleShare}
@@ -1121,7 +1121,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 <motion.button
                   className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
                     copyState === 'copied'
-                      ? 'bg-green-500/20 text-green-600 border-green-500/30'
+                      ? 'bg-success/20 text-success-text border-success/30'
                       : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
                   }`}
                   onClick={handleShare}

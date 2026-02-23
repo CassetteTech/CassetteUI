@@ -1,47 +1,54 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
+import { KOFI_ICON_SRC } from "@/lib/ko-fi";
 
 export function SupportersShowcase() {
   return (
-    <section className="py-16 md:py-20">
-      {/* Thick divider */}
-      <div className="h-[3px] bg-foreground/15 dark:bg-border mb-16 md:mb-20" />
+    <section className="section-cream">
+      <div className="editorial-rule" />
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5 }}
-      >
-        {/* Section label */}
-        <p className="font-teko text-xs tracking-[0.25em] uppercase text-muted-foreground mb-4">
-          Community
-        </p>
-
-        <div className="surface-top border border-foreground/15 dark:border-border rounded-lg overflow-hidden">
-          <div className="p-8">
-            <div className="h-[2px] w-10 bg-warning mb-4" />
-            <h3 className="font-teko text-3xl text-foreground mb-2">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="flex flex-col items-center"
+        >
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-2">
+            <Image
+              src={KOFI_ICON_SRC}
+              alt="Ko-fi"
+              width={28}
+              height={28}
+              className="rounded-full"
+            />
+            <h3 className="font-teko text-3xl sm:text-4xl text-foreground leading-tight">
               Buy the Team a Coffee
             </h3>
-            <p className="font-roboto text-muted-foreground text-sm leading-relaxed">
-              Want a closer look? Use the embedded Ko-fi widget to pledge
-              support without leaving the page.
-            </p>
           </div>
-          {/* Ko-fi iframe — bg-[#f9f9f9] is required by the external widget */}
-          <div className="bg-[#f9f9f9] px-2 pb-2">
+          <p className="font-roboto text-muted-foreground text-sm mb-8">
+            Fuel development — support goes directly to the team.
+          </p>
+
+          {/* Ko-fi embed — constrained to form width and centered.
+             The container is shorter than the iframe; pt pushes the
+             form down so it sits visually centred, and overflow-hidden
+             clips the empty whitespace that falls below the fold. */}
+          <div className="w-full max-w-md h-[480px] sm:h-[540px] md:h-[620px] rounded-xl overflow-hidden elev-2">
             <iframe
               id="kofiframe"
               src="https://ko-fi.com/cassettetech/?hidefeed=true&widget=true&embed=true&preview=true"
-              title="cassettetech"
-              className="w-full rounded-lg h-[400px] sm:h-[550px] md:h-[712px]"
+              title="Support Cassette on Ko-fi"
+              className="w-full h-[540px] sm:h-[600px] md:h-[712px] pt-6 sm:pt-8 md:pt-10"
               style={{ border: "none", background: "#f9f9f9" }}
             />
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </section>
   );
 }

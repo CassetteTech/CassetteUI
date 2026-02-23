@@ -33,37 +33,37 @@ export const streamingServices: Record<string, StreamingService> = {
   spotify: {
     name: 'Spotify',
     icon: '/images/spotify_logo_colored.png',
-    color: '#1DB954',
-    bgColor: 'bg-green-50',
-    borderColor: 'border-green-400',
+    color: 'hsl(var(--platform-spotify))',
+    bgColor: 'bg-platform-spotify/10',
+    borderColor: 'border-platform-spotify/40',
   },
   appleMusic: {
     name: 'Apple Music',
     icon: '/images/apple_music_logo_colored.png',
-    color: '#FC3C44',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-400',
+    color: 'hsl(var(--platform-apple-music))',
+    bgColor: 'bg-platform-apple-music/10',
+    borderColor: 'border-platform-apple-music/40',
   },
   deezer: {
     name: 'Deezer',
     icon: '/images/deezer_logo_colored.png',
-    color: '#FF6B3D',
-    bgColor: 'bg-orange-50',
-    borderColor: 'border-orange-400',
+    color: 'hsl(var(--platform-deezer))',
+    bgColor: 'bg-platform-deezer/10',
+    borderColor: 'border-platform-deezer/40',
   },
   tidal: {
     name: 'Tidal',
     icon: '/images/social_images/ic_tidal.png',
-    color: '#000000',
-    bgColor: 'bg-gray-100',
-    borderColor: 'border-gray-600',
+    color: 'hsl(var(--platform-tidal))',
+    bgColor: 'bg-platform-tidal/10',
+    borderColor: 'border-platform-tidal/40',
   },
   youtubeMusic: {
     name: 'YouTube Music',
     icon: '/images/social_images/ic_yt_music.png',
-    color: '#FF0000',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-400',
+    color: 'hsl(var(--platform-youtube))',
+    bgColor: 'bg-platform-youtube/10',
+    borderColor: 'border-platform-youtube/40',
   },
 };
 
@@ -83,7 +83,7 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
   
   return (
     <div className={cn(
-      "p-3 sm:p-4 md:p-6 rounded-2xl bg-text-primary/5 border border-text-primary/10",
+      "p-3 sm:p-4 md:p-6 rounded-2xl bg-foreground/5 border border-foreground/10",
       "shadow-sm backdrop-blur-sm",
       className
     )}>

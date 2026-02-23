@@ -22,11 +22,24 @@ export default function TeamPage() {
         }}
       />
 
-      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
-        <TeamHero />
+      <div className="relative z-10">
+        {/* Hero — on page background */}
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-32">
+          <TeamHero />
+        </div>
+
+        {/* Team Grid — cream band */}
         <TeamGrid onSelectMember={setExpandedMember} />
+
+        {/* Values — dark band */}
         <ValuesSection />
-        <SupportCTA />
+
+        {/* Support — on page background */}
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <SupportCTA />
+        </div>
+
+        {/* Join CTA — wine band */}
         <JoinCTA />
       </div>
 

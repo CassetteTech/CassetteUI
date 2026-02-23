@@ -15,9 +15,9 @@ export const Container: React.FC<ContainerProps> = ({
   variant = 'main',
 }) => {
   const variants = {
-    main: 'bg-white rounded-xl shadow-main',
-    card: 'bg-white rounded-lg shadow-album',
-    minimal: 'bg-white rounded-md shadow-soft',
+    main: 'bg-card rounded-xl shadow-main',
+    card: 'bg-card rounded-lg shadow-album',
+    minimal: 'bg-card rounded-md shadow-soft',
   };
 
   return (

@@ -33,6 +33,10 @@ module.exports = {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
+        accentRoyal: {
+          DEFAULT: "hsl(var(--accent-royal))",
+          foreground: "hsl(var(--accent-royal-foreground))",
+        },
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
@@ -41,47 +45,29 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // NEW: Map your entire theme palette
-        brandRed: "hsl(var(--brand-red))",
-        brandRedL: "hsl(var(--brand-red-l))",
-        brandRedD: "hsl(var(--brand-red-d))",
-        brandBlack: "hsl(var(--brand-black))",
-        brandBlackL: "hsl(var(--brand-black-l))",
-        brandBlackD: "hsl(var(--brand-black-d))",
-        brandCream: "hsl(var(--brand-cream))",
-        brandCreamL: "hsl(var(--brand-cream-l))",
-        brandCreamD: "hsl(var(--brand-cream-d))",
-        
-        success: "hsl(var(--success))",
-        info: "hsl(var(--info))",
-        warning: "hsl(var(--warning))",
-        danger: "hsl(var(--danger))",
-        
-        accentTeal: "hsl(var(--accent-teal))",
-        accentLilac: "hsl(var(--accent-lilac))",
-        
-        textOnDark: "hsl(var(--text-on-dark))",
-        textSecondary: "hsl(var(--text-secondary))",
-        textHint: "hsl(var(--text-hint))",
-        
-        bgCanvas: "hsl(var(--bg-canvas))",
-        bgElevated: "hsl(var(--bg-elevated))",
-        bgSubtle: "hsl(var(--bg-subtle))",
-        bgCream: "hsl(var(--bg-cream))",
-        
-        borderLight: "hsl(var(--border-light))",
-        borderDark: "hsl(var(--border-dark))",
-        
-        dividerLight: "hsl(var(--divider-light))",
-        dividerDark: "hsl(var(--divider-dark))",
-        
-        // Button tokens
-        btnPrimaryTop: "hsl(var(--btn-primary-top))",
-        btnPrimaryBottom: "hsl(var(--btn-primary-bottom))",
-        btnPrimaryBorder: "hsl(var(--btn-primary-border))",
-        btnConvertTop: "hsl(var(--btn-convert-top))",
-        btnConvertBottom: "hsl(var(--btn-convert-bottom))",
-        btnConvertBorder: "hsl(var(--btn-convert-border))",
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          text: "hsl(var(--success-text))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          text: "hsl(var(--info-text))",
+          foreground: "hsl(var(--info-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          text: "hsl(var(--warning-text))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        platform: {
+          spotify: "hsl(var(--platform-spotify))",
+          "apple-music": "hsl(var(--platform-apple-music))",
+          youtube: "hsl(var(--platform-youtube))",
+          tidal: "hsl(var(--platform-tidal))",
+          deezer: "hsl(var(--platform-deezer))",
+          foreground: "hsl(var(--platform-foreground))",
+        },
         chart: {
           "1": "hsl(var(--chart-1))",
           "2": "hsl(var(--chart-2))",
@@ -99,6 +85,31 @@ module.exports = {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        section: {
+          dark: {
+            DEFAULT: "hsl(var(--section-dark))",
+            fg: "hsl(var(--section-dark-fg))",
+          },
+          wine: {
+            DEFAULT: "hsl(var(--section-wine))",
+            fg: "hsl(var(--section-wine-fg))",
+          },
+          navy: {
+            DEFAULT: "hsl(var(--section-navy))",
+            fg: "hsl(var(--section-navy-fg))",
+          },
+          cream: {
+            DEFAULT: "hsl(var(--section-cream))",
+            fg: "hsl(var(--section-cream-fg))",
+          },
+        },
+        editorial: {
+          rule: "hsl(var(--editorial-rule))",
+          "rule-subtle": "hsl(var(--editorial-rule-subtle))",
+        },
+        pullquote: {
+          bg: "hsl(var(--pullquote-bg))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -109,4 +120,3 @@ module.exports = {
   },
   plugins: [],
 }
-

@@ -68,7 +68,7 @@ function CallbackContent() {
   if (error) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4">
-        <h1 className="text-2xl font-bold text-red-500">Login Failed</h1>
+        <h1 className="text-2xl font-bold text-destructive">Login Failed</h1>
         <p>{error}</p>
         <button onClick={() => router.push('/auth/signin')} className="underline">Back to Sign In</button>
       </div>

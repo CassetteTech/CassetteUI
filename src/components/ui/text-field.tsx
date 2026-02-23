@@ -20,9 +20,9 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
   ...props
 }, ref) => {
   const variants = {
-    default: 'border-text-hint focus:border-primary',
-    auth: 'border-text-secondary focus:border-primary bg-bg-input',
-    'music-search': 'border-text-hint focus:border-primary bg-white',
+    default: 'border-border focus:border-primary',
+    auth: 'border-border focus:border-primary bg-card',
+    'music-search': 'border-border focus:border-primary bg-card',
   };
 
   const sizes = {
@@ -34,7 +34,7 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
     <div className="w-full">
       {label && (
         <label className={cn(
-          "block font-bold text-text-primary font-atkinson tracking-wide",
+          "block font-bold text-foreground font-atkinson tracking-wide",
           inputSize === 'lg' ? 'text-sm mb-2' : 'text-sm mb-1'
         )}>
           {label}
@@ -45,17 +45,17 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
         className={cn(
           'w-full rounded-md border-2 transition-colors duration-200',
           'font-atkinson text-sm font-normal tracking-wide',
-          'placeholder:text-text-hint placeholder:font-atkinson placeholder:font-normal',
+          'placeholder:text-muted-foreground placeholder:font-atkinson placeholder:font-normal',
           'focus:outline-none focus:ring-0',
           sizes[inputSize],
           variants[variant],
-          error && 'border-red-500 focus:border-red-500',
+          error && 'border-destructive focus:border-destructive',
           className
         )}
         {...props}
       />
       {error && (
-        <p className="mt-1 text-sm font-normal text-red-500 font-atkinson">
+        <p className="mt-1 text-sm font-normal text-destructive font-atkinson">
           {error}
         </p>
       )}

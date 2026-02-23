@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { ProfileDemo } from '@/components/demo/profile-demo';
 import { AnimatedButton } from '@/components/ui/animated-button';
-import { theme } from '@/lib/theme';
 
 interface HomeDemoSectionProps {
   isAuthenticated: boolean;
@@ -343,10 +342,10 @@ export function HomeDemoSection({ isAuthenticated }: HomeDemoSectionProps) {
                   height={48}
                   width={280}
                   initialPos={6}
-                  colorTop={theme.colors.brandRed}
-                  colorBottom={theme.colors.brandRedD}
-                  borderColorTop={theme.colors.brandRed}
-                  borderColorBottom={theme.colors.brandRedD}
+                  colorTop='hsl(var(--primary))'
+                  colorBottom='hsl(var(--destructive))'
+                  borderColorTop='hsl(var(--primary))'
+                  borderColorBottom='hsl(var(--destructive))'
                   textStyle="text-lg sm:text-xl font-bold tracking-wide font-atkinson text-white"
                 />
               </motion.div>

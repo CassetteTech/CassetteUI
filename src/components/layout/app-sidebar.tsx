@@ -23,7 +23,6 @@ import { SidebarProfileCard, SidebarProfileCardSkeleton } from '@/components/fea
 import { usePathname } from 'next/navigation';
 import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { useReportIssue } from '@/providers/report-issue-provider';
-import { theme } from '@/lib/theme';
 import { useUserBio } from '@/hooks/use-profile';
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 
@@ -132,7 +131,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
             top: indicatorStyle.top,
             height: indicatorStyle.height,
             opacity: indicatorStyle.opacity,
-            backgroundColor: theme.colors.brandRed,
+            backgroundColor: 'hsl(var(--primary))',
             // No transition until first position is set, then smooth sliding
             transition: indicatorStyle.hasPositioned
               ? (indicatorStyle.opacity === 1
@@ -367,7 +366,7 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
             top: indicatorStyle.top,
             height: indicatorStyle.height,
             opacity: indicatorStyle.opacity,
-            backgroundColor: theme.colors.brandRed,
+            backgroundColor: 'hsl(var(--primary))',
             // No transition until first position is set, then smooth sliding
             transition: indicatorStyle.hasPositioned
               ? (indicatorStyle.opacity === 1

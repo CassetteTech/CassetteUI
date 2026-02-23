@@ -104,68 +104,68 @@ export default function MusicAuthDemoPage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <h3 className="font-semibold text-green-600">✅ Secure Spotify Flow</h3>
+              <h3 className="font-semibold text-success-text">✅ Secure Spotify Flow</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                  <span className="w-6 h-6 bg-info/10 text-info-text rounded-full flex items-center justify-center text-xs font-bold">1</span>
                   <span>User clicks &quot;Connect Spotify&quot;</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                  <span className="w-6 h-6 bg-info/10 text-info-text rounded-full flex items-center justify-center text-xs font-bold">2</span>
                   <span>Frontend redirects to /api/auth/spotify/connect</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                  <span className="w-6 h-6 bg-info/10 text-info-text rounded-full flex items-center justify-center text-xs font-bold">3</span>
                   <span>Backend generates state, redirects to Spotify</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                  <span className="w-6 h-6 bg-info/10 text-info-text rounded-full flex items-center justify-center text-xs font-bold">4</span>
                   <span>User authorizes on Spotify</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">5</span>
+                  <span className="w-6 h-6 bg-info/10 text-info-text rounded-full flex items-center justify-center text-xs font-bold">5</span>
                   <span>Spotify redirects to /api/auth/spotify/callback</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">6</span>
+                  <span className="w-6 h-6 bg-info/10 text-info-text rounded-full flex items-center justify-center text-xs font-bold">6</span>
                   <span>Backend exchanges code for tokens using client secret</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">7</span>
+                  <span className="w-6 h-6 bg-info/10 text-info-text rounded-full flex items-center justify-center text-xs font-bold">7</span>
                   <span>Tokens encrypted and stored in database</span>
                 </div>
               </div>
             </div>
 
             <div className="space-y-3">
-              <h3 className="font-semibold text-green-600">✅ Secure Apple Music Flow</h3>
+              <h3 className="font-semibold text-success-text">✅ Secure Apple Music Flow</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                  <span className="w-6 h-6 bg-destructive/10 text-destructive rounded-full flex items-center justify-center text-xs font-bold">1</span>
                   <span>User clicks &quot;Connect Apple Music&quot;</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                  <span className="w-6 h-6 bg-destructive/10 text-destructive rounded-full flex items-center justify-center text-xs font-bold">2</span>
                   <span>Frontend fetches developer token from backend</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                  <span className="w-6 h-6 bg-destructive/10 text-destructive rounded-full flex items-center justify-center text-xs font-bold">3</span>
                   <span>Backend generates JWT using private key</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                  <span className="w-6 h-6 bg-destructive/10 text-destructive rounded-full flex items-center justify-center text-xs font-bold">4</span>
                   <span>Frontend configures MusicKit with token</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold">5</span>
+                  <span className="w-6 h-6 bg-destructive/10 text-destructive rounded-full flex items-center justify-center text-xs font-bold">5</span>
                   <span>User authorizes on Apple Music</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold">6</span>
+                  <span className="w-6 h-6 bg-destructive/10 text-destructive rounded-full flex items-center justify-center text-xs font-bold">6</span>
                   <span>Frontend sends user token to backend</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold">7</span>
+                  <span className="w-6 h-6 bg-destructive/10 text-destructive rounded-full flex items-center justify-center text-xs font-bold">7</span>
                   <span>User token encrypted and stored in database</span>
                 </div>
               </div>

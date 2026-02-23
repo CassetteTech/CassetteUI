@@ -167,7 +167,7 @@ export function MusicConnectionsStatus({
                   height={24}
                   className="rounded-md transition-transform group-hover:scale-110"
                 />
-                <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-card" />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border border-card" />
               </div>
             </TooltipTrigger>
             <TooltipContent side="bottom" sideOffset={4}>
@@ -182,7 +182,7 @@ export function MusicConnectionsStatus({
   // Profile variant - compact card display
   if (variant === 'profile') {
     return (
-      <div className={`bg-white/10 dark:bg-black/10 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-xl p-3 shadow-lg ${className}`}>
+      <div className={`bg-card/20 backdrop-blur-md border border-border/20 rounded-xl p-3 shadow-lg ${className}`}>
         {hasConnections ? (
           <>
             {/* Desktop version - with text */}
@@ -246,7 +246,7 @@ export function MusicConnectionsStatus({
                     height={14}
                     className="rounded-sm"
                   />
-                  <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                  <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-success rounded-full"></div>
                 </div>
               ))}
             </div>

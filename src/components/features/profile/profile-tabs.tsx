@@ -1,7 +1,6 @@
 'use client';
 
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { theme } from "@/lib/theme";
 
 export type TabType = 'playlists' | 'tracks' | 'artists' | 'albums';
 
@@ -61,7 +60,7 @@ export function ProfileTabs({ activeTab, onTabChange }: ProfileTabsProps) {
           style={{
             left: sliderStyle.left,
             width: sliderStyle.width,
-            backgroundColor: theme.colors.brandRed,
+            backgroundColor: 'hsl(var(--primary))',
           }}
         />
 

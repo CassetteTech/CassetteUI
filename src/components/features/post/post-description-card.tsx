@@ -89,7 +89,7 @@ export function PostDescriptionCard({
 
           {hasConversionCount && (
             <div className="pt-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-success/25 bg-success/10 px-2.5 py-1 text-xs font-medium text-success-text">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {formattedCount} successful conversions
               </span>

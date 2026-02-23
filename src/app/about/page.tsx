@@ -23,37 +23,35 @@ export default function AboutPage() {
       />
 
       <div className="relative z-10">
-        {/* Default bg sections use the constrained container */}
+        {/* Hero — on page background */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-32">
           <AboutHero />
         </div>
 
-        {/* Full-width tinted band */}
+        {/* Problem — navy band */}
         <ProblemSection />
 
-        {/* Default bg */}
+        {/* Journey & Support — on page background */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <JourneyTimeline />
           <SupportCTA />
         </div>
 
-        {/* Full-width tinted band */}
+        {/* Features — cream band */}
         <FeaturesSection />
 
-        {/* Default bg */}
+        {/* Showcase — on page background */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <ShowcaseStrip />
         </div>
 
-        {/* Full-width tinted band */}
+        {/* Vision — dark band */}
         <VisionSection />
 
-        {/* Default bg */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <SupportersShowcase />
-        </div>
+        {/* Supporters — light band to blend with Ko-fi widget */}
+        <SupportersShowcase />
 
-        {/* Full-width inverted CTA */}
+        {/* Final CTA — wine band */}
         <FinalCTA />
       </div>
     </div>

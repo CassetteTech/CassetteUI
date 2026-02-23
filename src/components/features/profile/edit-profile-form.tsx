@@ -241,7 +241,7 @@ export function EditProfileFormComponent({
             <button
               type="button"
               onClick={handleImageUpload}
-              className="absolute bottom-0 right-0 w-9 h-9 sm:w-11 sm:h-11 bg-green-500 rounded-full flex items-center justify-center border-4 border-background hover:bg-green-600 transition-colors"
+              className="absolute bottom-0 right-0 w-9 h-9 sm:w-11 sm:h-11 bg-success rounded-full flex items-center justify-center border-4 border-background hover:bg-success/90 transition-colors"
             >
               <Image
                 src="/images/ic_edit.png"
@@ -264,7 +264,7 @@ export function EditProfileFormComponent({
           JPEG, PNG, or WebP. Max 5MB.
         </div>
         {avatarError && (
-          <p className="text-center text-sm font-normal text-red-500 font-atkinson">
+          <p className="text-center text-sm font-normal text-destructive font-atkinson">
             {avatarError}
           </p>
         )}
@@ -288,17 +288,17 @@ export function EditProfileFormComponent({
           />
 
           <div className="w-full">
-            <label className="block text-sm font-bold text-text-primary mb-2 font-atkinson tracking-wide">
+            <label className="block text-sm font-bold text-foreground mb-2 font-atkinson tracking-wide">
               Bio
             </label>
             <textarea
               {...register('bio')}
               rows={5}
-              className="w-full px-4 py-3 rounded-md border-2 transition-colors duration-200 font-atkinson text-sm font-normal tracking-wide placeholder:text-text-hint placeholder:font-atkinson placeholder:font-normal focus:outline-none focus:ring-0 border-text-hint focus:border-primary text-foreground bg-transparent"
+              className="w-full px-4 py-3 rounded-md border-2 transition-colors duration-200 font-atkinson text-sm font-normal tracking-wide placeholder:text-muted-foreground placeholder:font-atkinson placeholder:font-normal focus:outline-none focus:ring-0 border-border focus:border-primary text-foreground bg-transparent"
               placeholder="Tell us about yourself..."
             />
             {errors.bio && (
-              <p className="mt-1 text-sm font-normal text-red-500 font-atkinson">
+              <p className="mt-1 text-sm font-normal text-destructive font-atkinson">
                 {errors.bio.message}
               </p>
             )}
@@ -318,7 +318,7 @@ export function EditProfileFormComponent({
           <button
             type="submit"
             disabled={isLoading || isSaveOnCooldown}
-            className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3.5 px-6 rounded-lg font-medium disabled:opacity-50 transition-all"
+            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3.5 px-6 rounded-lg font-medium disabled:opacity-50 transition-all"
           >
             {isLoading ? 'Saving...' : 'Save'}
           </button>
@@ -326,14 +326,14 @@ export function EditProfileFormComponent({
 
         {/* Danger Zone */}
         <div className="mt-8 pt-6 sm:mt-12 sm:pt-8">
-          <div className="rounded-lg border border-[#FF004C]/30 bg-[#FF004C]/5 p-5">
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-5">
             <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FF004C]/10">
-                <AlertTriangle className="h-5 w-5 text-[#FF004C]" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
               </div>
               <div className="flex-1 space-y-3">
                 <div>
-                  <h3 className="text-base font-semibold text-[#FF004C]">Danger Zone</h3>
+                  <h3 className="text-base font-semibold text-destructive">Danger Zone</h3>
                   <p className="text-sm text-muted-foreground mt-1">
                     Permanently delete your account and all associated data. This action cannot be undone.
                   </p>
@@ -341,7 +341,7 @@ export function EditProfileFormComponent({
                 <button
                   type="button"
                   onClick={() => setShowDeleteModal(true)}
-                  className="inline-flex items-center gap-2 bg-transparent border border-[#FF004C]/50 text-[#FF004C] py-2 px-4 rounded-md text-sm font-medium hover:bg-[#FF004C]/10 hover:border-[#FF004C] transition-all"
+                  className="inline-flex items-center gap-2 bg-transparent border border-destructive/50 text-destructive py-2 px-4 rounded-md text-sm font-medium hover:bg-destructive/10 hover:border-destructive transition-all"
                 >
                   Delete Account
                 </button>

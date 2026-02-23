@@ -243,8 +243,8 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
     if (creationStatus.loading) {
       return (
-        <div className="mt-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
-          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+        <div className="mt-4 p-4 rounded-xl bg-info/10 border border-info/20">
+          <div className="flex items-center gap-2 text-info-text">
             <Loader2 className="w-4 h-4 animate-spin" />
             <span className="text-sm font-medium">Creating playlist on {serviceName}...</span>
           </div>
@@ -254,8 +254,8 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
     if (creationStatus.error) {
       return (
-        <div className="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-          <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+        <div className="mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+          <div className="flex items-center gap-2 text-destructive">
             <AlertCircle className="w-4 h-4" />
             <span className="text-sm font-medium">{creationStatus.error}</span>
           </div>
@@ -268,8 +268,8 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
       if (!success) {
         return (
-          <div className="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-            <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+          <div className="mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+            <div className="flex items-center gap-2 text-destructive">
               <AlertCircle className="w-4 h-4" />
               <span className="text-sm font-medium">
                 {creationStatus.result.error_message || 'Failed to create playlist'}
@@ -280,10 +280,10 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       }
 
       return (
-        <div className="mt-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+        <div className="mt-4 p-4 rounded-xl bg-success/10 border border-success/20">
           <div className="flex flex-col gap-3">
             {/* Success message */}
-            <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+            <div className="flex items-center gap-2 text-success-text">
               <CheckCircle className="w-4 h-4" />
               <span className="text-sm font-medium">
                 Playlist created! {tracks_added}/{total_tracks} tracks added
@@ -327,7 +327,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
                 }}
                 className={cn(
                   'inline-flex items-center gap-2 px-4 py-2 rounded-full',
-                  'bg-green-600 hover:bg-green-700 text-white',
+                  'bg-success hover:bg-success/90 text-success-foreground',
                   'text-sm font-medium transition-colors w-fit cursor-pointer'
                 )}
               >
@@ -347,15 +347,15 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowFailedTracks(!showFailedTracks)}
-                  className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400 hover:underline"
+                  className="flex items-center gap-1 text-sm text-warning-text hover:underline"
                 >
                   {showFailedTracks ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   <span>{tracks_failed} track{tracks_failed !== 1 ? 's' : ''} couldn&apos;t be added</span>
                 </button>
 
                 {showFailedTracks && (
-                  <div className="mt-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                    <ul className="space-y-1 text-sm text-amber-700 dark:text-amber-300">
+                  <div className="mt-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
+                    <ul className="space-y-1 text-sm text-warning-text">
                       {failed_tracks.map((track: FailedTrack, idx: number) => (
                         <li key={idx} className="flex justify-between">
                           <span className="truncate">
@@ -382,14 +382,14 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   return (
     <div
       className={cn(
-        'p-3 sm:p-4 md:p-6 rounded-2xl bg-text-primary/5 border border-text-primary/10',
+        'p-3 sm:p-4 md:p-6 rounded-2xl bg-foreground/5 border border-foreground/10',
         'shadow-sm backdrop-blur-sm',
         className,
       )}
     >
       {conversionLimitExceeded && (
-        <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-          <p className="text-sm text-amber-700 dark:text-amber-300">
+        <div className="mb-4 p-3 rounded-xl bg-warning/10 border border-warning/20">
+          <p className="text-sm text-warning-text">
             This playlist has {playlistTrackCount} tracks. We&apos;ll convert the first {PLAYLIST_CONVERSION_LIMIT} tracks.
           </p>
         </div>
@@ -411,7 +411,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
             'border-2 border-foreground/60 text-foreground',
             'bg-card/80 hover:bg-card text-sm font-medium backdrop-blur-sm',
             isLoading && 'opacity-50 cursor-not-allowed',
-            isCreated && 'border-green-500 bg-green-500/10',
+            isCreated && 'border-success bg-success/10',
           );
 
           return !shouldShowConvertButton && url ? (

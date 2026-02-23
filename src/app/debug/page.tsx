@@ -40,15 +40,15 @@ export default function DebugPage() {
         <div className="mt-8 space-y-4">
           <div>
             <UIText className="font-bold">Status:</UIText>
-            <pre className="bg-gray-100 p-2 rounded">
+            <pre className="bg-muted p-2 rounded">
               {isPending ? 'Converting...' : 'Ready'}
             </pre>
           </div>
           
           {error && (
             <div>
-              <UIText className="font-bold text-red-600">Error:</UIText>
-              <pre className="bg-red-50 p-2 rounded text-red-800">
+              <UIText className="font-bold text-destructive">Error:</UIText>
+              <pre className="bg-destructive/10 p-2 rounded text-destructive">
                 {error instanceof Error ? error.message : JSON.stringify(error, null, 2)}
               </pre>
             </div>
@@ -56,8 +56,8 @@ export default function DebugPage() {
           
           {data && (
             <div>
-              <UIText className="font-bold text-green-600">Success:</UIText>
-              <pre className="bg-green-50 p-2 rounded text-green-800 overflow-auto">
+              <UIText className="font-bold text-success-text">Success:</UIText>
+              <pre className="bg-success/10 p-2 rounded text-success-text overflow-auto">
                 {JSON.stringify(data, null, 2)}
               </pre>
             </div>

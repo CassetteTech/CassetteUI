@@ -25,7 +25,7 @@ const MUSIC_SERVICES = [
     id: 'Spotify' as ServiceId,
     name: 'Spotify',
     iconSrc: '/images/spotify_logo_colored.png',
-    bgColor: 'bg-[#1DB954]',
+    bgColor: 'bg-platform-spotify',
     requiresAuth: false,
     description: 'Share music and create playlists',
   },
@@ -33,7 +33,7 @@ const MUSIC_SERVICES = [
     id: 'AppleMusic' as ServiceId,
     name: 'Apple Music',
     iconSrc: '/images/apple_music_logo_colored.png',
-    bgColor: 'bg-gradient-to-br from-[#FA233B] to-[#FB5C74]',
+    bgColor: 'bg-platform-apple-music',
     requiresAuth: true,
     description: 'Requires authorization for playlists',
   },
@@ -41,7 +41,7 @@ const MUSIC_SERVICES = [
     id: 'Deezer' as ServiceId,
     name: 'Deezer',
     iconSrc: '/images/deezer_logo_colored.png',
-    bgColor: 'bg-black',
+    bgColor: 'bg-platform-deezer',
     requiresAuth: false,
     description: 'Share music from Deezer',
   },
@@ -297,7 +297,7 @@ export function MusicConnectionsFlow({
                 <div
                   key={service.id}
                   className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                    state.isSelected ? 'bg-green-500/5 border-green-500/30' : 'bg-muted/50 border-transparent'
+                    state.isSelected ? 'bg-success/5 border-success/30' : 'bg-muted/50 border-transparent'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -314,7 +314,7 @@ export function MusicConnectionsFlow({
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{service.name}</span>
                         {state.isSelected && (
-                          <Check className="w-4 h-4 text-green-600" />
+                          <Check className="w-4 h-4 text-success-text" />
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">{service.description}</p>

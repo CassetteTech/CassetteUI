@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/sheet';
 import { AnimatedButton } from '@/components/ui/animated-button';
 import { UIText } from '@/components/ui/typography';
-import { theme } from '@/lib/theme';
 import Image from 'next/image';
 
 interface AppleMusicHelpModalProps {
@@ -119,10 +118,10 @@ export function AppleMusicHelpModal({
             height={40}
             width={120}
             initialPos={4}
-            colorTop={theme.colors.brandRed}
-            colorBottom={theme.colors.brandRedD}
-            borderColorTop={theme.colors.brandRed}
-            borderColorBottom={theme.colors.brandRedD}
+            colorTop='hsl(var(--primary))'
+            colorBottom='hsl(var(--destructive))'
+            borderColorTop='hsl(var(--primary))'
+            borderColorBottom='hsl(var(--destructive))'
             textStyle="text-sm font-semibold text-white"
           />
         </SheetFooter>

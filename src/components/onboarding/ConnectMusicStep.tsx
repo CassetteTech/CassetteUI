@@ -38,7 +38,7 @@ const MUSIC_SERVICES = [
     name: 'Spotify',
     iconSrc: '/images/spotify_logo_colored.png',
     description: 'Add Spotify to your profile',
-    bgColor: 'bg-[#1DB954]',
+    bgColor: 'bg-platform-spotify',
     requiresAuth: false,
   },
   {
@@ -46,7 +46,7 @@ const MUSIC_SERVICES = [
     name: 'Apple Music',
     iconSrc: '/images/apple_music_logo_colored.png',
     description: 'Connect to create playlists',
-    bgColor: 'bg-gradient-to-br from-[#FA233B] to-[#FB5C74]',
+    bgColor: 'bg-platform-apple-music',
     requiresAuth: true,
   },
   {
@@ -54,7 +54,7 @@ const MUSIC_SERVICES = [
     name: 'Deezer',
     iconSrc: '/images/deezer_logo_colored.png',
     description: 'Add Deezer to your profile',
-    bgColor: 'bg-black',
+    bgColor: 'bg-platform-deezer',
     requiresAuth: false,
   },
 ];
@@ -266,7 +266,7 @@ export function ConnectMusicStep({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className={`p-4 transition-all duration-200 ${state.isSelected ? 'border-green-500/50 bg-green-500/5' : ''}`}>
+                <Card className={`p-4 transition-all duration-200 ${state.isSelected ? 'border-success/50 bg-success/5' : ''}`}>
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       {/* Service Icon */}
@@ -294,7 +294,7 @@ export function ConnectMusicStep({
                       ) : (
                         <>
                           {state.isSelected && (
-                            <Check className="w-4 h-4 text-green-600" />
+                            <Check className="w-4 h-4 text-success-text" />
                           )}
                           <Switch
                             checked={state.isSelected}
@@ -321,10 +321,10 @@ export function ConnectMusicStep({
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+            <div className="p-4 bg-success/10 rounded-lg border border-success/20">
               <div className="flex items-center gap-2">
-                <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
-                <p className="text-sm text-green-700 dark:text-green-400">
+                <Check className="w-5 h-5 text-success-text flex-shrink-0" />
+                <p className="text-sm text-success-text">
                   {selectedCount === 1
                     ? 'Great! You\'ve selected 1 streaming service.'
                     : `Great! You've selected ${selectedCount} streaming services.`}

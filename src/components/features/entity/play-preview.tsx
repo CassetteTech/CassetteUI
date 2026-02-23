@@ -171,7 +171,7 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
             </div>
 
             {duration > 0 && (
-              <div className="text-center text-xs text-text-secondary/70 mt-1">
+              <div className="text-center text-xs text-muted-foreground/70 mt-1">
                 <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
               </div>
             )}
@@ -237,7 +237,7 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
         <div className="flex-1 min-w-0">
           <div className="mb-1">
             <div className="font-medium text-sm text-foreground/90 truncate">{title}</div>
-            <div className="text-xs text-text-secondary/80 truncate">{artist}</div>
+            <div className="text-xs text-muted-foreground/80 truncate">{artist}</div>
           </div>
 
           <div className="relative w-full h-1 bg-border/60 rounded-full overflow-hidden">
@@ -248,7 +248,7 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
           </div>
 
           {duration > 0 && (
-            <div className="flex justify-between text-xs text-text-secondary/80 mt-1">
+            <div className="flex justify-between text-xs text-muted-foreground/80 mt-1">
               <span>{formatTime(currentTime)}</span>
               <span>{formatTime(duration)}</span>
             </div>

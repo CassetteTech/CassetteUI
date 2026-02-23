@@ -10,7 +10,6 @@ import {
   SheetFooter,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { theme } from '@/lib/theme';
 import { Music2 } from 'lucide-react';
 
 interface AuthPromptModalProps {
@@ -65,8 +64,7 @@ export function AuthPromptModal({
         <SheetFooter className="flex flex-col gap-3 sm:flex-col">
           <Button
             onClick={handleSignUp}
-            className="w-full h-11 font-semibold text-white"
-            style={{ backgroundColor: theme.colors.brandRed }}
+            className="w-full h-11 font-semibold bg-primary text-primary-foreground hover:bg-primary/90"
           >
             Sign Up
           </Button>

@@ -45,7 +45,7 @@ export const ArtistName: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'h3' 
 }) => (
-  <Component className={cn('font-teko text-xl sm:text-2xl font-bold text-textSecondary tracking-custom-2', className)}>
+  <Component className={cn('font-teko text-xl sm:text-2xl font-bold text-muted-foreground tracking-custom-2', className)}>
     {children}
   </Component>
 );
@@ -127,7 +127,7 @@ export const HintText: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'span' 
 }) => (
-  <Component className={cn('font-roboto text-sm font-semibold text-textHint', className)}>
+  <Component className={cn('font-roboto text-sm font-semibold text-muted-foreground', className)}>
     {children}
   </Component>
 );
@@ -251,7 +251,7 @@ export const ErrorText: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'span' 
 }) => (
-  <Component className={cn('font-atkinson text-sm font-normal text-danger', className)}>
+  <Component className={cn('font-atkinson text-sm font-normal text-destructive', className)}>
     {children}
   </Component>
 );
@@ -262,7 +262,7 @@ export const ToastText: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'span' 
 }) => (
-  <Component className={cn('font-atkinson text-sm font-medium text-textOnDark tracking-wide', className)}>
+  <Component className={cn('font-atkinson text-sm font-medium text-foreground tracking-wide', className)}>
     {children}
   </Component>
 );

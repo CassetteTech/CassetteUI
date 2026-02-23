@@ -7,7 +7,6 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Share2, Music } from "lucide-react";
 import Image from "next/image";
-import { theme } from "@/lib/theme";
 
 type TabType = 'playlists' | 'tracks' | 'artists' | 'albums';
 
@@ -199,7 +198,7 @@ export function ProfileDemo({ annotations = true }: ProfileDemoProps) {
                       <Music className="mr-1 h-3 w-3 flex-shrink-0" />
                       <span className="text-[10px] sm:text-xs truncate">Add Music</span>
                     </Button>
-                    <Button className="flex-1 min-w-0 h-7 sm:h-8 text-white px-2" style={{ backgroundColor: theme.colors.brandRed }} onClick={handleShare}>
+                    <Button className="flex-1 min-w-0 h-7 sm:h-8 bg-primary text-white px-2 hover:bg-primary/90" onClick={handleShare}>
                       <Share2 className="mr-1 h-3 w-3 flex-shrink-0" />
                       <span className="text-[10px] sm:text-xs truncate">Share Profile</span>
                     </Button>
@@ -217,7 +216,7 @@ export function ProfileDemo({ annotations = true }: ProfileDemoProps) {
                             value={tab.key}
                             className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-none px-1 sm:px-2 py-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-normal sm:tracking-wider transition-all duration-100 text-muted-foreground hover:text-foreground data-[state=active]:text-white font-teko"
                             style={{
-                              backgroundColor: activeTab === tab.key ? theme.colors.brandRed : undefined,
+                              backgroundColor: activeTab === tab.key ? 'hsl(var(--primary))' : undefined,
                               height: activeTab === tab.key ? '32px' : '28px',
                             }}
                           >

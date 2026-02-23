@@ -113,10 +113,10 @@ export default function CollectionsPage() {
           
           {/* Loading Overlay */}
           {isConverting && (
-            <div className="fixed inset-0 bg-cream/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
               <div className="text-center">
                 <Spinner size="xl" variant="primary" className="mx-auto mb-4" />
-                <p className="text-text-primary font-bold">
+                <p className="text-foreground font-bold">
                   Loading music details...
                 </p>
               </div>

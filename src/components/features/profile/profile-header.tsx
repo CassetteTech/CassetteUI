@@ -159,15 +159,15 @@ function ConnectedServices({
   const getServiceColor = (serviceType: string) => {
     const normalized = normalize(serviceType);
     const colorMap: Record<string, string> = {
-      'spotify': 'bg-[#1DB954]/20 border-[#1DB954]/50',
-      'applemusic': 'bg-[#FA233B]/20 border-[#FA233B]/50',
-      'apple': 'bg-[#FA233B]/20 border-[#FA233B]/50',
-      'youtube': 'bg-red-500/20 border-red-500/50',
-      'tidal': 'bg-blue-500/20 border-blue-500/50',
-      'deezer': 'bg-purple-500/20 border-purple-500/50',
+      'spotify': 'bg-platform-spotify/20 border-platform-spotify/50',
+      'applemusic': 'bg-platform-apple-music/20 border-platform-apple-music/50',
+      'apple': 'bg-platform-apple-music/20 border-platform-apple-music/50',
+      'youtube': 'bg-platform-youtube/20 border-platform-youtube/50',
+      'tidal': 'bg-platform-tidal/20 border-platform-tidal/50',
+      'deezer': 'bg-platform-deezer/20 border-platform-deezer/50',
     };
 
-    return colorMap[normalized] || 'bg-gray-400/20 border-gray-400/50';
+    return colorMap[normalized] || 'bg-muted/20 border-muted-foreground/50';
   };
 
   // Use platformPreferences if available, fall back to connectedServices

@@ -46,7 +46,7 @@ export function Markdown({ content }: { content: string }) {
         {...props}
       />
     ),
-    hr: () => <hr className="my-6 border-dividerLight dark:border-dividerDark" />,
+    hr: () => <hr className="my-6 border-border" />,
   };
 
   return <ReactMarkdown components={components}>{content}</ReactMarkdown>;

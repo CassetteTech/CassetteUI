@@ -17,19 +17,16 @@ export function TeamCard({ member, index, onClick }: TeamCardProps) {
 
   return (
     <div
-      className="surface-top border border-foreground/15 dark:border-border rounded-lg cursor-pointer h-full flex flex-col
-        hover:-translate-y-1 hover:shadow-[6px_6px_0_hsl(var(--border))] transition-all duration-150 ease-linear"
+      className={`surface-top border-l-4 ${typeConfig.borderLeft} border border-foreground/15 dark:border-border rounded-lg cursor-pointer h-full flex flex-col relative overflow-hidden
+        hover:-translate-y-1 hover:shadow-[6px_6px_0_hsl(var(--border))] transition-all duration-150 ease-linear`}
       onClick={onClick}
     >
+      {/* Watermark number */}
+      <span className={`font-teko text-6xl font-bold ${typeConfig.numberColor} absolute top-2 right-4 leading-none opacity-60 pointer-events-none select-none`}>
+        {number}
+      </span>
+
       <div className="p-6 sm:p-7 flex-1 flex flex-col">
-        {/* Accent bar — category color */}
-        <div className={`h-[2px] w-10 ${typeConfig.accentBar} mb-4`} />
-
-        {/* Editorial number — category tinted */}
-        <span className={`font-teko text-2xl font-bold ${typeConfig.numberColor} leading-none mb-4`}>
-          {number}
-        </span>
-
         {/* Photo + Name/Role */}
         <div className="flex items-start gap-4 mb-4">
           <div className="relative w-14 h-14 rounded-full overflow-hidden flex-shrink-0 bg-muted">
@@ -64,7 +61,8 @@ export function TeamCard({ member, index, onClick }: TeamCardProps) {
         </p>
 
         {/* Social links footer */}
-        <div className="mt-5 pt-4 border-t border-foreground/10 dark:border-border/60 flex items-center gap-3">
+        <div className="mt-5 pt-4 flex items-center gap-3">
+          <div className="editorial-rule-dashed flex-1 mr-3" />
           <a href={member.social.github} className="text-muted-foreground hover:text-foreground transition-colors" onClick={e => e.stopPropagation()} aria-label="GitHub">
             <Github size={16} />
           </a>

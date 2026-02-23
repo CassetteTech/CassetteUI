@@ -16,7 +16,7 @@ interface CompletionStepProps {
 
 // Confetti particle component
 function ConfettiParticle({ delay, x }: { delay: number; x: number }) {
-  const colors = ['#ED2748', '#1ED760', '#0093FF', '#FFB300', '#9A75FF'];
+  const colors = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--info))', 'hsl(var(--warning))', 'hsl(var(--accent-royal))'];
   const color = colors[Math.floor(Math.random() * colors.length)];
 
   return (
@@ -115,7 +115,7 @@ export function CompletionStep({
               initial={{ opacity: 0, scale: 0 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.7 }}
-              className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center"
+              className="absolute -bottom-1 -right-1 w-8 h-8 bg-success rounded-full flex items-center justify-center"
             >
               <CheckCircle2 className="w-5 h-5 text-white" />
             </motion.div>
@@ -125,7 +125,7 @@ export function CompletionStep({
               transition={{ delay: 0.9 }}
               className="absolute -top-2 -right-2"
             >
-              <PartyPopper className="w-7 h-7 text-yellow-500" />
+              <PartyPopper className="w-7 h-7 text-warning" />
             </motion.div>
           </div>
         </motion.div>

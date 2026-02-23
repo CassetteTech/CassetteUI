@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": ".analytics-test-dist",
+    "module": "commonjs",
+    "target": "es2020",
+    "moduleResolution": "node",
+    "incremental": false,
+    "isolatedModules": false,
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "src/lib/analytics/**/*.ts",
+    "src/lib/analytics/**/*.test.ts"
+  ],
+  "exclude": ["node_modules"]
+}

@@ -16,6 +16,7 @@ import { ConnectMusicStep } from '@/components/onboarding/ConnectMusicStep';
 import { CompletionStep } from '@/components/onboarding/CompletionStep';
 import { authService } from '@/services/auth';
 import { pendingActionService } from '@/utils/pending-action';
+import { captureClientEvent } from '@/lib/analytics/client';
 
 // Step definitions (excluding welcome and completion which are special)
 const STEPS = [
@@ -84,10 +85,27 @@ export default function OnboardingPage() {
   }, [isLoading, user, router]);
 
   const handleStartOnboarding = () => {
+    void captureClientEvent('onboarding_started', {
+      route: '/onboarding',
+      source_surface: 'onboarding',
+      user_id: user?.id,
+      is_authenticated: true,
+    });
     setPhase('steps');
   };
 
   const handleNext = () => {
+    const currentStepId = STEPS[currentStep]?.id;
+    if (phase === 'steps' && (currentStepId === 'handle' || currentStepId === 'avatar' || currentStepId === 'music')) {
+      void captureClientEvent('onboarding_step_completed', {
+        route: '/onboarding',
+        source_surface: 'onboarding',
+        step: currentStepId,
+        user_id: user?.id,
+        is_authenticated: true,
+      });
+    }
+
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {

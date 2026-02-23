@@ -16,6 +16,9 @@ import { HomeDemoSection } from '@/components/demo/home-demo-section';
 import { AppleMusicHelpModal } from '@/components/features/apple-music-help-modal';
 import { StageHoverCard } from '@/components/features/stage-hover-card';
 import { motion, AnimatePresence } from 'framer-motion';
+import { captureClientEvent } from '@/lib/analytics/client';
+import { detectContentType } from '@/utils/content-type-detection';
+import { sanitizeDomain } from '@/lib/analytics/sanitize';
 
 export default function HomePage() {
   const router = useRouter();
@@ -34,6 +37,7 @@ export default function HomePage() {
   const [hasScrolled, setHasScrolled] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const lastTrackedSearchRef = useRef<string>('');
   const debouncedSearchTerm = useDebounce(musicUrl, 300); // 300ms debounce for better responsiveness
   
   const { isAuthenticated } = useAuthState();
@@ -155,6 +159,16 @@ export default function HomePage() {
       console.log('❌ URL is empty, returning');
       return;
     }
+
+    const detected = detectContentType(trimmed);
+    void captureClientEvent('conversion_entry_started', {
+      route: '/',
+      source_surface: 'home',
+      source_platform: detected.platform,
+      element_type_guess: detected.type,
+      source_domain: sanitizeDomain(trimmed),
+      is_authenticated: isAuthenticated,
+    });
     
     // Navigate immediately to the post page with the URL
     // The post page will show skeleton and handle the conversion
@@ -214,11 +228,20 @@ export default function HomePage() {
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const pastedText = e.clipboardData.getData('text');
     const validationError = validateMusicLink(pastedText);
+    const detected = detectContentType(pastedText);
 
     setMusicUrl(pastedText);
     setUrlError(validationError);
 
     if (validationError) {
+      void captureClientEvent('unsupported_music_link_pasted', {
+        route: '/',
+        source_surface: 'home',
+        source_domain: sanitizeDomain(pastedText),
+        source_platform: detected.platform,
+        element_type_guess: detected.type,
+        is_authenticated: isAuthenticated,
+      });
       return;
     }
 
@@ -228,6 +251,26 @@ export default function HomePage() {
                        linkLower.includes('apple.com/music') || 
                        linkLower.includes('music.apple.com') || 
                        linkLower.includes('deezer.com');
+
+    if (isSupported) {
+      void captureClientEvent('music_link_pasted', {
+        route: '/',
+        source_surface: 'home',
+        source_domain: sanitizeDomain(pastedText),
+        source_platform: detected.platform,
+        element_type_guess: detected.type,
+        is_authenticated: isAuthenticated,
+      });
+    } else {
+      void captureClientEvent('unsupported_music_link_pasted', {
+        route: '/',
+        source_surface: 'home',
+        source_domain: sanitizeDomain(pastedText),
+        source_platform: detected.platform,
+        element_type_guess: detected.type,
+        is_authenticated: isAuthenticated,
+      });
+    }
 
     if (isSupported && !isSearchingMusic) {
       // Navigate immediately for link conversion
@@ -244,10 +287,42 @@ export default function HomePage() {
   // Handle selecting an item from search results
   const handleSelectItem = (url: string, title: string, type: string) => {
     console.log('🎵 handleSelectItem called with:', { url, title, type });
+    void captureClientEvent('search_result_selected', {
+      route: '/',
+      source_surface: 'home',
+      element_type_guess: detectContentType(url).type,
+      source_platform: detectContentType(url).platform,
+      source_domain: sanitizeDomain(url),
+      is_authenticated: isAuthenticated,
+    });
     
     // Navigate immediately to post page
     handleConvertLink(url);
   };
+
+  useEffect(() => {
+    const query = debouncedSearchTerm.trim();
+    if (!query || query.length < 2 || query.includes('http')) {
+      return;
+    }
+
+    if (lastTrackedSearchRef.current === query.toLowerCase()) {
+      return;
+    }
+
+    lastTrackedSearchRef.current = query.toLowerCase();
+    const resultCount = (searchResultsData?.tracks?.length || 0) +
+      (searchResultsData?.albums?.length || 0) +
+      (searchResultsData?.artists?.length || 0) +
+      (searchResultsData?.playlists?.length || 0);
+
+    void captureClientEvent('search_submitted', {
+      route: '/',
+      source_surface: 'home',
+      result_count: resultCount,
+      is_authenticated: isAuthenticated,
+    });
+  }, [debouncedSearchTerm, searchResultsData, isAuthenticated]);
 
 
   // Calculate animation classes

@@ -9,6 +9,8 @@ import { useSimulatedProgress } from '@/hooks/use-simulated-progress';
 import { detectContentType } from '@/utils/content-type-detection';
 import PostClientPage from './[id]/post-client';
 import { BackButton } from '@/components/ui/back-button';
+import { captureClientEvent } from '@/lib/analytics/client';
+import { sanitizeDomain } from '@/lib/analytics/sanitize';
 
 // This page handles:
 // 1. ?id=X - Redirects to /post/X (canonical route)
@@ -74,11 +76,21 @@ function PostPageContent() {
     // Handle ?url= conversion flow - render content directly, no redirect
     if (urlParam) {
       const decodedUrl = decodeURIComponent(urlParam);
+      const detected = detectContentType(decodedUrl);
 
       // Prevent duplicate mutate calls
       if (hasConvertedRef.current && lastUrlRef.current === decodedUrl) return;
       hasConvertedRef.current = true;
       lastUrlRef.current = decodedUrl;
+
+      void captureClientEvent('conversion_entry_started', {
+        route: '/post',
+        source_surface: fromAddMusic ? 'add_music' : 'post_direct',
+        source_platform: detected.platform,
+        element_type_guess: detected.type,
+        source_domain: sanitizeDomain(decodedUrl),
+        is_authenticated: fromAddMusic,
+      });
 
       convertLink({ url: decodedUrl, description: descriptionParam || undefined }, {
         onSuccess: (result) => {
@@ -188,6 +200,15 @@ function PostPageContent() {
 
         // For ?data= without postId, convert the URL to get a postId
         if (transformedFromData.originalUrl) {
+          const detected = detectContentType(transformedFromData.originalUrl);
+          void captureClientEvent('conversion_entry_started', {
+            route: '/post',
+            source_surface: 'post_direct',
+            source_platform: detected.platform,
+            element_type_guess: detected.type,
+            source_domain: sanitizeDomain(transformedFromData.originalUrl),
+          });
+
           convertLink({ url: transformedFromData.originalUrl, description: transformedFromData.description }, {
             onSuccess: (result) => {
               setApiComplete(true);

@@ -14,6 +14,7 @@ import { applyCachedArtwork } from '@/services/profile-artwork-cache';
 import { ActivityPost } from '@/types';
 import { Container } from '@/components/ui/container';
 import { BackButton } from '@/components/ui/back-button';
+import { captureClientEvent } from '@/lib/analytics/client';
 
 const TAB_ELEMENT_TYPE: Record<TabType, string> = {
   playlists: 'Playlist',
@@ -101,6 +102,13 @@ export default function ProfilePage() {
   }, [activeTab]);
 
   const handleShare = useCallback(() => {
+    void captureClientEvent('profile_shared', {
+      route: `/profile/${userBio?.username || ''}`,
+      source_surface: 'profile',
+      user_id: user?.id,
+      is_authenticated: Boolean(user),
+    });
+
     const shareUrl = `${window.location.origin}/profile/${userBio?.username}`;
 
     if (navigator.share) {
@@ -113,6 +121,17 @@ export default function ProfilePage() {
       navigator.clipboard.writeText(shareUrl);
     }
   }, [userBio]);
+
+  useEffect(() => {
+    if (!userBio) return;
+
+    void captureClientEvent('profile_viewed', {
+      route: `/profile/${userBio.username}`,
+      source_surface: 'profile',
+      user_id: user?.id,
+      is_authenticated: Boolean(user),
+    });
+  }, [userBio?.username, user?.id, user]);
 
   const handleAddMusic = useCallback(() => {
     router.push('/add-music');

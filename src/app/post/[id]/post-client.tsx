@@ -32,6 +32,7 @@ import { AlertCircle, Check, Copy, ExternalLink, MoreVertical, Pencil, Trash2 } 
 import { motion, AnimatePresence } from 'framer-motion';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { detectContentType } from '@/utils/content-type-detection';
+import { captureClientEvent } from '@/lib/analytics/client';
 
 type JoinCassetteCTAProps = {
   onClick: () => void;
@@ -113,6 +114,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   }, [postData?.postId, postId]);
 
   const handleShare = useCallback(async () => {
+    void captureClientEvent('post_shared', {
+      route: `/post/${postData?.postId || postId}`,
+      source_surface: 'post',
+      post_id: postData?.postId || postId,
+      element_type: postData?.metadata?.type as 'track' | 'album' | 'artist' | 'playlist' | undefined,
+      source_platform: sourcePlatformRef.current as 'spotify' | 'apple' | 'deezer' | 'unknown' | undefined,
+      user_id: user?.id,
+      is_authenticated: isAuthenticated,
+    });
+
     const shareUrl = buildShareUrl();
     if (!shareUrl) return;
 
@@ -149,7 +160,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         setTimeout(() => setCopyState('idle'), 2000);
       }
     }
-  }, [buildShareUrl, postData?.metadata?.title, postData?.metadata?.artist]);
+  }, [buildShareUrl, postData?.metadata?.title, postData?.metadata?.artist, postData?.postId, postData?.metadata?.type, postId, user?.id, isAuthenticated]);
 
   const handleAddToProfile = useCallback(() => {
     const musicElementId = postData?.musicElementId;
@@ -328,6 +339,15 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           const detectedSourcePlatform = detectContentType(originalLink || '').platform;
           sourceUrlRef.current = originalLink || sourceUrlRef.current;
           sourcePlatformRef.current = detectedSourcePlatform || sourcePlatformRef.current;
+          void captureClientEvent('post_viewed', {
+            route: `/post/${response.postId || postId}`,
+            source_surface: 'post',
+            post_id: response.postId || postId,
+            element_type: elementTypeLower as 'track' | 'album' | 'artist' | 'playlist' | undefined,
+            source_platform: detectedSourcePlatform,
+            user_id: user?.id,
+            is_authenticated: isAuthenticated,
+          });
           setPostData({
             ...transformedData,
             sourcePlatform: detectedSourcePlatform,
@@ -348,7 +368,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     };
 
     fetchPost();
-  }, [postId]);
+  }, [postId, user?.id, isAuthenticated]);
 
   // Color extraction function
   const extractColorFromArtwork = async (artworkUrl: string) => {
@@ -447,6 +467,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     normalizePlatformKey(detectedFromProvided) ||
     normalizePlatformKey(detectedFromResolved) ||
     null;
+  const analyticsSourcePlatform = sourcePlatformKey || postData?.sourcePlatform || sourcePlatformRef.current || undefined;
   const sourceService = sourcePlatformKey ? streamingServices[sourcePlatformKey] : null;
 
   return (
@@ -614,6 +635,19 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                 href={resolvedSourceUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                onClick={() => {
+                                  void captureClientEvent('streaming_link_opened', {
+                                    route: `/post/${postData?.postId || postId}`,
+                                    source_surface: 'post',
+                                    source_platform: sourcePlatformKey === 'appleMusic'
+                                      ? 'apple'
+                                      : sourcePlatformKey ?? 'unknown',
+                                    source_domain: resolvedSourceUrl,
+                                    post_id: postData?.postId || postId,
+                                    element_type: 'playlist',
+                                    is_authenticated: isAuthenticated,
+                                  });
+                                }}
                                 className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group w-full mt-2"
                               >
                                 <Image
@@ -699,6 +733,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         ) : (
                           <StreamingLinks
                             links={convertedUrls}
+                            postId={postData?.postId || postId}
+                            elementType={metadata.type}
+                            sourcePlatform={analyticsSourcePlatform}
+                            isAuthenticated={isAuthenticated}
                             className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                         />
                       )}
@@ -978,6 +1016,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           ) : (
                             <StreamingLinks
                               links={convertedUrls}
+                              postId={postData?.postId || postId}
+                              elementType={metadata.type}
+                              sourcePlatform={analyticsSourcePlatform}
+                              isAuthenticated={isAuthenticated}
                               className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                             />
                           )}
@@ -1212,6 +1254,19 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           href={resolvedSourceUrl}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() => {
+                            void captureClientEvent('streaming_link_opened', {
+                              route: `/post/${postData?.postId || postId}`,
+                              source_surface: 'post',
+                              source_platform: sourcePlatformKey === 'appleMusic'
+                                ? 'apple'
+                                : sourcePlatformKey ?? 'unknown',
+                              source_domain: resolvedSourceUrl,
+                              post_id: postData?.postId || postId,
+                              element_type: metadata.type as 'track' | 'album' | 'artist' | 'playlist',
+                              is_authenticated: isAuthenticated,
+                            });
+                          }}
                           className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
                         >
                           <Image
@@ -1346,6 +1401,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 ) : (
                   <StreamingLinks
                     links={convertedUrls}
+                    postId={postData?.postId || postId}
+                    elementType={metadata.type}
+                    sourcePlatform={analyticsSourcePlatform}
+                    isAuthenticated={isAuthenticated}
                     className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                   />
                 )}

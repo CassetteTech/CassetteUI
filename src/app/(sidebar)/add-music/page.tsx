@@ -14,6 +14,9 @@ import { MusicSearchResult } from '@/types';
 import { PageLoader } from '@/components/ui/page-loader';
 import Image from 'next/image';
 import { BackButton } from '@/components/ui/back-button';
+import { captureClientEvent } from '@/lib/analytics/client';
+import { detectContentType } from '@/utils/content-type-detection';
+import { sanitizeDomain } from '@/lib/analytics/sanitize';
 
 type SelectedItem = {
   id: string;
@@ -255,6 +258,7 @@ export default function AddMusicPage() {
   const [errorMessage, setErrorMessage] = useState('');
   
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const lastTrackedSearchRef = useRef<string>('');
   const debouncedSearchTerm = useDebounce(musicUrl, 500); // 500ms debounce for search
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
@@ -364,8 +368,18 @@ export default function AddMusicPage() {
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const pastedText = e.clipboardData.getData('text');
+    const detected = detectContentType(pastedText);
     
     if (isValidMusicUrl(pastedText)) {
+      void captureClientEvent('music_link_pasted', {
+        route: '/add-music',
+        source_surface: 'add_music',
+        source_domain: sanitizeDomain(pastedText),
+        source_platform: detected.platform,
+        element_type_guess: detected.type,
+        is_authenticated: true,
+      });
+
       // Navigate immediately to post page when pasting a link
       const params = new URLSearchParams({
         url: pastedText,
@@ -377,6 +391,15 @@ export default function AddMusicPage() {
       }
       
       router.push(`/post?${params.toString()}`);
+    } else {
+      void captureClientEvent('unsupported_music_link_pasted', {
+        route: '/add-music',
+        source_surface: 'add_music',
+        source_domain: sanitizeDomain(pastedText),
+        source_platform: detected.platform,
+        element_type_guess: detected.type,
+        is_authenticated: true,
+      });
     }
   };
 
@@ -390,6 +413,15 @@ export default function AddMusicPage() {
 
   const handleSelectItem = (url: string, title: string, type: string) => {
     console.log('🎵 handleSelectItem called with:', { url, title, type });
+    const detected = detectContentType(url);
+    void captureClientEvent('search_result_selected', {
+      route: '/add-music',
+      source_surface: 'add_music',
+      source_platform: detected.platform,
+      element_type_guess: detected.type,
+      source_domain: sanitizeDomain(url),
+      is_authenticated: true,
+    });
     
     // Find the full item data from search results to get artist and artwork
     let artist = '';
@@ -472,6 +504,15 @@ export default function AddMusicPage() {
     }
     
     console.log('🎯 Adding music to profile:', { urlToConvert, description, itemDetails });
+    const detected = detectContentType(urlToConvert);
+    void captureClientEvent('conversion_entry_started', {
+      route: '/add-music',
+      source_surface: 'add_music',
+      source_platform: detected.platform,
+      element_type_guess: detected.type,
+      source_domain: sanitizeDomain(urlToConvert),
+      is_authenticated: true,
+    });
     
     // Navigate immediately to post page with skeleton loading
     // Pass the URL and description as query parameters
@@ -490,6 +531,30 @@ export default function AddMusicPage() {
     
     router.push(`/post?${params.toString()}`);
   };
+
+  useEffect(() => {
+    const query = debouncedSearchTerm.trim();
+    if (!query || query.length < 2 || query.includes('http')) {
+      return;
+    }
+
+    if (lastTrackedSearchRef.current === query.toLowerCase()) {
+      return;
+    }
+
+    lastTrackedSearchRef.current = query.toLowerCase();
+    const resultCount = (searchResultsData?.tracks?.length || 0) +
+      (searchResultsData?.albums?.length || 0) +
+      (searchResultsData?.artists?.length || 0) +
+      (searchResultsData?.playlists?.length || 0);
+
+    void captureClientEvent('search_submitted', {
+      route: '/add-music',
+      source_surface: 'add_music',
+      result_count: resultCount,
+      is_authenticated: true,
+    });
+  }, [debouncedSearchTerm, searchResultsData]);
 
   // Show loading while checking auth
   if (authLoading) {

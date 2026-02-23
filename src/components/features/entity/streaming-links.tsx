@@ -1,6 +1,10 @@
 import React from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { captureClientEvent } from '@/lib/analytics/client';
+import { normalizePlatform, sanitizeDomain } from '@/lib/analytics/sanitize';
+import type { ElementTypeDimension } from '@/lib/analytics/events';
+import { buildPostPlatformConversionClickedProps } from '@/lib/analytics/post-platform-conversion';
 
 interface StreamingLinksProps {
   links: {
@@ -11,6 +15,10 @@ interface StreamingLinksProps {
     youtubeMusic?: string;
   };
   className?: string;
+  postId?: string;
+  elementType?: ElementTypeDimension;
+  sourcePlatform?: string;
+  isAuthenticated?: boolean;
 }
 
 export interface StreamingService {
@@ -59,7 +67,14 @@ export const streamingServices: Record<string, StreamingService> = {
   },
 };
 
-export const StreamingLinks: React.FC<StreamingLinksProps> = ({ links, className }) => {
+export const StreamingLinks: React.FC<StreamingLinksProps> = ({
+  links,
+  className,
+  postId,
+  elementType,
+  sourcePlatform,
+  isAuthenticated,
+}) => {
   const availableLinks = Object.entries(links).filter(([, url]) => url);
   
   if (availableLinks.length === 0) {
@@ -76,14 +91,45 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({ links, className
         {availableLinks.map(([platform, url]) => {
           const service = streamingServices[platform];
           if (!service || !url) return null;
-          console.log('mapping a streaming link for', platform, url);
-          console.log('service', service);
           return (
             <a
               key={platform}
               href={url}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => {
+                const normalizedTarget =
+                  platform === 'spotify' || platform === 'deezer'
+                    ? platform
+                    : platform === 'appleMusic'
+                      ? 'apple'
+                      : 'unknown';
+                const normalizedSourcePlatform = normalizePlatform(sourcePlatform) ?? 'unknown';
+                const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
+                const conversionClickProps = buildPostPlatformConversionClickedProps({
+                  sourceContext: 'destination_open_button',
+                  route,
+                  postId,
+                  elementType,
+                  targetPlatform: normalizedTarget,
+                  sourcePlatform,
+                  sourceDomain: url,
+                  isAuthenticated,
+                });
+                if (conversionClickProps) {
+                  void captureClientEvent('post_platform_conversion_clicked', conversionClickProps);
+                }
+                void captureClientEvent('streaming_link_opened', {
+                  route,
+                  source_surface: 'post',
+                  target_platform: normalizedTarget,
+                  source_platform: normalizedSourcePlatform,
+                  post_id: postId,
+                  element_type: elementType,
+                  is_authenticated: isAuthenticated,
+                  source_domain: sanitizeDomain(url),
+                });
+              }}
               className={cn(
                 "group relative flex items-center justify-center",
                 "px-3 py-2 sm:px-4 sm:py-2.5 rounded-full transition-all duration-200",

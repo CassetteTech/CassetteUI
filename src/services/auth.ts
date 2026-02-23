@@ -3,6 +3,7 @@
 import { useAuthStore } from '@/stores/auth-store';
 import { AuthUser, SignInForm, SignUpForm, ConnectedService } from '@/types';
 import { prefetchProfileArtwork } from '@/services/profile-artwork-cache';
+import { captureClientEvent } from '@/lib/analytics/client';
 
 // Use your local API URL for development
 const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -60,6 +61,12 @@ class AuthService {
     if (!acceptTerms) {
       throw new Error('Please agree to all the terms and conditions before signing up');
     }
+
+    void captureClientEvent('auth_signup_submitted', {
+      source_surface: 'auth',
+      route: typeof window !== 'undefined' ? window.location.pathname : '/auth/signup',
+      is_authenticated: false,
+    });
 
     const url = `${API_URL}/api/v1/auth/signup`;
     const payload = {
@@ -135,6 +142,12 @@ class AuthService {
   }
 
   async signIn({ email, password }: SignInForm) {
+    void captureClientEvent('auth_signin_submitted', {
+      source_surface: 'auth',
+      route: typeof window !== 'undefined' ? window.location.pathname : '/auth/signin',
+      is_authenticated: false,
+    });
+
     const response = await fetch(`${API_URL}/api/v1/auth/signin`, {
       method: 'POST',
       headers: {
@@ -226,6 +239,13 @@ class AuthService {
     if (provider !== 'google') {
       throw new Error('Only Google sign-in is implemented.');
     }
+
+    void captureClientEvent('auth_google_oauth_started', {
+      source_surface: 'auth',
+      route: typeof window !== 'undefined' ? window.location.pathname : '/auth/signin',
+      is_authenticated: false,
+      source_platform: 'unknown',
+    });
 
     const response = await fetch(`${API_URL}/api/v1/auth/google/init`, {
       method: 'POST',
@@ -365,6 +385,7 @@ class AuthService {
       profilePicture: this.resolveAvatarUrl(userData),
       isEmailVerified: true, // Assume verified if coming from backend
       isOnboarded: Boolean(userData.isOnboarded || userData.IsOnboarded || false),
+      accountType: (userData.accountType ?? userData.AccountType) as AuthUser['accountType'],
       createdAt: String(userData.joinDate || userData.createdAt || new Date().toISOString()),
       updatedAt: String(userData.updatedAt || new Date().toISOString()),
       // Include connected services from backend

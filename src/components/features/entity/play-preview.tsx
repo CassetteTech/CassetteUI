@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
+import { captureClientEvent } from '@/lib/analytics/client';
 
 interface PlayPreviewProps {
   previewUrl?: string;
@@ -12,10 +13,10 @@ interface PlayPreviewProps {
   mobile?: boolean;
 }
 
-export const PlayPreview: React.FC<PlayPreviewProps> = ({ 
-  previewUrl, 
-  title, 
-  artist, 
+export const PlayPreview: React.FC<PlayPreviewProps> = ({
+  previewUrl,
+  title,
+  artist,
   artwork,
   className,
   mobile = false
@@ -26,7 +27,7 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
   const [duration, setDuration] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
-  
+
   useEffect(() => {
     const audio = audioRef.current;
     return () => {
@@ -57,15 +58,14 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
     };
   }, []);
-  
+
   const handleTogglePlay = async () => {
     if (!previewUrl || !audioRef.current) return;
-    
-    // Expand component when play is clicked
+
     if (!isExpanded) {
       setIsExpanded(true);
     }
-    
+
     try {
       if (isPlaying) {
         audioRef.current.pause();
@@ -76,42 +76,57 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
         await audioRef.current.play();
         setIsPlaying(true);
         setIsLoading(false);
+        void captureClientEvent('preview_playback_started', {
+          route: typeof window !== 'undefined' ? window.location.pathname : '/post',
+          source_surface: 'post',
+        });
       }
     } catch (error) {
       console.error('Error playing audio:', error);
       setIsLoading(false);
       setIsPlaying(false);
+      void captureClientEvent('preview_playback_failed', {
+        route: typeof window !== 'undefined' ? window.location.pathname : '/post',
+        source_surface: 'post',
+      });
     }
   };
 
   const handleExpandClick = () => {
     setIsExpanded(!isExpanded);
   };
-  
+
   const handleAudioEnded = () => {
     setIsPlaying(false);
     setCurrentTime(0);
   };
 
+  const handleAudioError = (error: unknown) => {
+    console.error('Audio error:', error);
+    setIsPlaying(false);
+    setIsLoading(false);
+    void captureClientEvent('preview_playback_failed', {
+      route: typeof window !== 'undefined' ? window.location.pathname : '/post',
+      source_surface: 'post',
+    });
+  };
 
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   if (!previewUrl) return null;
-  
-  // Mobile version - starts as square, expands to bar
+
   if (mobile) {
     return (
-      <div 
+      <div
         className={cn(
-          "bg-background/60 backdrop-blur-sm border border-border/40 rounded-lg shadow-lg transition-all duration-300 ease-in-out cursor-pointer",
-          isExpanded 
-            ? "p-2 flex items-center gap-2 w-full max-w-xs" 
-            : "p-0.5 w-12 h-12 flex items-center justify-center",
+          'bg-background/60 backdrop-blur-sm border border-border/40 rounded-lg shadow-lg transition-all duration-300 ease-in-out cursor-pointer',
+          isExpanded
+            ? 'p-2 flex items-center gap-2 w-full max-w-xs'
+            : 'p-0.5 w-12 h-12 flex items-center justify-center',
           className
         )}
         onClick={!isExpanded ? handleExpandClick : undefined}
       >
-        {/* Album Art and Play Button */}
         <div className="relative flex-shrink-0">
           <Image
             src={artwork || '/images/cassette_logo.png'}
@@ -126,14 +141,14 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
             aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
           >
             {isLoading ? (
-              <Spinner size={isExpanded ? "xs" : "sm"} variant="white" />
+              <Spinner size={isExpanded ? 'xs' : 'sm'} variant="white" />
             ) : (
-              <svg 
+              <svg
                 className={cn(
-                  "text-white",
-                  isExpanded ? "w-3 h-3" : "w-4 h-4"
+                  'text-white',
+                  isExpanded ? 'w-3 h-3' : 'w-4 h-4'
                 )}
-                fill="currentColor" 
+                fill="currentColor"
                 viewBox="0 0 24 24"
               >
                 {isPlaying ? (
@@ -146,17 +161,15 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
           </button>
         </div>
 
-        {/* Progress Bar Only - only show when expanded */}
         {isExpanded && (
           <div className="flex-1 min-w-0">
             <div className="relative w-full h-1 bg-border/50 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="absolute left-0 top-0 h-full bg-primary/70 transition-all duration-100 ease-linear"
                 style={{ width: `${progressPercentage}%` }}
               />
             </div>
-            
-            {/* Time Display */}
+
             {duration > 0 && (
               <div className="text-center text-xs text-text-secondary/70 mt-1">
                 <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
@@ -164,35 +177,28 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
             )}
           </div>
         )}
-        
-        {/* Hidden audio element */}
+
         <audio
           ref={audioRef}
           onEnded={handleAudioEnded}
-          onError={(e) => {
-            console.error('Audio error:', e);
-            setIsPlaying(false);
-            setIsLoading(false);
-          }}
+          onError={handleAudioError}
           preload="none"
         />
       </div>
     );
   }
-  
-  // Desktop version - starts as square, expands to full layout
+
   return (
-    <div 
+    <div
       className={cn(
-        "bg-background/70 backdrop-blur-sm border border-border/50 rounded-lg shadow-lg transition-all duration-300 ease-in-out cursor-pointer",
-        isExpanded 
-          ? "p-3 flex items-center gap-3 w-full max-w-sm" 
-          : "p-1 w-16 h-16 flex items-center justify-center",
+        'bg-background/70 backdrop-blur-sm border border-border/50 rounded-lg shadow-lg transition-all duration-300 ease-in-out cursor-pointer',
+        isExpanded
+          ? 'p-3 flex items-center gap-3 w-full max-w-sm'
+          : 'p-1 w-16 h-16 flex items-center justify-center',
         className
       )}
       onClick={!isExpanded ? handleExpandClick : undefined}
     >
-      {/* Album Art and Play Button */}
       <div className="relative flex-shrink-0">
         <Image
           src={artwork || '/images/cassette_logo.png'}
@@ -207,14 +213,14 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
           aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
         >
           {isLoading ? (
-            <Spinner size={isExpanded ? "sm" : "md"} variant="white" />
+            <Spinner size={isExpanded ? 'sm' : 'md'} variant="white" />
           ) : (
-            <svg 
+            <svg
               className={cn(
-                "text-white",
-                isExpanded ? "w-5 h-5" : "w-6 h-6"
+                'text-white',
+                isExpanded ? 'w-5 h-5' : 'w-6 h-6'
               )}
-              fill="currentColor" 
+              fill="currentColor"
               viewBox="0 0 24 24"
             >
               {isPlaying ? (
@@ -227,23 +233,20 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
         </button>
       </div>
 
-      {/* Track Info and Progress - only show when expanded */}
       {isExpanded && (
         <div className="flex-1 min-w-0">
           <div className="mb-1">
             <div className="font-medium text-sm text-foreground/90 truncate">{title}</div>
             <div className="text-xs text-text-secondary/80 truncate">{artist}</div>
           </div>
-          
-          {/* Progress Bar */}
+
           <div className="relative w-full h-1 bg-border/60 rounded-full overflow-hidden">
-            <div 
+            <div
               className="absolute left-0 top-0 h-full bg-primary/80 transition-all duration-100 ease-linear"
               style={{ width: `${progressPercentage}%` }}
             />
           </div>
-          
-          {/* Time Display */}
+
           {duration > 0 && (
             <div className="flex justify-between text-xs text-text-secondary/80 mt-1">
               <span>{formatTime(currentTime)}</span>
@@ -252,16 +255,11 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
           )}
         </div>
       )}
-      
-      {/* Hidden audio element */}
+
       <audio
         ref={audioRef}
         onEnded={handleAudioEnded}
-        onError={(e) => {
-          console.error('Audio error:', e);
-          setIsPlaying(false);
-          setIsLoading(false);
-        }}
+        onError={handleAudioError}
         preload="none"
       />
     </div>
@@ -269,10 +267,10 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
 };
 
 function formatTime(seconds: number): string {
-  if (!seconds || isNaN(seconds) || seconds < 0) {
+  if (!seconds || Number.isNaN(seconds) || seconds < 0) {
     return '0:00';
   }
-  
+
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;

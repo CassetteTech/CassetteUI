@@ -14,6 +14,9 @@ import { platformConnectService } from '@/services/platform-connect';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
 import { openInAppOrBrowser, isAppleMusicLibraryUrl } from '@/utils/deep-link';
 import { clientConfig } from '@/lib/config-client';
+import { captureClientEvent } from '@/lib/analytics/client';
+import { sanitizeDomain } from '@/lib/analytics/sanitize';
+import { buildPostPlatformConversionClickedProps } from '@/lib/analytics/post-platform-conversion';
 
 type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
 
@@ -87,6 +90,38 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
   const handleCreatePlaylist = async (platform: PlatformKey) => {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+    const normalizedTarget = platform === 'appleMusic' ? 'apple' : platform;
+    const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
+
+    const convertClickProps = buildPostPlatformConversionClickedProps({
+      sourceContext: 'playlist_convert_button',
+      route,
+      postId,
+      elementType: 'playlist',
+      targetPlatform: normalizedTarget,
+      sourcePlatform: sourcePlatformKey ?? undefined,
+      sourceDomain: resolvedSourceUrl || undefined,
+      isAuthenticated,
+    });
+    if (convertClickProps) {
+      void captureClientEvent('post_platform_conversion_clicked', convertClickProps);
+    }
+
+    void captureClientEvent('playlist_creation_submitted', {
+      route,
+      source_surface: 'post',
+      element_type: 'playlist',
+      music_element_id: playlistId,
+      post_id: postId,
+      source_platform: sourcePlatformKey === 'appleMusic'
+        ? 'apple'
+        : sourcePlatformKey ?? 'unknown',
+      target_platform: normalizedTarget,
+      source_domain: sanitizeDomain(resolvedSourceUrl || undefined),
+      is_authenticated: isAuthenticated,
+      status: 'submitted',
+      success: false,
+    });
 
     // Case 1: User not logged in - show auth modal
     if (!isAuthenticated) {
@@ -259,7 +294,37 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
             {playlist_url && (
               <button
                 type="button"
-                onClick={() => openInAppOrBrowser(playlist_url)}
+                onClick={() => {
+                  const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
+                  const openClickProps = buildPostPlatformConversionClickedProps({
+                    sourceContext: 'playlist_open_button',
+                    route,
+                    postId,
+                    elementType: 'playlist',
+                    targetPlatform: creationStatus.platform === 'appleMusic'
+                      ? 'apple'
+                      : creationStatus.platform,
+                    sourcePlatform: sourcePlatformKey ?? undefined,
+                    sourceDomain: playlist_url,
+                    isAuthenticated,
+                  });
+                  if (openClickProps) {
+                    void captureClientEvent('post_platform_conversion_clicked', openClickProps);
+                  }
+                  void captureClientEvent('playlist_opened_on_platform', {
+                    route,
+                    source_surface: 'post',
+                    element_type: 'playlist',
+                    music_element_id: playlistId,
+                    post_id: postId,
+                    target_platform: creationStatus.platform === 'appleMusic'
+                      ? 'apple'
+                      : creationStatus.platform,
+                    source_domain: sanitizeDomain(playlist_url),
+                    is_authenticated: isAuthenticated,
+                  });
+                  openInAppOrBrowser(playlist_url);
+                }}
                 className={cn(
                   'inline-flex items-center gap-2 px-4 py-2 rounded-full',
                   'bg-green-600 hover:bg-green-700 text-white',
@@ -355,6 +420,22 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
               href={url}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => {
+                const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
+                const openClickProps = buildPostPlatformConversionClickedProps({
+                  sourceContext: 'playlist_open_button',
+                  route,
+                  postId,
+                  elementType: 'playlist',
+                  targetPlatform: platform === 'appleMusic' ? 'apple' : platform,
+                  sourcePlatform: sourcePlatformKey ?? undefined,
+                  sourceDomain: url,
+                  isAuthenticated,
+                });
+                if (openClickProps) {
+                  void captureClientEvent('post_platform_conversion_clicked', openClickProps);
+                }
+              }}
               className={commonClasses}
             >
               <div className="relative w-4 h-4 mr-2">

@@ -1,6 +1,8 @@
 import { clientConfig } from '@/lib/config-client';
 import { MusicLinkConversion, PostByIdResponse, ConversionApiResponse, ElementType, MediaListTrack, CreatePlaylistResponse, PlatformPreference } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
+import { captureClientEvent, surfaceFromRoute } from '@/lib/analytics/client';
+import { sanitizeDomain } from '@/lib/analytics/sanitize';
 
 // interface MusicConnection {
 //   id: string;
@@ -57,6 +59,18 @@ class ApiService {
         Authorization: `Bearer ${accessToken}`,
       }),
     };
+  }
+
+  private getCurrentRoute(): string {
+    if (typeof window === 'undefined') {
+      return '/';
+    }
+
+    return window.location.pathname;
+  }
+
+  private getCurrentSurface() {
+    return surfaceFromRoute(this.getCurrentRoute());
   }
 
   private async request<T>(
@@ -134,6 +148,18 @@ class ApiService {
   // Music conversion endpoints
   async convertMusicLink(url: string, options?: { anonymous?: boolean; description?: string }): Promise<MusicLinkConversion> {
     console.log('🔄 API Service: convertMusicLink called with:', url, options);
+    const detected = detectContentType(url);
+
+    void captureClientEvent('link_conversion_submitted', {
+      route: this.getCurrentRoute(),
+      source_surface: this.getCurrentSurface(),
+      source_platform: detected.platform,
+      element_type_guess: detected.type,
+      source_domain: sanitizeDomain(url),
+      is_authenticated: !options?.anonymous,
+      status: 'submitted',
+      success: false,
+    });
 
     // Generate idempotency key for request deduplication
     const key = typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -496,6 +522,17 @@ class ApiService {
     context?: Record<string, unknown>;
   }): Promise<{ success: boolean; message?: string; issueId?: string }> {
     console.log('📝 API Service: reportIssue called with:', data);
+    void captureClientEvent('issue_report_submitted', {
+      route: this.getCurrentRoute(),
+      source_surface: this.getCurrentSurface(),
+      source_context: data.sourceContext,
+      report_type: data.reportType as 'conversion_issue' | 'ui_bug' | 'general_feedback' | 'missing_track' | 'wrong_match',
+      has_description: Boolean(data.description && data.description.trim().length > 0),
+      has_conversion_context: Boolean(data.sourceLink),
+      status: 'submitted',
+      success: false,
+    });
+
     return this.request('/api/v1/issues', {
       method: 'POST',
       body: JSON.stringify(data),

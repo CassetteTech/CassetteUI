@@ -10,7 +10,7 @@ exports.resetAnalyticsContextForTests = resetAnalyticsContextForTests;
 const sanitize_1 = require("./sanitize");
 const events_1 = require("./events");
 const internal_suppression_1 = require("./internal-suppression");
-const DEFAULT_POSTHOG_HOST = 'https://app.posthog.com';
+const DEFAULT_CLIENT_CAPTURE_HOST = '/api/ingest';
 const ANON_DISTINCT_ID_KEY = 'cassette_posthog_distinct_id';
 const ALIAS_MERGE_GUARD_PREFIX = 'cassette_posthog_alias';
 const SESSION_ID_KEY = 'cassette_posthog_session_id';
@@ -21,7 +21,7 @@ let activePageview = null;
 let beforeUnloadBound = false;
 function getClientPosthogConfig() {
     const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    const host = process.env.NEXT_PUBLIC_POSTHOG_HOST || process.env.POSTHOG_HOST || DEFAULT_POSTHOG_HOST;
+    const host = process.env.NEXT_PUBLIC_POSTHOG_CAPTURE_HOST || DEFAULT_CLIENT_CAPTURE_HOST;
     return { key, host };
 }
 function getAnonymousDistinctId() {
@@ -280,7 +280,7 @@ async function captureClientEvent(event, props = {}) {
         source_surface: props.source_surface || sharedContext.source_surface || surfaceFromRoute(route),
         is_authenticated: props.is_authenticated ?? sharedContext.is_authenticated,
         user_id: props.user_id || sharedContext.user_id,
-        internal_actor: props.internal_actor ?? resolveInternalActor(props.account_type ?? sharedContext.account_type),
+        internal_actor: resolveInternalActor(props.account_type ?? sharedContext.account_type),
     };
     if ((0, internal_suppression_1.shouldSuppressClientCapture)({
         route,

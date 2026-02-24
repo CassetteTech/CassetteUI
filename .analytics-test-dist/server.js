@@ -20,7 +20,7 @@ async function captureServerEvent(event, distinctId, props = {}) {
     }
     const withActor = {
         ...props,
-        internal_actor: props.internal_actor ?? (0, internal_suppression_1.isCassetteInternalAccount)(props.account_type),
+        internal_actor: (0, internal_suppression_1.isCassetteInternalAccount)(props.account_type),
     };
     const sanitized = (0, sanitize_1.sanitizeAnalyticsProps)((0, events_1.withCoreAction)(event, withActor));
     try {

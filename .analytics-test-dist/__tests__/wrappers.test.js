@@ -204,6 +204,35 @@ async function collectCapturedPayloads(fetchPayloads, beaconPayloads) {
     process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
     process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
 });
+(0, node_test_1.default)('captureClientEvent derives internal_actor from account_type only', { concurrency: false }, async () => {
+    const previousKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    const previousDevFlag = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV;
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_test_key';
+    process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = 'true';
+    (0, client_1.resetAnalyticsContextForTests)();
+    const mocks = setupBrowserMocks('/profile/test');
+    await (0, client_1.captureClientEvent)('profile_viewed', {
+        route: '/profile/test',
+        source_surface: 'profile',
+        account_type: 'Regular',
+        internal_actor: true,
+    });
+    await (0, client_1.captureClientEvent)('profile_viewed', {
+        route: '/profile/test',
+        source_surface: 'profile',
+        account_type: 'CassetteTeam',
+        internal_actor: false,
+    });
+    const captured = await collectCapturedPayloads(mocks.fetchPayloads, mocks.beaconPayloads);
+    const profileEvents = captured.filter((payload) => payload.event === 'profile_viewed');
+    const regularProps = profileEvents[0]?.properties;
+    const teamProps = profileEvents[1]?.properties;
+    strict_1.default.equal(regularProps?.internal_actor, false);
+    strict_1.default.equal(teamProps?.internal_actor, true);
+    mocks.restore();
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
+    process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
+});
 (0, node_test_1.default)('suppression logic blocks internal/demo routes but not cassette team actors', () => {
     strict_1.default.equal((0, internal_suppression_1.isInternalOrDemoRoute)('/debug'), true);
     strict_1.default.equal((0, internal_suppression_1.isInternalOrDemoRoute)('/demo/profile'), true);

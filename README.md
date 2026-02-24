@@ -99,7 +99,7 @@ NEXT_PUBLIC_API_URL=https://563jznpk5k.execute-api.us-east-1.amazonaws.com/Dev
 NEXT_PUBLIC_API_URL_LOCAL=http://localhost:5000
 
 # Feature Flags
-ENABLE_LAMBDA_WARMUP=false
+NEXT_PUBLIC_ENABLE_LAMBDA_WARMUP=true
 
 # App Configuration
 NEXT_PUBLIC_APP_DOMAIN=https://cassetteinc.org

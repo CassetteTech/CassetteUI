@@ -7,7 +7,6 @@ import { apiService } from '@/services/api';
 import { useAuthState } from '@/hooks/use-auth';
 import { Navbar } from './navbar';
 import { Footer } from './footer';
-import { clientConfig } from '@/lib/config-client';
 import { SupportFloatingButton } from './support-floating-button';
 import { PageLoader } from '@/components/ui/page-loader';
 
@@ -20,16 +19,15 @@ export function Layout({ children }: LayoutProps) {
   const { isLoading } = useAuthState();
   // No longer need isMobileMenuOpen state
 
-  useEffect(() => {
-    const disposeAuthListener = authService.initializeAuthListener();
-    if (clientConfig.features.enableLambdaWarmup) {
-      apiService.warmupLambdas().catch(console.warn);
-    }
+useEffect(() => {
+  const disposeAuthListener = authService.initializeAuthListener();
+  apiService.warmupLambdas().catch(console.warn);
 
-    return () => {
-      disposeAuthListener();
-    };
-  }, []);
+  return () => {
+    disposeAuthListener();
+  };
+}, []);
+
 
   const isAuthPage = pathname?.startsWith('/auth');
   const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/add-music') || pathname?.startsWith('/internal');

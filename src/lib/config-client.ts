@@ -16,7 +16,7 @@ export const clientConfig = {
 
   // Feature flags
   features: {
-    enableLambdaWarmup: process.env.ENABLE_LAMBDA_WARMUP === 'true',
+    enableLambdaWarmup: process.env.NEXT_PUBLIC_ENABLE_LAMBDA_WARMUP === 'true',
     // When true, Spotify playlists are created on Cassette's account (no user Spotify login required)
     useCassetteSpotifyAccount: process.env.NEXT_PUBLIC_USE_CASSETTE_SPOTIFY_ACCOUNT === 'true',
   },

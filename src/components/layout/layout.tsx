@@ -7,7 +7,6 @@ import { apiService } from '@/services/api';
 import { useAuthState } from '@/hooks/use-auth';
 import { Navbar } from './navbar';
 import { Footer } from './footer';
-import { clientConfig } from '@/lib/config-client';
 import { SupportFloatingButton } from './support-floating-button';
 import { PageLoader } from '@/components/ui/page-loader';
 
@@ -22,9 +21,7 @@ export function Layout({ children }: LayoutProps) {
 
   useEffect(() => {
     authService.initializeAuthListener();
-    if (clientConfig.features.enableLambdaWarmup) {
-      apiService.warmupLambdas().catch(console.warn);
-    }
+    apiService.warmupLambdas().catch(console.warn);
   }, []);
 
   const isAuthPage = pathname?.startsWith('/auth');

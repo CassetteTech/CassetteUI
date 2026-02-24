@@ -658,9 +658,19 @@ class ApiService {
   // Lambda warmup
   async warmupLambdas() {
     if (!clientConfig.features.enableLambdaWarmup) return;
+    const warmupSessionKey = 'cassette_lambda_warmup_attempted_v1';
+
+    if (typeof window !== 'undefined') {
+      try {
+        if (sessionStorage.getItem(warmupSessionKey) === '1') return;
+        sessionStorage.setItem(warmupSessionKey, '1');
+      } catch {
+        // Ignore session storage failures and proceed with best-effort warmup
+      }
+    }
 
     try {
-      return this.request('/api/v1/warmup', { method: 'POST' });
+      return this.request('/api/v1/convert/warmup', { method: 'GET', skipAuth: true });
     } catch (error) {
       console.warn('Lambda warmup failed:', error);
     }

@@ -21,10 +21,14 @@ export function Layout({ children }: LayoutProps) {
   // No longer need isMobileMenuOpen state
 
   useEffect(() => {
-    authService.initializeAuthListener();
+    const disposeAuthListener = authService.initializeAuthListener();
     if (clientConfig.features.enableLambdaWarmup) {
       apiService.warmupLambdas().catch(console.warn);
     }
+
+    return () => {
+      disposeAuthListener();
+    };
   }, []);
 
   const isAuthPage = pathname?.startsWith('/auth');

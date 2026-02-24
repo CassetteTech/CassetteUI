@@ -50,7 +50,13 @@ export function getApiUrl(): string {
   if (localUrl) {
     return localUrl;
   }
-  
-  // If no local URL is set, use the production URL
-  return sanitize(process.env.NEXT_PUBLIC_API_URL) || 'https://nm2uheummh.us-east-1.awsapprunner.com';
+
+  const configuredUrl = sanitize(process.env.NEXT_PUBLIC_API_URL);
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  throw new Error(
+    'Missing API base URL. Set NEXT_PUBLIC_API_URL_LOCAL (dev) or NEXT_PUBLIC_API_URL (shared/prod).'
+  );
 }

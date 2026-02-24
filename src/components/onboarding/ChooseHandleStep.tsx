@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { CheckCircle2, XCircle, Loader2, AtSign, User } from 'lucide-react';
+import { clientConfig } from '@/lib/config-client';
 
 interface FormData {
   username: string;
@@ -31,6 +32,7 @@ export function ChooseHandleStep({
   onBack,
   isFirstStep,
 }: ChooseHandleStepProps) {
+  const apiUrl = clientConfig.api.url;
   const [errors, setErrors] = useState<{ username?: string; displayName?: string }>({});
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
   const [debouncedUsername, setDebouncedUsername] = useState(formData.username);
@@ -58,8 +60,7 @@ export function ChooseHandleStep({
     setUsernameStatus('checking');
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${API_URL}/api/v1/profile/check-username/${encodeURIComponent(username)}`);
+      const response = await fetch(`${apiUrl}/api/v1/profile/check-username/${encodeURIComponent(username)}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -72,7 +73,7 @@ export function ChooseHandleStep({
       // Network error - assume available and let backend validate on submit
       setUsernameStatus('available');
     }
-  }, []);
+  }, [apiUrl]);
 
   useEffect(() => {
     checkUsernameAvailability(debouncedUsername);

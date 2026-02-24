@@ -17,6 +17,7 @@ import { CompletionStep } from '@/components/onboarding/CompletionStep';
 import { authService } from '@/services/auth';
 import { pendingActionService } from '@/utils/pending-action';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { clientConfig } from '@/lib/config-client';
 
 // Step definitions (excluding welcome and completion which are special)
 const STEPS = [
@@ -31,6 +32,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { user, isLoading } = useAuthState();
   const setUser = useAuthStore((state) => state.setUser);
+  const apiUrl = clientConfig.api.url;
 
   const [phase, setPhase] = useState<OnboardingPhase>('welcome');
   const [currentStep, setCurrentStep] = useState(0);
@@ -124,8 +126,6 @@ export default function OnboardingPage() {
     setPhase('submitting');
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
       // Create FormData for file upload
       const form = new FormData();
       const normalizedUsername = formData.username.trim().toLowerCase();
@@ -138,7 +138,7 @@ export default function OnboardingPage() {
         form.append('Avatar', formData.avatarFile, formData.avatarFile.name);
       }
 
-      const response = await fetch(`${API_URL}/api/v1/profile`, {
+      const response = await fetch(`${apiUrl}/api/v1/profile`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
@@ -207,7 +207,7 @@ export default function OnboardingPage() {
       });
       setPhase('steps');
     }
-  }, [formData, user, setUser]);
+  }, [formData, user, setUser, apiUrl]);
 
   const handleGoToProfile = () => {
     // Check for pending action (e.g., user came from playlist page to convert)

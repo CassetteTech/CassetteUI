@@ -5,7 +5,7 @@ import { sanitizeAnalyticsProps, sanitizeRoute } from './sanitize';
 import { withCoreAction } from './events';
 import { isCassetteInternalAccount, shouldSuppressClientCapture } from './internal-suppression';
 
-const DEFAULT_POSTHOG_HOST = 'https://app.posthog.com';
+const DEFAULT_CLIENT_CAPTURE_HOST = '/api/ingest';
 const ANON_DISTINCT_ID_KEY = 'cassette_posthog_distinct_id';
 const ALIAS_MERGE_GUARD_PREFIX = 'cassette_posthog_alias';
 const SESSION_ID_KEY = 'cassette_posthog_session_id';
@@ -44,7 +44,7 @@ let beforeUnloadBound = false;
 
 function getClientPosthogConfig(): { key?: string; host: string } {
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST || process.env.POSTHOG_HOST || DEFAULT_POSTHOG_HOST;
+  const host = process.env.NEXT_PUBLIC_POSTHOG_CAPTURE_HOST || DEFAULT_CLIENT_CAPTURE_HOST;
   return { key, host };
 }
 

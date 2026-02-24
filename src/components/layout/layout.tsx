@@ -19,10 +19,15 @@ export function Layout({ children }: LayoutProps) {
   const { isLoading } = useAuthState();
   // No longer need isMobileMenuOpen state
 
-  useEffect(() => {
-    authService.initializeAuthListener();
-    apiService.warmupLambdas().catch(console.warn);
-  }, []);
+useEffect(() => {
+  const disposeAuthListener = authService.initializeAuthListener();
+  apiService.warmupLambdas().catch(console.warn);
+
+  return () => {
+    disposeAuthListener();
+  };
+}, []);
+
 
   const isAuthPage = pathname?.startsWith('/auth');
   const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/add-music') || pathname?.startsWith('/internal');

@@ -4,9 +4,17 @@ import { useAuthStore } from '@/stores/auth-store';
 import { AuthUser, SignInForm, SignUpForm, ConnectedService } from '@/types';
 import { prefetchProfileArtwork } from '@/services/profile-artwork-cache';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { clientConfig } from '@/lib/config-client';
 
-// Use your local API URL for development
-const API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = clientConfig.api.url;
+const sanitizeUrl = (value: string | undefined) => {
+  const trimmed = value?.trim();
+  return trimmed && trimmed !== 'undefined' && trimmed !== 'null' ? trimmed : undefined;
+};
+const API_URL_FALLBACK = sanitizeUrl(process.env.NEXT_PUBLIC_API_URL);
+const API_URL_CANDIDATES = Array.from(
+  new Set([API_URL, API_URL_FALLBACK].filter((url): url is string => Boolean(url)))
+);
 
 class AuthService {
   private sessionIntervalId: number | null = null;
@@ -247,7 +255,7 @@ class AuthService {
       source_platform: 'unknown',
     });
 
-    const response = await fetch(`${API_URL}/api/v1/auth/google/init`, {
+    const response = await this.fetchWithApiFallback('/api/v1/auth/google/init', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -267,7 +275,7 @@ class AuthService {
   }
 
   async handleGoogleCallback(code: string, state: string) {
-    const response = await fetch(`${API_URL}/api/v1/auth/google/callback`, {
+    const response = await this.fetchWithApiFallback('/api/v1/auth/google/callback', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -476,6 +484,41 @@ class AuthService {
       console.error('Token refresh error:', error);
       return false;
     }
+  }
+
+  private buildApiUrl(baseUrl: string, path: string): string {
+    const base = baseUrl.replace(/\/+$/, '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return `${base}${normalizedPath}`;
+  }
+
+  private async fetchWithApiFallback(path: string, init?: RequestInit): Promise<Response> {
+    const attempts: string[] = [];
+    let lastNetworkError: unknown;
+
+    for (const baseUrl of API_URL_CANDIDATES) {
+      const url = this.buildApiUrl(baseUrl, path);
+      attempts.push(url);
+
+      try {
+        return await fetch(url, init);
+      } catch (error) {
+        const isNetworkError =
+          error instanceof TypeError ||
+          (error instanceof Error && error.name === 'AbortError');
+
+        if (!isNetworkError) {
+          throw error;
+        }
+
+        lastNetworkError = error;
+      }
+    }
+
+    const message = `Cannot reach auth API. Tried: ${attempts.join(', ')}`;
+    throw new Error(
+      lastNetworkError instanceof Error ? `${message}. ${lastNetworkError.message}` : message
+    );
   }
 
   // Initialize auth state listener

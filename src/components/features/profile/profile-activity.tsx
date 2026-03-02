@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { ActivityPost, AccountType } from '@/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -104,6 +105,8 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const getTypeIcon = (type: string) => {
     const iconMap: Record<string, string> = {
@@ -115,12 +118,15 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
     return iconMap[type.toLowerCase()] || 'help';
   };
 
-  const getNavigationPath = (post: ActivityPost) =>
-    post.postId ? `/post?id=${post.postId}` : '#';
+  const getNavigationPath = (post: ActivityPost) => {
+    if (!post.postId) return '#';
+    const currentPath = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+    return `/post?id=${post.postId}&from=${encodeURIComponent(currentPath)}`;
+  };
 
   const handleShare = () => {
     const baseUrl = window.location.origin;
-    const shareUrl = `${baseUrl}${getNavigationPath(post)}`;
+    const shareUrl = `${baseUrl}/post/${post.postId}`;
 
     if (navigator.share) {
       navigator.share({

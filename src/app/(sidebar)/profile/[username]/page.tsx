@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
 import { useUserBio, useUserActivity, useUserLikedPosts } from '@/hooks/use-profile';
 import { ProfileHeader } from '@/components/features/profile/profile-header';
@@ -26,9 +26,12 @@ const TAB_ELEMENT_TYPE: Partial<Record<TabType, string>> = {
 export default function ProfilePage() {
   const { username } = useParams();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user } = useAuthState();
 
   const [activeTab, setActiveTab] = useState<TabType>('playlists');
+  const [hasResolvedInitialTab, setHasResolvedInitialTab] = useState(false);
   const [additionalPosts, setAdditionalPosts] = useState<ActivityPost[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -97,11 +100,88 @@ export default function ProfilePage() {
 
   const totalItems = activityData?.totalItems ?? 0;
 
+  const updateUrlForTab = useCallback((tab: TabType) => {
+    if (!pathname) return;
+    const currentTab = searchParams.get('tab');
+    if (currentTab === tab) return;
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set('tab', tab);
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  useEffect(() => {
+    setHasResolvedInitialTab(false);
+  }, [userIdToFetch]);
+
+  useEffect(() => {
+    if (hasResolvedInitialTab || !userIdToFetch) return;
+
+    const tabParam = searchParams.get('tab');
+    const validTabs: TabType[] = ['playlists', 'tracks', 'artists', 'albums', 'liked'];
+    const hasValidTabParam = tabParam && validTabs.includes(tabParam as TabType);
+    const canUseTabParam = hasValidTabParam && !(tabParam === 'liked' && !likedSectionVisible);
+    if (canUseTabParam) {
+      setActiveTab(tabParam as TabType);
+      setHasResolvedInitialTab(true);
+      return;
+    }
+
+    const tabOrder: Array<{ tab: TabType; elementType?: string }> = [
+      { tab: 'playlists', elementType: 'Playlist' },
+      { tab: 'tracks', elementType: 'Track' },
+      { tab: 'artists', elementType: 'Artist' },
+      { tab: 'albums', elementType: 'Album' },
+      ...(likedSectionVisible ? [{ tab: 'liked' as TabType }] : []),
+    ];
+
+    let isCancelled = false;
+    const resolveInitialTab = async () => {
+      for (const candidate of tabOrder) {
+        if (isCancelled) return;
+        try {
+          const response = candidate.tab === 'liked'
+            ? (
+                likedPostsUserId
+                  ? await profileService.fetchUserLikedPosts(likedPostsUserId, { page: 1, pageSize: 1 })
+                  : null
+              )
+            : await profileService.fetchUserActivity(userIdToFetch, {
+                page: 1,
+                pageSize: 1,
+                elementType: candidate.elementType,
+              });
+
+          if (isCancelled) return;
+          if (response && response.totalItems > 0) {
+            setActiveTab(candidate.tab);
+            setHasResolvedInitialTab(true);
+            updateUrlForTab(candidate.tab);
+            return;
+          }
+        } catch {
+          // Ignore per-tab fetch errors and continue to next candidate.
+        }
+      }
+
+      if (isCancelled) return;
+      setActiveTab('playlists');
+      setHasResolvedInitialTab(true);
+      updateUrlForTab('playlists');
+    };
+
+    void resolveInitialTab();
+    return () => {
+      isCancelled = true;
+    };
+  }, [hasResolvedInitialTab, likedPostsUserId, likedSectionVisible, searchParams, updateUrlForTab, userIdToFetch]);
+
   useEffect(() => {
     if (!likedSectionVisible && activeTab === 'liked') {
       setActiveTab('playlists');
+      updateUrlForTab('playlists');
     }
-  }, [activeTab, likedSectionVisible]);
+  }, [activeTab, likedSectionVisible, updateUrlForTab]);
 
   // Reset tab pagination when user or tab changes
   useEffect(() => {
@@ -151,8 +231,10 @@ export default function ProfilePage() {
 
   const filterByElementType = useCallback((type: TabType) => {
     if (activeTab === type) return;
+    if (!hasResolvedInitialTab) setHasResolvedInitialTab(true);
     setActiveTab(type);
-  }, [activeTab]);
+    updateUrlForTab(type);
+  }, [activeTab, hasResolvedInitialTab, updateUrlForTab]);
 
   const handleShare = useCallback(() => {
     void captureClientEvent('profile_shared', {

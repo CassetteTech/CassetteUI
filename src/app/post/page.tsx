@@ -27,6 +27,7 @@ function PostPageContent() {
   const [resolvedPostId, setResolvedPostId] = useState<string | null>(null);
 
   const postIdParam = searchParams.get('id');
+  const fromParam = searchParams.get('from');
   const urlParam = searchParams.get('url');
   const dataParam = searchParams.get('data');
   const descriptionParam = searchParams.get('description');
@@ -69,7 +70,8 @@ function PostPageContent() {
 
     // Handle ?id= redirect to canonical route (this is the only case we redirect)
     if (postIdParam && !urlParam && !dataParam) {
-      router.replace(`/post/${postIdParam}`);
+      const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
+      router.replace(`/post/${postIdParam}${fromQuery}`);
       return;
     }
 
@@ -99,7 +101,8 @@ function PostPageContent() {
           if (result.postId) {
             setResolvedPostId(result.postId);
             // Update URL without navigation for shareability
-            window.history.replaceState(null, '', `/post/${result.postId}`);
+            const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
+            window.history.replaceState(null, '', `/post/${result.postId}${fromQuery}`);
           }
         },
         onError: (err) => {
@@ -120,7 +123,8 @@ function PostPageContent() {
         if (parsedData.postId) {
           setResolvedPostId(parsedData.postId);
           setApiComplete(true);
-          window.history.replaceState(null, '', `/post/${parsedData.postId}`);
+          const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
+          window.history.replaceState(null, '', `/post/${parsedData.postId}${fromQuery}`);
           return;
         }
 
@@ -214,7 +218,8 @@ function PostPageContent() {
               setApiComplete(true);
               if (result.postId) {
                 setResolvedPostId(result.postId);
-                window.history.replaceState(null, '', `/post/${result.postId}`);
+                const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
+                window.history.replaceState(null, '', `/post/${result.postId}${fromQuery}`);
               }
             },
             onError: (err) => {
@@ -237,7 +242,7 @@ function PostPageContent() {
     if (!urlParam && !dataParam && !postIdParam) {
       setError('No data provided');
     }
-  }, [searchParams, router, convertLink, postIdParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvedPostId]);
+  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvedPostId]);
 
   // Show error state
   if (error) {

@@ -25,7 +25,7 @@ import { ColorExtractor, ColorPalette } from '@/services/color-extractor';
 import { MainContainer } from '@/components/ui/container';
 import { HeadlineText, BodyText, UIText } from '@/components/ui/typography';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError, apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
@@ -91,6 +91,7 @@ type PostLikeResponse = {
 
 export default function PostClientPage({ postId }: PostClientPageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { isAuthenticated, isLoading, user } = useAuthState();
   const { mutate: addToProfile, isPending: isAddingToProfile } = useAddMusicToProfile();
@@ -111,6 +112,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const [isLikePending, setIsLikePending] = useState(false);
   const [likeAuthPromptOpen, setLikeAuthPromptOpen] = useState(false);
   const { openReportModal } = useReportIssue();
+  const fromParam = searchParams.get('from');
+  const backRoute =
+    fromParam && fromParam.startsWith('/') && !fromParam.startsWith('//')
+      ? fromParam
+      : undefined;
 
   // Handle delete success - redirect to profile
   const handleDeleteSuccess = useCallback(() => {
@@ -532,7 +538,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             <BodyText className="text-text-secondary mb-6">
               This content may have been removed or the link is invalid
             </BodyText>
-            <BackButton variant="button" buttonVariant="default" fallbackRoute="/explore" className="h-10" />
+            <BackButton variant="button" buttonVariant="default" route={backRoute} fallbackRoute="/explore" className="h-10" />
           </MainContainer>
         </div>
       </div>
@@ -605,7 +611,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             {/* Header Toolbar */}
             <div className="pt-4 pb-4 px-3 shrink-0 max-w-7xl mx-auto w-full">
               <div className="flex items-center justify-between gap-3">
-                <BackButton fallbackRoute="/explore" />
+                <BackButton route={backRoute} fallbackRoute="/explore" />
                 <motion.button
                   className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
                     copyState === 'copied'
@@ -939,7 +945,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               {/* Header Toolbar */}
               <div className="pt-4 pb-6 px-3 relative z-20 max-w-7xl mx-auto w-full">
                 <div className="flex items-center justify-between gap-3">
-                  <BackButton fallbackRoute="/explore" />
+                  <BackButton route={backRoute} fallbackRoute="/explore" />
                   <motion.button
                     className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
                       copyState === 'copied'
@@ -1216,7 +1222,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             {/* Header Toolbar */}
             <div className="pt-4 pb-6 max-w-7xl mx-auto w-full">
               <div className="flex items-center justify-between gap-3">
-                <BackButton fallbackRoute="/explore" />
+                <BackButton route={backRoute} fallbackRoute="/explore" />
                 <motion.button
                   className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
                     copyState === 'copied'

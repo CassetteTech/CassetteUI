@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, apiService } from '@/services/api';
 import { PostComment } from '@/types';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ export function PostCommentsCard({
   currentUsername,
   className,
 }: PostCommentsCardProps) {
+  const queryClient = useQueryClient();
   const [comments, setComments] = useState<PostComment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [newComment, setNewComment] = useState('');
@@ -98,6 +100,7 @@ export function PostCommentsCard({
     try {
       const created = await apiService.createPostComment(postId, content);
       setComments((prev) => prev.map((item) => (item.commentId === optimisticId ? created : item)));
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     } catch (error) {
       setComments((prev) => prev.filter((item) => item.commentId !== optimisticId));
       if (error instanceof ApiError && error.status === 403) {
@@ -110,7 +113,7 @@ export function PostCommentsCard({
     } finally {
       setIsCreating(false);
     }
-  }, [commentsEnabled, currentUserId, currentUsername, newComment, postId]);
+  }, [commentsEnabled, currentUserId, currentUsername, newComment, postId, queryClient]);
 
   const cancelReply = useCallback(() => {
     setReplyingToCommentId(null);
@@ -158,6 +161,7 @@ export function PostCommentsCard({
     try {
       const created = await apiService.replyToPostComment(parentComment.commentId, content);
       setComments((prev) => prev.map((item) => (item.commentId === optimisticId ? created : item)));
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     } catch (error) {
       setComments((prev) => prev.filter((item) => item.commentId !== optimisticId));
       if (error instanceof ApiError && error.status === 403) {
@@ -170,7 +174,7 @@ export function PostCommentsCard({
     } finally {
       setIsReplying(false);
     }
-  }, [cancelReply, commentsEnabled, currentUserId, currentUsername, replyContent]);
+  }, [cancelReply, commentsEnabled, currentUserId, currentUsername, replyContent, queryClient]);
 
   const startEdit = useCallback((comment: PostComment) => {
     setEditingCommentId(comment.commentId);

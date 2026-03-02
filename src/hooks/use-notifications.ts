@@ -6,6 +6,8 @@ type NotificationQueryParams = {
   page?: number;
   pageSize?: number;
   enabled?: boolean;
+  refetchIntervalMs?: number | false;
+  refetchInBackground?: boolean;
 };
 
 const DEFAULT_PAGE = 1;
@@ -23,6 +25,8 @@ const toType = (value: unknown): NotificationType => {
   const normalized = typeof value === 'string' ? value.toLowerCase() : '';
   if (normalized === 'like') return 'like';
   if (normalized === 'comment') return 'comment';
+  if (normalized === 'comment_reply' || normalized === 'commentreply') return 'comment_reply';
+  if (normalized === 'comment_like' || normalized === 'commentlike') return 'comment_like';
   if (normalized === 'follow') return 'follow';
   return 'system';
 };
@@ -112,6 +116,8 @@ export const useNotifications = ({
   page = DEFAULT_PAGE,
   pageSize = DEFAULT_PAGE_SIZE,
   enabled = true,
+  refetchIntervalMs = false,
+  refetchInBackground = true,
 }: NotificationQueryParams = {}) => {
   return useQuery({
     queryKey: notificationQueryKeys.list(page, pageSize),
@@ -120,7 +126,10 @@ export const useNotifications = ({
       return toNotificationList(response, page, pageSize);
     },
     enabled,
-    refetchInterval: enabled ? 30000 : false,
+    refetchInterval: enabled ? refetchIntervalMs : false,
+    refetchIntervalInBackground: refetchInBackground,
+    refetchOnWindowFocus: enabled,
+    refetchOnReconnect: enabled,
   });
 };
 

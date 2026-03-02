@@ -362,7 +362,13 @@ export interface CommentLikeResponse {
   likeCount: number;
 }
 
-export type NotificationType = 'like' | 'comment' | 'follow' | 'system';
+export type NotificationType =
+  | 'like'
+  | 'comment'
+  | 'comment_reply'
+  | 'comment_like'
+  | 'follow'
+  | 'system';
 
 export interface NotificationActor {
   userId?: string;

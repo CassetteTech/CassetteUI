@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { useReportIssue } from '@/providers/report-issue-provider';
+import { NotificationMenu } from './notification-menu';
 
 import {
   DropdownMenu,
@@ -123,7 +124,8 @@ export function Navbar() {
             
             {isAuthenticated ? (
               <>
-                
+                <NotificationMenu />
+
                 {/* User Avatar - visible on desktop */}
                 <div className="hidden md:block">
                   <Link href={`/profile/${user?.username}`}>

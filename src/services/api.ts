@@ -13,6 +13,8 @@ import {
   InternalIssuesResponse,
   InternalIssueDetail,
   UpdateInternalAccountTypeRequest,
+  NotificationListResponse,
+  NotificationUnreadCountResponse,
 } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent, surfaceFromRoute } from '@/lib/analytics/client';
@@ -529,6 +531,30 @@ class ApiService {
   async unlikePost(postId: string) {
     return this.request(`/api/v1/social/posts/${postId}/like`, {
       method: 'DELETE',
+    });
+  }
+
+  // Notification endpoints
+  async getNotifications(page = 1, pageSize = 20): Promise<NotificationListResponse> {
+    return this.request<NotificationListResponse>(
+      `/api/v1/notifications?page=${page}&pageSize=${pageSize}`
+    );
+  }
+
+  async getUnreadNotificationCount(): Promise<NotificationUnreadCountResponse> {
+    return this.request<NotificationUnreadCountResponse>('/api/v1/notifications/unread-count');
+  }
+
+  async markNotificationsAsRead(notificationIds: string[]): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>('/api/v1/notifications/read', {
+      method: 'POST',
+      body: JSON.stringify({ notificationIds }),
+    });
+  }
+
+  async markAllNotificationsAsRead(): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>('/api/v1/notifications/read-all', {
+      method: 'POST',
     });
   }
 

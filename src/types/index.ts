@@ -329,6 +329,41 @@ export interface PostByIdResponse {
   originalLink?: string;
 }
 
+export type NotificationType = 'like' | 'comment' | 'follow' | 'system';
+
+export interface NotificationActor {
+  userId?: string;
+  username?: string;
+  displayName?: string;
+  avatarUrl?: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  type: NotificationType;
+  isRead: boolean;
+  createdAt: string;
+  actor: NotificationActor;
+  postId?: string;
+  targetUrl?: string;
+  message?: string;
+}
+
+export interface NotificationListResponse {
+  items: NotificationItem[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+  unreadCount: number;
+}
+
+export interface NotificationUnreadCountResponse {
+  unreadCount: number;
+}
+
 // Form Types
 export interface SignInForm {
   email: string;

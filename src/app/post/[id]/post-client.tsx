@@ -243,7 +243,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     !!user?.username &&
     postData.username.toLowerCase() === user.username.toLowerCase();
   const isOwnPost = isOwnPostById || isOwnPostByUsername;
-  const showAddToProfile = isAuthenticated && !isOwnPost;
+  const hasOwner = Boolean(postData?.userId || postData?.username?.trim());
+  const showAddToProfile = isAuthenticated && !hasOwner;
 
   const handleToggleLike = useCallback(async () => {
     const currentPostId = postData?.postId || postId;

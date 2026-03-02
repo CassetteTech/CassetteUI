@@ -2,6 +2,9 @@ import { clientConfig } from '@/lib/config-client';
 import {
   MusicLinkConversion,
   PostByIdResponse,
+  PostComment,
+  PaginatedPostCommentsResponse,
+  CommentLikeResponse,
   ConversionApiResponse,
   ElementType,
   MediaListTrack,
@@ -569,12 +572,12 @@ class ApiService {
   // Update a post's description and/or privacy
   async updatePost(
     postId: string,
-    description?: string,
-    privacy?: string
-  ): Promise<{ postId: string; description?: string; privacy?: string }> {
+    updates: { description?: string; privacy?: string; commentsEnabled?: boolean }
+  ): Promise<{ postId: string; description?: string; privacy?: string; commentsEnabled?: boolean }> {
     const payload: Record<string, unknown> = {};
-    if (description !== undefined) payload.description = description;
-    if (privacy !== undefined) payload.privacy = privacy;
+    if (updates.description !== undefined) payload.description = updates.description;
+    if (updates.privacy !== undefined) payload.privacy = updates.privacy;
+    if (updates.commentsEnabled !== undefined) payload.commentsEnabled = updates.commentsEnabled;
 
     return this.request(`/api/v1/social/posts/${postId}`, {
       method: 'PATCH',
@@ -593,6 +596,51 @@ class ApiService {
   async fetchPostById(postId: string, options?: { signal?: AbortSignal }): Promise<PostByIdResponse> {
     return this.request<PostByIdResponse>(`/api/v1/social/posts/${postId}`, {
       signal: options?.signal,
+    });
+  }
+
+  async getPostComments(postId: string, page = 1, pageSize = 50): Promise<PaginatedPostCommentsResponse> {
+    return this.request<PaginatedPostCommentsResponse>(
+      `/api/v1/social/posts/${postId}/comments?page=${page}&pageSize=${pageSize}`
+    );
+  }
+
+  async createPostComment(postId: string, content: string): Promise<PostComment> {
+    return this.request<PostComment>(`/api/v1/social/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async replyToPostComment(commentId: string, content: string): Promise<PostComment> {
+    return this.request<PostComment>(`/api/v1/social/comments/${commentId}/replies`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async updatePostComment(commentId: string, content: string): Promise<PostComment> {
+    return this.request<PostComment>(`/api/v1/social/comments/${commentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async deletePostComment(commentId: string): Promise<void> {
+    await this.request(`/api/v1/social/comments/${commentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async likePostComment(commentId: string): Promise<CommentLikeResponse> {
+    return this.request<CommentLikeResponse>(`/api/v1/social/comments/${commentId}/like`, {
+      method: 'POST',
+    });
+  }
+
+  async unlikePostComment(commentId: string): Promise<CommentLikeResponse> {
+    return this.request<CommentLikeResponse>(`/api/v1/social/comments/${commentId}/like`, {
+      method: 'DELETE',
     });
   }
 

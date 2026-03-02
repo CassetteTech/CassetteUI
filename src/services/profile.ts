@@ -42,6 +42,7 @@ interface ActivityItemPayload {
   conversionSuccessCount?: number;
   likeCount?: number;
   likedByCurrentUser?: boolean;
+  commentsEnabled?: boolean;
   [key: string]: unknown;
 }
 
@@ -307,6 +308,7 @@ export class ProfileService {
           createdAt: pickString(itemObj, ['createdAt', 'CreatedAt']) || '',
           likeCount: pickNumber(itemObj, ['likeCount', 'LikeCount']),
           likedByCurrentUser: pickBoolean(itemObj, ['likedByCurrentUser', 'LikedByCurrentUser']),
+          commentsEnabled: pickBoolean(itemObj, ['commentsEnabled', 'CommentsEnabled']),
         };
       });
 

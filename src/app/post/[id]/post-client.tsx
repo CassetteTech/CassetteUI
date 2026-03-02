@@ -8,6 +8,7 @@ import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-st
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList } from '@/components/features/entity/track-list';
 import { PostDescriptionCard } from '@/components/features/post/post-description-card';
+import { PostCommentsCard } from '@/components/features/post/post-comments-card';
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
@@ -80,6 +81,7 @@ type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
   conversionSuccessCount?: number | null;
   likeCount?: number;
   likedByCurrentUser?: boolean;
+  commentsEnabled?: boolean;
 };
 
 type PostLikeResponse = {
@@ -128,9 +130,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   }, [router, postData?.username]);
 
   // Handle edit success - update local state with new description
-  const handleEditSuccess = useCallback((updated: { description: string; privacy: string }) => {
+  const handleEditSuccess = useCallback((updated: { description: string; privacy: string; commentsEnabled: boolean }) => {
     setPostData((prev) =>
-      prev ? { ...prev, description: updated.description, privacy: updated.privacy } : prev
+      prev ? { ...prev, description: updated.description, privacy: updated.privacy, commentsEnabled: updated.commentsEnabled } : prev
     );
   }, []);
 
@@ -361,6 +363,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             conversionSuccessCount: response.conversionSuccessCount,
             likeCount: typeof response.likeCount === 'number' ? response.likeCount : 0,
             likedByCurrentUser: Boolean(response.likedByCurrentUser),
+            commentsEnabled: response.commentsEnabled ?? true,
             genres: response.details?.genres || response.metadata?.genres || [],
             albumName: response.metadata?.albumName || response.details?.album || '',
             releaseDate: response.metadata?.releaseDate || response.details?.releaseDate || null,
@@ -555,6 +558,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const isPlaylist = metadata.type === ElementType.PLAYLIST || detectedTypeFromUrl === 'playlist';
   const typeLabel = isTrack ? 'Track' : isAlbum ? 'Album' : isArtist ? 'Artist' : 'Playlist';
   const showTracks = (isAlbum || isPlaylist) && Array.isArray(postData?.tracks) && (postData.tracks?.length ?? 0) > 0;
+  const hasPostOwner = Boolean(postData?.username || postData?.userId);
   const ownerVisibleConversionCount =
     isPlaylist && isOwnPost && typeof postData?.conversionSuccessCount === 'number'
       ? postData.conversionSuccessCount
@@ -845,6 +849,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       className="mt-6 w-full max-w-xl relative z-20"
                     />
                   )}
+                  {hasPostOwner && (
+                    <PostCommentsCard
+                      postId={postData?.postId || postId}
+                      isVisible={true}
+                      commentsEnabled={postData?.commentsEnabled ?? true}
+                      currentUserId={user?.id}
+                      currentUsername={user?.username}
+                      className="mt-6 max-w-xl"
+                    />
+                  )}
                   {/* Streaming Links (moved from right) */}
                   {(isAlbum || isPlaylist) && (
                     <div className="mt-6 p-8 rounded-2xl border border-border bg-card shadow-lg relative z-10 w-full max-w-xl">
@@ -1046,6 +1060,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           </div>
                         )}
                       </div>
+                      {hasPostOwner && (
+                        <PostCommentsCard
+                          postId={postData?.postId || postId}
+                          isVisible={true}
+                          commentsEnabled={postData?.commentsEnabled ?? true}
+                          currentUserId={user?.id}
+                          currentUsername={user?.username}
+                          className="w-full max-w-md"
+                        />
+                      )}
                     </div>
                   </div>
                   {/* Right Column - Content (page scroll) */}
@@ -1521,6 +1545,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   className="text-left relative z-20"
                 />
               )}
+              {hasPostOwner && (
+                <PostCommentsCard
+                  postId={postData?.postId || postId}
+                  isVisible={true}
+                  commentsEnabled={postData?.commentsEnabled ?? true}
+                  currentUserId={user?.id}
+                  currentUsername={user?.username}
+                  className="text-left relative z-20"
+                />
+              )}
 
               {/* Streaming Links Container */}
               <div className="p-4 sm:p-5 rounded-2xl border border-border bg-card shadow-lg relative z-10">
@@ -1611,6 +1645,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         postId={postId}
         currentDescription={postData?.description || ''}
         currentPrivacy={(postData?.privacy as 'public' | 'private' | 'subscriber' | undefined) ?? 'public'}
+        currentCommentsEnabled={postData?.commentsEnabled ?? true}
         onSuccess={handleEditSuccess}
       />
 

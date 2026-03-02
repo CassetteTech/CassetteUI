@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { useUpdatePost } from '@/hooks/use-music';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -25,7 +26,8 @@ interface EditPostModalProps {
   postId: string;
   currentDescription: string;
   currentPrivacy?: PostPrivacy;
-  onSuccess?: (data: { description: string; privacy: PostPrivacy }) => void;
+  currentCommentsEnabled?: boolean;
+  onSuccess?: (data: { description: string; privacy: PostPrivacy; commentsEnabled: boolean }) => void;
 }
 
 export function EditPostModal({
@@ -34,10 +36,12 @@ export function EditPostModal({
   postId,
   currentDescription,
   currentPrivacy = 'public',
+  currentCommentsEnabled = true,
   onSuccess,
 }: EditPostModalProps) {
   const [description, setDescription] = useState(currentDescription);
   const [privacy, setPrivacy] = useState<PostPrivacy>(currentPrivacy);
+  const [commentsEnabled, setCommentsEnabled] = useState(currentCommentsEnabled);
   const updatePost = useUpdatePost();
 
   // Reset description when modal opens with new data
@@ -45,15 +49,16 @@ export function EditPostModal({
     if (open) {
       setDescription(currentDescription);
       setPrivacy(currentPrivacy);
+      setCommentsEnabled(currentCommentsEnabled);
     }
-  }, [open, currentDescription, currentPrivacy]);
+  }, [open, currentDescription, currentPrivacy, currentCommentsEnabled]);
 
   const handleSave = async () => {
     try {
-      await updatePost.mutateAsync({ postId, description, privacy });
+      await updatePost.mutateAsync({ postId, description, privacy, commentsEnabled });
       toast.success('Post updated successfully');
       onOpenChange(false);
-      onSuccess?.({ description, privacy });
+      onSuccess?.({ description, privacy, commentsEnabled });
     } catch (error) {
       console.error('Failed to update post:', error);
       toast.error('Failed to update post. Please try again.');
@@ -108,6 +113,21 @@ export function EditPostModal({
           <p className="text-xs text-muted-foreground">
             Private posts only appear on your profile to you. Anyone with the link can still view them.
           </p>
+        </div>
+
+        <div className="space-y-2 px-4">
+          <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-muted/20 px-3 py-2">
+            <div>
+              <Label htmlFor="post-comments-enabled" className="text-sm text-foreground">Allow comments</Label>
+              <p className="text-xs text-muted-foreground">Turn off to stop new comments on this post.</p>
+            </div>
+            <Switch
+              id="post-comments-enabled"
+              checked={commentsEnabled}
+              onCheckedChange={setCommentsEnabled}
+              disabled={updatePost.isPending}
+            />
+          </div>
         </div>
 
         <SheetFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">

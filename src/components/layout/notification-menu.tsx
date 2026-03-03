@@ -22,10 +22,13 @@ import { cn } from '@/lib/utils';
 
 const getNotificationText = (item: NotificationItem) => {
   const actor = item.actor.displayName || item.actor.username || 'Someone';
+  if (item.message && item.message.trim() !== '') return item.message;
   if (item.type === 'like') return `${actor} liked your post`;
   if (item.type === 'comment') return `${actor} commented on your post`;
+  if (item.type === 'comment_reply') return `${actor} replied to your comment`;
+  if (item.type === 'comment_like') return `${actor} liked your comment`;
   if (item.type === 'follow') return `${actor} started following you`;
-  return item.message || `${actor} sent you a notification`;
+  return `${actor} sent you a notification`;
 };
 
 const getNotificationHref = (item: NotificationItem) => {
@@ -35,7 +38,7 @@ const getNotificationHref = (item: NotificationItem) => {
 };
 
 export function NotificationMenu() {
-  const { data, isLoading, isError } = useNotifications({ enabled: true });
+  const { data, isLoading, isError } = useNotifications({ enabled: true, refetchIntervalMs: false });
   const { mutate: markAsRead, isPending: isMarkingSingle } = useMarkNotificationsAsRead();
   const { mutate: markAllAsRead, isPending: isMarkingAll } = useMarkAllNotificationsAsRead();
 

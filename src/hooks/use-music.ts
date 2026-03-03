@@ -138,9 +138,13 @@ export const useUpdatePost = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (params: { postId: string; description: string; privacy?: string }) => {
+    mutationFn: (params: { postId: string; description: string; privacy?: string; commentsEnabled?: boolean }) => {
       console.log('🎯 useUpdatePost mutation called with:', params);
-      return apiService.updatePost(params.postId, params.description, params.privacy);
+      return apiService.updatePost(params.postId, {
+        description: params.description,
+        privacy: params.privacy,
+        commentsEnabled: params.commentsEnabled,
+      });
     },
     onSuccess: (_data, variables) => {
       console.log('✅ Update post successful');
@@ -176,3 +180,4 @@ export const useDeletePost = () => {
     },
   });
 };
+

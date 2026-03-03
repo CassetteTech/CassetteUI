@@ -55,6 +55,7 @@ export interface ActivityPost {
   createdAt: string;
   likeCount?: number;
   likedByCurrentUser?: boolean;
+  commentsEnabled?: boolean;
 }
 
 export interface PaginatedActivityResponse {
@@ -294,6 +295,7 @@ export interface PostByIdResponse {
   conversionSuccessCount?: number | null;
   likeCount?: number;
   likedByCurrentUser?: boolean;
+  commentsEnabled?: boolean;
   details: {
     title?: string;
     name?: string;
@@ -329,7 +331,44 @@ export interface PostByIdResponse {
   originalLink?: string;
 }
 
-export type NotificationType = 'like' | 'comment' | 'follow' | 'system';
+export interface PostComment {
+  commentId: string;
+  postId: string;
+  parentCommentId?: string | null;
+  userId: string;
+  username: string;
+  userAvatarUrl?: string | null;
+  content: string;
+  createdAt: string;
+  updatedAt?: string | null;
+  likeCount: number;
+  likedByCurrentUser: boolean;
+  isOwnedByCurrentUser: boolean;
+  canDelete: boolean;
+}
+
+export interface PaginatedPostCommentsResponse {
+  items: PostComment[];
+  totalItems: number;
+  page: number;
+  pageSize: number;
+  isOwnProfile?: boolean;
+}
+
+export interface CommentLikeResponse {
+  success: boolean;
+  commentId: string;
+  liked: boolean;
+  likeCount: number;
+}
+
+export type NotificationType =
+  | 'like'
+  | 'comment'
+  | 'comment_reply'
+  | 'comment_like'
+  | 'follow'
+  | 'system';
 
 export interface NotificationActor {
   userId?: string;

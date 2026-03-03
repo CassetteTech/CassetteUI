@@ -258,7 +258,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
   onCancel
 }) => {
   return (
-    <div className="px-4 sm:px-6 md:px-8 pb-8 mt-16 max-w-lg mx-auto">
+    <div className="px-4 sm:px-6 md:px-8 pb-8 pt-16 max-w-lg mx-auto">
       {/* Header Toolbar - inside the main container, matching PostClientPage */}
       <div className="pt-4 pb-6 max-w-7xl mx-auto w-full">
         <div className="flex items-center justify-between gap-3">

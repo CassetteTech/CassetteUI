@@ -537,6 +537,18 @@ class ApiService {
     });
   }
 
+  async repostPost(postId: string): Promise<{ postId?: string; redirectPostId?: string; originalPostId?: string | null }> {
+    return this.request(`/api/v1/social/posts/${postId}/repost`, {
+      method: 'POST',
+    });
+  }
+
+  async unrepostPost(postId: string): Promise<void> {
+    await this.request(`/api/v1/social/posts/${postId}/repost`, {
+      method: 'DELETE',
+    });
+  }
+
   // Notification endpoints
   async getNotifications(page = 1, pageSize = 20): Promise<NotificationListResponse> {
     return this.request<NotificationListResponse>(

@@ -43,6 +43,13 @@ export type PostPrivacy = 'public' | 'private' | 'subscriber';
 
 export interface ActivityPost {
   postId: string;
+  redirectPostId?: string;
+  isRepost?: boolean;
+  originalPostId?: string | null;
+  originalUsername?: string;
+  originalPostOwnerUserId?: string | null;
+  originalPostOwnerUsername?: string | null;
+  originalPostOwnerAvatarUrl?: string | null;
   elementType: string;
   title: string;
   subtitle?: string;
@@ -287,6 +294,10 @@ export interface FailedTrack {
 export interface PostByIdResponse {
   success: boolean;
   postId: string;
+  redirectPostId?: string;
+  isRepost?: boolean;
+  originalPostId?: string | null;
+  repostedByCurrentUser?: boolean;
   elementType: string;
   musicElementId: string;
   userId?: string | null;
@@ -371,6 +382,7 @@ export type NotificationType =
   | 'comment'
   | 'comment_reply'
   | 'comment_like'
+  | 'repost'
   | 'follow'
   | 'system';
 

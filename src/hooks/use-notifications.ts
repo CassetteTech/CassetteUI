@@ -27,6 +27,7 @@ const toType = (value: unknown): NotificationType => {
   if (normalized === 'comment') return 'comment';
   if (normalized === 'comment_reply' || normalized === 'commentreply') return 'comment_reply';
   if (normalized === 'comment_like' || normalized === 'commentlike') return 'comment_like';
+  if (normalized === 'repost') return 'repost';
   if (normalized === 'follow') return 'follow';
   return 'system';
 };

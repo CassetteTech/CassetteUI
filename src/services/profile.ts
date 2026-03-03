@@ -4,6 +4,13 @@ import { apiService } from '@/services/api';
 
 interface ActivityItemPayload {
   postId: string;
+  redirectPostId?: string;
+  isRepost?: boolean;
+  originalPostId?: string | null;
+  originalUsername?: string;
+  originalPostOwnerUserId?: string | null;
+  originalPostOwnerUsername?: string | null;
+  originalPostOwnerAvatarUrl?: string | null;
   elementType: string;
   title: string;
   name?: string;
@@ -243,6 +250,8 @@ export class ProfileService {
         const itemObj = item as Record<string, unknown>;
         const detailsObj = asObject(itemObj.details);
         const metadataObj = asObject(itemObj.metadata);
+        const originalPostObj = asObject(itemObj.originalPost) || asObject(itemObj.OriginalPost);
+        const originalOwnerObj = asObject(itemObj.originalOwner) || asObject(itemObj.OriginalOwner);
         const platformsObj = asObject(itemObj.platforms) as Record<string, { artworkUrl?: string; imageUrl?: string; coverArtUrl?: string }> | undefined;
 
         const elementType = (
@@ -294,6 +303,41 @@ export class ProfileService {
 
         return {
           postId: pickString(itemObj, ['postId', 'PostId']) || '',
+          redirectPostId:
+            pickString(itemObj, ['redirectPostId', 'RedirectPostId']) ||
+            pickString(itemObj, ['postId', 'PostId']) ||
+            '',
+          isRepost:
+            pickBoolean(itemObj, ['isRepost', 'IsRepost']) ||
+            false,
+          originalPostId:
+            pickString(itemObj, ['originalPostId', 'OriginalPostId']) || null,
+          originalUsername:
+            pickString(itemObj, [
+              'originalPostOwnerUsername',
+              'OriginalPostOwnerUsername',
+              'originalUsername',
+              'OriginalUsername',
+              'originalPostUsername',
+              'OriginalPostUsername',
+              'sourceUsername',
+              'SourceUsername',
+            ]) ||
+            (originalPostObj ? pickString(originalPostObj, ['username', 'Username', 'userName', 'UserName']) : undefined) ||
+            (originalOwnerObj ? pickString(originalOwnerObj, ['username', 'Username', 'userName', 'UserName']) : undefined) ||
+            '',
+          originalPostOwnerUserId:
+            pickString(itemObj, ['originalPostOwnerUserId', 'OriginalPostOwnerUserId']) ||
+            (originalOwnerObj ? pickString(originalOwnerObj, ['userId', 'UserId', 'id', 'Id']) : undefined) ||
+            null,
+          originalPostOwnerUsername:
+            pickString(itemObj, ['originalPostOwnerUsername', 'OriginalPostOwnerUsername']) ||
+            (originalOwnerObj ? pickString(originalOwnerObj, ['username', 'Username', 'userName', 'UserName']) : undefined) ||
+            null,
+          originalPostOwnerAvatarUrl:
+            pickString(itemObj, ['originalPostOwnerAvatarUrl', 'OriginalPostOwnerAvatarUrl']) ||
+            (originalOwnerObj ? pickString(originalOwnerObj, ['avatarUrl', 'AvatarUrl', 'profilePicture', 'ProfilePicture']) : undefined) ||
+            null,
           elementType:
             pickString(itemObj, ['elementType', 'ElementType']) ||
             'Track',

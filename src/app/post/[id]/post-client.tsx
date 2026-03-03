@@ -67,6 +67,10 @@ interface PostClientPageProps {
 type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
   previewUrl?: string;
   description?: string;
+  isRepost?: boolean;
+  originalPostId?: string | null;
+  redirectPostId?: string;
+  repostedByCurrentUser?: boolean;
   username?: string;
   userId?: string | null;
   createdAt?: string;
@@ -161,6 +165,51 @@ const buildArtistSearchUrl = (platform: NormalizedPlatformKey, artistName: strin
   return `https://music.apple.com/us/search?term=${query}`;
 };
 
+const REPOSTED_POSTS_STORAGE_KEY = 'cassette_reposted_posts_v1';
+
+const readRepostedPosts = (userId?: string | null): Record<string, true> => {
+  if (!userId || typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(REPOSTED_POSTS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, Record<string, true>>;
+    return parsed[userId] || {};
+  } catch {
+    return {};
+  }
+};
+
+const markPostAsReposted = (userId: string | undefined, targetPostId: string | undefined) => {
+  if (!userId || !targetPostId || typeof window === 'undefined') return;
+  try {
+    const raw = window.localStorage.getItem(REPOSTED_POSTS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) as Record<string, Record<string, true>> : {};
+    const currentUserPosts = parsed[userId] || {};
+    currentUserPosts[targetPostId] = true;
+    parsed[userId] = currentUserPosts;
+    window.localStorage.setItem(REPOSTED_POSTS_STORAGE_KEY, JSON.stringify(parsed));
+  } catch {
+    // best effort
+  }
+};
+
+const unmarkPostAsReposted = (userId: string | undefined, targetPostId: string | undefined) => {
+  if (!userId || !targetPostId || typeof window === 'undefined') return;
+  try {
+    const raw = window.localStorage.getItem(REPOSTED_POSTS_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Record<string, Record<string, true>>;
+    const currentUserPosts = parsed[userId] || {};
+    if (currentUserPosts[targetPostId]) {
+      delete currentUserPosts[targetPostId];
+    }
+    parsed[userId] = currentUserPosts;
+    window.localStorage.setItem(REPOSTED_POSTS_STORAGE_KEY, JSON.stringify(parsed));
+  } catch {
+    // best effort
+  }
+};
+
 export default function PostClientPage({ postId }: PostClientPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -181,6 +230,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isRepostPending, setIsRepostPending] = useState(false);
+  const [hasReposted, setHasReposted] = useState(false);
   const [isLikePending, setIsLikePending] = useState(false);
   const [likeAuthPromptOpen, setLikeAuthPromptOpen] = useState(false);
   const { openReportModal } = useReportIssue();
@@ -303,6 +354,45 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     );
   }, [addToProfile, postData?.musicElementId, postData?.metadata?.type, postData?.description, postData?.metadata?.artwork]);
 
+  const handleRepost = useCallback(async () => {
+    const currentPostId = postData?.postId || postId;
+    if (!currentPostId || isRepostPending || !isAuthenticated) return;
+
+    try {
+      setIsRepostPending(true);
+      if (hasReposted) {
+        await apiService.unrepostPost(currentPostId);
+        setHasReposted(false);
+        unmarkPostAsReposted(user?.id, currentPostId);
+        toast.success('Removed repost from your profile.');
+      } else {
+        await apiService.repostPost(currentPostId);
+        setHasReposted(true);
+        markPostAsReposted(user?.id, currentPostId);
+        toast.success('Reposted to your profile.');
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['user-activity'] }),
+        queryClient.invalidateQueries({ queryKey: ['explore-activity'] }),
+      ]);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const message = error.message || '';
+        if (message.toLowerCase().includes('already repost')) {
+          setHasReposted(true);
+          markPostAsReposted(user?.id, currentPostId);
+        }
+        toast.error(error.message || (hasReposted ? 'Unable to remove repost.' : 'Unable to repost this post.'));
+      } else if (error instanceof Error) {
+        toast.error(error.message || (hasReposted ? 'Unable to remove repost.' : 'Unable to repost this post.'));
+      } else {
+        toast.error(hasReposted ? 'Unable to remove repost.' : 'Unable to repost this post.');
+      }
+    } finally {
+      setIsRepostPending(false);
+    }
+  }, [hasReposted, isAuthenticated, isRepostPending, postData?.postId, postId, queryClient, user?.id]);
+
   const isOwnPostById =
     !!postData?.userId &&
     !!user?.id &&
@@ -315,6 +405,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const isOwnPost = isOwnPostById || isOwnPostByUsername;
   const hasOwner = Boolean(postData?.userId || postData?.username?.trim());
   const showAddToProfile = isAuthenticated && !hasOwner;
+  const isPublicPost = (postData?.privacy || 'public').toLowerCase() !== 'private';
+  const canRepost = Boolean(isAuthenticated && hasOwner && !isOwnPost && isPublicPost);
 
   const handleToggleLike = useCallback(async () => {
     const currentPostId = postData?.postId || postId;
@@ -427,6 +519,15 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               duration: durationVal,
             },
             description: response.description || response.caption,
+            isRepost: Boolean(response.isRepost),
+            originalPostId: response.originalPostId ?? null,
+            redirectPostId: response.redirectPostId || response.postId || postId,
+            repostedByCurrentUser: Boolean(
+              (response as unknown as Record<string, unknown>).repostedByCurrentUser === true ||
+              (response as unknown as Record<string, unknown>).RepostedByCurrentUser === true ||
+              (response as unknown as Record<string, unknown>).isRepostedByCurrentUser === true ||
+              (response as unknown as Record<string, unknown>).IsRepostedByCurrentUser === true
+            ),
             username: response.username,
             userId: response.userId ?? null,
             createdAt: response.createdAt,
@@ -571,6 +672,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             sourcePlatform: detectedSourcePlatform,
             postId: response.postId || postId || transformedData.postId,
           });
+          const repostedByApi = Boolean(transformedData.repostedByCurrentUser);
+          const repostedFromLocal = Boolean(readRepostedPosts(user?.id)[response.postId || postId]);
+          setHasReposted(repostedByApi || repostedFromLocal);
 
           // Extract dominant color
           if (transformedData.metadata.artwork) {
@@ -740,7 +844,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     )}
                   </AnimatePresence>
                 </motion.button>
-                {/* More Menu (only for own posts) */}
+                {/* More Menu */}
                 {isOwnPost && (
                   <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                     <DropdownMenuTrigger asChild>
@@ -753,17 +857,21 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
+                      {isOwnPost && (
+                        <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                      )}
+                      {isOwnPost && (
+                        <DropdownMenuItem
+                          onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -930,6 +1038,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
                       isLikePending={isLikePending}
                       onToggleLike={handleToggleLike}
+                      canRepost={canRepost}
+                      hasReposted={hasReposted}
+                      isRepostPending={isRepostPending}
+                      onRepost={() => void handleRepost()}
                       className="mt-6 w-full max-w-xl relative z-20"
                     />
                   )}
@@ -1084,7 +1196,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       )}
                     </AnimatePresence>
                   </motion.button>
-                  {/* More Menu (only for own posts) */}
+                  {/* More Menu */}
                   {isOwnPost && (
                     <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                       <DropdownMenuTrigger asChild>
@@ -1097,17 +1209,21 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
+                        {isOwnPost && (
+                          <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+                        {isOwnPost && (
+                          <DropdownMenuItem
+                            onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
@@ -1238,6 +1354,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
                             isLikePending={isLikePending}
                             onToggleLike={handleToggleLike}
+                            canRepost={canRepost}
+                            hasReposted={hasReposted}
+                            isRepostPending={isRepostPending}
+                            onRepost={() => void handleRepost()}
                             className="relative z-20"
                           />
                         )}
@@ -1371,7 +1491,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     )}
                   </AnimatePresence>
                 </motion.button>
-                {/* More Menu (only for own posts) */}
+                {/* More Menu */}
                 {isOwnPost && (
                   <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                     <DropdownMenuTrigger asChild>
@@ -1384,17 +1504,21 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
+                      {isOwnPost && (
+                        <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                      )}
+                      {isOwnPost && (
+                        <DropdownMenuItem
+                          onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -1626,6 +1750,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
                   isLikePending={isLikePending}
                   onToggleLike={handleToggleLike}
+                  canRepost={canRepost}
+                  hasReposted={hasReposted}
+                  isRepostPending={isRepostPending}
+                  onRepost={() => void handleRepost()}
                   className="text-left relative z-20"
                 />
               )}

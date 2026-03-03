@@ -17,7 +17,7 @@ import {
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { formatRelativeTime } from '@/lib/utils/format-date';
-import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { MoreVertical, Pencil, Repeat2, Trash2 } from 'lucide-react';
 
 interface ProfileActivityProps {
   posts: ActivityPost[];
@@ -119,9 +119,10 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
   };
 
   const getNavigationPath = (post: ActivityPost) => {
-    if (!post.postId) return '#';
+    const targetPostId = post.redirectPostId || post.postId;
+    if (!targetPostId) return '#';
     const currentPath = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-    return `/post?id=${post.postId}&from=${encodeURIComponent(currentPath)}`;
+    return `/post/${targetPostId}?from=${encodeURIComponent(currentPath)}`;
   };
 
   const handleShare = () => {
@@ -138,38 +139,53 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
       navigator.clipboard.writeText(shareUrl);
     }
   };
+
+  const sourceUsername = post.isRepost
+    ? (
+      post.originalPostOwnerUsername ||
+      post.originalUsername ||
+      post.username
+    )
+    : post.username;
   // Only use description if it's a non-empty user-provided value
   const hasDescription = post.description && post.description.trim().length > 0;
   const detailText = hasDescription ? post.description : post.subtitle;
 
   return (
     <>
-      <Card className="p-3 sm:p-4 hover:shadow-lg transition-all duration-200 bg-card/60 backdrop-blur-sm hover:bg-card/80">
+      <Card className="relative p-3 sm:p-4 hover:shadow-lg transition-all duration-200 bg-card/60 backdrop-blur-sm hover:bg-card/80">
+        {post.isRepost && (
+          <div className="absolute right-2 top-2 z-20 rounded-full bg-background/80 p-1 text-muted-foreground">
+            <Repeat2 className="h-3.5 w-3.5" />
+          </div>
+        )}
         <Link href={getNavigationPath(post)} className="block">
           <div className="flex gap-4">
             {/* Artwork - Fixed dimensions to prevent layout shift */}
             <div className="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28">
-              {post.imageUrl ? (
-                <Image
-                  src={post.imageUrl}
-                  alt={post.title}
-                  width={120}
-                  height={120}
-                  className="w-full h-full rounded-lg object-cover"
-                  placeholder="blur"
-                  blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJoc2woMjQwLCA0LjglLCA4My45JSkiLz48L3N2Zz4="
-                />
-              ) : (
-                <div className="w-full h-full rounded-lg bg-muted/40 flex items-center justify-center">
+              <div className="w-full h-full">
+                {post.imageUrl ? (
                   <Image
-                    src="/images/ic_music.png"
-                    alt="Music"
-                    width={24}
-                    height={24}
-                    className="opacity-50"
+                    src={post.imageUrl}
+                    alt={post.title}
+                    width={120}
+                    height={120}
+                    className="w-full h-full rounded-lg object-cover"
+                    placeholder="blur"
+                    blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJoc2woMjQwLCA0LjglLCA4My45JSkiLz48L3N2Zz4="
                   />
-                </div>
-              )}
+                ) : (
+                  <div className="w-full h-full rounded-lg bg-muted/40 flex items-center justify-center">
+                    <Image
+                      src="/images/ic_music.png"
+                      alt="Music"
+                      width={24}
+                      height={24}
+                      className="opacity-50"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Content */}
@@ -267,7 +283,7 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
               {/* From User */}
               <div className="flex items-center gap-1 text-muted-foreground/80 text-xs">
                 <span className="text-muted-foreground/60">from: </span>
-                <span className="text-muted-foreground">{post.username}</span>
+                <span className="text-muted-foreground">{sourceUsername}</span>
                 <VerificationBadge accountType={accountType} size="sm" />
                 {post.createdAt && (
                   <>

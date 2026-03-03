@@ -27,6 +27,7 @@ const getNotificationText = (item: NotificationItem) => {
   if (item.type === 'comment') return `${actor} commented on your post`;
   if (item.type === 'comment_reply') return `${actor} replied to your comment`;
   if (item.type === 'comment_like') return `${actor} liked your comment`;
+  if (item.type === 'repost') return `${actor} reposted your post`;
   if (item.type === 'follow') return `${actor} started following you`;
   return `${actor} sent you a notification`;
 };

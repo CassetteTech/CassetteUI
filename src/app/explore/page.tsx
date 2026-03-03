@@ -10,7 +10,7 @@ import { applyCachedArtwork } from '@/services/profile-artwork-cache';
 import { ActivityPost } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Music, Disc3, Mic2, ListMusic, Compass, Loader2 } from 'lucide-react';
+import { Music, Disc3, Mic2, ListMusic, Compass, Loader2, Repeat2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BackButton } from '@/components/ui/back-button';
 
@@ -212,7 +212,8 @@ export default function ExplorePage() {
 function ExploreCard({ post, index }: { post: ActivityPost; index: number }) {
   const style = getTypeStyle(post.elementType);
   const TypeIcon = style.icon;
-  const navigationPath = post.postId ? `/post?id=${post.postId}` : '#';
+  const targetPostId = post.redirectPostId || post.postId;
+  const navigationPath = targetPostId ? `/post/${targetPostId}` : '#';
   const hasDescription = post.description && post.description.trim().length > 0;
   const detailText = hasDescription ? post.description : post.subtitle;
 
@@ -228,11 +229,16 @@ function ExploreCard({ post, index }: { post: ActivityPost; index: number }) {
       <Link href={navigationPath} className="block group">
         <div
           className={cn(
-            'rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden',
+            'relative rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden',
             'transition-all duration-300 ease-out',
             'group-hover:shadow-lg group-hover:border-border/80 group-hover:-translate-y-1 group-hover:bg-card/90'
           )}
         >
+          {post.isRepost && (
+            <div className="absolute right-2 top-2 z-20 rounded-full bg-background/80 p-1 text-muted-foreground backdrop-blur-sm">
+              <Repeat2 className="h-3.5 w-3.5" />
+            </div>
+          )}
           {/* Colored accent strip — instant type identification */}
           <div className={cn('h-[3px]', style.accent)} />
 
@@ -259,7 +265,6 @@ function ExploreCard({ post, index }: { post: ActivityPost; index: number }) {
                 />
               </div>
             )}
-
           </div>
 
           {/* Info section */}
@@ -276,7 +281,9 @@ function ExploreCard({ post, index }: { post: ActivityPost; index: number }) {
 
             <div className="flex items-center justify-between gap-2 mt-2">
               <span className="text-[11px] sm:text-xs font-medium text-muted-foreground truncate">
-                @{post.username}
+                @{post.isRepost
+                  ? (post.originalPostOwnerUsername || post.originalUsername || post.username)
+                  : post.username}
               </span>
               <div
                 className={cn(

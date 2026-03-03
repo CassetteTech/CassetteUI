@@ -8,7 +8,7 @@ import { VerificationBadge } from '@/components/ui/verification-badge';
 import { useUserBio } from '@/hooks/use-profile';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
-import { CheckCircle2, Heart } from 'lucide-react';
+import { CheckCircle2, Heart, Repeat2 } from 'lucide-react';
 
 interface PostDescriptionCardProps {
   username: string;
@@ -19,6 +19,10 @@ interface PostDescriptionCardProps {
   likedByCurrentUser?: boolean;
   isLikePending?: boolean;
   onToggleLike?: () => void;
+  canRepost?: boolean;
+  hasReposted?: boolean;
+  isRepostPending?: boolean;
+  onRepost?: () => void;
   className?: string;
 }
 
@@ -31,6 +35,10 @@ export function PostDescriptionCard({
   likedByCurrentUser,
   isLikePending = false,
   onToggleLike,
+  canRepost = false,
+  hasReposted = false,
+  isRepostPending = false,
+  onRepost,
   className,
 }: PostDescriptionCardProps) {
   // Use React Query - will be deduplicated across all PostDescriptionCards
@@ -101,28 +109,51 @@ export function PostDescriptionCard({
           {(hasConversionCount || hasLikeData) && (
             <div className="pt-2 flex items-center gap-2 flex-wrap">
               {hasLikeData && (
-                <button
-                  type="button"
-                  onClick={onToggleLike}
-                  disabled={!onToggleLike || isLikePending}
-                  aria-label={likedByCurrentUser ? 'Unlike post' : 'Like post'}
-                  aria-pressed={likedByCurrentUser}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
-                    likedByCurrentUser
-                      ? 'border-primary/30 bg-primary/10 text-primary'
-                      : 'border-border bg-muted/50 text-muted-foreground hover:bg-muted',
-                    isLikePending && 'opacity-70'
-                  )}
-                >
-                  <Heart
+                <>
+                  <button
+                    type="button"
+                    onClick={onToggleLike}
+                    disabled={!onToggleLike || isLikePending}
+                    aria-label={likedByCurrentUser ? 'Unlike post' : 'Like post'}
+                    aria-pressed={likedByCurrentUser}
                     className={cn(
-                      'h-3.5 w-3.5',
-                      likedByCurrentUser ? 'fill-current' : 'fill-none'
+                      'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                      likedByCurrentUser
+                        ? 'border-primary/30 bg-primary/10 text-primary'
+                        : 'border-border bg-muted/50 text-muted-foreground hover:bg-muted',
+                      isLikePending && 'opacity-70'
                     )}
-                  />
-                  <span>{formattedLikeCount}</span>
-                </button>
+                  >
+                    <Heart
+                      className={cn(
+                        'h-3.5 w-3.5',
+                        likedByCurrentUser ? 'fill-current' : 'fill-none'
+                      )}
+                    />
+                    <span>{formattedLikeCount}</span>
+                  </button>
+                  {canRepost && (
+                    <button
+                      type="button"
+                      onClick={onRepost}
+                      disabled={!onRepost || isRepostPending}
+                      aria-label={
+                        isRepostPending
+                          ? (hasReposted ? 'Removing repost' : 'Reposting')
+                          : (hasReposted ? 'Remove repost' : 'Repost post')
+                      }
+                      className={cn(
+                        'inline-flex items-center justify-center rounded-full border p-1.5 text-xs font-medium transition-colors',
+                        hasReposted
+                          ? 'border-success/35 bg-success/15 text-success-text'
+                          : 'border-border bg-muted/50 text-muted-foreground hover:bg-muted',
+                        isRepostPending && 'opacity-70'
+                      )}
+                    >
+                      <Repeat2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </>
               )}
 
               {hasConversionCount && (

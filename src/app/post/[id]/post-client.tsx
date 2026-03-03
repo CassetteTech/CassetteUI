@@ -91,6 +91,76 @@ type PostLikeResponse = {
   likeCount: number;
 };
 
+type NormalizedPlatformKey = 'spotify' | 'appleMusic' | 'deezer';
+
+const normalizePlatformKey = (platform?: string | null): NormalizedPlatformKey | null => {
+  if (!platform) return null;
+  const normalized = platform.toLowerCase().replace(/[\s_-]/g, '');
+
+  if (normalized === 'spotify') return 'spotify';
+  if (normalized === 'deezer') return 'deezer';
+  if (normalized === 'applemusic' || normalized === 'apple') return 'appleMusic';
+
+  return null;
+};
+
+const normalizeElementType = (elementType?: string | null): 'track' | 'album' | 'artist' | 'playlist' => {
+  const normalized = elementType?.toLowerCase();
+  if (normalized === 'track' || normalized === 'album' || normalized === 'artist' || normalized === 'playlist') {
+    return normalized;
+  }
+  return 'track';
+};
+
+const resolvePlatformUrl = (
+  platform: NormalizedPlatformKey,
+  platformData: { url?: string; uri?: string; platformSpecificId?: string; elementType?: string } | undefined,
+  fallbackElementType: string | undefined,
+): string => {
+  const directUrl = platformData?.url?.trim();
+  if (directUrl) {
+    return directUrl;
+  }
+
+  const uriAsUrl = platformData?.uri?.trim();
+  if (uriAsUrl && /^https?:\/\//i.test(uriAsUrl)) {
+    return uriAsUrl;
+  }
+
+  const platformSpecificId = platformData?.platformSpecificId?.trim();
+  if (!platformSpecificId) {
+    return '';
+  }
+
+  const elementType = normalizeElementType(platformData?.elementType || fallbackElementType);
+
+  if (platform === 'spotify') {
+    return `https://open.spotify.com/${elementType}/${platformSpecificId}`;
+  }
+
+  if (platform === 'deezer') {
+    return `https://www.deezer.com/${elementType}/${platformSpecificId}`;
+  }
+
+  const applePathType = elementType === 'track' ? 'song' : elementType;
+  return `https://music.apple.com/us/${applePathType}/${platformSpecificId}`;
+};
+
+const buildArtistSearchUrl = (platform: NormalizedPlatformKey, artistName: string): string => {
+  const query = encodeURIComponent(artistName.trim());
+  if (!query) return '';
+
+  if (platform === 'spotify') {
+    return `https://open.spotify.com/search/${query}`;
+  }
+
+  if (platform === 'deezer') {
+    return `https://www.deezer.com/search/${query}`;
+  }
+
+  return `https://music.apple.com/us/search?term=${query}`;
+};
+
 export default function PostClientPage({ postId }: PostClientPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -431,34 +501,57 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             transformedData.tracks = mappedTop;
           }
 
-          // Extract platform URLs and artwork
+          // Extract platform URLs and artwork (with URL reconstruction fallback for older/incomplete records)
           let fallbackArtwork = '';
+          let fallbackPreview = '';
           if (response.platforms) {
             Object.entries(response.platforms).forEach(([platform, data]) => {
-              if (data?.url && data.url.trim() !== '') {
-                let platformKey = platform.toLowerCase();
-                if (platformKey === 'applemusic') {
-                  platformKey = 'appleMusic';
+              const platformKey = normalizePlatformKey(platform);
+              if (platformKey) {
+                const resolvedUrl = resolvePlatformUrl(
+                  platformKey,
+                  data as { url?: string; uri?: string; platformSpecificId?: string; elementType?: string } | undefined,
+                  elementTypeLower
+                );
+
+                if (resolvedUrl) {
+                  transformedData.convertedUrls[platformKey] = resolvedUrl;
                 }
-                transformedData.convertedUrls[platformKey as keyof typeof transformedData.convertedUrls] = data.url;
               }
 
               if (data?.artworkUrl && !fallbackArtwork) {
                 fallbackArtwork = data.artworkUrl;
               }
+
+              if (data?.previewUrl && data.previewUrl.trim() !== '' && !fallbackPreview) {
+                fallbackPreview = data.previewUrl;
+              }
             });
 
             // Extract preview URL
-            transformedData.previewUrl = response.details?.previewUrl ||
-                                       response.platforms?.spotify?.previewUrl ||
-                                       response.platforms?.deezer?.previewUrl ||
-                                       response.platforms?.applemusic?.previewUrl ||
-                                       response.platforms?.appleMusic?.previewUrl;
+            transformedData.previewUrl = response.details?.previewUrl || fallbackPreview;
           }
 
           // Use fallback artwork if main artwork is empty
           if (!transformedData.metadata.artwork && fallbackArtwork) {
             transformedData.metadata.artwork = fallbackArtwork;
+          }
+
+          // Artist posts can have partial platform data persisted in DB.
+          // Keep destination buttons visible by falling back to platform search links.
+          if (typeVal === ElementType.ARTIST) {
+            const artistSearchName = (transformedData.metadata.title || transformedData.metadata.artist || '').trim();
+            if (artistSearchName) {
+              if (!transformedData.convertedUrls.spotify) {
+                transformedData.convertedUrls.spotify = buildArtistSearchUrl('spotify', artistSearchName);
+              }
+              if (!transformedData.convertedUrls.appleMusic) {
+                transformedData.convertedUrls.appleMusic = buildArtistSearchUrl('appleMusic', artistSearchName);
+              }
+              if (!transformedData.convertedUrls.deezer) {
+                transformedData.convertedUrls.deezer = buildArtistSearchUrl('deezer', artistSearchName);
+              }
+            }
           }
 
           const detectedSourcePlatform = detectContentType(originalLink || '').platform;
@@ -571,16 +664,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
       : undefined;
   const useSplitScrollLayout = isDesktop && (isAlbum || isPlaylist);
   const showSignupCTA = !isLoading && !isAuthenticated;
-
-  // Source platform detection for playlist attribution badge
-  const normalizePlatformKey = (platform?: string | null): 'spotify' | 'appleMusic' | 'deezer' | null => {
-    if (!platform) return null;
-    const lowered = platform.toLowerCase();
-    if (lowered === 'spotify') return 'spotify';
-    if (lowered === 'deezer') return 'deezer';
-    if (lowered === 'applemusic' || lowered === 'apple') return 'appleMusic';
-    return null;
-  };
 
   const providedSourceUrl = (postData?.originalUrl || sourceUrlRef.current)?.trim();
   const detectedFromProvided = providedSourceUrl ? detectContentType(providedSourceUrl).platform : null;

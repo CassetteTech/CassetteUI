@@ -320,6 +320,10 @@ export interface PostByIdResponse {
   platforms?: {
     [key: string]: {
       url: string;
+      uri?: string;
+      platformSpecificId?: string;
+      elementType?: string;
+      platformName?: string;
       previewUrl?: string;
       artworkUrl?: string;
       genres?: string[];

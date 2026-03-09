@@ -1417,7 +1417,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             <span>Tip us</span>
                           </button>
                         </div>
-
                         {/* Report Problem */}
                         <div className="mb-[calc(6rem+env(safe-area-inset-bottom))] flex justify-center">
                           <button
@@ -1806,7 +1805,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               {showSignupCTA && (
                 <JoinCassetteCTA onClick={handleSignupClick} />
               )}
-
               {/* Support Us - Minimal */}
               <div className="flex items-center justify-between gap-4">
                 <p className="text-sm text-muted-foreground">
@@ -1880,3 +1878,4 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     </div>
   );
 }
+

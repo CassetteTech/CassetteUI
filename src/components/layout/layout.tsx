@@ -58,10 +58,13 @@ useEffect(() => {
           <Footer />
         </div>
       )}
-      {/* Hide floating support button on desktop profile pages since it's in the sidebar */}
-      <div className={isProfilePage ? 'lg:hidden' : ''}>
-        <SupportFloatingButton />
-      </div>
+      {/* Hide floating support button on desktop profile pages and all post/conversion pages */}
+      {!isPostPage && (
+        <div className={isProfilePage ? 'lg:hidden' : ''}>
+          <SupportFloatingButton />
+        </div>
+      )}
     </div>
   );
 }
+

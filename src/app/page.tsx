@@ -226,7 +226,8 @@ export default function HomePage() {
 
   // Handle paste event for auto-conversion
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    const pastedText = e.clipboardData.getData('text');
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text').trim();
     const validationError = validateMusicLink(pastedText);
     const detected = detectContentType(pastedText);
 

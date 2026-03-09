@@ -17,7 +17,7 @@ import {
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { formatRelativeTime } from '@/lib/utils/format-date';
-import { MoreVertical, Pencil, Repeat2, Trash2 } from 'lucide-react';
+import { MoreVertical, Music, Pencil, Repeat2, Trash2 } from 'lucide-react';
 
 interface ProfileActivityProps {
   posts: ActivityPost[];
@@ -52,14 +52,8 @@ export function ProfileActivity({
     return (
       <div className="min-h-screen lg:min-h-0 lg:h-full">
         <div className="flex flex-col items-center justify-center p-4 sm:p-8 md:p-12 text-center h-full">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 mb-4 opacity-50">
-            <Image
-              src="/images/ic_music.png"
-              alt="No music"
-              width={64}
-              height={64}
-              className="w-full h-full object-contain"
-            />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 mb-4 flex items-center justify-center">
+            <Music className="w-full h-full text-muted-foreground/70" aria-hidden="true" />
           </div>
           <p className="text-muted-foreground text-base sm:text-lg">No items to display</p>
         </div>

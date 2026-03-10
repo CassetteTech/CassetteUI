@@ -149,7 +149,7 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
     <>
       <Card className="relative p-3 sm:p-4 hover:shadow-lg transition-all duration-200 bg-card/60 backdrop-blur-sm hover:bg-card/80">
         {post.isRepost && (
-          <div className="absolute right-2 top-2 z-20 rounded-full bg-background/80 p-1 text-muted-foreground">
+          <div className="absolute bottom-2 right-2 z-20 rounded-full bg-background/80 p-1 text-muted-foreground">
             <Repeat2 className="h-3.5 w-3.5" />
           </div>
         )}

@@ -11,7 +11,7 @@ import PostClientPage from './[id]/post-client';
 import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
-import { apiService } from '@/services/api';
+import { apiService, ApiError } from '@/services/api';
 
 // This page handles:
 // 1. ?id=X - Redirects to /post/X (canonical route)
@@ -55,6 +55,7 @@ function PostPageContent() {
   const hasConvertedRef = useRef(false);
   const lastUrlRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
+  const convertRetryCountRef = useRef(0);
 
   const waitForPostAvailability = useCallback(async (postId: string) => {
     // Only wait for authenticated add-music flow where write/read lag has been observed.
@@ -80,6 +81,20 @@ function PostPageContent() {
     const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
     window.history.replaceState(null, '', `/post/${postId}${fromQuery}`);
   }, [fromParam, waitForPostAvailability]);
+
+  const shouldRetryConvertError = (err: unknown) => {
+    if (err instanceof ApiError) {
+      const status = err.status || 0;
+      return [408, 409, 425, 429, 500, 502, 503, 504].includes(status);
+    }
+
+    if (err instanceof Error) {
+      const msg = err.message.toLowerCase();
+      return msg.includes('timed out') || msg.includes('network') || msg.includes('fetch') || msg.includes('temporar');
+    }
+
+    return false;
+  };
 
   useEffect(() => {
     const checkDesktop = () => {
@@ -120,6 +135,7 @@ function PostPageContent() {
       if (hasConvertedRef.current && lastUrlRef.current === decodedUrl) return;
       hasConvertedRef.current = true;
       lastUrlRef.current = decodedUrl;
+      convertRetryCountRef.current = 0;
 
       void captureClientEvent('conversion_entry_started', {
         route: '/post',
@@ -130,20 +146,35 @@ function PostPageContent() {
         is_authenticated: fromAddMusic,
       });
 
-      convertLink({ url: decodedUrl, description: descriptionParam || undefined }, {
+      const attemptConvert = () => convertLink({ url: decodedUrl, description: descriptionParam || undefined }, {
         onSuccess: (result) => {
           setApiComplete(true);
           // Store postId to render content directly - no redirect!
           if (result.postId) {
             void resolvePostAndRender(result.postId);
+          } else {
+            setError('Conversion completed, but no post was returned.');
           }
         },
         onError: (err) => {
+          if (shouldRetryConvertError(err) && convertRetryCountRef.current < 2) {
+            const retryDelay = [700, 1500][convertRetryCountRef.current] || 1500;
+            convertRetryCountRef.current += 1;
+            setError(null);
+            window.setTimeout(() => {
+              if (isMountedRef.current) {
+                attemptConvert();
+              }
+            }, retryDelay);
+            return;
+          }
+
           console.error('Conversion failed:', err);
           setApiComplete(true);
           setError(err instanceof Error ? err.message : 'Failed to convert link');
         },
       });
+      attemptConvert();
       return;
     }
 
@@ -244,19 +275,35 @@ function PostPageContent() {
             source_domain: sanitizeDomain(transformedFromData.originalUrl),
           });
 
-          convertLink({ url: transformedFromData.originalUrl, description: transformedFromData.description }, {
+          convertRetryCountRef.current = 0;
+          const attemptConvert = () => convertLink({ url: transformedFromData.originalUrl, description: transformedFromData.description }, {
             onSuccess: (result) => {
               setApiComplete(true);
               if (result.postId) {
                 void resolvePostAndRender(result.postId);
+              } else {
+                setError('Conversion completed, but no post was returned.');
               }
             },
             onError: (err) => {
+              if (shouldRetryConvertError(err) && convertRetryCountRef.current < 2) {
+                const retryDelay = [700, 1500][convertRetryCountRef.current] || 1500;
+                convertRetryCountRef.current += 1;
+                setError(null);
+                window.setTimeout(() => {
+                  if (isMountedRef.current) {
+                    attemptConvert();
+                  }
+                }, retryDelay);
+                return;
+              }
+
               console.error('Conversion failed:', err);
               setApiComplete(true);
               setError(err instanceof Error ? err.message : 'Failed to convert link');
             },
           });
+          attemptConvert();
         } else {
           setError('No data provided');
         }

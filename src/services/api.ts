@@ -212,6 +212,8 @@ class ApiService {
         description: options?.description || undefined,
       }),
       skipAuth: options?.anonymous,
+      // Authenticated add-to-profile flows can take longer.
+      timeoutMs: options?.anonymous ? 60000 : 120000,
     });
 
     // Transform the API response to our expected format
@@ -252,6 +254,14 @@ class ApiService {
         }
       }
 
+      const resolvedPostId = (
+        response.postId ||
+        (response as unknown as { PostId?: string }).PostId ||
+        (response as unknown as { redirectPostId?: string }).redirectPostId ||
+        (response as unknown as { RedirectPostId?: string }).RedirectPostId ||
+        ''
+      );
+
       const transformedData: MusicLinkConversion = {
         originalUrl: url,
         convertedUrls: {},
@@ -269,7 +279,7 @@ class ApiService {
         },
         description: response.description || response.caption || undefined,
         username: response.username || undefined,
-        postId: response.postId,
+        postId: resolvedPostId,
         conversionSuccessCount: response.conversionSuccessCount,
       };
 

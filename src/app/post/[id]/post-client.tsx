@@ -507,8 +507,17 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
           if (isCancelled) return;
           try {
-            response = await apiService.fetchPostById(postId);
-            break;
+            const candidate = await apiService.fetchPostById(postId);
+            if (candidate?.success) {
+              response = candidate;
+              break;
+            }
+
+            // Some backends return 200 + success=false while a new post is still materializing.
+            if (attempt === retryDelaysMs.length) {
+              throw new Error('Post not ready yet');
+            }
+            await sleep(retryDelaysMs[attempt]);
           } catch (fetchError) {
             if (!shouldRetryFetchPost(fetchError) || attempt === retryDelaysMs.length) {
               throw fetchError;

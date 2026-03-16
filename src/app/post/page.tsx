@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useRef, useEffect, useState, Suspense } from 'react';
+import { useRef, useEffect, useState, Suspense, useCallback } from 'react';
 import { MusicLinkConversion, ElementType, MediaListTrack } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { useMusicLinkConversion } from '@/hooks/use-music';
@@ -11,11 +11,14 @@ import PostClientPage from './[id]/post-client';
 import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
+import { apiService } from '@/services/api';
 
 // This page handles:
 // 1. ?id=X - Redirects to /post/X (canonical route)
 // 2. ?url=X - Converts music link and renders content directly (no redirect)
 // 3. ?data=X - Parses JSON payload and renders content directly
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function PostPageContent() {
   const searchParams = useSearchParams();
@@ -51,6 +54,32 @@ function PostPageContent() {
   // Guards against duplicate conversions
   const hasConvertedRef = useRef(false);
   const lastUrlRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  const waitForPostAvailability = useCallback(async (postId: string) => {
+    // Only wait for authenticated add-music flow where write/read lag has been observed.
+    if (!fromAddMusic) return;
+
+    const backoffMs = [200, 300, 500, 800, 1200, 1800];
+    for (let i = 0; i < backoffMs.length; i += 1) {
+      if (!isMountedRef.current) return;
+      try {
+        const response = await apiService.fetchPostById(postId);
+        if (response?.success) return;
+      } catch {
+        // Keep polling briefly until the post is readable.
+      }
+      await sleep(backoffMs[i]);
+    }
+  }, [fromAddMusic]);
+
+  const resolvePostAndRender = useCallback(async (postId: string) => {
+    await waitForPostAvailability(postId);
+    if (!isMountedRef.current) return;
+    setResolvedPostId(postId);
+    const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
+    window.history.replaceState(null, '', `/post/${postId}${fromQuery}`);
+  }, [fromParam, waitForPostAvailability]);
 
   useEffect(() => {
     const checkDesktop = () => {
@@ -59,6 +88,13 @@ function PostPageContent() {
     checkDesktop();
     window.addEventListener('resize', checkDesktop);
     return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -99,10 +135,7 @@ function PostPageContent() {
           setApiComplete(true);
           // Store postId to render content directly - no redirect!
           if (result.postId) {
-            setResolvedPostId(result.postId);
-            // Update URL without navigation for shareability
-            const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
-            window.history.replaceState(null, '', `/post/${result.postId}${fromQuery}`);
+            void resolvePostAndRender(result.postId);
           }
         },
         onError: (err) => {
@@ -121,10 +154,8 @@ function PostPageContent() {
 
         // If the data has a postId, use it directly
         if (parsedData.postId) {
-          setResolvedPostId(parsedData.postId);
           setApiComplete(true);
-          const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
-          window.history.replaceState(null, '', `/post/${parsedData.postId}${fromQuery}`);
+          void resolvePostAndRender(parsedData.postId);
           return;
         }
 
@@ -217,9 +248,7 @@ function PostPageContent() {
             onSuccess: (result) => {
               setApiComplete(true);
               if (result.postId) {
-                setResolvedPostId(result.postId);
-                const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
-                window.history.replaceState(null, '', `/post/${result.postId}${fromQuery}`);
+                void resolvePostAndRender(result.postId);
               }
             },
             onError: (err) => {
@@ -242,7 +271,7 @@ function PostPageContent() {
     if (!urlParam && !dataParam && !postIdParam) {
       setError('No data provided');
     }
-  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvedPostId]);
+  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvedPostId, resolvePostAndRender]);
 
   // Show error state
   if (error) {

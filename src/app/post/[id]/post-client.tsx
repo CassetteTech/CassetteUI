@@ -501,7 +501,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
 
     const fetchPost = async () => {
       try {
-        const retryDelaysMs = [250, 500, 1000, 1500, 2500];
+        // Reset stale error state before each fetch cycle.
+        setError(null);
+
+        const retryDelaysMs = [250, 500, 1000, 1500, 2500, 3500, 5000];
         let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null = null;
 
         for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
@@ -531,6 +534,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         }
 
         if (response.success) {
+          setError(null);
           const elementTypeLower = response.elementType?.toLowerCase();
           const isTrackResp = elementTypeLower === 'track';
           const isAlbumResp = elementTypeLower === 'album';
@@ -767,7 +771,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     return <EntitySkeleton isDesktop={isDesktop} />;
   }
 
-  if (error) {
+  if (error && !postData) {
     return (
       <div className="min-h-screen relative">
         <AnimatedColorBackground

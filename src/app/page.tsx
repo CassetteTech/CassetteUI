@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { detectContentType } from '@/utils/content-type-detection';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
+import { normalizeMusicLinkInput, isSupportedMusicLink } from '@/utils/music-link-input';
 
 export default function HomePage() {
   const router = useRouter();
@@ -153,7 +154,7 @@ export default function HomePage() {
   };
 
   const handleConvertLink = (url: string) => {
-    const trimmed = url.trim();
+    const trimmed = normalizeMusicLinkInput(url);
     console.log('🔄 handleConvertLink called with URL:', trimmed);
     if (!trimmed) {
       console.log('❌ URL is empty, returning');
@@ -227,7 +228,7 @@ export default function HomePage() {
   // Handle paste event for auto-conversion
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    const pastedText = e.clipboardData.getData('text').trim();
+    const pastedText = normalizeMusicLinkInput(e.clipboardData.getData('text'));
     const validationError = validateMusicLink(pastedText);
     const detected = detectContentType(pastedText);
 
@@ -247,11 +248,7 @@ export default function HomePage() {
     }
 
     // Check if it's a music link for auto-conversion
-    const linkLower = pastedText.toLowerCase();
-    const isSupported = linkLower.includes('spotify.com') || 
-                       linkLower.includes('apple.com/music') || 
-                       linkLower.includes('music.apple.com') || 
-                       linkLower.includes('deezer.com');
+    const isSupported = isSupportedMusicLink(pastedText);
 
     if (isSupported) {
       void captureClientEvent('music_link_pasted', {

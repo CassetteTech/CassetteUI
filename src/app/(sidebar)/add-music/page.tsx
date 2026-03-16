@@ -17,6 +17,7 @@ import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { detectContentType } from '@/utils/content-type-detection';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
+import { normalizeMusicLinkInput, isSupportedMusicLink, getMusicSourceLabel } from '@/utils/music-link-input';
 
 type SelectedItem = {
   id: string;
@@ -50,6 +51,7 @@ const AddMusicForm = ({
   handleSelectItem,
   closeSearch,
   isValidMusicUrl,
+  normalizeUrlInput,
   router,
   searchBarOpacity
 }: {
@@ -74,6 +76,7 @@ const AddMusicForm = ({
   handleSelectItem: (url: string, title: string, type: string) => void;
   closeSearch: () => void;
   isValidMusicUrl: (text: string) => boolean;
+  normalizeUrlInput: (raw: string) => string;
   router: ReturnType<typeof useRouter>;
   searchBarOpacity: number;
 }) => (
@@ -104,10 +107,11 @@ const AddMusicForm = ({
                 onPaste={handlePaste}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && musicUrl.trim()) {
-                    if (isValidMusicUrl(musicUrl)) {
+                    const normalizedUrl = normalizeUrlInput(musicUrl);
+                    if (isValidMusicUrl(normalizedUrl)) {
                       // Navigate immediately to post page when pressing Enter with a link
                       const params = new URLSearchParams({
-                        url: musicUrl,
+                        url: normalizedUrl,
                         fromAddMusic: 'true'
                       });
                       
@@ -277,35 +281,9 @@ export default function AddMusicPage() {
     ? searchResultsData 
     : topCharts;
 
-  // Check if text is a valid music URL
-  const isValidMusicUrl = (text: string) => {
-    const lowerText = text.toLowerCase();
-    return lowerText.includes('spotify.com') ||
-           lowerText.includes('apple.com/music') ||
-           lowerText.includes('music.apple.com') ||
-           lowerText.includes('deezer.com');
-  };
-
-  // Handle URL paste detection
-  const handleUrlPaste = (url: string) => {
-    console.log('🔗 Handling URL paste:', url);
-    
-    let source = 'unknown';
-    const lowerUrl = url.toLowerCase();
-    
-    if (lowerUrl.includes('spotify.com')) {
-      source = 'Spotify';
-    } else if (lowerUrl.includes('apple.com/music') || lowerUrl.includes('music.apple.com')) {
-      source = 'Apple Music';
-    } else if (lowerUrl.includes('deezer.com')) {
-      source = 'Deezer';
-    }
-    
-    setPastedLinkSource(source);
-    setSelectedItem(null);
-    setIsSearchActive(false);
-    setErrorMessage('');
-  };
+  // Keep local aliases so AddMusicForm stays simple and testable.
+  const normalizeUrlInput = normalizeMusicLinkInput;
+  const isValidMusicUrl = isSupportedMusicLink;
 
   // Handle authentication redirect
   useEffect(() => {
@@ -316,8 +294,12 @@ export default function AddMusicPage() {
 
   // Handle prefilled URL on mount
   useEffect(() => {
-    if (prefilledUrl && isValidMusicUrl(prefilledUrl)) {
-      handleUrlPaste(prefilledUrl);
+    if (prefilledUrl && isSupportedMusicLink(prefilledUrl)) {
+      const source = getMusicSourceLabel(prefilledUrl);
+      setPastedLinkSource(source);
+      setSelectedItem(null);
+      setIsSearchActive(false);
+      setErrorMessage('');
     }
   }, [prefilledUrl]);
 
@@ -367,7 +349,8 @@ export default function AddMusicPage() {
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    const pastedText = e.clipboardData.getData('text');
+    e.preventDefault();
+    const pastedText = normalizeUrlInput(e.clipboardData.getData('text'));
     const detected = detectContentType(pastedText);
     
     if (isValidMusicUrl(pastedText)) {
@@ -489,7 +472,7 @@ export default function AddMusicPage() {
     let itemDetails = undefined;
     
     if (selectedItem) {
-      urlToConvert = selectedItem.url;
+      urlToConvert = normalizeUrlInput(selectedItem.url);
       itemDetails = {
         title: selectedItem.title,
         artist: selectedItem.artist,
@@ -497,7 +480,7 @@ export default function AddMusicPage() {
         coverArtUrl: selectedItem.coverArtUrl
       };
     } else if (musicUrl.trim()) {
-      urlToConvert = musicUrl.trim();
+      urlToConvert = normalizeUrlInput(musicUrl);
     } else {
       setErrorMessage('Please enter a music link or search for a song');
       return;
@@ -632,6 +615,7 @@ export default function AddMusicPage() {
                   handleSelectItem={handleSelectItem}
                   closeSearch={closeSearch}
                   isValidMusicUrl={isValidMusicUrl}
+                  normalizeUrlInput={normalizeUrlInput}
                   router={router}
                   searchBarOpacity={searchBarOpacity}
                 />
@@ -674,6 +658,7 @@ export default function AddMusicPage() {
               handleSelectItem={handleSelectItem}
               closeSearch={closeSearch}
               isValidMusicUrl={isValidMusicUrl}
+              normalizeUrlInput={normalizeUrlInput}
               router={router}
               searchBarOpacity={searchBarOpacity}
             />
@@ -683,3 +668,4 @@ export default function AddMusicPage() {
     </>
   );
 }
+

@@ -484,9 +484,42 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
 
   // Fetch post data
   useEffect(() => {
+    let isCancelled = false;
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const shouldRetryFetchPost = (error: unknown) => {
+      if (error instanceof ApiError) {
+        const status = error.status || 0;
+        return [404, 408, 409, 425, 429, 500, 502, 503, 504].includes(status);
+      }
+      if (error instanceof Error) {
+        const message = error.message.toLowerCase();
+        return message.includes('timed out') || message.includes('network') || message.includes('fetch');
+      }
+      return false;
+    };
+
     const fetchPost = async () => {
       try {
-        const response = await apiService.fetchPostById(postId);
+        const retryDelaysMs = [250, 500, 1000, 1500, 2500];
+        let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null = null;
+
+        for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
+          if (isCancelled) return;
+          try {
+            response = await apiService.fetchPostById(postId);
+            break;
+          } catch (fetchError) {
+            if (!shouldRetryFetchPost(fetchError) || attempt === retryDelaysMs.length) {
+              throw fetchError;
+            }
+            await sleep(retryDelaysMs[attempt]);
+          }
+        }
+
+        if (!response) {
+          throw new Error('Failed to load content');
+        }
 
         if (response.success) {
           const elementTypeLower = response.elementType?.toLowerCase();
@@ -684,12 +717,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           throw new Error('Invalid response format');
         }
       } catch (e) {
+        if (isCancelled) return;
         console.error('Error loading post data:', e);
         setError('Failed to load content');
       }
     };
 
-    fetchPost();
+    void fetchPost();
+    return () => {
+      isCancelled = true;
+    };
   }, [postId, user?.id, isAuthenticated]);
 
   // Color extraction function
@@ -1878,4 +1915,3 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     </div>
   );
 }
-

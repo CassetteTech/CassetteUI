@@ -74,26 +74,8 @@ class ApiService {
   }
 
   private async getAuthHeaders() {
-    // Check if we're in a browser environment before accessing localStorage
-    let accessToken = null;
-    
-    if (typeof window !== 'undefined' && window.localStorage) {
-      accessToken = localStorage.getItem('access_token');
-      
-      if (accessToken) {
-        console.log('🔐 Auth token found, adding to headers');
-      } else {
-        console.log('⚠️ No auth token found in localStorage');
-      }
-    } else {
-      console.log('🔍 Running on server-side, no localStorage access');
-    }
-    
     return {
       'Content-Type': 'application/json',
-      ...(accessToken && {
-        Authorization: `Bearer ${accessToken}`,
-      }),
     };
   }
 
@@ -132,6 +114,7 @@ class ApiService {
     try {
       const response = await fetch(url, {
         ...requestOptions,
+        credentials: 'include',
         signal: timeoutController.signal,
         headers: {
           ...headers,

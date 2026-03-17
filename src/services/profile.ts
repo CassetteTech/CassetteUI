@@ -177,12 +177,6 @@ export class ProfileService {
     return `${base}${normalizedPath}`;
   }
 
-  private getAuthHeaders(): Record<string, string> {
-    if (typeof window === 'undefined') return {};
-    const token = localStorage.getItem('access_token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }
-
   private mapActivityResponse(
     json: ActivityApiResponse,
     page: number,
@@ -444,9 +438,9 @@ export class ProfileService {
 
       const response = await fetch(url, {
         method: 'GET',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
         },
       });
 
@@ -501,9 +495,9 @@ export class ProfileService {
 
       const response = await fetch(requestUrl, {
         method: 'GET',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
         },
       });
 
@@ -547,9 +541,9 @@ export class ProfileService {
 
       const response = await fetch(requestUrl, {
         method: 'GET',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
         },
       });
 
@@ -587,9 +581,9 @@ export class ProfileService {
 
       const response = await fetch(requestUrl, {
         method: 'GET',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
         },
       });
 
@@ -682,7 +676,7 @@ export class ProfileService {
 
       const response = await fetch(url, {
         method: 'PUT',
-        headers: this.getAuthHeaders(),
+        credentials: 'include',
         body: formData,
       });
 
@@ -706,9 +700,9 @@ export class ProfileService {
 
       const response = await fetch(url, {
         method: 'GET',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
         },
       });
 

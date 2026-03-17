@@ -68,27 +68,12 @@ export const platformConnectService = {
    * Redirects in same tab (not new window) for cleaner UX
    */
   async connectSpotify(returnUrl?: string): Promise<void> {
-    const accessToken = localStorage.getItem('access_token');
-    if (!accessToken) {
-      throw new Error('Not authenticated');
-    }
-
     // Store return URL for callback to use
     if (returnUrl) {
       this.setReturnUrl('spotify', returnUrl);
     }
 
-    const response = await fetch('/api/auth/spotify/connect', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to get Spotify auth URL');
-    }
-
-    const data = await response.json();
+    const data = await apiService.connectSpotify();
 
     if (data?.authUrl) {
       // Redirect in same tab for cleaner flow

@@ -23,7 +23,7 @@ export const clientConfig = {
 
   // App configuration
   app: {
-    domain: process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://cassetteinc.org',
+    domain: process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://cassette.tech',
     baseUrl: getBaseUrl(),
   },
 

@@ -140,9 +140,7 @@ export default function OnboardingPage() {
 
       const response = await fetch(`${apiUrl}/api/v1/profile`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        },
+        credentials: 'include',
         body: form,
       });
 

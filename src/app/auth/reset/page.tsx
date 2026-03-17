@@ -58,10 +58,8 @@ export default function ResetPasswordPage() {
           }
         }
 
-        const storedAccessToken = localStorage.getItem('access_token');
-        const storedRefreshToken = localStorage.getItem('refresh_token');
-
-        if (storedAccessToken && storedRefreshToken) {
+        const currentUser = await authService.getCurrentUser();
+        if (currentUser) {
           if (!cancelled) {
             setSessionReady(true);
             setSessionError(null);

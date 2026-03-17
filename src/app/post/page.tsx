@@ -71,14 +71,14 @@ function PostPageContent() {
 
   const waitForPostAvailability = useCallback(async (postId: string) => {
     // Only wait for authenticated add-music flow where write/read lag has been observed.
-    if (!fromAddMusic) return;
+    if (!fromAddMusic) return true;
 
     const backoffMs = [200, 300, 500, 800, 1200, 1800];
     for (let i = 0; i < backoffMs.length; i += 1) {
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) return false;
       try {
         const response = await apiService.fetchPostById(postId);
-        if (response?.success) return;
+        if (response?.success) return true;
       } catch (error) {
         const retryAfterMs = error instanceof ApiError && typeof error.retryAfterMs === 'number'
           ? error.retryAfterMs
@@ -91,11 +91,17 @@ function PostPageContent() {
       }
       await sleep(backoffMs[i]);
     }
+    return false;
   }, [fromAddMusic]);
 
   const resolvePostAndRender = useCallback(async (postId: string) => {
-    await waitForPostAvailability(postId);
+    const isReady = await waitForPostAvailability(postId);
     if (!isMountedRef.current) return;
+    if (!isReady) {
+      setError('Post is still finalizing. Please try again in a moment.');
+      setApiComplete(true);
+      return;
+    }
     setResolvedPostId(postId);
     const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
     window.history.replaceState(null, '', `/post/${postId}${fromQuery}`);
@@ -339,9 +345,16 @@ function PostPageContent() {
 
     // No valid parameters
     if (!urlParam && !dataParam && !postIdParam) {
-      setError('No data provided');
+      if (!hasConvertedRef.current && !resolvedPostId) {
+        setError('No data provided');
+      }
     }
   }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvedPostId, resolvePostAndRender, getOrCreateIdempotencyKey]);
+
+  // Always prefer resolved content over transient error state.
+  if (resolvedPostId) {
+    return <PostClientPage postId={resolvedPostId} />;
+  }
 
   // Show error state
   if (error) {
@@ -363,13 +376,9 @@ function PostPageContent() {
 
   // Once we have a postId, render the content directly - no redirect needed!
   // This provides a seamless skeleton → content transition
-  if (resolvedPostId) {
-    return <PostClientPage postId={resolvedPostId} />;
-  }
-
   // Show unified skeleton with progress overlay while converting
   // This is the SAME skeleton that PostClientPage uses, ensuring no layout shift
-  const showProgress = isConverting || (urlParam && !apiComplete);
+  const showProgress = isConverting || (urlParam && !resolvedPostId);
 
   return (
     <EntitySkeleton

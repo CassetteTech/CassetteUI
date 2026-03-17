@@ -56,6 +56,18 @@ function PostPageContent() {
   const lastUrlRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
   const convertRetryCountRef = useRef(0);
+  const actionIdempotencyKeyRef = useRef<string | null>(null);
+
+  const getOrCreateIdempotencyKey = useCallback(() => {
+    if (actionIdempotencyKeyRef.current) {
+      return actionIdempotencyKeyRef.current;
+    }
+    const key = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `client-key-${Date.now()}-${Math.random()}`;
+    actionIdempotencyKeyRef.current = key;
+    return key;
+  }, []);
 
   const waitForPostAvailability = useCallback(async (postId: string) => {
     // Only wait for authenticated add-music flow where write/read lag has been observed.
@@ -67,7 +79,14 @@ function PostPageContent() {
       try {
         const response = await apiService.fetchPostById(postId);
         if (response?.success) return;
-      } catch {
+      } catch (error) {
+        const retryAfterMs = error instanceof ApiError && typeof error.retryAfterMs === 'number'
+          ? error.retryAfterMs
+          : undefined;
+        if (retryAfterMs) {
+          await sleep(Math.max(100, retryAfterMs));
+          continue;
+        }
         // Keep polling briefly until the post is readable.
       }
       await sleep(backoffMs[i]);
@@ -136,6 +155,7 @@ function PostPageContent() {
       hasConvertedRef.current = true;
       lastUrlRef.current = decodedUrl;
       convertRetryCountRef.current = 0;
+      actionIdempotencyKeyRef.current = null;
 
       void captureClientEvent('conversion_entry_started', {
         route: '/post',
@@ -146,7 +166,8 @@ function PostPageContent() {
         is_authenticated: fromAddMusic,
       });
 
-      const attemptConvert = () => convertLink({ url: decodedUrl, description: descriptionParam || undefined }, {
+      const idempotencyKey = getOrCreateIdempotencyKey();
+      const attemptConvert = () => convertLink({ url: decodedUrl, description: descriptionParam || undefined, idempotencyKey }, {
         onSuccess: (result) => {
           setApiComplete(true);
           // Store postId to render content directly - no redirect!
@@ -276,7 +297,9 @@ function PostPageContent() {
           });
 
           convertRetryCountRef.current = 0;
-          const attemptConvert = () => convertLink({ url: transformedFromData.originalUrl, description: transformedFromData.description }, {
+          actionIdempotencyKeyRef.current = null;
+          const idempotencyKey = getOrCreateIdempotencyKey();
+          const attemptConvert = () => convertLink({ url: transformedFromData.originalUrl, description: transformedFromData.description, idempotencyKey }, {
             onSuccess: (result) => {
               setApiComplete(true);
               if (result.postId) {
@@ -318,7 +341,7 @@ function PostPageContent() {
     if (!urlParam && !dataParam && !postIdParam) {
       setError('No data provided');
     }
-  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvedPostId, resolvePostAndRender]);
+  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvedPostId, resolvePostAndRender, getOrCreateIdempotencyKey]);
 
   // Show error state
   if (error) {

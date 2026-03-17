@@ -229,7 +229,20 @@ export interface MediaListTrack {
   deezerTrackId?: string;
 }
 
-// API Response type for music link conversion
+export type ConvertStatus = 'ready' | 'processing' | 'failed';
+
+// New backend contract for convert and convert job polling.
+export interface ConvertLifecycleResponse {
+  success: boolean;
+  status: ConvertStatus;
+  postId?: string;
+  jobId?: string;
+  retryAfterMs?: number;
+  errorCode?: string;
+  message?: string;
+}
+
+// Legacy API response type for music link conversion (kept for backward compatibility)
 export interface ConversionApiResponse {
   success: boolean;
   errorMessage?: string;

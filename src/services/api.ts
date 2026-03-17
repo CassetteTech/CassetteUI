@@ -6,6 +6,7 @@ import {
   PaginatedPostCommentsResponse,
   CommentLikeResponse,
   ConversionApiResponse,
+  ConvertLifecycleResponse,
   ElementType,
   MediaListTrack,
   CreatePlaylistResponse,
@@ -38,13 +39,27 @@ export class ApiError extends Error {
   requiresReauth: boolean;
   errorCode?: string;
   status?: number;
+  retryAfterMs?: number;
+  jobId?: string;
+  postId?: string;
+  apiStatus?: string;
 
-  constructor(message: string, requiresReauth = false, errorCode?: string, status?: number) {
+  constructor(
+    message: string,
+    requiresReauth = false,
+    errorCode?: string,
+    status?: number,
+    details?: { retryAfterMs?: number; jobId?: string; postId?: string; apiStatus?: string }
+  ) {
     super(message);
     this.name = 'ApiError';
     this.requiresReauth = requiresReauth;
     this.errorCode = errorCode;
     this.status = status;
+    this.retryAfterMs = details?.retryAfterMs;
+    this.jobId = details?.jobId;
+    this.postId = details?.postId;
+    this.apiStatus = details?.apiStatus;
   }
 }
 
@@ -140,7 +155,13 @@ class ApiService {
           error.error || error.message || 'API request failed',
           requiresReauth,
           error.error_code,
-          response.status
+          response.status,
+          {
+            retryAfterMs: error.retryAfterMs,
+            jobId: error.jobId,
+            postId: error.postId,
+            apiStatus: error.status,
+          }
         );
       }
 
@@ -184,7 +205,10 @@ class ApiService {
   }
 
   // Music conversion endpoints
-  async convertMusicLink(url: string, options?: { anonymous?: boolean; description?: string }): Promise<MusicLinkConversion> {
+  async convertMusicLink(
+    url: string,
+    options?: { anonymous?: boolean; description?: string; idempotencyKey?: string }
+  ): Promise<MusicLinkConversion> {
     console.log('🔄 API Service: convertMusicLink called with:', url, options);
     const detected = detectContentType(url);
 
@@ -200,11 +224,11 @@ class ApiService {
     });
 
     // Generate idempotency key for request deduplication
-    const key = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    const key = options?.idempotencyKey || (typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
-      : `key-${Date.now()}-${Math.random()}`;
+      : `key-${Date.now()}-${Math.random()}`);
 
-    const response = await this.request<ConversionApiResponse>('/api/v1/convert', {
+    const response = await this.request<ConvertLifecycleResponse | ConversionApiResponse>('/api/v1/convert', {
       method: 'POST',
       headers: { 'X-Idempotency-Key': key }, // server should honor this
       body: JSON.stringify({
@@ -216,13 +240,55 @@ class ApiService {
       timeoutMs: options?.anonymous ? 60000 : 120000,
     });
 
-    // Transform the API response to our expected format
-    // Handle both success and partial success cases (when success: false but data exists)
     console.log('🔄 API Service: Raw response:', JSON.stringify(response, null, 2));
-    
-    if (response.details || response.platforms) {
+
+    // New contract: convert returns a lifecycle envelope; poll jobs until ready.
+    if ('status' in response && (response.status === 'ready' || response.status === 'processing' || response.status === 'failed')) {
+      if (response.status === 'ready' && response.postId) {
+        return {
+          originalUrl: url,
+          convertedUrls: {},
+          metadata: {
+            type: (detected.type === 'track' ? ElementType.TRACK :
+                   detected.type === 'album' ? ElementType.ALBUM :
+                   detected.type === 'artist' ? ElementType.ARTIST :
+                   ElementType.PLAYLIST),
+            title: 'Loading...',
+            artist: '',
+            artwork: '',
+          },
+          description: options?.description || undefined,
+          postId: response.postId,
+        };
+      }
+
+      if (response.status === 'processing' && response.jobId) {
+        const resolvedPostId = await this.waitForConvertJob(response.jobId, response.retryAfterMs, options?.anonymous);
+        return {
+          originalUrl: url,
+          convertedUrls: {},
+          metadata: {
+            type: (detected.type === 'track' ? ElementType.TRACK :
+                   detected.type === 'album' ? ElementType.ALBUM :
+                   detected.type === 'artist' ? ElementType.ARTIST :
+                   ElementType.PLAYLIST),
+            title: 'Loading...',
+            artist: '',
+            artwork: '',
+          },
+          description: options?.description || undefined,
+          postId: resolvedPostId,
+        };
+      }
+
+      throw new Error(response.message || response.errorCode || 'Failed to convert music link');
+    }
+
+    // Backward-compat parsing for legacy payloads.
+    const legacyResponse = response as ConversionApiResponse;
+    if (legacyResponse.details || legacyResponse.platforms) {
       // Determine content type with fallbacks if elementType is missing/ambiguous
-      const elementTypeFromResponse = response.elementType?.toLowerCase();
+      const elementTypeFromResponse = legacyResponse.elementType?.toLowerCase();
       let inferredElementType = elementTypeFromResponse;
       if (!inferredElementType) {
         // Try to infer from the source URL
@@ -233,11 +299,11 @@ class ApiService {
           }
         } catch {}
 
-        const looksLikeAlbum = Boolean(response.details?.trackCount) || Array.isArray((response.details as { tracks?: unknown[] })?.tracks);
+        const looksLikeAlbum = Boolean(legacyResponse.details?.trackCount) || Array.isArray((legacyResponse.details as { tracks?: unknown[] })?.tracks);
         if (looksLikeAlbum) {
           inferredElementType = 'album';
-        } else if (response.platforms) {
-          const platformTypes = Object.values(response.platforms)
+        } else if (legacyResponse.platforms) {
+          const platformTypes = Object.values(legacyResponse.platforms)
             .map(p => (p?.elementType || '').toLowerCase())
             .filter(Boolean);
           if (platformTypes.length > 0) {
@@ -255,10 +321,10 @@ class ApiService {
       }
 
       const resolvedPostId = (
-        response.postId ||
-        (response as unknown as { PostId?: string }).PostId ||
-        (response as unknown as { redirectPostId?: string }).redirectPostId ||
-        (response as unknown as { RedirectPostId?: string }).RedirectPostId ||
+        legacyResponse.postId ||
+        (legacyResponse as unknown as { PostId?: string }).PostId ||
+        (legacyResponse as unknown as { redirectPostId?: string }).redirectPostId ||
+        (legacyResponse as unknown as { RedirectPostId?: string }).RedirectPostId ||
         ''
       );
 
@@ -271,16 +337,16 @@ class ApiService {
                  inferredElementType === 'album' ? ElementType.ALBUM :
                  inferredElementType === 'artist' ? ElementType.ARTIST :
                  ElementType.PLAYLIST),
-          title: response.details?.title || 'Unknown',
-          artist: response.details?.artist || '',
-          artwork: response.details?.coverArtUrl || '',
-          album: response.details?.album,
-          duration: response.details?.duration
+          title: legacyResponse.details?.title || 'Unknown',
+          artist: legacyResponse.details?.artist || '',
+          artwork: legacyResponse.details?.coverArtUrl || '',
+          album: legacyResponse.details?.album,
+          duration: legacyResponse.details?.duration
         },
-        description: response.description || response.caption || undefined,
-        username: response.username || undefined,
+        description: legacyResponse.description || legacyResponse.caption || undefined,
+        username: legacyResponse.username || undefined,
         postId: resolvedPostId,
-        conversionSuccessCount: response.conversionSuccessCount,
+        conversionSuccessCount: legacyResponse.conversionSuccessCount,
       };
 
       // Map album/playlist tracks when provided by the API
@@ -292,7 +358,7 @@ class ApiService {
         previewUrl?: string;
       };
 
-      const apiTracks = (response.details as { tracks?: ApiTrack[] })?.tracks;
+      const apiTracks = (legacyResponse.details as { tracks?: ApiTrack[] })?.tracks;
       if (Array.isArray(apiTracks)) {
         const mappedTracks: MediaListTrack[] = apiTracks.map((t) => ({
           trackNumber: t.trackNumber,
@@ -308,8 +374,8 @@ class ApiService {
       // Extract platform URLs and collect fallback artwork/preview
       let fallbackArtwork = '';
       let fallbackPreview = '';
-      if (response.platforms) {
-        Object.entries(response.platforms).forEach(([platform, data]) => {
+      if (legacyResponse.platforms) {
+        Object.entries(legacyResponse.platforms).forEach(([platform, data]) => {
           const platformKey = platform.toLowerCase();
           
           // Handle platform URLs - use provided URL or construct from platformSpecificId
@@ -323,7 +389,7 @@ class ApiService {
           
           // If URL is empty but we have platformSpecificId, construct the URL
           if (!platformUrl && data?.platformSpecificId) {
-            const elementType = data.elementType?.toLowerCase() || response.elementType?.toLowerCase() || 'track';
+            const elementType = data.elementType?.toLowerCase() || legacyResponse.elementType?.toLowerCase() || 'track';
             
             if (platformKey === 'spotify') {
               platformUrl = `https://open.spotify.com/${elementType}/${data.platformSpecificId}`;
@@ -367,8 +433,8 @@ class ApiService {
       }
 
       // Also consider main details.previewUrl
-      if (!transformedData.previewUrl && response.details?.previewUrl) {
-        transformedData.previewUrl = response.details.previewUrl;
+      if (!transformedData.previewUrl && legacyResponse.details?.previewUrl) {
+        transformedData.previewUrl = legacyResponse.details.previewUrl;
       }
 
       // Use fallback artwork if main artwork empty
@@ -380,8 +446,33 @@ class ApiService {
       return transformedData;
     } else {
       // If no data, throw an error
-      throw new Error(response.errorMessage || 'Failed to convert music link');
+      throw new Error((response as ConversionApiResponse).errorMessage || 'Failed to convert music link');
     }
+  }
+
+  private async waitForConvertJob(jobId: string, initialRetryMs?: number, anonymous?: boolean): Promise<string> {
+    const startedAt = Date.now();
+    const timeoutMs = 45_000;
+    let retryMs = initialRetryMs ?? 400;
+
+    while (Date.now() - startedAt < timeoutMs) {
+      await new Promise((resolve) => setTimeout(resolve, Math.max(100, retryMs)));
+      const jobResponse = await this.request<ConvertLifecycleResponse>(`/api/v1/convert/jobs/${encodeURIComponent(jobId)}`, {
+        skipAuth: anonymous,
+        timeoutMs: 60_000,
+      });
+
+      if (jobResponse.status === 'ready' && jobResponse.postId) {
+        return jobResponse.postId;
+      }
+      if (jobResponse.status === 'failed') {
+        throw new Error(jobResponse.message || jobResponse.errorCode || 'Conversion failed');
+      }
+
+      retryMs = jobResponse.retryAfterMs ?? 400;
+    }
+
+    throw new Error('Conversion is still processing. Please try again.');
   }
 
   // Profile endpoints

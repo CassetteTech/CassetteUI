@@ -486,7 +486,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   useEffect(() => {
     let isCancelled = false;
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-    const reloadGuardKey = `cassette_post_reload_once_${postId}`;
 
     const shouldRetryFetchPost = (error: unknown) => {
       if (error instanceof ApiError) {
@@ -526,7 +525,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             if (!shouldRetryFetchPost(fetchError) || attempt === retryDelaysMs.length) {
               throw fetchError;
             }
-            await sleep(retryDelaysMs[attempt]);
+            const retryAfterMs = fetchError instanceof ApiError && typeof fetchError.retryAfterMs === 'number'
+              ? fetchError.retryAfterMs
+              : retryDelaysMs[attempt];
+            await sleep(Math.max(100, retryAfterMs));
           }
         }
 
@@ -536,13 +538,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
 
         if (response.success) {
           setError(null);
-          if (typeof window !== 'undefined') {
-            try {
-              sessionStorage.removeItem(reloadGuardKey);
-            } catch {
-              // best effort
-            }
-          }
           const elementTypeLower = response.elementType?.toLowerCase();
           const isTrackResp = elementTypeLower === 'track';
           const isAlbumResp = elementTypeLower === 'album';
@@ -740,22 +735,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
       } catch (e) {
         if (isCancelled) return;
         console.error('Error loading post data:', e);
-
-        // Last-resort recovery: users report that a manual refresh loads correctly.
-        // Do one guarded hard reload before showing terminal error UI.
-        if (typeof window !== 'undefined') {
-          try {
-            const alreadyReloaded = sessionStorage.getItem(reloadGuardKey) === '1';
-            if (!alreadyReloaded) {
-              sessionStorage.setItem(reloadGuardKey, '1');
-              window.location.reload();
-              return;
-            }
-          } catch {
-            // Ignore storage errors and fall through to error state.
-          }
-        }
-
         setError('Failed to load content');
       }
     };

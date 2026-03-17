@@ -486,9 +486,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   useEffect(() => {
     let isCancelled = false;
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const maxWaitMs = 60_000;
+    const defaultRetryMs = 400;
 
     const shouldRetryFetchPost = (error: unknown) => {
       if (error instanceof ApiError) {
+        if (error.apiStatus === 'failed') return false;
+        if (error.apiStatus === 'processing') return true;
         const status = error.status || 0;
         return [404, 408, 409, 425, 429, 500, 502, 503, 504].includes(status);
       }
@@ -504,10 +508,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         // Reset stale error state before each fetch cycle.
         setError(null);
 
-        const retryDelaysMs = [250, 500, 1000, 1500, 2500, 3500, 5000];
+        const startedAt = Date.now();
         let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null = null;
 
-        for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
+        while (Date.now() - startedAt < maxWaitMs) {
           if (isCancelled) return;
           try {
             const candidate = await apiService.fetchPostById(postId);
@@ -517,23 +521,22 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             }
 
             // Some backends return 200 + success=false while a new post is still materializing.
-            if (attempt === retryDelaysMs.length) {
-              throw new Error('Post not ready yet');
-            }
-            await sleep(retryDelaysMs[attempt]);
+            const payloadRetryAfterMs = (candidate as unknown as { retryAfterMs?: number }).retryAfterMs;
+            await sleep(Math.max(100, payloadRetryAfterMs ?? defaultRetryMs));
+            continue;
           } catch (fetchError) {
-            if (!shouldRetryFetchPost(fetchError) || attempt === retryDelaysMs.length) {
+            if (!shouldRetryFetchPost(fetchError)) {
               throw fetchError;
             }
             const retryAfterMs = fetchError instanceof ApiError && typeof fetchError.retryAfterMs === 'number'
               ? fetchError.retryAfterMs
-              : retryDelaysMs[attempt];
+              : defaultRetryMs;
             await sleep(Math.max(100, retryAfterMs));
           }
         }
 
         if (!response) {
-          throw new Error('Failed to load content');
+          throw new Error('Post is still finalizing. Please try again in a moment.');
         }
 
         if (response.success) {

@@ -7,7 +7,6 @@ import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { useMusicLinkConversion } from '@/hooks/use-music';
 import { useSimulatedProgress } from '@/hooks/use-simulated-progress';
 import { detectContentType } from '@/utils/content-type-detection';
-import PostClientPage from './[id]/post-client';
 import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
@@ -26,8 +25,6 @@ function PostPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  // Store postId after conversion - renders content directly without redirect
-  const [resolvedPostId, setResolvedPostId] = useState<string | null>(null);
 
   const postIdParam = searchParams.get('id');
   const fromParam = searchParams.get('from');
@@ -102,10 +99,9 @@ function PostPageContent() {
       setApiComplete(true);
       return;
     }
-    setResolvedPostId(postId);
     const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
-    window.history.replaceState(null, '', `/post/${postId}${fromQuery}`);
-  }, [fromParam, waitForPostAvailability]);
+    router.replace(`/post/${postId}${fromQuery}`);
+  }, [fromParam, waitForPostAvailability, router]);
 
   const shouldRetryConvertError = (err: unknown) => {
     if (err instanceof ApiError) {
@@ -138,12 +134,6 @@ function PostPageContent() {
   }, []);
 
   useEffect(() => {
-    // If we already have a resolved postId, don't process params again
-    // This prevents re-running after URL update via history.replaceState
-    if (resolvedPostId) {
-      return;
-    }
-
     // Handle ?id= redirect to canonical route (this is the only case we redirect)
     if (postIdParam && !urlParam && !dataParam) {
       const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
@@ -345,16 +335,11 @@ function PostPageContent() {
 
     // No valid parameters
     if (!urlParam && !dataParam && !postIdParam) {
-      if (!hasConvertedRef.current && !resolvedPostId) {
+      if (!hasConvertedRef.current) {
         setError('No data provided');
       }
     }
-  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvedPostId, resolvePostAndRender, getOrCreateIdempotencyKey]);
-
-  // Always prefer resolved content over transient error state.
-  if (resolvedPostId) {
-    return <PostClientPage postId={resolvedPostId} />;
-  }
+  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvePostAndRender, getOrCreateIdempotencyKey]);
 
   // Show error state
   if (error) {
@@ -378,7 +363,7 @@ function PostPageContent() {
   // This provides a seamless skeleton → content transition
   // Show unified skeleton with progress overlay while converting
   // This is the SAME skeleton that PostClientPage uses, ensuring no layout shift
-  const showProgress = isConverting || (urlParam && !resolvedPostId);
+  const showProgress = isConverting || !!urlParam;
 
   return (
     <EntitySkeleton

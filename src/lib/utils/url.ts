@@ -14,7 +14,7 @@ export function isProduction(): boolean {
 export function getBaseUrl(): string {
   // In production, use the configured domain
   if (isProduction()) {
-    return process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://cassetteinc.org';
+    return process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://cassette.tech';
   }
   
   // In development, check if we're in browser context

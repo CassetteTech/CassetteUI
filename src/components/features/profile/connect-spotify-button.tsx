@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import Image from 'next/image';
 import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
+import { apiService } from '@/services/api';
 
 interface ConnectSpotifyButtonProps {
   isConnected?: boolean;
@@ -44,28 +45,7 @@ export function ConnectSpotifyButton({
     setIsLoading(true);
     try {
       console.log("Attempting to connect to Spotify...");
-      
-      // Get the access token from local storage
-      const accessToken = localStorage.getItem('access_token');
-      if (!accessToken) {
-        console.error('No access token found');
-        // Could redirect to login or show error
-        setIsLoading(false);
-        return;
-      }
-
-      // Use Next.js API route instead of direct backend call
-      const response = await fetch('/api/auth/spotify/connect', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to get Spotify auth URL');
-      }
-
-      const data = await response.json();
+      const data = await apiService.connectSpotify();
       
       console.log("Full response from API:", data);
       console.log("Response type:", typeof data);

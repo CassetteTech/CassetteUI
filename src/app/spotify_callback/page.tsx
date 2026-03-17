@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { platformConnectService } from '@/services/platform-connect';
 import { pendingActionService } from '@/utils/pending-action';
 import { PageLoader } from '@/components/ui/page-loader';
+import { apiService } from '@/services/api';
 
 export default function SpotifyCallbackPage() {
   const router = useRouter();
@@ -61,51 +62,14 @@ export default function SpotifyCallbackPage() {
       }
 
       try {
-        // Get the access token from local storage
-        const accessToken = localStorage.getItem('access_token');
-        if (!accessToken) {
-          console.error('No access token found, cannot complete Spotify connection.');
-          // Redirect to login
-          router.replace('/auth/signin?error=session-expired');
-          return;
-        }
+        await apiService.handleSpotifyCallback(code, state);
 
-        // Create headers object with the token
-        const headers = {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        };
-
-        // Forward the callback to our secure API endpoint with authorization
-        const response = await fetch('/api/auth/spotify/callback?' + new URLSearchParams({
-          code,
-          state
-        }), {
-          headers: headers
-        });
-
-        if (response.redirected) {
-          // Follow the redirect from the API
-          window.location.href = response.url;
-        } else if (response.ok) {
-          // Success - redirect to return URL or profile
-          const returnUrl = getReturnUrl();
-          cleanupStorage();
-          if (returnUrl) {
-            // Return to original page (e.g., playlist post page)
-            redirectTo(returnUrl, 'spotify_connected=true');
-          } else {
-            window.location.href = '/profile?success=spotify-connected';
-          }
+        const returnUrl = getReturnUrl();
+        cleanupStorage();
+        if (returnUrl) {
+          redirectTo(returnUrl, 'spotify_connected=true');
         } else {
-          // Error - redirect with error message
-          const returnUrl = getReturnUrl();
-          cleanupStorage();
-          if (returnUrl) {
-            redirectTo(returnUrl, 'error=spotify-callback-failed');
-          } else {
-            router.replace('/profile?error=spotify-callback-failed');
-          }
+          window.location.href = '/profile?success=spotify-connected';
         }
       } catch (error) {
         console.error('Callback processing error:', error);

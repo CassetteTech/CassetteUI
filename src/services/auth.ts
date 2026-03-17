@@ -45,23 +45,7 @@ class AuthService {
     void prefetchProfileArtwork(userIdentifier).catch(() => {});
   }
 
-  // Store tokens securely
-  private setTokens(accessToken: string, refreshToken: string) {
-    localStorage.setItem('access_token', accessToken);
-    localStorage.setItem('refresh_token', refreshToken);
-  }
-
-  private getAccessToken(): string | null {
-    return localStorage.getItem('access_token');
-  }
-
-  private getRefreshToken(): string | null {
-    return localStorage.getItem('refresh_token');
-  }
-
   clearTokens() {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_data');
   }
 
@@ -90,6 +74,7 @@ class AuthService {
 
     const response = await fetch(url, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -107,13 +92,10 @@ class AuthService {
 
     // Check if we got a successful response
     if (data.success) {
-      if (data.user && data.token) {
-        console.log('✅ [Auth] Storing tokens and user data');
+      if (data.user && data.authenticated === true) {
+        console.log('✅ [Auth] Storing user data');
         console.log('📦 [Auth] User data from server:', data.user);
-        
-        // Store tokens
-        this.setTokens(data.token, data.refreshToken || '');
-        
+
         // Normalize user data like Flutter does
         const normalizedUser = {
           ...data.user,
@@ -158,6 +140,7 @@ class AuthService {
 
     const response = await fetch(`${API_URL}/api/v1/auth/signin`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -169,12 +152,10 @@ class AuthService {
 
     const data = await response.json();
 
-    if (!response.ok || !data.success) {
+    if (!response.ok || !data.success || data.authenticated !== true) {
       throw new Error(data.message || 'Failed to sign in');
     }
 
-    // Store tokens and user data
-    this.setTokens(data.token, data.refreshToken);
     const normalizedUser = {
       ...data.user,
       userId: data.user.id || data.user.userId,
@@ -193,17 +174,13 @@ class AuthService {
 
   async signOut() {
     try {
-      // Call backend signout endpoint if available
-      const token = this.getAccessToken();
-      if (token) {
-        await fetch(`${API_URL}/api/v1/auth/signout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-      }
+      await fetch(`${API_URL}/api/v1/auth/signout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
     } catch (error) {
       console.error('Sign out API error:', error);
     }
@@ -214,17 +191,12 @@ class AuthService {
   }
 
   async deleteAccount(): Promise<void> {
-    const token = this.getAccessToken();
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
     console.log('🔄 [Auth] Starting account deletion request');
 
     const response = await fetch(`${API_URL}/api/v1/auth/account`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     });
@@ -275,62 +247,45 @@ class AuthService {
   }
 
   async handleGoogleCallback(code: string, state: string) {
-    const response = await this.fetchWithApiFallback('/api/v1/auth/google/callback', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ code, state }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-      throw new Error(data.message || 'Failed to handle Google callback.');
+    void code;
+    void state;
+    const fresh = await this.getCurrentUser();
+    if (!fresh) {
+      throw new Error('Failed to restore Google session.');
     }
 
-    this.setTokens(data.token, data.refreshToken);
-    const fresh = await this.getCurrentUser().catch(() => null);
-    const authUser = fresh ?? this.mapToAuthUser(data.user);
-    useAuthStore.getState().setUser(authUser);
-    this.warmProfileArtworkCache(authUser);
-
-    return authUser;
+    useAuthStore.getState().setUser(fresh);
+    this.warmProfileArtworkCache(fresh);
+    return fresh;
   }
 
   async handleOAuthCallback(accessToken: string, refreshToken: string) {
-    console.log('🟪 [AuthService] handleOAuthCallback called');
-    console.log('🟪 [AuthService] Token length:', accessToken.length);
-
     try {
-      // 1. Store tokens
-      this.setTokens(accessToken, refreshToken);
-      console.log('🟪 [AuthService] Tokens saved to localStorage');
-      
-      // 2. Verify we can read them back
-      const stored = this.getAccessToken();
-      if (stored !== accessToken) {
-        throw new Error('LocalStorage failed to save token');
+      const response = await this.fetchWithApiFallback('/api/v1/auth/session/exchange', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token: accessToken,
+          refreshToken,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success || !data.user) {
+        throw new Error(data.message || 'Failed to restore authenticated session');
       }
 
-      // 3. Fetch User
-      console.log('🟪 [AuthService] Fetching user profile...');
-      const user = await this.getCurrentUser();
-
-      if (!user) {
-        console.error('🟥 [AuthService] getCurrentUser returned null after token set');
-        throw new Error('Failed to fetch user profile with new token');
-      }
+      const user = this.mapToAuthUser(data.user);
 
       useAuthStore.getState().setUser(user);
       this.warmProfileArtworkCache(user);
       try { localStorage.setItem('user_data', JSON.stringify(user)); } catch {}
-      console.log('🟩 [AuthService] User successfully set in store:', user.email);
-      
+
       return user;
     } catch (e) {
       console.error('🟥 [AuthService] Error in handleOAuthCallback:', e);
-      // Clear bad tokens so we don't get stuck in a weird state
       this.clearTokens();
       throw e;
     }
@@ -339,6 +294,7 @@ class AuthService {
   async resetPassword(email: string) {
     const response = await fetch(`${API_URL}/api/v1/auth/reset-password`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -355,15 +311,10 @@ class AuthService {
   }
 
   async updatePassword(password: string) {
-    const token = this.getAccessToken();
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
     const response = await fetch(`${API_URL}/api/v1/auth/update-password`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ password }),
@@ -415,17 +366,11 @@ class AuthService {
   }
 
   async getCurrentUser(): Promise<AuthUser | null> {
-    const token = this.getAccessToken();
-    if (!token) {
-      console.log('🔄 [Auth] No access token found');
-      return null;
-    }
-
     try {
       console.log('🔄 [Auth] Fetching current user session');
       const response = await fetch(`${API_URL}/api/v1/auth/session`, {
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -457,22 +402,19 @@ class AuthService {
   }
 
   async refreshSession() {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) return false;
-
     try {
       const response = await fetch(`${API_URL}/api/v1/auth/refresh`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token: refreshToken }),
+        body: JSON.stringify({}),
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        this.setTokens(data.token, data.refreshToken);
         if (data.user) {
           localStorage.setItem('user_data', JSON.stringify(data.user));
         }
@@ -495,13 +437,17 @@ class AuthService {
   private async fetchWithApiFallback(path: string, init?: RequestInit): Promise<Response> {
     const attempts: string[] = [];
     let lastNetworkError: unknown;
+    const requestInit: RequestInit = {
+      credentials: 'include',
+      ...init,
+    };
 
     for (const baseUrl of API_URL_CANDIDATES) {
       const url = this.buildApiUrl(baseUrl, path);
       attempts.push(url);
 
       try {
-        return await fetch(url, init);
+        return await fetch(url, requestInit);
       } catch (error) {
         const isNetworkError =
           error instanceof TypeError ||

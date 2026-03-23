@@ -39,7 +39,7 @@ export interface PlatformPreferenceInfo {
   addedAt: string;
 }
 
-export type PostPrivacy = 'public' | 'private' | 'subscriber';
+export type PostPrivacy = 'public' | 'private' | 'friends' | 'subscriber';
 
 export interface ActivityPost {
   postId: string;

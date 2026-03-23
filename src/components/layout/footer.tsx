@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Music } from 'lucide-react';
+import Image from 'next/image';
 import { useAuthState } from '@/hooks/use-auth';
 
 export function Footer() {
@@ -14,7 +14,13 @@ export function Footer() {
           {/* Logo and Description */}
           <div className="col-span-1 md:col-span-2">
             <Link href="/" className="flex items-center space-x-2 mb-4">
-              <Music className="h-6 w-6 text-primary" />
+              <Image
+                src="/images/cassette_logo.png"
+                alt="Cassette"
+                width={24}
+                height={24}
+                className="h-6 w-6"
+              />
               <span className="text-lg font-bold">Cassette</span>
             </Link>
             <p className="text-muted-foreground text-sm mb-4">
@@ -72,7 +78,7 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="border-t mt-8 pt-6 flex flex-col sm:flex-row justify-between items-center">
           <p className="text-muted-foreground text-sm">
-            © 2024 Cassette. All rights reserved.
+            © 2026 Cassette. All rights reserved.
           </p>
           <div className="flex space-x-4 mt-4 sm:mt-0">
             <span className="text-muted-foreground text-sm">

@@ -114,7 +114,8 @@ class ApiService {
     try {
       const response = await fetch(url, {
         ...requestOptions,
-        credentials: 'include',
+        // Ensure "anonymous" requests do not carry HttpOnly session cookies.
+        credentials: skipAuth ? 'omit' : 'include',
         signal: timeoutController.signal,
         headers: {
           ...headers,

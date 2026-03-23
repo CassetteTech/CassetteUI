@@ -163,7 +163,7 @@ function PostPageContent() {
       });
 
       const idempotencyKey = getOrCreateIdempotencyKey();
-      const attemptConvert = () => convertLink({ url: decodedUrl, description: descriptionParam || undefined, idempotencyKey }, {
+      const attemptConvert = () => convertLink({ url: decodedUrl, description: descriptionParam || undefined, idempotencyKey, anonymous: !fromAddMusic }, {
         onSuccess: (result) => {
           setApiComplete(true);
           // Store postId to render content directly - no redirect!
@@ -295,7 +295,7 @@ function PostPageContent() {
           convertRetryCountRef.current = 0;
           actionIdempotencyKeyRef.current = null;
           const idempotencyKey = getOrCreateIdempotencyKey();
-          const attemptConvert = () => convertLink({ url: transformedFromData.originalUrl, description: transformedFromData.description, idempotencyKey }, {
+          const attemptConvert = () => convertLink({ url: transformedFromData.originalUrl, description: transformedFromData.description, idempotencyKey, anonymous: !fromAddMusic }, {
             onSuccess: (result) => {
               setApiComplete(true);
               if (result.postId) {

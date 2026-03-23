@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { UrlBar } from '@/components/ui/url-bar';
@@ -53,7 +53,8 @@ const AddMusicForm = ({
   isValidMusicUrl,
   normalizeUrlInput,
   router,
-  searchBarOpacity
+  searchBarOpacity,
+  returnRoute
 }: {
   isSearchActive: boolean;
   selectedItem: SelectedItem | null;
@@ -79,6 +80,7 @@ const AddMusicForm = ({
   normalizeUrlInput: (raw: string) => string;
   router: ReturnType<typeof useRouter>;
   searchBarOpacity: number;
+  returnRoute: string | null;
 }) => (
   <>
     {/* Search/Input Section */}
@@ -114,12 +116,20 @@ const AddMusicForm = ({
                         url: normalizedUrl,
                         fromAddMusic: 'true'
                       });
+                      if (returnRoute) {
+                        params.append('from', returnRoute);
+                      }
                       
                       if (description.trim()) {
                         params.append('description', description.trim());
                       }
                       
-                      router.push(`/post?${params.toString()}`);
+                      const target = `/post?${params.toString()}`;
+                      if (returnRoute) {
+                        router.replace(target);
+                      } else {
+                        router.push(target);
+                      }
                     }
                     // For search queries, the search will happen via the debounced value
                   }
@@ -266,6 +276,7 @@ export default function AddMusicPage() {
   const debouncedSearchTerm = useDebounce(musicUrl, 500); // 500ms debounce for search
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
+  const resolvedReturnRoute = user?.username ? `/profile/${user.username}` : null;
   const { data: topCharts, isLoading: isLoadingCharts } = useTopCharts();
   
   // Music search - only search if it's not a link and has sufficient length
@@ -368,12 +379,20 @@ export default function AddMusicPage() {
         url: pastedText,
         fromAddMusic: 'true'
       });
+      if (resolvedReturnRoute) {
+        params.append('from', resolvedReturnRoute);
+      }
       
       if (description.trim()) {
         params.append('description', description.trim());
       }
       
-      router.push(`/post?${params.toString()}`);
+      const target = `/post?${params.toString()}`;
+      if (resolvedReturnRoute) {
+        router.replace(target);
+      } else {
+        router.push(target);
+      }
     } else {
       void captureClientEvent('unsupported_music_link_pasted', {
         route: '/add-music',
@@ -465,7 +484,7 @@ export default function AddMusicPage() {
     setErrorMessage('');
   };
 
-  const handleAddToProfile = () => {
+  const handleAddToProfile = useCallback(() => {
     setErrorMessage('');
     
     let urlToConvert = '';
@@ -503,6 +522,9 @@ export default function AddMusicPage() {
       url: urlToConvert,
       fromAddMusic: 'true'
     });
+    if (resolvedReturnRoute) {
+      params.append('from', resolvedReturnRoute);
+    }
     
     if (description.trim()) {
       params.append('description', description.trim());
@@ -512,8 +534,13 @@ export default function AddMusicPage() {
       params.append('itemDetails', JSON.stringify(itemDetails));
     }
     
-    router.push(`/post?${params.toString()}`);
-  };
+    const target = `/post?${params.toString()}`;
+    if (resolvedReturnRoute) {
+      router.replace(target);
+    } else {
+      router.push(target);
+    }
+  }, [description, musicUrl, normalizeUrlInput, resolvedReturnRoute, router, selectedItem]);
 
   useEffect(() => {
     const query = debouncedSearchTerm.trim();
@@ -618,6 +645,7 @@ export default function AddMusicPage() {
                   normalizeUrlInput={normalizeUrlInput}
                   router={router}
                   searchBarOpacity={searchBarOpacity}
+                  returnRoute={resolvedReturnRoute}
                 />
               </div>
             </div>
@@ -661,6 +689,7 @@ export default function AddMusicPage() {
               normalizeUrlInput={normalizeUrlInput}
               router={router}
               searchBarOpacity={searchBarOpacity}
+              returnRoute={resolvedReturnRoute}
             />
           </div>
         </div>
@@ -668,4 +697,3 @@ export default function AddMusicPage() {
     </>
   );
 }
-

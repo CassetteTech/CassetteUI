@@ -1,5 +1,5 @@
-import { clientConfig } from '@/lib/config-client';
 import { ActivityPost, PaginatedActivityResponse, UserBio, PostPrivacy } from '@/types';
+import { getBrowserApiBaseUrl } from '@/lib/utils/url';
 
 interface ActivityItemPayload {
   postId: string;
@@ -77,7 +77,7 @@ interface ActivityApiResponse {
 
 export class ProfileService {
   // Note: Caching is now handled by React Query (see hooks/use-profile.ts)
-  private readonly apiBaseUrl = clientConfig.api.url;
+  private readonly apiBaseUrl = getBrowserApiBaseUrl();
 
   private normalizeUserBio(data: Record<string, unknown>): UserBio {
     const nestedUser =

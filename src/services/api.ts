@@ -23,6 +23,7 @@ import {
 import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent, surfaceFromRoute } from '@/lib/analytics/client';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
+import { getBrowserApiBaseUrl } from '@/lib/utils/url';
 
 // interface MusicConnection {
 //   id: string;
@@ -64,7 +65,7 @@ export class ApiError extends Error {
 }
 
 class ApiService {
-  private baseUrl = clientConfig.api.url;
+  private baseUrl = getBrowserApiBaseUrl();
 
   constructor() {
     console.log('🔧 API Service initialized with URL:', this.baseUrl);
@@ -114,7 +115,8 @@ class ApiService {
     try {
       const response = await fetch(url, {
         ...requestOptions,
-        credentials: 'include',
+        // Ensure "anonymous" requests do not carry HttpOnly session cookies.
+        credentials: skipAuth ? 'omit' : 'include',
         signal: timeoutController.signal,
         headers: {
           ...headers,

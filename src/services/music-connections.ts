@@ -1,4 +1,4 @@
-// Removed unused import since we use fetch directly
+import { apiService } from './api';
 
 export interface MusicConnection {
   id: string;
@@ -11,27 +11,28 @@ export interface MusicConnection {
 }
 
 class MusicConnectionsService {
-  private getAuthHeaders(): Record<string, string> {
-    if (typeof window === 'undefined') return {};
-    const token = localStorage.getItem('access_token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }
-
   async getUserConnections(): Promise<MusicConnection[]> {
     try {
-      // Use the Next.js API route which forwards to your backend API
-      const response = await fetch('/api/user/music-connections', {
-        headers: {
-          ...this.getAuthHeaders(),
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch music connections');
-      }
+      const data = await apiService.getMusicConnections();
+      const normalizeService = (value: string): MusicConnection['service'] => {
+        switch (value.toLowerCase()) {
+          case 'applemusic':
+          case 'apple_music':
+            return 'apple_music';
+          case 'youtube_music':
+          case 'youtubemusic':
+            return 'youtube_music';
+          default:
+            return value.toLowerCase() as MusicConnection['service'];
+        }
+      };
 
-      const data = await response.json();
-      return data.connections || [];
+      return (data.services || []).map((service) => ({
+        id: service,
+        userId: '',
+        service: normalizeService(service),
+        connectedAt: new Date().toISOString(),
+      }));
     } catch (error) {
       console.error('Failed to fetch user music connections:', error);
       throw new Error('Failed to fetch music connections');
@@ -40,17 +41,7 @@ class MusicConnectionsService {
 
   async disconnectService(service: MusicConnection['service']): Promise<void> {
     try {
-      // Use the Next.js API route which forwards to your backend API
-      const response = await fetch(`/api/user/music-connections?service=${service}`, {
-        method: 'DELETE',
-        headers: {
-          ...this.getAuthHeaders(),
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to disconnect music service');
-      }
+      await apiService.disconnectMusicService(service);
     } catch (error) {
       console.error('Failed to disconnect music service:', error);
       throw new Error('Failed to disconnect music service');

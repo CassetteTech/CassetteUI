@@ -102,7 +102,7 @@ NEXT_PUBLIC_API_URL_LOCAL=http://localhost:5000
 NEXT_PUBLIC_ENABLE_LAMBDA_WARMUP=true
 
 # App Configuration
-NEXT_PUBLIC_APP_DOMAIN=https://cassetteinc.org
+NEXT_PUBLIC_APP_DOMAIN=https://cassette.tech
 ```
 
 5. **Start Development Server**

@@ -33,6 +33,11 @@ export const metadata: Metadata = {
   description: "Share your favorite music across all platforms. Connect with friends and discover new tunes.",
   keywords: ["music", "social", "spotify", "apple music", "deezer", "sharing"],
   authors: [{ name: "Cassette Team" }],
+  icons: {
+    icon: [{ url: "/images/cassette_logo.png", type: "image/png" }],
+    shortcut: [{ url: "/images/cassette_logo.png", type: "image/png" }],
+    apple: [{ url: "/images/cassette_logo.png", type: "image/png" }],
+  },
   openGraph: {
     title: "Cassette - Share Your Music",
     description: "Share your favorite music across all platforms. Connect with friends and discover new tunes.",

@@ -42,7 +42,7 @@ export default function ResetPasswordPage() {
           }
 
           try {
-            await authService.handleOAuthCallback(accessToken, refreshToken);
+            await authService.startPasswordResetSession(accessToken, refreshToken);
             if (!cancelled) {
               setSessionReady(true);
               setSessionError(null);
@@ -58,10 +58,8 @@ export default function ResetPasswordPage() {
           }
         }
 
-        const storedAccessToken = localStorage.getItem('access_token');
-        const storedRefreshToken = localStorage.getItem('refresh_token');
-
-        if (storedAccessToken && storedRefreshToken) {
+        const hasResetSession = await authService.hasPasswordResetSession();
+        if (hasResetSession) {
           if (!cancelled) {
             setSessionReady(true);
             setSessionError(null);

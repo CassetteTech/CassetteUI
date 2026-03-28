@@ -484,11 +484,63 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
 
   // Fetch post data
   useEffect(() => {
+    let isCancelled = false;
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const maxWaitMs = 60_000;
+    const defaultRetryMs = 400;
+
+    const shouldRetryFetchPost = (error: unknown) => {
+      if (error instanceof ApiError) {
+        if (error.apiStatus === 'failed') return false;
+        if (error.apiStatus === 'processing') return true;
+        const status = error.status || 0;
+        return [404, 408, 409, 425, 429, 500, 502, 503, 504].includes(status);
+      }
+      if (error instanceof Error) {
+        const message = error.message.toLowerCase();
+        return message.includes('timed out') || message.includes('network') || message.includes('fetch');
+      }
+      return false;
+    };
+
     const fetchPost = async () => {
       try {
-        const response = await apiService.fetchPostById(postId);
+        // Reset stale error state before each fetch cycle.
+        setError(null);
+
+        const startedAt = Date.now();
+        let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null = null;
+
+        while (Date.now() - startedAt < maxWaitMs) {
+          if (isCancelled) return;
+          try {
+            const candidate = await apiService.fetchPostById(postId);
+            if (candidate?.success) {
+              response = candidate;
+              break;
+            }
+
+            // Some backends return 200 + success=false while a new post is still materializing.
+            const payloadRetryAfterMs = (candidate as unknown as { retryAfterMs?: number }).retryAfterMs;
+            await sleep(Math.max(100, payloadRetryAfterMs ?? defaultRetryMs));
+            continue;
+          } catch (fetchError) {
+            if (!shouldRetryFetchPost(fetchError)) {
+              throw fetchError;
+            }
+            const retryAfterMs = fetchError instanceof ApiError && typeof fetchError.retryAfterMs === 'number'
+              ? fetchError.retryAfterMs
+              : defaultRetryMs;
+            await sleep(Math.max(100, retryAfterMs));
+          }
+        }
+
+        if (!response) {
+          throw new Error('Post is still finalizing. Please try again in a moment.');
+        }
 
         if (response.success) {
+          setError(null);
           const elementTypeLower = response.elementType?.toLowerCase();
           const isTrackResp = elementTypeLower === 'track';
           const isAlbumResp = elementTypeLower === 'album';
@@ -684,12 +736,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           throw new Error('Invalid response format');
         }
       } catch (e) {
+        if (isCancelled) return;
         console.error('Error loading post data:', e);
         setError('Failed to load content');
       }
     };
 
-    fetchPost();
+    void fetchPost();
+    return () => {
+      isCancelled = true;
+    };
   }, [postId, user?.id, isAuthenticated]);
 
   // Color extraction function
@@ -721,7 +777,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     return <EntitySkeleton isDesktop={isDesktop} />;
   }
 
-  if (error) {
+  if (error && !postData) {
     return (
       <div className="min-h-screen relative">
         <AnimatedColorBackground
@@ -1417,7 +1473,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             <span>Tip us</span>
                           </button>
                         </div>
-
                         {/* Report Problem */}
                         <div className="mb-[calc(6rem+env(safe-area-inset-bottom))] flex justify-center">
                           <button
@@ -1806,7 +1861,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               {showSignupCTA && (
                 <JoinCassetteCTA onClick={handleSignupClick} />
               )}
-
               {/* Support Us - Minimal */}
               <div className="flex items-center justify-between gap-4">
                 <p className="text-sm text-muted-foreground">

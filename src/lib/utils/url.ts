@@ -14,7 +14,7 @@ export function isProduction(): boolean {
 export function getBaseUrl(): string {
   // In production, use the configured domain
   if (isProduction()) {
-    return process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://cassetteinc.org';
+    return process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://cassette.tech';
   }
   
   // In development, check if we're in browser context
@@ -59,4 +59,15 @@ export function getApiUrl(): string {
   throw new Error(
     'Missing API base URL. Set NEXT_PUBLIC_API_URL_LOCAL (dev) or NEXT_PUBLIC_API_URL (shared/prod).'
   );
+}
+
+/**
+ * Browser requests should use the app origin so Next route handlers can own auth cookies.
+ */
+export function getBrowserApiBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    return '';
+  }
+
+  return getApiUrl();
 }

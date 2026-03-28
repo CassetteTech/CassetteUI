@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { UrlBar } from '@/components/ui/url-bar';
@@ -17,6 +17,7 @@ import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { detectContentType } from '@/utils/content-type-detection';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
+import { normalizeMusicLinkInput, isSupportedMusicLink, getMusicSourceLabel } from '@/utils/music-link-input';
 
 type SelectedItem = {
   id: string;
@@ -50,8 +51,10 @@ const AddMusicForm = ({
   handleSelectItem,
   closeSearch,
   isValidMusicUrl,
+  normalizeUrlInput,
   router,
-  searchBarOpacity
+  searchBarOpacity,
+  returnRoute
 }: {
   isSearchActive: boolean;
   selectedItem: SelectedItem | null;
@@ -74,8 +77,10 @@ const AddMusicForm = ({
   handleSelectItem: (url: string, title: string, type: string) => void;
   closeSearch: () => void;
   isValidMusicUrl: (text: string) => boolean;
+  normalizeUrlInput: (raw: string) => string;
   router: ReturnType<typeof useRouter>;
   searchBarOpacity: number;
+  returnRoute: string | null;
 }) => (
   <>
     {/* Search/Input Section */}
@@ -104,18 +109,27 @@ const AddMusicForm = ({
                 onPaste={handlePaste}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && musicUrl.trim()) {
-                    if (isValidMusicUrl(musicUrl)) {
+                    const normalizedUrl = normalizeUrlInput(musicUrl);
+                    if (isValidMusicUrl(normalizedUrl)) {
                       // Navigate immediately to post page when pressing Enter with a link
                       const params = new URLSearchParams({
-                        url: musicUrl,
+                        url: normalizedUrl,
                         fromAddMusic: 'true'
                       });
+                      if (returnRoute) {
+                        params.append('from', returnRoute);
+                      }
                       
                       if (description.trim()) {
                         params.append('description', description.trim());
                       }
                       
-                      router.push(`/post?${params.toString()}`);
+                      const target = `/post?${params.toString()}`;
+                      if (returnRoute) {
+                        router.replace(target);
+                      } else {
+                        router.push(target);
+                      }
                     }
                     // For search queries, the search will happen via the debounced value
                   }
@@ -262,6 +276,7 @@ export default function AddMusicPage() {
   const debouncedSearchTerm = useDebounce(musicUrl, 500); // 500ms debounce for search
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
+  const resolvedReturnRoute = user?.username ? `/profile/${user.username}` : null;
   const { data: topCharts, isLoading: isLoadingCharts } = useTopCharts();
   
   // Music search - only search if it's not a link and has sufficient length
@@ -277,35 +292,9 @@ export default function AddMusicPage() {
     ? searchResultsData 
     : topCharts;
 
-  // Check if text is a valid music URL
-  const isValidMusicUrl = (text: string) => {
-    const lowerText = text.toLowerCase();
-    return lowerText.includes('spotify.com') ||
-           lowerText.includes('apple.com/music') ||
-           lowerText.includes('music.apple.com') ||
-           lowerText.includes('deezer.com');
-  };
-
-  // Handle URL paste detection
-  const handleUrlPaste = (url: string) => {
-    console.log('🔗 Handling URL paste:', url);
-    
-    let source = 'unknown';
-    const lowerUrl = url.toLowerCase();
-    
-    if (lowerUrl.includes('spotify.com')) {
-      source = 'Spotify';
-    } else if (lowerUrl.includes('apple.com/music') || lowerUrl.includes('music.apple.com')) {
-      source = 'Apple Music';
-    } else if (lowerUrl.includes('deezer.com')) {
-      source = 'Deezer';
-    }
-    
-    setPastedLinkSource(source);
-    setSelectedItem(null);
-    setIsSearchActive(false);
-    setErrorMessage('');
-  };
+  // Keep local aliases so AddMusicForm stays simple and testable.
+  const normalizeUrlInput = normalizeMusicLinkInput;
+  const isValidMusicUrl = isSupportedMusicLink;
 
   // Handle authentication redirect
   useEffect(() => {
@@ -316,8 +305,12 @@ export default function AddMusicPage() {
 
   // Handle prefilled URL on mount
   useEffect(() => {
-    if (prefilledUrl && isValidMusicUrl(prefilledUrl)) {
-      handleUrlPaste(prefilledUrl);
+    if (prefilledUrl && isSupportedMusicLink(prefilledUrl)) {
+      const source = getMusicSourceLabel(prefilledUrl);
+      setPastedLinkSource(source);
+      setSelectedItem(null);
+      setIsSearchActive(false);
+      setErrorMessage('');
     }
   }, [prefilledUrl]);
 
@@ -367,7 +360,8 @@ export default function AddMusicPage() {
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    const pastedText = e.clipboardData.getData('text');
+    e.preventDefault();
+    const pastedText = normalizeUrlInput(e.clipboardData.getData('text'));
     const detected = detectContentType(pastedText);
     
     if (isValidMusicUrl(pastedText)) {
@@ -385,12 +379,20 @@ export default function AddMusicPage() {
         url: pastedText,
         fromAddMusic: 'true'
       });
+      if (resolvedReturnRoute) {
+        params.append('from', resolvedReturnRoute);
+      }
       
       if (description.trim()) {
         params.append('description', description.trim());
       }
       
-      router.push(`/post?${params.toString()}`);
+      const target = `/post?${params.toString()}`;
+      if (resolvedReturnRoute) {
+        router.replace(target);
+      } else {
+        router.push(target);
+      }
     } else {
       void captureClientEvent('unsupported_music_link_pasted', {
         route: '/add-music',
@@ -482,14 +484,14 @@ export default function AddMusicPage() {
     setErrorMessage('');
   };
 
-  const handleAddToProfile = () => {
+  const handleAddToProfile = useCallback(() => {
     setErrorMessage('');
     
     let urlToConvert = '';
     let itemDetails = undefined;
     
     if (selectedItem) {
-      urlToConvert = selectedItem.url;
+      urlToConvert = normalizeUrlInput(selectedItem.url);
       itemDetails = {
         title: selectedItem.title,
         artist: selectedItem.artist,
@@ -497,7 +499,7 @@ export default function AddMusicPage() {
         coverArtUrl: selectedItem.coverArtUrl
       };
     } else if (musicUrl.trim()) {
-      urlToConvert = musicUrl.trim();
+      urlToConvert = normalizeUrlInput(musicUrl);
     } else {
       setErrorMessage('Please enter a music link or search for a song');
       return;
@@ -520,6 +522,9 @@ export default function AddMusicPage() {
       url: urlToConvert,
       fromAddMusic: 'true'
     });
+    if (resolvedReturnRoute) {
+      params.append('from', resolvedReturnRoute);
+    }
     
     if (description.trim()) {
       params.append('description', description.trim());
@@ -529,8 +534,13 @@ export default function AddMusicPage() {
       params.append('itemDetails', JSON.stringify(itemDetails));
     }
     
-    router.push(`/post?${params.toString()}`);
-  };
+    const target = `/post?${params.toString()}`;
+    if (resolvedReturnRoute) {
+      router.replace(target);
+    } else {
+      router.push(target);
+    }
+  }, [description, musicUrl, normalizeUrlInput, resolvedReturnRoute, router, selectedItem]);
 
   useEffect(() => {
     const query = debouncedSearchTerm.trim();
@@ -632,8 +642,10 @@ export default function AddMusicPage() {
                   handleSelectItem={handleSelectItem}
                   closeSearch={closeSearch}
                   isValidMusicUrl={isValidMusicUrl}
+                  normalizeUrlInput={normalizeUrlInput}
                   router={router}
                   searchBarOpacity={searchBarOpacity}
+                  returnRoute={resolvedReturnRoute}
                 />
               </div>
             </div>
@@ -674,8 +686,10 @@ export default function AddMusicPage() {
               handleSelectItem={handleSelectItem}
               closeSearch={closeSearch}
               isValidMusicUrl={isValidMusicUrl}
+              normalizeUrlInput={normalizeUrlInput}
               router={router}
               searchBarOpacity={searchBarOpacity}
+              returnRoute={resolvedReturnRoute}
             />
           </div>
         </div>

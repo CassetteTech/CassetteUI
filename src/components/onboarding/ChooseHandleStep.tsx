@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { CheckCircle2, XCircle, Loader2, AtSign, User } from 'lucide-react';
-import { clientConfig } from '@/lib/config-client';
+import { getBrowserApiBaseUrl } from '@/lib/utils/url';
 
 interface FormData {
   username: string;
@@ -32,7 +32,7 @@ export function ChooseHandleStep({
   onBack,
   isFirstStep,
 }: ChooseHandleStepProps) {
-  const apiUrl = clientConfig.api.url;
+  const apiUrl = getBrowserApiBaseUrl();
   const [errors, setErrors] = useState<{ username?: string; displayName?: string }>({});
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
   const [debouncedUsername, setDebouncedUsername] = useState(formData.username);

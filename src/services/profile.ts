@@ -1,6 +1,5 @@
-import { clientConfig } from '@/lib/config-client';
 import { ActivityPost, PaginatedActivityResponse, UserBio, PostPrivacy } from '@/types';
-import { apiService } from '@/services/api';
+import { getBrowserApiBaseUrl } from '@/lib/utils/url';
 
 interface ActivityItemPayload {
   postId: string;
@@ -78,7 +77,7 @@ interface ActivityApiResponse {
 
 export class ProfileService {
   // Note: Caching is now handled by React Query (see hooks/use-profile.ts)
-  private readonly apiBaseUrl = clientConfig.api.url;
+  private readonly apiBaseUrl = getBrowserApiBaseUrl();
 
   private normalizeUserBio(data: Record<string, unknown>): UserBio {
     const nestedUser =
@@ -175,12 +174,6 @@ export class ProfileService {
 
     const base = baseUrl.replace(/\/+$/, '');
     return `${base}${normalizedPath}`;
-  }
-
-  private getAuthHeaders(): Record<string, string> {
-    if (typeof window === 'undefined') return {};
-    const token = localStorage.getItem('access_token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
   private mapActivityResponse(
@@ -374,63 +367,6 @@ export class ProfileService {
     };
   }
 
-  private async enrichSparseActivityPosts(
-    response: PaginatedActivityResponse,
-    maxEnrichment = 12,
-  ): Promise<PaginatedActivityResponse> {
-    const needsEnrichment = (post: ActivityPost) =>
-      (!post.title || post.title.trim() === '' || post.title === 'Untitled') ||
-      !post.imageUrl ||
-      post.imageUrl.trim() === '';
-
-    const candidates = response.items
-      .filter((post) => post.postId && needsEnrichment(post))
-      .slice(0, maxEnrichment);
-
-    if (candidates.length === 0) {
-      return response;
-    }
-
-    const overrides = new Map<string, Partial<ActivityPost>>();
-
-    await Promise.all(
-      candidates.map(async (post) => {
-        try {
-          const full = await apiService.fetchPostById(post.postId);
-          if (!full?.success) return;
-
-          const title = full.details?.title || full.details?.name || post.title || 'Untitled';
-          const subtitle = full.details?.artist || full.details?.album || post.subtitle;
-          const imageUrl =
-            full.details?.coverArtUrl ||
-            full.details?.imageUrl ||
-            Object.values(full.platforms || {}).find((p) => p?.artworkUrl)?.artworkUrl ||
-            post.imageUrl;
-
-          overrides.set(post.postId, {
-            title,
-            subtitle,
-            imageUrl,
-          });
-        } catch {
-          // Best-effort hydration
-        }
-      }),
-    );
-
-    if (overrides.size === 0) {
-      return response;
-    }
-
-    return {
-      ...response,
-      items: response.items.map((post) => ({
-        ...post,
-        ...(overrides.get(post.postId) || {}),
-      })),
-    };
-  }
-
   async fetchUserBio(userIdentifier: string): Promise<UserBio> {
     try {
       const path =
@@ -444,9 +380,9 @@ export class ProfileService {
 
       const response = await fetch(url, {
         method: 'GET',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
         },
       });
 
@@ -501,9 +437,9 @@ export class ProfileService {
 
       const response = await fetch(requestUrl, {
         method: 'GET',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
         },
       });
 
@@ -547,9 +483,9 @@ export class ProfileService {
 
       const response = await fetch(requestUrl, {
         method: 'GET',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
         },
       });
 
@@ -587,16 +523,15 @@ export class ProfileService {
 
       const response = await fetch(requestUrl, {
         method: 'GET',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
         },
       });
 
       if (response.status === 200) {
         const json = (await response.json()) as ActivityApiResponse;
-        const mapped = this.mapActivityResponse(json, page, pageSize);
-        return this.enrichSparseActivityPosts(mapped);
+        return this.mapActivityResponse(json, page, pageSize);
       }
 
       if (response.status === 404) {
@@ -682,7 +617,7 @@ export class ProfileService {
 
       const response = await fetch(url, {
         method: 'PUT',
-        headers: this.getAuthHeaders(),
+        credentials: 'include',
         body: formData,
       });
 
@@ -706,9 +641,9 @@ export class ProfileService {
 
       const response = await fetch(url, {
         method: 'GET',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
         },
       });
 

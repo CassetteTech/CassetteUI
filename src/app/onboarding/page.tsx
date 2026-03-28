@@ -17,7 +17,7 @@ import { CompletionStep } from '@/components/onboarding/CompletionStep';
 import { authService } from '@/services/auth';
 import { pendingActionService } from '@/utils/pending-action';
 import { captureClientEvent } from '@/lib/analytics/client';
-import { clientConfig } from '@/lib/config-client';
+import { getBrowserApiBaseUrl } from '@/lib/utils/url';
 
 // Step definitions (excluding welcome and completion which are special)
 const STEPS = [
@@ -32,7 +32,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { user, isLoading } = useAuthState();
   const setUser = useAuthStore((state) => state.setUser);
-  const apiUrl = clientConfig.api.url;
+  const apiUrl = getBrowserApiBaseUrl();
 
   const [phase, setPhase] = useState<OnboardingPhase>('welcome');
   const [currentStep, setCurrentStep] = useState(0);
@@ -140,9 +140,7 @@ export default function OnboardingPage() {
 
       const response = await fetch(`${apiUrl}/api/v1/profile`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        },
+        credentials: 'include',
         body: form,
       });
 

@@ -1,21 +1,23 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useRef, useEffect, useState, Suspense } from 'react';
+import { useRef, useEffect, useState, Suspense, useCallback } from 'react';
 import { MusicLinkConversion, ElementType, MediaListTrack } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { useMusicLinkConversion } from '@/hooks/use-music';
 import { useSimulatedProgress } from '@/hooks/use-simulated-progress';
 import { detectContentType } from '@/utils/content-type-detection';
-import PostClientPage from './[id]/post-client';
 import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
+import { apiService, ApiError } from '@/services/api';
 
 // This page handles:
 // 1. ?id=X - Redirects to /post/X (canonical route)
 // 2. ?url=X - Converts music link and renders content directly (no redirect)
 // 3. ?data=X - Parses JSON payload and renders content directly
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function PostPageContent() {
   const searchParams = useSearchParams();
@@ -23,8 +25,6 @@ function PostPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  // Store postId after conversion - renders content directly without redirect
-  const [resolvedPostId, setResolvedPostId] = useState<string | null>(null);
 
   const postIdParam = searchParams.get('id');
   const fromParam = searchParams.get('from');
@@ -51,6 +51,71 @@ function PostPageContent() {
   // Guards against duplicate conversions
   const hasConvertedRef = useRef(false);
   const lastUrlRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+  const convertRetryCountRef = useRef(0);
+  const actionIdempotencyKeyRef = useRef<string | null>(null);
+
+  const getOrCreateIdempotencyKey = useCallback(() => {
+    if (actionIdempotencyKeyRef.current) {
+      return actionIdempotencyKeyRef.current;
+    }
+    const key = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `client-key-${Date.now()}-${Math.random()}`;
+    actionIdempotencyKeyRef.current = key;
+    return key;
+  }, []);
+
+  const waitForPostAvailability = useCallback(async (postId: string) => {
+    // Only wait for authenticated add-music flow where write/read lag has been observed.
+    if (!fromAddMusic) return true;
+
+    const backoffMs = [200, 300, 500, 800, 1200, 1800];
+    for (let i = 0; i < backoffMs.length; i += 1) {
+      if (!isMountedRef.current) return false;
+      try {
+        const response = await apiService.fetchPostById(postId);
+        if (response?.success) return true;
+      } catch (error) {
+        const retryAfterMs = error instanceof ApiError && typeof error.retryAfterMs === 'number'
+          ? error.retryAfterMs
+          : undefined;
+        if (retryAfterMs) {
+          await sleep(Math.max(100, retryAfterMs));
+          continue;
+        }
+        // Keep polling briefly until the post is readable.
+      }
+      await sleep(backoffMs[i]);
+    }
+    return false;
+  }, [fromAddMusic]);
+
+  const resolvePostAndRender = useCallback(async (postId: string) => {
+    const isReady = await waitForPostAvailability(postId);
+    if (!isMountedRef.current) return;
+    if (!isReady) {
+      setError('Post is still finalizing. Please try again in a moment.');
+      setApiComplete(true);
+      return;
+    }
+    const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
+    router.replace(`/post/${postId}${fromQuery}`);
+  }, [fromParam, waitForPostAvailability, router]);
+
+  const shouldRetryConvertError = (err: unknown) => {
+    if (err instanceof ApiError) {
+      const status = err.status || 0;
+      return [408, 409, 425, 429, 500, 502, 503, 504].includes(status);
+    }
+
+    if (err instanceof Error) {
+      const msg = err.message.toLowerCase();
+      return msg.includes('timed out') || msg.includes('network') || msg.includes('fetch') || msg.includes('temporar');
+    }
+
+    return false;
+  };
 
   useEffect(() => {
     const checkDesktop = () => {
@@ -62,12 +127,13 @@ function PostPageContent() {
   }, []);
 
   useEffect(() => {
-    // If we already have a resolved postId, don't process params again
-    // This prevents re-running after URL update via history.replaceState
-    if (resolvedPostId) {
-      return;
-    }
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
+  useEffect(() => {
     // Handle ?id= redirect to canonical route (this is the only case we redirect)
     if (postIdParam && !urlParam && !dataParam) {
       const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
@@ -84,6 +150,8 @@ function PostPageContent() {
       if (hasConvertedRef.current && lastUrlRef.current === decodedUrl) return;
       hasConvertedRef.current = true;
       lastUrlRef.current = decodedUrl;
+      convertRetryCountRef.current = 0;
+      actionIdempotencyKeyRef.current = null;
 
       void captureClientEvent('conversion_entry_started', {
         route: '/post',
@@ -94,23 +162,36 @@ function PostPageContent() {
         is_authenticated: fromAddMusic,
       });
 
-      convertLink({ url: decodedUrl, description: descriptionParam || undefined }, {
+      const idempotencyKey = getOrCreateIdempotencyKey();
+      const attemptConvert = () => convertLink({ url: decodedUrl, description: descriptionParam || undefined, idempotencyKey, anonymous: !fromAddMusic }, {
         onSuccess: (result) => {
           setApiComplete(true);
           // Store postId to render content directly - no redirect!
           if (result.postId) {
-            setResolvedPostId(result.postId);
-            // Update URL without navigation for shareability
-            const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
-            window.history.replaceState(null, '', `/post/${result.postId}${fromQuery}`);
+            void resolvePostAndRender(result.postId);
+          } else {
+            setError('Conversion completed, but no post was returned.');
           }
         },
         onError: (err) => {
+          if (shouldRetryConvertError(err) && convertRetryCountRef.current < 2) {
+            const retryDelay = [700, 1500][convertRetryCountRef.current] || 1500;
+            convertRetryCountRef.current += 1;
+            setError(null);
+            window.setTimeout(() => {
+              if (isMountedRef.current) {
+                attemptConvert();
+              }
+            }, retryDelay);
+            return;
+          }
+
           console.error('Conversion failed:', err);
           setApiComplete(true);
           setError(err instanceof Error ? err.message : 'Failed to convert link');
         },
       });
+      attemptConvert();
       return;
     }
 
@@ -121,10 +202,8 @@ function PostPageContent() {
 
         // If the data has a postId, use it directly
         if (parsedData.postId) {
-          setResolvedPostId(parsedData.postId);
           setApiComplete(true);
-          const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
-          window.history.replaceState(null, '', `/post/${parsedData.postId}${fromQuery}`);
+          void resolvePostAndRender(parsedData.postId);
           return;
         }
 
@@ -213,21 +292,37 @@ function PostPageContent() {
             source_domain: sanitizeDomain(transformedFromData.originalUrl),
           });
 
-          convertLink({ url: transformedFromData.originalUrl, description: transformedFromData.description }, {
+          convertRetryCountRef.current = 0;
+          actionIdempotencyKeyRef.current = null;
+          const idempotencyKey = getOrCreateIdempotencyKey();
+          const attemptConvert = () => convertLink({ url: transformedFromData.originalUrl, description: transformedFromData.description, idempotencyKey, anonymous: !fromAddMusic }, {
             onSuccess: (result) => {
               setApiComplete(true);
               if (result.postId) {
-                setResolvedPostId(result.postId);
-                const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
-                window.history.replaceState(null, '', `/post/${result.postId}${fromQuery}`);
+                void resolvePostAndRender(result.postId);
+              } else {
+                setError('Conversion completed, but no post was returned.');
               }
             },
             onError: (err) => {
+              if (shouldRetryConvertError(err) && convertRetryCountRef.current < 2) {
+                const retryDelay = [700, 1500][convertRetryCountRef.current] || 1500;
+                convertRetryCountRef.current += 1;
+                setError(null);
+                window.setTimeout(() => {
+                  if (isMountedRef.current) {
+                    attemptConvert();
+                  }
+                }, retryDelay);
+                return;
+              }
+
               console.error('Conversion failed:', err);
               setApiComplete(true);
               setError(err instanceof Error ? err.message : 'Failed to convert link');
             },
           });
+          attemptConvert();
         } else {
           setError('No data provided');
         }
@@ -240,9 +335,11 @@ function PostPageContent() {
 
     // No valid parameters
     if (!urlParam && !dataParam && !postIdParam) {
-      setError('No data provided');
+      if (!hasConvertedRef.current) {
+        setError('No data provided');
+      }
     }
-  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvedPostId]);
+  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvePostAndRender, getOrCreateIdempotencyKey]);
 
   // Show error state
   if (error) {
@@ -264,13 +361,9 @@ function PostPageContent() {
 
   // Once we have a postId, render the content directly - no redirect needed!
   // This provides a seamless skeleton → content transition
-  if (resolvedPostId) {
-    return <PostClientPage postId={resolvedPostId} />;
-  }
-
   // Show unified skeleton with progress overlay while converting
   // This is the SAME skeleton that PostClientPage uses, ensuring no layout shift
-  const showProgress = isConverting || (urlParam && !apiComplete);
+  const showProgress = isConverting || !!urlParam;
 
   return (
     <EntitySkeleton

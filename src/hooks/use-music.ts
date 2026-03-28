@@ -32,17 +32,23 @@ export const useMusicLinkConversion = (options?: { anonymous?: boolean }) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (params: { url: string; description?: string }) => {
-      console.log('🎯 Mutation function called with URL:', params.url, 'description:', params.description, 'anonymous:', options?.anonymous);
-      return musicService.convertMusicLink(params.url, { ...options, description: params.description });
+    mutationFn: (params: { url: string; description?: string; idempotencyKey?: string; anonymous?: boolean }) => {
+      const anonymous = typeof params.anonymous === 'boolean' ? params.anonymous : options?.anonymous;
+      console.log('🎯 Mutation function called with URL:', params.url, 'description:', params.description, 'anonymous:', anonymous);
+      return musicService.convertMusicLink(params.url, { anonymous, description: params.description, idempotencyKey: params.idempotencyKey });
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       console.log('✅ Mutation successful:', data);
       seedArtworkCache(data.postId, data.metadata?.artwork);
       queryClient.invalidateQueries({ queryKey: ['music-search'] });
 
-      // Authenticated conversion responses include username; refresh profile-related caches.
-      if (typeof data?.username === 'string' && data.username.trim() !== '') {
+      // Lifecycle conversion responses may omit username; infer auth state from request intent.
+      const wasAnonymous = typeof variables?.anonymous === 'boolean'
+        ? variables.anonymous
+        : options?.anonymous === true;
+      const shouldRefreshProfile = !wasAnonymous || (typeof data?.username === 'string' && data.username.trim() !== '');
+
+      if (shouldRefreshProfile) {
         queryClient.invalidateQueries({ queryKey: ['user-activity'], refetchType: 'all' });
         queryClient.invalidateQueries({ queryKey: ['user-bio'], refetchType: 'all' });
         queryClient.invalidateQueries({ queryKey: ['user-posts'], refetchType: 'all' });

@@ -51,10 +51,9 @@ export const useSignUp = () => {
     },
     onSuccess: (result) => {
       console.log('✅ [useSignUp] Signup successful:', result);
-      // Navigate to profile only if auto-login tokens were returned
-      if (result?.token) {
+      const user = useAuthStore.getState().user;
+      if (result?.success && user) {
         // Get the user from store (already set by authService.signUp)
-        const user = useAuthStore.getState().user;
         const pendingAction = pendingActionService.get();
 
         // Always check onboarding first - don't bypass it for pending actions

@@ -4,39 +4,70 @@ import { useAuthStore } from '@/stores/auth-store';
 import { AuthUser, SignInForm, SignUpForm, ConnectedService } from '@/types';
 import { prefetchProfileArtwork } from '@/services/profile-artwork-cache';
 import { captureClientEvent } from '@/lib/analytics/client';
-import { clientConfig } from '@/lib/config-client';
 
-const API_URL = clientConfig.api.url;
-const sanitizeUrl = (value: string | undefined) => {
-  const trimmed = value?.trim();
-  return trimmed && trimmed !== 'undefined' && trimmed !== 'null' ? trimmed : undefined;
-};
-const API_URL_FALLBACK = sanitizeUrl(process.env.NEXT_PUBLIC_API_URL);
-const API_URL_CANDIDATES = Array.from(
-  new Set([API_URL, API_URL_FALLBACK].filter((url): url is string => Boolean(url)))
-);
+const AUTH_API_BASE = '/api/auth';
+const PLATFORM_BY_ENUM_INDEX = ['Spotify', 'AppleMusic', 'Deezer'] as const;
 
 class AuthService {
-  private sessionIntervalId: number | null = null;
   private initialized = false;
   private lastArtworkWarmupUserId: string | null = null;
 
   private resolveAvatarUrl(userData: Record<string, unknown>): string {
     return String(
       userData.avatarUrl ||
-      userData.AvatarUrl ||
-      userData.profilePicture ||
-      userData.ProfilePicture ||
-      ''
+        userData.AvatarUrl ||
+        userData.profilePicture ||
+        userData.ProfilePicture ||
+        ''
     );
   }
-  
+
+  private normalizeConnectedServices(userData: Record<string, unknown>): ConnectedService[] {
+    const raw = userData.connectedServices;
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    const normalized = raw
+      .map((service): ConnectedService | null => {
+        if (!service || typeof service !== 'object') {
+          return null;
+        }
+
+        const payload = service as Record<string, unknown>;
+        const rawType = payload.serviceType ?? payload.ServiceType;
+        const serviceType =
+          typeof rawType === 'number'
+            ? PLATFORM_BY_ENUM_INDEX[rawType] ?? String(rawType)
+            : typeof rawType === 'string'
+              ? rawType
+              : '';
+
+        if (!serviceType) {
+          return null;
+        }
+
+        const connectedAt = payload.connectedAt ?? payload.ConnectedAt;
+        return {
+          serviceType,
+          connectedAt: typeof connectedAt === 'string' ? connectedAt : new Date().toISOString(),
+          profileUrl:
+            typeof payload.profileUrl === 'string'
+              ? payload.profileUrl
+              : typeof payload.ProfileUrl === 'string'
+                ? payload.ProfileUrl
+                : undefined,
+        };
+      });
+
+    return normalized.filter((service): service is ConnectedService => service !== null);
+  }
+
   private warmProfileArtworkCache(user: AuthUser | null) {
     const userIdentifier = user?.username || user?.id;
     if (!userIdentifier) return;
     if (this.lastArtworkWarmupUserId === userIdentifier) return;
 
-    // Avoid duplicate load pressure when profile page is already requesting activity.
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/profile')) {
       return;
     }
@@ -45,9 +76,7 @@ class AuthService {
     void prefetchProfileArtwork(userIdentifier).catch(() => {});
   }
 
-  clearTokens() {
-    localStorage.removeItem('user_data');
-  }
+  clearTokens() {}
 
   async signUp({ email, password, username, acceptTerms }: SignUpForm) {
     if (!acceptTerms) {
@@ -60,75 +89,31 @@ class AuthService {
       is_authenticated: false,
     });
 
-    const url = `${API_URL}/api/v1/auth/signup`;
-    const payload = {
-      email: email.toLowerCase().trim(),
-      password,
-      username: username.trim().toLowerCase(),
-    };
-
-    console.log('🔄 [Auth] Starting signup request');
-    console.log('🔄 [Auth] API_URL:', API_URL);
-    console.log('🔄 [Auth] Full URL:', url);
-    console.log('🔄 [Auth] Payload:', { ...payload, password: '[REDACTED]' });
-
-    const response = await fetch(url, {
+    const response = await fetch(`${AUTH_API_BASE}/signup`, {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        email: email.toLowerCase().trim(),
+        password,
+        username: username.trim().toLowerCase(),
+      }),
     });
 
-    console.log('✅ [Auth] Response received:', response.status, response.statusText);
-
     const data = await response.json();
-    console.log('📦 [Auth] Response data:', data);
-
     if (!response.ok) {
       throw new Error(data.message || 'Failed to create account');
     }
 
-    // Check if we got a successful response
-    if (data.success) {
-      if (data.user && data.authenticated === true) {
-        console.log('✅ [Auth] Storing user data');
-        console.log('📦 [Auth] User data from server:', data.user);
-
-        // Normalize user data like Flutter does
-        const normalizedUser = {
-          ...data.user,
-          userId: data.user.userId || data.user.UserId || data.user.id,
-          authUserId: data.user.authUserId || data.user.AuthUserId,
-          username: data.user.username || data.user.Username,
-          email: data.user.email || data.user.Email,
-          bio: data.user.bio || data.user.Bio || null,
-          avatarUrl: this.resolveAvatarUrl(data.user),
-          joinDate: data.user.joinDate || data.user.JoinDate || new Date().toISOString(),
-        };
-        
-        console.log('✅ [Auth] Normalized user data:', normalizedUser);
-        localStorage.setItem('user_data', JSON.stringify(normalizedUser));
-        
-        // Update auth store with the proper auth user format
-        const authUser = this.mapToAuthUser(normalizedUser);
-        useAuthStore.getState().setUser(authUser);
-        this.warmProfileArtworkCache(authUser);
-        
-        console.log('✅ [Auth] Auth user stored in state:', authUser);
-        
-        // Add delay like Flutter to ensure state updates propagate
-        await new Promise(resolve => setTimeout(resolve, 300));
-      } else {
-        console.log('ℹ️ [Auth] Signup successful but no token returned (Email confirmation likely required).');
-      }
-
-      return data;
+    if (data.success && data.authenticated === true && data.user) {
+      const user = this.mapToAuthUser(data.user);
+      useAuthStore.getState().setUser(user);
+      this.warmProfileArtworkCache(user);
     }
 
-    console.error('❌ [Auth] Invalid response structure:', data);
-    throw new Error('Invalid response from server');
+    return data;
   }
 
   async signIn({ email, password }: SignInForm) {
@@ -138,7 +123,7 @@ class AuthService {
       is_authenticated: false,
     });
 
-    const response = await fetch(`${API_URL}/api/v1/auth/signin`, {
+    const response = await fetch(`${AUTH_API_BASE}/signin`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -151,30 +136,19 @@ class AuthService {
     });
 
     const data = await response.json();
-
-    if (!response.ok || !data.success || data.authenticated !== true) {
+    if (!response.ok || !data.success || data.authenticated !== true || !data.user) {
       throw new Error(data.message || 'Failed to sign in');
     }
 
-    const normalizedUser = {
-      ...data.user,
-      userId: data.user.id || data.user.userId,
-      authUserId: data.user.authUserId,
-    };
-    
-    localStorage.setItem('user_data', JSON.stringify(normalizedUser));
-    
-    // Update auth store
-    const authUser = this.mapToAuthUser(normalizedUser);
-    useAuthStore.getState().setUser(authUser);
-    this.warmProfileArtworkCache(authUser);
-
+    const user = this.mapToAuthUser(data.user);
+    useAuthStore.getState().setUser(user);
+    this.warmProfileArtworkCache(user);
     return data;
   }
 
   async signOut() {
     try {
-      await fetch(`${API_URL}/api/v1/auth/signout`, {
+      await fetch(`${AUTH_API_BASE}/signout`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -185,15 +159,12 @@ class AuthService {
       console.error('Sign out API error:', error);
     }
 
-    // Clear local storage and update store
     this.clearTokens();
     useAuthStore.getState().signOut();
   }
 
   async deleteAccount(): Promise<void> {
-    console.log('🔄 [Auth] Starting account deletion request');
-
-    const response = await fetch(`${API_URL}/api/v1/auth/account`, {
+    const response = await fetch(`${AUTH_API_BASE}/account`, {
       method: 'DELETE',
       credentials: 'include',
       headers: {
@@ -202,15 +173,10 @@ class AuthService {
     });
 
     const data = await response.json();
-    console.log('📦 [Auth] Delete account response:', data);
-
     if (!response.ok || !data.success) {
       throw new Error(data.message || 'Failed to delete account');
     }
 
-    console.log('✅ [Auth] Account deleted successfully, clearing local data');
-
-    // Clear tokens and sign out
     this.clearTokens();
     useAuthStore.getState().signOut();
   }
@@ -227,18 +193,15 @@ class AuthService {
       source_platform: 'unknown',
     });
 
-    const response = await this.fetchWithApiFallback('/api/v1/auth/google/init', {
+    const response = await fetch(`${AUTH_API_BASE}/google/init`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        returnUrl: `${window.location.origin}/auth/google/callback`,
-      }),
     });
 
     const data = await response.json();
-
     if (!response.ok || !data.success || !data.authUrl) {
       throw new Error(data.message || 'Failed to initiate Google sign-in.');
     }
@@ -246,53 +209,45 @@ class AuthService {
     window.location.href = data.authUrl;
   }
 
-  async handleGoogleCallback(code: string, state: string) {
-    void code;
-    void state;
-    const fresh = await this.getCurrentUser();
-    if (!fresh) {
-      throw new Error('Failed to restore Google session.');
+  async startPasswordResetSession(accessToken: string, refreshToken: string) {
+    const response = await fetch(`${AUTH_API_BASE}/reset/session`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        accessToken,
+        refreshToken,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || 'Failed to validate reset session');
     }
 
-    useAuthStore.getState().setUser(fresh);
-    this.warmProfileArtworkCache(fresh);
-    return fresh;
+    return data;
   }
 
-  async handleOAuthCallback(accessToken: string, refreshToken: string) {
-    try {
-      const response = await this.fetchWithApiFallback('/api/v1/auth/session/exchange', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          token: accessToken,
-          refreshToken,
-        }),
-      });
+  async hasPasswordResetSession() {
+    const response = await fetch(`${AUTH_API_BASE}/reset/session`, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-      const data = await response.json();
-      if (!response.ok || !data.success || !data.user) {
-        throw new Error(data.message || 'Failed to restore authenticated session');
-      }
-
-      const user = this.mapToAuthUser(data.user);
-
-      useAuthStore.getState().setUser(user);
-      this.warmProfileArtworkCache(user);
-      try { localStorage.setItem('user_data', JSON.stringify(user)); } catch {}
-
-      return user;
-    } catch (e) {
-      console.error('🟥 [AuthService] Error in handleOAuthCallback:', e);
-      this.clearTokens();
-      throw e;
+    if (!response.ok) {
+      return false;
     }
+
+    const data = await response.json();
+    return data.success === true;
   }
 
   async resetPassword(email: string) {
-    const response = await fetch(`${API_URL}/api/v1/auth/reset-password`, {
+    const response = await fetch(`${AUTH_API_BASE}/reset-password`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -302,7 +257,6 @@ class AuthService {
     });
 
     const data = await response.json();
-
     if (!response.ok || !data.success) {
       throw new Error(data.message || 'Failed to reset password');
     }
@@ -311,7 +265,7 @@ class AuthService {
   }
 
   async updatePassword(password: string) {
-    const response = await fetch(`${API_URL}/api/v1/auth/update-password`, {
+    const response = await fetch(`${AUTH_API_BASE}/update-password`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -321,16 +275,20 @@ class AuthService {
     });
 
     const data = await response.json();
-
     if (!response.ok || !data.success) {
       throw new Error(data.message || 'Failed to update password');
+    }
+
+    if (data.user) {
+      const user = this.mapToAuthUser(data.user);
+      useAuthStore.getState().setUser(user);
+      this.warmProfileArtworkCache(user);
     }
 
     return data;
   }
 
   private mapToAuthUser(userData: Record<string, unknown>): AuthUser {
-    // Handle both camelCase and PascalCase field names from backend
     const userId = userData.userId || userData.UserId || userData.id;
     const username = userData.username || userData.Username;
     const bio = userData.bio || userData.Bio;
@@ -351,13 +309,16 @@ class AuthService {
             ? 'public'
             : undefined,
       profilePicture: this.resolveAvatarUrl(userData),
-      isEmailVerified: true, // Assume verified if coming from backend
-      isOnboarded: isOnboardedRaw === true || isOnboardedRaw === 'true' || isOnboardedRaw === 1 || isOnboardedRaw === '1',
+      isEmailVerified: true,
+      isOnboarded:
+        isOnboardedRaw === true ||
+        isOnboardedRaw === 'true' ||
+        isOnboardedRaw === 1 ||
+        isOnboardedRaw === '1',
       accountType: accountTypeRaw as AuthUser['accountType'],
       createdAt: String(userData.joinDate || userData.createdAt || new Date().toISOString()),
       updatedAt: String(userData.updatedAt || new Date().toISOString()),
-      // Include connected services from backend
-      connectedServices: (userData.connectedServices as ConnectedService[]) || [],
+      connectedServices: this.normalizeConnectedServices(userData),
     };
   }
 
@@ -367,143 +328,49 @@ class AuthService {
 
   async getCurrentUser(): Promise<AuthUser | null> {
     try {
-      console.log('🔄 [Auth] Fetching current user session');
-      const response = await fetch(`${API_URL}/api/v1/auth/session`, {
+      const response = await fetch(`${AUTH_API_BASE}/session`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
       });
 
-      console.log('✅ [Auth] Session response:', response.status, response.statusText);
-
       if (!response.ok) {
-        // Try to refresh token
-        console.log('🔄 [Auth] Session failed, attempting token refresh');
-        const refreshed = await this.refreshSession();
-        if (refreshed) {
-          return this.getCurrentUser();
-        }
         return null;
       }
 
       const data = await response.json();
-      console.log('📦 [Auth] Session data:', data);
-      
-      if (data.success && data.user) {
-        return this.mapToAuthUser(data.user);
-      }
-
-      return null;
+      return data.success && data.user ? this.mapToAuthUser(data.user) : null;
     } catch (error) {
       console.error('Get current user error:', error);
       return null;
     }
   }
 
-  async refreshSession() {
-    try {
-      const response = await fetch(`${API_URL}/api/v1/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        if (data.user) {
-          localStorage.setItem('user_data', JSON.stringify(data.user));
-        }
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('Token refresh error:', error);
-      return false;
-    }
-  }
-
-  private buildApiUrl(baseUrl: string, path: string): string {
-    const base = baseUrl.replace(/\/+$/, '');
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    return `${base}${normalizedPath}`;
-  }
-
-  private async fetchWithApiFallback(path: string, init?: RequestInit): Promise<Response> {
-    const attempts: string[] = [];
-    let lastNetworkError: unknown;
-    const requestInit: RequestInit = {
-      credentials: 'include',
-      ...init,
-    };
-
-    for (const baseUrl of API_URL_CANDIDATES) {
-      const url = this.buildApiUrl(baseUrl, path);
-      attempts.push(url);
-
-      try {
-        return await fetch(url, requestInit);
-      } catch (error) {
-        const isNetworkError =
-          error instanceof TypeError ||
-          (error instanceof Error && error.name === 'AbortError');
-
-        if (!isNetworkError) {
-          throw error;
-        }
-
-        lastNetworkError = error;
-      }
-    }
-
-    const message = `Cannot reach auth API. Tried: ${attempts.join(', ')}`;
-    throw new Error(
-      lastNetworkError instanceof Error ? `${message}. ${lastNetworkError.message}` : message
-    );
-  }
-
-  // Initialize auth state listener
   initializeAuthListener() {
     if (this.initialized) {
-      // Already initialized; return a no-op disposer
       return () => {};
     }
-    this.initialized = true;
 
+    this.initialized = true;
     const { setUser, setLoading } = useAuthStore.getState();
     setLoading(true);
 
     let cancelled = false;
     this.getCurrentUser()
-      .then((u) => {
+      .then((user) => {
         if (cancelled) return;
-        setUser(u);
-        this.warmProfileArtworkCache(u);
+        setUser(user);
+        this.warmProfileArtworkCache(user);
       })
-      .finally(() => !cancelled && setLoading(false));
-
-    this.sessionIntervalId = window.setInterval(() => {
-      this.getCurrentUser().then((user) => {
-        if (user) useAuthStore.getState().setUser(user);
-        else {
-          this.clearTokens();
-          useAuthStore.getState().setUser(null);
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
         }
       });
-    }, 4 * 60 * 1000);
 
-    // Return disposer for React effect cleanup
     return () => {
       cancelled = true;
-      if (this.sessionIntervalId !== null) {
-        clearInterval(this.sessionIntervalId);
-        this.sessionIntervalId = null;
-      }
       this.initialized = false;
     };
   }

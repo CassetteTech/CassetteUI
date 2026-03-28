@@ -23,7 +23,7 @@ export default function SignUpPage() {
   };
 
   // Keep email verification screen for users who signed up via email previously
-  if (isSuccess && !signUpResult?.token) {
+  if (isSuccess && signUpResult?.authenticated !== true) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <AnimatedBackground className="fixed inset-0 z-0" />

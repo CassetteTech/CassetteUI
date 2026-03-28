@@ -60,3 +60,14 @@ export function getApiUrl(): string {
     'Missing API base URL. Set NEXT_PUBLIC_API_URL_LOCAL (dev) or NEXT_PUBLIC_API_URL (shared/prod).'
   );
 }
+
+/**
+ * Browser requests should use the app origin so Next route handlers can own auth cookies.
+ */
+export function getBrowserApiBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    return '';
+  }
+
+  return getApiUrl();
+}

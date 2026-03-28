@@ -1,68 +1,42 @@
 'use client';
 
-import { useEffect, useRef, useState, Suspense } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/auth';
+import { useAuthStore } from '@/stores/auth-store';
 import { pendingActionService } from '@/utils/pending-action';
 import { PageLoader } from '@/components/ui/page-loader';
 
-function CallbackContent() {
+export default function OAuthCallbackPage() {
   const router = useRouter();
-  const [status, setStatus] = useState('Processing login...');
+  const [status] = useState('Checking session...');
   const [error, setError] = useState<string | null>(null);
   const processed = useRef(false);
 
   useEffect(() => {
     if (processed.current) return;
-    
-    const hash = window.location.hash;
-    console.log('🟦 [Callback Page] Hash found:', hash);
-
-    if (!hash) {
-      console.log('⚠️ [Callback Page] No hash present');
-      return;
-    }
-
     processed.current = true;
-    setStatus('Verifying token...');
 
-    try {
-      const params = new URLSearchParams(hash.substring(1));
-      
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
-      const type = params.get('type');
+    authService.getCurrentUser()
+      .then((currentUser) => {
+        if (!currentUser) {
+          throw new Error('No valid authenticated session found');
+        }
 
-      console.log('🟦 [Callback Page] Token Type:', type);
+        useAuthStore.getState().setUser(currentUser);
+        window.history.replaceState(null, '', window.location.pathname);
+        const pendingAction = pendingActionService.get();
+        if (pendingAction?.returnUrl) {
+          window.location.href = pendingAction.returnUrl;
+          return;
+        }
 
-      if (!accessToken) {
-        throw new Error('No access token found in URL hash');
-      }
-
-      authService.handleOAuthCallback(accessToken, refreshToken || '')
-        .then(() => {
-          console.log('🟩 [Callback Page] Success! Redirecting...');
-          window.history.replaceState(null, '', window.location.pathname);
-
-          // Check for pending action to redirect back to original page
-          const pendingAction = pendingActionService.get();
-          if (pendingAction?.returnUrl) {
-            window.location.href = pendingAction.returnUrl;
-          } else {
-            router.replace('/profile');
-          }
-        })
-        .catch((err: Error) => {
-          console.error('🟥 [Callback Page] API Error:', err);
-          setError(err.message);
-        });
-
-    } catch (e) {
-      const err = e as Error;
-      console.error('🟥 [Callback Page] Parse Error:', err);
-      setError(err.message);
-    }
-
+        router.replace('/profile');
+      })
+      .catch((err: Error) => {
+        console.error('Callback session error:', err);
+        setError(err.message);
+      });
   }, [router]);
 
   if (error) {
@@ -70,18 +44,12 @@ function CallbackContent() {
       <div className="flex h-screen flex-col items-center justify-center gap-4">
         <h1 className="text-2xl font-bold text-destructive">Login Failed</h1>
         <p>{error}</p>
-        <button onClick={() => router.push('/auth/signin')} className="underline">Back to Sign In</button>
+        <button onClick={() => router.push('/auth/signin')} className="underline">
+          Back to Sign In
+        </button>
       </div>
     );
   }
 
   return <PageLoader message={status} />;
-}
-
-export default function OAuthCallbackPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <CallbackContent />
-    </Suspense>
-  );
 }

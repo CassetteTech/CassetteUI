@@ -16,6 +16,56 @@ const FORWARDED_REQUEST_HEADERS = ['accept', 'authorization', 'content-type', 'x
 const INTERACTIVE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 const PASSWORD_RESET_MAX_AGE_SECONDS = 15 * 60;
 
+function normalizeOrigin(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+function resolveForwardedOrigin(request: NextRequest): string | null {
+  const forwardedHost =
+    request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
+    request.headers.get('host')?.split(',')[0]?.trim();
+
+  if (!forwardedHost) {
+    return null;
+  }
+
+  const forwardedProto =
+    request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() ||
+    request.nextUrl.protocol.replace(/:$/, '');
+
+  return normalizeOrigin(`${forwardedProto}://${forwardedHost}`);
+}
+
+function getExpectedRequestOrigins(request: NextRequest): Set<string> {
+  const origins = new Set<string>();
+
+  const addOrigin = (value: string | null | undefined) => {
+    const origin = normalizeOrigin(value);
+    if (origin) {
+      origins.add(origin);
+    }
+  };
+
+  addOrigin(request.nextUrl.origin);
+  addOrigin(resolveForwardedOrigin(request));
+  addOrigin(process.env.NEXT_PUBLIC_APP_DOMAIN);
+  addOrigin(process.env.NEXTAUTH_URL);
+
+  return origins;
+}
+
+function buildExpectedReferer(request: NextRequest, origin: string): string {
+  return new URL(`${request.nextUrl.pathname}${request.nextUrl.search}`, `${origin}/`).toString();
+}
+
 function buildCookieOptions(maxAgeSeconds?: number) {
   return {
     httpOnly: true,
@@ -60,6 +110,7 @@ export function buildForwardHeaders(
   }
 ): Headers {
   const headers = new Headers(options?.extraHeaders);
+  const requestOrigin = resolveForwardedOrigin(request) ?? request.nextUrl.origin;
 
   for (const headerName of FORWARDED_REQUEST_HEADERS) {
     const headerValue = request.headers.get(headerName);
@@ -69,11 +120,14 @@ export function buildForwardHeaders(
   }
 
   if (!headers.has('origin')) {
-    headers.set('origin', request.headers.get('origin') ?? request.nextUrl.origin);
+    headers.set('origin', request.headers.get('origin') ?? requestOrigin);
   }
 
   if (!headers.has('referer')) {
-    headers.set('referer', request.headers.get('referer') ?? request.nextUrl.href);
+    headers.set(
+      'referer',
+      request.headers.get('referer') ?? buildExpectedReferer(request, requestOrigin)
+    );
   }
 
   if (!headers.has(INTERNAL_WEB_AUTH_HEADER)) {
@@ -95,16 +149,16 @@ export function requireSameOrigin(request: NextRequest): NextResponse | null {
     return null;
   }
 
-  const expectedOrigin = request.nextUrl.origin;
-  const origin = request.headers.get('origin');
-  if (origin === expectedOrigin) {
+  const expectedOrigins = getExpectedRequestOrigins(request);
+  const origin = normalizeOrigin(request.headers.get('origin'));
+  if (origin && expectedOrigins.has(origin)) {
     return null;
   }
 
   const referer = request.headers.get('referer');
   if (referer) {
     try {
-      if (new URL(referer).origin === expectedOrigin) {
+      if (expectedOrigins.has(new URL(referer).origin)) {
         return null;
       }
     } catch {

@@ -28,7 +28,7 @@ function normalizeOrigin(value: string | null | undefined): string | null {
   }
 }
 
-function resolveForwardedOrigin(request: NextRequest): string | null {
+export function resolveForwardedOrigin(request: NextRequest): string | null {
   const forwardedHost =
     request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
     request.headers.get('host')?.split(',')[0]?.trim();

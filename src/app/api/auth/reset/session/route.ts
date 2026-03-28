@@ -3,7 +3,6 @@ import {
   WEB_AUTH_PURPOSES,
   buildBackendUrl,
   buildForwardHeaders,
-  clearSessionCookie,
   getSessionIdFromCookies,
   readJsonResponse,
   requireSameOrigin,
@@ -45,14 +44,10 @@ export async function GET(request: NextRequest) {
   });
 
   const data = await readJsonResponse<Record<string, unknown>>(backendResponse);
-  const response = NextResponse.json(
+  return NextResponse.json(
     stripInternalSessionFields(data ?? {}) ?? {},
     { status: backendResponse.status }
   );
-  if (backendResponse.status === 401) {
-    clearSessionCookie(response);
-  }
-  return response;
 }
 
 export async function POST(request: NextRequest) {

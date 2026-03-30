@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Github, Linkedin, Twitter, Mail } from "lucide-react";
+import { X, Github, Linkedin, Link2, Twitter, Mail } from "lucide-react";
 import Image from "next/image";
 import { teamMembers, getTypeConfig } from "../_data";
 
@@ -57,6 +57,13 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
               if (!member) return null;
 
               const typeConfig = getTypeConfig(member.type);
+              const socialLinks = [
+                { href: member.social.github, icon: Github, label: "GitHub" },
+                { href: member.social.linkedin, icon: Linkedin, label: "LinkedIn" },
+                { href: member.social.twitter, icon: Twitter, label: "Twitter" },
+                { href: member.social.website, icon: Link2, label: member.social.websiteLabel ?? "Website" },
+                { href: member.social.email, icon: Mail, label: "Email" },
+              ].filter(({ href }) => href && href !== "#");
 
               return (
                 <div className="p-8 sm:p-10">
@@ -151,12 +158,7 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
                         Connect
                       </h3>
                       <div className="flex gap-3">
-                        {[
-                          { href: member.social.github, icon: Github, label: "GitHub" },
-                          { href: member.social.linkedin, icon: Linkedin, label: "LinkedIn" },
-                          { href: member.social.twitter, icon: Twitter, label: "Twitter" },
-                          { href: member.social.email, icon: Mail, label: "Email" },
-                        ].map(({ href, icon: Icon, label }) => (
+                        {socialLinks.map(({ href, icon: Icon, label }) => (
                           <a
                             key={label}
                             href={href}

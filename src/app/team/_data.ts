@@ -25,6 +25,8 @@ export interface TeamMember {
     github: string;
     linkedin: string;
     twitter: string;
+    website?: string;
+    websiteLabel?: string;
     email: string;
   };
 }
@@ -56,14 +58,14 @@ export const teamMembers: TeamMember[] = [
   },
   {
     name: "Brian Davies",
-    role: "Head of Finance",
+    role: "Co-Founder & Head of Finance",
     type: ["cofounder", "marketer"],
     image: "/images/team/brian-davies.jpg",
     icon: Briefcase,
-    shortBio: "Co-founder focused on corporate banking and company valuation, creating opportunities for entrepreneurs.",
-    fullBio: "Brian is a co-founder of Cassette Technologies and a Corporate Banking Associate at Huntington National Bank. He holds a Bachelor of Science in Finance from the American University - Kogod School of Business. With a focus on corporate banking and company valuation, Brian aims to create opportunities for both new and established entrepreneurs.",
-    background: "At Cassette Technologies, he successfully pitched the business concept into American University's accelerator program, led a team through a successful crowdfunding campaign, and established international business relationships. Currently works as a Corporate Banking Associate at Huntington National Bank.",
-    expertise: ["Corporate Banking", "Financial Modeling", "Credit Analysis", "Company Valuation", "Entrepreneurship"],
+    shortBio: "Co-Founder and finance professional focused on structuring early-stage ventures, business development, and operational strategy.",
+    fullBio: "Brian is a Co-Founder at Cassette Technologies and a Leveraged Finance Associate at Huntington National Bank. He is a startup founder and finance professional specializing in structuring and scaling early-stage ventures, with a focus on operational strategy and business development. He holds a Bachelor's degree in Finance from American University's Kogod School of Business with a specialization in entrepreneurship. At Cassette, he plays a central role in shaping and pitching the company's value proposition.",
+    background: "At his day job, Brian works on the Leveraged Finance Execution Team, where he focuses on leveraged buyouts and other debt placements for private equity clients. In this role, he originates and executes new business, gaining exposure to private market deals and investment proposals for complex financial transactions. This experience positions him well for early-stage venture funding and operational scaling, bridging his finance expertise with his entrepreneurial ambitions. At Cassette Technologies, Brian has successfully pitched the business concept into American University's Veloric Center for Entrepreneurship, led a team through a successful crowdfunding campaign, and onboarded angel investors. He has established strategic relationships with professionals both domestically and internationally, while building an online brand with a community of nearly 100,000 members.",
+    expertise: ["Business Development", "Company Valuation", "Venture Fundraising", "Office Suites"],
     social: { github: "#", linkedin: "#", twitter: "#", email: "mailto:brian@cassette.tech" },
   },
   {
@@ -112,7 +114,14 @@ export const teamMembers: TeamMember[] = [
     fullBio: "Vivian is a Social Media Intern at Cassette Technologies, and also a content creator on Twitch. She works with the marketing team to create engaging social media posts and manages accounts on all platforms. She is an undergraduate senior studying Business Administration with a Marketing specialization and a Communication minor at American University.",
     background: "Vivian has been an individual content creator for several years, cultivating her own social media followings through expert video editing, short-form content creation, and community involvement. She has experience managing social media accounts with large followings, creating memorable logos and other key visuals, and collaborating with similar creators.",
     expertise: ["Video Editing", "Content Creation", "Social Media Marketing", "Graphic Design", "Adobe Premiere Pro", "Capcut", "Procreate"],
-    social: { github: "#", linkedin: "#", twitter: "#", email: "mailto:vivian@cassette.tech" },
+    social: {
+      github: "#",
+      linkedin: "https://www.linkedin.com/in/vivian-carvalho-ba872a2b2/",
+      twitter: "#",
+      website: "https://linktr.ee/vivyin",
+      websiteLabel: "Linktree",
+      email: "mailto:vivian@cassette.tech",
+    },
   },
   {
     name: "Massimo Lotruglio",

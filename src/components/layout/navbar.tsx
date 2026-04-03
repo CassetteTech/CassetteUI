@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthState } from '@/hooks/use-auth';
@@ -25,7 +26,9 @@ import {
 export function Navbar() {
   const { user, isAuthenticated } = useAuthState();
   const { openReportModal } = useReportIssue();
+  const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const isHomePage = pathname === '/';
 
   return (
     <nav className="bg-background/95 backdrop-blur border-b border-border/20 fixed top-0 left-0 right-0 z-50">
@@ -112,6 +115,17 @@ export function Navbar() {
           <div className="flex items-center space-x-2 sm:space-x-4">
             {/* Theme Switcher - always visible in navbar */}
             <ThemeSwitcher />
+
+            {isHomePage && (
+              <button
+                className="hidden md:inline-flex items-center gap-1.5 text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                onClick={() => openReportModal({ sourceContext: 'home' })}
+                aria-label="Report a bug"
+              >
+                <AlertCircle className="h-4 w-4" />
+                <span>Report a Bug</span>
+              </button>
+            )}
 
             <button
               className="hidden md:inline-flex items-center gap-1.5 text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"

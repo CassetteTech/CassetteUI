@@ -3,6 +3,7 @@ import {
   WEB_AUTH_PURPOSES,
   buildBackendUrl,
   buildForwardHeaders,
+  clearSignupAttributionCookie,
   readJsonResponse,
   resolveForwardedOrigin,
   setSessionCookie,
@@ -54,5 +55,6 @@ export async function GET(request: NextRequest) {
 
   const response = NextResponse.redirect(buildPublicRedirectUrl(request, '/auth/google/callback'));
   setSessionCookie(response, data.sessionId, data.purpose);
+  clearSignupAttributionCookie(response);
   return response;
 }

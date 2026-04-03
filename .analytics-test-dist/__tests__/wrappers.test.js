@@ -121,6 +121,10 @@ async function collectCapturedPayloads(fetchPayloads, beaconPayloads) {
         userId: 'user-123',
         isAuthenticated: true,
         accountType: 'Regular',
+        signupSource: 'friend',
+        signupMedium: 'dm',
+        signupCampaign: 'spring_launch',
+        firstReferrerDomain: 'instagram.com',
     });
     const captured = await collectCapturedPayloads(mocks.fetchPayloads, mocks.beaconPayloads);
     const events = captured.map((payload) => payload.event);
@@ -128,8 +132,14 @@ async function collectCapturedPayloads(fetchPayloads, beaconPayloads) {
     strict_1.default.ok(events.includes('$create_alias'));
     strict_1.default.ok(events.includes('$identify'));
     const aliasPayload = captured.find((payload) => payload.event === '$create_alias');
+    const identifyPayload = captured.find((payload) => payload.event === '$identify');
     strict_1.default.equal(aliasPayload?.distinct_id, 'anon:test-user');
     strict_1.default.equal(aliasPayload?.properties?.alias, 'user-123');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.signup_source, 'friend');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.signup_medium, 'dm');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.signup_campaign, 'spring_launch');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.first_referrer_domain, 'instagram.com');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.first_touch_source, 'friend');
     mocks.restore();
     process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
     process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;

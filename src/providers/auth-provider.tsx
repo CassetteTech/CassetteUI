@@ -51,8 +51,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userId: user.id,
       isAuthenticated,
       accountType: user.accountType,
+      signupSource: user.signupAttribution?.source,
+      signupMedium: user.signupAttribution?.medium,
+      signupCampaign: user.signupAttribution?.campaign,
+      firstReferrerDomain: user.signupAttribution?.firstReferrerDomain,
     });
-  }, [user?.id, user?.accountType, isAuthenticated]);
+  }, [
+    user?.id,
+    user?.accountType,
+    user?.signupAttribution?.source,
+    user?.signupAttribution?.medium,
+    user?.signupAttribution?.campaign,
+    user?.signupAttribution?.firstReferrerDomain,
+    isAuthenticated,
+  ]);
 
   useEffect(() => {
     if (isLoading || !user) {

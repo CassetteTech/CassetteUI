@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   buildBackendUrl,
   buildForwardHeaders,
+  clearSignupAttributionCookie,
+  getSignupAttributionFromCookie,
   requireSameOrigin,
   readJsonResponse,
   setSessionCookie,
@@ -20,7 +22,8 @@ export async function POST(request: NextRequest) {
     return originError;
   }
 
-  const body = await request.text();
+  const payload = await request.json() as Record<string, unknown>;
+  const signupAttribution = getSignupAttributionFromCookie(request);
   const backendResponse = await fetch(buildBackendUrl('/api/web-auth/signup'), {
     method: 'POST',
     headers: buildForwardHeaders(request, {
@@ -30,7 +33,14 @@ export async function POST(request: NextRequest) {
         accept: 'application/json',
       },
     }),
-    body,
+    body: JSON.stringify(
+      signupAttribution
+        ? {
+            ...payload,
+            signupAttribution,
+          }
+        : payload,
+    ),
     cache: 'no-store',
   });
 
@@ -39,6 +49,10 @@ export async function POST(request: NextRequest) {
 
   if (backendResponse.ok && data?.authenticated === true && data.sessionId) {
     setSessionCookie(response, data.sessionId);
+  }
+
+  if (backendResponse.ok && data?.success === true) {
+    clearSignupAttributionCookie(response);
   }
 
   return response;

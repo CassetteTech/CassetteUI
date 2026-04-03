@@ -458,6 +458,14 @@ export interface AddMusicForm {
   description?: string;
 }
 
+export interface SignupAttribution {
+  source?: string;
+  medium?: string;
+  campaign?: string;
+  firstReferrerDomain?: string;
+  capturedAt?: string;
+}
+
 // Auth Types
 export interface AuthUser {
   id: string;
@@ -473,6 +481,7 @@ export interface AuthUser {
   createdAt: string;
   updatedAt: string;
   connectedServices?: ConnectedService[];
+  signupAttribution?: SignupAttribution;
 }
 
 // Internal dashboard types

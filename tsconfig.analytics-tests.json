@@ -3,6 +3,7 @@
   "compilerOptions": {
     "noEmit": false,
     "outDir": ".analytics-test-dist",
+    "rootDir": "src/lib/analytics",
     "module": "commonjs",
     "target": "es2020",
     "moduleResolution": "node",

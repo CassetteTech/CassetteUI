@@ -10,7 +10,7 @@
     "lint": "next lint",
     "test:e2e": "playwright test",
     "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
-    "test:analytics": "tsc -p tsconfig.analytics-tests.json && node --test .analytics-test-dist/**/*.test.js",
+    "test:analytics": "rm -rf .analytics-test-dist && tsc -p tsconfig.analytics-tests.json && node --test $(find .analytics-test-dist -name '*.test.js' -print)",
     "posthog:provision:dry": "node scripts/posthog/provision.mjs --dry-run",
     "posthog:provision": "node scripts/posthog/provision.mjs"
   },

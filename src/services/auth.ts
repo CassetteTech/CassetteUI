@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuthStore } from '@/stores/auth-store';
-import { AuthUser, SignInForm, SignUpForm, ConnectedService } from '@/types';
+import { AuthUser, SignInForm, SignUpForm, ConnectedService, SignupAttribution } from '@/types';
 import { prefetchProfileArtwork } from '@/services/profile-artwork-cache';
 import { captureClientEvent } from '@/lib/analytics/client';
 
@@ -61,6 +61,59 @@ class AuthService {
       });
 
     return normalized.filter((service): service is ConnectedService => service !== null);
+  }
+
+  private normalizeSignupAttribution(userData: Record<string, unknown>): SignupAttribution | undefined {
+    const rawAttribution = userData.signupAttribution ?? userData.SignupAttribution;
+    if (!rawAttribution || typeof rawAttribution !== 'object') {
+      return undefined;
+    }
+
+    const attribution = rawAttribution as Record<string, unknown>;
+    const normalized: SignupAttribution = {
+      source:
+        typeof attribution.source === 'string'
+          ? attribution.source
+          : typeof attribution.Source === 'string'
+            ? attribution.Source
+            : undefined,
+      medium:
+        typeof attribution.medium === 'string'
+          ? attribution.medium
+          : typeof attribution.Medium === 'string'
+            ? attribution.Medium
+            : undefined,
+      campaign:
+        typeof attribution.campaign === 'string'
+          ? attribution.campaign
+          : typeof attribution.Campaign === 'string'
+            ? attribution.Campaign
+            : undefined,
+      firstReferrerDomain:
+        typeof attribution.firstReferrerDomain === 'string'
+          ? attribution.firstReferrerDomain
+          : typeof attribution.FirstReferrerDomain === 'string'
+            ? attribution.FirstReferrerDomain
+            : undefined,
+      capturedAt:
+        typeof attribution.capturedAt === 'string'
+          ? attribution.capturedAt
+          : typeof attribution.CapturedAt === 'string'
+            ? attribution.CapturedAt
+            : undefined,
+    };
+
+    if (
+      !normalized.source &&
+      !normalized.medium &&
+      !normalized.campaign &&
+      !normalized.firstReferrerDomain &&
+      !normalized.capturedAt
+    ) {
+      return undefined;
+    }
+
+    return normalized;
   }
 
   private warmProfileArtworkCache(user: AuthUser | null) {
@@ -295,6 +348,7 @@ class AuthService {
     const isOnboardedRaw = userData.isOnboarded ?? userData.IsOnboarded ?? userData.is_onboarded;
     const accountTypeRaw = userData.accountType ?? userData.AccountType ?? userData.account_type;
     const likedPostsPrivacyRaw = userData.likedPostsPrivacy ?? userData.LikedPostsPrivacy;
+    const signupAttribution = this.normalizeSignupAttribution(userData);
 
     return {
       id: String(userId || ''),
@@ -319,6 +373,7 @@ class AuthService {
       createdAt: String(userData.joinDate || userData.createdAt || new Date().toISOString()),
       updatedAt: String(userData.updatedAt || new Date().toISOString()),
       connectedServices: this.normalizeConnectedServices(userData),
+      signupAttribution,
     };
   }
 

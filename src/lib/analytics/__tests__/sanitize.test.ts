@@ -12,6 +12,11 @@ test('sanitizeAnalyticsProps strips forbidden and unknown fields', () => {
     element_type: 'track',
     post_id: 'post-123',
     source_domain: 'https://open.spotify.com/track/abc?si=secret',
+    signup_source: 'friend',
+    signup_medium: 'dm',
+    signup_campaign: 'beta_batch',
+    first_referrer_domain: 'https://www.instagram.com/cassette',
+    first_touch_source: 'friend',
     user_id: 'user-1',
     internal_actor: true,
     description: 'should-not-pass',
@@ -26,6 +31,11 @@ test('sanitizeAnalyticsProps strips forbidden and unknown fields', () => {
   assert.equal(result.element_type, 'track');
   assert.equal(result.post_id, 'post-123');
   assert.equal(result.source_domain, 'open.spotify.com');
+  assert.equal(result.signup_source, 'friend');
+  assert.equal(result.signup_medium, 'dm');
+  assert.equal(result.signup_campaign, 'beta_batch');
+  assert.equal(result.first_referrer_domain, 'www.instagram.com');
+  assert.equal(result.first_touch_source, 'friend');
   assert.equal(result.user_id, 'user-1');
   assert.equal(result.internal_actor, true);
   assert.equal((result as Record<string, unknown>).description, undefined);

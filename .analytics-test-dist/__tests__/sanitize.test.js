@@ -15,6 +15,11 @@ const sanitize_1 = require("../sanitize");
         element_type: 'track',
         post_id: 'post-123',
         source_domain: 'https://open.spotify.com/track/abc?si=secret',
+        signup_source: 'friend',
+        signup_medium: 'dm',
+        signup_campaign: 'beta_batch',
+        first_referrer_domain: 'https://www.instagram.com/cassette',
+        first_touch_source: 'friend',
         user_id: 'user-1',
         internal_actor: true,
         description: 'should-not-pass',
@@ -28,6 +33,11 @@ const sanitize_1 = require("../sanitize");
     strict_1.default.equal(result.element_type, 'track');
     strict_1.default.equal(result.post_id, 'post-123');
     strict_1.default.equal(result.source_domain, 'open.spotify.com');
+    strict_1.default.equal(result.signup_source, 'friend');
+    strict_1.default.equal(result.signup_medium, 'dm');
+    strict_1.default.equal(result.signup_campaign, 'beta_batch');
+    strict_1.default.equal(result.first_referrer_domain, 'www.instagram.com');
+    strict_1.default.equal(result.first_touch_source, 'friend');
     strict_1.default.equal(result.user_id, 'user-1');
     strict_1.default.equal(result.internal_actor, true);
     strict_1.default.equal(result.description, undefined);

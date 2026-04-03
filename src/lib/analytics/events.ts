@@ -92,6 +92,11 @@ export type AnalyticsBaseProps = {
   element_type_guess?: ElementTypeDimension;
   report_type?: 'conversion_issue' | 'ui_bug' | 'general_feedback' | 'missing_track' | 'wrong_match';
   source_context?: SourceContextDimension;
+  signup_source?: string;
+  signup_medium?: string;
+  signup_campaign?: string;
+  first_referrer_domain?: string;
+  first_touch_source?: string;
   has_description?: boolean;
   has_conversion_context?: boolean;
   platform_count?: number;

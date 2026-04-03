@@ -43,6 +43,11 @@ const ALLOWED_KEYS = new Set([
     'element_type_guess',
     'report_type',
     'source_context',
+    'signup_source',
+    'signup_medium',
+    'signup_campaign',
+    'first_referrer_domain',
+    'first_touch_source',
     'has_description',
     'has_conversion_context',
     'platform_count',
@@ -144,6 +149,12 @@ function sanitizeAnalyticsProps(input) {
             const domain = sanitizeDomain(rawValue);
             if (domain)
                 sanitized.source_domain = domain;
+            continue;
+        }
+        if (key === 'first_referrer_domain') {
+            const domain = sanitizeDomain(rawValue);
+            if (domain)
+                sanitized.first_referrer_domain = domain;
             continue;
         }
         if (key === 'source_platform') {

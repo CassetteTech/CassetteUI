@@ -40,6 +40,11 @@ const ALLOWED_KEYS = new Set<keyof AnalyticsBaseProps>([
   'element_type_guess',
   'report_type',
   'source_context',
+  'signup_source',
+  'signup_medium',
+  'signup_campaign',
+  'first_referrer_domain',
+  'first_touch_source',
   'has_description',
   'has_conversion_context',
   'platform_count',
@@ -139,6 +144,12 @@ export function sanitizeAnalyticsProps(input: Partial<AnalyticsBaseProps>): Part
     if (key === 'source_domain') {
       const domain = sanitizeDomain(rawValue);
       if (domain) sanitized.source_domain = domain;
+      continue;
+    }
+
+    if (key === 'first_referrer_domain') {
+      const domain = sanitizeDomain(rawValue);
+      if (domain) sanitized.first_referrer_domain = domain;
       continue;
     }
 

@@ -19,6 +19,10 @@ type IdentifyUserContext = {
   plan?: string;
   isAuthenticated?: boolean;
   accountType?: string | number;
+  signupSource?: string;
+  signupMedium?: string;
+  signupCampaign?: string;
+  firstReferrerDomain?: string;
 };
 
 type SharedContext = {
@@ -427,6 +431,11 @@ export async function identifyClientUser(context: IdentifyUserContext): Promise<
     role: context.role,
     plan: context.plan,
     account_type: context.accountType != null ? String(context.accountType) : undefined,
+    signup_source: context.signupSource,
+    signup_medium: context.signupMedium,
+    signup_campaign: context.signupCampaign,
+    first_referrer_domain: context.firstReferrerDomain,
+    first_touch_source: context.signupSource,
     internal_actor: resolveInternalActor(context.accountType),
   });
 

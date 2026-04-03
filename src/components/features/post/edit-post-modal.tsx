@@ -140,6 +140,7 @@ export function EditPostModal({
           </Button>
           <Button
             onClick={handleSave}
+            data-testid="edit-post-save"
             disabled={updatePost.isPending || isOverLimit}
           >
             {updatePost.isPending ? (

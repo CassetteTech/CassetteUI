@@ -907,6 +907,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       <Button
                         variant="ghost"
                         size="icon"
+                        aria-label="Post actions"
+                        data-testid="post-actions-trigger"
                         className="rounded-full"
                       >
                         <MoreVertical className="h-5 w-5" />
@@ -1141,6 +1143,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     <div className="mt-5 w-full max-w-xl flex justify-center">
                       <Button
                         onClick={handleAddToProfile}
+                        data-testid="post-add-to-profile"
                         disabled={isAddingToProfile || addStatus === 'added'}
                         className="h-12 px-8 font-bold tracking-wide font-atkinson"
                       >
@@ -1256,11 +1259,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   {isOwnPost && (
                     <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                       <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="rounded-full"
-                        >
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Post actions"
+                              data-testid="post-actions-trigger"
+                              className="rounded-full"
+                            >
                           <MoreVertical className="h-5 w-5" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -1445,6 +1450,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           <div className="flex justify-center">
                             <Button
                               onClick={handleAddToProfile}
+                              data-testid="post-add-to-profile"
                               disabled={isAddingToProfile || addStatus === 'added'}
                               className="h-12 px-8 font-bold tracking-wide font-atkinson"
                             >
@@ -1550,11 +1556,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 {isOwnPost && (
                   <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                     <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="rounded-full"
-                      >
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Post actions"
+                          data-testid="post-actions-trigger"
+                          className="rounded-full"
+                        >
                         <MoreVertical className="h-5 w-5" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -1851,6 +1859,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 <div className="flex justify-center">
                   <Button
                     onClick={handleAddToProfile}
+                    data-testid="post-add-to-profile"
                     disabled={isAddingToProfile || addStatus === 'added'}
                     className="h-12 px-8 font-bold tracking-wide font-atkinson"
                   >

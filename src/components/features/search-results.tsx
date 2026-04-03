@@ -154,7 +154,10 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 md:px-4 mb-4 sm:mb-8 animate-in fade-in duration-300">
+    <div
+      data-testid="search-results"
+      className="w-full max-w-4xl mx-auto px-3 sm:px-6 md:px-4 mb-4 sm:mb-8 animate-in fade-in duration-300"
+    >
       {/* Search Results Container with retro shadow effect */}
       <div className="relative">
         {/* Bottom shadow layer */}
@@ -193,6 +196,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             {allResults.map((item, index) => (
               <div
                 key={`${item.type}-${item.id}-${index}`}
+                data-testid={`search-result-${item.type}-${item.id}`}
                 className="flex items-center gap-2 sm:gap-3 px-2 py-1.5 sm:p-3 hover:bg-muted/50 transition-colors cursor-pointer border-b border-border last:border-b-0"
                 onMouseDown={(e) => {
                   e.preventDefault(); // Prevent blur

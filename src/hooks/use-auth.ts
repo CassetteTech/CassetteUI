@@ -27,7 +27,6 @@ export const useSignIn = () => {
 
       // User is onboarded - honor pending action if exists
       if (pendingAction?.returnUrl) {
-        pendingActionService.clear();
         window.location.href = pendingAction.returnUrl;
         return;
       }
@@ -65,7 +64,6 @@ export const useSignUp = () => {
 
         // User is onboarded - honor pending action if exists
         if (pendingAction?.returnUrl) {
-          pendingActionService.clear();
           window.location.href = pendingAction.returnUrl;
           return;
         }

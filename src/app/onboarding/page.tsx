@@ -18,6 +18,7 @@ import { authService } from '@/services/auth';
 import { pendingActionService } from '@/utils/pending-action';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
+import { authRedirectService } from '@/utils/auth-redirect';
 
 // Step definitions (excluding welcome and completion which are special)
 const STEPS = [
@@ -76,10 +77,14 @@ export default function OnboardingPage() {
         // Check for pending action before redirecting (e.g., user came from playlist page)
         const pendingAction = pendingActionService.get();
         if (pendingAction?.returnUrl) {
-          pendingActionService.clear();
           window.location.href = pendingAction.returnUrl;
         } else {
-          router.replace('/profile');
+          const authRedirect = authRedirectService.consume();
+          if (authRedirect) {
+            window.location.href = authRedirect;
+          } else {
+            router.replace('/profile');
+          }
         }
         return;
       }
@@ -211,8 +216,13 @@ export default function OnboardingPage() {
     // Check for pending action (e.g., user came from playlist page to convert)
     const pendingAction = pendingActionService.get();
     if (pendingAction?.returnUrl) {
-      pendingActionService.clear();
       window.location.href = pendingAction.returnUrl;
+      return;
+    }
+
+    const authRedirect = authRedirectService.consume();
+    if (authRedirect) {
+      window.location.href = authRedirect;
       return;
     }
 

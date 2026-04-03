@@ -21,6 +21,7 @@ interface AnimatedButtonProps {
   onMouseDown?: () => void;
   className?: string;
   disabled?: boolean;
+  ['data-testid']?: string;
 }
 
 export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
@@ -41,6 +42,7 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
   onMouseDown,
   className,
   disabled = false,
+  'data-testid': dataTestId,
 }) => {
   const [position, setPosition] = useState(initialPos);
   const [, setIsPressed] = useState(false);
@@ -74,6 +76,7 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
       onClick={handleClick}
       onMouseDown={handleMouseDown}
       disabled={disabled}
+      data-testid={dataTestId}
       className={cn(
         'relative cursor-pointer select-none transition-all duration-50 ease-in',
         disabled && 'opacity-50 cursor-not-allowed',

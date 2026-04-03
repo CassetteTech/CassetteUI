@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { streamingServices } from './streaming-links';
@@ -67,6 +67,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   const [showFailedTracks, setShowFailedTracks] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [pendingPlatform, setPendingPlatform] = useState<PlatformKey | null>(null);
+  const autoResumeAttemptedRef = useRef(false);
   const conversionLimitExceeded =
     typeof playlistTrackCount === 'number' && playlistTrackCount > PLAYLIST_CONVERSION_LIMIT;
 
@@ -88,7 +89,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       ? (PLATFORMS.find((platform) => links[platform] === resolvedSourceUrl || links[platform]) as PlatformKey | undefined) || null
       : null);
 
-  const handleCreatePlaylist = async (platform: PlatformKey) => {
+  const handleCreatePlaylist = React.useCallback(async (platform: PlatformKey) => {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
     const normalizedTarget = platform === 'appleMusic' ? 'apple' : platform;
     const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
@@ -185,6 +186,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
       // Case 3: Has connection - create playlist directly
       const result = await apiService.createPlaylist(playlistId, platform.toLowerCase(), postId);
+      pendingActionService.clear();
       setCreationStatus({ platform, loading: false, result });
     } catch (error) {
       // Check if this is an auth error requiring re-authentication
@@ -223,7 +225,31 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
         error: error instanceof Error ? error.message : 'Failed to create playlist',
       });
     }
-  };
+  }, [isAuthenticated, playlistId, postId, resolvedSourceUrl, sourcePlatformKey]);
+
+  useEffect(() => {
+    if (!isAuthenticated || creationStatus || autoResumeAttemptedRef.current) {
+      return;
+    }
+
+    const pendingAction = pendingActionService.get();
+    if (!pendingAction || pendingAction.type !== 'create_playlist' || pendingAction.playlistId !== playlistId) {
+      return;
+    }
+
+    try {
+      const currentPath = window.location.pathname;
+      const pendingPath = new URL(pendingAction.returnUrl, window.location.origin).pathname;
+      if (currentPath !== pendingPath) {
+        return;
+      }
+    } catch {
+      return;
+    }
+
+    autoResumeAttemptedRef.current = true;
+    void handleCreatePlaylist(pendingAction.platform);
+  }, [creationStatus, handleCreatePlaylist, isAuthenticated, playlistId]);
 
   // Save pending action before navigating to auth pages
   const handleAuthNavigate = () => {
@@ -447,6 +473,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
             <button
               key={platform}
               type="button"
+              data-testid={`playlist-convert-${platform}`}
               className={commonClasses}
               disabled={isLoading}
               onClick={() => handleCreatePlaylist(platform)}

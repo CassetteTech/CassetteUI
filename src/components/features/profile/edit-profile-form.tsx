@@ -349,6 +349,7 @@ export function EditProfileFormComponent({
           <button
             type="submit"
             disabled={isLoading || isSaveOnCooldown}
+            data-testid="profile-save"
             className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3.5 px-6 rounded-lg font-medium disabled:opacity-50 transition-all"
           >
             {isLoading ? 'Saving...' : 'Save'}
@@ -390,4 +391,3 @@ export function EditProfileFormComponent({
     </div>
   );
 }
-

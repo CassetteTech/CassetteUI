@@ -166,6 +166,7 @@ export function ChooseHandleStep({
           <div className="relative">
             <Input
               id="username"
+              data-testid="onboarding-username"
               type="text"
               placeholder="your_username"
               value={formData.username}
@@ -209,6 +210,7 @@ export function ChooseHandleStep({
           </Label>
           <Input
             id="displayName"
+            data-testid="onboarding-display-name"
             type="text"
             placeholder="Your Name"
             value={formData.displayName}
@@ -235,6 +237,7 @@ export function ChooseHandleStep({
         <Button
           onClick={handleNext}
           disabled={!isFormValid}
+          data-testid="onboarding-handle-next"
           className="px-8"
         >
           Next

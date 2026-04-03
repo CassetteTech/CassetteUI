@@ -125,6 +125,7 @@ export function WelcomeStep({ onNext, displayName }: WelcomeStepProps) {
       >
         <Button
           onClick={onNext}
+          data-testid="onboarding-start"
           className="w-full py-6 text-lg font-semibold"
           size="lg"
         >

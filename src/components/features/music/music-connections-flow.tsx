@@ -328,6 +328,8 @@ export function MusicConnectionsFlow({
                         checked={state.isSelected}
                         onCheckedChange={() => handleToggle(service.id)}
                         disabled={state.isLoading}
+                        aria-label={`Toggle ${service.name}`}
+                        data-testid={`music-service-toggle-${service.id.toLowerCase()}`}
                       />
                     )}
                   </div>

@@ -437,6 +437,7 @@ export default function HomePage() {
                   >
                     <input
                       ref={searchInputRef}
+                      data-testid="home-search-input"
                       value={musicUrl}
                       onChange={handleUrlChange}
                       onFocus={handleSearchFocus}

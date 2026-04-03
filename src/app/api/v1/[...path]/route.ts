@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import {
   buildBackendUrl,
   buildForwardHeaders,
@@ -24,8 +24,17 @@ async function handleRequest(request: NextRequest, context: RouteContext) {
     );
   }
 
+  if (process.env.PLAYWRIGHT_TEST === 'true') {
+    return NextResponse.json(
+      { success: false, message: 'Backend is not configured for Playwright SSR proxy requests' },
+      { status: 503 }
+    );
+  }
+
+  const backendUrl = buildBackendUrl(`/api/v1/${path.join('/')}`, request.nextUrl.search);
+
   const backendResponse = await fetch(
-    buildBackendUrl(`/api/v1/${path.join('/')}`, request.nextUrl.search),
+    backendUrl,
     {
       method: request.method,
       headers: buildForwardHeaders(request),

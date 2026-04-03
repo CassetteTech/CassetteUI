@@ -192,6 +192,7 @@ export function CompletionStep({
         >
           <Button
             onClick={onComplete}
+            data-testid="onboarding-go-profile"
             className="w-full py-6 text-lg font-semibold"
             size="lg"
           >

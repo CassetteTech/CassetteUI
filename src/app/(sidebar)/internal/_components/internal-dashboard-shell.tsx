@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Users, AlertCircle, Shield } from 'lucide-react';
+import { Users, AlertCircle, Link2, Shield } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { apiService, ApiError } from '@/services/api';
 import {
@@ -19,16 +19,17 @@ import { Badge } from '@/components/ui/badge';
 import { normalizeAccountType, PAGE_SIZE } from './internal-utils';
 import { UsersTab } from './users-tab';
 import { IssuesTab } from './issues-tab';
+import { AttributionTab } from './attribution-tab';
 
 export function InternalDashboardShell() {
   const usersRequestIdRef = useRef(0);
-  const [activeTab, setActiveTab] = useState<'users' | 'issues'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'issues' | 'attribution'>('users');
 
   // ─── Users state ───────────────────────────────────────────────────
   const [userSearch, setUserSearch] = useState('');
   const [userAccountTypeFilter, setUserAccountTypeFilter] = useState('');
   const [userOnboardedFilter, setUserOnboardedFilter] = useState('');
-  const [userSortBy, setUserSortBy] = useState<'joinDate' | 'likesAllTime' | 'likes30d'>('likesAllTime');
+  const [userSortBy, setUserSortBy] = useState<'joinDate' | 'lastOnlineAt' | 'likesAllTime' | 'likes30d'>('likesAllTime');
   const [userSortDirection, setUserSortDirection] = useState<'asc' | 'desc'>('desc');
   const [usersPage, setUsersPage] = useState(1);
   const [usersResponse, setUsersResponse] = useState<InternalUsersResponse | null>(null);
@@ -69,37 +70,26 @@ export function InternalDashboardShell() {
   // ─── Data loading ──────────────────────────────────────────────────
   const hydratePostCountsIfNeeded = useCallback(async (users: InternalUserSummary[], requestId: number) => {
     if (!users.length) return;
-
     const counts = new Map<string, number>();
     const workerCount = Math.min(5, users.length);
     let cursor = 0;
-
     const workers = Array.from({ length: workerCount }, async () => {
       while (true) {
         const idx = cursor;
         cursor += 1;
         if (idx >= users.length) break;
-
         const user = users[idx];
         try {
           const detail = await apiService.getInternalUserById(user.userId);
           const detailCount = Number(detail.user.postCount);
-          if (Number.isFinite(detailCount)) {
-            counts.set(user.userId, detailCount);
-            continue;
-          }
-
+          if (Number.isFinite(detailCount)) { counts.set(user.userId, detailCount); continue; }
           const fallbackCount = await apiService.getUserPostCount(user.userId);
           counts.set(user.userId, fallbackCount);
-        } catch {
-          counts.set(user.userId, 0);
-        }
+        } catch { counts.set(user.userId, 0); }
       }
     });
-
     await Promise.all(workers);
     if (requestId !== usersRequestIdRef.current) return;
-
     setUsersResponse((prev) => {
       if (!prev) return prev;
       return {
@@ -138,31 +128,16 @@ export function InternalDashboardShell() {
           likesReceived30d: Number.isFinite(parsedLikes30d) ? parsedLikes30d : 0,
         };
       });
-
-      setUsersResponse({
-        ...response,
-        items: normalizedItems,
-      });
-
+      setUsersResponse({ ...response, items: normalizedItems });
       const allZero = normalizedItems.every((item) => (item.postCount ?? 0) === 0);
-      if (allZero) {
-        void hydratePostCountsIfNeeded(normalizedItems, requestId);
-      }
+      if (allZero) void hydratePostCountsIfNeeded(normalizedItems, requestId);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load users';
       setUsersError(message);
     } finally {
       setUsersLoading(false);
     }
-  }, [
-    debouncedUserSearch,
-    userAccountTypeFilter,
-    userOnboardedFilter,
-    userSortBy,
-    userSortDirection,
-    usersPage,
-    hydratePostCountsIfNeeded,
-  ]);
+  }, [debouncedUserSearch, userAccountTypeFilter, userOnboardedFilter, userSortBy, userSortDirection, usersPage, hydratePostCountsIfNeeded]);
 
   const loadUserDetails = async (userId: string) => {
     setSelectedUserLoading(true);
@@ -177,8 +152,7 @@ export function InternalDashboardShell() {
       }
       setTargetCanAssignVerified(Boolean(detail.user.canAssignVerified));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load user details';
-      toast.error(message);
+      toast.error(error instanceof Error ? error.message : 'Failed to load user details');
     } finally {
       setSelectedUserLoading(false);
     }
@@ -190,8 +164,7 @@ export function InternalDashboardShell() {
       const audit = await apiService.getInternalUserAccountTypeAudit(userId);
       setSelectedUserAudit(audit);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load audit log';
-      toast.error(message);
+      toast.error(error instanceof Error ? error.message : 'Failed to load audit log');
     } finally {
       setSelectedUserAuditLoading(false);
     }
@@ -210,8 +183,7 @@ export function InternalDashboardShell() {
       });
       setIssuesResponse(response);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load issues';
-      setIssuesError(message);
+      setIssuesError(error instanceof Error ? error.message : 'Failed to load issues');
     } finally {
       setIssuesLoading(false);
     }
@@ -223,23 +195,15 @@ export function InternalDashboardShell() {
       const detail = await apiService.getInternalIssueById(issueId);
       setSelectedIssue(detail);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load issue details';
-      toast.error(message);
+      toast.error(error instanceof Error ? error.message : 'Failed to load issue details');
     } finally {
       setSelectedIssueLoading(false);
     }
   };
 
   // ─── Effects ───────────────────────────────────────────────────────
-  useEffect(() => {
-    void loadUsers();
-  }, [loadUsers]);
-
-  useEffect(() => {
-    if (activeTab === 'issues') {
-      void loadIssues();
-    }
-  }, [activeTab, loadIssues]);
+  useEffect(() => { void loadUsers(); }, [loadUsers]);
+  useEffect(() => { if (activeTab === 'issues') void loadIssues(); }, [activeTab, loadIssues]);
 
   // ─── Handlers ──────────────────────────────────────────────────────
   const handleSelectUser = async (summary: InternalUserSummary) => {
@@ -247,52 +211,26 @@ export function InternalDashboardShell() {
     await Promise.all([loadUserDetails(summary.userId), loadUserAudit(summary.userId)]);
   };
 
-  const handleSelectIssue = (summary: InternalIssueSummary) => {
-    void loadIssueDetail(summary.id);
-  };
+  const handleSelectIssue = (summary: InternalIssueSummary) => { void loadIssueDetail(summary.id); };
 
   const handleUpdateInternalAccess = async () => {
     if (!selectedUser) return;
     const reason = accountTypeReason.trim();
-    if (!reason) {
-      toast.error('A reason is required for internal access changes.');
-      return;
-    }
-
+    if (!reason) { toast.error('A reason is required for internal access changes.'); return; }
     const normalizedCurrentType = normalizeAccountType(selectedUser.accountType as string | number);
-    const currentType = normalizedCurrentType === 'Regular' || normalizedCurrentType === 'Verified' || normalizedCurrentType === 'CassetteTeam'
-      ? normalizedCurrentType
-      : 'Unknown';
+    const currentType = normalizedCurrentType === 'Regular' || normalizedCurrentType === 'Verified' || normalizedCurrentType === 'CassetteTeam' ? normalizedCurrentType : 'Unknown';
     const effectiveTargetCanAssign = targetAccountType === 'CassetteTeam' ? targetCanAssignVerified : false;
-    const effectiveCurrentCanAssign = normalizedCurrentType === 'CassetteTeam'
-      ? Boolean(selectedUser.canAssignVerified)
-      : false;
-
-    if (currentType === targetAccountType && effectiveCurrentCanAssign === effectiveTargetCanAssign) {
-      toast.error('No changes to apply.');
-      return;
-    }
-
+    const effectiveCurrentCanAssign = normalizedCurrentType === 'CassetteTeam' ? Boolean(selectedUser.canAssignVerified) : false;
+    if (currentType === targetAccountType && effectiveCurrentCanAssign === effectiveTargetCanAssign) { toast.error('No changes to apply.'); return; }
     setUpdatingAccountType(true);
     try {
-      await apiService.updateInternalUserInternalAccess(selectedUser.userId, {
-        accountType: targetAccountType,
-        canAssignVerified: effectiveTargetCanAssign,
-        reason,
-      });
+      await apiService.updateInternalUserInternalAccess(selectedUser.userId, { accountType: targetAccountType, canAssignVerified: effectiveTargetCanAssign, reason });
       toast.success('Internal access updated.');
       setAccountTypeReason('');
-      await Promise.all([
-        loadUsers(),
-        loadUserDetails(selectedUser.userId),
-        loadUserAudit(selectedUser.userId),
-      ]);
+      await Promise.all([loadUsers(), loadUserDetails(selectedUser.userId), loadUserAudit(selectedUser.userId)]);
     } catch (error) {
-      if (error instanceof ApiError && error.message) {
-        toast.error(error.message);
-      } else {
-        toast.error('Failed to update account type.');
-      }
+      if (error instanceof ApiError && error.message) toast.error(error.message);
+      else toast.error('Failed to update account type.');
     } finally {
       setUpdatingAccountType(false);
     }
@@ -308,7 +246,6 @@ export function InternalDashboardShell() {
         sortBy: userSortBy,
         sortDirection: userSortDirection,
       });
-
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -318,100 +255,74 @@ export function InternalDashboardShell() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to export CSV';
-      toast.error(message);
+      toast.error(error instanceof Error ? error.message : 'Failed to export CSV');
     } finally {
       setDownloadingCsv(false);
     }
   };
 
-  const handleUserSearchChange = (value: string) => {
-    setUserSearch(value);
-    setUsersPage(1);
-  };
-
-  const handleUserAccountTypeFilterChange = (value: string) => {
-    setUserAccountTypeFilter(value);
-    setUsersPage(1);
-  };
-
-  const handleUserOnboardedFilterChange = (value: string) => {
-    setUserOnboardedFilter(value);
-    setUsersPage(1);
-  };
-
-  const handleUserSortByChange = (value: 'joinDate' | 'likesAllTime' | 'likes30d') => {
-    setUserSortBy(value);
-    setUsersPage(1);
-  };
-
-  const handleUserSortDirectionChange = (value: 'asc' | 'desc') => {
-    setUserSortDirection(value);
-    setUsersPage(1);
-  };
-
-  const handleIssueSearchChange = (value: string) => {
-    setIssueSearch(value);
-    setIssuesPage(1);
-  };
-
-  const handleIssueReportTypeFilterChange = (value: string) => {
-    setIssueReportTypeFilter(value);
-    setIssuesPage(1);
-  };
-
-  const handleIssueSourceContextFilterChange = (value: string) => {
-    setIssueSourceContextFilter(value);
-    setIssuesPage(1);
-  };
+  const handleUserSearchChange = (value: string) => { setUserSearch(value); setUsersPage(1); };
+  const handleUserAccountTypeFilterChange = (value: string) => { setUserAccountTypeFilter(value); setUsersPage(1); };
+  const handleUserOnboardedFilterChange = (value: string) => { setUserOnboardedFilter(value); setUsersPage(1); };
+  const handleUserSortByChange = (value: 'joinDate' | 'lastOnlineAt' | 'likesAllTime' | 'likes30d') => { setUserSortBy(value); setUsersPage(1); };
+  const handleUserSortDirectionChange = (value: 'asc' | 'desc') => { setUserSortDirection(value); setUsersPage(1); };
+  const handleIssueSearchChange = (value: string) => { setIssueSearch(value); setIssuesPage(1); };
+  const handleIssueReportTypeFilterChange = (value: string) => { setIssueReportTypeFilter(value); setIssuesPage(1); };
+  const handleIssueSourceContextFilterChange = (value: string) => { setIssueSourceContextFilter(value); setIssuesPage(1); };
 
   // ─── Render ────────────────────────────────────────────────────────
   return (
     <Tabs
       value={activeTab}
-      onValueChange={(value) => setActiveTab(value as 'users' | 'issues')}
+      onValueChange={(value) => setActiveTab(value as 'users' | 'issues' | 'attribution')}
       className="flex flex-col bg-background lg:flex-1 lg:min-h-0"
     >
-      {/* Header: title + tab switcher — stays fixed on desktop */}
+      {/* Header */}
       <div className="px-4 pt-6 pb-4 md:px-6 lg:px-8 lg:border-b lg:bg-background/80 lg:backdrop-blur-sm">
         <div className="flex w-full flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
-              <Shield className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight">Internal Dashboard</h1>
-              <p className="text-xs text-muted-foreground">
-                CassetteTeam operations &middot; User management &middot; Issue intake
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
+                <Shield className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold tracking-tight">Internal Dashboard</h1>
+                <p className="text-[11px] text-muted-foreground">
+                  User management, issue intake, and signup attribution
+                </p>
+              </div>
             </div>
           </div>
-          <TabsList>
-            <TabsTrigger value="users" className="gap-2">
-              <Users className="h-4 w-4" />
+          <TabsList className="w-fit">
+            <TabsTrigger value="users" className="gap-1.5 text-xs">
+              <Users className="h-3.5 w-3.5" />
               Users
               {usersResponse && (
-                <Badge variant="secondary" className="ml-1 h-5 min-w-[1.25rem] px-1 text-[10px]">
+                <Badge variant="secondary" className="ml-0.5 h-4 min-w-[1rem] px-1 text-[10px] leading-none">
                   {usersResponse.totalItems}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="issues" className="gap-2">
-              <AlertCircle className="h-4 w-4" />
+            <TabsTrigger value="issues" className="gap-1.5 text-xs">
+              <AlertCircle className="h-3.5 w-3.5" />
               Issues
               {issuesResponse && (
-                <Badge variant="secondary" className="ml-1 h-5 min-w-[1.25rem] px-1 text-[10px]">
+                <Badge variant="secondary" className="ml-0.5 h-4 min-w-[1rem] px-1 text-[10px] leading-none">
                   {issuesResponse.totalItems}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="attribution" className="gap-1.5 text-xs">
+              <Link2 className="h-3.5 w-3.5" />
+              Attribution
             </TabsTrigger>
           </TabsList>
         </div>
       </div>
 
-      {/* Content: only this area scrolls on desktop */}
+      {/* Content */}
       <div className="lg:flex-1 lg:overflow-y-auto">
-        <div className="w-full px-4 md:px-6 lg:px-8 py-6">
+        <div className="w-full px-4 md:px-6 lg:px-8 py-5">
           <TabsContent value="users">
             <UsersTab
               search={userSearch}
@@ -469,6 +380,10 @@ export function InternalDashboardShell() {
               selectedIssueLoading={selectedIssueLoading}
               onSelectIssue={handleSelectIssue}
             />
+          </TabsContent>
+
+          <TabsContent value="attribution">
+            <AttributionTab />
           </TabsContent>
         </div>
       </div>

@@ -1,19 +1,19 @@
 'use client';
 
 import { useMemo } from 'react';
-import { FileText, ExternalLink } from 'lucide-react';
+import { FileText, ExternalLink, Copy, Clock, Globe, Link, Inbox } from 'lucide-react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { InternalIssueDetail } from '@/types';
 import { formatDate } from './internal-utils';
 import { EmptyState } from './empty-state';
@@ -30,14 +30,24 @@ function DetailSkeleton() {
         <Skeleton className="h-5 w-20 rounded-md" />
         <Skeleton className="h-5 w-24 rounded-md" />
       </div>
-      <Separator />
       <div className="space-y-2">
         <Skeleton className="h-3 w-full" />
         <Skeleton className="h-3 w-3/4" />
         <Skeleton className="h-3 w-1/2" />
       </div>
-      <Separator />
       <Skeleton className="h-24 w-full rounded-md" />
+    </div>
+  );
+}
+
+function MetadataRow({ icon: Icon, label, children }: { icon: React.ElementType; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-3 py-2">
+      <Icon className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-0.5">{label}</p>
+        <div className="text-sm">{children}</div>
+      </div>
     </div>
   );
 }
@@ -52,100 +62,131 @@ export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
     }
   }, [issue?.payload]);
 
+  const handleCopy = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copied`);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  };
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Issue Detail</CardTitle>
-        <CardDescription>Payload and metadata captured via in-app report submissions.</CardDescription>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Issue Detail</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent>
         {isLoading ? (
           <DetailSkeleton />
         ) : issue ? (
-          <>
-            {/* Header: Type + Context badges */}
+          <div className="space-y-4">
+            {/* Type + Context badges */}
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="default">{issue.reportType}</Badge>
               <Badge variant="outline">{issue.sourceContext}</Badge>
             </div>
 
-            <Separator />
-
             {/* Reporter */}
-            <div className="flex items-center gap-3 text-sm">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback>
+            <div className="flex items-center gap-3 rounded-lg bg-muted/40 p-3">
+              <Avatar className="h-9 w-9">
+                <AvatarFallback className="text-xs font-medium bg-background">
                   {(issue.username || issue.userEmail || 'A').charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <p className="font-medium">{issue.username || issue.userEmail || 'Anonymous'}</p>
-                <p className="text-xs text-muted-foreground">{formatDate(issue.createdAt)}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {issue.username || issue.userEmail || 'Anonymous'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {issue.userEmail && issue.username ? issue.userEmail : ''}
+                </p>
               </div>
             </div>
 
-            <Separator />
-
             {/* Metadata */}
-            <div className="grid gap-1.5 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Issue ID</span>
-                <span className="font-mono text-xs">{issue.id}</span>
-              </div>
+            <div className="divide-y">
+              <MetadataRow icon={FileText} label="Issue ID">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-xs truncate">{issue.id}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 shrink-0"
+                    onClick={() => void handleCopy(issue.id, 'Issue ID')}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              </MetadataRow>
+
+              <MetadataRow icon={Clock} label="Created">
+                {formatDate(issue.createdAt)}
+              </MetadataRow>
+
               {issue.pageUrl && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Page URL</span>
+                <MetadataRow icon={Globe} label="Page URL">
                   <a
                     href={issue.pageUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline truncate max-w-[200px]"
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline truncate max-w-full"
                   >
-                    {issue.pageUrl}
+                    <span className="truncate">{issue.pageUrl}</span>
                     <ExternalLink className="h-3 w-3 shrink-0" />
                   </a>
-                </div>
+                </MetadataRow>
               )}
+
               {issue.sourceLink && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Source Link</span>
+                <MetadataRow icon={Link} label="Source Link">
                   <a
                     href={issue.sourceLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline truncate max-w-[200px]"
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline truncate max-w-full"
                   >
-                    {issue.sourceLink}
+                    <span className="truncate">{issue.sourceLink}</span>
                     <ExternalLink className="h-3 w-3 shrink-0" />
                   </a>
-                </div>
+                </MetadataRow>
               )}
             </div>
 
             {/* Payload */}
             {formattedPayload && (
-              <>
-                <Separator />
-                <Collapsible defaultOpen>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-0">
-                      <FileText className="h-4 w-4" />
-                      Payload
+              <Collapsible defaultOpen>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between gap-2 h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+                    <div className="flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5" />
+                      Payload Data
+                    </div>
+                    <Badge variant="outline" className="text-[10px] h-4 px-1.5">JSON</Badge>
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="relative mt-1.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 right-2 h-6 w-6 z-10"
+                      onClick={() => void handleCopy(formattedPayload, 'Payload')}
+                    >
+                      <Copy className="h-3 w-3" />
                     </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
                     <ScrollArea className="max-h-[360px]">
-                      <pre className="rounded-md border bg-muted/30 p-3 text-xs font-mono whitespace-pre-wrap break-all">
+                      <pre className="rounded-lg border bg-muted/30 p-3 pr-10 text-[11px] font-mono leading-relaxed whitespace-pre-wrap break-all">
                         {formattedPayload}
                       </pre>
                     </ScrollArea>
-                  </CollapsibleContent>
-                </Collapsible>
-              </>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
-          </>
+          </div>
         ) : (
-          <EmptyState icon={FileText} title="No issue selected" description="Select an issue to inspect details." />
+          <EmptyState icon={Inbox} title="No issue selected" description="Click an issue from the table to view its details and payload." />
         )}
       </CardContent>
     </Card>

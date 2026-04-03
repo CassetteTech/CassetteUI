@@ -1,6 +1,8 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import type { InternalUserSummary, InternalUserDetail, InternalAccountTypeAuditEntry, InternalUsersResponse } from '@/types';
 import type { normalizeAccountType } from './internal-utils';
 import { UsersFilterBar } from './users-filter-bar';
@@ -11,37 +13,28 @@ import { UserDetailPanel } from './user-detail-panel';
 import { AuditLogTimeline } from './audit-log-timeline';
 
 interface UsersTabProps {
-  // Filter state
   search: string;
   onSearchChange: (value: string) => void;
   accountTypeFilter: string;
   onAccountTypeFilterChange: (value: string) => void;
   onboardedFilter: string;
   onOnboardedFilterChange: (value: string) => void;
-  sortBy: 'joinDate' | 'likesAllTime' | 'likes30d';
-  onSortByChange: (value: 'joinDate' | 'likesAllTime' | 'likes30d') => void;
+  sortBy: 'joinDate' | 'lastOnlineAt' | 'likesAllTime' | 'likes30d';
+  onSortByChange: (value: 'joinDate' | 'lastOnlineAt' | 'likesAllTime' | 'likes30d') => void;
   sortDirection: 'asc' | 'desc';
   onSortDirectionChange: (value: 'asc' | 'desc') => void;
-
-  // Table state
   usersResponse: InternalUsersResponse | null;
   usersLoading: boolean;
   usersError: string | null;
   usersPage: number;
   onPageChange: (page: number) => void;
-
-  // Actions
   onRefresh: () => void;
   onExportCsv: () => void;
   downloadingCsv: boolean;
-
-  // Selection
   selectedUser: InternalUserDetail | null;
   selectedUserLoading: boolean;
   selectedUserId: string | null;
   onSelectUser: (user: InternalUserSummary) => void;
-
-  // Account type controls
   selectedUserAccountType: ReturnType<typeof normalizeAccountType>;
   actorCanAssignVerified: boolean;
   targetAccountType: 'Regular' | 'Verified' | 'CassetteTeam';
@@ -52,8 +45,6 @@ interface UsersTabProps {
   onReasonChange: (reason: string) => void;
   updatingAccountType: boolean;
   onUpdateAccountType: () => void;
-
-  // Audit log
   auditEntries: InternalAccountTypeAuditEntry[];
   auditLoading: boolean;
 }
@@ -94,16 +85,30 @@ export function UsersTab({
   auditEntries,
   auditLoading,
 }: UsersTabProps) {
+  const totalUsers = usersResponse?.totalItems ?? 0;
+
   return (
     <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
       {/* Master: table & filters */}
       <div className="min-w-0 flex-1">
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Users</CardTitle>
-            <CardDescription>Search, inspect profiles, assign roles, and export CSV.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          <div className="px-6 pt-5 pb-1">
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10">
+                <Users className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <h2 className="text-base font-semibold">Users</h2>
+              {totalUsers > 0 && (
+                <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+                  {totalUsers.toLocaleString()}
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Search, inspect profiles, assign roles, and export data.
+            </p>
+          </div>
+          <CardContent className="space-y-4 pt-0">
             <UsersFilterBar
               search={search}
               onSearchChange={onSearchChange}

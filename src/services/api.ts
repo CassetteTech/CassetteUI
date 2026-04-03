@@ -16,6 +16,13 @@ import {
   InternalAccountTypeAuditEntry,
   InternalIssuesResponse,
   InternalIssueDetail,
+  InternalSignupAttributionOverview,
+  InternalSignupAttributionBreakdownResponse,
+  InternalSignupAttributionUsersResponse,
+  InternalSignupAttributionGroupBy,
+  InternalSignupLinkTemplate,
+  CreateInternalSignupLinkTemplateRequest,
+  UpdateInternalSignupLinkTemplateRequest,
   UpdateInternalAccountTypeRequest,
   NotificationListResponse,
   NotificationUnreadCountResponse,
@@ -491,7 +498,7 @@ class ApiService {
     q?: string;
     accountType?: string;
     isOnboarded?: string;
-    sortBy?: 'joinDate' | 'likesAllTime' | 'likes30d';
+    sortBy?: 'joinDate' | 'lastOnlineAt' | 'likesAllTime' | 'likes30d';
     sortDirection?: 'asc' | 'desc';
     page?: number;
     pageSize?: number;
@@ -573,7 +580,7 @@ class ApiService {
     q?: string;
     accountType?: string;
     isOnboarded?: string;
-    sortBy?: 'joinDate' | 'likesAllTime' | 'likes30d';
+    sortBy?: 'joinDate' | 'lastOnlineAt' | 'likesAllTime' | 'likes30d';
     sortDirection?: 'asc' | 'desc';
   } = {}): Promise<Blob> {
     const query = new URLSearchParams();
@@ -597,6 +604,162 @@ class ApiService {
     }
 
     return response.blob();
+  }
+
+  async getInternalSignupAttributionOverview(params: {
+    from?: string;
+    to?: string;
+    source?: string;
+    medium?: string;
+    campaign?: string;
+    referrerDomain?: string;
+  } = {}): Promise<InternalSignupAttributionOverview> {
+    const query = new URLSearchParams();
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+    if (params.source) query.set('source', params.source);
+    if (params.medium) query.set('medium', params.medium);
+    if (params.campaign) query.set('campaign', params.campaign);
+    if (params.referrerDomain) query.set('referrerDomain', params.referrerDomain);
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request<InternalSignupAttributionOverview>(
+      `/api/v1/internal/signup-attribution/overview${suffix}`,
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async getInternalSignupAttributionBreakdown(params: {
+    groupBy?: InternalSignupAttributionGroupBy;
+    from?: string;
+    to?: string;
+    source?: string;
+    medium?: string;
+    campaign?: string;
+    referrerDomain?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}): Promise<InternalSignupAttributionBreakdownResponse> {
+    const query = new URLSearchParams();
+    if (params.groupBy) query.set('groupBy', params.groupBy);
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+    if (params.source) query.set('source', params.source);
+    if (params.medium) query.set('medium', params.medium);
+    if (params.campaign) query.set('campaign', params.campaign);
+    if (params.referrerDomain) query.set('referrerDomain', params.referrerDomain);
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request<InternalSignupAttributionBreakdownResponse>(
+      `/api/v1/internal/signup-attribution/breakdown${suffix}`,
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async getInternalSignupAttributionUsers(params: {
+    q?: string;
+    from?: string;
+    to?: string;
+    source?: string;
+    medium?: string;
+    campaign?: string;
+    referrerDomain?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}): Promise<InternalSignupAttributionUsersResponse> {
+    const query = new URLSearchParams();
+    if (params.q) query.set('q', params.q);
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+    if (params.source) query.set('source', params.source);
+    if (params.medium) query.set('medium', params.medium);
+    if (params.campaign) query.set('campaign', params.campaign);
+    if (params.referrerDomain) query.set('referrerDomain', params.referrerDomain);
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request<InternalSignupAttributionUsersResponse>(
+      `/api/v1/internal/signup-attribution/users${suffix}`,
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async exportInternalSignupAttributionCsv(params: {
+    view: 'users' | 'breakdown';
+    groupBy?: InternalSignupAttributionGroupBy;
+    q?: string;
+    from?: string;
+    to?: string;
+    source?: string;
+    medium?: string;
+    campaign?: string;
+    referrerDomain?: string;
+  }): Promise<Blob> {
+    const query = new URLSearchParams();
+    query.set('view', params.view);
+    if (params.groupBy) query.set('groupBy', params.groupBy);
+    if (params.q) query.set('q', params.q);
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+    if (params.source) query.set('source', params.source);
+    if (params.medium) query.set('medium', params.medium);
+    if (params.campaign) query.set('campaign', params.campaign);
+    if (params.referrerDomain) query.set('referrerDomain', params.referrerDomain);
+
+    const url = `${this.baseUrl}/api/v1/internal/signup-attribution/export?${query.toString()}`;
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new ApiError(`Failed to export signup attribution CSV (${response.status})`, false, undefined, response.status);
+    }
+
+    return response.blob();
+  }
+
+  async getInternalSignupLinkTemplates(): Promise<InternalSignupLinkTemplate[]> {
+    return this.request<InternalSignupLinkTemplate[]>(
+      '/api/v1/internal/signup-link-templates',
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async createInternalSignupLinkTemplate(
+    payload: CreateInternalSignupLinkTemplateRequest
+  ): Promise<InternalSignupLinkTemplate> {
+    return this.request<InternalSignupLinkTemplate>('/api/v1/internal/signup-link-templates', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      timeoutMs: 20000,
+    });
+  }
+
+  async updateInternalSignupLinkTemplate(
+    templateId: string,
+    payload: UpdateInternalSignupLinkTemplateRequest
+  ): Promise<InternalSignupLinkTemplate> {
+    return this.request<InternalSignupLinkTemplate>(
+      `/api/v1/internal/signup-link-templates/${templateId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+        timeoutMs: 20000,
+      }
+    );
+  }
+
+  async deleteInternalSignupLinkTemplate(templateId: string): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(
+      `/api/v1/internal/signup-link-templates/${templateId}`,
+      {
+        method: 'DELETE',
+        timeoutMs: 20000,
+      }
+    );
   }
 
   // Social endpoints

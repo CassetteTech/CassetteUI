@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { profileService } from '@/services/profile';
-import { UserBio, PaginatedActivityResponse } from '@/types';
+import { UserBio, PaginatedActivityResponse, PaginatedExploreUsersResponse } from '@/types';
 
 /**
  * Query keys for profile-related queries.
@@ -14,6 +14,8 @@ export const profileQueryKeys = {
   likedActivity: (userId: string, page?: number) => ['user-liked-activity', userId, page] as const,
   exploreActivity: (page?: number, pageSize?: number) =>
     ['explore-activity', page, pageSize] as const,
+  exploreUsers: (page?: number, pageSize?: number) =>
+    ['explore-users', page, pageSize] as const,
 };
 
 /**
@@ -145,6 +147,19 @@ export const useExploreActivity = (options: ExploreQueryOptions = {}) => {
   return useQuery<PaginatedActivityResponse, Error>({
     queryKey: profileQueryKeys.exploreActivity(page, pageSize),
     queryFn: () => profileService.fetchExploreActivity({ page, pageSize }),
+    enabled,
+    refetchOnMount: 'always',
+    staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 5,
+  });
+};
+
+export const useExploreUsers = (options: ExploreQueryOptions = {}) => {
+  const { page = 1, pageSize = 20, enabled = true } = options;
+
+  return useQuery<PaginatedExploreUsersResponse, Error>({
+    queryKey: profileQueryKeys.exploreUsers(page, pageSize),
+    queryFn: () => profileService.fetchExploreUsers({ page, pageSize }),
     enabled,
     refetchOnMount: 'always',
     staleTime: 1000 * 60 * 2,

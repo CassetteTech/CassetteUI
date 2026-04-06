@@ -74,6 +74,25 @@ export interface PaginatedActivityResponse {
   hasPrevious: boolean;
 }
 
+export interface ExploreUser {
+  userId: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  accountType?: AccountType | number | string;
+  latestExplorePostAt: string;
+}
+
+export interface PaginatedExploreUsersResponse {
+  users: ExploreUser[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
 // Music Types
 export interface Track {
   id: string;

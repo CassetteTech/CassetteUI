@@ -243,6 +243,27 @@ async function collectCapturedPayloads(fetchPayloads, beaconPayloads) {
     process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
     process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
 });
+(0, node_test_1.default)('captureClientEvent preserves post viewer relationship flags', { concurrency: false }, async () => {
+    const previousKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    const previousDevFlag = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV;
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_test_key';
+    process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = 'true';
+    (0, client_1.resetAnalyticsContextForTests)();
+    const mocks = setupBrowserMocks('/post/post-123');
+    await (0, client_1.captureClientEvent)('post_viewed', {
+        route: '/post/post-123',
+        source_surface: 'post',
+        post_id: 'post-123',
+        is_creator_view: false,
+    });
+    const captured = await collectCapturedPayloads(mocks.fetchPayloads, mocks.beaconPayloads);
+    const postViewEvent = captured.find((payload) => payload.event === 'post_viewed');
+    const props = postViewEvent?.properties;
+    strict_1.default.equal(props?.is_creator_view, false);
+    mocks.restore();
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
+    process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
+});
 (0, node_test_1.default)('suppression logic blocks internal/demo routes but not cassette team actors', () => {
     strict_1.default.equal((0, internal_suppression_1.isInternalOrDemoRoute)('/debug'), true);
     strict_1.default.equal((0, internal_suppression_1.isInternalOrDemoRoute)('/demo/profile'), true);

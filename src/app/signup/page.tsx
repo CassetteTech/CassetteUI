@@ -24,3 +24,4 @@ export default async function SignupAliasPage({ searchParams }: SignupAliasPageP
   const search = params.toString();
   redirect(search ? `/auth/signup?${search}` : '/auth/signup');
 }
+ 

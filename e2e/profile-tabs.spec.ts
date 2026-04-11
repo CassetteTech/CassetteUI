@@ -4,27 +4,41 @@ import { mockCassetteApp } from './support/mock-cassette-app';
 
 const buildOwnedPost = (
   overrides: Partial<FixturePost> & Pick<FixturePost, 'postId' | 'musicElementId' | 'elementType' | 'title' | 'originalUrl'>,
-): FixturePost => ({
-  postId: overrides.postId,
-  musicElementId: overrides.musicElementId,
-  elementType: overrides.elementType,
-  title: overrides.title,
-  artist: overrides.artist || 'Mia Groove',
-  description: overrides.description || '',
-  ownerId: fixtureUsers.member.id,
-  ownerUsername: fixtureUsers.member.username,
-  privacy: 'public',
-  likeCount: 0,
-  likedByCurrentUser: false,
-  repostedByCurrentUser: false,
-  commentsEnabled: true,
-  conversionSuccessCount: 0,
-  originalUrl: overrides.originalUrl,
-  convertedUrls: overrides.convertedUrls || {
-    spotify: overrides.originalUrl,
-  },
-  ...overrides,
-});
+): FixturePost => {
+  const {
+    postId,
+    musicElementId,
+    elementType,
+    title,
+    originalUrl,
+    artist,
+    description,
+    convertedUrls,
+    ...restOverrides
+  } = overrides;
+
+  return {
+    postId,
+    musicElementId,
+    elementType,
+    title,
+    artist: artist || 'Mia Groove',
+    description: description || '',
+    ownerId: fixtureUsers.member.id,
+    ownerUsername: fixtureUsers.member.username,
+    privacy: 'public',
+    likeCount: 0,
+    likedByCurrentUser: false,
+    repostedByCurrentUser: false,
+    commentsEnabled: true,
+    conversionSuccessCount: 0,
+    originalUrl,
+    convertedUrls: convertedUrls || {
+      spotify: originalUrl,
+    },
+    ...restOverrides,
+  };
+};
 
 test.describe('profile tabs', () => {
   test('keeps the selected profile tab in the url', async ({ page }) => {

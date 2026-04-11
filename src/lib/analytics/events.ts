@@ -59,6 +59,7 @@ export type AnalyticsEventName =
   | 'preview_playback_started'
   | 'preview_playback_failed'
   | 'playlist_creation_submitted'
+  | 'playlist_creation_blocked'
   | 'playlist_created_on_platform'
   | 'playlist_creation_failed'
   | 'playlist_opened_on_platform'
@@ -92,6 +93,8 @@ export type AnalyticsBaseProps = {
   element_type_guess?: ElementTypeDimension;
   report_type?: 'conversion_issue' | 'ui_bug' | 'general_feedback' | 'missing_track' | 'wrong_match';
   source_context?: SourceContextDimension;
+  is_creator_view?: boolean;
+  is_repost?: boolean;
   signup_source?: string;
   signup_medium?: string;
   signup_campaign?: string;
@@ -105,6 +108,11 @@ export type AnalyticsBaseProps = {
   service?: 'spotify' | 'apple' | 'deezer' | 'unknown';
   account_type?: 'Regular' | 'Verified' | 'CassetteTeam' | string;
   internal_actor?: boolean;
+  playlist_track_count?: number;
+  tracks_added?: number;
+  tracks_failed?: number;
+  total_tracks?: number;
+  connection_state?: string;
 };
 
 export type AnalyticsEventPropsMap = {

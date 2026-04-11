@@ -3,7 +3,7 @@
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Compass, Music, User, Edit, LogOut, Info, Users, AlertCircle, Shield } from 'lucide-react';
+import { Home, Compass, Music, User, Edit, LogOut, Info, Users, AlertCircle, Shield, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
@@ -28,6 +28,7 @@ const navItems: NavItem[] = [
   { href: '/explore', icon: Compass, text: 'Explore', auth: false },
   { href: '/about', icon: Info, text: 'About', auth: false },
   { href: '/team', icon: Users, text: 'Team', auth: false },
+  { href: '/release-notes', icon: FileText, text: 'Release Notes', auth: false },
   { href: '/add-music', icon: Music, text: 'Add Music', auth: true },
   { href: '/internal', icon: Shield, text: 'Internal', auth: true, internalOnly: true },
   { href: '/profile', icon: User, text: 'Profile', auth: true },

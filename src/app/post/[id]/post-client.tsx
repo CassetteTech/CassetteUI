@@ -708,6 +708,12 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           }
 
           const detectedSourcePlatform = detectContentType(originalLink || '').platform;
+          const resolvedPostOwnerUserId = response.userId || transformedData.userId;
+          const isCreatorView = Boolean(
+            user?.id &&
+            resolvedPostOwnerUserId &&
+            user.id === resolvedPostOwnerUserId,
+          );
           sourceUrlRef.current = originalLink || sourceUrlRef.current;
           sourcePlatformRef.current = detectedSourcePlatform || sourcePlatformRef.current;
           void captureClientEvent('post_viewed', {
@@ -718,6 +724,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             source_platform: detectedSourcePlatform,
             user_id: user?.id,
             is_authenticated: isAuthenticated,
+            is_creator_view: isCreatorView,
           });
           setPostData({
             ...transformedData,

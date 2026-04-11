@@ -43,6 +43,8 @@ const ALLOWED_KEYS = new Set([
     'element_type_guess',
     'report_type',
     'source_context',
+    'is_creator_view',
+    'is_repost',
     'signup_source',
     'signup_medium',
     'signup_campaign',
@@ -56,6 +58,11 @@ const ALLOWED_KEYS = new Set([
     'service',
     'account_type',
     'internal_actor',
+    'playlist_track_count',
+    'tracks_added',
+    'tracks_failed',
+    'total_tracks',
+    'connection_state',
 ]);
 function isForbiddenKey(key) {
     return FORBIDDEN_KEY_PATTERNS.some((pattern) => pattern.test(key));

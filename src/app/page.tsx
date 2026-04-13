@@ -270,7 +270,7 @@ export default function HomePage() {
       });
     }
 
-    if (isSupported && !isSearchingMusic) {
+    if (isSupported) {
       // Navigate immediately for link conversion
       handleConvertLink(pastedText);
     }

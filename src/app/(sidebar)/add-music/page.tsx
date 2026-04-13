@@ -92,6 +92,7 @@ const AddMusicForm = ({
   handleSearchFocus,
   handleSearchBlur,
   handlePaste,
+  handleInputKeyDown,
   clearSelection,
   description,
   setDescription,
@@ -103,11 +104,7 @@ const AddMusicForm = ({
   isSearchingMusic,
   handleSelectItem,
   closeSearch,
-  isValidMusicUrl,
-  normalizeUrlInput,
-  router,
   searchBarOpacity,
-  returnRoute
 }: {
   isSearchActive: boolean;
   selectedItem: SelectedItem | null;
@@ -118,6 +115,7 @@ const AddMusicForm = ({
   handleSearchFocus: () => void;
   handleSearchBlur: () => void;
   handlePaste: (e: React.ClipboardEvent<HTMLInputElement>) => void;
+  handleInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   clearSelection: () => void;
   description: string;
   setDescription: (value: string) => void;
@@ -129,11 +127,7 @@ const AddMusicForm = ({
   isSearchingMusic: boolean;
   handleSelectItem: (url: string, title: string, type: string) => void;
   closeSearch: () => void;
-  isValidMusicUrl: (text: string) => boolean;
-  normalizeUrlInput: (raw: string) => string;
-  router: ReturnType<typeof useRouter>;
   searchBarOpacity: number;
-  returnRoute: string | null;
 }) => (
   <>
     {/* Search/Input Section */}
@@ -161,33 +155,7 @@ const AddMusicForm = ({
                 onFocus={handleSearchFocus}
                 onBlur={handleSearchBlur}
                 onPaste={handlePaste}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && musicUrl.trim()) {
-                    const normalizedUrl = normalizeUrlInput(musicUrl);
-                    if (isValidMusicUrl(normalizedUrl)) {
-                      // Navigate immediately to post page when pressing Enter with a link
-                      const params = new URLSearchParams({
-                        url: normalizedUrl,
-                        fromAddMusic: 'true'
-                      });
-                      if (returnRoute) {
-                        params.append('from', returnRoute);
-                      }
-                      
-                      if (description.trim()) {
-                        params.append('description', description.trim());
-                      }
-                      
-                      const target = `/post?${params.toString()}`;
-                      if (returnRoute) {
-                        router.replace(target);
-                      } else {
-                        router.push(target);
-                      }
-                    }
-                    // For search queries, the search will happen via the debounced value
-                  }
-                }}
+                onKeyDown={handleInputKeyDown}
                 placeholder="Search or paste your music link here"
                 className="w-full h-full bg-transparent border-none outline-none text-center text-foreground placeholder:text-muted-foreground px-3 sm:px-4 md:px-6 text-sm sm:text-base"
                 style={{ fontSize: '16px', touchAction: 'manipulation' }}
@@ -414,6 +382,18 @@ export default function AddMusicPage() {
     }
   };
 
+  const commitMusicLinkInput = (rawUrl: string) => {
+    const normalizedUrl = normalizeUrlInput(rawUrl);
+    const source = getMusicSourceLabel(normalizedUrl);
+
+    setMusicUrl(normalizedUrl);
+    setSelectedItem(null);
+    setPastedLinkSource(source);
+    setErrorMessage('');
+    setIsSearchActive(false);
+    searchInputRef.current?.blur();
+  };
+
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const pastedText = normalizeUrlInput(e.clipboardData.getData('text'));
@@ -439,7 +419,7 @@ export default function AddMusicPage() {
     }
     
     if (isValidMusicUrl(pastedText)) {
-      setErrorMessage('');
+      commitMusicLinkInput(pastedText);
       void captureClientEvent('music_link_pasted', {
         route: '/add-music',
         source_surface: 'add_music',
@@ -448,26 +428,6 @@ export default function AddMusicPage() {
         element_type_guess: detected.type,
         is_authenticated: true,
       });
-
-      // Navigate immediately to post page when pasting a link
-      const params = new URLSearchParams({
-        url: pastedText,
-        fromAddMusic: 'true'
-      });
-      if (resolvedReturnRoute) {
-        params.append('from', resolvedReturnRoute);
-      }
-      
-      if (description.trim()) {
-        params.append('description', description.trim());
-      }
-      
-      const target = `/post?${params.toString()}`;
-      if (resolvedReturnRoute) {
-        router.replace(target);
-      } else {
-        router.push(target);
-      }
     } else {
       void captureClientEvent('unsupported_music_link_pasted', {
         route: '/add-music',
@@ -478,6 +438,25 @@ export default function AddMusicPage() {
         is_authenticated: true,
       });
     }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || !musicUrl.trim()) {
+      return;
+    }
+
+    const normalizedUrl = normalizeUrlInput(musicUrl);
+    const validationError = validateMusicLink(normalizedUrl);
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
+
+    if (!isValidMusicUrl(normalizedUrl)) {
+      return;
+    }
+
+    commitMusicLinkInput(normalizedUrl);
   };
 
   const closeSearch = () => {
@@ -623,7 +602,7 @@ export default function AddMusicPage() {
     } else {
       router.push(target);
     }
-  }, [description, musicUrl, normalizeUrlInput, resolvedReturnRoute, router, selectedItem]);
+  }, [description, isValidMusicUrl, musicUrl, normalizeUrlInput, resolvedReturnRoute, router, selectedItem]);
 
   useEffect(() => {
     const query = debouncedSearchTerm.trim();
@@ -713,6 +692,7 @@ export default function AddMusicPage() {
                   handleSearchFocus={handleSearchFocus}
                   handleSearchBlur={handleSearchBlur}
                   handlePaste={handlePaste}
+                  handleInputKeyDown={handleInputKeyDown}
                   clearSelection={clearSelection}
                   description={description}
                   setDescription={setDescription}
@@ -724,11 +704,7 @@ export default function AddMusicPage() {
                   isSearchingMusic={isSearchingMusic}
                   handleSelectItem={handleSelectItem}
                   closeSearch={closeSearch}
-                  isValidMusicUrl={isValidMusicUrl}
-                  normalizeUrlInput={normalizeUrlInput}
-                  router={router}
                   searchBarOpacity={searchBarOpacity}
-                  returnRoute={resolvedReturnRoute}
                 />
               </div>
             </div>
@@ -757,6 +733,7 @@ export default function AddMusicPage() {
               handleSearchFocus={handleSearchFocus}
               handleSearchBlur={handleSearchBlur}
               handlePaste={handlePaste}
+              handleInputKeyDown={handleInputKeyDown}
               clearSelection={clearSelection}
               description={description}
               setDescription={setDescription}
@@ -768,11 +745,7 @@ export default function AddMusicPage() {
               isSearchingMusic={isSearchingMusic}
               handleSelectItem={handleSelectItem}
               closeSearch={closeSearch}
-              isValidMusicUrl={isValidMusicUrl}
-              normalizeUrlInput={normalizeUrlInput}
-              router={router}
               searchBarOpacity={searchBarOpacity}
-              returnRoute={resolvedReturnRoute}
             />
           </div>
         </div>

@@ -3,37 +3,131 @@
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Compass, Music, User, Edit, LogOut, Info, Users, AlertCircle, Shield, FileText } from 'lucide-react';
+import { AlertCircle, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
-import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
+import {
+  accountNavItems,
+  companyNavItems,
+  getVisibleNavItems,
+  isNavItemActive,
+  primaryNavItems,
+  resolveNavHref,
+  type NavigationItemDefinition,
+} from './navigation-config';
 import { useReportIssue } from '@/providers/report-issue-provider';
-import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
-import type { ComponentType } from 'react';
 
 interface NavigationLinksProps {
-  onLinkClick?: () => void; // To close the menu after a click
+  onLinkClick?: () => void;
 }
 
-interface NavItem {
-  href: string;
-  icon: ComponentType<{ className?: string }>;
-  text: string;
-  auth: boolean;
-  internalOnly?: boolean;
+interface NavigationSectionProps {
+  title: string;
+  items: NavigationItemDefinition[];
+  pathname: string | null;
+  variant: 'primary' | 'account' | 'secondary';
+  onLinkClick?: () => void;
+  username?: string | null;
 }
 
-const navItems: NavItem[] = [
-  { href: '/', icon: Home, text: 'Home', auth: false },
-  { href: '/explore', icon: Compass, text: 'Explore', auth: false },
-  { href: '/about', icon: Info, text: 'About', auth: false },
-  { href: '/team', icon: Users, text: 'Team', auth: false },
-  { href: '/release-notes', icon: FileText, text: 'Release Notes', auth: false },
-  { href: '/add-music', icon: Music, text: 'Add Music', auth: true },
-  { href: '/internal', icon: Shield, text: 'Internal', auth: true, internalOnly: true },
-  { href: '/profile', icon: User, text: 'Profile', auth: true },
-  { href: '/profile/edit', icon: Edit, text: 'Edit Profile', auth: true },
-];
+function getItemClassName(variant: NavigationSectionProps['variant'], isActive: boolean) {
+  const base =
+    'group flex items-center gap-3 rounded-xl transition-colors duration-200 active:scale-[0.99]';
+
+  if (variant === 'primary') {
+    return cn(
+      base,
+      'px-4 py-3.5 text-[15px] font-semibold tracking-tight',
+      isActive
+        ? 'bg-primary text-primary-foreground shadow-sm'
+        : 'bg-muted/50 text-foreground hover:bg-muted'
+    );
+  }
+
+  if (variant === 'account') {
+    return cn(
+      base,
+      'px-3 py-2.5 text-sm font-medium',
+      isActive
+        ? 'bg-muted text-foreground'
+        : 'text-foreground hover:bg-muted/70'
+    );
+  }
+
+  return cn(
+    base,
+    'px-3 py-2.5 text-sm',
+    isActive
+      ? 'bg-muted/70 text-foreground'
+      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+  );
+}
+
+function NavigationSection({
+  title,
+  items,
+  pathname,
+  variant,
+  onLinkClick,
+  username,
+}: NavigationSectionProps) {
+  if (items.length === 0) return null;
+
+  return (
+    <section aria-label={title}>
+      <div className="mb-2.5 flex items-center gap-2 px-1">
+        <span className="h-px flex-1 bg-border/40" aria-hidden="true" />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/80">
+          {title}
+        </span>
+        <span className="h-px flex-[6] bg-border/40" aria-hidden="true" />
+      </div>
+      <div className={cn(variant === 'primary' ? 'space-y-1.5' : 'space-y-0.5')}>
+        {items.map((item) => {
+          const href = resolveNavHref(item, { username });
+          const itemClassName = getItemClassName(variant, isNavItemActive(item, pathname));
+
+          if (item.external) {
+            return (
+              <a
+                key={item.key}
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                onClick={onLinkClick}
+                className={itemClassName}
+              >
+                <item.icon
+                  className={cn(
+                    'shrink-0 transition-transform duration-200 group-hover:scale-110',
+                    variant === 'primary' ? 'h-5 w-5' : 'h-4 w-4',
+                  )}
+                />
+                <span>{item.label}</span>
+              </a>
+            );
+          }
+
+          return (
+            <Link
+              key={item.key}
+              href={href}
+              onClick={onLinkClick}
+              className={itemClassName}
+            >
+              <item.icon
+                className={cn(
+                  'shrink-0 transition-transform duration-200 group-hover:scale-110',
+                  variant === 'primary' ? 'h-5 w-5' : 'h-4 w-4',
+                )}
+              />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
   const { user } = useAuthState();
@@ -41,88 +135,69 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
   const { openReportModal } = useReportIssue();
   const pathname = usePathname();
 
+  const primaryItems = getVisibleNavItems(
+    primaryNavItems.filter((item) => item.key !== 'home'),
+    user,
+  );
+  const accountItems = getVisibleNavItems(accountNavItems, user);
+  const companyItems = getVisibleNavItems(companyNavItems, user);
+
   const handleSignOut = () => {
     signOut();
     onLinkClick?.();
   };
 
-  const isActive = (path: string) => {
-    if (path === '/') return pathname === '/';
-    if (path === '/profile') return pathname.startsWith('/profile') && !pathname.includes('/edit');
-    if (path === '/profile/edit') return pathname.includes('/edit');
-    return pathname.startsWith(path);
-  };
-  const canSeeInternalDashboard = isCassetteInternalAccount(user?.accountType ?? null);
-  
-  // Dynamically adjust profile links
-  const dynamicNavItems = navItems.map(item => {
-    if (user && item.href.startsWith('/profile')) {
-      return { ...item, href: item.href.replace('/profile', `/profile/${user.username}`) };
-    }
-    return item;
-  });
-
   return (
-    <nav className="flex flex-col h-full">
-      <div className="pb-4 mb-4 border-b border-border/20">
-        <a
-          href={KOFI_SUPPORT_URL}
-          target="_blank"
-          rel="noreferrer"
-          onClick={onLinkClick}
-          className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-3 text-base font-semibold transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          aria-label="Support Cassette on Ko-fi"
-        >
-          <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={18} height={18} className="rounded-full" />
-          <span>Support Us</span>
-        </a>
-      </div>
-      {/* Links */}
-      <div className="flex-1 space-y-2">
-        {dynamicNavItems.map((item) => {
-          if (item.auth && !user) return null;
-          if (item.internalOnly && !canSeeInternalDashboard) return null;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onLinkClick}
-              className={cn(
-                'flex items-center gap-3 p-3 sm:gap-4 sm:p-4 rounded-lg text-base sm:text-lg font-medium transition-colors',
-                isActive(item.href)
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-foreground hover:bg-muted'
-              )}
-            >
-              <item.icon className="h-5 w-5 sm:h-6 sm:w-6" />
-              <span>{item.text}</span>
-            </Link>
-          );
-        })}
-        {/* Report a Problem */}
-        <button
-          onClick={() => { openReportModal(); onLinkClick?.(); }}
-          className={cn(
-            'flex items-center gap-3 p-3 sm:gap-4 sm:p-4 rounded-lg text-base sm:text-lg font-medium transition-colors',
-            'text-foreground hover:bg-muted w-full text-left'
-          )}
-        >
-          <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6" />
-          <span>Report a Problem</span>
-        </button>
-        {user && (
+    <nav className="flex flex-col gap-5 pb-2">
+      <NavigationSection
+        title="Primary"
+        items={primaryItems}
+        pathname={pathname}
+        variant="primary"
+        onLinkClick={onLinkClick}
+        username={user?.username}
+      />
+
+      {user && (
+        <section aria-label="Account">
+          <NavigationSection
+            title="Account"
+            items={accountItems}
+            pathname={pathname}
+            variant="account"
+            onLinkClick={onLinkClick}
+            username={user.username}
+          />
           <button
             onClick={handleSignOut}
-            className={cn(
-              'flex items-center gap-3 p-3 sm:gap-4 sm:p-4 rounded-lg text-base sm:text-lg font-medium transition-colors',
-              'text-foreground hover:bg-muted w-full text-left'
-            )}
+            className="group mt-0.5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors duration-200 hover:bg-muted/70 active:scale-[0.99]"
           >
-            <LogOut className="h-5 w-5 sm:h-6 sm:w-6" />
+            <LogOut className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
             <span>Sign Out</span>
           </button>
-        )}
-      </div>
+        </section>
+      )}
+
+      <section aria-label="Company and support">
+        <NavigationSection
+          title="Company & Support"
+          items={companyItems}
+          pathname={pathname}
+          variant="secondary"
+          onLinkClick={onLinkClick}
+          username={user?.username}
+        />
+        <button
+          onClick={() => {
+            openReportModal();
+            onLinkClick?.();
+          }}
+          className="group mt-0.5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors duration-200 hover:bg-muted/60 hover:text-foreground active:scale-[0.99]"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
+          <span>Report a Problem</span>
+        </button>
+      </section>
     </nav>
   );
 }

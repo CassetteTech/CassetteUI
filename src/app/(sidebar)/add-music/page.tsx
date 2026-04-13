@@ -140,7 +140,7 @@ const AddMusicForm = ({
 
         <div className={isSearchActive ? "" : "mb-6"}>
           {!isSearchActive && (
-            <label className="block text-foreground font-atkinson font-bold mb-3 text-sm">
+            <label htmlFor="add-music-search-input" className="block text-foreground font-atkinson font-bold mb-3 text-sm">
               Music link or search
             </label>
           )}
@@ -149,6 +149,7 @@ const AddMusicForm = ({
             <UrlBar variant="light" className="w-full">
               <input
                 ref={searchInputRef}
+                id="add-music-search-input"
                 data-testid="add-music-input"
                 value={musicUrl}
                 onChange={handleUrlChange}
@@ -224,17 +225,18 @@ const AddMusicForm = ({
         {/* Description Field */}
         {!isSearchActive && (
           <div className="mb-4 sm:mb-6 md:mb-8">
-          <label className="block text-foreground font-atkinson font-bold mb-3 text-sm">
+          <label htmlFor="add-music-description" className="block text-foreground font-atkinson font-bold mb-3 text-sm">
             Description
           </label>
           <div className="relative">
             <div className="absolute inset-0 translate-x-1 translate-y-1 bg-muted-foreground rounded-lg" />
             <textarea
+              id="add-music-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Let us know a little bit about this song or playlist!"
               rows={6}
-              className="relative w-full p-4 bg-card border-2 border-foreground rounded-lg font-atkinson text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              className="relative w-full rounded-lg border-2 border-foreground bg-card p-4 font-atkinson text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary force-light-surface"
               autoComplete="off"
               spellCheck="false"
             />

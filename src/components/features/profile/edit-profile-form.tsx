@@ -280,7 +280,7 @@ export function EditProfileFormComponent({
             inputSize="lg"
             {...register('fullName')}
             error={errors.fullName?.message}
-            className="w-full"
+            className="w-full bg-card force-light-surface text-foreground"
           />
 
           <TextField
@@ -288,17 +288,18 @@ export function EditProfileFormComponent({
             inputSize="lg"
             {...register('username')}
             error={errors.username?.message || usernameError || undefined}
-            className="w-full"
+            className="w-full bg-card force-light-surface text-foreground"
           />
 
           <div className="w-full">
-            <label className="block text-sm font-bold text-foreground mb-2 font-atkinson tracking-wide">
+            <label htmlFor="profile-bio" className="block text-sm font-bold text-foreground mb-2 font-atkinson tracking-wide">
               Bio
             </label>
             <textarea
+              id="profile-bio"
               {...register('bio')}
               rows={5}
-              className="w-full px-4 py-3 rounded-md border-2 transition-colors duration-200 font-atkinson text-sm font-normal tracking-wide placeholder:text-muted-foreground placeholder:font-atkinson placeholder:font-normal focus:outline-none focus:ring-0 border-border focus:border-primary text-foreground bg-transparent"
+              className="w-full rounded-md border-2 border-border bg-card force-light-surface px-4 py-3 text-sm font-normal tracking-wide text-foreground transition-colors duration-200 placeholder:text-muted-foreground placeholder:font-atkinson placeholder:font-normal font-atkinson focus:outline-none focus:ring-0 focus:border-primary"
               placeholder="Tell us about yourself..."
             />
             {errors.bio && (
@@ -309,11 +310,11 @@ export function EditProfileFormComponent({
           </div>
 
           <div className="w-full">
-            <label className="block text-sm font-bold text-text-primary mb-2 font-atkinson tracking-wide">
+            <p className="block text-sm font-bold text-text-primary mb-2 font-atkinson tracking-wide">
               Liked Posts Visibility
-            </label>
+            </p>
             <div className="grid grid-cols-2 gap-3">
-              <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
+              <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card force-light-surface px-3 py-2 text-sm text-foreground">
                 <input
                   type="radio"
                   value="public"
@@ -321,7 +322,7 @@ export function EditProfileFormComponent({
                 />
                 <span>Public</span>
               </label>
-              <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
+              <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card force-light-surface px-3 py-2 text-sm text-foreground">
                 <input
                   type="radio"
                   value="private"

@@ -230,7 +230,7 @@ export async function createProxyResponse(response: Response): Promise<NextRespo
 
 export async function readJsonResponse<T>(response: Response): Promise<T | null> {
   const text = await response.text();
-  if (!text) {
+  if (!text || text.trim() === '') {
     return null;
   }
 

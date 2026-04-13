@@ -34,6 +34,35 @@ test('converts a pasted add-music link with the drafted description and saves it
   );
 });
 
+test('commits a typed add-music link on Enter so it can be submitted', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+  });
+
+  await page.goto('/add-music');
+  await page
+    .locator('[data-testid="add-music-input"]:visible')
+    .fill(fixtureConvertTemplates.addMusicTrack.originalUrl);
+  await page.locator('[data-testid="add-music-input"]:visible').press('Enter');
+
+  await expect(
+    page.locator(
+      'textarea[placeholder="Let us know a little bit about this song or playlist!"]:visible',
+    ),
+  ).toBeVisible();
+
+  await page
+    .locator(
+      'textarea[placeholder="Let us know a little bit about this song or playlist!"]:visible',
+    )
+    .fill('Typed by hand and still ready to post.');
+  await page.locator('[data-testid="add-music-submit"]:not([disabled])').last().click();
+
+  await expect(page).toHaveURL(/\/post\/post-created-track(\?.*)?$/);
+  await expect(page.getByRole('main').last()).toContainText('Blue Monday');
+  await expect(page.getByRole('main').last()).toContainText('Typed by hand and still ready to post.');
+});
+
 test('shows validation feedback for unsupported pasted links without leaving add-music', async ({
   page,
 }) => {

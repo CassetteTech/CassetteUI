@@ -14,7 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { Music, Compass, User, LogOut, Edit, AlertCircle, Shield } from 'lucide-react';
+import { LogOut, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -24,7 +24,13 @@ import { usePathname } from 'next/navigation';
 import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { useUserBio } from '@/hooks/use-profile';
-import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
+import {
+  accountNavItems,
+  getVisibleNavItems,
+  isNavItemActive,
+  primaryNavItems,
+  resolveNavHref,
+} from './navigation-config';
 
 interface AppSidebarProps {
   className?: string;
@@ -63,15 +69,11 @@ export function AppSidebar({ className }: AppSidebarProps) {
     opacity: number;
     hasPositioned: boolean;
   }>({ top: 0, height: 0, opacity: 0, hasPositioned: false });
-  const canSeeInternalDashboard = isCassetteInternalAccount(user?.accountType ?? null);
-
-  // Helper function to check if a path is active
-  const isActive = (path: string) => {
-    if (path === '/') {
-      return pathname === '/';
-    }
-    return pathname?.startsWith(path);
-  };
+  const sidebarPrimaryItems = getVisibleNavItems(
+    primaryNavItems.filter((item) => item.key !== 'home'),
+    user,
+  );
+  const sidebarAccountItems = getVisibleNavItems(accountNavItems, user);
 
   // Update indicator position when pathname changes or when user/profile data loads
   // (menu items are conditionally rendered based on user state, and profile card affects layout)
@@ -186,73 +188,45 @@ export function AppSidebar({ className }: AppSidebarProps) {
         
         {/* Navigation */}
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Primary</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {user && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/profile') && !pathname.includes('/edit')}>
-                    <Link href={`/profile/${user.username}`}>
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
+              {sidebarPrimaryItems.map((item) => (
+                <SidebarMenuItem key={item.key}>
+                  <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname)}>
+                    <Link href={resolveNavHref(item, user)}>
+                      <item.icon className="mr-2 h-4 w-4" />
+                      <span>{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              )}
-              {user && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/add-music')}>
-                    <Link href="/add-music">
-                      <Music className="mr-2 h-4 w-4" />
-                      <span>Add Music</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              {canSeeInternalDashboard && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/internal')}>
-                    <Link href="/internal">
-                      <Shield className="mr-2 h-4 w-4" />
-                      <span>Internal</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              {user && (
-                <>
-                  <div className="my-2 mx-2 border-t border-border" />
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isActive('/profile') && pathname.includes('/edit')}>
-                      <Link href={`/profile/${user.username}/edit`}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        <span>Edit Profile</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </>
-              )}
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {sidebarAccountItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Account</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {sidebarAccountItems.map((item) => (
+                  <SidebarMenuItem key={item.key}>
+                    <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname)}>
+                      <Link href={resolveNavHref(item, user)}>
+                        <item.icon className="mr-2 h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4 space-y-2">
-        {/* Explore */}
-        <Button
-          asChild
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start text-muted-foreground hover:text-foreground"
-        >
-          <Link href="/explore">
-            <Compass className="mr-2 h-4 w-4" />
-            <span>Explore</span>
-          </Link>
-        </Button>
-
-        <div className="border-t border-border" />
-
         {/* Support Us */}
         <Button
           asChild
@@ -311,14 +285,11 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
     opacity: number;
     hasPositioned: boolean;
   }>({ top: 0, height: 0, opacity: 0, hasPositioned: false });
-  const canSeeInternalDashboard = isCassetteInternalAccount(user?.accountType ?? null);
-
-  const isActive = (path: string) => {
-    if (path === '/') {
-      return pathname === '/';
-    }
-    return pathname.startsWith(path);
-  };
+  const sidebarPrimaryItems = getVisibleNavItems(
+    primaryNavItems.filter((item) => item.key !== 'home'),
+    user,
+  );
+  const sidebarAccountItems = getVisibleNavItems(accountNavItems, user);
 
   // Update indicator position when pathname changes
   useEffect(() => {
@@ -397,71 +368,45 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Primary</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/profile') && !pathname.includes('/edit')}>
-                  <Link href="/profile">
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              {user && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/add-music')}>
-                    <Link href="/add-music">
-                      <Music className="mr-2 h-4 w-4" />
-                      <span>Add Music</span>
+              {sidebarPrimaryItems.map((item) => (
+                <SidebarMenuItem key={item.key}>
+                  <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname)}>
+                    <Link href={resolveNavHref(item, user)}>
+                      <item.icon className="mr-2 h-4 w-4" />
+                      <span>{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              )}
-              {canSeeInternalDashboard && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/internal')}>
-                    <Link href="/internal">
-                      <Shield className="mr-2 h-4 w-4" />
-                      <span>Internal</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              {user && (
-                <>
-                  <div className="my-2 mx-2 border-t border-border" />
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isActive('/profile') && pathname.includes('/edit')}>
-                      <Link href={`/profile/${user.username}/edit`}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        <span>Edit Profile</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </>
-              )}
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {sidebarAccountItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Account</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {sidebarAccountItems.map((item) => (
+                  <SidebarMenuItem key={item.key}>
+                    <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname)}>
+                      <Link href={resolveNavHref(item, user)}>
+                        <item.icon className="mr-2 h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4 space-y-2">
-        {/* Explore */}
-        <Button
-          asChild
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start text-muted-foreground hover:text-foreground"
-        >
-          <Link href="/explore">
-            <Compass className="mr-2 h-4 w-4" />
-            <span>Explore</span>
-          </Link>
-        </Button>
-
-        <div className="border-t border-border" />
-
         {/* Support Us */}
         <Button
           asChild

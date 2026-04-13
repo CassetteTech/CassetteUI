@@ -643,15 +643,15 @@
     --number-display: 349 89% 65%;         /* Decorative numbers */
   }
 
-  /* Force light surface colors regardless of theme (e.g. search bar) */
+  /* Force white surface colors regardless of theme (e.g. search/input surfaces) */
   .force-light-surface {
-    --card: 44 100% 97%;
+    --card: 0 0% 100%;
     --card-foreground: 210 10% 14%;
-    --border: 35 25% 75%;
-    --muted: 38 30% 85%;
+    --border: 210 16% 82%;
+    --muted: 210 20% 96%;
     --muted-foreground: 30 20% 38%;
     --foreground: 210 10% 14%;
-    --input: 38 30% 85%;
+    --input: 0 0% 100%;
   }
 }
 

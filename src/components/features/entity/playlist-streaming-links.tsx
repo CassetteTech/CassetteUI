@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { streamingServices } from './streaming-links';
@@ -67,6 +67,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   const [showFailedTracks, setShowFailedTracks] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [pendingPlatform, setPendingPlatform] = useState<PlatformKey | null>(null);
+  const autoResumeAttemptedRef = useRef(false);
   const conversionLimitExceeded =
     typeof playlistTrackCount === 'number' && playlistTrackCount > PLAYLIST_CONVERSION_LIMIT;
 
@@ -88,10 +89,31 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       ? (PLATFORMS.find((platform) => links[platform] === resolvedSourceUrl || links[platform]) as PlatformKey | undefined) || null
       : null);
 
-  const handleCreatePlaylist = async (platform: PlatformKey) => {
+  const buildPlaylistAnalyticsProps = React.useCallback((platform: PlatformKey) => {
+    const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
+    const normalizedTarget = platform === 'appleMusic' ? 'apple' : platform;
+
+    return {
+      route,
+      source_surface: 'post' as const,
+      element_type: 'playlist' as const,
+      music_element_id: playlistId,
+      post_id: postId,
+      source_platform: sourcePlatformKey === 'appleMusic'
+        ? 'apple'
+        : sourcePlatformKey ?? 'unknown',
+      target_platform: normalizedTarget,
+      source_domain: sanitizeDomain(resolvedSourceUrl || undefined),
+      is_authenticated: isAuthenticated,
+      playlist_track_count: playlistTrackCount,
+    };
+  }, [isAuthenticated, playlistId, playlistTrackCount, postId, resolvedSourceUrl, sourcePlatformKey]);
+
+  const handleCreatePlaylist = React.useCallback(async (platform: PlatformKey) => {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
     const normalizedTarget = platform === 'appleMusic' ? 'apple' : platform;
-    const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
+    const analyticsProps = buildPlaylistAnalyticsProps(platform);
+    const route = analyticsProps.route;
 
     const convertClickProps = buildPostPlatformConversionClickedProps({
       sourceContext: 'playlist_convert_button',
@@ -108,23 +130,18 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     }
 
     void captureClientEvent('playlist_creation_submitted', {
-      route,
-      source_surface: 'post',
-      element_type: 'playlist',
-      music_element_id: playlistId,
-      post_id: postId,
-      source_platform: sourcePlatformKey === 'appleMusic'
-        ? 'apple'
-        : sourcePlatformKey ?? 'unknown',
-      target_platform: normalizedTarget,
-      source_domain: sanitizeDomain(resolvedSourceUrl || undefined),
-      is_authenticated: isAuthenticated,
+      ...analyticsProps,
       status: 'submitted',
       success: false,
     });
 
     // Case 1: User not logged in - show auth modal
     if (!isAuthenticated) {
+      void captureClientEvent('playlist_creation_blocked', {
+        ...analyticsProps,
+        reason_code: 'auth_required',
+        connection_state: 'unauthenticated',
+      });
       setPendingPlatform(platform);
       setAuthModalOpen(true);
       return;
@@ -148,6 +165,12 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       }
 
       if (!hasConnection) {
+        void captureClientEvent('playlist_creation_blocked', {
+          ...analyticsProps,
+          reason_code: 'connection_required',
+          connection_state: 'connection_required',
+        });
+
         // No connection - trigger OAuth flow
         pendingActionService.save(
           pendingActionService.createPlaylistAction(platform, playlistId, currentUrl)
@@ -185,6 +208,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
       // Case 3: Has connection - create playlist directly
       const result = await apiService.createPlaylist(playlistId, platform.toLowerCase(), postId);
+      pendingActionService.clear();
       setCreationStatus({ platform, loading: false, result });
     } catch (error) {
       // Check if this is an auth error requiring re-authentication
@@ -223,7 +247,31 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
         error: error instanceof Error ? error.message : 'Failed to create playlist',
       });
     }
-  };
+  }, [buildPlaylistAnalyticsProps, isAuthenticated, playlistId, postId, resolvedSourceUrl, sourcePlatformKey]);
+
+  useEffect(() => {
+    if (!isAuthenticated || creationStatus || autoResumeAttemptedRef.current) {
+      return;
+    }
+
+    const pendingAction = pendingActionService.get();
+    if (!pendingAction || pendingAction.type !== 'create_playlist' || pendingAction.playlistId !== playlistId) {
+      return;
+    }
+
+    try {
+      const currentPath = window.location.pathname;
+      const pendingPath = new URL(pendingAction.returnUrl, window.location.origin).pathname;
+      if (currentPath !== pendingPath) {
+        return;
+      }
+    } catch {
+      return;
+    }
+
+    autoResumeAttemptedRef.current = true;
+    void handleCreatePlaylist(pendingAction.platform);
+  }, [creationStatus, handleCreatePlaylist, isAuthenticated, playlistId]);
 
   // Save pending action before navigating to auth pages
   const handleAuthNavigate = () => {
@@ -447,6 +495,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
             <button
               key={platform}
               type="button"
+              data-testid={`playlist-convert-${platform}`}
               className={commonClasses}
               disabled={isLoading}
               onClick={() => handleCreatePlaylist(platform)}

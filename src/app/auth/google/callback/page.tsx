@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useRouter } from 'next/navigation';
 import { pendingActionService } from '@/utils/pending-action';
 import { PageLoader } from '@/components/ui/page-loader';
+import { authRedirectService } from '@/utils/auth-redirect';
 
 export default function GoogleCallbackPage() {
   const router = useRouter();
@@ -22,11 +23,17 @@ export default function GoogleCallbackPage() {
         const pendingAction = pendingActionService.get();
         if (pendingAction?.returnUrl) {
           console.log('🔄 [Google Callback] Redirecting to pending action URL:', pendingAction.returnUrl);
-          pendingActionService.clear();
           window.location.href = pendingAction.returnUrl;
-        } else {
-          router.push('/profile');
+          return;
         }
+
+        const authRedirect = authRedirectService.consume();
+        if (authRedirect) {
+          window.location.href = authRedirect;
+          return;
+        }
+
+        router.push('/profile');
       };
 
       try {
@@ -40,6 +47,7 @@ export default function GoogleCallbackPage() {
 
         if (error) {
           console.error('Google OAuth error:', error);
+          authRedirectService.clear();
           router.push('/auth/signin?error=oauth-error');
           return;
         }
@@ -60,12 +68,14 @@ export default function GoogleCallbackPage() {
               redirectToDestination(retryUser.isOnboarded);
             } else {
               console.error('❌ [Google Callback] Still no authentication after retry');
+              authRedirectService.clear();
               router.push('/auth/signin?error=callback-failed');
             }
           }, 1000);
         }
       } catch (error) {
         console.error('Google callback processing error:', error);
+        authRedirectService.clear();
         router.push('/auth/signin?error=callback-error');
       }
     };

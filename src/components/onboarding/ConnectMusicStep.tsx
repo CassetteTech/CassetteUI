@@ -300,6 +300,8 @@ export function ConnectMusicStep({
                             checked={state.isSelected}
                             onCheckedChange={() => handleToggle(service.id)}
                             disabled={state.isLoading}
+                            aria-label={`Toggle ${service.name}`}
+                            data-testid={`onboarding-service-toggle-${service.id.toLowerCase()}`}
                           />
                         </>
                       )}
@@ -342,6 +344,7 @@ export function ConnectMusicStep({
         </Button>
         <Button
           onClick={handlePrimaryAction}
+          data-testid="onboarding-finish-setup"
           className="px-8 gap-2"
         >
           <Music className="w-4 h-4" />

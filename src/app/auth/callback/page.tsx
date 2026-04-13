@@ -6,6 +6,7 @@ import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { pendingActionService } from '@/utils/pending-action';
 import { PageLoader } from '@/components/ui/page-loader';
+import { authRedirectService } from '@/utils/auth-redirect';
 
 export default function OAuthCallbackPage() {
   const router = useRouter();
@@ -28,6 +29,12 @@ export default function OAuthCallbackPage() {
         const pendingAction = pendingActionService.get();
         if (pendingAction?.returnUrl) {
           window.location.href = pendingAction.returnUrl;
+          return;
+        }
+
+        const authRedirect = authRedirectService.consume();
+        if (authRedirect) {
+          window.location.href = authRedirect;
           return;
         }
 

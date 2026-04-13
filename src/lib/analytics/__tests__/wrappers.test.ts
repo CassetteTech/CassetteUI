@@ -139,6 +139,10 @@ test('identifyClientUser emits alias merge and identify for anon-to-user transit
     userId: 'user-123',
     isAuthenticated: true,
     accountType: 'Regular',
+    signupSource: 'friend',
+    signupMedium: 'dm',
+    signupCampaign: 'spring_launch',
+    firstReferrerDomain: 'instagram.com',
   });
 
   const captured = await collectCapturedPayloads(mocks.fetchPayloads, mocks.beaconPayloads);
@@ -149,8 +153,29 @@ test('identifyClientUser emits alias merge and identify for anon-to-user transit
   assert.ok(events.includes('$identify'));
 
   const aliasPayload = captured.find((payload) => payload.event === '$create_alias');
+  const identifyPayload = captured.find((payload) => payload.event === '$identify');
   assert.equal(aliasPayload?.distinct_id, 'anon:test-user');
   assert.equal((aliasPayload?.properties as Record<string, unknown>)?.alias, 'user-123');
+  assert.equal(
+    ((identifyPayload?.properties as Record<string, unknown>)?.$set as Record<string, unknown>)?.signup_source,
+    'friend',
+  );
+  assert.equal(
+    ((identifyPayload?.properties as Record<string, unknown>)?.$set as Record<string, unknown>)?.signup_medium,
+    'dm',
+  );
+  assert.equal(
+    ((identifyPayload?.properties as Record<string, unknown>)?.$set as Record<string, unknown>)?.signup_campaign,
+    'spring_launch',
+  );
+  assert.equal(
+    ((identifyPayload?.properties as Record<string, unknown>)?.$set as Record<string, unknown>)?.first_referrer_domain,
+    'instagram.com',
+  );
+  assert.equal(
+    ((identifyPayload?.properties as Record<string, unknown>)?.$set as Record<string, unknown>)?.first_touch_source,
+    'friend',
+  );
 
   mocks.restore();
   process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
@@ -275,6 +300,32 @@ test('captureClientEvent derives internal_actor from account_type only', { concu
 
   assert.equal(regularProps?.internal_actor, false);
   assert.equal(teamProps?.internal_actor, true);
+
+  mocks.restore();
+  process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
+  process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
+});
+
+test('captureClientEvent preserves post viewer relationship flags', { concurrency: false }, async () => {
+  const previousKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  const previousDevFlag = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV;
+  process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_test_key';
+  process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = 'true';
+  resetAnalyticsContextForTests();
+
+  const mocks = setupBrowserMocks('/post/post-123');
+  await captureClientEvent('post_viewed', {
+    route: '/post/post-123',
+    source_surface: 'post',
+    post_id: 'post-123',
+    is_creator_view: false,
+  });
+
+  const captured = await collectCapturedPayloads(mocks.fetchPayloads, mocks.beaconPayloads);
+  const postViewEvent = captured.find((payload) => payload.event === 'post_viewed');
+  const props = postViewEvent?.properties as Record<string, unknown> | undefined;
+
+  assert.equal(props?.is_creator_view, false);
 
   mocks.restore();
   process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;

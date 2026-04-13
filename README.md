@@ -105,6 +105,20 @@ NEXT_PUBLIC_ENABLE_LAMBDA_WARMUP=true
 NEXT_PUBLIC_APP_DOMAIN=https://cassette.tech
 ```
 
+### Release Notes
+
+- `/release-notes` is the public release notes page.
+- It reads published GitHub Releases from `CassetteTech/CassetteUI` on the server.
+- Local development fetches fresh data on each request; deployed environments revalidate every 5 minutes.
+- `GITHUB_TOKEN` is optional and can be set for higher GitHub API limits or private repository access.
+
+### Draft Releases
+
+- Run `npm run release:draft -- vX.Y.Z` from `CassetteUI` to create a draft GitHub release from the checked-in template.
+- The command requires `gh` to be installed and authenticated.
+- The draft body comes from `.github/release-draft-template.md`.
+- Publish the draft release in GitHub when it is ready to appear on `/release-notes`.
+
 5. **Start Development Server**
 
 `npm run dev` or `npx next dev`

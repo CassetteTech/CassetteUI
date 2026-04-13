@@ -26,20 +26,20 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
   if (isLoading) {
     return (
       <>
-        {/* Desktop skeleton */}
         <div className="hidden lg:block overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="whitespace-nowrap">Username</TableHead>
                 <TableHead className="whitespace-nowrap">Email</TableHead>
-                <TableHead className="whitespace-nowrap">Account Type</TableHead>
-                <TableHead className="whitespace-nowrap">Onboarded</TableHead>
-                <TableHead className="whitespace-nowrap">Join Date</TableHead>
-                <TableHead className="whitespace-nowrap">Connected</TableHead>
-                <TableHead className="whitespace-nowrap">Posts</TableHead>
-                <TableHead className="whitespace-nowrap">Likes (All)</TableHead>
-                <TableHead className="whitespace-nowrap">Likes (30d)</TableHead>
+                <TableHead className="whitespace-nowrap">Type</TableHead>
+                <TableHead className="whitespace-nowrap">Status</TableHead>
+                <TableHead className="whitespace-nowrap">Joined</TableHead>
+                <TableHead className="whitespace-nowrap">Last Online</TableHead>
+                <TableHead className="whitespace-nowrap text-right">Services</TableHead>
+                <TableHead className="whitespace-nowrap text-right">Posts</TableHead>
+                <TableHead className="whitespace-nowrap text-right">Likes</TableHead>
+                <TableHead className="whitespace-nowrap text-right">30d</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -47,7 +47,6 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
             </TableBody>
           </Table>
         </div>
-        {/* Mobile skeleton */}
         <UsersCardSkeleton />
       </>
     );
@@ -66,13 +65,14 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
             <TableRow>
               <TableHead className="whitespace-nowrap">Username</TableHead>
               <TableHead className="whitespace-nowrap">Email</TableHead>
-              <TableHead className="whitespace-nowrap">Account Type</TableHead>
-              <TableHead className="whitespace-nowrap">Onboarded</TableHead>
-              <TableHead className="whitespace-nowrap">Join Date</TableHead>
-              <TableHead className="whitespace-nowrap">Connected</TableHead>
-              <TableHead className="whitespace-nowrap">Posts</TableHead>
-              <TableHead className="whitespace-nowrap">Likes (All)</TableHead>
-              <TableHead className="whitespace-nowrap">Likes (30d)</TableHead>
+              <TableHead className="whitespace-nowrap">Type</TableHead>
+              <TableHead className="whitespace-nowrap">Status</TableHead>
+              <TableHead className="whitespace-nowrap">Joined</TableHead>
+              <TableHead className="whitespace-nowrap">Last Online</TableHead>
+              <TableHead className="whitespace-nowrap text-right">Services</TableHead>
+              <TableHead className="whitespace-nowrap text-right">Posts</TableHead>
+              <TableHead className="whitespace-nowrap text-right">Likes</TableHead>
+              <TableHead className="whitespace-nowrap text-right">30d</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -82,24 +82,36 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
               return (
                 <TableRow
                   key={u.userId}
-                  className={`cursor-pointer transition-colors ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : 'hover:bg-muted/40'}`}
+                  className={`cursor-pointer transition-colors ${
+                    isSelected
+                      ? 'bg-primary/5 ring-1 ring-inset ring-primary/20'
+                      : 'hover:bg-muted/40'
+                  }`}
                   onClick={() => onSelectUser(u)}
                 >
                   <TableCell className="font-medium whitespace-nowrap">{u.username}</TableCell>
-                  <TableCell className="whitespace-nowrap">{u.email}</TableCell>
+                  <TableCell className="whitespace-nowrap text-muted-foreground">{u.email}</TableCell>
                   <TableCell className="whitespace-nowrap">
-                    <Badge variant={accountTypeBadgeVariant(accountType)} className={accountTypeBadgeClassName(accountType)}>{accountType}</Badge>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <Badge variant={u.isOnboarded ? 'default' : 'outline'} className={u.isOnboarded ? 'bg-success text-white' : ''}>
-                      {u.isOnboarded ? 'Yes' : 'No'}
+                    <Badge variant={accountTypeBadgeVariant(accountType)} className={`text-[11px] ${accountTypeBadgeClassName(accountType)}`}>
+                      {accountType}
                     </Badge>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">{formatDate(u.joinDate)}</TableCell>
-                  <TableCell className="whitespace-nowrap">{u.connectedServicesCount}</TableCell>
-                  <TableCell className="whitespace-nowrap">{u.postCount ?? 0}</TableCell>
-                  <TableCell className="whitespace-nowrap">{Number(u.likesReceivedAllTime ?? 0).toLocaleString()}</TableCell>
-                  <TableCell className="whitespace-nowrap">{Number(u.likesReceived30d ?? 0).toLocaleString()}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {u.isOnboarded ? (
+                      <span className="inline-flex items-center gap-1 text-xs">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success))]" />
+                        Onboarded
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Pending</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{formatDate(u.joinDate)}</TableCell>
+                  <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{formatDate(u.lastOnlineAt)}</TableCell>
+                  <TableCell className="whitespace-nowrap text-right tabular-nums text-sm">{u.connectedServicesCount}</TableCell>
+                  <TableCell className="whitespace-nowrap text-right tabular-nums text-sm">{u.postCount ?? 0}</TableCell>
+                  <TableCell className="whitespace-nowrap text-right tabular-nums text-sm">{Number(u.likesReceivedAllTime ?? 0).toLocaleString()}</TableCell>
+                  <TableCell className="whitespace-nowrap text-right tabular-nums text-sm">{Number(u.likesReceived30d ?? 0).toLocaleString()}</TableCell>
                 </TableRow>
               );
             })}
@@ -115,20 +127,29 @@ export function UsersTable({ users, isLoading, selectedUserId, onSelectUser }: U
           return (
             <div
               key={u.userId}
-              className={`cursor-pointer rounded-lg border p-3 transition-colors ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : 'hover:bg-muted/30'}`}
+              className={`cursor-pointer rounded-lg border p-3 transition-all ${
+                isSelected
+                  ? 'bg-primary/5 border-primary/30 ring-1 ring-primary/10'
+                  : 'hover:bg-muted/30 hover:border-border/80'
+              }`}
               onClick={() => onSelectUser(u)}
             >
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">{u.username}</span>
-                <Badge variant={accountTypeBadgeVariant(accountType)} className={`text-xs ${accountTypeBadgeClassName(accountType)}`}>{accountType}</Badge>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-sm truncate">{u.username}</span>
+                <Badge variant={accountTypeBadgeVariant(accountType)} className={`text-[10px] shrink-0 ${accountTypeBadgeClassName(accountType)}`}>
+                  {accountType}
+                </Badge>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">{u.email}</p>
-              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                <span>{u.isOnboarded ? 'Onboarded' : 'Not onboarded'}</span>
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">{u.email}</p>
+              <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <span className={`h-1.5 w-1.5 rounded-full ${u.isOnboarded ? 'bg-[hsl(var(--success))]' : 'bg-muted-foreground/30'}`} />
+                  {u.isOnboarded ? 'Onboarded' : 'Pending'}
+                </span>
+                <span>Last online {formatDate(u.lastOnlineAt)}</span>
                 <span>{u.connectedServicesCount} services</span>
                 <span>{u.postCount ?? 0} posts</span>
-                <span>{Number(u.likesReceivedAllTime ?? 0).toLocaleString()} all-time likes</span>
-                <span>{Number(u.likesReceived30d ?? 0).toLocaleString()} 30d likes</span>
+                <span>{Number(u.likesReceivedAllTime ?? 0).toLocaleString()} likes</span>
               </div>
             </div>
           );

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Github, Linkedin, Mail, Twitter } from "lucide-react";
+import { Github, Linkedin, Link2, Mail, Twitter } from "lucide-react";
 import { getTypeConfig } from "../_data";
 import type { TeamMember } from "../_data";
 
@@ -14,6 +14,13 @@ interface TeamCardProps {
 export function TeamCard({ member, index, onClick }: TeamCardProps) {
   const typeConfig = getTypeConfig(member.type);
   const number = String(index + 1).padStart(2, "0");
+  const socialLinks = [
+    { href: member.social.github, icon: Github, label: "GitHub" },
+    { href: member.social.linkedin, icon: Linkedin, label: "LinkedIn" },
+    { href: member.social.twitter, icon: Twitter, label: "Twitter" },
+    { href: member.social.website, icon: Link2, label: member.social.websiteLabel ?? "Website" },
+    { href: member.social.email, icon: Mail, label: "Email" },
+  ].filter(({ href }) => href && href !== "#");
 
   return (
     <div
@@ -63,18 +70,17 @@ export function TeamCard({ member, index, onClick }: TeamCardProps) {
         {/* Social links footer */}
         <div className="mt-5 pt-4 flex items-center gap-3">
           <div className="editorial-rule-dashed flex-1 mr-3" />
-          <a href={member.social.github} className="text-muted-foreground hover:text-foreground transition-colors" onClick={e => e.stopPropagation()} aria-label="GitHub">
-            <Github size={16} />
-          </a>
-          <a href={member.social.linkedin} className="text-muted-foreground hover:text-foreground transition-colors" onClick={e => e.stopPropagation()} aria-label="LinkedIn">
-            <Linkedin size={16} />
-          </a>
-          <a href={member.social.twitter} className="text-muted-foreground hover:text-foreground transition-colors" onClick={e => e.stopPropagation()} aria-label="Twitter">
-            <Twitter size={16} />
-          </a>
-          <a href={member.social.email} className="text-muted-foreground hover:text-foreground transition-colors" onClick={e => e.stopPropagation()} aria-label="Email">
-            <Mail size={16} />
-          </a>
+          {socialLinks.map(({ href, icon: Icon, label }) => (
+            <a
+              key={label}
+              href={href}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              onClick={(e) => e.stopPropagation()}
+              aria-label={label}
+            >
+              <Icon size={16} />
+            </a>
+          ))}
         </div>
       </div>
     </div>

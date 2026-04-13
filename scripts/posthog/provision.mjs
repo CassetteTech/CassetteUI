@@ -42,6 +42,7 @@ loadEnvFile(path.join(projectRoot, '.env.local'));
 loadEnvFile(path.join(projectRoot, '.env'));
 
 const dryRun = process.argv.includes('--dry-run');
+const pmfOnly = process.argv.includes('--pmf-only');
 
 const host = (
   process.env.POSTHOG_APP_HOST ||
@@ -78,6 +79,10 @@ function internalActorPropertyFilter(internalActor) {
 
 function withInternalActorFilter(definitions, internalActor) {
   return definitions.map((definition) => {
+    if (!definition.filters?.events) {
+      return definition;
+    }
+
     const events = Array.isArray(definition.filters?.events)
       ? definition.filters.events.map((eventFilter) => {
         const existing = Array.isArray(eventFilter.properties) ? eventFilter.properties : [];
@@ -104,6 +109,10 @@ const elementTypes = ['track', 'album', 'artist', 'playlist'];
 const targetPlatforms = ['spotify', 'apple', 'deezer'];
 const FUNNEL_WINDOW_7_DAYS = {
   funnel_window_interval: 7,
+  funnel_window_interval_unit: 'day',
+};
+const FUNNEL_WINDOW_14_DAYS = {
+  funnel_window_interval: 14,
   funnel_window_interval_unit: 'day',
 };
 
@@ -142,6 +151,504 @@ function postPlatformConversionEvent({ name, targetPlatform, elementType, math }
     type: 'events',
     ...(math ? { math } : {}),
     properties,
+  };
+}
+
+function postDistributionMetricQuery(internalActor) {
+  const internalActorLiteral = internalActor ? 'true' : 'false';
+
+  return [
+    'with matured_posts as (',
+    '  select',
+    '    properties.post_id as post_id,',
+    '    min(timestamp) as created_at',
+    "  from events",
+    "  where event = 'post_created'",
+    `    and coalesce(toBool(properties.internal_actor), false) = ${internalActorLiteral}`,
+    '    and coalesce(toBool(properties.is_repost), false) = false',
+    '    and properties.post_id is not null',
+    '    and timestamp >= now() - INTERVAL 37 DAY',
+    '    and timestamp < now() - INTERVAL 7 DAY',
+    '  group by post_id',
+    '), post_views as (',
+    '  select',
+    '    properties.post_id as post_id,',
+    '    distinct_id,',
+    '    timestamp,',
+    "    coalesce(toString(properties.is_creator_view), 'false') as is_creator_view,",
+    '    coalesce(toBool(properties.internal_actor), false) as internal_actor',
+    '  from events',
+    "  where event = 'post_viewed'",
+    '), qualified_posts as (',
+    '  select',
+    '    p.post_id as post_id,',
+    '    uniqExactIf(',
+    '      v.distinct_id,',
+    '      v.timestamp >= p.created_at and v.timestamp < p.created_at + INTERVAL 7 DAY',
+    '    ) as distinct_non_creator_viewers',
+    '  from matured_posts p',
+    '  left join post_views v',
+    '    on v.post_id = p.post_id',
+    "   and v.is_creator_view = 'false'",
+    `   and v.internal_actor = ${internalActorLiteral}`,
+    '  group by p.post_id',
+    ')',
+    'select',
+    '  toDate(now() - INTERVAL 37 DAY) as created_from,',
+    '  toDate(now() - INTERVAL 7 DAY) as created_to,',
+    '  count() as total_posts,',
+    '  countIf(distinct_non_creator_viewers >= 3) as posts_with_3plus_non_creator_viewers_7d,',
+    '  if(',
+    '    count() = 0,',
+    '    0,',
+    '    round(100.0 * countIf(distinct_non_creator_viewers >= 3) / count(), 2)',
+    '  ) as pct_posts_with_3plus_non_creator_viewers_7d',
+    'from qualified_posts',
+  ].join('\n');
+}
+
+function postDistributionMetricInsight({ internalActor }) {
+  const prefix = internalActor ? 'Internal ' : '';
+  const keyPrefix = internalActor ? 'internal_' : '';
+
+  return {
+    key: `${keyPrefix}post_distribution_3plus_viewers_7d`,
+    name: `${prefix}Post Distribution Success (3+ Viewers, 7d)`,
+    description: `${prefix || ''}For posts created 37 to 7 days ago, the share that reached at least 3 distinct non-creator viewers within 7 days.`,
+    query: {
+      kind: 'DataTableNode',
+      source: {
+        kind: 'HogQLQuery',
+        query: postDistributionMetricQuery(internalActor),
+      },
+    },
+  };
+}
+
+function postDistributionLadderQuery(internalActor) {
+  const internalActorLiteral = internalActor ? 'true' : 'false';
+
+  return [
+    'with matured_posts as (',
+    '  select',
+    '    properties.post_id as post_id,',
+    '    min(timestamp) as created_at',
+    '  from events',
+    "  where event = 'post_created'",
+    `    and coalesce(toBool(properties.internal_actor), false) = ${internalActorLiteral}`,
+    '    and coalesce(toBool(properties.is_repost), false) = false',
+    '    and properties.post_id is not null',
+    '    and timestamp >= now() - INTERVAL 37 DAY',
+    '    and timestamp < now() - INTERVAL 7 DAY',
+    '  group by post_id',
+    '), post_views as (',
+    '  select',
+    '    properties.post_id as post_id,',
+    '    distinct_id,',
+    '    timestamp,',
+    "    coalesce(toString(properties.is_creator_view), 'false') as is_creator_view,",
+    '    coalesce(toBool(properties.internal_actor), false) as internal_actor',
+    '  from events',
+    "  where event = 'post_viewed'",
+    '), qualified_posts as (',
+    '  select',
+    '    p.post_id as post_id,',
+    '    uniqExactIf(',
+    '      v.distinct_id,',
+    '      v.timestamp >= p.created_at and v.timestamp < p.created_at + INTERVAL 7 DAY',
+    '    ) as distinct_non_creator_viewers',
+    '  from matured_posts p',
+    '  left join post_views v',
+    '    on v.post_id = p.post_id',
+    "   and v.is_creator_view = 'false'",
+    `   and v.internal_actor = ${internalActorLiteral}`,
+    '  group by p.post_id',
+    ')',
+    'select',
+    '  count() as total_posts,',
+    '  countIf(distinct_non_creator_viewers >= 1) as posts_with_1plus_viewer_7d,',
+    '  countIf(distinct_non_creator_viewers >= 3) as posts_with_3plus_viewers_7d,',
+    '  countIf(distinct_non_creator_viewers >= 5) as posts_with_5plus_viewers_7d,',
+    '  countIf(distinct_non_creator_viewers >= 10) as posts_with_10plus_viewers_7d,',
+    '  if(count() = 0, 0, round(100.0 * countIf(distinct_non_creator_viewers >= 1) / count(), 2)) as pct_with_1plus_7d,',
+    '  if(count() = 0, 0, round(100.0 * countIf(distinct_non_creator_viewers >= 3) / count(), 2)) as pct_with_3plus_7d,',
+    '  if(count() = 0, 0, round(100.0 * countIf(distinct_non_creator_viewers >= 5) / count(), 2)) as pct_with_5plus_7d,',
+    '  if(count() = 0, 0, round(100.0 * countIf(distinct_non_creator_viewers >= 10) / count(), 2)) as pct_with_10plus_7d,',
+    '  round(quantileExact(0.5)(distinct_non_creator_viewers), 2) as median_non_creator_viewers_7d',
+    'from qualified_posts',
+  ].join('\n');
+}
+
+function postDistributionLadderInsight({ internalActor }) {
+  const prefix = internalActor ? 'Internal ' : '';
+  const keyPrefix = internalActor ? 'internal_' : '';
+
+  return {
+    key: `${keyPrefix}post_distribution_ladder`,
+    name: `${prefix}Post Distribution Ladder`,
+    description: `${prefix || ''}Distribution ladder for original posts after 7 days, from first viewer to 10+ non-creator viewers.`,
+    query: {
+      kind: 'DataTableNode',
+      source: {
+        kind: 'HogQLQuery',
+        query: postDistributionLadderQuery(internalActor),
+      },
+    },
+  };
+}
+
+function creatorRepeatAfterDistributionQuery(internalActor) {
+  const internalActorLiteral = internalActor ? 'true' : 'false';
+
+  return [
+    'with candidate_posts as (',
+    '  select',
+    '    properties.post_id as post_id,',
+    '    coalesce(person_id, distinct_id) as creator_actor_id,',
+    '    min(timestamp) as created_at',
+    '  from events',
+    "  where event = 'post_created'",
+    `    and coalesce(toBool(properties.internal_actor), false) = ${internalActorLiteral}`,
+    '    and coalesce(toBool(properties.is_repost), false) = false',
+    '    and properties.post_id is not null',
+    '    and timestamp >= now() - INTERVAL 67 DAY',
+    '    and timestamp < now() - INTERVAL 30 DAY',
+    '  group by post_id, creator_actor_id',
+    '), post_views as (',
+    '  select',
+    '    properties.post_id as post_id,',
+    '    distinct_id,',
+    '    timestamp,',
+    "    coalesce(toString(properties.is_creator_view), 'false') as is_creator_view,",
+    '    coalesce(toBool(properties.internal_actor), false) as internal_actor',
+    '  from events',
+    "  where event = 'post_viewed'",
+    '), distributed_posts as (',
+    '  select',
+    '    p.post_id,',
+    '    p.creator_actor_id,',
+    '    p.created_at,',
+    '    uniqExactIf(',
+    '      v.distinct_id,',
+    '      v.timestamp >= p.created_at and v.timestamp < p.created_at + INTERVAL 7 DAY',
+    '    ) as distinct_non_creator_viewers',
+    '  from candidate_posts p',
+    '  left join post_views v',
+    '    on v.post_id = p.post_id',
+    "   and v.is_creator_view = 'false'",
+    `   and v.internal_actor = ${internalActorLiteral}`,
+    '  group by p.post_id, p.creator_actor_id, p.created_at',
+    '), creator_first_distributed as (',
+    '  select',
+    '    creator_actor_id,',
+    '    min(created_at) as first_distributed_at',
+    '  from distributed_posts',
+    '  where distinct_non_creator_viewers >= 3',
+    '  group by creator_actor_id',
+    '), creator_next_post as (',
+    '  select',
+    '    d.creator_actor_id,',
+    '    d.first_distributed_at,',
+    '    min(p.timestamp) as next_post_at',
+    '  from creator_first_distributed d',
+    '  left join events p',
+    "    on p.event = 'post_created'",
+    '   and coalesce(p.person_id, p.distinct_id) = d.creator_actor_id',
+    `   and coalesce(toBool(p.properties.internal_actor), false) = ${internalActorLiteral}`,
+    '   and coalesce(toBool(p.properties.is_repost), false) = false',
+    '   and p.timestamp > d.first_distributed_at',
+    '   and p.timestamp < d.first_distributed_at + INTERVAL 30 DAY',
+    '  group by d.creator_actor_id, d.first_distributed_at',
+    ')',
+    'select',
+    '  count() as creators_with_distributed_post,',
+    '  countIf(next_post_at is not null) as creators_who_posted_again_30d,',
+    '  if(count() = 0, 0, round(100.0 * countIf(next_post_at is not null) / count(), 2)) as pct_creators_posted_again_30d,',
+    "  round(avgIf(dateDiff('day', first_distributed_at, next_post_at), next_post_at is not null), 2) as avg_days_to_next_post",
+    'from creator_next_post',
+  ].join('\n');
+}
+
+function creatorRepeatAfterDistributionInsight({ internalActor }) {
+  const prefix = internalActor ? 'Internal ' : '';
+  const keyPrefix = internalActor ? 'internal_' : '';
+
+  return {
+    key: `${keyPrefix}creator_repeat_after_distribution`,
+    name: `${prefix}Creator Repeat After Distribution`,
+    description: `${prefix || ''}For creators whose original post reached 3+ non-creator viewers in 7 days, the share who posted again within 30 days.`,
+    query: {
+      kind: 'DataTableNode',
+      source: {
+        kind: 'HogQLQuery',
+        query: creatorRepeatAfterDistributionQuery(internalActor),
+      },
+    },
+  };
+}
+
+function viewerToContributorQuery(internalActor) {
+  const internalActorLiteral = internalActor ? 'true' : 'false';
+
+  return [
+    'with viewer_first_touch as (',
+    '  select',
+    '    coalesce(person_id, distinct_id) as viewer_actor_id,',
+    '    min(timestamp) as first_view_at,',
+    "    argMin(coalesce(toString(properties.is_authenticated), 'false'), timestamp) as first_view_authenticated",
+    '  from events',
+    "  where event = 'post_viewed'",
+    `    and coalesce(toBool(properties.internal_actor), false) = ${internalActorLiteral}`,
+    "    and coalesce(toString(properties.is_creator_view), 'false') = 'false'",
+    '    and timestamp >= now() - INTERVAL 44 DAY',
+    '    and timestamp < now() - INTERVAL 14 DAY',
+    '  group by viewer_actor_id',
+    '), viewer_auth as (',
+    '  select',
+    '    v.viewer_actor_id,',
+    '    min(a.timestamp) as auth_success_at',
+    '  from viewer_first_touch v',
+    '  left join events a',
+    "    on a.event in ('auth_signed_up', 'auth_signed_in', 'auth_google_oauth_completed')",
+    '   and coalesce(a.person_id, a.distinct_id) = v.viewer_actor_id',
+    `   and coalesce(toBool(a.properties.internal_actor), false) = ${internalActorLiteral}`,
+    '   and a.timestamp > v.first_view_at',
+    '   and a.timestamp < v.first_view_at + INTERVAL 7 DAY',
+    '  group by v.viewer_actor_id',
+    '), viewer_post as (',
+    '  select',
+    '    v.viewer_actor_id,',
+    '    min(p.timestamp) as first_post_at',
+    '  from viewer_first_touch v',
+    '  left join events p',
+    "    on p.event = 'post_created'",
+    '   and coalesce(p.person_id, p.distinct_id) = v.viewer_actor_id',
+    `   and coalesce(toBool(p.properties.internal_actor), false) = ${internalActorLiteral}`,
+    '   and coalesce(toBool(p.properties.is_repost), false) = false',
+    '   and p.timestamp > v.first_view_at',
+    '   and p.timestamp < v.first_view_at + INTERVAL 14 DAY',
+    '  group by v.viewer_actor_id',
+    '), viewer_outcomes as (',
+    '  select',
+    '    v.viewer_actor_id,',
+    '    v.first_view_authenticated,',
+    '    a.auth_success_at,',
+    '    p.first_post_at',
+    '  from viewer_first_touch v',
+    '  left join viewer_auth a on a.viewer_actor_id = v.viewer_actor_id',
+    '  left join viewer_post p on p.viewer_actor_id = v.viewer_actor_id',
+    ')',
+    'select',
+    "  'all_viewers' as viewer_segment,",
+    '  count() as viewers,',
+    '  countIf(auth_success_at is not null) as auth_success_7d,',
+    '  countIf(first_post_at is not null) as created_post_14d,',
+    '  if(count() = 0, 0, round(100.0 * countIf(auth_success_at is not null) / count(), 2)) as pct_auth_success_7d,',
+    '  if(count() = 0, 0, round(100.0 * countIf(first_post_at is not null) / count(), 2)) as pct_created_post_14d',
+    'from viewer_outcomes',
+    'union all',
+    'select',
+    "  'signed_out_viewers' as viewer_segment,",
+    '  count() as viewers,',
+    '  countIf(auth_success_at is not null) as auth_success_7d,',
+    '  countIf(first_post_at is not null) as created_post_14d,',
+    '  if(count() = 0, 0, round(100.0 * countIf(auth_success_at is not null) / count(), 2)) as pct_auth_success_7d,',
+    '  if(count() = 0, 0, round(100.0 * countIf(first_post_at is not null) / count(), 2)) as pct_created_post_14d',
+    'from viewer_outcomes',
+    "where first_view_authenticated = 'false'",
+    'union all',
+    'select',
+    "  'signed_in_viewers' as viewer_segment,",
+    '  count() as viewers,',
+    '  countIf(auth_success_at is not null) as auth_success_7d,',
+    '  countIf(first_post_at is not null) as created_post_14d,',
+    '  if(count() = 0, 0, round(100.0 * countIf(auth_success_at is not null) / count(), 2)) as pct_auth_success_7d,',
+    '  if(count() = 0, 0, round(100.0 * countIf(first_post_at is not null) / count(), 2)) as pct_created_post_14d',
+    'from viewer_outcomes',
+    "where first_view_authenticated = 'true'",
+  ].join('\n');
+}
+
+function viewerToContributorInsight({ internalActor }) {
+  const prefix = internalActor ? 'Internal ' : '';
+  const keyPrefix = internalActor ? 'internal_' : '';
+
+  return {
+    key: `${keyPrefix}viewer_to_contributor`,
+    name: `${prefix}Viewer to Contributor Conversion`,
+    description: `${prefix || ''}For non-creator viewers with a matured 14-day follow-up window, conversion from first post view into auth success and first original post.`,
+    query: {
+      kind: 'DataTableNode',
+      source: {
+        kind: 'HogQLQuery',
+        query: viewerToContributorQuery(internalActor),
+      },
+    },
+  };
+}
+
+function playlistCreationOutcomesQuery(internalActor) {
+  const internalActorLiteral = internalActor ? 'true' : 'false';
+
+  return [
+    'select',
+    "  coalesce(nullIf(toString(properties.target_platform), ''), 'unknown') as target_platform,",
+    "  countIf(event = 'playlist_creation_submitted') as submitted,",
+    "  countIf(event = 'playlist_creation_blocked') as blocked,",
+    "  countIf(event = 'playlist_created_on_platform') as created,",
+    "  countIf(event = 'playlist_creation_failed') as failed,",
+    "  if(countIf(event = 'playlist_creation_submitted') = 0, 0, round(100.0 * countIf(event = 'playlist_created_on_platform') / countIf(event = 'playlist_creation_submitted'), 2)) as created_per_submit_pct,",
+    "  if(countIf(event = 'playlist_created_on_platform') = 0, 0, round(avgIf(toFloat64OrNull(toString(properties.tracks_failed)), event = 'playlist_created_on_platform'), 2)) as avg_tracks_failed_per_success,",
+    "  if(countIf(event = 'playlist_created_on_platform') = 0, 0, round(avgIf(toFloat64OrNull(toString(properties.total_tracks)), event = 'playlist_created_on_platform'), 2)) as avg_tracks_attempted_per_success",
+    'from events',
+    "where event in ('playlist_creation_submitted', 'playlist_creation_blocked', 'playlist_created_on_platform', 'playlist_creation_failed')",
+    `  and coalesce(toBool(properties.internal_actor), false) = ${internalActorLiteral}`,
+    '  and timestamp >= now() - INTERVAL 30 DAY',
+    'group by target_platform',
+    'order by submitted desc, target_platform asc',
+  ].join('\n');
+}
+
+function playlistCreationOutcomesInsight({ internalActor }) {
+  const prefix = internalActor ? 'Internal ' : '';
+  const keyPrefix = internalActor ? 'internal_' : '';
+
+  return {
+    key: `${keyPrefix}playlist_creation_outcomes`,
+    name: `${prefix}Playlist Creation Outcomes`,
+    description: `${prefix || ''}30-day playlist creation submit, blocked, failure, and success outcomes by target platform.`,
+    query: {
+      kind: 'DataTableNode',
+      source: {
+        kind: 'HogQLQuery',
+        query: playlistCreationOutcomesQuery(internalActor),
+      },
+    },
+  };
+}
+
+function playlistCreationFunnelInsight({ internalActor }) {
+  return {
+    key: internalActor ? 'internal_post_engagement_funnel' : 'post_engagement_funnel',
+    name: internalActor ? 'Internal Post Engagement Funnel' : 'Post Engagement Funnel',
+    description: internalActor
+      ? 'Internal playlist creation flow: post_viewed -> playlist convert CTA click -> playlist_created_on_platform.'
+      : 'Playlist creation flow: post_viewed -> playlist convert CTA click -> playlist_created_on_platform.',
+    query: {
+      kind: 'InsightVizNode',
+      source: {
+        kind: 'FunnelsQuery',
+        ...FUNNEL_WINDOW_14_DAYS,
+        series: [
+          {
+            kind: 'EventsNode',
+            event: 'post_viewed',
+            name: 'post_viewed',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'post_platform_conversion_clicked',
+            name: 'post_platform_conversion_clicked',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+              {
+                key: 'source_context',
+                value: 'playlist_convert_button',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'playlist_created_on_platform',
+            name: 'playlist_created_on_platform',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+            ],
+          },
+        ],
+        funnelsFilter: {
+          layout: 'horizontal',
+          funnelVizType: 'steps',
+        },
+        properties: [],
+        filterTestAccounts: false,
+      },
+    },
+  };
+}
+
+function creatorIntentActivationFunnelInsight({ internalActor }) {
+  return {
+    key: internalActor ? 'internal_creator_intent_activation' : 'creator_intent_activation',
+    name: internalActor ? 'Internal Creator Intent Activation Funnel' : 'Creator Intent Activation Funnel',
+    description: internalActor
+      ? 'Internal explicit creator intent: conversion_entry_started -> auth_signed_up -> onboarding_completed -> music_service_connected -> post_created.'
+      : 'Explicit creator intent: conversion_entry_started -> auth_signed_up -> onboarding_completed -> music_service_connected -> post_created.',
+    query: {
+      kind: 'InsightVizNode',
+      source: {
+        kind: 'FunnelsQuery',
+        series: [
+          {
+            kind: 'EventsNode',
+            event: 'conversion_entry_started',
+            name: 'conversion_entry_started',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'auth_signed_up',
+            name: 'auth_signed_up',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'onboarding_completed',
+            name: 'onboarding_completed',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'music_service_connected',
+            name: 'music_service_connected',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'post_created',
+            name: 'post_created',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+              {
+                key: 'is_repost',
+                value: 'false',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+        ],
+        funnelsFilter: {
+          layout: 'horizontal',
+          funnelVizType: 'steps',
+        },
+        properties: [],
+        filterTestAccounts: false,
+      },
+    },
   };
 }
 
@@ -287,16 +794,8 @@ const insightDefinitions = [
   {
     key: 'post_engagement_funnel',
     name: 'Post Engagement Funnel',
-    description: 'post_viewed -> streaming_link_opened -> playlist_created_on_platform.',
-    filters: {
-      insight: 'FUNNELS',
-      layout: 'horizontal',
-      events: [
-        { id: 'post_viewed', type: 'events', order: 0, name: 'post_viewed' },
-        { id: 'streaming_link_opened', type: 'events', order: 1, name: 'streaming_link_opened' },
-        { id: 'playlist_created_on_platform', type: 'events', order: 2, name: 'playlist_created_on_platform' },
-      ],
-    },
+    description: 'Playlist creation flow: post_viewed -> playlist convert CTA click -> playlist_created_on_platform.',
+    query: playlistCreationFunnelInsight({ internalActor: false }).query,
   },
   {
     key: 'post_platform_cta_clicks_total',
@@ -402,6 +901,23 @@ const insightDefinitions = [
       ],
     },
   },
+  {
+    key: 'creator_intent_activation',
+    name: 'Creator Intent Activation Funnel',
+    description: 'Explicit creator intent: conversion_entry_started -> auth_signed_up -> onboarding_completed -> music_service_connected -> post_created.',
+    filters: {
+      insight: 'FUNNELS',
+      layout: 'horizontal',
+      ...FUNNEL_WINDOW_14_DAYS,
+      events: [
+        { id: 'conversion_entry_started', type: 'events', order: 0, name: 'conversion_entry_started' },
+        { id: 'auth_signed_up', type: 'events', order: 1, name: 'auth_signed_up' },
+        { id: 'onboarding_completed', type: 'events', order: 2, name: 'onboarding_completed' },
+        { id: 'music_service_connected', type: 'events', order: 3, name: 'music_service_connected' },
+        { id: 'post_created', type: 'events', order: 4, name: 'post_created' },
+      ],
+    },
+  },
 ];
 
 const dashboardName = 'Cassette Product Analytics';
@@ -412,6 +928,11 @@ const deprecatedInsightNames = [
 ];
 
 const productInsightDefinitions = withInternalActorFilter(insightDefinitions, false);
+productInsightDefinitions.push(postDistributionMetricInsight({ internalActor: false }));
+productInsightDefinitions.push(postDistributionLadderInsight({ internalActor: false }));
+productInsightDefinitions.push(creatorRepeatAfterDistributionInsight({ internalActor: false }));
+productInsightDefinitions.push(viewerToContributorInsight({ internalActor: false }));
+productInsightDefinitions.push(playlistCreationOutcomesInsight({ internalActor: false }));
 
 const internalInsightDefinitions = withInternalActorFilter([
   {
@@ -613,6 +1134,29 @@ const internalInsightDefinitions = withInternalActorFilter([
     },
   },
 ], true);
+internalInsightDefinitions.push(postDistributionMetricInsight({ internalActor: true }));
+internalInsightDefinitions.push(postDistributionLadderInsight({ internalActor: true }));
+internalInsightDefinitions.push(creatorRepeatAfterDistributionInsight({ internalActor: true }));
+internalInsightDefinitions.push(viewerToContributorInsight({ internalActor: true }));
+internalInsightDefinitions.push(playlistCreationOutcomesInsight({ internalActor: true }));
+
+const pmfProductInsightDefinitions = [
+  creatorIntentActivationFunnelInsight({ internalActor: false }),
+  postDistributionMetricInsight({ internalActor: false }),
+  postDistributionLadderInsight({ internalActor: false }),
+  creatorRepeatAfterDistributionInsight({ internalActor: false }),
+  viewerToContributorInsight({ internalActor: false }),
+  playlistCreationOutcomesInsight({ internalActor: false }),
+];
+
+const pmfInternalInsightDefinitions = [
+  creatorIntentActivationFunnelInsight({ internalActor: true }),
+  postDistributionMetricInsight({ internalActor: true }),
+  postDistributionLadderInsight({ internalActor: true }),
+  creatorRepeatAfterDistributionInsight({ internalActor: true }),
+  viewerToContributorInsight({ internalActor: true }),
+  playlistCreationOutcomesInsight({ internalActor: true }),
+];
 
 async function detachDeprecatedInsights() {
   const insights = await listAll(`${scopePath}/insights/`);
@@ -694,8 +1238,15 @@ async function upsertInsight(definition, dashboardId) {
     name: definition.name,
     description: definition.description,
     derived_name: definition.name,
-    filters: definition.filters,
     dashboards: dashboardId ? [dashboardId] : [],
+    ...(definition.query
+      ? {
+        query: definition.query,
+        filters: {},
+      }
+      : {
+        filters: definition.filters,
+      }),
   };
 
   if (existing) {
@@ -793,7 +1344,8 @@ async function clearDashboardTiles(dashboardId) {
 }
 
 async function main() {
-  console.log(`PostHog provisioning started (${dryRun ? 'dry-run' : 'apply'})`);
+  const modeLabel = pmfOnly ? 'pmf-only' : 'full';
+  console.log(`PostHog provisioning started (${dryRun ? 'dry-run' : 'apply'}, ${modeLabel})`);
   console.log(`Host: ${host}`);
   console.log(`Scope: ${scopePath}`);
 
@@ -801,12 +1353,12 @@ async function main() {
     {
       name: dashboardName,
       description: 'Auto-provisioned dashboard for Cassette product analytics (external actors only).',
-      insights: productInsightDefinitions,
+      insights: pmfOnly ? pmfProductInsightDefinitions : productInsightDefinitions,
     },
     {
       name: internalDashboardName,
       description: 'Auto-provisioned dashboard for Cassette internal team analytics (CassetteTeam actors).',
-      insights: internalInsightDefinitions,
+      insights: pmfOnly ? pmfInternalInsightDefinitions : internalInsightDefinitions,
     },
   ];
 
@@ -819,7 +1371,9 @@ async function main() {
     }
   }
 
-  await detachDeprecatedInsights();
+  if (!pmfOnly) {
+    await detachDeprecatedInsights();
+  }
 
   console.log('Provisioning complete.');
   console.log(`Dashboards provisioned: ${dashboardSpecs.length}`);

@@ -3,7 +3,9 @@ import {
   WEB_AUTH_PURPOSES,
   buildBackendUrl,
   buildForwardHeaders,
+  clearSignupAttributionCookie,
   readJsonResponse,
+  resolveForwardedOrigin,
   setSessionCookie,
 } from '@/lib/server/auth-proxy';
 
@@ -13,16 +15,21 @@ type ExchangeResponse = {
   purpose?: string;
 };
 
+function buildPublicRedirectUrl(request: NextRequest, path: string): URL {
+  const origin = resolveForwardedOrigin(request) ?? request.nextUrl.origin;
+  return new URL(path, `${origin}/`);
+}
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
   const error = request.nextUrl.searchParams.get('error');
 
   if (error) {
-    return NextResponse.redirect(new URL('/auth/signin?error=oauth-error', request.url));
+    return NextResponse.redirect(buildPublicRedirectUrl(request, '/auth/signin?error=oauth-error'));
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL('/auth/signin?error=callback-failed', request.url));
+    return NextResponse.redirect(buildPublicRedirectUrl(request, '/auth/signin?error=callback-failed'));
   }
 
   const backendResponse = await fetch(buildBackendUrl('/api/web-auth/exchange/redeem'), {
@@ -43,10 +50,11 @@ export async function GET(request: NextRequest) {
 
   const data = await readJsonResponse<ExchangeResponse>(backendResponse);
   if (!backendResponse.ok || !data?.sessionId) {
-    return NextResponse.redirect(new URL('/auth/signin?error=callback-failed', request.url));
+    return NextResponse.redirect(buildPublicRedirectUrl(request, '/auth/signin?error=callback-failed'));
   }
 
-  const response = NextResponse.redirect(new URL('/auth/google/callback', request.url));
+  const response = NextResponse.redirect(buildPublicRedirectUrl(request, '/auth/google/callback'));
   setSessionCookie(response, data.sessionId, data.purpose);
+  clearSignupAttributionCookie(response);
   return response;
 }

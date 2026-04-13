@@ -121,6 +121,10 @@ async function collectCapturedPayloads(fetchPayloads, beaconPayloads) {
         userId: 'user-123',
         isAuthenticated: true,
         accountType: 'Regular',
+        signupSource: 'friend',
+        signupMedium: 'dm',
+        signupCampaign: 'spring_launch',
+        firstReferrerDomain: 'instagram.com',
     });
     const captured = await collectCapturedPayloads(mocks.fetchPayloads, mocks.beaconPayloads);
     const events = captured.map((payload) => payload.event);
@@ -128,8 +132,14 @@ async function collectCapturedPayloads(fetchPayloads, beaconPayloads) {
     strict_1.default.ok(events.includes('$create_alias'));
     strict_1.default.ok(events.includes('$identify'));
     const aliasPayload = captured.find((payload) => payload.event === '$create_alias');
+    const identifyPayload = captured.find((payload) => payload.event === '$identify');
     strict_1.default.equal(aliasPayload?.distinct_id, 'anon:test-user');
     strict_1.default.equal(aliasPayload?.properties?.alias, 'user-123');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.signup_source, 'friend');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.signup_medium, 'dm');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.signup_campaign, 'spring_launch');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.first_referrer_domain, 'instagram.com');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.first_touch_source, 'friend');
     mocks.restore();
     process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
     process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
@@ -229,6 +239,27 @@ async function collectCapturedPayloads(fetchPayloads, beaconPayloads) {
     const teamProps = profileEvents[1]?.properties;
     strict_1.default.equal(regularProps?.internal_actor, false);
     strict_1.default.equal(teamProps?.internal_actor, true);
+    mocks.restore();
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
+    process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
+});
+(0, node_test_1.default)('captureClientEvent preserves post viewer relationship flags', { concurrency: false }, async () => {
+    const previousKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    const previousDevFlag = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV;
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_test_key';
+    process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = 'true';
+    (0, client_1.resetAnalyticsContextForTests)();
+    const mocks = setupBrowserMocks('/post/post-123');
+    await (0, client_1.captureClientEvent)('post_viewed', {
+        route: '/post/post-123',
+        source_surface: 'post',
+        post_id: 'post-123',
+        is_creator_view: false,
+    });
+    const captured = await collectCapturedPayloads(mocks.fetchPayloads, mocks.beaconPayloads);
+    const postViewEvent = captured.find((payload) => payload.event === 'post_viewed');
+    const props = postViewEvent?.properties;
+    strict_1.default.equal(props?.is_creator_view, false);
     mocks.restore();
     process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
     process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;

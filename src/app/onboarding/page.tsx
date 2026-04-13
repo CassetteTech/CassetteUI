@@ -18,6 +18,7 @@ import { authService } from '@/services/auth';
 import { pendingActionService } from '@/utils/pending-action';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
+import { authRedirectService } from '@/utils/auth-redirect';
 
 // Step definitions (excluding welcome and completion which are special)
 const STEPS = [
@@ -42,6 +43,22 @@ export default function OnboardingPage() {
     displayName: '',
     avatarFile: null as File | null,
   });
+
+  const consumeOnboardingDestination = useCallback(() => {
+    const pendingAction = pendingActionService.get();
+    if (pendingAction?.returnUrl) {
+      window.location.href = pendingAction.returnUrl;
+      return true;
+    }
+
+    const authRedirect = authRedirectService.consume();
+    if (authRedirect) {
+      window.location.href = authRedirect;
+      return true;
+    }
+
+    return false;
+  }, []);
 
   // Update form data when user loads
   useEffect(() => {
@@ -73,18 +90,13 @@ export default function OnboardingPage() {
         return;
       }
       if (user.isOnboarded) {
-        // Check for pending action before redirecting (e.g., user came from playlist page)
-        const pendingAction = pendingActionService.get();
-        if (pendingAction?.returnUrl) {
-          pendingActionService.clear();
-          window.location.href = pendingAction.returnUrl;
-        } else {
+        if (!consumeOnboardingDestination()) {
           router.replace('/profile');
         }
         return;
       }
     }
-  }, [isLoading, user, router]);
+  }, [isLoading, user, router, consumeOnboardingDestination]);
 
   const handleStartOnboarding = () => {
     void captureClientEvent('onboarding_started', {
@@ -192,8 +204,12 @@ export default function OnboardingPage() {
           setUser(updatedUser);
         }
 
-        setPhase('complete');
         toast.success('Profile created successfully!');
+        if (consumeOnboardingDestination()) {
+          return;
+        }
+
+        setPhase('complete');
       } else {
         throw new Error('Failed to update user data');
       }
@@ -205,14 +221,19 @@ export default function OnboardingPage() {
       });
       setPhase('steps');
     }
-  }, [formData, user, setUser, apiUrl]);
+  }, [formData, user, setUser, apiUrl, consumeOnboardingDestination]);
 
   const handleGoToProfile = () => {
     // Check for pending action (e.g., user came from playlist page to convert)
     const pendingAction = pendingActionService.get();
     if (pendingAction?.returnUrl) {
-      pendingActionService.clear();
       window.location.href = pendingAction.returnUrl;
+      return;
+    }
+
+    const authRedirect = authRedirectService.consume();
+    if (authRedirect) {
+      window.location.href = authRedirect;
       return;
     }
 

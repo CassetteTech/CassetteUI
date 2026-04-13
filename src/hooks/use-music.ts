@@ -4,6 +4,35 @@ import { musicService } from '@/services/music';
 import { apiService } from '@/services/api';
 import { useMusicStore } from '@/stores/music-store';
 import { seedArtworkCache } from '@/services/profile-artwork-cache';
+import { captureClientEvent } from '@/lib/analytics/client';
+
+function trackPostCreated(
+  postId: string | undefined,
+  input: {
+    elementType?: string;
+    musicElementId?: string;
+  } = {},
+): void {
+  if (!postId) {
+    return;
+  }
+
+  const normalizedElementType = input.elementType?.toLowerCase();
+  const elementType =
+    normalizedElementType === 'track' ||
+    normalizedElementType === 'album' ||
+    normalizedElementType === 'artist' ||
+    normalizedElementType === 'playlist'
+      ? normalizedElementType
+      : undefined;
+
+  void captureClientEvent('post_created', {
+    post_id: postId,
+    music_element_id: input.musicElementId,
+    element_type: elementType,
+    is_repost: false,
+  });
+}
 
 export const useMusicSearch = (query: string) => {
   const { setSearchResults, setIsSearching } = useMusicStore();
@@ -40,6 +69,9 @@ export const useMusicLinkConversion = (options?: { anonymous?: boolean }) => {
     onSuccess: (data, variables) => {
       console.log('✅ Mutation successful:', data);
       seedArtworkCache(data.postId, data.metadata?.artwork);
+      trackPostCreated(data.postId, {
+        elementType: data.metadata?.type,
+      });
       queryClient.invalidateQueries({ queryKey: ['music-search'] });
 
       // Lifecycle conversion responses may omit username; infer auth state from request intent.
@@ -106,7 +138,16 @@ export const useCreatePost = () => {
 
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => apiService.createPost(data),
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      const requestData = variables as {
+        musicElementId?: string;
+        elementType?: string;
+      };
+
+      trackPostCreated((data as { postId?: string })?.postId, {
+        elementType: requestData.elementType,
+        musicElementId: requestData.musicElementId,
+      });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       queryClient.invalidateQueries({ queryKey: ['user-posts'] });
     },
@@ -129,6 +170,10 @@ export const useAddMusicToProfile = () => {
     onSuccess: (data, variables) => {
       console.log('✅ Add music to profile successful:', data);
       seedArtworkCache(data.postId, variables.artworkUrl);
+      trackPostCreated(data.postId, {
+        elementType: variables.elementType,
+        musicElementId: variables.musicElementId,
+      });
       // Invalidate profile-related queries to refresh the user's profile
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['user-posts'], refetchType: 'all' });
@@ -186,4 +231,3 @@ export const useDeletePost = () => {
     },
   });
 };
-

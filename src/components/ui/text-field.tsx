@@ -17,8 +17,10 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
   variant = 'default',
   inputSize = 'default',
   className,
+  id,
   ...props
 }, ref) => {
+  const inputId = React.useId();
   const variants = {
     default: 'border-border focus:border-primary',
     auth: 'border-border focus:border-primary bg-card',
@@ -36,12 +38,13 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
         <label className={cn(
           "block font-bold text-foreground font-atkinson tracking-wide",
           inputSize === 'lg' ? 'text-sm mb-2' : 'text-sm mb-1'
-        )}>
+        )} htmlFor={id || inputId}>
           {label}
         </label>
       )}
       <input
         ref={ref}
+        id={id || inputId}
         className={cn(
           'w-full rounded-md border-2 transition-colors duration-200',
           'font-atkinson text-sm font-normal tracking-wide',

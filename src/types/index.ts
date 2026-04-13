@@ -74,6 +74,25 @@ export interface PaginatedActivityResponse {
   hasPrevious: boolean;
 }
 
+export interface ExploreUser {
+  userId: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  accountType?: AccountType | number | string;
+  latestExplorePostAt: string;
+}
+
+export interface PaginatedExploreUsersResponse {
+  users: ExploreUser[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
 // Music Types
 export interface Track {
   id: string;
@@ -458,6 +477,14 @@ export interface AddMusicForm {
   description?: string;
 }
 
+export interface SignupAttribution {
+  source?: string;
+  medium?: string;
+  campaign?: string;
+  firstReferrerDomain?: string;
+  capturedAt?: string;
+}
+
 // Auth Types
 export interface AuthUser {
   id: string;
@@ -473,6 +500,7 @@ export interface AuthUser {
   createdAt: string;
   updatedAt: string;
   connectedServices?: ConnectedService[];
+  signupAttribution?: SignupAttribution;
 }
 
 // Internal dashboard types
@@ -483,6 +511,7 @@ export interface InternalUserSummary {
   accountType: AccountType | number | string;
   isOnboarded: boolean;
   joinDate: string;
+  lastOnlineAt?: string | null;
   connectedServicesCount: number;
   postCount: number;
   likesReceivedAllTime: number;
@@ -558,4 +587,89 @@ export interface UpdateInternalAccountTypeRequest {
   accountType: 'Regular' | 'Verified' | 'CassetteTeam';
   canAssignVerified?: boolean;
   reason: string;
+}
+
+export type InternalSignupAttributionGroupBy =
+  | 'source'
+  | 'medium'
+  | 'campaign'
+  | 'referrerDomain';
+
+export interface InternalSignupAttributionOverview {
+  totalSignups: number;
+  attributedSignups: number;
+  unattributedSignups: number;
+  uniqueSources: number;
+  uniqueCampaigns: number;
+  uniqueMedia: number;
+}
+
+export interface InternalSignupAttributionBreakdownRow {
+  key: string;
+  value?: string | null;
+  isUnattributed: boolean;
+  signups: number;
+  percentOfFilteredTotal: number;
+}
+
+export interface InternalSignupAttributionBreakdownResponse {
+  groupBy: InternalSignupAttributionGroupBy;
+  items: InternalSignupAttributionBreakdownRow[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  totalFilteredSignups: number;
+}
+
+export interface InternalSignupAttributionUserRow {
+  userId: string;
+  username: string;
+  email: string;
+  joinDate: string;
+  signupSource?: string | null;
+  signupMedium?: string | null;
+  signupCampaign?: string | null;
+  firstReferrerDomain?: string | null;
+  attributionCapturedAt?: string | null;
+}
+
+export interface InternalSignupAttributionUsersResponse {
+  items: InternalSignupAttributionUserRow[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface InternalSignupLinkTemplate {
+  id: string;
+  name: string;
+  description?: string | null;
+  source: string;
+  medium?: string | null;
+  campaign?: string | null;
+  isActive: boolean;
+  createdByUserId: string;
+  createdByUsername?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateInternalSignupLinkTemplateRequest {
+  name: string;
+  description?: string;
+  source: string;
+  medium?: string;
+  campaign?: string;
+  isActive?: boolean;
+}
+
+export interface UpdateInternalSignupLinkTemplateRequest {
+  name?: string;
+  description?: string;
+  source?: string;
+  medium?: string;
+  campaign?: string;
+  isActive?: boolean;
 }

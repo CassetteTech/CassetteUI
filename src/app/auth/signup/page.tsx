@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -13,12 +15,20 @@ import { AnimatedBackground } from '@/components/ui/animated-background';
 import { MailCheck } from 'lucide-react';
 import { useSignUp, useSignInWithProvider } from '@/hooks/use-auth';
 import Image from 'next/image';
+import { authRedirectService } from '@/utils/auth-redirect';
 
 export default function SignUpPage() {
+  const searchParams = useSearchParams();
   const { isSuccess, data: signUpResult } = useSignUp();
   const { mutate: signInWithProvider, isPending: isSigningInWithProvider } = useSignInWithProvider();
+  const redirect = searchParams.get('redirect');
+
+  useEffect(() => {
+    authRedirectService.save(redirect);
+  }, [redirect]);
 
   const handleGoogleSignIn = () => {
+    authRedirectService.save(redirect);
     signInWithProvider('google');
   };
 

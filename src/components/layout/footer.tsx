@@ -62,6 +62,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/release-notes" className="text-muted-foreground hover:text-foreground">
+                  Release Notes
+                </Link>
+              </li>
+              <li>
                 <Link href="/privacy" className="text-muted-foreground hover:text-foreground">
                   Privacy Policy
                 </Link>

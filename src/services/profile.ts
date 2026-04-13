@@ -1,4 +1,11 @@
-import { ActivityPost, PaginatedActivityResponse, UserBio, PostPrivacy } from '@/types';
+import {
+  ActivityPost,
+  ExploreUser,
+  PaginatedActivityResponse,
+  PaginatedExploreUsersResponse,
+  PostPrivacy,
+  UserBio,
+} from '@/types';
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
 
 interface ActivityItemPayload {
@@ -72,6 +79,41 @@ interface ActivityApiResponse {
   hasNext?: boolean;
   hasPrevious?: boolean;
   HasNext?: boolean;
+  HasPrevious?: boolean;
+}
+
+interface ExploreUserPayload {
+  userId?: string;
+  UserId?: string;
+  username?: string;
+  Username?: string;
+  displayName?: string;
+  DisplayName?: string;
+  avatarUrl?: string;
+  AvatarUrl?: string;
+  profilePicture?: string;
+  ProfilePicture?: string;
+  accountType?: string | number;
+  AccountType?: string | number;
+  latestExplorePostAt?: string;
+  LatestExplorePostAt?: string;
+  [key: string]: unknown;
+}
+
+interface ExploreUsersApiResponse {
+  users?: ExploreUserPayload[];
+  Users?: ExploreUserPayload[];
+  page?: number;
+  Page?: number;
+  pageSize?: number;
+  PageSize?: number;
+  totalItems?: number;
+  TotalItems?: number;
+  totalPages?: number;
+  TotalPages?: number;
+  hasNext?: boolean;
+  HasNext?: boolean;
+  hasPrevious?: boolean;
   HasPrevious?: boolean;
 }
 
@@ -498,6 +540,95 @@ export class ProfileService {
       throw new Error('Failed to load explore activity');
     } catch (e) {
       console.log('�?O Explore activity fetch error:', e);
+      throw e;
+    }
+  }
+
+  async fetchExploreUsers(
+    options: {
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ): Promise<PaginatedExploreUsersResponse> {
+    try {
+      const { page = 1, pageSize = 20 } = options;
+      const path = '/api/v1/social/explore/users';
+      const url = this.buildApiUrl(path);
+
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        pageSize: pageSize.toString(),
+      });
+
+      const requestUrl = `${url}?${queryParams}`;
+
+      const response = await fetch(requestUrl, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.status === 200) {
+        const json = (await response.json()) as ExploreUsersApiResponse;
+        const sourceUsers = json.users ?? json.Users ?? [];
+
+        const users: ExploreUser[] = sourceUsers.map((user) => {
+          const userObj = user as Record<string, unknown>;
+          const pickString = (keys: string[]) => {
+            for (const key of keys) {
+              const value = userObj[key];
+              if (typeof value === 'string' && value.trim() !== '') {
+                return value;
+              }
+            }
+            return undefined;
+          };
+          const pickNumber = (keys: string[]) => {
+            for (const key of keys) {
+              const value = userObj[key];
+              if (typeof value === 'number' && Number.isFinite(value)) {
+                return value;
+              }
+            }
+            return undefined;
+          };
+
+          return {
+            userId: pickString(['userId', 'UserId']) || '',
+            username: pickString(['username', 'Username']) || 'unknown',
+            displayName: pickString(['displayName', 'DisplayName']),
+            avatarUrl: pickString(['avatarUrl', 'AvatarUrl', 'profilePicture', 'ProfilePicture']),
+            accountType:
+              pickString(['accountType', 'AccountType']) ??
+              pickNumber(['accountType', 'AccountType']),
+            latestExplorePostAt:
+              pickString(['latestExplorePostAt', 'LatestExplorePostAt']) || '',
+          };
+        });
+
+        const resolvedPage = json.page ?? json.Page ?? page;
+        const resolvedPageSize = json.pageSize ?? json.PageSize ?? pageSize;
+        const resolvedTotalItems = json.totalItems ?? json.TotalItems ?? users.length;
+        const resolvedTotalPages =
+          json.totalPages ??
+          json.TotalPages ??
+          (resolvedPageSize > 0 ? Math.ceil(resolvedTotalItems / resolvedPageSize) : 0);
+
+        return {
+          users,
+          page: resolvedPage,
+          pageSize: resolvedPageSize,
+          totalItems: resolvedTotalItems,
+          totalPages: resolvedTotalPages,
+          hasNext: json.hasNext ?? json.HasNext ?? resolvedPage < resolvedTotalPages,
+          hasPrevious: json.hasPrevious ?? json.HasPrevious ?? resolvedPage > 1,
+        };
+      }
+
+      throw new Error('Failed to load explore users');
+    } catch (e) {
       throw e;
     }
   }

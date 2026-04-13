@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  SIGNUP_ATTRIBUTION_COOKIE_MAX_AGE_SECONDS,
+  SIGNUP_ATTRIBUTION_COOKIE_NAME as SIGNUP_ATTRIBUTION_COOKIE_NAME_VALUE,
+  parseSignupAttributionCookie,
+  serializeSignupAttributionCookie,
+  type SignupAttribution,
+} from '@/lib/auth/signup-attribution';
 import { getApiUrl } from '@/lib/utils/url';
 
 export const SESSION_COOKIE_NAME = 'cassette_session';
+export const SIGNUP_ATTRIBUTION_COOKIE_NAME = SIGNUP_ATTRIBUTION_COOKIE_NAME_VALUE;
 export const WEB_SESSION_HEADER = 'X-Cassette-Web-Session';
 export const INTERNAL_WEB_AUTH_HEADER = 'X-Cassette-Web-Internal';
 export const INTERNAL_WEB_AUTH_HEADER_VALUE = 'cassette-ui';
@@ -28,7 +36,7 @@ function normalizeOrigin(value: string | null | undefined): string | null {
   }
 }
 
-function resolveForwardedOrigin(request: NextRequest): string | null {
+export function resolveForwardedOrigin(request: NextRequest): string | null {
   const forwardedHost =
     request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
     request.headers.get('host')?.split(',')[0]?.trim();
@@ -95,6 +103,22 @@ export function setSessionCookie(
 
 export function clearSessionCookie(response: NextResponse) {
   response.cookies.set(SESSION_COOKIE_NAME, '', buildCookieOptions(0));
+}
+
+export function getSignupAttributionFromCookie(request: NextRequest): SignupAttribution | null {
+  return parseSignupAttributionCookie(request.cookies.get(SIGNUP_ATTRIBUTION_COOKIE_NAME)?.value);
+}
+
+export function setSignupAttributionCookie(response: NextResponse, attribution: SignupAttribution) {
+  response.cookies.set(
+    SIGNUP_ATTRIBUTION_COOKIE_NAME,
+    serializeSignupAttributionCookie(attribution),
+    buildCookieOptions(SIGNUP_ATTRIBUTION_COOKIE_MAX_AGE_SECONDS),
+  );
+}
+
+export function clearSignupAttributionCookie(response: NextResponse) {
+  response.cookies.set(SIGNUP_ATTRIBUTION_COOKIE_NAME, '', buildCookieOptions(0));
 }
 
 export function buildBackendUrl(path: string, search = ''): string {

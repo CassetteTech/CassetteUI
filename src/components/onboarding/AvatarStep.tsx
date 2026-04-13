@@ -240,6 +240,7 @@ export function AvatarStep({
         </Button>
         <Button
           onClick={handlePrimaryAction}
+          data-testid="onboarding-avatar-next"
           className="px-8"
         >
           {isLastStep ? 'Finish' : 'Next'}

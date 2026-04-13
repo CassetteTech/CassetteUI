@@ -72,6 +72,7 @@ export function AuthPromptModal({
         <SheetFooter className="flex flex-col gap-3 sm:flex-col">
           <Button
             onClick={handleSignUp}
+            data-testid="auth-prompt-signup"
             className="w-full h-11 font-semibold bg-primary text-primary-foreground hover:bg-primary/90"
           >
             Sign Up
@@ -79,6 +80,7 @@ export function AuthPromptModal({
           <Button
             variant="ghost"
             onClick={handleSignIn}
+            data-testid="auth-prompt-signin"
             className="w-full text-muted-foreground hover:text-foreground"
           >
             Already have an account? Sign in

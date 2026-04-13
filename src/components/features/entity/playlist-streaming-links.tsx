@@ -17,7 +17,7 @@ import { clientConfig } from '@/lib/config-client';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { normalizePlatform, sanitizeDomain } from '@/lib/analytics/sanitize';
 import { buildPostPlatformConversionClickedProps } from '@/lib/analytics/post-platform-conversion';
-import type { AnalyticsBaseProps } from '@/lib/analytics/events';
+import type { AnalyticsBaseProps, PlatformDimension } from '@/lib/analytics/events';
 
 type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
 
@@ -92,10 +92,10 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
   const buildPlaylistAnalyticsProps = React.useCallback((platform: PlatformKey): AnalyticsBaseProps => {
     const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
-    const normalizedTargetPlatform = normalizePlatform(
+    const normalizedTargetPlatform: PlatformDimension = normalizePlatform(
       platform === 'appleMusic' ? 'apple' : platform,
     ) ?? 'unknown';
-    const normalizedSourcePlatform = normalizePlatform(
+    const normalizedSourcePlatform: PlatformDimension = normalizePlatform(
       sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey,
     ) ?? 'unknown';
 
@@ -348,6 +348,9 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
                 type="button"
                 onClick={() => {
                   const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
+                  const normalizedOpenedTargetPlatform: PlatformDimension = normalizePlatform(
+                    creationStatus.platform === 'appleMusic' ? 'apple' : creationStatus.platform,
+                  ) ?? 'unknown';
                   const openClickProps = buildPostPlatformConversionClickedProps({
                     sourceContext: 'playlist_open_button',
                     route,
@@ -369,9 +372,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
                     element_type: 'playlist',
                     music_element_id: playlistId,
                     post_id: postId,
-                    target_platform: creationStatus.platform === 'appleMusic'
-                      ? 'apple'
-                      : creationStatus.platform,
+                    target_platform: normalizedOpenedTargetPlatform,
                     source_domain: sanitizeDomain(playlist_url),
                     is_authenticated: isAuthenticated,
                   });

@@ -82,6 +82,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     links.deezer;
   const resolvedSourceUrl = providedSourceUrl || fallbackSourceUrl || null;
   const detectedFromResolved = resolvedSourceUrl ? detectContentType(resolvedSourceUrl).platform : null;
+  // Keep source platform detection resilient across mixed URL/platform inputs.
   const sourcePlatformKey =
     normalizedFromProp ||
     normalizePlatformKey(detectedFromProvided) ||

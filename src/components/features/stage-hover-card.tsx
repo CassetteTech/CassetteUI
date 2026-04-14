@@ -38,10 +38,10 @@ export function StageHoverCard({ children }: StageHoverCardProps) {
               height={24}
               className="shrink-0"
             />
-            <p className="text-sm font-semibold">Welcome to the Cassette Alpha!</p>
+            <p className="text-sm font-semibold">Welcome to the Cassette Beta!</p>
           </div>
           <p className="text-xs text-muted-foreground">
-            Cassette is in its earliest stage. Here&apos;s what to expect:
+            Cassette is in its beta stage. Here&apos;s what to expect:
           </p>
           <ul className="list-disc list-inside space-y-1 text-xs text-muted-foreground">
             <li>Features may change or be added frequently</li>

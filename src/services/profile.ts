@@ -548,10 +548,11 @@ export class ProfileService {
     options: {
       page?: number;
       pageSize?: number;
+      q?: string;
     } = {},
   ): Promise<PaginatedExploreUsersResponse> {
     try {
-      const { page = 1, pageSize = 20 } = options;
+      const { page = 1, pageSize = 20, q } = options;
       const path = '/api/v1/social/explore/users';
       const url = this.buildApiUrl(path);
 
@@ -559,6 +560,10 @@ export class ProfileService {
         page: page.toString(),
         pageSize: pageSize.toString(),
       });
+      const normalizedQuery = q?.trim();
+      if (normalizedQuery) {
+        queryParams.set('q', normalizedQuery);
+      }
 
       const requestUrl = `${url}?${queryParams}`;
 
@@ -603,8 +608,7 @@ export class ProfileService {
             accountType:
               pickString(['accountType', 'AccountType']) ??
               pickNumber(['accountType', 'AccountType']),
-            latestExplorePostAt:
-              pickString(['latestExplorePostAt', 'LatestExplorePostAt']) || '',
+            latestExplorePostAt: pickString(['latestExplorePostAt', 'LatestExplorePostAt']),
           };
         });
 

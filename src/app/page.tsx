@@ -379,7 +379,7 @@ export default function HomePage() {
                   <div className="mt-0 shrink-0 lg:mt-0 lg:-ml-3 lg:mb-[8%]">
                     <StageHoverCard>
                       <span className="font-teko font-black text-base sm:text-lg lg:text-xl tracking-wide [-webkit-text-fill-color:#FFFFFF] [-webkit-text-stroke:3.5px_#3B3E41] [paint-order:stroke_fill] cursor-pointer">
-                        alpha.
+                        beta.
                       </span>
                     </StageHoverCard>
                   </div>

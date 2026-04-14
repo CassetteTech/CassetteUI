@@ -80,7 +80,7 @@ export interface ExploreUser {
   displayName?: string;
   avatarUrl?: string;
   accountType?: AccountType | number | string;
-  latestExplorePostAt: string;
+  latestExplorePostAt?: string;
 }
 
 export interface PaginatedExploreUsersResponse {

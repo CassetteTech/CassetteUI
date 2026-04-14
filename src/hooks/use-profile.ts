@@ -14,8 +14,8 @@ export const profileQueryKeys = {
   likedActivity: (userId: string, page?: number) => ['user-liked-activity', userId, page] as const,
   exploreActivity: (page?: number, pageSize?: number) =>
     ['explore-activity', page, pageSize] as const,
-  exploreUsers: (page?: number, pageSize?: number) =>
-    ['explore-users', page, pageSize] as const,
+  exploreUsers: (page?: number, pageSize?: number, q?: string) =>
+    ['explore-users', page, pageSize, q ?? ''] as const,
 };
 
 /**
@@ -139,6 +139,7 @@ interface ExploreQueryOptions {
   page?: number;
   pageSize?: number;
   enabled?: boolean;
+  q?: string;
 }
 
 export const useExploreActivity = (options: ExploreQueryOptions = {}) => {
@@ -155,11 +156,11 @@ export const useExploreActivity = (options: ExploreQueryOptions = {}) => {
 };
 
 export const useExploreUsers = (options: ExploreQueryOptions = {}) => {
-  const { page = 1, pageSize = 20, enabled = true } = options;
+  const { page = 1, pageSize = 20, enabled = true, q } = options;
 
   return useQuery<PaginatedExploreUsersResponse, Error>({
-    queryKey: profileQueryKeys.exploreUsers(page, pageSize),
-    queryFn: () => profileService.fetchExploreUsers({ page, pageSize }),
+    queryKey: profileQueryKeys.exploreUsers(page, pageSize, q),
+    queryFn: () => profileService.fetchExploreUsers({ page, pageSize, q }),
     enabled,
     refetchOnMount: 'always',
     staleTime: 1000 * 60 * 2,

@@ -11,6 +11,7 @@ import { SearchResults } from '@/components/features/search-results';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronDown } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { HomeDemoSection } from '@/components/demo/home-demo-section';
 import { AppleMusicHelpModal } from '@/components/features/apple-music-help-modal';
@@ -526,6 +527,17 @@ export default function HomePage() {
           </div>
 
         </div>
+
+        <footer className="border-t border-border/40 px-4 py-4">
+          <div className="mx-auto flex max-w-5xl items-center justify-center gap-6 text-sm text-muted-foreground">
+            <Link href="/privacy" className="hover:text-foreground">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="hover:text-foreground">
+              Terms of Service
+            </Link>
+          </div>
+        </footer>
       </div>
 
       {/* Apple Music Help Modal */}

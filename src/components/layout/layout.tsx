@@ -37,7 +37,7 @@ useEffect(() => {
   const showNavbar = !isAuthPage;
   const showFooter = !isAuthPage && !isHomePage && !isPostPage;
 
-  if (isLoading) {
+  if (isLoading && !isHomePage) {
     return <PageLoader />;
   }
 
@@ -67,4 +67,3 @@ useEffect(() => {
     </div>
   );
 }
-

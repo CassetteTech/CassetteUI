@@ -31,11 +31,12 @@ useEffect(() => {
 
   const isAuthPage = pathname?.startsWith('/auth');
   const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/add-music') || pathname?.startsWith('/internal');
+  const isProfileRoute = pathname?.startsWith('/profile');
   const isHomePage = pathname === '/';
   const isPostPage = pathname?.startsWith('/post');
 
   const showNavbar = !isAuthPage;
-  const showFooter = !isAuthPage && !isHomePage && !isPostPage;
+  const showFooter = !isAuthPage && !isHomePage && !isPostPage && !isProfileRoute;
 
   if (isLoading && !isHomePage) {
     return <PageLoader />;

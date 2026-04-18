@@ -181,8 +181,12 @@ export function MusicConnectionsStatus({
 
   // Profile variant - compact card display
   if (variant === 'profile') {
+    const containerClass = hasConnections
+      ? `bg-card/20 backdrop-blur-md border border-border/20 rounded-xl p-3 ${className}`
+      : `rounded-xl py-2 ${className}`;
+
     return (
-      <div className={`bg-card/20 backdrop-blur-md border border-border/20 rounded-xl p-3 shadow-lg ${className}`}>
+      <div className={containerClass}>
         {hasConnections ? (
           <>
             {/* Desktop version - with text */}
@@ -213,17 +217,15 @@ export function MusicConnectionsStatus({
                   alt={platform.name}
                   width={28}
                   height={28}
-                  className="rounded-md shadow-sm"
+                  className="rounded-md"
                 />
               ))}
             </div>
           </>
         ) : (
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 bg-muted/50 rounded-md flex items-center justify-center">
-              <Music className="h-3 w-3 text-muted-foreground" />
-            </div>
-            <span className="text-xs text-muted-foreground">No services selected</span>
+            <Music className="h-3.5 w-3.5 text-muted-foreground/70" />
+            <span className="text-xs text-muted-foreground/80">No music services connected</span>
           </div>
         )}
       </div>

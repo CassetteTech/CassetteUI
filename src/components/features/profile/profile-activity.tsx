@@ -149,7 +149,7 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
 
   return (
     <>
-      <Card className="group relative gap-0 p-0 overflow-hidden bg-card/70 backdrop-blur-sm border-border/60 hover:border-border hover:shadow-md transition-all duration-200">
+      <Card className="group relative gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden bg-card/70 backdrop-blur-sm border-border/60 hover:border-border hover:shadow-md transition-all duration-200">
         <Link href={getNavigationPath(post)} className="block px-3 sm:px-4 py-3">
           <div className="flex gap-3 sm:gap-4 items-start">
             {/* Artwork with overlaid type badge */}
@@ -181,6 +181,16 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
               {/* Top row: attribution + actions */}
               <div className="flex items-start justify-between gap-2 min-w-0">
                 <div className="min-w-0 flex-1">
+                  {/* Repost caption — only rendered when isRepost; sits above original poster */}
+                  {post.isRepost && (
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80 mb-0.5 min-w-0">
+                      <Repeat2 className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                      <span className="truncate">
+                        reposted by{' '}
+                        <span className="font-medium text-foreground/70">@{post.username}</span>
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1 text-[13px] text-muted-foreground min-w-0">
                     <span className="font-medium text-foreground/80 truncate">@{sourceUsername}</span>
                     <VerificationBadge accountType={accountType} size="sm" />
@@ -193,16 +203,6 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
                       </>
                     )}
                   </div>
-                  {/* Repost caption — only rendered when isRepost; takes zero space otherwise */}
-                  {post.isRepost && (
-                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80 mt-0.5 min-w-0">
-                      <Repeat2 className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                      <span className="truncate">
-                        reposted by{' '}
-                        <span className="font-medium text-foreground/70">@{post.username}</span>
-                      </span>
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex items-center -mt-1 -mr-1.5 flex-shrink-0">
@@ -308,7 +308,7 @@ export function ActivitySkeleton({ count = 3 }: { count?: number }) {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
       {Array.from({ length: count }).map((_, index) => (
-        <Card key={index} className="gap-0 p-0 bg-card/70 backdrop-blur-sm">
+        <Card key={index} className="gap-0 sm:gap-0 p-0 sm:p-0 bg-card/70 backdrop-blur-sm">
           <div className="flex gap-3 sm:gap-4 items-start px-3 sm:px-4 py-3 animate-pulse">
             <div className="w-24 h-24 sm:w-28 sm:h-28 bg-muted/50 rounded-lg flex-shrink-0" />
             <div className="flex-1 min-w-0 space-y-2">

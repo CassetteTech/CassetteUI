@@ -32,7 +32,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError, apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
-import { AlertCircle, Check, Copy, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { AlertCircle, Check, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { detectContentType } from '@/utils/content-type-detection';
@@ -969,7 +969,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               <div className="flex items-center justify-between gap-3">
                 <BackButton route={backRoute} fallbackRoute="/explore" />
                 <motion.button
-                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
+                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 min-w-[120px] rounded-full border font-medium text-sm overflow-hidden ${
                     copyState === 'copied'
                       ? 'bg-success/20 text-success-text border-success/30'
                       : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
@@ -984,7 +984,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     {copyState === 'copied' ? (
                       <motion.span
                         key="copied"
-                        className="flex items-center gap-2"
+                        className="flex items-center justify-center gap-2"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
@@ -995,15 +995,28 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       </motion.span>
                     ) : (
                       <motion.span
-                        key="copy"
-                        className="flex items-center gap-2"
+                        key="share"
+                        className="flex items-center justify-center gap-2"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.15 }}
                       >
-                        <Copy className="w-4 h-4" />
-                        <span>Copy Link</span>
+                        <span
+                          aria-hidden="true"
+                          className="w-4 h-4 bg-current shrink-0"
+                          style={{
+                            WebkitMaskImage: "url(/images/ic_share.png)",
+                            maskImage: "url(/images/ic_share.png)",
+                            WebkitMaskSize: "contain",
+                            maskSize: "contain",
+                            WebkitMaskRepeat: "no-repeat",
+                            maskRepeat: "no-repeat",
+                            WebkitMaskPosition: "center",
+                            maskPosition: "center",
+                          }}
+                        />
+                        <span>Share</span>
                       </motion.span>
                     )}
                   </AnimatePresence>
@@ -1294,7 +1307,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 <div className="flex items-center justify-between gap-3">
                   <BackButton route={backRoute} fallbackRoute="/explore" />
                   <motion.button
-                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 min-w-[120px] rounded-full border font-medium text-sm overflow-hidden ${
                       copyState === 'copied'
                         ? 'bg-success/20 text-success-text border-success/30'
                         : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
@@ -1309,7 +1322,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       {copyState === 'copied' ? (
                         <motion.span
                           key="copied"
-                          className="flex items-center gap-2"
+                          className="flex items-center justify-center gap-2"
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
@@ -1320,15 +1333,28 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         </motion.span>
                       ) : (
                         <motion.span
-                          key="copy"
-                          className="flex items-center gap-2"
+                          key="share"
+                          className="flex items-center justify-center gap-2"
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
                           transition={{ duration: 0.15 }}
                         >
-                          <Copy className="w-4 h-4" />
-                          <span>Copy Link</span>
+                          <span
+                            aria-hidden="true"
+                            className="w-4 h-4 bg-current shrink-0"
+                            style={{
+                              WebkitMaskImage: "url(/images/ic_share.png)",
+                              maskImage: "url(/images/ic_share.png)",
+                              WebkitMaskSize: "contain",
+                              maskSize: "contain",
+                              WebkitMaskRepeat: "no-repeat",
+                              maskRepeat: "no-repeat",
+                              WebkitMaskPosition: "center",
+                              maskPosition: "center",
+                            }}
+                          />
+                          <span>Share</span>
                         </motion.span>
                       )}
                     </AnimatePresence>
@@ -1572,10 +1598,12 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           <div className="px-4 sm:px-6 md:px-8 pb-2 sm:pb-8 pt-16 max-w-lg mx-auto">
             {/* Header Toolbar */}
             <div className="pt-3 pb-4 sm:pt-4 sm:pb-6 max-w-7xl mx-auto w-full">
-              <div className="flex items-center justify-between gap-3">
-                <BackButton route={backRoute} fallbackRoute="/explore" />
+              <div className="grid grid-cols-3 items-center gap-3">
+                <div className="justify-self-start">
+                  <BackButton route={backRoute} fallbackRoute="/explore" />
+                </div>
                 <motion.button
-                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
+                  className={`justify-self-center inline-flex items-center justify-center gap-2 px-4 py-2 min-w-[120px] rounded-full border font-medium text-sm overflow-hidden ${
                     copyState === 'copied'
                       ? 'bg-success/20 text-success-text border-success/30'
                       : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
@@ -1590,7 +1618,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     {copyState === 'copied' ? (
                       <motion.span
                         key="copied"
-                        className="flex items-center gap-2"
+                        className="flex items-center justify-center gap-2"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
@@ -1602,51 +1630,66 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     ) : (
                       <motion.span
                         key="share"
-                        className="flex items-center gap-2"
+                        className="flex items-center justify-center gap-2"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.15 }}
                       >
-                        <Copy className="w-4 h-4" />
+                        <span
+                          aria-hidden="true"
+                          className="w-4 h-4 bg-current shrink-0"
+                          style={{
+                            WebkitMaskImage: "url(/images/ic_share.png)",
+                            maskImage: "url(/images/ic_share.png)",
+                            WebkitMaskSize: "contain",
+                            maskSize: "contain",
+                            WebkitMaskRepeat: "no-repeat",
+                            maskRepeat: "no-repeat",
+                            WebkitMaskPosition: "center",
+                            maskPosition: "center",
+                          }}
+                        />
                         <span>Share</span>
                       </motion.span>
                     )}
                   </AnimatePresence>
                 </motion.button>
                 {/* More Menu */}
-                {isOwnPost && (
-                  <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Post actions"
-                          data-testid="post-actions-trigger"
-                          className="rounded-full"
-                        >
-                        <MoreVertical className="h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {isOwnPost && (
-                        <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                      )}
-                      {isOwnPost && (
-                        <DropdownMenuItem
-                          onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                <div className="justify-self-end">
+                  {isOwnPost ? (
+                    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                      <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Post actions"
+                            data-testid="post-actions-trigger"
+                            className="rounded-full"
+                          >
+                          <MoreVertical className="h-5 w-5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {isOwnPost && (
+                          <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+                        {isOwnPost && (
+                          <DropdownMenuItem
+                            onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null}
+                </div>
               </div>
             </div>
             <div className="text-center space-y-2 sm:space-y-6">

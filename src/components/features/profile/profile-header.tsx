@@ -60,9 +60,17 @@ export function ProfileHeader({
               )}
             </div>
 
-            <span className="leading-none text-muted-foreground mb-2 text-sm sm:text-base lg:text-lg">
-              @{userBio.username}
-            </span>
+            <div className="flex items-center gap-2 flex-wrap mb-2">
+              <span className="leading-none text-muted-foreground text-sm sm:text-base lg:text-lg">
+                @{userBio.username}
+              </span>
+              {/* Mobile: inline likes stat next to username */}
+              <span className="lg:hidden text-muted-foreground/70 text-xs">·</span>
+              <span className="lg:hidden text-xs text-muted-foreground">
+                <span className="font-semibold text-card-foreground">{totalLikesReceived.toLocaleString()}</span>
+                {' '}likes
+              </span>
+            </div>
           </div>
         </div>
 
@@ -81,7 +89,8 @@ export function ProfileHeader({
           />
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        {/* Desktop-only likes received row */}
+        <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground">
           <span className="font-semibold text-card-foreground">{totalLikesReceived.toLocaleString()}</span>
           <span>likes received</span>
         </div>

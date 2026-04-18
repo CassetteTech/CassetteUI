@@ -132,15 +132,15 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
               }}
               className={cn(
                 "group relative flex items-center justify-center",
-                "px-3 py-2 sm:px-4 sm:py-2.5 rounded-full transition-all duration-200",
+                "px-2.5 py-1.5 text-xs sm:px-4 sm:py-2.5 sm:text-sm rounded-full transition-all duration-200",
                 "hover:scale-105 hover:shadow-lg",
                 "border-2 border-border text-foreground",
                 "bg-muted hover:bg-muted/80",
-                "text-sm font-medium"
+                "font-medium"
               )}
             >
               {/* Icon */}
-              <div className="relative w-4 h-4 mr-2">
+              <div className="relative mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4">
                 <Image
                   src={service.icon}
                   alt={service.name}

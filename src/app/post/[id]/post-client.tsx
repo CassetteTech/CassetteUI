@@ -251,6 +251,60 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
   const [commentCount, setCommentCount] = useState<number | undefined>(undefined);
   const [insightsSheetOpen, setInsightsSheetOpen] = useState(false);
+  const panelSwitchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Roughly matches the sheet's `data-[state=closed]:duration-[300ms]` slide-out
+  // with a small buffer so the outgoing panel finishes animating before the
+  // incoming one starts. Keeps cross-panel swaps visually clean on desktop.
+  const PANEL_SWITCH_DELAY_MS = 320;
+
+  const handleOpenComments = useCallback(() => {
+    if (panelSwitchTimeoutRef.current) {
+      clearTimeout(panelSwitchTimeoutRef.current);
+      panelSwitchTimeoutRef.current = null;
+    }
+    if (commentsSheetOpen) {
+      setCommentsSheetOpen(false);
+      return;
+    }
+    if (insightsSheetOpen) {
+      setInsightsSheetOpen(false);
+      panelSwitchTimeoutRef.current = setTimeout(() => {
+        setCommentsSheetOpen(true);
+        panelSwitchTimeoutRef.current = null;
+      }, PANEL_SWITCH_DELAY_MS);
+      return;
+    }
+    setCommentsSheetOpen(true);
+  }, [commentsSheetOpen, insightsSheetOpen]);
+
+  const handleOpenInsights = useCallback(() => {
+    if (panelSwitchTimeoutRef.current) {
+      clearTimeout(panelSwitchTimeoutRef.current);
+      panelSwitchTimeoutRef.current = null;
+    }
+    if (insightsSheetOpen) {
+      setInsightsSheetOpen(false);
+      return;
+    }
+    if (commentsSheetOpen) {
+      setCommentsSheetOpen(false);
+      panelSwitchTimeoutRef.current = setTimeout(() => {
+        setInsightsSheetOpen(true);
+        panelSwitchTimeoutRef.current = null;
+      }, PANEL_SWITCH_DELAY_MS);
+      return;
+    }
+    setInsightsSheetOpen(true);
+  }, [commentsSheetOpen, insightsSheetOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (panelSwitchTimeoutRef.current) {
+        clearTimeout(panelSwitchTimeoutRef.current);
+      }
+    };
+  }, []);
   const { openReportModal } = useReportIssue();
   const fromParam = searchParams.get('from');
   const backRoute =
@@ -277,11 +331,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   // Ref to track the source URL for add-to-profile
   const sourceUrlRef = useRef<string | null>(null);
   const sourcePlatformRef = useRef<string | null>(null);
+  const trackedPostViewRef = useRef<string | null>(null);
 
   useEffect(() => {
     setAddStatus('idle');
     setImageError(false);
   }, [postData?.postId, postData?.originalUrl]);
+
+  useEffect(() => {
+    trackedPostViewRef.current = null;
+  }, [postId]);
 
   const buildShareUrl = useCallback(() => {
     if (typeof window === 'undefined') return '';
@@ -725,24 +784,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           }
 
           const detectedSourcePlatform = detectContentType(originalLink || '').platform;
-          const resolvedPostOwnerUserId = response.userId || transformedData.userId;
-          const isCreatorView = Boolean(
-            user?.id &&
-            resolvedPostOwnerUserId &&
-            user.id === resolvedPostOwnerUserId,
-          );
           sourceUrlRef.current = originalLink || sourceUrlRef.current;
           sourcePlatformRef.current = detectedSourcePlatform || sourcePlatformRef.current;
-          void captureClientEvent('post_viewed', {
-            route: `/post/${response.postId || postId}`,
-            source_surface: 'post',
-            post_id: response.postId || postId,
-            element_type: elementTypeLower as 'track' | 'album' | 'artist' | 'playlist' | undefined,
-            source_platform: detectedSourcePlatform,
-            user_id: user?.id,
-            is_authenticated: isAuthenticated,
-            is_creator_view: isCreatorView,
-          });
           setPostData({
             ...transformedData,
             sourcePlatform: detectedSourcePlatform,
@@ -771,6 +814,41 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
       isCancelled = true;
     };
   }, [postId, user?.id, isAuthenticated]);
+
+  useEffect(() => {
+    if (isLoading || !postData) {
+      return;
+    }
+
+    const matchesRoutePost = [postData.postId, postData.redirectPostId, postData.originalPostId]
+      .some((candidate) => candidate === postId);
+    if (!matchesRoutePost) {
+      return;
+    }
+
+    const resolvedPostId = postData.postId || postId;
+    if (!resolvedPostId || trackedPostViewRef.current === resolvedPostId) {
+      return;
+    }
+
+    const isCreatorView = Boolean(
+      user?.id &&
+      postData.userId &&
+      user.id.toLowerCase() === postData.userId.toLowerCase(),
+    );
+
+    trackedPostViewRef.current = resolvedPostId;
+    void captureClientEvent('post_viewed', {
+      route: `/post/${resolvedPostId}`,
+      source_surface: 'post',
+      post_id: resolvedPostId,
+      element_type: postData.metadata.type as 'track' | 'album' | 'artist' | 'playlist' | undefined,
+      source_platform: (postData.sourcePlatform || sourcePlatformRef.current || undefined) as 'spotify' | 'apple' | 'deezer' | 'unknown' | undefined,
+      user_id: user?.id,
+      is_authenticated: isAuthenticated,
+      is_creator_view: isCreatorView,
+    });
+  }, [isLoading, isAuthenticated, postData, postId, user?.id]);
 
   // Color extraction function
   const extractColorFromArtwork = async (artworkUrl: string) => {
@@ -1006,6 +1084,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           title={metadata.title}
                           artist={metadata.artist}
                           artwork={metadata.artwork}
+                          postId={postData?.postId || postId}
+                          elementType="track"
+                          sourcePlatform={sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey ?? 'unknown'}
                         />
                       </div>
                     )}
@@ -1014,44 +1095,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   {(isAlbum || isPlaylist) && (
                     <div className="p-8 rounded-2xl border border-border bg-card shadow-lg w-full max-w-xl">
                       <div className="space-y-6">
-                        <HeadlineText className="text-3xl font-bold text-foreground text-center leading-tight">
-                          {metadata.title}
-                        </HeadlineText>
-                        {/* Artist line for album */}
-                        {isAlbum && (
-                          <div className="text-center">
-                            <BodyText className="text-lg text-muted-foreground">
-                              {postData?.details?.artists && postData.details.artists.length > 0 ? (
-                                postData.details.artists.map((artist, idx) => (
-                                  <span key={idx}>
-                                    {artist.name}
-                                    {artist.role === 'Featured' && <span className="text-sm"> (feat.)</span>}
-                                    {idx < postData.details!.artists!.length - 1 && ', '}
-                                  </span>
-                                ))
-                              ) : (
-                                metadata.artist
-                              )}
-                            </BodyText>
-                          </div>
-                        )}
-                        <div className="border-t border-border/30 mx-6" />
-                        {isPlaylist ? (
-                          <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-3 text-base">
-                            {/* Show track count - prefer actual tracks array length, fall back to trackCount metadata */}
-                            {(Array.isArray(postData?.tracks) && postData.tracks.length > 0) ? (
-                              <div>
-                                <span className="text-muted-foreground">Tracks: </span>
-                                <span className="font-medium">{postData.tracks.length}</span>
-                              </div>
-                            ) : typeof postData?.trackCount === 'number' && postData.trackCount > 0 ? (
-                              <div>
-                                <span className="text-muted-foreground">Tracks: </span>
-                                <span className="font-medium">{postData.trackCount}</span>
-                              </div>
-                            ) : null}
-                            {/* Source attribution badge */}
-                            {sourcePlatformKey && resolvedSourceUrl && sourceService && (
+                        {/* Title block: title (with inline source badge for playlist) + artist (album) */}
+                        <div className="space-y-2">
+                          <div className="relative flex justify-center items-center">
+                            <HeadlineText className="text-3xl font-bold text-foreground text-center leading-tight">
+                              {metadata.title}
+                            </HeadlineText>
+                            {isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService && (
                               <a
                                 href={resolvedSourceUrl}
                                 target="_blank"
@@ -1069,40 +1119,40 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                     is_authenticated: isAuthenticated,
                                   });
                                 }}
-                                className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group w-full mt-2"
+                                className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
+                                aria-label={`from ${sourceService.name}`}
                               >
+                                <span>from</span>
                                 <Image
                                   src={sourceService.icon}
                                   alt={sourceService.name}
-                                  width={16}
-                                  height={16}
-                                  className="opacity-70 group-hover:opacity-100 transition-opacity"
+                                  width={14}
+                                  height={14}
+                                  className="opacity-60 group-hover:opacity-100 transition-opacity"
                                 />
-                                <span>from {sourceService.name}</span>
                                 <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
                               </a>
                             )}
                           </div>
-                        ) : (
-                          // Album meta row
-                          <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-3 text-base">
-                            {postData?.releaseDate && (
-                              <div>
-                                <span className="text-muted-foreground">Released: </span>
-                                <span className="font-medium">{postData.releaseDate}</span>
-                              </div>
-                            )}
-                            {postData?.releaseDate && postData?.trackCount && (
-                              <span className="text-muted-foreground">•</span>
-                            )}
-                            {typeof postData?.trackCount === 'number' && (
-                              <div>
-                                <span className="text-muted-foreground">Tracks: </span>
-                                <span className="font-medium">{postData.trackCount}</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                          {/* Artist line for album */}
+                          {isAlbum && (
+                            <div className="text-center">
+                              <BodyText className="text-lg text-muted-foreground">
+                                {postData?.details?.artists && postData.details.artists.length > 0 ? (
+                                  postData.details.artists.map((artist, idx) => (
+                                    <span key={idx}>
+                                      {artist.name}
+                                      {artist.role === 'Featured' && <span className="text-sm"> (feat.)</span>}
+                                      {idx < postData.details!.artists!.length - 1 && ', '}
+                                    </span>
+                                  ))
+                                ) : (
+                                  metadata.artist
+                                )}
+                              </BodyText>
+                            </div>
+                          )}
+                        </div>
                         {/* Listen Now (merged into info card) */}
                         <div className="border-t border-border/30 mx-6" />
                         <div>
@@ -1132,12 +1182,12 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         {postData?.username && hasPostOwner && (
                           <>
                             <div className="border-t border-border/30 mx-6" />
-                            <div className="flex flex-col gap-2.5 relative z-20">
+                            <div className="flex flex-col gap-2 text-left relative z-20">
                               <PostAuthorHeader
                                 username={postData.username}
                                 description={postData?.description || ''}
                                 createdAt={postData?.createdAt}
-                                conversionSuccessCount={ownerVisibleConversionCount}
+                                compact
                               />
                               <PostEngagementBar
                                 likeCount={postData?.likeCount ?? 0}
@@ -1150,10 +1200,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                 onRepost={() => void handleRepost()}
                                 commentCount={commentCount}
                                 commentsEnabled={postData?.commentsEnabled ?? true}
-                                onOpenComments={() => setCommentsSheetOpen((o) => !o)}
+                                onOpenComments={handleOpenComments}
                                 canViewInsights={isOwnPost}
-                                onOpenInsights={() => setInsightsSheetOpen((o) => !o)}
+                                onOpenInsights={handleOpenInsights}
                                 className="self-start"
+                                compact
                               />
                             </div>
                           </>
@@ -1209,10 +1260,15 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     {/* Track list for album/playlist */}
                     {showTracks && (
                       <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-lg">
-                        <div className="p-5 border-b border-border bg-muted/50">
+                        <div className="p-5 border-b border-border bg-muted/50 flex items-baseline justify-between gap-3">
                           <h3 className="text-lg font-semibold text-foreground">
                             {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
                           </h3>
+                          {typeof playlistTrackCount === 'number' && playlistTrackCount > 0 && (
+                            <span className="text-sm text-muted-foreground tabular-nums">
+                              {playlistTrackCount} {playlistTrackCount === 1 ? 'track' : 'tracks'}
+                            </span>
+                          )}
                         </div>
                         <TrackList
                           items={postData.tracks!}
@@ -1312,24 +1368,29 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   )}
                 </div>
               </div>
-              <div className="px-8 max-w-7xl mx-auto pt-4 pb-24">
-                {/* Header: type label + genres, centered above both columns */}
-                <div className="flex flex-col items-center mb-10">
-                  <UIText className="text-foreground font-bold mb-2 uppercase tracking-wider text-lg">
-                    {typeLabel}
-                  </UIText>
-                  {hasGenres && (
-                    <div className="flex flex-wrap justify-center gap-1.5 max-w-xs">
-                      {filteredGenres.map((genre) => (
-                        <span
-                          key={genre}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground border border-border/50"
-                        >
-                          {genre}
-                        </span>
-                      ))}
+              <div className="px-8 max-w-7xl mx-auto pb-24 min-h-[calc(100vh-144px)] flex flex-col justify-center">
+                {/* Header row: positioned over the right column only, does not push artwork/card down */}
+                <div className="flex gap-12 mb-6">
+                  <div className="flex-[2]" aria-hidden="true" />
+                  <div className="flex-[3] flex justify-center">
+                    <div className="max-w-xl w-full flex flex-col items-center">
+                      <UIText className="text-foreground font-bold mb-2 uppercase tracking-wider text-lg">
+                        {typeLabel}
+                      </UIText>
+                      {hasGenres && (
+                        <div className="flex flex-wrap justify-center gap-1.5 max-w-xs">
+                          {filteredGenres.map((genre) => (
+                            <span
+                              key={genre}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground border border-border/50"
+                            >
+                              {genre}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
                 <div className="flex gap-12 items-start">
                   {/* Left Column - Artwork only */}
@@ -1353,12 +1414,15 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             title={metadata.title}
                             artist={metadata.artist}
                             artwork={metadata.artwork}
+                            postId={postData?.postId || postId}
+                            elementType="track"
+                            sourcePlatform={sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey ?? 'unknown'}
                           />
                         </div>
                       )}
                     </div>
                   </div>
-                  {/* Right Column - Card + secondary content as one stack */}
+                  {/* Right Column - Header + card + secondary content as one stack */}
                   <div className="flex-[3]">
                     <div className="max-w-xl w-full mx-auto">
                       <div className="space-y-6">
@@ -1439,7 +1503,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                     username={postData.username}
                                     description={postData?.description || ''}
                                     createdAt={postData?.createdAt}
-                                    conversionSuccessCount={ownerVisibleConversionCount}
                                   />
                                   <PostEngagementBar
                                     likeCount={postData?.likeCount ?? 0}
@@ -1452,9 +1515,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                     onRepost={() => void handleRepost()}
                                     commentCount={commentCount}
                                     commentsEnabled={postData?.commentsEnabled ?? true}
-                                    onOpenComments={() => setCommentsSheetOpen((o) => !o)}
+                                    onOpenComments={handleOpenComments}
                                     canViewInsights={isOwnPost}
-                                    onOpenInsights={() => setInsightsSheetOpen((o) => !o)}
+                                    onOpenInsights={handleOpenInsights}
                                     className="self-start"
                                   />
                                 </div>
@@ -1588,7 +1651,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             </div>
             <div className="text-center space-y-2 sm:space-y-6">
               {/* Element Type */}
-              <div className="hidden sm:block">
+              <div>
                 <UIText className="text-foreground font-bold mb-2 uppercase tracking-wider text-sm sm:text-base">
                   {typeLabel}
                 </UIText>
@@ -1632,6 +1695,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         artist={metadata.artist}
                         artwork={metadata.artwork}
                         mobile={true}
+                        postId={postData?.postId || postId}
+                        elementType="track"
+                        sourcePlatform={sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey ?? 'unknown'}
                       />
                     </div>
                   )}
@@ -1639,12 +1705,46 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               </div>
 
               {/* Track Information Card - Mobile */}
-              <div className="p-4 sm:p-5 rounded-2xl border border-border bg-card shadow-lg">
-                <div className="space-y-2 sm:space-y-4">
-                  {/* Title */}
-                  <HeadlineText className="text-lg sm:text-xl font-bold text-foreground text-center leading-tight">
-                    {metadata.title}
-                  </HeadlineText>
+              <div className="p-3 sm:p-5 rounded-2xl border border-border bg-card shadow-lg">
+                <div className="space-y-2.5 sm:space-y-4">
+                  {/* Title (with source badge right-aligned for playlist) */}
+                  <div className="relative flex justify-center items-center">
+                    <HeadlineText className="text-lg sm:text-xl font-bold text-foreground text-center leading-tight">
+                      {metadata.title}
+                    </HeadlineText>
+                    {isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService && (
+                      <a
+                        href={resolvedSourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => {
+                          void captureClientEvent('streaming_link_opened', {
+                            route: `/post/${postData?.postId || postId}`,
+                            source_surface: 'post',
+                            source_platform: sourcePlatformKey === 'appleMusic'
+                              ? 'apple'
+                              : sourcePlatformKey ?? 'unknown',
+                            source_domain: resolvedSourceUrl,
+                            post_id: postData?.postId || postId,
+                            element_type: 'playlist',
+                            is_authenticated: isAuthenticated,
+                          });
+                        }}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 text-xs sm:text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
+                        aria-label={`from ${sourceService.name}`}
+                      >
+                        <span>from</span>
+                        <Image
+                          src={sourceService.icon}
+                          alt={sourceService.name}
+                          width={14}
+                          height={14}
+                          className="opacity-60 group-hover:opacity-100 transition-opacity"
+                        />
+                        <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                      </a>
+                    )}
+                  </div>
 
                   {/* Artists with roles (show for Track/Album) */}
                   {(isTrack || isAlbum) && (
@@ -1665,104 +1765,40 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     </div>
                   )}
 
-                  {/* Separator */}
-                  <div className="border-t border-border/30" />
-
-                  {/* Metadata */}
-                  {isPlaylist ? (
-                    <div className="space-y-3 text-sm">
-                      {/* Show track count - prefer actual tracks array length, fall back to trackCount metadata */}
-                      {(Array.isArray(postData?.tracks) && postData.tracks.length > 0) ? (
+                  {/* Metadata (track-only: duration + album; album released date) */}
+                  {isTrack ? (
+                    <>
+                      <div className="border-t border-border/30" />
+                      <div className="space-y-2 text-sm">
                         <div className="flex flex-wrap justify-center gap-3">
-                          <div>
-                            <span className="text-muted-foreground">Tracks: </span>
-                            <span className="font-medium">{postData.tracks.length}</span>
-                          </div>
-                        </div>
-                      ) : typeof postData?.trackCount === 'number' && postData.trackCount > 0 ? (
-                        <div className="flex flex-wrap justify-center gap-3">
-                          <div>
-                            <span className="text-muted-foreground">Tracks: </span>
-                            <span className="font-medium">{postData.trackCount}</span>
-                          </div>
-                        </div>
-                      ) : null}
-                      {/* Source attribution badge */}
-                      {sourcePlatformKey && resolvedSourceUrl && sourceService && (
-                        <a
-                          href={resolvedSourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => {
-                            void captureClientEvent('streaming_link_opened', {
-                              route: `/post/${postData?.postId || postId}`,
-                              source_surface: 'post',
-                              source_platform: sourcePlatformKey === 'appleMusic'
-                                ? 'apple'
-                                : sourcePlatformKey ?? 'unknown',
-                              source_domain: resolvedSourceUrl,
-                              post_id: postData?.postId || postId,
-                              element_type: metadata.type as 'track' | 'album' | 'artist' | 'playlist',
-                              is_authenticated: isAuthenticated,
-                            });
-                          }}
-                          className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
-                        >
-                          <Image
-                            src={sourceService.icon}
-                            alt={sourceService.name}
-                            width={16}
-                            height={16}
-                            className="opacity-70 group-hover:opacity-100 transition-opacity"
-                          />
-                          <span>from {sourceService.name}</span>
-                          <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-                        </a>
-                      )}
-                    </div>
-                  ) : isTrack ? (
-                    <div className="space-y-2 text-sm">
-                      {/* Duration and Album in one line */}
-                      <div className="flex flex-wrap justify-center gap-3">
-                        {postData?.metadata?.duration && (
-                          <div>
-                            <span className="text-muted-foreground">Duration: </span>
-                            <span className="font-medium">{postData.metadata.duration}</span>
-                          </div>
-                        )}
+                          {postData?.metadata?.duration && (
+                            <div>
+                              <span className="text-muted-foreground">Duration: </span>
+                              <span className="font-medium">{postData.metadata.duration}</span>
+                            </div>
+                          )}
 
-                        {postData?.metadata?.duration && postData?.albumName && (
-                          <span className="text-muted-foreground">•</span>
-                        )}
+                          {postData?.metadata?.duration && postData?.albumName && (
+                            <span className="text-muted-foreground">•</span>
+                          )}
 
-                        {postData?.albumName && (
-                          <div>
-                            <span className="text-muted-foreground">Album: </span>
-                            <span className="font-medium">{postData.albumName}</span>
-                          </div>
-                        )}
+                          {postData?.albumName && (
+                            <div>
+                              <span className="text-muted-foreground">Album: </span>
+                              <span className="font-medium">{postData.albumName}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ) : isAlbum ? (
-                    <div className="space-y-3 text-sm">
-                      <div className="flex flex-wrap justify-center gap-3">
-                        {postData?.releaseDate && (
-                          <div>
-                            <span className="text-muted-foreground">Released: </span>
-                            <span className="font-medium">{postData.releaseDate}</span>
-                          </div>
-                        )}
-                        {postData?.releaseDate && postData?.trackCount && (
-                          <span className="text-muted-foreground">•</span>
-                        )}
-                        {typeof postData?.trackCount === 'number' && (
-                          <div>
-                            <span className="text-muted-foreground">Tracks: </span>
-                            <span className="font-medium">{postData.trackCount}</span>
-                          </div>
-                        )}
+                    </>
+                  ) : isAlbum && postData?.releaseDate ? (
+                    <>
+                      <div className="border-t border-border/30" />
+                      <div className="text-sm text-center">
+                        <span className="text-muted-foreground">Released: </span>
+                        <span className="font-medium">{postData.releaseDate}</span>
                       </div>
-                    </div>
+                    </>
                   ) : null}
 
                   {/* Listen Now (merged into info card) */}
@@ -1794,12 +1830,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   {postData?.username && hasPostOwner && (
                     <>
                       <div className="border-t border-border/30" />
-                      <div className="flex flex-col gap-2.5 text-left relative z-20">
+                      <div className="flex flex-col gap-2 sm:gap-2.5 text-left relative z-20">
                         <PostAuthorHeader
                           username={postData.username}
                           description={postData?.description || ''}
                           createdAt={postData?.createdAt}
-                          conversionSuccessCount={ownerVisibleConversionCount}
                         />
                         <PostEngagementBar
                           likeCount={postData?.likeCount ?? 0}
@@ -1812,9 +1847,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           onRepost={() => void handleRepost()}
                           commentCount={commentCount}
                           commentsEnabled={postData?.commentsEnabled ?? true}
-                          onOpenComments={() => setCommentsSheetOpen((o) => !o)}
+                          onOpenComments={handleOpenComments}
                           canViewInsights={isOwnPost}
-                          onOpenInsights={() => setInsightsSheetOpen((o) => !o)}
+                          onOpenInsights={handleOpenInsights}
                           className="self-start"
                         />
                       </div>
@@ -1826,10 +1861,15 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               {/* Track list for album/playlist - mobile */}
               {showTracks && (
                 <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-lg">
-                  <div className="p-3 sm:p-4 border-b border-border bg-muted/50">
+                  <div className="p-3 sm:p-4 border-b border-border bg-muted/50 flex items-baseline justify-center gap-2">
                     <h3 className="text-sm sm:text-base font-semibold text-foreground text-center">
                       {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
                     </h3>
+                    {typeof playlistTrackCount === 'number' && playlistTrackCount > 0 && (
+                      <span className="text-xs sm:text-sm text-muted-foreground tabular-nums">
+                        · {playlistTrackCount}
+                      </span>
+                    )}
                   </div>
                   <TrackList
                     items={postData.tracks!}
@@ -1926,9 +1966,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
 
       {isOwnPost && (
         <PostInsightsSheet
+          key={postData?.postId || postId}
           open={insightsSheetOpen}
           onOpenChange={setInsightsSheetOpen}
           postId={postData?.postId || postId}
+          conversionSuccessCount={ownerVisibleConversionCount}
         />
       )}
 

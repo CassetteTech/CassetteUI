@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Shield } from 'lucide-react';
+import { Settings, Shield } from 'lucide-react';
 import { UserBio, ConnectedService, PlatformPreferenceInfo } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -52,11 +52,8 @@ export function ProfileHeader({
               />
               {isCurrentUser && (
                 <Link href={`/profile/${userBio.username}/edit`} className="hover:scale-105 transition-transform flex-shrink-0">
-                  <Image
-                    src="/images/ic_edit.png"
-                    alt="Edit"
-                    width={24}
-                    height={24}
+                  <Settings
+                    aria-label="Edit profile"
                     className="w-5 h-5 sm:w-6 sm:h-6 opacity-80 hover:opacity-100"
                   />
                 </Link>
@@ -163,6 +160,16 @@ function ConnectedServices({
     return iconMap[normalized] || '/images/spotify_logo_colored.png';
   };
 
+  const getServiceIconClassName = (serviceType: string) => {
+    const normalized = normalize(serviceType);
+
+    if (normalized === 'applemusic' || normalized === 'apple') {
+      return 'w-full h-full object-contain dark:invert';
+    }
+
+    return 'w-full h-full object-contain';
+  };
+
   const getServiceColor = (serviceType: string) => {
     const normalized = normalize(serviceType);
     const colorMap: Record<string, string> = {
@@ -206,7 +213,7 @@ function ConnectedServices({
             alt={item.type}
             width={28}
             height={28}
-            className="w-full h-full object-contain"
+            className={getServiceIconClassName(item.type)}
           />
         </div>
       ))}

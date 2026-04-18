@@ -58,10 +58,10 @@ export function ProfileTabs({
   };
 
   return (
-    <div className="p-4 lg:p-6">
+    <div className="p-3 sm:p-4 lg:p-6">
       <div
         ref={containerRef}
-        className="relative flex h-12 items-center justify-start rounded-xl w-full lg:w-fit p-1 bg-muted/50 backdrop-blur-sm border border-border/50"
+        className="relative flex h-11 sm:h-12 items-center justify-start rounded-xl w-full lg:w-fit p-1 bg-muted/50 backdrop-blur-sm border border-border/50"
       >
         {/* Sliding indicator */}
         <div
@@ -80,8 +80,10 @@ export function ProfileTabs({
             ref={setTabRef(tab.key)}
             onClick={() => onTabChange(tab.key)}
             className={`
-              relative z-10 flex-1 lg:flex-none inline-flex items-center justify-center
-              whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium
+              relative z-10 flex-1 min-w-0 lg:flex-none lg:min-w-fit
+              inline-flex items-center justify-center whitespace-nowrap
+              rounded-lg px-1.5 sm:px-3 lg:px-4 py-2
+              text-xs sm:text-sm font-medium
               transition-colors duration-200
               ${activeTab === tab.key
                 ? 'text-white'
@@ -89,12 +91,12 @@ export function ProfileTabs({
               }
             `}
           >
-            <span className="inline-flex items-center gap-1.5">
-              <span>{tab.label}</span>
+            <span className="inline-flex items-center gap-1 sm:gap-1.5 min-w-0">
+              <span className="truncate">{tab.label}</span>
               {tab.key === 'liked' && (
                 likedTabVisibility === 'private'
-                  ? <Lock className="h-3.5 w-3.5" />
-                  : <Globe className="h-3.5 w-3.5" />
+                  ? <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                  : <Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
               )}
             </span>
           </button>

@@ -17,7 +17,8 @@ import {
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { formatRelativeTime } from '@/lib/utils/format-date';
-import { MoreVertical, Music, Pencil, Repeat2, Trash2 } from 'lucide-react';
+import { Disc3, ListMusic, Lock, MoreHorizontal, Music, Pencil, Repeat2, Share, Trash2, User } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 interface ProfileActivityProps {
   posts: ActivityPost[];
@@ -64,7 +65,7 @@ export function ProfileActivity({
   return (
     <div className="min-h-screen lg:min-h-0 lg:h-full">
       <div className="p-3 sm:p-4 md:p-6 lg:p-8">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
           {posts.map((post) => (
             <ActivityPostItem
               key={post.postId}
@@ -102,15 +103,16 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const getTypeIcon = (type: string) => {
-    const iconMap: Record<string, string> = {
-      track: 'music_note',
-      playlist: 'playlist_play',
-      artist: 'person',
-      album: 'album',
+  const getTypeIcon = (type: string): LucideIcon => {
+    const iconMap: Record<string, LucideIcon> = {
+      track: Music,
+      playlist: ListMusic,
+      artist: User,
+      album: Disc3,
     };
-    return iconMap[type.toLowerCase()] || 'help';
+    return iconMap[type.toLowerCase()] || Music;
   };
+  const TypeIcon = getTypeIcon(post.elementType);
 
   const getNavigationPath = (post: ActivityPost) => {
     const targetPostId = post.redirectPostId || post.postId;
@@ -147,67 +149,63 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
 
   return (
     <>
-      <Card className="relative p-3 sm:p-4 hover:shadow-lg transition-all duration-200 bg-card/60 backdrop-blur-sm hover:bg-card/80">
-        {post.isRepost && (
-          <div className="absolute bottom-2 right-2 z-20 rounded-full bg-background/80 p-1 text-muted-foreground">
-            <Repeat2 className="h-3.5 w-3.5" />
-          </div>
-        )}
-        <Link href={getNavigationPath(post)} className="block">
-          <div className="flex gap-4">
-            {/* Artwork - Fixed dimensions to prevent layout shift */}
-            <div className="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28">
-              <div className="w-full h-full">
-                {post.imageUrl ? (
-                  <Image
-                    src={post.imageUrl}
-                    alt={post.title}
-                    width={120}
-                    height={120}
-                    className="w-full h-full rounded-lg object-cover"
-                    placeholder="blur"
-                    blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJoc2woMjQwLCA0LjglLCA4My45JSkiLz48L3N2Zz4="
-                  />
-                ) : (
-                  <div className="w-full h-full rounded-lg bg-muted/40 flex items-center justify-center">
-                    <Image
-                      src="/images/ic_music.png"
-                      alt="Music"
-                      width={24}
-                      height={24}
-                      className="opacity-50"
-                    />
-                  </div>
-                )}
-              </div>
+      <Card className="group relative gap-0 p-0 overflow-hidden bg-card/70 backdrop-blur-sm border-border/60 hover:border-border hover:shadow-md transition-all duration-200">
+        <Link href={getNavigationPath(post)} className="block px-3 sm:px-4 py-3">
+          <div className="flex gap-3 sm:gap-4 items-start">
+            {/* Artwork with overlaid type badge */}
+            <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 relative">
+              {post.imageUrl ? (
+                <Image
+                  src={post.imageUrl}
+                  alt={post.title}
+                  width={128}
+                  height={128}
+                  className="w-full h-full rounded-lg object-cover ring-1 ring-border/40 shadow-sm"
+                  placeholder="blur"
+                  blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJoc2woMjQwLCA0LjglLCA4My45JSkiLz48L3N2Zz4="
+                />
+              ) : (
+                <div className="w-full h-full rounded-lg bg-muted/60 ring-1 ring-border/40 shadow-sm flex items-center justify-center">
+                  <Music className="h-8 w-8 text-muted-foreground/50" aria-hidden="true" />
+                </div>
+              )}
+              {/* Type chip overlaid on artwork — editorial/music-magazine style */}
+              <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-background/85 backdrop-blur-md text-[10px] font-semibold uppercase tracking-wide text-foreground/80 ring-1 ring-border/50 shadow-sm">
+                <TypeIcon className="h-2.5 w-2.5" aria-hidden="true" />
+                {post.elementType}
+              </span>
             </div>
 
             {/* Content */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1 min-w-0">
-                  {/* Type Badge */}
-                  <div className="inline-flex items-center gap-1 px-2 py-1 mb-2 bg-destructive/15 border border-destructive/30 rounded text-xs font-bold text-destructive">
-                    <span className="material-icons text-xs">
-                      {getTypeIcon(post.elementType)}
-                    </span>
-                    {post.elementType.toUpperCase()}
+            <div className="flex-1 min-w-0 flex flex-col">
+              {/* Top row: attribution + actions */}
+              <div className="flex items-start justify-between gap-2 min-w-0">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1 text-[13px] text-muted-foreground min-w-0">
+                    <span className="font-medium text-foreground/80 truncate">@{sourceUsername}</span>
+                    <VerificationBadge accountType={accountType} size="sm" />
+                    {post.createdAt && (
+                      <>
+                        <span className="text-muted-foreground/50 flex-shrink-0">·</span>
+                        <span className="text-muted-foreground flex-shrink-0">
+                          {formatRelativeTime(post.createdAt)}
+                        </span>
+                      </>
+                    )}
                   </div>
-                  {isOwnPost && post.privacy?.toLowerCase() === 'private' && (
-                    <div className="inline-flex items-center px-2 py-1 mb-2 ml-2 bg-muted/40 border border-muted-foreground/20 rounded text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Private
+                  {/* Repost caption — only rendered when isRepost; takes zero space otherwise */}
+                  {post.isRepost && (
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80 mt-0.5 min-w-0">
+                      <Repeat2 className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                      <span className="truncate">
+                        reposted by{' '}
+                        <span className="font-medium text-foreground/70">@{post.username}</span>
+                      </span>
                     </div>
                   )}
-
-                  {/* Title */}
-                  <h3 className="text-foreground font-semibold text-sm sm:text-base md:text-lg mb-1 truncate">
-                    {post.title}
-                  </h3>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  {/* Share Button */}
+                <div className="flex items-center -mt-1 -mr-1.5 flex-shrink-0">
                   <Button
                     variant="ghost"
                     size="icon"
@@ -215,18 +213,12 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
                       e.preventDefault();
                       handleShare();
                     }}
-                    className="w-8 h-8 sm:w-9 sm:h-9"
+                    className="w-8 h-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+                    aria-label="Share"
                   >
-                    <Image
-                      src="/images/ic_share.png"
-                      alt="Share"
-                      width={14}
-                      height={14}
-                      className="opacity-70"
-                    />
+                    <Share className="h-4 w-4" />
                   </Button>
 
-                  {/* More Menu (only for own posts) */}
                   {isOwnPost && (
                     <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                       <DropdownMenuTrigger asChild>
@@ -234,9 +226,10 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
                           variant="ghost"
                           size="icon"
                           onClick={(e) => e.preventDefault()}
-                          className="w-8 h-8 sm:w-9 sm:h-9"
+                          className="w-8 h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+                          aria-label="More options"
                         >
-                          <MoreVertical className="h-4 w-4 opacity-70" />
+                          <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -267,25 +260,25 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
                 </div>
               </div>
 
-              {/* Subtitle */}
+              {/* Title — the hero */}
+              <h3 className="text-foreground font-semibold text-base sm:text-lg leading-tight line-clamp-2 mt-1">
+                {post.title}
+              </h3>
+
+              {/* Description (optional) */}
               {detailText && (
-                <p className="text-muted-foreground text-xs sm:text-sm mb-2 line-clamp-2">
+                <p className="text-muted-foreground text-sm line-clamp-2 leading-snug mt-1">
                   {detailText}
                 </p>
               )}
 
-              {/* From User */}
-              <div className="flex items-center gap-1 text-muted-foreground/80 text-xs">
-                <span className="text-muted-foreground/60">from: </span>
-                <span className="text-muted-foreground">{sourceUsername}</span>
-                <VerificationBadge accountType={accountType} size="sm" />
-                {post.createdAt && (
-                  <>
-                    <span className="text-muted-foreground/60 mx-1">·</span>
-                    <span className="text-muted-foreground/60">{formatRelativeTime(post.createdAt)}</span>
-                  </>
-                )}
-              </div>
+              {/* Private flag (own private posts only) */}
+              {isOwnPost && post.privacy?.toLowerCase() === 'private' && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/60 text-[10px] font-medium text-muted-foreground ring-1 ring-border/40 self-start mt-1.5">
+                  <Lock className="h-2.5 w-2.5" aria-hidden="true" />
+                  Private
+                </span>
+              )}
             </div>
           </div>
         </Link>
@@ -313,16 +306,16 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
 
 export function ActivitySkeleton({ count = 3 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
       {Array.from({ length: count }).map((_, index) => (
-        <Card key={index} className="p-3 sm:p-4 bg-card/60 backdrop-blur-sm">
-          <div className="flex gap-3 sm:gap-4 animate-pulse">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 bg-muted/40 rounded-lg flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="w-12 sm:w-16 h-3 sm:h-4 bg-muted/40 rounded mb-2" />
-              <div className="w-3/4 h-4 sm:h-6 bg-muted/40 rounded mb-2" />
-              <div className="w-1/2 h-3 sm:h-4 bg-muted/40 rounded mb-2" />
-              <div className="w-1/3 h-2 sm:h-3 bg-muted/40 rounded" />
+        <Card key={index} className="gap-0 p-0 bg-card/70 backdrop-blur-sm">
+          <div className="flex gap-3 sm:gap-4 items-start px-3 sm:px-4 py-3 animate-pulse">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 bg-muted/50 rounded-lg flex-shrink-0" />
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="w-1/2 h-3 bg-muted/40 rounded" />
+              <div className="w-3/4 h-5 bg-muted/50 rounded" />
+              <div className="w-1/3 h-3 bg-muted/40 rounded" />
+              <div className="w-16 h-5 bg-muted/40 rounded-full" />
             </div>
           </div>
         </Card>

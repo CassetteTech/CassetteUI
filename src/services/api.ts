@@ -26,6 +26,7 @@ import {
   UpdateInternalAccountTypeRequest,
   NotificationListResponse,
   NotificationUnreadCountResponse,
+  PostInsightsResponse,
 } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent, surfaceFromRoute } from '@/lib/analytics/client';
@@ -856,6 +857,12 @@ class ApiService {
   // Fetch post by ID (includes conversion data)
   async fetchPostById(postId: string, options?: { signal?: AbortSignal }): Promise<PostByIdResponse> {
     return this.request<PostByIdResponse>(`/api/v1/social/posts/${postId}`, {
+      signal: options?.signal,
+    });
+  }
+
+  async getPostInsights(postId: string, options?: { signal?: AbortSignal }): Promise<PostInsightsResponse> {
+    return this.request<PostInsightsResponse>(`/api/v1/social/posts/${postId}/insights`, {
       signal: options?.signal,
     });
   }

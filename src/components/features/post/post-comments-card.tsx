@@ -350,14 +350,14 @@ export function PostCommentsCard({
         )}
 
         <div className={cn(
-          'group rounded-xl p-3 sm:p-4 transition-colors duration-150',
+          'group rounded-xl p-2.5 sm:p-4 transition-colors duration-150',
           depth === 0
             ? 'bg-background/50 border border-border/60 hover:border-border'
             : 'bg-background/30 hover:bg-background/50'
         )}>
           <div className="flex gap-2.5 sm:gap-3">
             <Link href={`/profile/${comment.username}`} className="flex-shrink-0">
-              <Avatar className={cn('ring-1 ring-border/50', depth === 0 ? 'h-8 w-8 sm:h-9 sm:w-9' : 'h-6 w-6 sm:h-7 sm:w-7')}>
+              <Avatar className={cn('ring-1 ring-border/50', depth === 0 ? 'h-7 w-7 sm:h-9 sm:w-9' : 'h-6 w-6 sm:h-7 sm:w-7')}>
                 <AvatarImage src={comment.userAvatarUrl ?? undefined} alt={`@${comment.username}`} className="object-cover" />
                 <AvatarFallback className="bg-muted text-muted-foreground font-semibold text-xs">
                   {commentInitial}
@@ -585,8 +585,8 @@ export function PostCommentsCard({
   if (!isVisible) return null;
 
   return (
-    <div className={cn('w-full rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-lg', className)}>
-      <div className="flex items-center gap-3 mb-5">
+    <div className={cn('w-full rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-lg', className)}>
+      <div className="flex items-center gap-3 mb-3 sm:mb-5">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4.5 w-4.5 text-foreground" />
           <h3 className="text-base font-semibold text-foreground">Comments</h3>
@@ -604,7 +604,7 @@ export function PostCommentsCard({
           onChange={(event) => setNewComment(event.target.value)}
           placeholder={commentsEnabled ? 'Share your thoughts...' : 'Comments are turned off'}
           disabled={isCreating || !commentsEnabled}
-          className="min-h-[80px] resize-none bg-background/50 border-border/60 text-sm placeholder:text-muted-foreground/60"
+          className="min-h-[64px] sm:min-h-[80px] resize-none bg-background/50 border-border/60 text-sm placeholder:text-muted-foreground/60"
         />
         <div className="flex items-center justify-between">
           <div>

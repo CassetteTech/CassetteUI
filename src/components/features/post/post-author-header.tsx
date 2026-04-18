@@ -1,9 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CheckCircle2 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { useUserBio } from '@/hooks/use-profile';
@@ -14,34 +12,35 @@ interface PostAuthorHeaderProps {
   username: string;
   description?: string;
   createdAt?: string;
-  conversionSuccessCount?: number;
   className?: string;
+  compact?: boolean;
 }
 
 export function PostAuthorHeader({
   username,
   description,
   createdAt,
-  conversionSuccessCount,
   className,
+  compact = false,
 }: PostAuthorHeaderProps) {
   const { data: profileData, isLoading: profileLoading } = useUserBio(username);
 
   const initial = username?.charAt(0)?.toUpperCase() || 'U';
   const avatarUrl = profileData?.avatarUrl;
-  const hasConversionCount = typeof conversionSuccessCount === 'number';
-  const formattedCount = hasConversionCount
-    ? new Intl.NumberFormat('en-US').format(Math.max(0, conversionSuccessCount))
-    : null;
   const hasCaption = Boolean(description?.trim());
 
+  const wrapperGap = compact ? 'gap-2.5' : 'gap-2.5 sm:gap-3';
+  const avatarSize = compact ? 'size-8' : 'size-8 sm:size-10';
+  const stackGap = compact ? 'gap-1' : 'gap-1 sm:gap-1.5';
+  const captionText = compact ? 'text-sm' : 'text-sm sm:text-[15px]';
+
   return (
-    <div className={cn('flex gap-3', hasCaption ? 'items-start' : 'items-center', className)}>
+    <div className={cn('flex', wrapperGap, hasCaption ? 'items-start' : 'items-center', className)}>
       <Link href={`/profile/${username}`} className="flex-shrink-0">
         {profileLoading ? (
-          <Skeleton className="size-9 sm:size-10 rounded-full" />
+          <Skeleton className={cn(avatarSize, 'rounded-full')} />
         ) : (
-          <Avatar className="size-9 sm:size-10 ring-1 ring-border">
+          <Avatar className={cn(avatarSize, 'ring-1 ring-border')}>
             <AvatarImage src={avatarUrl} alt={`@${username}`} className="object-cover" />
             <AvatarFallback className="bg-muted text-muted-foreground font-atkinson font-bold text-sm tracking-wide">
               {initial}
@@ -50,7 +49,7 @@ export function PostAuthorHeader({
         )}
       </Link>
 
-      <div className="min-w-0 flex-1 flex flex-col gap-1.5">
+      <div className={cn('min-w-0 flex-1 flex flex-col', stackGap)}>
         <div className="flex items-center gap-x-2 gap-y-1 flex-wrap">
           <Link
             href={`/profile/${username}`}
@@ -66,16 +65,10 @@ export function PostAuthorHeader({
               <span className="font-atkinson text-xs text-muted-foreground tracking-wide tabular-nums">{formatRelativeTime(createdAt)}</span>
             </>
           )}
-          {hasConversionCount && (
-            <Badge variant="outline" className="border-success/25 bg-success/10 text-success-text font-atkinson font-semibold tracking-wide ml-auto">
-              <CheckCircle2 />
-              {formattedCount} successful conversions
-            </Badge>
-          )}
         </div>
 
         {hasCaption && (
-          <p className="font-atkinson text-[15px] font-normal text-foreground/90 leading-relaxed tracking-wide break-words text-left whitespace-pre-wrap">
+          <p className={cn('font-atkinson font-normal text-foreground/90 leading-relaxed tracking-wide break-words text-left whitespace-pre-wrap', captionText)}>
             {description}
           </p>
         )}

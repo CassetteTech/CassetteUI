@@ -1,7 +1,7 @@
 'use client';
 
 import { Heart, Repeat2, MessageSquare, BarChart3 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +24,7 @@ interface PostEngagementBarProps {
   onOpenInsights?: () => void;
 
   className?: string;
+  compact?: boolean;
 }
 
 export function PostEngagementBar({
@@ -41,7 +42,11 @@ export function PostEngagementBar({
   canViewInsights = false,
   onOpenInsights,
   className,
+  compact = false,
 }: PostEngagementBarProps) {
+  const pillPadding = compact ? 'px-0.5 py-0.5' : 'px-0.5 py-0.5 sm:px-1 sm:py-1';
+  const btnPadding = compact ? 'px-2 py-0.5' : 'px-2 py-0.5 sm:px-2.5 sm:py-1';
+  const btnGap = compact ? 'gap-1' : 'gap-1 sm:gap-1.5';
   const hasLikeData = typeof likeCount === 'number';
   const hasCommentCount = typeof commentCount === 'number';
   const formattedLikes = hasLikeData
@@ -58,7 +63,8 @@ export function PostEngagementBar({
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-card/70 px-1 py-1 backdrop-blur-md elev-1',
+        'inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-card/70 backdrop-blur-md elev-1',
+        pillPadding,
         className,
       )}
     >
@@ -71,25 +77,23 @@ export function PostEngagementBar({
         aria-label={likedByCurrentUser ? 'Unlike post' : 'Like post'}
         aria-pressed={likedByCurrentUser}
         className={cn(
-          'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-atkinson text-xs font-bold tracking-wide transition-colors duration-200',
+          'inline-flex items-center rounded-full font-atkinson text-xs font-bold tracking-wide transition-colors duration-100',
+          btnGap,
+          btnPadding,
           likedByCurrentUser
             ? 'text-primary hover:bg-primary/10'
             : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
-          isLikePending && 'opacity-70',
         )}
       >
-        <AnimatePresence mode="wait">
-          <motion.span
-            key={likedByCurrentUser ? 'liked' : 'not-liked'}
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.5, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 15, duration: 0.2 }}
-            className="flex items-center"
-          >
-            <Heart className={cn('size-3.5', likedByCurrentUser && 'fill-current')} />
-          </motion.span>
-        </AnimatePresence>
+        <motion.span
+          key={likedByCurrentUser ? 'liked' : 'not-liked'}
+          initial={false}
+          animate={{ scale: [1, 1.25, 1] }}
+          transition={{ duration: 0.25, ease: 'easeOut', times: [0, 0.4, 1] }}
+          className="flex items-center"
+        >
+          <Heart className={cn('size-3.5', likedByCurrentUser && 'fill-current')} />
+        </motion.span>
         {hasLikeData && <span className="tabular-nums">{formattedLikes}</span>}
       </motion.button>
 
@@ -104,7 +108,9 @@ export function PostEngagementBar({
         whileTap={{ scale: 0.92 }}
         aria-label={commentsAriaLabel}
         className={cn(
-          'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-atkinson text-xs font-bold tracking-wide transition-colors duration-200',
+          'inline-flex items-center rounded-full font-atkinson text-xs font-bold tracking-wide transition-colors duration-200',
+          btnGap,
+          btnPadding,
           'text-muted-foreground hover:text-foreground hover:bg-muted/60',
           !commentsEnabled && 'opacity-70',
         )}

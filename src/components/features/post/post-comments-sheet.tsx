@@ -287,14 +287,14 @@ export function PostCommentsSheet({
         )}
 
         <div className={cn(
-          'group rounded-lg p-3 transition-colors duration-150',
+          'group rounded-lg p-2.5 sm:p-3 transition-colors duration-150',
           depth === 0
             ? 'bg-muted/30 hover:bg-muted/50'
             : 'hover:bg-muted/30'
         )}>
           <div className="flex gap-2.5">
             <Link href={`/profile/${comment.username}`} className="flex-shrink-0">
-              <Avatar className={cn('ring-1 ring-border/50', depth === 0 ? 'size-8' : 'size-6 sm:size-7')}>
+              <Avatar className={cn('ring-1 ring-border/50', depth === 0 ? 'size-7 sm:size-8' : 'size-6 sm:size-7')}>
                 <AvatarImage src={comment.userAvatarUrl ?? undefined} alt={`@${comment.username}`} className="object-cover" />
                 <AvatarFallback className="bg-muted text-muted-foreground font-semibold text-xs">
                   {commentInitial}
@@ -543,18 +543,23 @@ export function PostCommentsSheet({
         <DialogPrimitive.Content
           className={contentClasses}
           onInteractOutside={(event) => {
+            // Desktop: panel stays open during any outside interaction so the
+            // page remains fully clickable. Only the X button or re-clicking
+            // the trigger closes it. Mobile keeps the default modal dismiss.
             if (!isMobile) {
-              const target = event.target as HTMLElement | null;
-              if (target?.closest('[data-comments-trigger]')) {
-                event.preventDefault();
-              }
+              event.preventDefault();
+            }
+          }}
+          onFocusOutside={(event) => {
+            if (!isMobile) {
+              event.preventDefault();
             }
           }}
         >
           <DialogPrimitive.Title className="sr-only">Comments</DialogPrimitive.Title>
 
           {/* Header */}
-          <div className="flex items-center gap-2 px-4 sm:px-5 pt-5 pb-3 border-b border-border">
+          <div className="flex items-center gap-2 px-3 sm:px-5 pt-3.5 pb-2.5 sm:pt-5 sm:pb-3 border-b border-border">
             <MessageSquare className="size-4 text-muted-foreground" />
             <span className="font-atkinson text-sm font-bold text-foreground tracking-wide">Comments</span>
             {hasComments && (
@@ -571,8 +576,8 @@ export function PostCommentsSheet({
           </div>
 
           {/* Scrollable list */}
-          <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4">
-            <div className="flex flex-col gap-2">
+          <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               {isLoadingComments && !hasLoaded && (
                 <div className="flex flex-col items-center justify-center py-8 gap-2">
                   <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
@@ -595,7 +600,7 @@ export function PostCommentsSheet({
           </div>
 
           {/* Input pinned to bottom */}
-          <div className="border-t border-border bg-background/80 backdrop-blur-sm px-4 sm:px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="border-t border-border bg-background/80 backdrop-blur-sm px-3 sm:px-5 py-2.5 sm:py-3 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
             <div className="flex flex-col gap-2">
               <Textarea
                 value={newComment}

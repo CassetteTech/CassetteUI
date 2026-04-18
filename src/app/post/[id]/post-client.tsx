@@ -7,8 +7,9 @@ import { StreamingLinks, streamingServices } from '@/components/features/entity/
 import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList } from '@/components/features/entity/track-list';
-import { PostDescriptionCard } from '@/components/features/post/post-description-card';
-import { PostCommentsCard } from '@/components/features/post/post-comments-card';
+import { PostAuthorHeader } from '@/components/features/post/post-author-header';
+import { PostEngagementBar } from '@/components/features/post/post-engagement-bar';
+import { PostCommentsSheet } from '@/components/features/post/post-comments-sheet';
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
@@ -38,13 +39,7 @@ import { captureClientEvent } from '@/lib/analytics/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
-type JoinCassetteCTAProps = {
-  onClick: () => void;
-  className?: string;
-  accentColor?: string | null;
-};
-
-function JoinCassetteCTA({ onClick, className }: Omit<JoinCassetteCTAProps, 'accentColor'>) {
+function JoinCassetteCTA({ onClick, className }: { onClick: () => void; className?: string }) {
   return (
     <div className={`flex items-center justify-between gap-4 ${className ?? ''}`}>
       <p className="text-sm text-muted-foreground">
@@ -55,6 +50,24 @@ function JoinCassetteCTA({ onClick, className }: Omit<JoinCassetteCTAProps, 'acc
         className="shrink-0 px-4 py-2 text-sm font-semibold rounded-lg transition-colors bg-primary text-primary-foreground border-2 border-primary"
       >
         Sign up free
+      </button>
+    </div>
+  );
+}
+
+function SupportCTA({ className }: { className?: string }) {
+  return (
+    <div className={`flex items-center justify-between gap-4 ${className ?? ''}`}>
+      <p className="text-sm text-muted-foreground">
+        <span className="text-foreground font-medium">Enjoying Cassette?</span> Support us on Ko-fi.
+      </p>
+      <button
+        onClick={openKoFiSupport}
+        className="shrink-0 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors bg-primary text-primary-foreground"
+        aria-label="Support Cassette on Ko-fi"
+      >
+        <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="rounded-full" />
+        <span>Tip us</span>
       </button>
     </div>
   );
@@ -234,6 +247,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const [hasReposted, setHasReposted] = useState(false);
   const [isLikePending, setIsLikePending] = useState(false);
   const [likeAuthPromptOpen, setLikeAuthPromptOpen] = useState(false);
+  const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
+  const [commentCount, setCommentCount] = useState<number | undefined>(undefined);
   const { openReportModal } = useReportIssue();
   const fromParam = searchParams.get('from');
   const backRoute =
@@ -858,7 +873,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         gradientColors={palette ? [palette.dominant, palette.muted] : undefined}
       />
 
-      <div className={useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"}>
+      <div
+        className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"} transition-[padding] duration-[450ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
+      >
         {isDesktop ? (
           useSplitScrollLayout ? (
           // Desktop Album/Playlist: fixed left, scrollable right (only right side scrolls)
@@ -1089,61 +1106,57 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             </>
                           );
                         })()}
+                        {/* Listen Now (merged into info card) */}
+                        <div className="border-t border-border/30 mx-6" />
+                        <div>
+                          <h3 className="text-base font-semibold text-foreground mb-4 text-center">Listen Now</h3>
+                          {isPlaylist ? (
+                            <PlaylistStreamingLinks
+                              links={convertedUrls}
+                              className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                              playlistId={postData?.musicElementId || ''}
+                              postId={postData?.postId || postId}
+                              playlistTrackCount={playlistTrackCount}
+                              sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
+                              sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                            />
+                          ) : (
+                            <StreamingLinks
+                              links={convertedUrls}
+                              postId={postData?.postId || postId}
+                              elementType={metadata.type}
+                              sourcePlatform={analyticsSourcePlatform}
+                              isAuthenticated={isAuthenticated}
+                              className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                            />
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
-                  {/* PostDescriptionCard for album/playlist */}
-                  {postData?.username && (
-                    <PostDescriptionCard
-                      username={postData.username}
-                      description={postData?.description || ''}
-                      createdAt={postData?.createdAt}
-                      conversionSuccessCount={ownerVisibleConversionCount}
-                      likeCount={postData?.likeCount ?? 0}
-                      likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
-                      isLikePending={isLikePending}
-                      onToggleLike={handleToggleLike}
-                      canRepost={canRepost}
-                      hasReposted={hasReposted}
-                      isRepostPending={isRepostPending}
-                      onRepost={() => void handleRepost()}
-                      className="mt-6 w-full max-w-xl relative z-20"
-                    />
-                  )}
-                  {hasPostOwner && (
-                    <PostCommentsCard
-                      postId={postData?.postId || postId}
-                      isVisible={true}
-                      commentsEnabled={postData?.commentsEnabled ?? true}
-                      currentUserId={user?.id}
-                      currentUsername={user?.username}
-                      className="mt-6 max-w-xl"
-                    />
-                  )}
-                  {/* Streaming Links (moved from right) */}
-                  {(isAlbum || isPlaylist) && (
-                    <div className="mt-6 p-8 rounded-2xl border border-border bg-card shadow-lg relative z-10 w-full max-w-xl">
-                      <h3 className="text-xl font-semibold text-card-foreground mb-6 text-center">Listen Now</h3>
-                        {isPlaylist ? (
-                          <PlaylistStreamingLinks
-                            links={convertedUrls}
-                            className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                            playlistId={postData?.musicElementId || ''}
-                            postId={postData?.postId || postId}
-                            playlistTrackCount={playlistTrackCount}
-                            sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
-                            sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                          />
-                        ) : (
-                          <StreamingLinks
-                            links={convertedUrls}
-                            postId={postData?.postId || postId}
-                            elementType={metadata.type}
-                            sourcePlatform={analyticsSourcePlatform}
-                            isAuthenticated={isAuthenticated}
-                            className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                        />
-                      )}
+                  {/* Social: author header + engagement bar */}
+                  {postData?.username && hasPostOwner && (
+                    <div className="mt-6 w-full max-w-xl flex flex-col gap-3 relative z-20">
+                      <PostAuthorHeader
+                        username={postData.username}
+                        description={postData?.description || ''}
+                        createdAt={postData?.createdAt}
+                        conversionSuccessCount={ownerVisibleConversionCount}
+                      />
+                      <PostEngagementBar
+                        likeCount={postData?.likeCount ?? 0}
+                        likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                        isLikePending={isLikePending}
+                        onToggleLike={handleToggleLike}
+                        canRepost={canRepost}
+                        hasReposted={hasReposted}
+                        isRepostPending={isRepostPending}
+                        onRepost={() => void handleRepost()}
+                        commentCount={commentCount}
+                        commentsEnabled={postData?.commentsEnabled ?? true}
+                        onOpenComments={() => setCommentsSheetOpen((o) => !o)}
+                        className="self-start"
+                      />
                     </div>
                   )}
                   {showAddToProfile && (
@@ -1328,16 +1341,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           </div>
                         )}
                       </div>
-                      {hasPostOwner && (
-                        <PostCommentsCard
-                          postId={postData?.postId || postId}
-                          isVisible={true}
-                          commentsEnabled={postData?.commentsEnabled ?? true}
-                          currentUserId={user?.id}
-                          currentUsername={user?.username}
-                          className="w-full max-w-md"
-                        />
-                      )}
                     </div>
                   </div>
                   {/* Right Column - Content (page scroll) */}
@@ -1409,50 +1412,58 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                 </>
                               );
                             })()}
+                            {/* Listen Now (merged into info card) */}
+                            <div className="border-t border-border/30 mx-4" />
+                            <div>
+                              <h3 className="text-base font-semibold text-foreground mb-3 text-center">Listen Now</h3>
+                              {isPlaylist ? (
+                                <PlaylistStreamingLinks
+                                  links={convertedUrls}
+                                  className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                                  playlistId={postData?.musicElementId || ''}
+                                  postId={postData?.postId || postId}
+                                  playlistTrackCount={playlistTrackCount}
+                                  sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
+                                  sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                                />
+                              ) : (
+                                <StreamingLinks
+                                  links={convertedUrls}
+                                  postId={postData?.postId || postId}
+                                  elementType={metadata.type}
+                                  sourcePlatform={analyticsSourcePlatform}
+                                  isAuthenticated={isAuthenticated}
+                                  className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                                />
+                              )}
+                            </div>
                           </div>
                         </div>
-                        {/* Description - only show if post has a real user */}
-                        {postData?.username && (
-                          <PostDescriptionCard
-                            username={postData.username}
-                            description={postData?.description || ''}
-                            createdAt={postData?.createdAt}
-                            conversionSuccessCount={ownerVisibleConversionCount}
-                            likeCount={postData?.likeCount ?? 0}
-                            likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
-                            isLikePending={isLikePending}
-                            onToggleLike={handleToggleLike}
-                            canRepost={canRepost}
-                            hasReposted={hasReposted}
-                            isRepostPending={isRepostPending}
-                            onRepost={() => void handleRepost()}
-                            className="relative z-20"
-                          />
+                        {/* Social: author header + engagement bar */}
+                        {postData?.username && hasPostOwner && (
+                          <div className="flex flex-col gap-3 relative z-20">
+                            <PostAuthorHeader
+                              username={postData.username}
+                              description={postData?.description || ''}
+                              createdAt={postData?.createdAt}
+                              conversionSuccessCount={ownerVisibleConversionCount}
+                            />
+                            <PostEngagementBar
+                              likeCount={postData?.likeCount ?? 0}
+                              likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                              isLikePending={isLikePending}
+                              onToggleLike={handleToggleLike}
+                              canRepost={canRepost}
+                              hasReposted={hasReposted}
+                              isRepostPending={isRepostPending}
+                              onRepost={() => void handleRepost()}
+                              commentCount={commentCount}
+                              commentsEnabled={postData?.commentsEnabled ?? true}
+                              onOpenComments={() => setCommentsSheetOpen((o) => !o)}
+                              className="self-start"
+                            />
+                          </div>
                         )}
-                        {/* Streaming Links */}
-                        <div className="p-6 rounded-2xl border border-border bg-card shadow-lg relative z-10">
-                          <h3 className="text-lg font-semibold text-card-foreground mb-4">Listen Now</h3>
-                          {isPlaylist ? (
-                            <PlaylistStreamingLinks
-                              links={convertedUrls}
-                              className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                              playlistId={postData?.musicElementId || ''}
-                              postId={postData?.postId || postId}
-                              playlistTrackCount={playlistTrackCount}
-                              sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
-                              sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                            />
-                          ) : (
-                            <StreamingLinks
-                              links={convertedUrls}
-                              postId={postData?.postId || postId}
-                              elementType={metadata.type}
-                              sourcePlatform={analyticsSourcePlatform}
-                              isAuthenticated={isAuthenticated}
-                              className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                            />
-                          )}
-                        </div>
                         {showAddToProfile && (
                           <div className="flex justify-center">
                             <Button
@@ -1468,24 +1479,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         {showSignupCTA && (
                           <JoinCassetteCTA onClick={handleSignupClick} />
                         )}
-                        {/* Support Us - Minimal */}
-                        <div className="flex items-center justify-between gap-4">
-                          <p className="text-sm text-muted-foreground">
-                            <span className="text-foreground font-medium">Enjoying Cassette?</span> Support us on Ko-fi.
-                          </p>
-                          <button
-                            onClick={openKoFiSupport}
-                            className="shrink-0 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
-                            style={{
-                              backgroundColor: palette?.complementary || 'var(--primary)',
-                              color: palette?.complementary && ColorExtractor.isLightColor(palette.complementary) ? '#1F2327' : '#FFFFFF',
-                            }}
-                            aria-label="Support Cassette on Ko-fi"
-                          >
-                            <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="rounded-full" />
-                            <span>Tip us</span>
-                          </button>
-                        </div>
+                        <SupportCTA />
                         {/* Report Problem */}
                         <div className="mb-[calc(6rem+env(safe-area-inset-bottom))] flex justify-center">
                           <button
@@ -1785,6 +1779,31 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       </>
                     );
                   })()}
+                  {/* Listen Now (merged into info card) */}
+                  <div className="border-t border-border/30" />
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground mb-3 text-center">Listen Now</h3>
+                    {isPlaylist ? (
+                      <PlaylistStreamingLinks
+                        links={convertedUrls}
+                        className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                        playlistId={postData?.musicElementId || ''}
+                        postId={postData?.postId || postId}
+                        playlistTrackCount={playlistTrackCount}
+                        sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
+                        sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                      />
+                    ) : (
+                      <StreamingLinks
+                        links={convertedUrls}
+                        postId={postData?.postId || postId}
+                        elementType={metadata.type}
+                        sourcePlatform={analyticsSourcePlatform}
+                        isAuthenticated={isAuthenticated}
+                        className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1809,59 +1828,32 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 </div>
               )}
 
-              {/* User info and description - only show if post has a real user */}
-              {postData?.username && (
-                <PostDescriptionCard
-                  username={postData.username}
-                  description={postData?.description || ''}
-                  createdAt={postData?.createdAt}
-                  conversionSuccessCount={ownerVisibleConversionCount}
-                  likeCount={postData?.likeCount ?? 0}
-                  likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
-                  isLikePending={isLikePending}
-                  onToggleLike={handleToggleLike}
-                  canRepost={canRepost}
-                  hasReposted={hasReposted}
-                  isRepostPending={isRepostPending}
-                  onRepost={() => void handleRepost()}
-                  className="text-left relative z-20"
-                />
-              )}
-              {hasPostOwner && (
-                <PostCommentsCard
-                  postId={postData?.postId || postId}
-                  isVisible={true}
-                  commentsEnabled={postData?.commentsEnabled ?? true}
-                  currentUserId={user?.id}
-                  currentUsername={user?.username}
-                  className="text-left relative z-20"
-                />
+              {/* Social: author header + engagement bar */}
+              {postData?.username && hasPostOwner && (
+                <div className="flex flex-col gap-3 text-left relative z-20">
+                  <PostAuthorHeader
+                    username={postData.username}
+                    description={postData?.description || ''}
+                    createdAt={postData?.createdAt}
+                    conversionSuccessCount={ownerVisibleConversionCount}
+                  />
+                  <PostEngagementBar
+                    likeCount={postData?.likeCount ?? 0}
+                    likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                    isLikePending={isLikePending}
+                    onToggleLike={handleToggleLike}
+                    canRepost={canRepost}
+                    hasReposted={hasReposted}
+                    isRepostPending={isRepostPending}
+                    onRepost={() => void handleRepost()}
+                    commentCount={commentCount}
+                    commentsEnabled={postData?.commentsEnabled ?? true}
+                    onOpenComments={() => setCommentsSheetOpen((o) => !o)}
+                    className="self-start"
+                  />
+                </div>
               )}
 
-              {/* Streaming Links Container */}
-              <div className="p-4 sm:p-5 rounded-2xl border border-border bg-card shadow-lg relative z-10">
-                <h3 className="text-base sm:text-lg font-semibold text-card-foreground mb-3 sm:mb-4 text-center">Listen Now</h3>
-                {isPlaylist ? (
-                  <PlaylistStreamingLinks
-                    links={convertedUrls}
-                    className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                    playlistId={postData?.musicElementId || ''}
-                    postId={postData?.postId || postId}
-                    playlistTrackCount={playlistTrackCount}
-                    sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
-                    sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                  />
-                ) : (
-                  <StreamingLinks
-                    links={convertedUrls}
-                    postId={postData?.postId || postId}
-                    elementType={metadata.type}
-                    sourcePlatform={analyticsSourcePlatform}
-                    isAuthenticated={isAuthenticated}
-                    className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                  />
-                )}
-              </div>
               {showAddToProfile && (
                 <div className="flex justify-center">
                   <Button
@@ -1877,24 +1869,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               {showSignupCTA && (
                 <JoinCassetteCTA onClick={handleSignupClick} />
               )}
-              {/* Support Us - Minimal */}
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-sm text-muted-foreground">
-                  <span className="text-foreground font-medium">Enjoying Cassette?</span> Support us on Ko-fi.
-                </p>
-                <button
-                  onClick={openKoFiSupport}
-                  className="shrink-0 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
-                  style={{
-                    backgroundColor: palette?.complementary || 'var(--primary)',
-                    color: palette?.complementary && ColorExtractor.isLightColor(palette.complementary) ? '#1F2327' : '#FFFFFF',
-                  }}
-                  aria-label="Support Cassette on Ko-fi"
-                >
-                  <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="rounded-full" />
-                  <span>Tip us</span>
-                </button>
-              </div>
+              <SupportCTA />
 
               {/* Report Problem Button */}
               <div className="flex justify-center">
@@ -1946,6 +1921,18 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         title="Sign in to like posts"
         description="Create an account or sign in to like posts and keep track of your favorites."
       />
+
+      {postData?.username && hasPostOwner && (
+        <PostCommentsSheet
+          open={commentsSheetOpen}
+          onOpenChange={setCommentsSheetOpen}
+          postId={postData?.postId || postId}
+          commentsEnabled={postData?.commentsEnabled ?? true}
+          currentUserId={user?.id}
+          currentUsername={user?.username}
+          onCountChange={setCommentCount}
+        />
+      )}
 
     </div>
   );

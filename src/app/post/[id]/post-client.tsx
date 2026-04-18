@@ -10,6 +10,7 @@ import { TrackList } from '@/components/features/entity/track-list';
 import { PostAuthorHeader } from '@/components/features/post/post-author-header';
 import { PostEngagementBar } from '@/components/features/post/post-engagement-bar';
 import { PostCommentsSheet } from '@/components/features/post/post-comments-sheet';
+import { PostInsightsSheet } from '@/components/features/post/post-insights-sheet';
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
@@ -249,6 +250,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const [likeAuthPromptOpen, setLikeAuthPromptOpen] = useState(false);
   const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
   const [commentCount, setCommentCount] = useState<number | undefined>(undefined);
+  const [insightsSheetOpen, setInsightsSheetOpen] = useState(false);
   const { openReportModal } = useReportIssue();
   const fromParam = searchParams.get('from');
   const backRoute =
@@ -846,6 +848,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
       : undefined;
   const useSplitScrollLayout = isDesktop && (isAlbum || isPlaylist);
   const showSignupCTA = !isLoading && !isAuthenticated;
+  const filteredGenres = (postData?.genres ?? []).filter(
+    (genre) => genre.toLowerCase() !== 'music',
+  );
+  const hasGenres = filteredGenres.length > 0;
 
   const providedSourceUrl = (postData?.originalUrl || sourceUrlRef.current)?.trim();
   const detectedFromProvided = providedSourceUrl ? detectContentType(providedSourceUrl).platform : null;
@@ -874,14 +880,14 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
       />
 
       <div
-        className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"} transition-[padding] duration-[450ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
+        className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"} transition-[padding] duration-[450ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${commentsSheetOpen || insightsSheetOpen ? "md:pr-[512px]" : ""}`}
       >
         {isDesktop ? (
           useSplitScrollLayout ? (
           // Desktop Album/Playlist: fixed left, scrollable right (only right side scrolls)
           <div className="px-8 max-w-7xl mx-auto h-full flex flex-col min-h-0">
             {/* Header Toolbar */}
-            <div className="pt-4 pb-4 px-3 shrink-0 max-w-7xl mx-auto w-full">
+            <div className="pt-4 pb-6 px-3 shrink-0 max-w-7xl mx-auto w-full">
               <div className="flex items-center justify-between gap-3">
                 <BackButton route={backRoute} fallbackRoute="/explore" />
                 <motion.button
@@ -965,9 +971,21 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               <div className="flex-[2] sticky top-0 h-full overflow-y-auto no-scrollbar">
                 {/* Make the left column fill the available height and center content vertically */}
                 <div className="min-h-full flex flex-col items-center justify-start min-w-0 pt-2 pb-[calc(6rem+env(safe-area-inset-bottom))]">
-                  <UIText className="text-foreground font-bold mb-8 uppercase tracking-wider text-lg">
+                  <UIText className="text-foreground font-bold mb-3 uppercase tracking-wider text-lg">
                     {typeLabel}
                   </UIText>
+                  {hasGenres && (
+                    <div className="flex flex-wrap justify-center gap-1.5 mb-6 max-w-xs">
+                      {filteredGenres.map((genre) => (
+                        <span
+                          key={genre}
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground border border-border/50"
+                        >
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {/* Artwork */}
                   <div className="relative mb-8">
                     <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
@@ -1085,27 +1103,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             )}
                           </div>
                         )}
-                        {(() => {
-                          const filteredGenres = postData?.genres?.filter(genre =>
-                            genre.toLowerCase() !== 'music'
-                          ) || [];
-                          if (filteredGenres.length === 0) return null;
-                          return (
-                            <>
-                              <div className="border-t border-border/30 mx-6" />
-                              <div className="flex flex-wrap gap-3 justify-center">
-                                {filteredGenres.map((genre, index) => (
-                                  <span
-                                    key={index}
-                                    className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-muted/30 text-muted-foreground border border-border/50"
-                                  >
-                                    {genre}
-                                  </span>
-                                ))}
-                              </div>
-                            </>
-                          );
-                        })()}
                         {/* Listen Now (merged into info card) */}
                         <div className="border-t border-border/30 mx-6" />
                         <div>
@@ -1131,32 +1128,37 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             />
                           )}
                         </div>
+                        {/* Social: author header + engagement bar (moved inside card) */}
+                        {postData?.username && hasPostOwner && (
+                          <>
+                            <div className="border-t border-border/30 mx-6" />
+                            <div className="flex flex-col gap-2.5 relative z-20">
+                              <PostAuthorHeader
+                                username={postData.username}
+                                description={postData?.description || ''}
+                                createdAt={postData?.createdAt}
+                                conversionSuccessCount={ownerVisibleConversionCount}
+                              />
+                              <PostEngagementBar
+                                likeCount={postData?.likeCount ?? 0}
+                                likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                                isLikePending={isLikePending}
+                                onToggleLike={handleToggleLike}
+                                canRepost={canRepost}
+                                hasReposted={hasReposted}
+                                isRepostPending={isRepostPending}
+                                onRepost={() => void handleRepost()}
+                                commentCount={commentCount}
+                                commentsEnabled={postData?.commentsEnabled ?? true}
+                                onOpenComments={() => setCommentsSheetOpen((o) => !o)}
+                                canViewInsights={isOwnPost}
+                                onOpenInsights={() => setInsightsSheetOpen((o) => !o)}
+                                className="self-start"
+                              />
+                            </div>
+                          </>
+                        )}
                       </div>
-                    </div>
-                  )}
-                  {/* Social: author header + engagement bar */}
-                  {postData?.username && hasPostOwner && (
-                    <div className="mt-6 w-full max-w-xl flex flex-col gap-3 relative z-20">
-                      <PostAuthorHeader
-                        username={postData.username}
-                        description={postData?.description || ''}
-                        createdAt={postData?.createdAt}
-                        conversionSuccessCount={ownerVisibleConversionCount}
-                      />
-                      <PostEngagementBar
-                        likeCount={postData?.likeCount ?? 0}
-                        likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
-                        isLikePending={isLikePending}
-                        onToggleLike={handleToggleLike}
-                        canRepost={canRepost}
-                        hasReposted={hasReposted}
-                        isRepostPending={isRepostPending}
-                        onRepost={() => void handleRepost()}
-                        commentCount={commentCount}
-                        commentsEnabled={postData?.commentsEnabled ?? true}
-                        onOpenComments={() => setCommentsSheetOpen((o) => !o)}
-                        className="self-start"
-                      />
                     </div>
                   )}
                   {showAddToProfile && (
@@ -1230,7 +1232,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           </div>
           ) : (
             // Desktop Track/Artist: keep original full-page scroll behavior
-            <div className="mt-16">
+            <div className="pt-16">
               {/* Header Toolbar */}
               <div className="pt-4 pb-6 px-3 relative z-20 max-w-7xl mx-auto w-full">
                 <div className="flex items-center justify-between gap-3">
@@ -1310,48 +1312,60 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   )}
                 </div>
               </div>
-              <div className="px-8 max-w-7xl mx-auto pb-8">
-                <div className="flex gap-12">
-                  {/* Left Column - Artwork */}
-                  <div className="flex-[2] sticky top-[120px] self-start">
-                    <div className="flex flex-col items-center min-w-0 h-[calc(100vh-140px)] justify-center">
-                      <UIText className="text-foreground font-bold mb-6 uppercase tracking-wider text-lg">
-                        {typeLabel}
-                      </UIText>
-                      <div className="relative mb-6">
-                        <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
-                        <Image
-                          src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
-                          alt={metadata.title}
-                          width={360}
-                          height={360}
-                          className="relative rounded-xl object-cover shadow-lg"
-                          priority
-                          onError={() => setImageError(true)}
-                          unoptimized={!imageError && !!metadata.artwork}
-                        />
-                        {isTrack && postData?.previewUrl && (
-                          <div className="absolute -bottom-4 -right-4">
-                            <PlayPreview
-                              previewUrl={postData.previewUrl}
-                              title={metadata.title}
-                              artist={metadata.artist}
-                              artwork={metadata.artwork}
-                            />
-                          </div>
-                        )}
-                      </div>
+              <div className="px-8 max-w-7xl mx-auto pt-4 pb-24">
+                {/* Header: type label + genres, centered above both columns */}
+                <div className="flex flex-col items-center mb-10">
+                  <UIText className="text-foreground font-bold mb-2 uppercase tracking-wider text-lg">
+                    {typeLabel}
+                  </UIText>
+                  {hasGenres && (
+                    <div className="flex flex-wrap justify-center gap-1.5 max-w-xs">
+                      {filteredGenres.map((genre) => (
+                        <span
+                          key={genre}
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground border border-border/50"
+                        >
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-12 items-start">
+                  {/* Left Column - Artwork only */}
+                  <div className="flex-[2] flex justify-center">
+                    <div className="relative">
+                      <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
+                      <Image
+                        src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
+                        alt={metadata.title}
+                        width={440}
+                        height={440}
+                        className="relative rounded-xl object-cover shadow-lg"
+                        priority
+                        onError={() => setImageError(true)}
+                        unoptimized={!imageError && !!metadata.artwork}
+                      />
+                      {isTrack && postData?.previewUrl && (
+                        <div className="absolute -bottom-4 -right-4">
+                          <PlayPreview
+                            previewUrl={postData.previewUrl}
+                            title={metadata.title}
+                            artist={metadata.artist}
+                            artwork={metadata.artwork}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
-                  {/* Right Column - Content (page scroll) */}
+                  {/* Right Column - Card + secondary content as one stack */}
                   <div className="flex-[3]">
-                    {/* Vertically center content relative to viewport height */}
-                    <div className="py-8 pb-16 min-h-[calc(100vh-140px)] flex flex-col justify-center">
+                    <div className="max-w-xl w-full mx-auto">
                       <div className="space-y-6">
                         {/* Info Card */}
                         <div className="p-6 rounded-2xl border border-border bg-card shadow-lg">
                           <div className="space-y-3">
-                            <HeadlineText className="text-xl font-bold text-foreground text-center">
+                            <HeadlineText className="text-2xl font-bold text-foreground text-center leading-tight">
                               {metadata.title}
                             </HeadlineText>
                             {(isTrack || isAlbum) && (
@@ -1391,27 +1405,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                 )}
                               </div>
                             ) : null}
-                            {(() => {
-                              const filteredGenres = postData?.genres?.filter(genre =>
-                                genre.toLowerCase() !== 'music'
-                              ) || [];
-                              if (filteredGenres.length === 0) return null;
-                              return (
-                                <>
-                                  <div className="border-t border-border/30 mx-4" />
-                                  <div className="flex flex-wrap gap-2 justify-center">
-                                    {filteredGenres.map((genre, index) => (
-                                      <span
-                                        key={index}
-                                        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-muted/30 text-muted-foreground border border-border/50"
-                                      >
-                                        {genre}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </>
-                              );
-                            })()}
                             {/* Listen Now (merged into info card) */}
                             <div className="border-t border-border/30 mx-4" />
                             <div>
@@ -1437,33 +1430,38 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                 />
                               )}
                             </div>
+                            {/* Social: author header + engagement bar (moved inside card) */}
+                            {postData?.username && hasPostOwner && (
+                              <>
+                                <div className="border-t border-border/30 mx-4" />
+                                <div className="flex flex-col gap-2.5 relative z-20">
+                                  <PostAuthorHeader
+                                    username={postData.username}
+                                    description={postData?.description || ''}
+                                    createdAt={postData?.createdAt}
+                                    conversionSuccessCount={ownerVisibleConversionCount}
+                                  />
+                                  <PostEngagementBar
+                                    likeCount={postData?.likeCount ?? 0}
+                                    likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                                    isLikePending={isLikePending}
+                                    onToggleLike={handleToggleLike}
+                                    canRepost={canRepost}
+                                    hasReposted={hasReposted}
+                                    isRepostPending={isRepostPending}
+                                    onRepost={() => void handleRepost()}
+                                    commentCount={commentCount}
+                                    commentsEnabled={postData?.commentsEnabled ?? true}
+                                    onOpenComments={() => setCommentsSheetOpen((o) => !o)}
+                                    canViewInsights={isOwnPost}
+                                    onOpenInsights={() => setInsightsSheetOpen((o) => !o)}
+                                    className="self-start"
+                                  />
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
-                        {/* Social: author header + engagement bar */}
-                        {postData?.username && hasPostOwner && (
-                          <div className="flex flex-col gap-3 relative z-20">
-                            <PostAuthorHeader
-                              username={postData.username}
-                              description={postData?.description || ''}
-                              createdAt={postData?.createdAt}
-                              conversionSuccessCount={ownerVisibleConversionCount}
-                            />
-                            <PostEngagementBar
-                              likeCount={postData?.likeCount ?? 0}
-                              likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
-                              isLikePending={isLikePending}
-                              onToggleLike={handleToggleLike}
-                              canRepost={canRepost}
-                              hasReposted={hasReposted}
-                              isRepostPending={isRepostPending}
-                              onRepost={() => void handleRepost()}
-                              commentCount={commentCount}
-                              commentsEnabled={postData?.commentsEnabled ?? true}
-                              onOpenComments={() => setCommentsSheetOpen((o) => !o)}
-                              className="self-start"
-                            />
-                          </div>
-                        )}
                         {showAddToProfile && (
                           <div className="flex justify-center">
                             <Button
@@ -1481,18 +1479,18 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         )}
                         <SupportCTA />
                         {/* Report Problem */}
-                        <div className="mb-[calc(6rem+env(safe-area-inset-bottom))] flex justify-center">
+                        <div className="flex justify-center">
                           <button
                             onClick={() => openReportModal({
-                          sourceContext: 'post_view',
-                          sourceLink: postData?.originalUrl || sourceUrlRef.current || '',
-                          conversionData: {
-                            elementType: metadata.type,
-                            title: metadata.title,
-                            artist: metadata.artist,
-                            platforms: postData?.convertedUrls,
-                          },
-                        })}
+                              sourceContext: 'post_view',
+                              sourceLink: postData?.originalUrl || sourceUrlRef.current || '',
+                              conversionData: {
+                                elementType: metadata.type,
+                                title: metadata.title,
+                                artist: metadata.artist,
+                                platforms: postData?.convertedUrls,
+                              },
+                            })}
                             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                           >
                             <AlertCircle className="w-4 h-4" />
@@ -1508,9 +1506,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           )
         ) : (
           // Mobile Layout
-          <div className="px-4 sm:px-6 md:px-8 pb-8 pt-16 max-w-lg mx-auto">
+          <div className="px-4 sm:px-6 md:px-8 pb-2 sm:pb-8 pt-16 max-w-lg mx-auto">
             {/* Header Toolbar */}
-            <div className="pt-4 pb-6 max-w-7xl mx-auto w-full">
+            <div className="pt-3 pb-4 sm:pt-4 sm:pb-6 max-w-7xl mx-auto w-full">
               <div className="flex items-center justify-between gap-3">
                 <BackButton route={backRoute} fallbackRoute="/explore" />
                 <motion.button
@@ -1588,12 +1586,24 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 )}
               </div>
             </div>
-            <div className="text-center space-y-4 sm:space-y-6">
+            <div className="text-center space-y-2 sm:space-y-6">
               {/* Element Type */}
-              <div>
-                <UIText className="text-foreground font-bold mb-4 sm:mb-6 uppercase tracking-wider text-sm sm:text-base">
+              <div className="hidden sm:block">
+                <UIText className="text-foreground font-bold mb-2 uppercase tracking-wider text-sm sm:text-base">
                   {typeLabel}
                 </UIText>
+                {hasGenres && (
+                  <div className="flex flex-wrap justify-center gap-1.5 max-w-xs mx-auto">
+                    {filteredGenres.map((genre) => (
+                      <span
+                        key={genre}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground border border-border/50"
+                      >
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Album Art Container */}
@@ -1606,8 +1616,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     alt={metadata.title}
                     width={0}
                     height={0}
-                    sizes="(max-width: 640px) 220px, 280px"
-                    className="relative rounded-xl object-cover shadow-lg w-[220px] h-[220px] sm:w-[280px] sm:h-[280px]"
+                    sizes="(max-width: 640px) 260px, 340px"
+                    className="relative rounded-xl object-cover shadow-lg w-[260px] h-[260px] sm:w-[340px] sm:h-[340px]"
                     priority
                     onError={() => setImageError(true)}
                     unoptimized={!imageError && !!metadata.artwork}
@@ -1630,7 +1640,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
 
               {/* Track Information Card - Mobile */}
               <div className="p-4 sm:p-5 rounded-2xl border border-border bg-card shadow-lg">
-                <div className="space-y-3 sm:space-y-4">
+                <div className="space-y-2 sm:space-y-4">
                   {/* Title */}
                   <HeadlineText className="text-lg sm:text-xl font-bold text-foreground text-center leading-tight">
                     {metadata.title}
@@ -1755,34 +1765,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     </div>
                   ) : null}
 
-                  {/* Genres */}
-                  {(() => {
-                    const filteredGenres = postData?.genres?.filter(genre =>
-                      genre.toLowerCase() !== 'music'
-                    ) || [];
-
-                    if (filteredGenres.length === 0) return null;
-
-                    return (
-                      <>
-                        <div className="border-t border-border/30" />
-                        <div className="flex flex-wrap gap-2 justify-center">
-                          {filteredGenres.map((genre, index) => (
-                            <span
-                              key={index}
-                              className="inline-flex items-center px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium bg-muted/30 text-muted-foreground border border-border/50"
-                            >
-                              {genre}
-                            </span>
-                          ))}
-                        </div>
-                      </>
-                    );
-                  })()}
                   {/* Listen Now (merged into info card) */}
                   <div className="border-t border-border/30" />
                   <div>
-                    <h3 className="text-base font-semibold text-foreground mb-3 text-center">Listen Now</h3>
+                    <h3 className="sr-only sm:not-sr-only sm:block text-base font-semibold text-foreground sm:mb-3 text-center">Listen Now</h3>
                     {isPlaylist ? (
                       <PlaylistStreamingLinks
                         links={convertedUrls}
@@ -1804,6 +1790,36 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       />
                     )}
                   </div>
+                  {/* Social: author header + engagement bar (moved inside card) */}
+                  {postData?.username && hasPostOwner && (
+                    <>
+                      <div className="border-t border-border/30" />
+                      <div className="flex flex-col gap-2.5 text-left relative z-20">
+                        <PostAuthorHeader
+                          username={postData.username}
+                          description={postData?.description || ''}
+                          createdAt={postData?.createdAt}
+                          conversionSuccessCount={ownerVisibleConversionCount}
+                        />
+                        <PostEngagementBar
+                          likeCount={postData?.likeCount ?? 0}
+                          likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                          isLikePending={isLikePending}
+                          onToggleLike={handleToggleLike}
+                          canRepost={canRepost}
+                          hasReposted={hasReposted}
+                          isRepostPending={isRepostPending}
+                          onRepost={() => void handleRepost()}
+                          commentCount={commentCount}
+                          commentsEnabled={postData?.commentsEnabled ?? true}
+                          onOpenComments={() => setCommentsSheetOpen((o) => !o)}
+                          canViewInsights={isOwnPost}
+                          onOpenInsights={() => setInsightsSheetOpen((o) => !o)}
+                          className="self-start"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1824,32 +1840,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     scrollable={true}
                     className="!border-0 !bg-transparent !shadow-none"
                     sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                  />
-                </div>
-              )}
-
-              {/* Social: author header + engagement bar */}
-              {postData?.username && hasPostOwner && (
-                <div className="flex flex-col gap-3 text-left relative z-20">
-                  <PostAuthorHeader
-                    username={postData.username}
-                    description={postData?.description || ''}
-                    createdAt={postData?.createdAt}
-                    conversionSuccessCount={ownerVisibleConversionCount}
-                  />
-                  <PostEngagementBar
-                    likeCount={postData?.likeCount ?? 0}
-                    likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
-                    isLikePending={isLikePending}
-                    onToggleLike={handleToggleLike}
-                    canRepost={canRepost}
-                    hasReposted={hasReposted}
-                    isRepostPending={isRepostPending}
-                    onRepost={() => void handleRepost()}
-                    commentCount={commentCount}
-                    commentsEnabled={postData?.commentsEnabled ?? true}
-                    onOpenComments={() => setCommentsSheetOpen((o) => !o)}
-                    className="self-start"
                   />
                 </div>
               )}
@@ -1931,6 +1921,14 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           currentUserId={user?.id}
           currentUsername={user?.username}
           onCountChange={setCommentCount}
+        />
+      )}
+
+      {isOwnPost && (
+        <PostInsightsSheet
+          open={insightsSheetOpen}
+          onOpenChange={setInsightsSheetOpen}
+          postId={postData?.postId || postId}
         />
       )}
 

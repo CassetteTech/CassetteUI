@@ -1,6 +1,6 @@
 'use client';
 
-import { Heart, Repeat2, MessageSquare } from 'lucide-react';
+import { Heart, Repeat2, MessageSquare, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,9 @@ interface PostEngagementBarProps {
   commentsEnabled?: boolean;
   onOpenComments?: () => void;
 
+  canViewInsights?: boolean;
+  onOpenInsights?: () => void;
+
   className?: string;
 }
 
@@ -35,6 +38,8 @@ export function PostEngagementBar({
   commentCount,
   commentsEnabled = true,
   onOpenComments,
+  canViewInsights = false,
+  onOpenInsights,
   className,
 }: PostEngagementBarProps) {
   const hasLikeData = typeof likeCount === 'number';
@@ -140,6 +145,32 @@ export function PostEngagementBar({
               </motion.button>
             </TooltipTrigger>
             <TooltipContent>{hasReposted ? 'Remove repost' : 'Repost'}</TooltipContent>
+          </Tooltip>
+        </>
+      )}
+
+      {/* Insights (owner only) */}
+      {canViewInsights && (
+        <>
+          <span className="h-4 w-px bg-border/40" aria-hidden />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <motion.button
+                type="button"
+                data-insights-trigger
+                onClick={onOpenInsights}
+                disabled={!onOpenInsights}
+                whileTap={{ scale: 0.92 }}
+                aria-label="Open post insights"
+                className={cn(
+                  'inline-flex items-center justify-center rounded-full p-1.5 transition-colors duration-200',
+                  'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+                )}
+              >
+                <BarChart3 className="size-3.5" />
+              </motion.button>
+            </TooltipTrigger>
+            <TooltipContent>Insights</TooltipContent>
           </Tooltip>
         </>
       )}

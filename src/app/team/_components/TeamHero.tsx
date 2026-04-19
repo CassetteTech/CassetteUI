@@ -28,7 +28,7 @@ export function TeamHero() {
 
       <h1 className="font-teko text-6xl sm:text-7xl lg:text-8xl font-bold text-foreground mb-6 tracking-tight leading-none">
         Meet the Team Behind{" "}
-        <span className="text-gradient inline-block">Cassette</span>
+        <span className="text-primary inline-block">Cassette</span>
       </h1>
 
       <p className="font-roboto text-xl sm:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed mb-16">

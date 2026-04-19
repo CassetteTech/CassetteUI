@@ -6,7 +6,7 @@ import Image from "next/image";
 
 export function JoinCTA() {
   return (
-    <section className="section-wine">
+    <section className="section-navy">
       {/* Top editorial rule */}
       <div className="editorial-rule-thick" />
 

@@ -17,9 +17,9 @@ export interface TeamMember {
   type: string | string[];
   image: string;
   icon: LucideIcon;
-  shortBio: string;
   fullBio: string;
   background: string;
+  experience?: string;
   expertise: string[];
   social: {
     github: string;
@@ -50,11 +50,11 @@ export const teamMembers: TeamMember[] = [
     type: ["cofounder", "engineer"],
     image: "/images/team/matt-toppi.jpg",
     icon: Code,
-    shortBio: "Co-Founder and Lead Engineer with experience building full-stack applications, leading engineering teams, and researching AI applications for enterprise software.",
-    fullBio: "Matt is a Co-Founder and the Lead Engineer at Cassette Technologies, and a Software Engineer at Aras Corporation on their Advanced R&D team. He is a startup founder and software engineer who excels in leading teams and building full-stack applications from concept to deployment. He holds a Bachelor of Science in Computer Science from the University of New Hampshire. As a co-founder, Matt has been instrumental in spearheading all technology operations at Cassette.",
-    background: "At Aras Corporation, Matt builds and researches AI-related projects for PLM (Product Lifecycle Management) software on the Advanced R&D team. At Cassette, he built and leads the engineering team, architected the company's full-stack platform, and has been a key driver in securing seed funding. His technical expertise is demonstrated in his hands-on development of the core REST API, which has supported the platform's growth. His leadership experience extends to his role as Software Team Lead for the NASA Lunabotics program, where he led the development of an autonomous navigation stack for a rover, earning a first-place award at a university research conference. He is also a certified Google Project Management Professional.",
-    expertise: ["Python", "C#/.NET", "SQL", "Distributed Systems", "Machine Learning", "Cloud Technologies"],
-    social: { github: "#", linkedin: "#", twitter: "#", email: "mailto:matt@cassette.tech" },
+    fullBio: "Matt is a Co-Founder at Cassette Technologies and a Software Engineer at Aras Labs, the Advanced R&D division of Aras Corporation, a Product Lifecycle Management (PLM) software company. He is a software engineer specializing in AI, backend, and full-stack systems, with experience shipping production software across enterprise R&D and founder-led environments. He holds a Bachelor of Science in Computer Science from the University of New Hampshire. At Cassette, he serves as the technical lead, architecting and shipping the platform end to end.",
+    background: "At his day job, Matt leads R&D for AI companion applications supporting ECAD and MCAD engineering workflows within the company's PLM platform, with emphasis on version-aware collaboration and multi-agent workflow support. His work was presented by the company CTO at ACE 2026 to representatives from 200+ companies, and he has also contributed to published AI research. This experience positions him well to bridge deep technical execution with early-stage product building. At Cassette Technologies, Matt architected and shipped a multi-service music platform across Next.js, .NET, PostgreSQL, and AWS Lambda, enabling cross-platform conversion of tracks, albums, artists, and playlists across major streaming services. He designed the core conversion pipeline and data model, owns the main .NET API and Next.js frontend, and has a proven track record of launching multi-tenant SaaS platforms serving paying customers.",
+    experience: undefined,
+    expertise: ["Technical Leadership", "AI Product Development", "Platform Architecture", "Full-Stack Product Delivery", "SaaS Engineering"],
+    social: { github: "#", linkedin: "https://www.linkedin.com/in/matttoppi/", twitter: "#", email: "mailto:matt@cassette.tech" },
   },
   {
     name: "Brian Davies",
@@ -62,11 +62,10 @@ export const teamMembers: TeamMember[] = [
     type: ["cofounder", "marketer"],
     image: "/images/team/brian-davies.jpg",
     icon: Briefcase,
-    shortBio: "Co-Founder and finance professional focused on structuring early-stage ventures, business development, and operational strategy.",
     fullBio: "Brian is a Co-Founder at Cassette Technologies and a Leveraged Finance Associate at Huntington National Bank. He is a startup founder and finance professional specializing in structuring and scaling early-stage ventures, with a focus on operational strategy and business development. He holds a Bachelor's degree in Finance from American University's Kogod School of Business with a specialization in entrepreneurship. At Cassette, he plays a central role in shaping and pitching the company's value proposition.",
     background: "At his day job, Brian works on the Leveraged Finance Execution Team, where he focuses on leveraged buyouts and other debt placements for private equity clients. In this role, he originates and executes new business, gaining exposure to private market deals and investment proposals for complex financial transactions. This experience positions him well for early-stage venture funding and operational scaling, bridging his finance expertise with his entrepreneurial ambitions. At Cassette Technologies, Brian has successfully pitched the business concept into American University's Veloric Center for Entrepreneurship, led a team through a successful crowdfunding campaign, and onboarded angel investors. He has established strategic relationships with professionals both domestically and internationally, while building an online brand with a community of nearly 100,000 members.",
     expertise: ["Business Development", "Company Valuation", "Venture Fundraising", "Office Suites"],
-    social: { github: "#", linkedin: "#", twitter: "#", email: "mailto:brian@cassette.tech" },
+    social: { github: "#", linkedin: "https://www.linkedin.com/in/brian-davies-01787618b/", twitter: "#", email: "mailto:brian@cassette.tech" },
   },
   {
     name: "Sage Duford",
@@ -74,44 +73,29 @@ export const teamMembers: TeamMember[] = [
     type: "engineer",
     image: "/images/team/sage-duford.jpg",
     icon: Code,
-    shortBio: "Senior DevOps Engineer passionate about coding with expertise in full-stack programming and back-end development.",
     fullBio: "Sage is a Senior DevOps Engineer at Cassette Technologies and also works as a Software Engineer at Liberty Mutual Insurance. He is a graduate of the Wentworth Institute of Technology with a bachelor's degree in Computer Science. Sage is passionate about coding and has a strong background in full-stack programming, with a particular expertise in back-end development.",
     background: "Graduate of the Wentworth Institute of Technology with a bachelor's degree in Computer Science. Currently works as a Software Engineer at Liberty Mutual Insurance while serving as Senior DevOps Engineer at Cassette Technologies.",
     expertise: ["DevOps", "Java", "Python", "Full-Stack Programming", "Back-End Development"],
-    social: { github: "#", linkedin: "#", twitter: "#", email: "mailto:sage@cassette.tech" },
+    social: { github: "#", linkedin: "https://www.linkedin.com/in/sageduford/?skipRedirect=true", twitter: "#", email: "mailto:sage@cassette.tech" },
   },
   {
     name: "Jenna O'Connell",
-    role: "Social Media Manager",
-    type: "marketer",
+    role: "Social Media Advisor",
+    type: "investor",
     image: "/images/team/jenna-oconnell.jpg",
     icon: TrendingUp,
-    shortBio: "Social Media Manager specializing in creating engaging content for both B2C and B2B audiences.",
-    fullBio: "Jenna is the Social Media Manager for Cassette Technologies and a Content Marketing Specialist at RoomReady. She earned her bachelor's degree in Advertising, Marketing, and Communications from the Fashion Institute of Technology. Jenna specializes in managing social media accounts and creating engaging content for both B2C and B2B audiences.",
-    background: "She uses analytics to inform her strategy, focusing on boosting engagement and growing brand awareness. At Cassette Technologies, her responsibilities include designing graphics, overseeing social media activity, creating original content, and collaborating with the marketing team. Currently also works as a Content Marketing Specialist at RoomReady.",
+    fullBio: "Jenna is a Social Media Advisor to Cassette Technologies and a Content Marketing Specialist at RoomReady. She earned her bachelor's degree in Advertising, Marketing, and Communications from the Fashion Institute of Technology. Jenna specializes in managing social media accounts and creating engaging content for both B2C and B2B audiences.",
+    background: "She uses analytics to inform her strategy, focusing on boosting engagement and growing brand awareness. At Cassette Technologies, she has supported social media strategy, designed graphics, created original content, and collaborated with the broader marketing effort. She currently works as a Content Marketing Specialist at RoomReady.",
     expertise: ["Social Media Marketing", "Content Creation", "Interpersonal Communication", "Organization", "Analytics"],
-    social: { github: "#", linkedin: "#", twitter: "#", email: "mailto:jenna@cassette.tech" },
-  },
-  {
-    name: "Haniyah Ahsanullah",
-    role: "Social Media Marketing Intern",
-    type: "marketer",
-    image: "/images/team/haniyah-ahsanullah.jpg",
-    icon: TrendingUp,
-    shortBio: "Marketing Intern supporting content creation, campaign planning, and social media management with a data-driven approach.",
-    fullBio: "Haniyah is a Marketing Intern at Cassette Technologies, where she supports the marketing team through content creation, campaign planning, and social media management. She is currently pursuing a Marketing major with a Finance minor at The University of Texas at Dallas.",
-    background: "Haniyah has experience in social media marketing, e-commerce, and digital content production, using analytics to guide strategy and strengthen engagement. Her background includes managing and optimizing social media channels, developing content for diverse audiences, and supporting marketing campaigns across multiple platforms.",
-    expertise: ["Content Creation", "Community Engagement", "Canva & Design Tools", "Social Media Marketing", "Analytics"],
-    social: { github: "#", linkedin: "#", twitter: "#", email: "mailto:haniyah@cassette.tech" },
+    social: { github: "#", linkedin: "https://www.linkedin.com/in/jenna-o-connell/", twitter: "#", email: "mailto:jenna@cassette.tech" },
   },
   {
     name: "Vivian Carvalho",
-    role: "Social Media Marketing Intern",
+    role: "Social Media Manager",
     type: "marketer",
-    image: "/images/team/vivian-carvalho.jpg",
+    image: "/images/team/vivyin.jpeg",
     icon: TrendingUp,
-    shortBio: "Social Media Intern and content creator specializing in video editing and short-form content with expertise in community building.",
-    fullBio: "Vivian is a Social Media Intern at Cassette Technologies, and also a content creator on Twitch. She works with the marketing team to create engaging social media posts and manages accounts on all platforms. She is an undergraduate senior studying Business Administration with a Marketing specialization and a Communication minor at American University.",
+    fullBio: "Vivian is the Social Media Manager at Cassette Technologies and also a content creator on Twitch. She works across Cassette's social channels to create engaging content and manage accounts across platforms. She is an undergraduate senior studying Business Administration with a Marketing specialization and a Communication minor at American University.",
     background: "Vivian has been an individual content creator for several years, cultivating her own social media followings through expert video editing, short-form content creation, and community involvement. She has experience managing social media accounts with large followings, creating memorable logos and other key visuals, and collaborating with similar creators.",
     expertise: ["Video Editing", "Content Creation", "Social Media Marketing", "Graphic Design", "Adobe Premiere Pro", "Capcut", "Procreate"],
     social: {
@@ -125,15 +109,14 @@ export const teamMembers: TeamMember[] = [
   },
   {
     name: "Massimo Lotruglio",
-    role: "Director of Marketing",
-    type: "marketer",
+    role: "Marketing Advisor",
+    type: "investor",
     image: "/images/team/massimo-lotruglio.jpg",
     icon: TrendingUp,
-    shortBio: "Globally-minded marketing professional with expertise in brand identity, storytelling, and team leadership.",
-    fullBio: "Massimo is a globally-minded professional and a proud graduate of American University, where he studied International Studies, Journalism, and French. His academic background has fueled his passion for global engagement, problem-solving, and storytelling. As the Director of Marketing for Cassette Technologies, Massimo was instrumental in shaping the company\u2019s brand identity.",
-    background: "He led the creation of marketing materials, developed and wrote biweekly newsletters, and managed a team of interns. His strategic efforts in overseeing company engagement contributed to building a combined audience of over 60,000 users. Currently, as the Assistant Director of Admissions at American University, he continues to use his strong communication and relationship-building skills to guide prospective students.",
+    fullBio: "Massimo is a Marketing Advisor to Cassette Technologies and a globally-minded professional who studied International Studies, Journalism, and French at American University. His academic background has fueled his passion for global engagement, problem-solving, and storytelling. At Cassette, he helped shape the company\u2019s brand identity and marketing voice.",
+    background: "He led the creation of marketing materials, developed and wrote biweekly newsletters, and managed a team of interns. His strategic efforts in overseeing company engagement contributed to building a combined audience of over 60,000 users. Currently, as the Assistant Director of Admissions at American University, he continues to use his communication and relationship-building skills to guide prospective students.",
     expertise: ["Journalism", "Marketing", "Public Speaking", "Project Management", "Brand Identity"],
-    social: { github: "#", linkedin: "#", twitter: "#", email: "mailto:massimo@cassette.tech" },
+    social: { github: "#", linkedin: "https://www.linkedin.com/in/massimo-lotruglio/", twitter: "#", email: "mailto:massimo@cassette.tech" },
   },
   {
     name: "Tobey DiMambro",
@@ -141,11 +124,10 @@ export const teamMembers: TeamMember[] = [
     type: "engineer",
     image: "/images/team/tobey-dimambro.jpg",
     icon: Code,
-    shortBio: "Talented engineer joining our team soon to help build the future of music sharing.",
-    fullBio: "We\u2019re excited to welcome a new team member who will bring fresh perspectives and technical expertise to our engineering team. Stay tuned for more details about this amazing addition to the Cassette family.",
-    background: "Details coming soon as we finalize our newest team member addition.",
+    fullBio: "Tobey is a Software Engineer at Cassette Technologies with a background in computer science and applied data work. He brings experience across software development, analytics, and backend-oriented problem solving, with a focus on building reliable systems and practical product functionality.",
+    background: "He studied Computer Science at the University of New Hampshire, where he contributed to applied research projects including NextStep HealthTech Data Analysis. At Cassette, Tobey supports engineering efforts across the product platform and helps build the technical foundation behind the company\u2019s music-sharing tools.",
     expertise: ["Software Development", "Music Technology", "Team Collaboration"],
-    social: { github: "#", linkedin: "#", twitter: "#", email: "mailto:team@cassette.tech" },
+    social: { github: "#", linkedin: "https://www.linkedin.com/in/tobey-dimambro/", twitter: "#", email: "mailto:team@cassette.tech" },
   },
   {
     name: "Mukund Kaushik",
@@ -153,11 +135,10 @@ export const teamMembers: TeamMember[] = [
     type: "investor",
     image: "/images/team/mukund-kaushik.jpg",
     icon: DollarSign,
-    shortBio: "Seasoned CTO and tech innovation expert with a \u2018Think Big, Act Small\u2019 philosophy, leading digital transformations at major corporations.",
     fullBio: "Mukund Kaushik is a seasoned Chief Technology Officer with a demonstrated history of achieving business success through his \u2018Think Big, Act Small\u2019 philosophy. He is an expert in technology infrastructure, strategy, innovation, and engineering. Throughout his career, Mukund has held prominent leadership positions at major corporations including Inspire, CommonSpirit Health, Southern California Edison, Kimberly-Clark, and Honda North America.",
     background: "He has a proven ability to lead digital transformations and scale technology organizations to foster growth. His industry accolades include being named a \u2018Visionary\u2019 by Consumer Goods Technology in 2017. He holds a Bachelor of Technology in Electrical Engineering from the National Institute of Technology, Kurukshetra, and has completed the Distinguished Leader Program at the University of Southern California.",
     expertise: ["Digital Transformation", "Technology Strategy", "AI & Machine Learning", "Cybersecurity", "Leadership Mentoring"],
-    social: { github: "#", linkedin: "#", twitter: "#", email: "mailto:mukund@cassette.tech" },
+    social: { github: "#", linkedin: "https://www.linkedin.com/in/mukundkaushik/", twitter: "#", email: "mailto:mukund@cassette.tech" },
   },
 ];
 

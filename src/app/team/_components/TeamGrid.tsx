@@ -113,7 +113,6 @@ export function TeamGrid({ onSelectMember }: TeamGridProps) {
                 >
                   <TeamCard
                     member={member}
-                    index={index}
                     onClick={() => onSelectMember(member.name)}
                   />
                 </motion.div>

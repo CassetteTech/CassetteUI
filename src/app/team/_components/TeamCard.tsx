@@ -7,7 +7,6 @@ import type { TeamMember } from "../_data";
 
 interface TeamCardProps {
   member: TeamMember;
-  index: number;
   onClick: () => void;
 }
 
@@ -54,14 +53,9 @@ export function TeamCard({ member, onClick }: TeamCardProps) {
           </div>
         </div>
 
-        {/* Short bio */}
-        <p className="font-roboto text-muted-foreground leading-relaxed text-sm line-clamp-3 flex-1">
-          {member.shortBio}
-        </p>
-
         {/* Social links footer */}
         {socialLinks.length > 0 && (
-          <div className="mt-5 pt-4 border-t border-foreground/10 flex items-center gap-4">
+          <div className="mt-auto pt-4 border-t border-foreground/10 flex items-center gap-4">
             {socialLinks.map(({ href, icon: Icon, label }) => (
               <a
                 key={label}

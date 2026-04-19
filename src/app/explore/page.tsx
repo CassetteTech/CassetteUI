@@ -234,7 +234,7 @@ function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
 
       <Link
         href={href}
-        className="group block bg-card border-2 border-foreground p-3 pb-4 shadow-[4px_4px_0_hsl(var(--foreground))] hover:shadow-[6px_6px_0_hsl(var(--primary))] transition-shadow"
+        className="group block bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-3 pb-4 shadow-[4px_4px_0_hsl(var(--foreground))] dark:shadow-[4px_4px_0_hsl(var(--cassette-white))] hover:shadow-[6px_6px_0_hsl(var(--primary))] dark:hover:shadow-[6px_6px_0_hsl(var(--primary))] transition-shadow"
       >
         <div className="relative aspect-square overflow-hidden bg-muted">
           {post.imageUrl ? (
@@ -315,7 +315,7 @@ function CreatorsMarquee({
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="who are you looking for?"
-          className="h-11 rounded-full border-2 border-foreground !bg-card pl-9 pr-9 text-foreground shadow-[3px_3px_0_hsl(var(--foreground))] focus-visible:border-primary focus-visible:ring-0 focus-visible:shadow-[3px_3px_0_hsl(var(--primary))]"
+          className="h-11 rounded-full border-2 border-foreground !bg-primary-foreground pl-9 pr-9 text-foreground shadow-[3px_3px_0_hsl(var(--foreground))] focus-visible:border-primary focus-visible:ring-0 focus-visible:shadow-[3px_3px_0_hsl(var(--primary))]"
         />
         {searchValue && (
           <button onClick={() => onSearchChange('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Clear">
@@ -358,7 +358,7 @@ function CreatorsMarquee({
               <button
                 onClick={onLoadMore}
                 disabled={isLoadingMore}
-                className="shrink-0 snap-start w-[200px] rotate-[-2deg] bg-card border-2 border-dashed border-foreground/50 hover:border-primary flex items-center justify-center font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 px-4 py-4 rounded-2xl"
+                className="shrink-0 snap-start w-[200px] rotate-[-2deg] bg-primary-foreground force-light-surface border-2 border-dashed border-foreground/50 hover:border-primary flex items-center justify-center font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 px-4 py-4 rounded-2xl"
               >
                 {isLoadingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Load more ✎'}
               </button>
@@ -378,7 +378,7 @@ function CreatorSticker({ user, index }: { user: ExploreUser; index: number }) {
   return (
     <Link
       href={`/profile/${user.username}`}
-      className="group shrink-0 snap-start w-[220px] bg-card border-2 border-foreground rounded-2xl px-4 py-3 shadow-[4px_4px_0_hsl(var(--foreground))] hover:shadow-[6px_6px_0_hsl(var(--primary))] transition-all"
+      className="group shrink-0 snap-start w-[220px] bg-primary-foreground force-light-surface text-foreground border-2 border-foreground rounded-2xl px-4 py-3 shadow-[4px_4px_0_hsl(var(--foreground))] dark:shadow-[4px_4px_0_hsl(var(--cassette-white))] hover:shadow-[6px_6px_0_hsl(var(--primary))] dark:hover:shadow-[6px_6px_0_hsl(var(--primary))] transition-all"
       style={{ transform: `rotate(${rot}deg)` }}
     >
       <div className="flex items-center gap-3">
@@ -402,7 +402,7 @@ function PolaroidSkeleton() {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="bg-card border-2 border-foreground p-3 pb-4 shadow-[4px_4px_0_hsl(var(--foreground))]">
+        <div key={i} className="bg-primary-foreground force-light-surface border-2 border-foreground p-3 pb-4 shadow-[4px_4px_0_hsl(var(--foreground))] dark:shadow-[4px_4px_0_hsl(var(--cassette-white))]">
           <Skeleton className="aspect-square w-full rounded-none" />
           <Skeleton className="h-5 w-4/5 mt-3" />
           <Skeleton className="h-3 w-3/5 mt-2" />

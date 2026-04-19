@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
+import { AvatarPreviewDialog } from '@/components/features/profile/avatar-preview-dialog';
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 
 interface ProfileHeaderProps {
@@ -42,15 +43,28 @@ export function ProfileHeader({
         {/* Top Row: Avatar + User Info */}
         <div className="flex items-center gap-4 lg:items-start lg:gap-6">
           {/* Avatar */}
-          <Avatar className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 border-2 border-border/20 flex-shrink-0">
-            <AvatarImage
-              src={userBio.avatarUrl}
-              alt={`@${userBio.username}`}
-            />
-            <AvatarFallback className="bg-muted text-muted-foreground text-xl lg:text-2xl">
-              {userBio.username.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <AvatarPreviewDialog
+            avatarUrl={userBio.avatarUrl}
+            username={userBio.username}
+            displayName={userBio.displayName}
+            isCurrentUser={isCurrentUser}
+          >
+            <button
+              type="button"
+              aria-label={`View ${userBio.displayName || userBio.username}'s profile picture`}
+              className="flex-shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:opacity-90 transition-opacity"
+            >
+              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 border-2 border-border/20">
+                <AvatarImage
+                  src={userBio.avatarUrl}
+                  alt={`@${userBio.username}`}
+                />
+                <AvatarFallback className="bg-muted text-muted-foreground text-xl lg:text-2xl">
+                  {userBio.username.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          </AvatarPreviewDialog>
 
           {/* User Info */}
           <div className="flex-1 min-w-0 flex flex-col gap-1">

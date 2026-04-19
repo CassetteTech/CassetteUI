@@ -43,7 +43,6 @@ export const TrackList: React.FC<TrackListProps> = ({
   scrollable = true,
   sourcePlatform,
 }) => {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<number | null>(null);
   // Cache fetched preview URLs so we don't refetch

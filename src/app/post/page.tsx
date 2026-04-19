@@ -33,11 +33,6 @@ function PostPageContent() {
   const descriptionParam = searchParams.get('description');
   const fromAddMusic = searchParams.get('fromAddMusic') === 'true';
 
-  // Use the conversion mutation
-  const { mutate: convertLink, isPending: isConverting } = useMusicLinkConversion({
-    anonymous: !fromAddMusic
-  });
-
   // Progress simulation for conversion
   const currentUrl = urlParam ? decodeURIComponent(urlParam) : '';
   const contentInfo = detectContentType(currentUrl, null);
@@ -103,6 +98,20 @@ function PostPageContent() {
     router.replace(`/post/${postId}${fromQuery}`);
   }, [fromParam, waitForPostAvailability, router]);
 
+  const handleConvertSuccess = useCallback((result: Awaited<ReturnType<typeof apiService.convertMusicLink>>) => {
+    setApiComplete(true);
+    if (result.postId) {
+      void resolvePostAndRender(result.postId);
+      return;
+    }
+    setError('Conversion completed, but no post was returned.');
+  }, [resolvePostAndRender]);
+
+  // Use the conversion mutation
+  const { mutate: convertLink, isPending: isConverting } = useMusicLinkConversion({
+    anonymous: !fromAddMusic,
+  });
+
   const shouldRetryConvertError = (err: unknown) => {
     if (err instanceof ApiError) {
       const status = err.status || 0;
@@ -164,15 +173,7 @@ function PostPageContent() {
 
       const idempotencyKey = getOrCreateIdempotencyKey();
       const attemptConvert = () => convertLink({ url: decodedUrl, description: descriptionParam || undefined, idempotencyKey, anonymous: !fromAddMusic }, {
-        onSuccess: (result) => {
-          setApiComplete(true);
-          // Store postId to render content directly - no redirect!
-          if (result.postId) {
-            void resolvePostAndRender(result.postId);
-          } else {
-            setError('Conversion completed, but no post was returned.');
-          }
-        },
+        onSuccess: handleConvertSuccess,
         onError: (err) => {
           if (shouldRetryConvertError(err) && convertRetryCountRef.current < 2) {
             const retryDelay = [700, 1500][convertRetryCountRef.current] || 1500;
@@ -296,14 +297,7 @@ function PostPageContent() {
           actionIdempotencyKeyRef.current = null;
           const idempotencyKey = getOrCreateIdempotencyKey();
           const attemptConvert = () => convertLink({ url: transformedFromData.originalUrl, description: transformedFromData.description, idempotencyKey, anonymous: !fromAddMusic }, {
-            onSuccess: (result) => {
-              setApiComplete(true);
-              if (result.postId) {
-                void resolvePostAndRender(result.postId);
-              } else {
-                setError('Conversion completed, but no post was returned.');
-              }
-            },
+            onSuccess: handleConvertSuccess,
             onError: (err) => {
               if (shouldRetryConvertError(err) && convertRetryCountRef.current < 2) {
                 const retryDelay = [700, 1500][convertRetryCountRef.current] || 1500;
@@ -339,7 +333,7 @@ function PostPageContent() {
         setError('No data provided');
       }
     }
-  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvePostAndRender, getOrCreateIdempotencyKey]);
+  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvePostAndRender, getOrCreateIdempotencyKey, handleConvertSuccess]);
 
   // Show error state
   if (error) {

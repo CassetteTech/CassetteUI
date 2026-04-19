@@ -102,7 +102,7 @@ export interface Milestone {
 export const milestones: Milestone[] = [
   {
     number: "01",
-    year: "2020",
+    year: "2021",
     title: "The Spark",
     description:
       "Co-founders met at American University, frustrated by the inability to share music across platforms. The idea for Cassette was born.",
@@ -114,7 +114,7 @@ export const milestones: Milestone[] = [
   },
   {
     number: "02",
-    year: "2021",
+    year: "2022",
     title: "Building the Foundation",
     description:
       "Pitched into American University\u2019s accelerator program. Built initial prototype and assembled our founding team of engineers and marketers.",
@@ -126,7 +126,7 @@ export const milestones: Milestone[] = [
   },
   {
     number: "03",
-    year: "2022",
+    year: "2023",
     title: "Launch & Growth",
     description:
       "Successfully completed crowdfunding campaign. Launched platform publicly and began scaling to thousands of users.",
@@ -138,7 +138,7 @@ export const milestones: Milestone[] = [
   },
   {
     number: "04",
-    year: "2023\u20132024",
+    year: "2024\u20132025",
     title: "Scaling Up",
     description:
       "Secured seed funding, scaled the REST API to support platform growth, established international partnerships, and continued innovation.",

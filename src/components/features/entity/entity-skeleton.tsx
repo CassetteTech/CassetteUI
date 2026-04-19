@@ -78,7 +78,13 @@ interface SkeletonLayoutProps {
 }
 
 /**
- * Progress overlay component for artwork
+ * Minimal conversion overlay sitting on top of the artwork skeleton.
+ *
+ * Kept intentionally simple: logo, thin primary progress bar, and a
+ * crossfading status line that reflects the current fake simulation step.
+ * The crossfading label alone communicates progression, so no explicit
+ * stepper is rendered (fast API responses skip steps too quickly for one
+ * to feel useful).
  */
 const ProgressOverlay: React.FC<{
   show: boolean;
@@ -86,9 +92,9 @@ const ProgressOverlay: React.FC<{
   stepName?: string;
   size?: 'desktop' | 'mobile';
 }> = ({ show, percent, stepName, size = 'desktop' }) => {
-  const logoSize = size === 'desktop' ? 48 : 40;
-  const barHeight = size === 'desktop' ? 'h-2' : 'h-1.5';
-  const waveHeights = size === 'desktop' ? [12, 24, 32, 20, 16] : [10, 20, 26, 16, 12];
+  const isDesktop = size === 'desktop';
+  const logoSize = isDesktop ? 44 : 36;
+  const safePercent = Math.max(6, Math.min(100, Math.round(percent)));
 
   return (
     <AnimatePresence>
@@ -97,45 +103,70 @@ const ProgressOverlay: React.FC<{
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="absolute inset-0 flex flex-col items-center justify-center bg-background/70 backdrop-blur-sm rounded-xl"
+          className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-card/70 backdrop-blur-md border border-border/60 shadow-sm ring-1 ring-inset ring-primary/5 overflow-hidden"
         >
-          {/* Logo */}
-          <Image
-            src="/images/cassette_logo.png"
-            alt="Cassette Logo"
-            width={logoSize}
-            height={logoSize}
-            className="object-contain animate-pulse mb-4"
+          <div
+            aria-hidden
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                'radial-gradient(circle at 50% 38%, hsl(var(--primary) / 0.10), transparent 65%)'
+            }}
           />
 
-          {/* Waveform */}
-          <div className="flex items-center justify-center space-x-1 h-8 mb-4">
-            {waveHeights.map((baseHeight, i) => (
-              <div
-                key={i}
-                className="w-1 bg-primary rounded-full"
-                style={{
-                  height: `${baseHeight}px`,
-                  animation: `waveform-pulse 1.5s ease-in-out infinite`,
-                  animationDelay: `${i * 0.1}s`,
-                }}
-              />
-            ))}
+          <div className="relative mb-4 flex items-center justify-center">
+            <span
+              aria-hidden
+              className="absolute inset-0 -m-2 rounded-full bg-primary/10 blur-md animate-progress-breath"
+            />
+            <Image
+              src="/images/cassette_logo.png"
+              alt="Cassette Logo"
+              width={logoSize}
+              height={logoSize}
+              className="object-contain relative"
+            />
           </div>
 
-          {/* Progress Bar */}
-          <div className="w-3/4 space-y-2">
-            <div className={`${barHeight} rounded-full bg-muted/40 overflow-hidden`}>
+          <div
+            className={`relative ${
+              isDesktop ? 'w-3/4 max-w-[220px]' : 'w-4/5 max-w-[180px]'
+            } space-y-2`}
+          >
+            <div className="h-1.5 rounded-full bg-muted/60 ring-1 ring-inset ring-border/40 overflow-hidden">
               <motion.div
-                className="h-full bg-primary"
+                className="h-full bg-primary rounded-full shadow-[0_0_8px_hsl(var(--primary)/0.45)]"
                 initial={{ width: '6%' }}
-                animate={{ width: `${Math.max(6, percent)}%` }}
+                animate={{ width: `${safePercent}%` }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
               />
             </div>
-            <p className="text-xs text-muted-foreground text-center">
-              {stepName || 'Preparing...'}
-            </p>
+
+            <div
+              className={`h-4 flex items-center gap-2 overflow-hidden ${
+                isDesktop ? 'justify-between' : 'justify-center'
+              }`}
+            >
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={stepName || 'prep'}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className={`text-xs text-muted-foreground truncate ${
+                    isDesktop ? 'flex-1' : 'text-center px-2'
+                  }`}
+                >
+                  {stepName || 'Preparing...'}
+                </motion.p>
+              </AnimatePresence>
+              {isDesktop && (
+                <span className="text-[10px] font-mono tabular-nums text-muted-foreground/60 shrink-0">
+                  {safePercent}%
+                </span>
+              )}
+            </div>
           </div>
         </motion.div>
       )}

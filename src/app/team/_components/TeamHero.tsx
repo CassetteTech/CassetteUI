@@ -6,7 +6,6 @@ import { teamMembers } from "../_data";
 
 const stats = [
   { value: String(teamMembers.length), label: "Team Members", barColor: "bg-primary" },
-  { value: "65K+", label: "Users Served", barColor: "bg-info" },
   { value: "\u221E", label: "Music Connections", barColor: "bg-accentRoyal" },
 ];
 
@@ -38,7 +37,7 @@ export function TeamHero() {
       </p>
 
       {/* Stats — editorial scoreboard */}
-      <div className="grid grid-cols-3 gap-4 sm:gap-6 max-w-2xl mx-auto mb-16">
+      <div className="grid grid-cols-2 gap-4 sm:gap-6 max-w-xl mx-auto mb-16">
         {stats.map((stat, i) => (
           <motion.div
             key={stat.label}

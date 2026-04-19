@@ -46,13 +46,13 @@ export interface TypeConfig {
 export const teamMembers: TeamMember[] = [
   {
     name: "Matt Toppi",
-    role: "Lead Engineer",
+    role: "Co-Founder & Lead Engineer",
     type: ["cofounder", "engineer"],
     image: "/images/team/matt-toppi.jpg",
     icon: Code,
     shortBio: "Co-Founder and Lead Engineer with experience building full-stack applications, leading engineering teams, and researching AI applications for enterprise software.",
     fullBio: "Matt is a Co-Founder and the Lead Engineer at Cassette Technologies, and a Software Engineer at Aras Corporation on their Advanced R&D team. He is a startup founder and software engineer who excels in leading teams and building full-stack applications from concept to deployment. He holds a Bachelor of Science in Computer Science from the University of New Hampshire. As a co-founder, Matt has been instrumental in spearheading all technology operations at Cassette.",
-    background: "At Aras Corporation, Matt builds and researches AI-related projects for PLM (Product Lifecycle Management) software on the Advanced R&D team. At Cassette, he built and leads the engineering team, architected the company's full-stack platform, and has been a key driver in securing seed funding. His technical expertise is demonstrated in his hands-on development of the core REST API, which has been scaled to support over 65,000 users. His leadership experience extends to his role as Software Team Lead for the NASA Lunabotics program, where he led the development of an autonomous navigation stack for a rover, earning a first-place award at a university research conference. He is also a certified Google Project Management Professional.",
+    background: "At Aras Corporation, Matt builds and researches AI-related projects for PLM (Product Lifecycle Management) software on the Advanced R&D team. At Cassette, he built and leads the engineering team, architected the company's full-stack platform, and has been a key driver in securing seed funding. His technical expertise is demonstrated in his hands-on development of the core REST API, which has supported the platform's growth. His leadership experience extends to his role as Software Team Lead for the NASA Lunabotics program, where he led the development of an autonomous navigation stack for a rover, earning a first-place award at a university research conference. He is also a certified Google Project Management Professional.",
     expertise: ["Python", "C#/.NET", "SQL", "Distributed Systems", "Machine Learning", "Cloud Technologies"],
     social: { github: "#", linkedin: "#", twitter: "#", email: "mailto:matt@cassette.tech" },
   },

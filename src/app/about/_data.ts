@@ -141,7 +141,7 @@ export const milestones: Milestone[] = [
     year: "2023\u20132024",
     title: "Scaling Up",
     description:
-      "Secured seed funding, scaled REST API to support 65,000+ users, established international partnerships, and continued innovation.",
+      "Secured seed funding, scaled the REST API to support platform growth, established international partnerships, and continued innovation.",
     icon: Music2,
     accentBar: "bg-warning",
     borderTop: "border-t-warning",
@@ -238,7 +238,6 @@ export const identityTiles = [
 // --- Hero Stats ---
 
 export const heroStats = [
-  { value: "65K+", label: "Users Served" },
   { value: "\u221E", label: "Music Connections" },
   { value: "100%", label: "Free to Start" },
 ];

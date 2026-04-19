@@ -17,9 +17,6 @@ export function TeamGrid({ onSelectMember }: TeamGridProps) {
 
   return (
     <section className="section-cream">
-      {/* Top editorial rule */}
-      <div className="editorial-rule" />
-
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
         {/* Section header */}
         <motion.div
@@ -82,8 +79,7 @@ export function TeamGrid({ onSelectMember }: TeamGridProps) {
           })}
         </div>
 
-        {/* Dashed divider below tabs */}
-        <div className="editorial-rule-dashed mb-12" />
+        <div className="mb-12" />
 
         {/* Team Grid */}
         <AnimatePresence mode="wait">
@@ -127,8 +123,6 @@ export function TeamGrid({ onSelectMember }: TeamGridProps) {
         </AnimatePresence>
       </div>
 
-      {/* Bottom editorial rule */}
-      <div className="editorial-rule" />
     </section>
   );
 }

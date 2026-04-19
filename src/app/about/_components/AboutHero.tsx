@@ -7,7 +7,7 @@ import Image from "next/image";
 import { useAuthState } from "@/hooks/use-auth";
 import { heroStats } from "../_data";
 
-const statColors = ["bg-primary", "bg-info", "bg-accentRoyal"];
+const statColors = ["bg-primary", "bg-accentRoyal"];
 
 export function AboutHero() {
   const { isAuthenticated } = useAuthState();
@@ -65,7 +65,7 @@ export function AboutHero() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6, delay: 0.15 }}
-        className="grid grid-cols-3 gap-4 sm:gap-6 max-w-xl mt-16 mb-16"
+        className="grid grid-cols-2 gap-4 sm:gap-6 max-w-xl mt-16 mb-16"
       >
         {heroStats.map((stat, i) => (
           <div key={stat.label} className="text-center sm:text-left">

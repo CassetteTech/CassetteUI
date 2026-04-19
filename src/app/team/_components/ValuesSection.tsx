@@ -6,36 +6,40 @@ import { Zap, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const values: {
-  number: string;
   icon?: LucideIcon;
   useLogo?: boolean;
   title: string;
   description: string;
-  accentBar: string;
+  accent: string;
+  accentTint: string;
+  accentText: string;
 }[] = [
   {
-    number: "01",
     useLogo: true,
     title: "Music is Universal",
     description:
       "Great music transcends platforms. We believe everyone should be able to share their discoveries, regardless of which streaming service they use.",
-    accentBar: "bg-primary",
+    accent: "bg-primary",
+    accentTint: "bg-primary/15",
+    accentText: "text-primary",
   },
   {
-    number: "02",
     icon: Zap,
     title: "Simplicity First",
     description:
       "Sharing music should be effortless. We obsess over making complex technology feel simple and intuitive for everyone.",
-    accentBar: "bg-info",
+    accent: "bg-info",
+    accentTint: "bg-info/15",
+    accentText: "text-info-text",
   },
   {
-    number: "03",
     icon: Users,
     title: "Community Driven",
     description:
       "The best music discoveries come from passionate curators. We\u2019re building a platform where taste-makers are celebrated and rewarded.",
-    accentBar: "bg-accentRoyal",
+    accent: "bg-accentRoyal",
+    accentTint: "bg-accentRoyal/15",
+    accentText: "text-accentRoyal",
   },
 ];
 
@@ -82,29 +86,27 @@ export function ValuesSection() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: index * 0.08 }}
               >
-                <div className="glass rounded-lg p-8 h-full relative overflow-hidden">
-                  {/* Watermark number */}
-                  <span className="font-teko text-7xl font-bold opacity-[0.06] absolute top-0 right-4 leading-none pointer-events-none select-none">
-                    {value.number}
-                  </span>
+                <div className="glass rounded-lg p-8 h-full relative overflow-hidden group transition-all duration-300 hover:-translate-y-0.5">
+                  {/* Icon tile — accent-tinted square */}
+                  <div className={`w-12 h-12 rounded-lg ${value.accentTint} ${value.accentText} flex items-center justify-center mb-6 transition-transform duration-300 group-hover:scale-105`}>
+                    {value.useLogo ? (
+                      <div className="relative w-6 h-6">
+                        <Image src="/images/cassette_logo.png" alt="" fill className="object-contain" aria-hidden="true" />
+                      </div>
+                    ) : ValueIcon ? (
+                      <ValueIcon size={22} strokeWidth={2} />
+                    ) : null}
+                  </div>
 
-                  {/* Accent bar — value color */}
-                  <div className={`h-[3px] w-12 ${value.accentBar} mb-6`} />
-
-                  {value.useLogo ? (
-                    <div className="relative w-7 h-7 mb-4 opacity-80">
-                      <Image src="/images/cassette_logo.png" alt="" fill className="object-contain" aria-hidden="true" />
-                    </div>
-                  ) : ValueIcon ? (
-                    <ValueIcon className="mb-4 opacity-80" size={28} />
-                  ) : null}
-
-                  <h3 className="font-teko text-2xl mb-3">
+                  <h3 className="font-teko text-2xl mb-3 tracking-tight">
                     {value.title}
                   </h3>
-                  <p className="font-roboto opacity-70 text-sm leading-relaxed">
+                  <p className="font-roboto opacity-75 text-sm leading-relaxed">
                     {value.description}
                   </p>
+
+                  {/* Bottom accent bar — subtle brand signature */}
+                  <div className={`absolute bottom-0 left-0 h-0.5 w-0 ${value.accent} transition-all duration-500 group-hover:w-full`} />
                 </div>
               </motion.div>
             );

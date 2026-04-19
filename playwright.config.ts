@@ -31,6 +31,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       NEXT_TELEMETRY_DISABLED: '1',
+      NEXT_DIST_DIR: '.next-e2e',
       NEXTAUTH_URL: baseURL,
       PLAYWRIGHT_TEST: 'true',
       NEXT_PUBLIC_APP_DOMAIN: baseURL,

@@ -92,7 +92,7 @@ function DrawLine() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, amount: 0.5 });
   return (
-    <div ref={ref} className="hidden sm:block absolute top-8 left-[calc(16.67%+20px)] right-[calc(16.67%+20px)] h-0.5 overflow-hidden">
+    <div ref={ref} className="hidden sm:block absolute top-10 left-[calc(16.67%+48px)] right-[calc(16.67%+48px)] h-0.5 overflow-hidden">
       <motion.div
         className="h-full border-t-2 border-dashed border-foreground/20"
         initial={{ scaleX: 0 }}
@@ -104,11 +104,20 @@ function DrawLine() {
   );
 }
 
-/* ─── Step icon ───────────────────────────────────────── */
-function StepIcon({ icon: Icon, index }: { icon: typeof Link2; index: number }) {
+/* ─── Step number tile — zine-style stamped card ──────── */
+function StepTile({
+  icon: Icon,
+  number,
+  index,
+}: {
+  icon: typeof Link2;
+  number: string;
+  index: number;
+}) {
+  const rot = (index - 1) * 1.5;
   return (
     <motion.div
-      className="relative z-10 w-14 h-14 flex items-center justify-center mb-5"
+      className="relative z-10 mb-5"
       variants={{
         hidden: { opacity: 0, y: 12 },
         visible: {
@@ -117,9 +126,18 @@ function StepIcon({ icon: Icon, index }: { icon: typeof Link2; index: number }) 
           transition: { duration: 0.4, delay: index * 0.1, ease },
         },
       }}
+      style={{ transform: `rotate(${rot}deg)` }}
     >
-      <div className="w-full h-full rounded-none border-2 border-foreground/20 bg-background flex items-center justify-center shadow-[4px_4px_0px_0px] shadow-foreground/10">
-        <Icon className="h-5 w-5 text-foreground" />
+      <div className="relative w-20 h-20 bg-primary-foreground force-light-surface text-foreground border-2 border-foreground shadow-[4px_4px_0_hsl(var(--foreground))] dark:shadow-[4px_4px_0_hsl(var(--cassette-white))]">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Icon className="h-7 w-7 text-foreground" strokeWidth={2} />
+        </div>
+        <span
+          aria-hidden
+          className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground border border-foreground font-mono text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 leading-none"
+        >
+          {number}
+        </span>
       </div>
     </motion.div>
   );
@@ -146,14 +164,13 @@ export function HomeDemoSection({ isAuthenticated }: HomeDemoSectionProps) {
         className="w-full max-w-3xl mx-auto px-4 order-2 lg:order-1"
       >
         <motion.div variants={fadeUp} className="text-center mb-12 sm:mb-16">
-          <div
-            className="inline-flex items-center gap-2 rounded-none border-2 border-foreground/20 bg-background px-4 py-1.5 text-xs font-bold text-muted-foreground mb-5 shadow-[3px_3px_0px_0px] shadow-foreground/10"
-          >
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-            <span className="font-teko text-sm tracking-wider text-primary uppercase">How It Works</span>
-          </div>
-          <h2 className="font-teko text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-none">
-            Three steps. Zero friction.
+          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3 inline-flex items-center gap-2 justify-center">
+            <Sparkles className="h-3 w-3 text-primary" />
+            How It Works
+          </p>
+          <h2 className="font-teko text-4xl sm:text-5xl lg:text-6xl font-bold uppercase text-foreground tracking-tight leading-none">
+            Three Steps.
+            <br className="sm:hidden" /> Zero Friction.
           </h2>
         </motion.div>
 
@@ -168,17 +185,17 @@ export function HomeDemoSection({ isAuthenticated }: HomeDemoSectionProps) {
                 variants={fadeUp}
                 className="flex flex-col items-center text-center group"
               >
-                <StepIcon icon={step.icon} index={i} />
+                <StepTile icon={step.icon} number={step.number} index={i} />
 
-                <span className="font-teko text-[11px] tracking-[0.25em] text-muted-foreground uppercase mb-1.5">
+                <span className="font-mono text-[10px] tracking-[0.25em] text-muted-foreground uppercase mb-2">
                   Step {step.number}
                 </span>
 
-                <h3 className="font-teko text-xl sm:text-2xl text-foreground leading-tight mb-2">
+                <h3 className="font-teko text-2xl sm:text-3xl uppercase text-foreground tracking-tight leading-none mb-2">
                   {step.title}
                 </h3>
 
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-[220px]">
+                <p className="font-roboto text-sm text-muted-foreground leading-relaxed italic max-w-[220px]">
                   {step.description}
                 </p>
               </motion.div>
@@ -197,11 +214,14 @@ export function HomeDemoSection({ isAuthenticated }: HomeDemoSectionProps) {
         className="w-full order-1 lg:order-2"
       >
         <motion.div variants={fadeUp} className="text-center mb-6 sm:mb-10 px-4">
-          <h2 className="font-teko text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-none">
-            Your Music Profile
+          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">
+            The Profile
+          </p>
+          <h2 className="font-teko text-4xl sm:text-5xl lg:text-6xl font-bold uppercase text-foreground tracking-tight leading-none">
+            Your Music, On Display
           </h2>
-          <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
-            Showcase your taste — playlists, tracks, artists, and albums — beautifully organized in one place.
+          <p className="font-roboto italic mt-4 text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
+            Playlists, tracks, artists, and albums—organized in one place.
           </p>
         </motion.div>
 
@@ -220,64 +240,67 @@ export function HomeDemoSection({ isAuthenticated }: HomeDemoSectionProps) {
         className="w-full max-w-2xl mx-auto px-4 order-3"
       >
         <motion.div variants={fadeUp} className="text-center mb-10">
-          <h2 className="font-teko text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground leading-none">
-            Try It Live
+          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">
+            Try It Now
+          </p>
+          <h2 className="font-teko text-3xl sm:text-4xl lg:text-5xl font-bold uppercase text-foreground tracking-tight leading-none">
+            Tap A Track
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Click any card to see Cassette convert a real link.
+          <p className="font-roboto italic mt-3 text-sm text-muted-foreground">
+            We&apos;ll hand it off to your player.
           </p>
         </motion.div>
 
-        <motion.div variants={stagger} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {demoLinks.map((link, i) => (
-            <motion.div
-              key={link.title}
-              variants={{
-                hidden: { opacity: 0, y: 24, rotateX: 8 },
-                visible: {
-                  opacity: 1,
-                  y: 0,
-                  rotateX: 0,
-                  transition: { duration: 0.6, delay: i * 0.08, ease },
-                },
-              }}
-            >
+        <motion.div variants={stagger} className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-10">
+          {demoLinks.map((link, i) => {
+            const tapeColors = ['bg-primary/70', 'bg-warning/70', 'bg-accentRoyal/60'];
+            const tapeColor = tapeColors[i % tapeColors.length];
+            const tapeSide = i % 2 === 0 ? 'left' : 'right';
+            const rot = (i - 1) * 2.5;
+            return (
               <motion.div
-                whileHover={{ y: -4, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                key={link.title}
+                variants={{
+                  hidden: { opacity: 0, y: 24, rotate: 0 },
+                  visible: {
+                    opacity: 1,
+                    y: 0,
+                    rotate: rot,
+                    transition: { duration: 0.5, delay: i * 0.08, ease },
+                  },
+                }}
+                whileHover={{ rotate: 0, y: -4 }}
+                className="relative"
+                style={{ transformOrigin: 'center' }}
               >
+                <span
+                  aria-hidden
+                  className={`absolute -top-2 z-10 h-5 w-16 rotate-[-6deg] opacity-80 border border-foreground/10 ${tapeColor} ${tapeSide === 'left' ? 'left-4' : 'right-4'}`}
+                />
                 <Link
                   href={link.href}
-                  className="group block relative rounded-none border-2 border-foreground/15 bg-background p-5 overflow-hidden shadow-[5px_5px_0px_0px] shadow-foreground/10 hover:shadow-[2px_2px_0px_0px] hover:shadow-foreground/10 hover:translate-x-[3px] hover:translate-y-[3px] transition-all duration-100"
+                  className="group block relative bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-4 pb-5 shadow-[4px_4px_0_hsl(var(--foreground))] dark:shadow-[4px_4px_0_hsl(var(--cassette-white))] hover:shadow-[6px_6px_0_hsl(var(--primary))] dark:hover:shadow-[6px_6px_0_hsl(var(--primary))] transition-shadow"
                 >
-                  {/* Accent bar — hard edge */}
-                  <div className={`h-1 w-10 bg-gradient-to-r ${link.accent} mb-4 group-hover:w-14 transition-all duration-100`} />
+                  <span className="inline-flex items-center gap-1 bg-foreground text-background font-mono text-[9px] uppercase tracking-[0.2em] px-1.5 py-0.5 mb-3">
+                    <Music2 className="h-2.5 w-2.5" />
+                    {link.platform}
+                  </span>
 
-                  <p className="font-teko text-lg text-foreground leading-tight truncate">
+                  <p className="font-teko text-2xl sm:text-3xl uppercase leading-[0.95] tracking-tight line-clamp-2 group-hover:text-primary transition-colors">
                     {link.title}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="mt-1 text-xs text-muted-foreground italic line-clamp-1">
                     {link.artist}
                   </p>
 
-                  <div className="mt-4 flex items-center justify-between">
-                    <span className="inline-flex items-center gap-1.5 rounded-none bg-muted border border-border px-2.5 py-1 text-[10px] text-muted-foreground font-bold uppercase tracking-wider font-teko">
-                      <Music2 className="h-3 w-3" />
-                      {link.platform}
-                    </span>
-                    <motion.div
-                      initial={{ opacity: 0, x: -4 }}
-                      whileHover={{ opacity: 1, x: 0 }}
-                      className="text-muted-foreground"
-                    >
-                      <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                    </motion.div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-foreground/20" />
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </Link>
               </motion.div>
-            </motion.div>
-          ))}
+            );
+          })}
         </motion.div>
       </motion.section>
 

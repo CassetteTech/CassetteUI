@@ -236,7 +236,7 @@ const AddMusicForm = ({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Let us know a little bit about this song or playlist!"
               rows={6}
-              className="relative w-full rounded-lg border-2 border-foreground bg-card p-4 font-atkinson text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary force-light-surface"
+              className="relative w-full rounded-lg border-2 border-foreground bg-primary-foreground p-4 font-atkinson text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary force-light-surface"
               autoComplete="off"
               spellCheck="false"
             />

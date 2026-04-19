@@ -1,6 +1,7 @@
 'use client';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { AvatarPreviewDialog } from '@/components/features/profile/avatar-preview-dialog';
 import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
 import {
   Tooltip,
@@ -68,10 +69,9 @@ function getTotalLikesReceived(user: UserBio | AuthUser): number | undefined {
 
 export function SidebarProfileCard({
   user,
-  isCurrentUser: _isCurrentUser = false,
+  isCurrentUser = false,
   className = '',
 }: SidebarProfileCardProps) {
-  void _isCurrentUser;
   const avatarUrl = getAvatarUrl(user);
   const connectedServices = getConnectedServices(user);
   const platformPreferences = getPlatformPreferences(user);
@@ -85,12 +85,25 @@ export function SidebarProfileCard({
       <div className="flex flex-col gap-3">
         {/* Top row: Avatar left, Connected services top right */}
         <div className="flex items-start justify-between">
-          <Avatar className="h-14 w-14 border-2 border-border/30 ring-2 ring-primary/10 shadow-sm flex-shrink-0">
-            <AvatarImage src={avatarUrl} alt={`@${user.username}`} />
-            <AvatarFallback className="bg-primary text-white font-atkinson font-bold text-lg">
-              {initial}
-            </AvatarFallback>
-          </Avatar>
+          <AvatarPreviewDialog
+            avatarUrl={avatarUrl}
+            username={user.username}
+            displayName={user.displayName ?? undefined}
+            isCurrentUser={isCurrentUser}
+          >
+            <button
+              type="button"
+              aria-label={`View ${displayName}'s profile picture`}
+              className="flex-shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:opacity-90 transition-opacity"
+            >
+              <Avatar className="h-14 w-14 border-2 border-border/30 ring-2 ring-primary/10 shadow-sm">
+                <AvatarImage src={avatarUrl} alt={`@${user.username}`} />
+                <AvatarFallback className="bg-primary text-white font-atkinson font-bold text-lg">
+                  {initial}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          </AvatarPreviewDialog>
 
           {/* Connected services - top right */}
           <MusicConnectionsStatus

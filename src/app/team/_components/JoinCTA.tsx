@@ -6,13 +6,11 @@ import Image from "next/image";
 
 export function JoinCTA() {
   return (
-    <section className="section-wine">
-      {/* Top editorial rule */}
+    <section className="section-navy">
       <div className="editorial-rule-thick" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20 text-center relative overflow-hidden">
-        {/* Decorative cassette logo watermark */}
-        <div className="absolute top-6 right-6 w-36 h-36 sm:w-48 sm:h-48 opacity-[0.06] pointer-events-none select-none hidden sm:block -rotate-12">
+        <div className="absolute top-6 right-6 w-36 h-36 sm:w-48 sm:h-48 opacity-[0.08] pointer-events-none select-none hidden sm:block -rotate-12">
           <Image src="/images/cassette_logo.png" alt="" fill className="object-contain" aria-hidden="true" />
         </div>
 
@@ -21,30 +19,41 @@ export function JoinCTA() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
+          className="-rotate-[1deg] inline-block"
         >
-          {/* Top accent bar */}
-          <div className="h-[3px] w-16 bg-primary mx-auto mb-8" />
-
-          <h2 className="font-teko text-5xl sm:text-6xl lg:text-7xl font-bold mb-4 leading-tight">
-            Want to Join Us?
-          </h2>
-          <p className="font-roboto text-lg opacity-70 mb-10 max-w-2xl mx-auto leading-relaxed">
-            We&apos;re always looking for passionate people who share our
-            vision. Whether you&apos;re a developer, designer, or music
-            enthusiast, we&apos;d love to hear from you.
+          <p className="font-mono text-[10px] uppercase tracking-[0.25em] opacity-70 mb-3">
+            Now Hiring Passion
           </p>
+          <h2 className="font-teko text-5xl sm:text-6xl lg:text-7xl font-bold uppercase leading-none tracking-tight mb-4">
+            Want To Join?
+            <span
+              aria-hidden
+              className="ml-1 inline-block h-6 sm:h-8 lg:h-10 w-1.5 bg-primary align-baseline animate-pulse"
+            />
+          </h2>
+          <p className="font-roboto text-base sm:text-lg opacity-80 italic max-w-xl mx-auto leading-relaxed">
+            Developers, designers, music nerds—if our mission resonates, we&apos;d
+            love to hear from you.
+          </p>
+        </motion.div>
 
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.12 }}
+          className="mt-10 flex justify-center"
+        >
           <a
             href="mailto:team@cassette.com"
-            className="inline-flex items-center gap-3 bg-primary text-primary-foreground font-teko text-xl px-10 py-4 rounded-lg hover:bg-primary/90 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 elev-2"
+            className="inline-flex items-center justify-center gap-3 bg-primary border-2 border-foreground text-primary-foreground font-mono text-[12px] uppercase tracking-[0.25em] px-6 py-3 shadow-[4px_4px_0_hsl(var(--foreground))] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_hsl(var(--foreground))] transition-all"
           >
-            <Mail size={20} />
-            <span>Get in Touch</span>
+            <Mail size={16} />
+            <span>Get In Touch</span>
           </a>
         </motion.div>
       </div>
 
-      {/* Bottom editorial rule */}
       <div className="editorial-rule-thick" />
     </section>
   );

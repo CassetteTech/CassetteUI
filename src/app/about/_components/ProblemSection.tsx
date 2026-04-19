@@ -8,12 +8,10 @@ import Image from "next/image";
 export function ProblemSection() {
   return (
     <section className="section-dark">
-      {/* Thick editorial rule */}
       <div className="editorial-rule-thick" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20 relative overflow-hidden">
-        {/* Decorative cassette logo watermark */}
-        <div className="absolute bottom-4 right-4 w-40 h-40 opacity-[0.04] pointer-events-none select-none hidden sm:block rotate-12">
+        <div className="absolute bottom-4 right-4 w-40 h-40 opacity-[0.06] pointer-events-none select-none hidden sm:block rotate-12">
           <Image src="/images/cassette_logo.png" alt="" fill className="object-contain" aria-hidden="true" />
         </div>
 
@@ -22,25 +20,38 @@ export function ProblemSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
+          className="-rotate-[1.5deg] inline-block mb-10"
         >
-          {/* Section label */}
-          <p className="section-label opacity-60 mb-4">
+          <p className="font-mono text-[10px] uppercase tracking-[0.25em] opacity-60 mb-3">
             The Problem
           </p>
-
-          <h2 className="font-teko text-4xl sm:text-5xl font-bold mb-8 leading-tight">
-            The Problem We Solve
+          <h2 className="font-teko text-5xl sm:text-6xl lg:text-7xl font-bold uppercase leading-none tracking-tight">
+            Platforms Don&apos;t Talk
+            <span
+              aria-hidden
+              className="ml-1 inline-block h-6 sm:h-8 lg:h-10 w-1.5 bg-primary align-baseline animate-pulse"
+            />
           </h2>
+        </motion.div>
 
-          {/* Pull-quote — explicit text-foreground to override section color on the light pullquote bg */}
-          <div className="pullquote max-w-3xl text-foreground">
-            <p className="font-teko text-2xl sm:text-3xl font-bold leading-snug mb-4 relative z-10">
-              You share the perfect playlist—someone replies, &ldquo;Sorry, I
-              use Apple Music.&rdquo;{" "}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="relative max-w-3xl"
+        >
+          <span
+            aria-hidden
+            className="absolute -top-2 left-6 z-10 h-5 w-20 rotate-[-6deg] opacity-80 border border-foreground/10 bg-warning/70"
+          />
+          <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 sm:p-8 shadow-[6px_6px_0_hsl(var(--cassette-white))]">
+            <p className="font-teko text-3xl sm:text-4xl font-bold uppercase leading-tight mb-4">
+              &ldquo;Sorry, I use Apple Music.&rdquo;{" "}
               <span className="text-primary">That ends today.</span>
             </p>
 
-            <p className="font-roboto text-muted-foreground leading-relaxed mb-6 relative z-10">
+            <p className="font-roboto text-muted-foreground leading-relaxed italic border-l-2 border-foreground/20 pl-3 mb-6">
               Music is universal. Platforms aren&apos;t. Cassette removes the
               walls so your discoveries flow to everyone, everywhere—no friction,
               no dead ends.
@@ -48,16 +59,15 @@ export function ProblemSection() {
 
             <Link
               href="/team"
-              className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors duration-200 font-medium font-roboto underline underline-offset-4 relative z-10"
+              className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.25em] text-foreground hover:text-primary transition-colors"
             >
-              <span>Meet the music lovers building Cassette</span>
-              <ArrowRight size={16} />
+              <span>Meet the team</span>
+              <ArrowRight size={14} />
             </Link>
           </div>
         </motion.div>
       </div>
 
-      {/* Bottom editorial rule */}
       <div className="editorial-rule-thick" />
     </section>
   );

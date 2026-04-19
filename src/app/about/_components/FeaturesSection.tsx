@@ -13,22 +13,26 @@ export function FeaturesSection() {
       <div className="editorial-rule" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
-        {/* Section header */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="mb-12"
+          className="mb-12 -rotate-[1.5deg] inline-block"
         >
-          <p className="section-label text-section-cream-fg/60 mb-4">
+          <p className="font-mono text-[10px] uppercase tracking-[0.25em] opacity-60 mb-3">
             Features
           </p>
-          <h2 className="font-teko text-4xl sm:text-5xl font-bold mb-4 leading-tight">
-            Unify Your{" "}
-            <span className="text-primary">Music Universe</span>
+          <h2 className="font-teko text-5xl sm:text-6xl lg:text-7xl font-bold uppercase leading-none tracking-tight">
+            One Link.
+            <br />
+            Every Platform.
+            <span
+              aria-hidden
+              className="ml-1 inline-block h-6 sm:h-8 lg:h-10 w-1.5 bg-primary align-baseline animate-pulse"
+            />
           </h2>
-          <p className="font-roboto text-lg opacity-70 max-w-2xl leading-relaxed">
+          <p className="font-roboto text-base opacity-70 italic mt-4 max-w-md">
             Links that work everywhere, profiles that express your taste.
           </p>
         </motion.div>
@@ -42,14 +46,20 @@ export function FeaturesSection() {
             transition={{ duration: 0.5 }}
             className="lg:col-span-5"
           >
-            <div className="surface-top border border-foreground/15 dark:border-border border-l-4 border-l-primary rounded-lg p-6 overflow-hidden">
-              <p className="section-label text-muted-foreground mb-4">
-                Profile Preview
-              </p>
-              <ProfileDemo annotations={false} />
-              <p className="font-roboto text-xs text-muted-foreground text-center mt-4">
-                Interactive demo showing your music profile with smart linking
-              </p>
+            <div className="relative">
+              <span
+                aria-hidden
+                className="absolute -top-2 left-6 z-10 h-5 w-20 rotate-[-6deg] opacity-80 border border-foreground/10 bg-primary/70"
+              />
+              <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-5 shadow-[5px_5px_0_hsl(var(--foreground))] dark:shadow-[5px_5px_0_hsl(var(--cassette-white))]">
+                <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">
+                  Profile Preview
+                </p>
+                <ProfileDemo annotations={false} />
+                <p className="font-roboto text-xs text-muted-foreground text-center mt-3 italic">
+                  Interactive demo — your music profile with smart linking.
+                </p>
+              </div>
             </div>
           </motion.div>
 
@@ -69,12 +79,7 @@ export function FeaturesSection() {
                     ease: [0.23, 1, 0.32, 1],
                   }}
                 >
-                  <div className="surface-top border border-foreground/15 dark:border-border rounded-lg p-8 relative overflow-hidden hover:-translate-y-1 hover:shadow-[6px_6px_0_hsl(var(--border))] transition-all duration-150 ease-linear">
-                    {/* Watermark number */}
-                    <span className={`font-teko text-6xl font-bold ${card.numberColor} absolute top-2 right-4 leading-none opacity-60 pointer-events-none select-none`}>
-                      {card.number}
-                    </span>
-
+                  <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 relative overflow-hidden shadow-[5px_5px_0_hsl(var(--foreground))] dark:shadow-[5px_5px_0_hsl(var(--cassette-white))] hover:-translate-y-1 hover:shadow-[7px_7px_0_hsl(var(--primary))] transition-all duration-150 ease-linear">
                     {/* Accent bar */}
                     <div
                       className={`h-[3px] w-12 ${card.accentBar} mb-4`}
@@ -85,11 +90,11 @@ export function FeaturesSection() {
                       size={28}
                     />
 
-                    <h3 className="font-teko text-2xl text-foreground mb-3">
+                    <h3 className="font-teko text-2xl sm:text-3xl uppercase tracking-tight leading-none text-foreground mb-3">
                       {card.title}
                     </h3>
 
-                    <p className="font-roboto text-muted-foreground text-sm leading-relaxed mb-5">
+                    <p className="font-roboto text-muted-foreground text-sm leading-relaxed italic mb-5">
                       {card.description}
                     </p>
 
@@ -100,7 +105,7 @@ export function FeaturesSection() {
                           <Link
                             key={link.title}
                             href={link.href}
-                            className="surface-top border border-foreground/15 dark:border-border rounded-lg p-3 hover:bg-muted/50 transition-colors"
+                            className="bg-background border-2 border-foreground p-3 shadow-[3px_3px_0_hsl(var(--foreground))] hover:-translate-y-0.5 hover:shadow-[4px_4px_0_hsl(var(--primary))] transition-all"
                           >
                             <div className="flex items-center gap-3">
                               <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center flex-shrink-0">
@@ -127,7 +132,7 @@ export function FeaturesSection() {
                         {identityTiles.map((tile) => (
                           <div
                             key={tile.title}
-                            className="surface-top border border-foreground/15 dark:border-border rounded-lg p-3"
+                            className="bg-background border-2 border-foreground p-3 shadow-[3px_3px_0_hsl(var(--foreground))]"
                           >
                             <p className="text-xs font-medium text-foreground">
                               {tile.title}

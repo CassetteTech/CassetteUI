@@ -882,10 +882,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   if (error && !postData) {
     return (
       <div className="min-h-screen relative">
-        <AnimatedColorBackground
-          color={palette?.dominant ?? null}
-          gradientColors={palette ? [palette.dominant, palette.muted] : undefined}
-        />
+        <AnimatedColorBackground palette={palette} />
         <div className="relative z-10 min-h-screen flex items-center justify-center">
           <MainContainer className="text-center p-8">
             <div className="mb-4">
@@ -952,10 +949,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   return (
     <div className={useSplitScrollLayout ? "fixed inset-x-0 top-16 bottom-0 overflow-y-auto" : "min-h-screen relative"}>
       {/* Animated Gradient Background */}
-      <AnimatedColorBackground
-        color={palette?.dominant ?? null}
-        gradientColors={palette ? [palette.dominant, palette.muted] : undefined}
-      />
+      <AnimatedColorBackground palette={palette} />
 
       <div
         className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"} transition-[padding] duration-[450ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${commentsSheetOpen || insightsSheetOpen ? "md:pr-[512px]" : ""}`}
@@ -1939,10 +1933,12 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   </Button>
                 </div>
               )}
-              {showSignupCTA && (
-                <JoinCassetteCTA onClick={handleSignupClick} />
-              )}
-              <SupportCTA />
+              <div className="mt-4 pt-5 border-t border-border/40 space-y-5">
+                {showSignupCTA && (
+                  <JoinCassetteCTA onClick={handleSignupClick} />
+                )}
+                <SupportCTA />
+              </div>
 
               {/* Report Problem Button */}
               <div className="flex justify-center">

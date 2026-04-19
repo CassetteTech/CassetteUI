@@ -11,7 +11,7 @@ function UrlBar({ className, variant = "dark", hasError = false, ...props }: Url
     <div
       className={cn(
         "w-full h-12 sm:h-14 md:h-16 lg:h-20 rounded-lg sm:rounded-xl md:rounded-2xl border relative transition-colors duration-300",
-        "bg-card force-light-surface",
+        "bg-primary-foreground force-light-surface",
         variant === "dark"
           ? "border-border"
           : "border-foreground",

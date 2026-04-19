@@ -115,22 +115,21 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
                   <div className="space-y-6">
                     <div>
                       <h3 className="font-teko text-lg text-muted-foreground uppercase tracking-wider mb-3">
-                        Background
+                        About
                       </h3>
-                      <p className="font-roboto text-foreground/90 leading-relaxed">
-                        {member.fullBio}
-                      </p>
-                    </div>
-
-                    <hr className="border-foreground/10 dark:border-border" />
-
-                    <div>
-                      <h3 className="font-teko text-lg text-muted-foreground uppercase tracking-wider mb-3">
-                        Experience
-                      </h3>
-                      <p className="font-roboto text-foreground/90 leading-relaxed">
-                        {member.background}
-                      </p>
+                      <div className="space-y-4">
+                        <p className="font-roboto text-foreground/90 leading-relaxed">
+                          {member.fullBio}
+                        </p>
+                        <p className="font-roboto text-foreground/90 leading-relaxed">
+                          {member.background}
+                        </p>
+                        {member.experience && (
+                          <p className="font-roboto text-foreground/90 leading-relaxed">
+                            {member.experience}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     <hr className="border-foreground/10 dark:border-border" />

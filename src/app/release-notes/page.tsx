@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Clock } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import {
   getPublishedGitHubReleases,
@@ -32,41 +33,42 @@ function ReleaseEntry({
 }) {
   return (
     <article className="group relative">
-      {/* Timeline connector dot */}
-      <div className="absolute -left-[29px] top-[1.625rem] hidden h-3 w-3 rounded-full border-2 border-primary bg-background lg:block" />
+      {/* Timeline dot */}
+      <div className="absolute -left-[32px] top-7 hidden h-3 w-3 border-2 border-foreground bg-primary lg:block" />
 
-      <div className="rounded-xl border border-border bg-card elev-1 transition-shadow duration-200 hover:elev-2">
-        {/* Header bar */}
-        <div className="flex flex-wrap items-center gap-2.5 border-b border-border/60 px-5 py-3 sm:px-6">
-          <span className="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-0.5 text-xs font-semibold tracking-wide text-primary">
+      <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground shadow-[5px_5px_0_hsl(var(--foreground))] dark:shadow-[5px_5px_0_hsl(var(--cassette-white))] hover:shadow-[7px_7px_0_hsl(var(--primary))] dark:hover:shadow-[7px_7px_0_hsl(var(--primary))] transition-shadow">
+        {/* Header bar — catalog stamp */}
+        <div className="flex flex-wrap items-center gap-2 border-b-2 border-foreground px-5 py-3">
+          <span className="inline-flex items-center bg-foreground text-background font-mono text-[10px] uppercase tracking-[0.2em] px-2 py-0.5">
             {release.tagName}
           </span>
 
           {release.prerelease && (
-            <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+            <span className="inline-flex items-center border border-foreground/40 bg-background font-mono text-[10px] uppercase tracking-[0.2em] px-2 py-0.5 text-muted-foreground">
               Pre-release
             </span>
           )}
 
           {isLatest && !release.prerelease && (
-            <span className="inline-flex items-center rounded-md bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">
+            <span className="inline-flex items-center bg-primary text-primary-foreground border border-foreground font-mono text-[10px] uppercase tracking-[0.2em] px-2 py-0.5 font-bold">
               Latest
             </span>
           )}
 
-          <span className="ml-auto text-xs text-muted-foreground">
+          <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            <Clock className="h-3 w-3" />
             {formatDate(release.publishedAt)}
           </span>
         </div>
 
         {/* Body */}
         <div className="px-5 py-5 sm:px-6 sm:py-6">
-          <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+          <h2 className="font-teko text-3xl sm:text-4xl uppercase tracking-tight leading-none">
             <a
               href={release.htmlUrl}
               target="_blank"
               rel="noreferrer"
-              className="transition-colors hover:text-primary"
+              className="hover:text-primary transition-colors"
             >
               {release.name ?? release.tagName}
             </a>
@@ -87,61 +89,58 @@ export default async function ReleaseNotesPage() {
   const releases = await getPublishedGitHubReleases();
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-      {/* Page header */}
-      <header className="mb-10 sm:mb-14">
-        <p className="section-label text-muted-foreground mb-3">
-          Product Updates
-        </p>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          Release Notes
-        </h1>
-        <p className="mt-3 max-w-xl text-base text-muted-foreground">
-          A running log of what&apos;s new, improved, and fixed in Cassette.
-        </p>
-        <div className="editorial-rule mt-6" />
-      </header>
+    <div className="min-h-screen surface-bottom relative">
+      {/* Subtle grain texture overlay */}
+      <div
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: "repeat",
+        }}
+      />
 
-      {releases.length === 0 ? (
-        <div className="inset-panel flex flex-col items-center py-16 text-center">
-          <div className="mb-4 h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-            <svg
-              className="h-6 w-6 text-muted-foreground"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-              />
-            </svg>
-          </div>
-          <p className="text-sm font-medium text-foreground">
-            No releases yet
+      <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-28 pb-20">
+        <header className="mb-12">
+          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">
+            Product Updates
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Check back soon — new versions are published here automatically.
+          <h1 className="font-teko text-5xl sm:text-6xl lg:text-7xl font-bold uppercase text-foreground tracking-tight leading-none">
+            Release Notes
+          </h1>
+          <p className="font-roboto italic text-base text-muted-foreground mt-4 max-w-md">
+            A running log of what&apos;s new, improved, and fixed in Cassette.
           </p>
-        </div>
-      ) : (
-        <div className="relative lg:pl-8">
-          {/* Timeline line */}
-          <div className="absolute left-[5px] top-0 bottom-0 hidden w-px bg-border lg:block" />
+        </header>
 
-          <div className="space-y-8">
-            {releases.map((release, index) => (
-              <ReleaseEntry
-                key={release.id}
-                release={release}
-                isLatest={index === 0}
-              />
-            ))}
+        <div className="editorial-rule-thick mb-12" />
+
+        {releases.length === 0 ? (
+          <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-10 text-center shadow-[5px_5px_0_hsl(var(--foreground))] dark:shadow-[5px_5px_0_hsl(var(--cassette-white))]">
+            <Clock className="mx-auto h-8 w-8 text-muted-foreground mb-4" />
+            <p className="font-teko text-2xl uppercase tracking-tight text-foreground">
+              No Releases Yet
+            </p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mt-2">
+              Check back soon — auto-published on every cut.
+            </p>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="relative lg:pl-8">
+            {/* Timeline line — dashed zine style */}
+            <div className="absolute left-[5px] top-0 bottom-0 hidden w-0.5 bg-[repeating-linear-gradient(to_bottom,hsl(var(--foreground))_0_6px,transparent_6px_12px)] lg:block" />
+
+            <div className="space-y-10">
+              {releases.map((release, index) => (
+                <ReleaseEntry
+                  key={release.id}
+                  release={release}
+                  isLatest={index === 0}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

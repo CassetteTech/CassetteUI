@@ -3,7 +3,9 @@
 import { useAuthStore } from '@/stores/auth-store';
 import { AuthUser, SignInForm, SignUpForm, ConnectedService, SignupAttribution } from '@/types';
 import { prefetchProfileArtwork } from '@/services/profile-artwork-cache';
+import { platformConnectService } from '@/services/platform-connect';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { pendingActionService } from '@/utils/pending-action';
 
 const AUTH_API_BASE = '/api/auth';
 const PLATFORM_BY_ENUM_INDEX = ['Spotify', 'AppleMusic', 'Deezer'] as const;
@@ -129,7 +131,10 @@ class AuthService {
     void prefetchProfileArtwork(userIdentifier).catch(() => {});
   }
 
-  clearTokens() {}
+  async clearTokens() {
+    await platformConnectService.clearAppleMusicAuthorization();
+    pendingActionService.clear();
+  }
 
   async signUp({ email, password, username, acceptTerms }: SignUpForm) {
     if (!acceptTerms) {
@@ -212,7 +217,7 @@ class AuthService {
       console.error('Sign out API error:', error);
     }
 
-    this.clearTokens();
+    await this.clearTokens();
     useAuthStore.getState().signOut();
   }
 
@@ -230,7 +235,7 @@ class AuthService {
       throw new Error(data.message || 'Failed to delete account');
     }
 
-    this.clearTokens();
+    await this.clearTokens();
     useAuthStore.getState().signOut();
   }
 

@@ -129,6 +129,39 @@ export const platformConnectService = {
   },
 
   /**
+   * Clear client-side Apple Music authorization state so it is not reused
+   * across Cassette account switches in the same browser session.
+   */
+  async clearAppleMusicAuthorization(): Promise<void> {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const musicKit = (window as unknown as MusicKitWindow).MusicKit;
+      if (!musicKit) {
+        appleMusicReadyPromise = null;
+        return;
+      }
+
+      await this.preloadAppleMusic();
+      const instance = musicKit.getInstance();
+
+      if (instance?.isAuthorized) {
+        await withTimeout(
+          instance.unauthorize(),
+          10_000,
+          'Clearing Apple Music authorization timed out.'
+        );
+      }
+    } catch (error) {
+      // Best effort cleanup; don't block sign-out flows on client SDK issues.
+      console.warn('Failed to clear Apple Music authorization:', error);
+    } finally {
+      appleMusicReadyPromise = null;
+      this.clearReturnUrl('appleMusic');
+    }
+  },
+
+  /**
    * Initiate Deezer OAuth flow
    * TODO: Implement when Deezer OAuth is available
    */

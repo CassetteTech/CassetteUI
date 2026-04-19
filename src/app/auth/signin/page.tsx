@@ -52,7 +52,7 @@ export default function SignInPage() {
             </Link>
           </div>
 
-          <Card className="force-light-surface bg-[hsl(var(--cassette-white))] text-foreground border-2 border-foreground rounded-none shadow-[6px_6px_0_#232629] dark:shadow-[6px_6px_0_hsl(var(--cassette-white))]">
+          <Card className="bg-[hsl(var(--cassette-white))] dark:bg-[hsl(var(--secondary))] text-foreground border-2 border-foreground rounded-none shadow-[6px_6px_0_#232629] dark:shadow-none">
             <CardHeader className="text-center">
               <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2 flex items-center justify-center gap-1.5">
                 <Image
@@ -78,7 +78,7 @@ export default function SignInPage() {
               <Button
                 onClick={handleGoogleSignIn}
                 disabled={isSigningInWithProvider}
-                className="w-full h-11 rounded-none border-2 border-foreground bg-[hsl(var(--cassette-white))] text-foreground font-bold text-sm shadow-[3px_3px_0_hsl(var(--foreground))] hover:-translate-y-0.5 hover:shadow-[5px_5px_0_hsl(var(--foreground))] transition-all"
+                className="w-full h-11 rounded-none border-2 border-foreground bg-[hsl(var(--cassette-white))] dark:bg-background text-foreground font-bold text-sm shadow-[3px_3px_0_hsl(var(--foreground))] hover:-translate-y-0.5 hover:shadow-[5px_5px_0_hsl(var(--foreground))] transition-all"
               >
                 <GoogleGIcon className="mr-2 h-4 w-4" />
                 Continue with Google

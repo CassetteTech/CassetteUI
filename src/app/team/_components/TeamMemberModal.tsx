@@ -40,7 +40,7 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-2 sm:p-4"
           onClick={onClose}
         >
           <motion.div
@@ -49,7 +49,7 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }}
             transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-            className="surface-top border border-foreground/15 dark:border-border rounded-lg elev-4 max-w-3xl w-full max-h-[85vh] overflow-y-auto"
+            className="surface-top border border-foreground/15 dark:border-border rounded-lg elev-4 max-w-3xl w-full max-h-[92vh] sm:max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {(() => {
@@ -66,14 +66,14 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
               ].filter(({ href }) => href && href !== "#");
 
               return (
-                <div className="p-8 sm:p-10">
+                <div className="p-5 sm:p-8 md:p-10">
                   {/* Accent bar — category color */}
                   <div className={`h-[2px] w-10 ${typeConfig.accentBar} mb-6`} />
 
                   {/* Header */}
-                  <div className="flex items-start justify-between mb-8">
-                    <div className="flex items-center gap-5">
-                      <div className="relative w-16 h-16 rounded-full overflow-hidden flex-shrink-0 bg-muted">
+                  <div className="flex items-start justify-between gap-3 mb-6 sm:mb-8">
+                    <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+                      <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden flex-shrink-0 bg-muted">
                         <Image
                           src={member.image}
                           alt={member.name}
@@ -82,12 +82,12 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
                           sizes="64px"
                         />
                       </div>
-                      <div>
-                        <h2 className="font-teko text-4xl text-foreground font-bold leading-none mb-1">
+                      <div className="min-w-0">
+                        <h2 className="font-teko text-2xl sm:text-4xl text-foreground font-bold leading-none mb-1 break-words">
                           {member.name}
                         </h2>
                         <p
-                          className={`font-roboto text-lg ${typeConfig.iconColor}`}
+                          className={`font-roboto text-sm sm:text-lg ${typeConfig.iconColor}`}
                         >
                           {member.role}
                         </p>
@@ -104,7 +104,7 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
                     </div>
                     <button
                       onClick={onClose}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      className="p-2 -mr-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0"
                       aria-label="Close"
                     >
                       <X size={20} />

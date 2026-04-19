@@ -51,11 +51,23 @@ export default function SignInPage() {
             </Link>
           </div>
 
-          <Card>
+          <Card className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground rounded-none shadow-[6px_6px_0_hsl(var(--foreground))] dark:shadow-[6px_6px_0_hsl(var(--cassette-white))]">
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Welcome back!</CardTitle>
-              <CardDescription>
-                Sign in to continue to Cassette
+              <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2 flex items-center justify-center gap-1.5">
+                <Image
+                  src="/images/cassette_logo.png"
+                  alt=""
+                  width={14}
+                  height={14}
+                  aria-hidden
+                />
+                Sign In
+              </p>
+              <CardTitle className="text-2xl font-semibold tracking-tight">
+                Welcome back!
+              </CardTitle>
+              <CardDescription className="font-roboto italic mt-2">
+                Pick up where you left off.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -66,13 +78,13 @@ export default function SignInPage() {
                 variant="outline"
                 onClick={handleGoogleSignIn}
                 disabled={isSigningInWithProvider}
-                className="w-full border-border bg-background hover:bg-muted/50 text-foreground shadow-sm hover:shadow transition-all dark:bg-black/40 dark:hover:bg-black/60 dark:border-white/20"
+                className="w-full h-11 rounded-none border-2 border-foreground bg-background text-foreground font-bold text-sm shadow-[3px_3px_0_hsl(var(--foreground))] hover:-translate-y-0.5 hover:shadow-[5px_5px_0_hsl(var(--primary))] transition-all"
               >
                 <Image
                   src="/images/social_images/ic_auth_google.png"
                   alt="Google"
-                  width={20}
-                  height={20}
+                  width={18}
+                  height={18}
                   className="mr-2"
                 />
                 Continue with Google
@@ -167,13 +179,13 @@ export default function SignInPage() {
             </Form>
             END EMAIL AUTH - TEMPORARILY DISABLED */}
 
-              <div className="text-center text-sm mt-4">
+              <div className="text-center text-sm mt-4 font-roboto text-muted-foreground">
                 Don&apos;t have an account?{' '}
                 <Link
                   href="/auth/signup"
-                  className="underline underline-offset-4"
+                  className="font-mono text-[11px] uppercase tracking-[0.2em] text-foreground hover:text-primary transition-colors"
                 >
-                  Sign up
+                  Sign Up →
                 </Link>
               </div>
             </CardContent>

@@ -200,7 +200,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
             <SidebarMenu>
               {sidebarNavItems.map((item) => (
                 <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname)}>
+                  <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname, user)}>
                     <Link href={resolveNavHref(item, user)}>
                       <item.icon className="mr-2 h-4 w-4" />
                       <span>{item.label}</span>
@@ -355,7 +355,7 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
             <SidebarMenu>
               {sidebarNavItems.map((item) => (
                 <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname)}>
+                  <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname, user)}>
                     <Link href={resolveNavHref(item, user)}>
                       <item.icon className="mr-2 h-4 w-4" />
                       <span>{item.label}</span>

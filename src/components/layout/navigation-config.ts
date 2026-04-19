@@ -75,16 +75,29 @@ export function resolveNavHref(item: NavigationItemDefinition, user: NavUser) {
   return item.href;
 }
 
-export function isNavItemActive(item: NavigationItemDefinition, pathname: string | null) {
+function isOwnProfilePath(pathname: string, user: NavUser) {
+  if (!user?.username) return false;
+
+  const ownProfilePath = `/profile/${user.username}`;
+  const ownEditProfilePath = `${ownProfilePath}/edit`;
+
+  return pathname === '/profile' || pathname === '/profile/edit' || pathname === ownProfilePath || pathname === ownEditProfilePath;
+}
+
+export function isNavItemActive(
+  item: NavigationItemDefinition,
+  pathname: string | null,
+  user?: NavUser,
+) {
   if (!pathname) return false;
 
   switch (item.key) {
     case 'home':
       return pathname === '/';
     case 'profile':
-      return pathname.startsWith('/profile') && !pathname.includes('/edit');
+      return isOwnProfilePath(pathname, user) && !pathname.endsWith('/edit');
     case 'edit-profile':
-      return pathname.startsWith('/profile') && pathname.includes('/edit');
+      return isOwnProfilePath(pathname, user) && pathname.endsWith('/edit');
     default:
       return pathname.startsWith(item.href);
   }

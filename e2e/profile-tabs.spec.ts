@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { type FixturePost, fixtureUsers } from './support/cassette-fixtures';
+import { type FixturePost, fixturePosts, fixtureUsers } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 const buildOwnedPost = (
@@ -51,6 +51,25 @@ const getProfileContentOverflow = async (page: Page) => {
 };
 
 test.describe('profile tabs', () => {
+  test('does not highlight any account tab when viewing another user profile', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      posts: [
+        {
+          ...fixturePosts.publicTrack,
+          ownerId: fixtureUsers.creator.id,
+          ownerUsername: fixtureUsers.creator.username,
+        },
+      ],
+    });
+
+    await page.goto('/profile/djaurora');
+    await expect(page).toHaveURL(/\/profile\/djaurora\?tab=tracks$/);
+    await expect(page.locator('[data-sidebar="menu-button"][data-active="true"]')).toHaveCount(0);
+  });
+
   test('keeps the selected profile tab in the url', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
 

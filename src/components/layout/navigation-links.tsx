@@ -82,7 +82,7 @@ function NavigationSection({
       <div className={cn(variant === 'primary' ? 'space-y-1.5' : 'space-y-0.5')}>
         {items.map((item) => {
           const href = resolveNavHref(item, { username });
-          const itemClassName = getItemClassName(variant, isNavItemActive(item, pathname));
+          const itemClassName = getItemClassName(variant, isNavItemActive(item, pathname, { username }));
 
           if (item.external) {
             return (

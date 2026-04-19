@@ -69,6 +69,26 @@ export function PostCommentsSheet({
   const [pendingLikeIds, setPendingLikeIds] = useState<Record<string, boolean>>({});
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
   const [visibleRepliesCount, setVisibleRepliesCount] = useState<Record<string, number>>({});
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+  // Track the on-screen keyboard via visualViewport so the mobile input bar
+  // can slide up while the comments list behind stays anchored.
+  useEffect(() => {
+    if (!isMobile || !open) { setKeyboardOffset(0); return; }
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    if (!vv) return;
+    const update = () => {
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardOffset(offset);
+    };
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
+  }, [isMobile, open]);
 
   useEffect(() => {
     if (hasLoaded) {
@@ -527,6 +547,32 @@ export function PostCommentsSheet({
         'will-change-transform',
       );
 
+  const composer = (
+    <div className="flex flex-col gap-2">
+      <Textarea
+        value={newComment}
+        onChange={(event) => setNewComment(event.target.value)}
+        placeholder={commentsEnabled ? 'Share your thoughts...' : 'Comments are turned off'}
+        disabled={isCreating || !commentsEnabled}
+        className="min-h-[64px] resize-none bg-background/50 border-border/60 text-sm placeholder:text-muted-foreground/60"
+      />
+      <div className="flex items-center justify-between">
+        <div>
+          {remainingCharacters < CHAR_WARNING_THRESHOLD ? (
+            <span className={cn('text-xs tabular-nums', remainingCharacters < 0 ? 'text-destructive font-medium' : 'text-muted-foreground')}>
+              {remainingCharacters} characters remaining
+            </span>
+          ) : !commentsEnabled ? (
+            <span className="text-xs text-muted-foreground">Comments are disabled for this post.</span>
+          ) : null}
+        </div>
+        <Button onClick={handleCreate} disabled={!canSubmit || isCreating} size="sm" className="h-8 px-4 text-xs font-semibold">
+          {isCreating ? 'Sending...' : 'Comment'}
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} modal={isMobile}>
       <DialogPrimitive.Portal>
@@ -576,7 +622,10 @@ export function PostCommentsSheet({
           </div>
 
           {/* Scrollable list */}
-          <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4">
+          <div className={cn(
+            'flex-1 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4',
+            isMobile && 'pb-[140px]',
+          )}>
             <div className="flex flex-col gap-1.5 sm:gap-2">
               {isLoadingComments && !hasLoaded && (
                 <div className="flex flex-col items-center justify-center py-8 gap-2">
@@ -599,33 +648,28 @@ export function PostCommentsSheet({
             </div>
           </div>
 
-          {/* Input pinned to bottom */}
-          <div className="border-t border-border bg-background/80 backdrop-blur-sm px-3 sm:px-5 py-2.5 sm:py-3 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
-            <div className="flex flex-col gap-2">
-              <Textarea
-                value={newComment}
-                onChange={(event) => setNewComment(event.target.value)}
-                placeholder={commentsEnabled ? 'Share your thoughts...' : 'Comments are turned off'}
-                disabled={isCreating || !commentsEnabled}
-                className="min-h-[64px] resize-none bg-background/50 border-border/60 text-sm placeholder:text-muted-foreground/60"
-              />
-              <div className="flex items-center justify-between">
-                <div>
-                  {remainingCharacters < CHAR_WARNING_THRESHOLD ? (
-                    <span className={cn('text-xs tabular-nums', remainingCharacters < 0 ? 'text-destructive font-medium' : 'text-muted-foreground')}>
-                      {remainingCharacters} characters remaining
-                    </span>
-                  ) : !commentsEnabled ? (
-                    <span className="text-xs text-muted-foreground">Comments are disabled for this post.</span>
-                  ) : null}
-                </div>
-                <Button onClick={handleCreate} disabled={!canSubmit || isCreating} size="sm" className="h-8 px-4 text-xs font-semibold">
-                  {isCreating ? 'Sending...' : 'Comment'}
-                </Button>
-              </div>
+          {/* Desktop: input pinned inside the side panel */}
+          {!isMobile && (
+            <div className="border-t border-border bg-background/80 backdrop-blur-sm px-3 sm:px-5 py-2.5 sm:py-3 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+              {composer}
             </div>
-          </div>
+          )}
         </DialogPrimitive.Content>
+
+        {/* Mobile: input lives outside the sheet so the keyboard only lifts
+            this container — the comments list behind stays anchored. */}
+        {isMobile && open && (
+          <div
+            style={{ transform: `translate3d(0, -${keyboardOffset}px, 0)` }}
+            className={cn(
+              'fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur-sm px-3 py-2.5',
+              keyboardOffset === 0 && 'pb-[max(0.625rem,env(safe-area-inset-bottom))]',
+              'will-change-transform',
+            )}
+          >
+            {composer}
+          </div>
+        )}
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );

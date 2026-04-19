@@ -144,7 +144,7 @@ export function ProfileHeader({
                 alt="Add Music"
                 width={16}
                 height={16}
-                className="w-4 h-4"
+                className="w-4 h-4 dark:invert"
               />
               <span>Add Music</span>
             </Button>

@@ -152,118 +152,125 @@ export const TrackList: React.FC<TrackListProps> = ({
     }
   };
 
+  if (items.length === 0) {
+    return (
+      <div
+        className={cn(
+          'rounded-xl border border-border/60 bg-card overflow-hidden elev-1 relative',
+          className
+        )}
+      >
+        <div className="py-8 text-center text-sm text-muted-foreground">
+          No tracks available.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
-        'rounded-xl border border-border bg-card overflow-hidden shadow-lg',
+        'rounded-xl border border-border/60 bg-card overflow-hidden elev-1',
         'relative',
         className
       )}
     >
-
       {/* Track list container */}
       <div className={cn(
         'relative z-10',
-        scrollable ? 'max-h-[400px] overflow-y-auto' : undefined
+        scrollable && 'max-h-[400px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full'
       )}>
         {/* Header for desktop */}
         <div className={cn(
-          'hidden sm:grid grid-cols-[auto_1fr_auto] px-4 py-3 text-xs text-muted-foreground/70 border-b border-border sticky top-0 bg-card z-10 font-semibold',
+          'hidden sm:grid grid-cols-[auto_1fr_auto] px-4 py-2.5 text-[11px] text-muted-foreground border-b border-border/60 sticky top-0 bg-card/80 backdrop-blur-sm z-10 font-medium uppercase tracking-wider',
           compact && 'hidden'
         )}
         >
-          <div className="w-6 text-center">#</div>
-          <div className="pl-1">Title</div>
+          <div className="w-7 text-right pr-1">#</div>
+          <div className="pl-2">Title</div>
           <div className="pr-2 text-right">Duration</div>
         </div>
 
-        <ul className="divide-y divide-border/10">
+        <ul>
           {items.map((track, index) => {
-            const isActive = activeIndex === index;
             const isPlaying = playingIndex === index;
             const isLoadingTrack = isLoading === index;
             const displayArtist = track.artists?.join(', ') || albumArtist || '';
+            const showIcon = isPlaying || isLoadingTrack;
 
             return (
               <li
                 key={`${track.title}-${index}`}
                 className={cn(
-                  // Base row layout with enhanced transitions
-                  'group grid items-center gap-3 px-3 sm:px-4 transition-all duration-300 grid-cols-[auto_1fr_auto]',
-                  // Spacing density
-                  compact ? 'py-3' : 'py-3.5',
-                  // Enhanced hover effect with subtle glow
-                  'hover:bg-muted/20 hover:shadow-sm',
-                  // Active highlight with stronger presence
-                  isActive ? 'bg-muted/30 shadow-sm' : undefined,
-                  // Playing state with accent
-                  isPlaying ? 'bg-primary/10' : undefined
+                  'group grid items-center gap-3 px-3 sm:px-4 transition-colors duration-200 grid-cols-[auto_1fr_auto] border-b border-border/40 last:border-b-0 min-h-[52px]',
+                  compact ? 'py-2' : 'py-2.5',
+                  'hover:bg-muted/40',
+                  isPlaying && 'bg-primary/10 shadow-[inset_2px_0_0_theme(colors.primary)]'
                 )}
-                onMouseEnter={() => setActiveIndex(index)}
-                onMouseLeave={() => setActiveIndex((cur) => (cur === index ? null : cur))}
               >
-                {/* Track number - with play functionality for platforms that support previews */}
-                <div className="relative flex items-center justify-center w-6">
+                {/* Track number / play button */}
+                <div className="relative flex items-center justify-end w-7 pr-1">
                   {sourcePlatform?.toLowerCase() === 'spotify' ? (
-                    // Spotify doesn't support preview URLs anymore - just show track number
-                    <span className="text-xs text-muted-foreground/70 font-medium tabular-nums">
+                    <span className={cn(
+                      'text-xs font-medium tabular-nums',
+                      isPlaying ? 'text-primary' : 'text-muted-foreground'
+                    )}>
                       {track.trackNumber ?? index + 1}
                     </span>
                   ) : (
-                    // Other platforms - show play button on hover
                     <button
                       onClick={() => handleTogglePlay(index, track)}
-                      className="group/play flex items-center justify-center w-6 h-6 rounded-full transition-all duration-300 hover:bg-muted/40 hover:scale-105"
+                      className="relative flex items-center justify-center w-6 h-6 rounded-full transition-all duration-200 hover:bg-primary/15 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary/50 focus:outline-none"
                       aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
                     >
-                      {/* Track number - shown by default, hidden on hover */}
-                      <span className={cn(
-                        "text-xs text-muted-foreground/70 font-medium tabular-nums transition-opacity duration-200",
-                        (isActive || isPlaying || isLoadingTrack) ? "opacity-0 group-hover/play:opacity-0" : "group-hover/play:opacity-0"
-                      )}>
-                        {track.trackNumber ?? index + 1}
-                      </span>
-
-                      {/* Play/pause icon - shown on hover or when playing/loading */}
-                      <div className={cn(
-                        "absolute inset-0 flex items-center justify-center transition-opacity duration-200",
-                        (isActive || isPlaying || isLoadingTrack) ? "opacity-100" : "opacity-0 group-hover/play:opacity-100"
-                      )}>
-                        {isLoadingTrack ? (
+                      {showIcon ? (
+                        isLoadingTrack ? (
                           <Spinner size="xs" variant="muted" />
                         ) : (
                           <svg
-                            className="w-3 h-3 text-muted-foreground/80"
+                            className="w-3.5 h-3.5 text-primary"
                             fill="currentColor"
                             viewBox="0 0 24 24"
                           >
-                            {isPlaying ? (
-                              <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                            ) : (
-                              <path d="M8 5v14l11-7z" />
-                            )}
+                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
                           </svg>
-                        )}
-                      </div>
+                        )
+                      ) : (
+                        <>
+                          <span className="text-xs text-muted-foreground font-medium tabular-nums transition-opacity duration-200 group-hover:opacity-0">
+                            {track.trackNumber ?? index + 1}
+                          </span>
+                          <svg
+                            className="absolute w-3.5 h-3.5 text-foreground opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </>
+                      )}
                     </button>
                   )}
                 </div>
 
                 {/* Title/Artist */}
-                <div className="min-w-0">
-                  <div className="text-foreground font-medium truncate text-sm leading-snug">
+                <div className="min-w-0 pl-1">
+                  <div className={cn(
+                    'font-medium truncate text-sm',
+                    isPlaying ? 'text-primary' : 'text-foreground'
+                  )}>
                     {track.title}
                   </div>
                   {displayArtist && (
-                    <div className="text-xs text-muted-foreground truncate mt-1">
+                    <div className="text-[13px] text-muted-foreground/80 truncate mt-0.5">
                       {displayArtist}
                     </div>
                   )}
                 </div>
 
                 {/* Duration */}
-                <div className="hidden sm:block text-xs text-muted-foreground/60 tabular-nums text-right">
-                  {track.duration || '—'}
+                <div className="hidden sm:block text-xs text-muted-foreground tabular-nums text-right">
+                  {track.duration || ''}
                 </div>
               </li>
             );

@@ -646,6 +646,7 @@
 
   /* Force Cassette's warm white surface colors regardless of theme. */
   .force-light-surface {
+    --background: var(--cassette-white);
     --card: var(--cassette-white);
     --card-foreground: 210 10% 14%;
     --border: 210 16% 82%;

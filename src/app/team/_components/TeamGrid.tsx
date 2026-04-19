@@ -24,20 +24,22 @@ export function TeamGrid({ onSelectMember }: TeamGridProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="mb-12"
+          className="mb-12 -rotate-[1.5deg] inline-block"
         >
-          <p className="section-label text-section-cream-fg/60 mb-4">
+          <p className="font-mono text-[10px] uppercase tracking-[0.25em] opacity-60 mb-3">
             The Team
           </p>
-          <h2 className="font-teko text-4xl sm:text-5xl font-bold mb-4 leading-tight">
-            The People{" "}
-            <span className="text-primary">Making It Happen</span>
+          <h2 className="font-teko text-5xl sm:text-6xl lg:text-7xl font-bold uppercase leading-none tracking-tight">
+            The People
+            <br />
+            Behind It
+            <span
+              aria-hidden
+              className="ml-1 inline-block h-6 sm:h-8 lg:h-10 w-1.5 bg-primary align-baseline animate-pulse"
+            />
           </h2>
-          <p className="font-roboto text-lg opacity-70 max-w-2xl leading-relaxed">
-            Meet the passionate individuals working to make music sharing{" "}
-            <span className="font-medium opacity-100">
-              effortless for everyone
-            </span>
+          <p className="font-roboto text-base opacity-70 italic mt-4 max-w-md">
+            Passionate individuals making music sharing effortless for everyone.
           </p>
         </motion.div>
 

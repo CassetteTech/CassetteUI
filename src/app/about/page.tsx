@@ -6,6 +6,7 @@ import { JourneyTimeline } from "./_components/JourneyTimeline";
 import { SupportCTA } from "./_components/SupportCTA";
 import { FeaturesSection } from "./_components/FeaturesSection";
 import { ShowcaseStrip } from "./_components/ShowcaseStrip";
+import { ExampleProfileSection } from "./_components/ExampleProfileSection";
 import { VisionSection } from "./_components/VisionSection";
 import { SupportersShowcase } from "./_components/SupportersShowcase";
 import { FinalCTA } from "./_components/FinalCTA";
@@ -31,6 +32,12 @@ export default function AboutPage() {
         {/* Problem — navy band */}
         <ProblemSection />
 
+        {/* Example Profile + Showcase — featured high up */}
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <ExampleProfileSection />
+          <ShowcaseStrip />
+        </div>
+
         {/* Journey & Support — on page background */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <JourneyTimeline />
@@ -39,11 +46,6 @@ export default function AboutPage() {
 
         {/* Features — cream band */}
         <FeaturesSection />
-
-        {/* Showcase — on page background */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <ShowcaseStrip />
-        </div>
 
         {/* Vision — dark band */}
         <VisionSection />

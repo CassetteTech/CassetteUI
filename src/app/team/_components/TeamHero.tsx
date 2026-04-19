@@ -11,14 +11,7 @@ const stats = [
 
 export function TeamHero() {
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6 }}
-      className="text-center mb-0 relative overflow-hidden"
-    >
-      {/* Decorative cassette logo watermark — oversized editorial background mark */}
+    <section className="relative overflow-hidden">
       <div
         className="absolute top-0 -right-16 sm:-right-10 lg:-right-4 w-[28rem] h-[28rem] sm:w-[36rem] sm:h-[36rem] lg:w-[42rem] lg:h-[42rem] opacity-[0.03] pointer-events-none select-none hidden sm:block"
         style={{ transform: "rotate(-12deg)" }}
@@ -26,40 +19,59 @@ export function TeamHero() {
         <Image src="/images/cassette_logo.png" alt="" fill className="object-contain" aria-hidden="true" />
       </div>
 
-      <h1 className="font-teko text-6xl sm:text-7xl lg:text-8xl font-bold text-foreground mb-6 tracking-tight leading-none">
-        Meet the Team Behind{" "}
-        <span className="text-primary inline-block">Cassette</span>
-      </h1>
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+        className="-rotate-[1deg] inline-block"
+      >
+        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-4">
+          Team &middot; Cassette Technologies
+        </p>
 
-      <p className="font-roboto text-xl sm:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed mb-16">
-        We&apos;re music obsessives, developers, and creators united by a shared mission:{" "}
-        <span className="text-foreground font-medium">making music universal again</span>.
-      </p>
+        <h1 className="font-teko text-6xl sm:text-7xl lg:text-8xl font-bold uppercase text-foreground tracking-tight leading-[0.9] mb-6">
+          Meet The Crew
+          <span
+            aria-hidden
+            className="ml-1 inline-block h-8 sm:h-10 lg:h-12 w-2 bg-primary align-baseline animate-pulse"
+          />
+        </h1>
 
-      {/* Stats — editorial scoreboard */}
-      <div className="grid grid-cols-2 gap-4 sm:gap-6 max-w-xl mx-auto mb-16">
+        <p className="font-roboto text-xl sm:text-2xl text-muted-foreground max-w-3xl leading-relaxed mb-10 italic border-l-4 border-foreground/30 pl-4">
+          Music obsessives, developers, and creators united by one mission—
+          <span className="text-foreground font-medium not-italic">
+            making music universal again
+          </span>
+          .
+        </p>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.15 }}
+        className="grid grid-cols-2 gap-4 sm:gap-6 max-w-xl mt-4 mb-16"
+      >
         {stats.map((stat, i) => (
-          <motion.div
+          <div
             key={stat.label}
-            className="text-center"
-            initial={{ opacity: 0, y: 8 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: 0.2 + i * 0.1 }}
+            className="bg-background border-2 border-foreground p-4 shadow-[3px_3px_0_hsl(var(--foreground))]"
+            style={{ transform: `rotate(${i === 0 ? -1 : 1.2}deg)` }}
           >
-            <div className={`h-[3px] ${stat.barColor} mb-4 mx-auto w-12`} />
-            <div className="font-teko text-5xl sm:text-6xl font-bold text-foreground mb-1">
+            <div className={`h-[3px] ${stat.barColor} mb-3 w-10`} />
+            <p className="font-teko text-4xl sm:text-5xl font-bold text-foreground leading-none">
               {stat.value}
-            </div>
-            <div className="section-label text-muted-foreground justify-center text-[0.625rem]">
+            </p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-2">
               {stat.label}
-            </div>
-          </motion.div>
+            </p>
+          </div>
         ))}
-      </div>
+      </motion.div>
 
-      {/* Editorial rule */}
       <div className="editorial-rule-thick" />
-    </motion.section>
+    </section>
   );
 }

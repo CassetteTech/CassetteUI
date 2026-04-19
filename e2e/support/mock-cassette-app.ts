@@ -16,6 +16,7 @@ type MockCassetteOptions = {
   googleAuthUser?: FixtureUser | null;
   users?: FixtureUser[];
   posts?: FixturePost[];
+  notifications?: MockNotification[];
   convertTemplates?: FixturePost[];
   topCharts?: FixtureSearchResults;
   searchResultsByQuery?: Record<string, FixtureSearchResults>;
@@ -24,12 +25,29 @@ type MockCassetteOptions = {
   platformPreferencesByUserId?: Record<string, string[]>;
 };
 
+type MockNotification = {
+  id: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
+  actor: {
+    userId?: string;
+    username?: string;
+    displayName?: string;
+    avatarUrl?: string;
+  };
+  postId?: string;
+  targetUrl?: string;
+  message?: string;
+};
+
 type MockState = {
   currentUser: FixtureUser | null;
   googleAuthUser: FixtureUser | null;
   usersById: Map<string, FixtureUser>;
   usernamesToIds: Map<string, string>;
   postsById: Map<string, FixturePost>;
+  notificationsById: Map<string, MockNotification>;
   convertTemplatesByUrl: Map<string, FixturePost>;
   topCharts: FixtureSearchResults;
   searchResultsByQuery: Record<string, FixtureSearchResults>;
@@ -147,6 +165,27 @@ const toPostByIdResponse = (post: FixturePost) => ({
   },
 });
 
+const toNotificationsListResponse = (state: MockState, page: number, pageSize: number) => {
+  const items = Array.from(state.notificationsById.values()).sort(
+    (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+  );
+  const totalItems = items.length;
+  const unreadCount = items.filter((item) => !item.isRead).length;
+  const totalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize);
+  const offset = (page - 1) * pageSize;
+
+  return {
+    items: items.slice(offset, offset + pageSize),
+    page,
+    pageSize,
+    totalItems,
+    totalPages,
+    hasNext: totalPages > 0 && page < totalPages,
+    hasPrevious: totalPages > 0 && page > 1,
+    unreadCount,
+  };
+};
+
 const getMultipartField = (body: string | null, fieldName: string) => {
   if (!body) return undefined;
   const marker = `name="${fieldName}"`;
@@ -161,6 +200,9 @@ const getMultipartField = (body: string | null, fieldName: string) => {
 
   return body.slice(valueStart + 4, boundaryStart).trim();
 };
+
+const hasMultipartField = (body: string | null, fieldName: string) =>
+  body?.includes(`name="${fieldName}"`) || false;
 
 const ensureUser = (state: MockState, user: FixtureUser) => {
   const cloned = clone(user);
@@ -264,6 +306,7 @@ const buildState = (options: MockCassetteOptions): MockState => {
     usersById: new Map<string, FixtureUser>(),
     usernamesToIds: new Map<string, string>(),
     postsById: new Map<string, FixturePost>(),
+    notificationsById: new Map<string, MockNotification>(),
     convertTemplatesByUrl: new Map<string, FixturePost>(),
     topCharts: clone(options.topCharts || fixtureTopCharts),
     searchResultsByQuery: clone(options.searchResultsByQuery || fixtureSearchResultsByQuery),
@@ -291,6 +334,9 @@ const buildState = (options: MockCassetteOptions): MockState => {
   const defaultPosts = options.posts || [];
   for (const post of defaultPosts) {
     upsertPost(state, post);
+  }
+  for (const notification of options.notifications || []) {
+    state.notificationsById.set(notification.id, clone(notification));
   }
 
   const templatePosts = options.convertTemplates || Object.values(fixtureConvertTemplates);
@@ -397,11 +443,13 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       const bio = getMultipartField(body, 'Bio') || getMultipartField(body, 'bio');
       const likedPostsPrivacy = getMultipartField(body, 'likedPostsPrivacy') as 'public' | 'private' | undefined;
       const isOnboarded = getMultipartField(body, 'isOnboarded');
+      const hasAvatarUpload = hasMultipartField(body, 'avatar') || hasMultipartField(body, 'Avatar');
 
       updateUser(state, currentUser.id, {
         username: username ? normalizeUsername(username) : currentUser.username,
         displayName: displayName || currentUser.displayName,
         bio: bio ?? currentUser.bio,
+        avatarUrl: hasAvatarUpload ? `/images/cassette_logo.png?avatar=${currentUser.id}` : currentUser.avatarUrl,
         likedPostsPrivacy: likedPostsPrivacy || currentUser.likedPostsPrivacy || 'public',
         isOnboarded: isOnboarded === 'true' ? true : currentUser.isOnboarded,
       });
@@ -410,6 +458,52 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         success: true,
         user: toSessionUser(getCurrentUserOrThrow(state)),
       });
+    }
+
+    if (pathname === '/api/v1/notifications/unread-count' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      return json(route, {
+        unreadCount: Array.from(state.notificationsById.values()).filter((item) => !item.isRead)
+          .length,
+      });
+    }
+
+    if (pathname === '/api/v1/notifications' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      const page = Math.max(1, Number(url.searchParams.get('page') || 1));
+      const pageSize = Math.max(1, Number(url.searchParams.get('pageSize') || 20));
+      return json(route, toNotificationsListResponse(state, page, pageSize));
+    }
+
+    if (pathname === '/api/v1/notifications/read' && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      const payload = request.postDataJSON() as { notificationIds?: string[] };
+      const notificationIds = payload.notificationIds || [];
+
+      notificationIds.forEach((notificationId) => {
+        const notification = state.notificationsById.get(notificationId);
+        if (!notification) return;
+
+        state.notificationsById.set(notificationId, {
+          ...notification,
+          isRead: true,
+        });
+      });
+
+      return json(route, { success: true });
+    }
+
+    if (pathname === '/api/v1/notifications/read-all' && method === 'POST') {
+      getCurrentUserOrThrow(state);
+
+      Array.from(state.notificationsById.entries()).forEach(([notificationId, notification]) => {
+        state.notificationsById.set(notificationId, {
+          ...notification,
+          isRead: true,
+        });
+      });
+
+      return json(route, { success: true });
     }
 
     if (pathname === '/api/v1/social/posts' && method === 'POST') {

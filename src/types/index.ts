@@ -378,6 +378,34 @@ export interface PostByIdResponse {
   originalLink?: string;
 }
 
+export interface PostInsightsLifetimeMetrics {
+  views: number;
+  uniqueViewers: number;
+  destinationOpens: number;
+  shares: number;
+  openRate: number;
+}
+
+export interface PostInsightsPlatformBreakdownItem {
+  platform: string;
+  opens: number;
+  shareOfOpens: number;
+}
+
+export interface PostInsightsTrendPoint {
+  date: string;
+  views: number;
+  destinationOpens: number;
+}
+
+export interface PostInsightsResponse {
+  postId: string;
+  generatedAt: string;
+  lifetime: PostInsightsLifetimeMetrics;
+  platformBreakdown: PostInsightsPlatformBreakdownItem[];
+  trend: PostInsightsTrendPoint[];
+}
+
 export interface PostComment {
   commentId: string;
   postId: string;

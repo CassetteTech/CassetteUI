@@ -271,7 +271,7 @@ export default function OnboardingPage() {
       case 'handle':
         return <ChooseHandleStep {...commonProps} />;
       case 'avatar':
-        return <AvatarStep {...commonProps} />;
+        return <AvatarStep {...commonProps} avatarPreview={avatarPreview} />;
       case 'music':
         return <ConnectMusicStep {...commonProps} />;
       default:

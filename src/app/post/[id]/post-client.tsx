@@ -7,8 +7,10 @@ import { StreamingLinks, streamingServices } from '@/components/features/entity/
 import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList } from '@/components/features/entity/track-list';
-import { PostDescriptionCard } from '@/components/features/post/post-description-card';
-import { PostCommentsCard } from '@/components/features/post/post-comments-card';
+import { PostAuthorHeader } from '@/components/features/post/post-author-header';
+import { PostEngagementBar } from '@/components/features/post/post-engagement-bar';
+import { PostCommentsSheet } from '@/components/features/post/post-comments-sheet';
+import { PostInsightsSheet } from '@/components/features/post/post-insights-sheet';
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
@@ -30,7 +32,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError, apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
-import { AlertCircle, Check, Copy, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { AlertCircle, Check, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { detectContentType } from '@/utils/content-type-detection';
@@ -38,13 +40,7 @@ import { captureClientEvent } from '@/lib/analytics/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
-type JoinCassetteCTAProps = {
-  onClick: () => void;
-  className?: string;
-  accentColor?: string | null;
-};
-
-function JoinCassetteCTA({ onClick, className }: Omit<JoinCassetteCTAProps, 'accentColor'>) {
+function JoinCassetteCTA({ onClick, className }: { onClick: () => void; className?: string }) {
   return (
     <div className={`flex items-center justify-between gap-4 ${className ?? ''}`}>
       <p className="text-sm text-muted-foreground">
@@ -55,6 +51,24 @@ function JoinCassetteCTA({ onClick, className }: Omit<JoinCassetteCTAProps, 'acc
         className="shrink-0 px-4 py-2 text-sm font-semibold rounded-lg transition-colors bg-primary text-primary-foreground border-2 border-primary"
       >
         Sign up free
+      </button>
+    </div>
+  );
+}
+
+function SupportCTA({ className }: { className?: string }) {
+  return (
+    <div className={`flex items-center justify-between gap-4 ${className ?? ''}`}>
+      <p className="text-sm text-muted-foreground">
+        <span className="text-foreground font-medium">Enjoying Cassette?</span> Support us on Ko-fi.
+      </p>
+      <button
+        onClick={openKoFiSupport}
+        className="shrink-0 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors bg-primary text-primary-foreground"
+        aria-label="Support Cassette on Ko-fi"
+      >
+        <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="rounded-full" />
+        <span>Tip us</span>
       </button>
     </div>
   );
@@ -234,6 +248,63 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const [hasReposted, setHasReposted] = useState(false);
   const [isLikePending, setIsLikePending] = useState(false);
   const [likeAuthPromptOpen, setLikeAuthPromptOpen] = useState(false);
+  const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
+  const [commentCount, setCommentCount] = useState<number | undefined>(undefined);
+  const [insightsSheetOpen, setInsightsSheetOpen] = useState(false);
+  const panelSwitchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Roughly matches the sheet's `data-[state=closed]:duration-[300ms]` slide-out
+  // with a small buffer so the outgoing panel finishes animating before the
+  // incoming one starts. Keeps cross-panel swaps visually clean on desktop.
+  const PANEL_SWITCH_DELAY_MS = 320;
+
+  const handleOpenComments = useCallback(() => {
+    if (panelSwitchTimeoutRef.current) {
+      clearTimeout(panelSwitchTimeoutRef.current);
+      panelSwitchTimeoutRef.current = null;
+    }
+    if (commentsSheetOpen) {
+      setCommentsSheetOpen(false);
+      return;
+    }
+    if (insightsSheetOpen) {
+      setInsightsSheetOpen(false);
+      panelSwitchTimeoutRef.current = setTimeout(() => {
+        setCommentsSheetOpen(true);
+        panelSwitchTimeoutRef.current = null;
+      }, PANEL_SWITCH_DELAY_MS);
+      return;
+    }
+    setCommentsSheetOpen(true);
+  }, [commentsSheetOpen, insightsSheetOpen]);
+
+  const handleOpenInsights = useCallback(() => {
+    if (panelSwitchTimeoutRef.current) {
+      clearTimeout(panelSwitchTimeoutRef.current);
+      panelSwitchTimeoutRef.current = null;
+    }
+    if (insightsSheetOpen) {
+      setInsightsSheetOpen(false);
+      return;
+    }
+    if (commentsSheetOpen) {
+      setCommentsSheetOpen(false);
+      panelSwitchTimeoutRef.current = setTimeout(() => {
+        setInsightsSheetOpen(true);
+        panelSwitchTimeoutRef.current = null;
+      }, PANEL_SWITCH_DELAY_MS);
+      return;
+    }
+    setInsightsSheetOpen(true);
+  }, [commentsSheetOpen, insightsSheetOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (panelSwitchTimeoutRef.current) {
+        clearTimeout(panelSwitchTimeoutRef.current);
+      }
+    };
+  }, []);
   const { openReportModal } = useReportIssue();
   const fromParam = searchParams.get('from');
   const backRoute =
@@ -260,11 +331,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   // Ref to track the source URL for add-to-profile
   const sourceUrlRef = useRef<string | null>(null);
   const sourcePlatformRef = useRef<string | null>(null);
+  const trackedPostViewRef = useRef<string | null>(null);
 
   useEffect(() => {
     setAddStatus('idle');
     setImageError(false);
   }, [postData?.postId, postData?.originalUrl]);
+
+  useEffect(() => {
+    trackedPostViewRef.current = null;
+  }, [postId]);
 
   const buildShareUrl = useCallback(() => {
     if (typeof window === 'undefined') return '';
@@ -708,24 +784,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           }
 
           const detectedSourcePlatform = detectContentType(originalLink || '').platform;
-          const resolvedPostOwnerUserId = response.userId || transformedData.userId;
-          const isCreatorView = Boolean(
-            user?.id &&
-            resolvedPostOwnerUserId &&
-            user.id === resolvedPostOwnerUserId,
-          );
           sourceUrlRef.current = originalLink || sourceUrlRef.current;
           sourcePlatformRef.current = detectedSourcePlatform || sourcePlatformRef.current;
-          void captureClientEvent('post_viewed', {
-            route: `/post/${response.postId || postId}`,
-            source_surface: 'post',
-            post_id: response.postId || postId,
-            element_type: elementTypeLower as 'track' | 'album' | 'artist' | 'playlist' | undefined,
-            source_platform: detectedSourcePlatform,
-            user_id: user?.id,
-            is_authenticated: isAuthenticated,
-            is_creator_view: isCreatorView,
-          });
           setPostData({
             ...transformedData,
             sourcePlatform: detectedSourcePlatform,
@@ -754,6 +814,41 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
       isCancelled = true;
     };
   }, [postId, user?.id, isAuthenticated]);
+
+  useEffect(() => {
+    if (isLoading || !postData) {
+      return;
+    }
+
+    const matchesRoutePost = [postData.postId, postData.redirectPostId, postData.originalPostId]
+      .some((candidate) => candidate === postId);
+    if (!matchesRoutePost) {
+      return;
+    }
+
+    const resolvedPostId = postData.postId || postId;
+    if (!resolvedPostId || trackedPostViewRef.current === resolvedPostId) {
+      return;
+    }
+
+    const isCreatorView = Boolean(
+      user?.id &&
+      postData.userId &&
+      user.id.toLowerCase() === postData.userId.toLowerCase(),
+    );
+
+    trackedPostViewRef.current = resolvedPostId;
+    void captureClientEvent('post_viewed', {
+      route: `/post/${resolvedPostId}`,
+      source_surface: 'post',
+      post_id: resolvedPostId,
+      element_type: postData.metadata.type as 'track' | 'album' | 'artist' | 'playlist' | undefined,
+      source_platform: (postData.sourcePlatform || sourcePlatformRef.current || undefined) as 'spotify' | 'apple' | 'deezer' | 'unknown' | undefined,
+      user_id: user?.id,
+      is_authenticated: isAuthenticated,
+      is_creator_view: isCreatorView,
+    });
+  }, [isLoading, isAuthenticated, postData, postId, user?.id]);
 
   // Color extraction function
   const extractColorFromArtwork = async (artworkUrl: string) => {
@@ -831,6 +926,10 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
       : undefined;
   const useSplitScrollLayout = isDesktop && (isAlbum || isPlaylist);
   const showSignupCTA = !isLoading && !isAuthenticated;
+  const filteredGenres = (postData?.genres ?? []).filter(
+    (genre) => genre.toLowerCase() !== 'music',
+  );
+  const hasGenres = filteredGenres.length > 0;
 
   const providedSourceUrl = (postData?.originalUrl || sourceUrlRef.current)?.trim();
   const detectedFromProvided = providedSourceUrl ? detectContentType(providedSourceUrl).platform : null;
@@ -858,17 +957,19 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         gradientColors={palette ? [palette.dominant, palette.muted] : undefined}
       />
 
-      <div className={useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"}>
+      <div
+        className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"} transition-[padding] duration-[450ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${commentsSheetOpen || insightsSheetOpen ? "md:pr-[512px]" : ""}`}
+      >
         {isDesktop ? (
           useSplitScrollLayout ? (
           // Desktop Album/Playlist: fixed left, scrollable right (only right side scrolls)
           <div className="px-8 max-w-7xl mx-auto h-full flex flex-col min-h-0">
             {/* Header Toolbar */}
-            <div className="pt-4 pb-4 px-3 shrink-0 max-w-7xl mx-auto w-full">
+            <div className="pt-4 pb-6 px-3 shrink-0 max-w-7xl mx-auto w-full">
               <div className="flex items-center justify-between gap-3">
                 <BackButton route={backRoute} fallbackRoute="/explore" />
                 <motion.button
-                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
+                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 min-w-[120px] rounded-full border font-medium text-sm overflow-hidden ${
                     copyState === 'copied'
                       ? 'bg-success/20 text-success-text border-success/30'
                       : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
@@ -883,7 +984,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     {copyState === 'copied' ? (
                       <motion.span
                         key="copied"
-                        className="flex items-center gap-2"
+                        className="flex items-center justify-center gap-2"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
@@ -894,15 +995,28 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       </motion.span>
                     ) : (
                       <motion.span
-                        key="copy"
-                        className="flex items-center gap-2"
+                        key="share"
+                        className="flex items-center justify-center gap-2"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.15 }}
                       >
-                        <Copy className="w-4 h-4" />
-                        <span>Copy Link</span>
+                        <span
+                          aria-hidden="true"
+                          className="w-4 h-4 bg-current shrink-0"
+                          style={{
+                            WebkitMaskImage: "url(/images/ic_share.png)",
+                            maskImage: "url(/images/ic_share.png)",
+                            WebkitMaskSize: "contain",
+                            maskSize: "contain",
+                            WebkitMaskRepeat: "no-repeat",
+                            maskRepeat: "no-repeat",
+                            WebkitMaskPosition: "center",
+                            maskPosition: "center",
+                          }}
+                        />
+                        <span>Share</span>
                       </motion.span>
                     )}
                   </AnimatePresence>
@@ -948,9 +1062,21 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               <div className="flex-[2] sticky top-0 h-full overflow-y-auto no-scrollbar">
                 {/* Make the left column fill the available height and center content vertically */}
                 <div className="min-h-full flex flex-col items-center justify-start min-w-0 pt-2 pb-[calc(6rem+env(safe-area-inset-bottom))]">
-                  <UIText className="text-foreground font-bold mb-8 uppercase tracking-wider text-lg">
+                  <UIText className="text-foreground font-bold mb-3 uppercase tracking-wider text-lg">
                     {typeLabel}
                   </UIText>
+                  {hasGenres && (
+                    <div className="flex flex-wrap justify-center gap-1.5 mb-6 max-w-xs">
+                      {filteredGenres.map((genre) => (
+                        <span
+                          key={genre}
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground border border-border/50"
+                        >
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {/* Artwork */}
                   <div className="relative mb-8">
                     <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
@@ -971,6 +1097,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           title={metadata.title}
                           artist={metadata.artist}
                           artwork={metadata.artwork}
+                          postId={postData?.postId || postId}
+                          elementType="track"
+                          sourcePlatform={sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey ?? 'unknown'}
                         />
                       </div>
                     )}
@@ -979,44 +1108,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   {(isAlbum || isPlaylist) && (
                     <div className="p-8 rounded-2xl border border-border bg-card shadow-lg w-full max-w-xl">
                       <div className="space-y-6">
-                        <HeadlineText className="text-3xl font-bold text-foreground text-center leading-tight">
-                          {metadata.title}
-                        </HeadlineText>
-                        {/* Artist line for album */}
-                        {isAlbum && (
-                          <div className="text-center">
-                            <BodyText className="text-lg text-muted-foreground">
-                              {postData?.details?.artists && postData.details.artists.length > 0 ? (
-                                postData.details.artists.map((artist, idx) => (
-                                  <span key={idx}>
-                                    {artist.name}
-                                    {artist.role === 'Featured' && <span className="text-sm"> (feat.)</span>}
-                                    {idx < postData.details!.artists!.length - 1 && ', '}
-                                  </span>
-                                ))
-                              ) : (
-                                metadata.artist
-                              )}
-                            </BodyText>
-                          </div>
-                        )}
-                        <div className="border-t border-border/30 mx-6" />
-                        {isPlaylist ? (
-                          <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-3 text-base">
-                            {/* Show track count - prefer actual tracks array length, fall back to trackCount metadata */}
-                            {(Array.isArray(postData?.tracks) && postData.tracks.length > 0) ? (
-                              <div>
-                                <span className="text-muted-foreground">Tracks: </span>
-                                <span className="font-medium">{postData.tracks.length}</span>
-                              </div>
-                            ) : typeof postData?.trackCount === 'number' && postData.trackCount > 0 ? (
-                              <div>
-                                <span className="text-muted-foreground">Tracks: </span>
-                                <span className="font-medium">{postData.trackCount}</span>
-                              </div>
-                            ) : null}
-                            {/* Source attribution badge */}
-                            {sourcePlatformKey && resolvedSourceUrl && sourceService && (
+                        {/* Title block: title (with inline source badge for playlist) + artist (album) */}
+                        <div className="space-y-2">
+                          <div className="relative flex justify-center items-center">
+                            <HeadlineText className="text-3xl font-bold text-foreground text-center leading-tight">
+                              {metadata.title}
+                            </HeadlineText>
+                            {isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService && (
                               <a
                                 href={resolvedSourceUrl}
                                 target="_blank"
@@ -1034,116 +1132,97 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                     is_authenticated: isAuthenticated,
                                   });
                                 }}
-                                className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group w-full mt-2"
+                                className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
+                                aria-label={`from ${sourceService.name}`}
                               >
+                                <span>from</span>
                                 <Image
                                   src={sourceService.icon}
                                   alt={sourceService.name}
-                                  width={16}
-                                  height={16}
-                                  className="opacity-70 group-hover:opacity-100 transition-opacity"
+                                  width={14}
+                                  height={14}
+                                  className="opacity-60 group-hover:opacity-100 transition-opacity"
                                 />
-                                <span>from {sourceService.name}</span>
                                 <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
                               </a>
                             )}
                           </div>
-                        ) : (
-                          // Album meta row
-                          <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-3 text-base">
-                            {postData?.releaseDate && (
-                              <div>
-                                <span className="text-muted-foreground">Released: </span>
-                                <span className="font-medium">{postData.releaseDate}</span>
-                              </div>
-                            )}
-                            {postData?.releaseDate && postData?.trackCount && (
-                              <span className="text-muted-foreground">•</span>
-                            )}
-                            {typeof postData?.trackCount === 'number' && (
-                              <div>
-                                <span className="text-muted-foreground">Tracks: </span>
-                                <span className="font-medium">{postData.trackCount}</span>
-                              </div>
-                            )}
-                          </div>
+                          {/* Artist line for album */}
+                          {isAlbum && (
+                            <div className="text-center">
+                              <BodyText className="text-lg text-muted-foreground">
+                                {postData?.details?.artists && postData.details.artists.length > 0 ? (
+                                  postData.details.artists.map((artist, idx) => (
+                                    <span key={idx}>
+                                      {artist.name}
+                                      {artist.role === 'Featured' && <span className="text-sm"> (feat.)</span>}
+                                      {idx < postData.details!.artists!.length - 1 && ', '}
+                                    </span>
+                                  ))
+                                ) : (
+                                  metadata.artist
+                                )}
+                              </BodyText>
+                            </div>
+                          )}
+                        </div>
+                        {/* Listen Now (merged into info card) */}
+                        <div className="border-t border-border/30 mx-6" />
+                        <div>
+                          <h3 className="text-base font-semibold text-foreground mb-4 text-center">Listen Now</h3>
+                          {isPlaylist ? (
+                            <PlaylistStreamingLinks
+                              links={convertedUrls}
+                              className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                              playlistId={postData?.musicElementId || ''}
+                              postId={postData?.postId || postId}
+                              playlistTrackCount={playlistTrackCount}
+                              sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
+                              sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                            />
+                          ) : (
+                            <StreamingLinks
+                              links={convertedUrls}
+                              postId={postData?.postId || postId}
+                              elementType={metadata.type}
+                              sourcePlatform={analyticsSourcePlatform}
+                              isAuthenticated={isAuthenticated}
+                              className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                            />
+                          )}
+                        </div>
+                        {/* Social: author header + engagement bar (moved inside card) */}
+                        {postData?.username && hasPostOwner && (
+                          <>
+                            <div className="border-t border-border/30 mx-6" />
+                            <div className="flex flex-col gap-2 text-left relative z-20">
+                              <PostAuthorHeader
+                                username={postData.username}
+                                description={postData?.description || ''}
+                                createdAt={postData?.createdAt}
+                                compact
+                              />
+                              <PostEngagementBar
+                                likeCount={postData?.likeCount ?? 0}
+                                likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                                isLikePending={isLikePending}
+                                onToggleLike={handleToggleLike}
+                                canRepost={canRepost}
+                                hasReposted={hasReposted}
+                                isRepostPending={isRepostPending}
+                                onRepost={() => void handleRepost()}
+                                commentCount={commentCount}
+                                commentsEnabled={postData?.commentsEnabled ?? true}
+                                onOpenComments={handleOpenComments}
+                                canViewInsights={isOwnPost}
+                                onOpenInsights={handleOpenInsights}
+                                className="self-start"
+                                compact
+                              />
+                            </div>
+                          </>
                         )}
-                        {(() => {
-                          const filteredGenres = postData?.genres?.filter(genre =>
-                            genre.toLowerCase() !== 'music'
-                          ) || [];
-                          if (filteredGenres.length === 0) return null;
-                          return (
-                            <>
-                              <div className="border-t border-border/30 mx-6" />
-                              <div className="flex flex-wrap gap-3 justify-center">
-                                {filteredGenres.map((genre, index) => (
-                                  <span
-                                    key={index}
-                                    className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-muted/30 text-muted-foreground border border-border/50"
-                                  >
-                                    {genre}
-                                  </span>
-                                ))}
-                              </div>
-                            </>
-                          );
-                        })()}
                       </div>
-                    </div>
-                  )}
-                  {/* PostDescriptionCard for album/playlist */}
-                  {postData?.username && (
-                    <PostDescriptionCard
-                      username={postData.username}
-                      description={postData?.description || ''}
-                      createdAt={postData?.createdAt}
-                      conversionSuccessCount={ownerVisibleConversionCount}
-                      likeCount={postData?.likeCount ?? 0}
-                      likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
-                      isLikePending={isLikePending}
-                      onToggleLike={handleToggleLike}
-                      canRepost={canRepost}
-                      hasReposted={hasReposted}
-                      isRepostPending={isRepostPending}
-                      onRepost={() => void handleRepost()}
-                      className="mt-6 w-full max-w-xl relative z-20"
-                    />
-                  )}
-                  {hasPostOwner && (
-                    <PostCommentsCard
-                      postId={postData?.postId || postId}
-                      isVisible={true}
-                      commentsEnabled={postData?.commentsEnabled ?? true}
-                      currentUserId={user?.id}
-                      currentUsername={user?.username}
-                      className="mt-6 max-w-xl"
-                    />
-                  )}
-                  {/* Streaming Links (moved from right) */}
-                  {(isAlbum || isPlaylist) && (
-                    <div className="mt-6 p-8 rounded-2xl border border-border bg-card shadow-lg relative z-10 w-full max-w-xl">
-                      <h3 className="text-xl font-semibold text-card-foreground mb-6 text-center">Listen Now</h3>
-                        {isPlaylist ? (
-                          <PlaylistStreamingLinks
-                            links={convertedUrls}
-                            className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                            playlistId={postData?.musicElementId || ''}
-                            postId={postData?.postId || postId}
-                            playlistTrackCount={playlistTrackCount}
-                            sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
-                            sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                          />
-                        ) : (
-                          <StreamingLinks
-                            links={convertedUrls}
-                            postId={postData?.postId || postId}
-                            elementType={metadata.type}
-                            sourcePlatform={analyticsSourcePlatform}
-                            isAuthenticated={isAuthenticated}
-                            className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                        />
-                      )}
                     </div>
                   )}
                   {showAddToProfile && (
@@ -1194,10 +1273,15 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     {/* Track list for album/playlist */}
                     {showTracks && (
                       <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-lg">
-                        <div className="p-5 border-b border-border bg-muted/50">
+                        <div className="p-5 border-b border-border bg-muted/50 flex items-baseline justify-between gap-3">
                           <h3 className="text-lg font-semibold text-foreground">
                             {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
                           </h3>
+                          {typeof playlistTrackCount === 'number' && playlistTrackCount > 0 && (
+                            <span className="text-sm text-muted-foreground tabular-nums">
+                              {playlistTrackCount} {playlistTrackCount === 1 ? 'track' : 'tracks'}
+                            </span>
+                          )}
                         </div>
                         <TrackList
                           items={postData.tracks!}
@@ -1217,13 +1301,13 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           </div>
           ) : (
             // Desktop Track/Artist: keep original full-page scroll behavior
-            <div className="mt-16">
+            <div className="pt-16">
               {/* Header Toolbar */}
               <div className="pt-4 pb-6 px-3 relative z-20 max-w-7xl mx-auto w-full">
                 <div className="flex items-center justify-between gap-3">
                   <BackButton route={backRoute} fallbackRoute="/explore" />
                   <motion.button
-                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 min-w-[120px] rounded-full border font-medium text-sm overflow-hidden ${
                       copyState === 'copied'
                         ? 'bg-success/20 text-success-text border-success/30'
                         : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
@@ -1238,7 +1322,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                       {copyState === 'copied' ? (
                         <motion.span
                           key="copied"
-                          className="flex items-center gap-2"
+                          className="flex items-center justify-center gap-2"
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
@@ -1249,15 +1333,28 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         </motion.span>
                       ) : (
                         <motion.span
-                          key="copy"
-                          className="flex items-center gap-2"
+                          key="share"
+                          className="flex items-center justify-center gap-2"
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
                           transition={{ duration: 0.15 }}
                         >
-                          <Copy className="w-4 h-4" />
-                          <span>Copy Link</span>
+                          <span
+                            aria-hidden="true"
+                            className="w-4 h-4 bg-current shrink-0"
+                            style={{
+                              WebkitMaskImage: "url(/images/ic_share.png)",
+                              maskImage: "url(/images/ic_share.png)",
+                              WebkitMaskSize: "contain",
+                              maskSize: "contain",
+                              WebkitMaskRepeat: "no-repeat",
+                              maskRepeat: "no-repeat",
+                              WebkitMaskPosition: "center",
+                              maskPosition: "center",
+                            }}
+                          />
+                          <span>Share</span>
                         </motion.span>
                       )}
                     </AnimatePresence>
@@ -1297,58 +1394,68 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   )}
                 </div>
               </div>
-              <div className="px-8 max-w-7xl mx-auto pb-8">
-                <div className="flex gap-12">
-                  {/* Left Column - Artwork */}
-                  <div className="flex-[2] sticky top-[120px] self-start">
-                    <div className="flex flex-col items-center min-w-0 h-[calc(100vh-140px)] justify-center">
-                      <UIText className="text-foreground font-bold mb-6 uppercase tracking-wider text-lg">
+              <div className="px-8 max-w-7xl mx-auto pb-24 min-h-[calc(100vh-144px)] flex flex-col justify-center">
+                {/* Header row: positioned over the right column only, does not push artwork/card down */}
+                <div className="flex gap-12 mb-6">
+                  <div className="flex-[2]" aria-hidden="true" />
+                  <div className="flex-[3] flex justify-center">
+                    <div className="max-w-xl w-full flex flex-col items-center">
+                      <UIText className="text-foreground font-bold mb-2 uppercase tracking-wider text-lg">
                         {typeLabel}
                       </UIText>
-                      <div className="relative mb-6">
-                        <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
-                        <Image
-                          src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
-                          alt={metadata.title}
-                          width={360}
-                          height={360}
-                          className="relative rounded-xl object-cover shadow-lg"
-                          priority
-                          onError={() => setImageError(true)}
-                          unoptimized={!imageError && !!metadata.artwork}
-                        />
-                        {isTrack && postData?.previewUrl && (
-                          <div className="absolute -bottom-4 -right-4">
-                            <PlayPreview
-                              previewUrl={postData.previewUrl}
-                              title={metadata.title}
-                              artist={metadata.artist}
-                              artwork={metadata.artwork}
-                            />
-                          </div>
-                        )}
-                      </div>
-                      {hasPostOwner && (
-                        <PostCommentsCard
-                          postId={postData?.postId || postId}
-                          isVisible={true}
-                          commentsEnabled={postData?.commentsEnabled ?? true}
-                          currentUserId={user?.id}
-                          currentUsername={user?.username}
-                          className="w-full max-w-md"
-                        />
+                      {hasGenres && (
+                        <div className="flex flex-wrap justify-center gap-1.5 max-w-xs">
+                          {filteredGenres.map((genre) => (
+                            <span
+                              key={genre}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground border border-border/50"
+                            >
+                              {genre}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>
-                  {/* Right Column - Content (page scroll) */}
+                </div>
+                <div className="flex gap-12 items-start">
+                  {/* Left Column - Artwork only */}
+                  <div className="flex-[2] flex justify-center">
+                    <div className="relative">
+                      <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
+                      <Image
+                        src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
+                        alt={metadata.title}
+                        width={440}
+                        height={440}
+                        className="relative rounded-xl object-cover shadow-lg"
+                        priority
+                        onError={() => setImageError(true)}
+                        unoptimized={!imageError && !!metadata.artwork}
+                      />
+                      {isTrack && postData?.previewUrl && (
+                        <div className="absolute -bottom-4 -right-4">
+                          <PlayPreview
+                            previewUrl={postData.previewUrl}
+                            title={metadata.title}
+                            artist={metadata.artist}
+                            artwork={metadata.artwork}
+                            postId={postData?.postId || postId}
+                            elementType="track"
+                            sourcePlatform={sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey ?? 'unknown'}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Right Column - Header + card + secondary content as one stack */}
                   <div className="flex-[3]">
-                    {/* Vertically center content relative to viewport height */}
-                    <div className="py-8 pb-16 min-h-[calc(100vh-140px)] flex flex-col justify-center">
+                    <div className="max-w-xl w-full mx-auto">
                       <div className="space-y-6">
                         {/* Info Card */}
                         <div className="p-6 rounded-2xl border border-border bg-card shadow-lg">
                           <div className="space-y-3">
-                            <HeadlineText className="text-xl font-bold text-foreground text-center">
+                            <HeadlineText className="text-2xl font-bold text-foreground text-center leading-tight">
                               {metadata.title}
                             </HeadlineText>
                             {(isTrack || isAlbum) && (
@@ -1388,70 +1495,61 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                 )}
                               </div>
                             ) : null}
-                            {(() => {
-                              const filteredGenres = postData?.genres?.filter(genre =>
-                                genre.toLowerCase() !== 'music'
-                              ) || [];
-                              if (filteredGenres.length === 0) return null;
-                              return (
-                                <>
-                                  <div className="border-t border-border/30 mx-4" />
-                                  <div className="flex flex-wrap gap-2 justify-center">
-                                    {filteredGenres.map((genre, index) => (
-                                      <span
-                                        key={index}
-                                        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-muted/30 text-muted-foreground border border-border/50"
-                                      >
-                                        {genre}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </>
-                              );
-                            })()}
+                            {/* Listen Now (merged into info card) */}
+                            <div className="border-t border-border/30 mx-4" />
+                            <div>
+                              <h3 className="text-base font-semibold text-foreground mb-3 text-center">Listen Now</h3>
+                              {isPlaylist ? (
+                                <PlaylistStreamingLinks
+                                  links={convertedUrls}
+                                  className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                                  playlistId={postData?.musicElementId || ''}
+                                  postId={postData?.postId || postId}
+                                  playlistTrackCount={playlistTrackCount}
+                                  sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
+                                  sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                                />
+                              ) : (
+                                <StreamingLinks
+                                  links={convertedUrls}
+                                  postId={postData?.postId || postId}
+                                  elementType={metadata.type}
+                                  sourcePlatform={analyticsSourcePlatform}
+                                  isAuthenticated={isAuthenticated}
+                                  className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                                />
+                              )}
+                            </div>
+                            {/* Social: author header + engagement bar (moved inside card) */}
+                            {postData?.username && hasPostOwner && (
+                              <>
+                                <div className="border-t border-border/30 mx-4" />
+                                <div className="flex flex-col gap-2.5 relative z-20">
+                                  <PostAuthorHeader
+                                    username={postData.username}
+                                    description={postData?.description || ''}
+                                    createdAt={postData?.createdAt}
+                                  />
+                                  <PostEngagementBar
+                                    likeCount={postData?.likeCount ?? 0}
+                                    likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                                    isLikePending={isLikePending}
+                                    onToggleLike={handleToggleLike}
+                                    canRepost={canRepost}
+                                    hasReposted={hasReposted}
+                                    isRepostPending={isRepostPending}
+                                    onRepost={() => void handleRepost()}
+                                    commentCount={commentCount}
+                                    commentsEnabled={postData?.commentsEnabled ?? true}
+                                    onOpenComments={handleOpenComments}
+                                    canViewInsights={isOwnPost}
+                                    onOpenInsights={handleOpenInsights}
+                                    className="self-start"
+                                  />
+                                </div>
+                              </>
+                            )}
                           </div>
-                        </div>
-                        {/* Description - only show if post has a real user */}
-                        {postData?.username && (
-                          <PostDescriptionCard
-                            username={postData.username}
-                            description={postData?.description || ''}
-                            createdAt={postData?.createdAt}
-                            conversionSuccessCount={ownerVisibleConversionCount}
-                            likeCount={postData?.likeCount ?? 0}
-                            likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
-                            isLikePending={isLikePending}
-                            onToggleLike={handleToggleLike}
-                            canRepost={canRepost}
-                            hasReposted={hasReposted}
-                            isRepostPending={isRepostPending}
-                            onRepost={() => void handleRepost()}
-                            className="relative z-20"
-                          />
-                        )}
-                        {/* Streaming Links */}
-                        <div className="p-6 rounded-2xl border border-border bg-card shadow-lg relative z-10">
-                          <h3 className="text-lg font-semibold text-card-foreground mb-4">Listen Now</h3>
-                          {isPlaylist ? (
-                            <PlaylistStreamingLinks
-                              links={convertedUrls}
-                              className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                              playlistId={postData?.musicElementId || ''}
-                              postId={postData?.postId || postId}
-                              playlistTrackCount={playlistTrackCount}
-                              sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
-                              sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                            />
-                          ) : (
-                            <StreamingLinks
-                              links={convertedUrls}
-                              postId={postData?.postId || postId}
-                              elementType={metadata.type}
-                              sourcePlatform={analyticsSourcePlatform}
-                              isAuthenticated={isAuthenticated}
-                              className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                            />
-                          )}
                         </div>
                         {showAddToProfile && (
                           <div className="flex justify-center">
@@ -1468,37 +1566,20 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         {showSignupCTA && (
                           <JoinCassetteCTA onClick={handleSignupClick} />
                         )}
-                        {/* Support Us - Minimal */}
-                        <div className="flex items-center justify-between gap-4">
-                          <p className="text-sm text-muted-foreground">
-                            <span className="text-foreground font-medium">Enjoying Cassette?</span> Support us on Ko-fi.
-                          </p>
-                          <button
-                            onClick={openKoFiSupport}
-                            className="shrink-0 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
-                            style={{
-                              backgroundColor: palette?.complementary || 'var(--primary)',
-                              color: palette?.complementary && ColorExtractor.isLightColor(palette.complementary) ? '#1F2327' : '#FFFFFF',
-                            }}
-                            aria-label="Support Cassette on Ko-fi"
-                          >
-                            <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="rounded-full" />
-                            <span>Tip us</span>
-                          </button>
-                        </div>
+                        <SupportCTA />
                         {/* Report Problem */}
-                        <div className="mb-[calc(6rem+env(safe-area-inset-bottom))] flex justify-center">
+                        <div className="flex justify-center">
                           <button
                             onClick={() => openReportModal({
-                          sourceContext: 'post_view',
-                          sourceLink: postData?.originalUrl || sourceUrlRef.current || '',
-                          conversionData: {
-                            elementType: metadata.type,
-                            title: metadata.title,
-                            artist: metadata.artist,
-                            platforms: postData?.convertedUrls,
-                          },
-                        })}
+                              sourceContext: 'post_view',
+                              sourceLink: postData?.originalUrl || sourceUrlRef.current || '',
+                              conversionData: {
+                                elementType: metadata.type,
+                                title: metadata.title,
+                                artist: metadata.artist,
+                                platforms: postData?.convertedUrls,
+                              },
+                            })}
                             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                           >
                             <AlertCircle className="w-4 h-4" />
@@ -1514,13 +1595,15 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           )
         ) : (
           // Mobile Layout
-          <div className="px-4 sm:px-6 md:px-8 pb-8 pt-16 max-w-lg mx-auto">
+          <div className="px-4 sm:px-6 md:px-8 pb-2 sm:pb-8 pt-16 max-w-lg mx-auto">
             {/* Header Toolbar */}
-            <div className="pt-4 pb-6 max-w-7xl mx-auto w-full">
-              <div className="flex items-center justify-between gap-3">
-                <BackButton route={backRoute} fallbackRoute="/explore" />
+            <div className="pt-3 pb-4 sm:pt-4 sm:pb-6 max-w-7xl mx-auto w-full">
+              <div className="grid grid-cols-3 items-center gap-3">
+                <div className="justify-self-start">
+                  <BackButton route={backRoute} fallbackRoute="/explore" />
+                </div>
                 <motion.button
-                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border font-medium text-sm overflow-hidden ${
+                  className={`justify-self-center inline-flex items-center justify-center gap-2 px-4 py-2 min-w-[120px] rounded-full border font-medium text-sm overflow-hidden ${
                     copyState === 'copied'
                       ? 'bg-success/20 text-success-text border-success/30'
                       : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
@@ -1535,7 +1618,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     {copyState === 'copied' ? (
                       <motion.span
                         key="copied"
-                        className="flex items-center gap-2"
+                        className="flex items-center justify-center gap-2"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
@@ -1547,59 +1630,86 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     ) : (
                       <motion.span
                         key="share"
-                        className="flex items-center gap-2"
+                        className="flex items-center justify-center gap-2"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.15 }}
                       >
-                        <Copy className="w-4 h-4" />
+                        <span
+                          aria-hidden="true"
+                          className="w-4 h-4 bg-current shrink-0"
+                          style={{
+                            WebkitMaskImage: "url(/images/ic_share.png)",
+                            maskImage: "url(/images/ic_share.png)",
+                            WebkitMaskSize: "contain",
+                            maskSize: "contain",
+                            WebkitMaskRepeat: "no-repeat",
+                            maskRepeat: "no-repeat",
+                            WebkitMaskPosition: "center",
+                            maskPosition: "center",
+                          }}
+                        />
                         <span>Share</span>
                       </motion.span>
                     )}
                   </AnimatePresence>
                 </motion.button>
                 {/* More Menu */}
-                {isOwnPost && (
-                  <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Post actions"
-                          data-testid="post-actions-trigger"
-                          className="rounded-full"
-                        >
-                        <MoreVertical className="h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {isOwnPost && (
-                        <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                      )}
-                      {isOwnPost && (
-                        <DropdownMenuItem
-                          onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                <div className="justify-self-end">
+                  {isOwnPost ? (
+                    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                      <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Post actions"
+                            data-testid="post-actions-trigger"
+                            className="rounded-full"
+                          >
+                          <MoreVertical className="h-5 w-5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {isOwnPost && (
+                          <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+                        {isOwnPost && (
+                          <DropdownMenuItem
+                            onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null}
+                </div>
               </div>
             </div>
-            <div className="text-center space-y-4 sm:space-y-6">
+            <div className="text-center space-y-2 sm:space-y-6">
               {/* Element Type */}
               <div>
-                <UIText className="text-foreground font-bold mb-4 sm:mb-6 uppercase tracking-wider text-sm sm:text-base">
+                <UIText className="text-foreground font-bold mb-2 uppercase tracking-wider text-sm sm:text-base">
                   {typeLabel}
                 </UIText>
+                {hasGenres && (
+                  <div className="flex flex-wrap justify-center gap-1.5 max-w-xs mx-auto">
+                    {filteredGenres.map((genre) => (
+                      <span
+                        key={genre}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground border border-border/50"
+                      >
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Album Art Container */}
@@ -1612,8 +1722,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     alt={metadata.title}
                     width={0}
                     height={0}
-                    sizes="(max-width: 640px) 220px, 280px"
-                    className="relative rounded-xl object-cover shadow-lg w-[220px] h-[220px] sm:w-[280px] sm:h-[280px]"
+                    sizes="(max-width: 640px) 260px, 340px"
+                    className="relative rounded-xl object-cover shadow-lg w-[260px] h-[260px] sm:w-[340px] sm:h-[340px]"
                     priority
                     onError={() => setImageError(true)}
                     unoptimized={!imageError && !!metadata.artwork}
@@ -1628,6 +1738,9 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         artist={metadata.artist}
                         artwork={metadata.artwork}
                         mobile={true}
+                        postId={postData?.postId || postId}
+                        elementType="track"
+                        sourcePlatform={sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey ?? 'unknown'}
                       />
                     </div>
                   )}
@@ -1635,12 +1748,46 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               </div>
 
               {/* Track Information Card - Mobile */}
-              <div className="p-4 sm:p-5 rounded-2xl border border-border bg-card shadow-lg">
-                <div className="space-y-3 sm:space-y-4">
-                  {/* Title */}
-                  <HeadlineText className="text-lg sm:text-xl font-bold text-foreground text-center leading-tight">
-                    {metadata.title}
-                  </HeadlineText>
+              <div className="p-3 sm:p-5 rounded-2xl border border-border bg-card shadow-lg">
+                <div className="space-y-2.5 sm:space-y-4">
+                  {/* Title (with source badge right-aligned for playlist) */}
+                  <div className="relative flex justify-center items-center">
+                    <HeadlineText className="text-lg sm:text-xl font-bold text-foreground text-center leading-tight">
+                      {metadata.title}
+                    </HeadlineText>
+                    {isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService && (
+                      <a
+                        href={resolvedSourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => {
+                          void captureClientEvent('streaming_link_opened', {
+                            route: `/post/${postData?.postId || postId}`,
+                            source_surface: 'post',
+                            source_platform: sourcePlatformKey === 'appleMusic'
+                              ? 'apple'
+                              : sourcePlatformKey ?? 'unknown',
+                            source_domain: resolvedSourceUrl,
+                            post_id: postData?.postId || postId,
+                            element_type: 'playlist',
+                            is_authenticated: isAuthenticated,
+                          });
+                        }}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 text-xs sm:text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
+                        aria-label={`from ${sourceService.name}`}
+                      >
+                        <span>from</span>
+                        <Image
+                          src={sourceService.icon}
+                          alt={sourceService.name}
+                          width={14}
+                          height={14}
+                          className="opacity-60 group-hover:opacity-100 transition-opacity"
+                        />
+                        <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                      </a>
+                    )}
+                  </div>
 
                   {/* Artists with roles (show for Track/Album) */}
                   {(isTrack || isAlbum) && (
@@ -1661,140 +1808,111 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     </div>
                   )}
 
-                  {/* Separator */}
-                  <div className="border-t border-border/30" />
-
-                  {/* Metadata */}
-                  {isPlaylist ? (
-                    <div className="space-y-3 text-sm">
-                      {/* Show track count - prefer actual tracks array length, fall back to trackCount metadata */}
-                      {(Array.isArray(postData?.tracks) && postData.tracks.length > 0) ? (
+                  {/* Metadata (track-only: duration + album; album released date) */}
+                  {isTrack ? (
+                    <>
+                      <div className="border-t border-border/30" />
+                      <div className="space-y-2 text-sm">
                         <div className="flex flex-wrap justify-center gap-3">
-                          <div>
-                            <span className="text-muted-foreground">Tracks: </span>
-                            <span className="font-medium">{postData.tracks.length}</span>
-                          </div>
-                        </div>
-                      ) : typeof postData?.trackCount === 'number' && postData.trackCount > 0 ? (
-                        <div className="flex flex-wrap justify-center gap-3">
-                          <div>
-                            <span className="text-muted-foreground">Tracks: </span>
-                            <span className="font-medium">{postData.trackCount}</span>
-                          </div>
-                        </div>
-                      ) : null}
-                      {/* Source attribution badge */}
-                      {sourcePlatformKey && resolvedSourceUrl && sourceService && (
-                        <a
-                          href={resolvedSourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => {
-                            void captureClientEvent('streaming_link_opened', {
-                              route: `/post/${postData?.postId || postId}`,
-                              source_surface: 'post',
-                              source_platform: sourcePlatformKey === 'appleMusic'
-                                ? 'apple'
-                                : sourcePlatformKey ?? 'unknown',
-                              source_domain: resolvedSourceUrl,
-                              post_id: postData?.postId || postId,
-                              element_type: metadata.type as 'track' | 'album' | 'artist' | 'playlist',
-                              is_authenticated: isAuthenticated,
-                            });
-                          }}
-                          className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
-                        >
-                          <Image
-                            src={sourceService.icon}
-                            alt={sourceService.name}
-                            width={16}
-                            height={16}
-                            className="opacity-70 group-hover:opacity-100 transition-opacity"
-                          />
-                          <span>from {sourceService.name}</span>
-                          <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-                        </a>
-                      )}
-                    </div>
-                  ) : isTrack ? (
-                    <div className="space-y-2 text-sm">
-                      {/* Duration and Album in one line */}
-                      <div className="flex flex-wrap justify-center gap-3">
-                        {postData?.metadata?.duration && (
-                          <div>
-                            <span className="text-muted-foreground">Duration: </span>
-                            <span className="font-medium">{postData.metadata.duration}</span>
-                          </div>
-                        )}
+                          {postData?.metadata?.duration && (
+                            <div>
+                              <span className="text-muted-foreground">Duration: </span>
+                              <span className="font-medium">{postData.metadata.duration}</span>
+                            </div>
+                          )}
 
-                        {postData?.metadata?.duration && postData?.albumName && (
-                          <span className="text-muted-foreground">•</span>
-                        )}
+                          {postData?.metadata?.duration && postData?.albumName && (
+                            <span className="text-muted-foreground">•</span>
+                          )}
 
-                        {postData?.albumName && (
-                          <div>
-                            <span className="text-muted-foreground">Album: </span>
-                            <span className="font-medium">{postData.albumName}</span>
-                          </div>
-                        )}
+                          {postData?.albumName && (
+                            <div>
+                              <span className="text-muted-foreground">Album: </span>
+                              <span className="font-medium">{postData.albumName}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ) : isAlbum ? (
-                    <div className="space-y-3 text-sm">
-                      <div className="flex flex-wrap justify-center gap-3">
-                        {postData?.releaseDate && (
-                          <div>
-                            <span className="text-muted-foreground">Released: </span>
-                            <span className="font-medium">{postData.releaseDate}</span>
-                          </div>
-                        )}
-                        {postData?.releaseDate && postData?.trackCount && (
-                          <span className="text-muted-foreground">•</span>
-                        )}
-                        {typeof postData?.trackCount === 'number' && (
-                          <div>
-                            <span className="text-muted-foreground">Tracks: </span>
-                            <span className="font-medium">{postData.trackCount}</span>
-                          </div>
-                        )}
+                    </>
+                  ) : isAlbum && postData?.releaseDate ? (
+                    <>
+                      <div className="border-t border-border/30" />
+                      <div className="text-sm text-center">
+                        <span className="text-muted-foreground">Released: </span>
+                        <span className="font-medium">{postData.releaseDate}</span>
                       </div>
-                    </div>
+                    </>
                   ) : null}
 
-                  {/* Genres */}
-                  {(() => {
-                    const filteredGenres = postData?.genres?.filter(genre =>
-                      genre.toLowerCase() !== 'music'
-                    ) || [];
-
-                    if (filteredGenres.length === 0) return null;
-
-                    return (
-                      <>
-                        <div className="border-t border-border/30" />
-                        <div className="flex flex-wrap gap-2 justify-center">
-                          {filteredGenres.map((genre, index) => (
-                            <span
-                              key={index}
-                              className="inline-flex items-center px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium bg-muted/30 text-muted-foreground border border-border/50"
-                            >
-                              {genre}
-                            </span>
-                          ))}
-                        </div>
-                      </>
-                    );
-                  })()}
+                  {/* Listen Now (merged into info card) */}
+                  <div className="border-t border-border/30" />
+                  <div>
+                    <h3 className="sr-only sm:not-sr-only sm:block text-base font-semibold text-foreground sm:mb-3 text-center">Listen Now</h3>
+                    {isPlaylist ? (
+                      <PlaylistStreamingLinks
+                        links={convertedUrls}
+                        className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                        playlistId={postData?.musicElementId || ''}
+                        postId={postData?.postId || postId}
+                        playlistTrackCount={playlistTrackCount}
+                        sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
+                        sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                      />
+                    ) : (
+                      <StreamingLinks
+                        links={convertedUrls}
+                        postId={postData?.postId || postId}
+                        elementType={metadata.type}
+                        sourcePlatform={analyticsSourcePlatform}
+                        isAuthenticated={isAuthenticated}
+                        className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+                      />
+                    )}
+                  </div>
+                  {/* Social: author header + engagement bar (moved inside card) */}
+                  {postData?.username && hasPostOwner && (
+                    <>
+                      <div className="border-t border-border/30" />
+                      <div className="flex flex-col gap-2 sm:gap-2.5 text-left relative z-20">
+                        <PostAuthorHeader
+                          username={postData.username}
+                          description={postData?.description || ''}
+                          createdAt={postData?.createdAt}
+                        />
+                        <PostEngagementBar
+                          likeCount={postData?.likeCount ?? 0}
+                          likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                          isLikePending={isLikePending}
+                          onToggleLike={handleToggleLike}
+                          canRepost={canRepost}
+                          hasReposted={hasReposted}
+                          isRepostPending={isRepostPending}
+                          onRepost={() => void handleRepost()}
+                          commentCount={commentCount}
+                          commentsEnabled={postData?.commentsEnabled ?? true}
+                          onOpenComments={handleOpenComments}
+                          canViewInsights={isOwnPost}
+                          onOpenInsights={handleOpenInsights}
+                          className="self-start"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
               {/* Track list for album/playlist - mobile */}
               {showTracks && (
                 <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-lg">
-                  <div className="p-3 sm:p-4 border-b border-border bg-muted/50">
+                  <div className="p-3 sm:p-4 border-b border-border bg-muted/50 flex items-baseline justify-center gap-2">
                     <h3 className="text-sm sm:text-base font-semibold text-foreground text-center">
                       {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
                     </h3>
+                    {typeof playlistTrackCount === 'number' && playlistTrackCount > 0 && (
+                      <span className="text-xs sm:text-sm text-muted-foreground tabular-nums">
+                        · {playlistTrackCount}
+                      </span>
+                    )}
                   </div>
                   <TrackList
                     items={postData.tracks!}
@@ -1809,59 +1927,6 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 </div>
               )}
 
-              {/* User info and description - only show if post has a real user */}
-              {postData?.username && (
-                <PostDescriptionCard
-                  username={postData.username}
-                  description={postData?.description || ''}
-                  createdAt={postData?.createdAt}
-                  conversionSuccessCount={ownerVisibleConversionCount}
-                  likeCount={postData?.likeCount ?? 0}
-                  likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
-                  isLikePending={isLikePending}
-                  onToggleLike={handleToggleLike}
-                  canRepost={canRepost}
-                  hasReposted={hasReposted}
-                  isRepostPending={isRepostPending}
-                  onRepost={() => void handleRepost()}
-                  className="text-left relative z-20"
-                />
-              )}
-              {hasPostOwner && (
-                <PostCommentsCard
-                  postId={postData?.postId || postId}
-                  isVisible={true}
-                  commentsEnabled={postData?.commentsEnabled ?? true}
-                  currentUserId={user?.id}
-                  currentUsername={user?.username}
-                  className="text-left relative z-20"
-                />
-              )}
-
-              {/* Streaming Links Container */}
-              <div className="p-4 sm:p-5 rounded-2xl border border-border bg-card shadow-lg relative z-10">
-                <h3 className="text-base sm:text-lg font-semibold text-card-foreground mb-3 sm:mb-4 text-center">Listen Now</h3>
-                {isPlaylist ? (
-                  <PlaylistStreamingLinks
-                    links={convertedUrls}
-                    className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                    playlistId={postData?.musicElementId || ''}
-                    postId={postData?.postId || postId}
-                    playlistTrackCount={playlistTrackCount}
-                    sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
-                    sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                  />
-                ) : (
-                  <StreamingLinks
-                    links={convertedUrls}
-                    postId={postData?.postId || postId}
-                    elementType={metadata.type}
-                    sourcePlatform={analyticsSourcePlatform}
-                    isAuthenticated={isAuthenticated}
-                    className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                  />
-                )}
-              </div>
               {showAddToProfile && (
                 <div className="flex justify-center">
                   <Button
@@ -1877,24 +1942,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               {showSignupCTA && (
                 <JoinCassetteCTA onClick={handleSignupClick} />
               )}
-              {/* Support Us - Minimal */}
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-sm text-muted-foreground">
-                  <span className="text-foreground font-medium">Enjoying Cassette?</span> Support us on Ko-fi.
-                </p>
-                <button
-                  onClick={openKoFiSupport}
-                  className="shrink-0 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
-                  style={{
-                    backgroundColor: palette?.complementary || 'var(--primary)',
-                    color: palette?.complementary && ColorExtractor.isLightColor(palette.complementary) ? '#1F2327' : '#FFFFFF',
-                  }}
-                  aria-label="Support Cassette on Ko-fi"
-                >
-                  <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="rounded-full" />
-                  <span>Tip us</span>
-                </button>
-              </div>
+              <SupportCTA />
 
               {/* Report Problem Button */}
               <div className="flex justify-center">
@@ -1946,6 +1994,28 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         title="Sign in to like posts"
         description="Create an account or sign in to like posts and keep track of your favorites."
       />
+
+      {postData?.username && hasPostOwner && (
+        <PostCommentsSheet
+          open={commentsSheetOpen}
+          onOpenChange={setCommentsSheetOpen}
+          postId={postData?.postId || postId}
+          commentsEnabled={postData?.commentsEnabled ?? true}
+          currentUserId={user?.id}
+          currentUsername={user?.username}
+          onCountChange={setCommentCount}
+        />
+      )}
+
+      {isOwnPost && (
+        <PostInsightsSheet
+          key={postData?.postId || postId}
+          open={insightsSheetOpen}
+          onOpenChange={setInsightsSheetOpen}
+          postId={postData?.postId || postId}
+          conversionSuccessCount={ownerVisibleConversionCount}
+        />
+      )}
 
     </div>
   );

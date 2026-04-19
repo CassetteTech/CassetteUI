@@ -26,6 +26,7 @@ import {
   UpdateInternalAccountTypeRequest,
   NotificationListResponse,
   NotificationUnreadCountResponse,
+  PostInsightsResponse,
 } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent, surfaceFromRoute } from '@/lib/analytics/client';
@@ -137,22 +138,43 @@ class ApiService {
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({
-          message: 'An error occurred',
-        }));
+        const error: Record<string, unknown> = await response
+          .text()
+          .then((text) => {
+            if (!text || text.trim() === '') {
+              return { message: 'An error occurred' };
+            }
+
+            try {
+              return JSON.parse(text) as Record<string, unknown>;
+            } catch {
+              return { message: text };
+            }
+          });
         console.error('❌ API Error Response:', error);
         // Check for auth errors that require re-authentication
         const requiresReauth = error.requires_reauth === true || error.error_code === 'AUTH_EXPIRED';
+        const errorMessage =
+          typeof error.error === 'string'
+            ? error.error
+            : typeof error.message === 'string'
+              ? error.message
+              : 'API request failed';
+        const errorCode = typeof error.error_code === 'string' ? error.error_code : undefined;
+        const retryAfterMs = typeof error.retryAfterMs === 'number' ? error.retryAfterMs : undefined;
+        const jobId = typeof error.jobId === 'string' ? error.jobId : undefined;
+        const postId = typeof error.postId === 'string' ? error.postId : undefined;
+        const apiStatus = typeof error.status === 'string' ? error.status : undefined;
         throw new ApiError(
-          error.error || error.message || 'API request failed',
+          errorMessage,
           requiresReauth,
-          error.error_code,
+          errorCode,
           response.status,
           {
-            retryAfterMs: error.retryAfterMs,
-            jobId: error.jobId,
-            postId: error.postId,
-            apiStatus: error.status,
+            retryAfterMs,
+            jobId,
+            postId,
+            apiStatus,
           }
         );
       }
@@ -856,6 +878,12 @@ class ApiService {
   // Fetch post by ID (includes conversion data)
   async fetchPostById(postId: string, options?: { signal?: AbortSignal }): Promise<PostByIdResponse> {
     return this.request<PostByIdResponse>(`/api/v1/social/posts/${postId}`, {
+      signal: options?.signal,
+    });
+  }
+
+  async getPostInsights(postId: string, options?: { signal?: AbortSignal }): Promise<PostInsightsResponse> {
+    return this.request<PostInsightsResponse>(`/api/v1/social/posts/${postId}/insights`, {
       signal: options?.signal,
     });
   }

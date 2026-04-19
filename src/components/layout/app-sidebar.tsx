@@ -8,7 +8,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -30,7 +29,20 @@ import {
   isNavItemActive,
   primaryNavItems,
   resolveNavHref,
+  type NavigationItemDefinition,
+  type NavUser,
 } from './navigation-config';
+
+// Interleaved sidebar ordering across primary + account groups.
+const SIDEBAR_NAV_ORDER = ['profile', 'add-music', 'edit-profile', 'explore', 'internal'] as const;
+
+function getSidebarNavItems(user: NavUser): NavigationItemDefinition[] {
+  const all = [...primaryNavItems, ...accountNavItems];
+  const ordered = SIDEBAR_NAV_ORDER
+    .map((key) => all.find((item) => item.key === key))
+    .filter((item): item is NavigationItemDefinition => Boolean(item));
+  return getVisibleNavItems(ordered, user);
+}
 
 interface AppSidebarProps {
   className?: string;
@@ -69,11 +81,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
     opacity: number;
     hasPositioned: boolean;
   }>({ top: 0, height: 0, opacity: 0, hasPositioned: false });
-  const sidebarPrimaryItems = getVisibleNavItems(
-    primaryNavItems.filter((item) => item.key !== 'home'),
-    user,
-  );
-  const sidebarAccountItems = getVisibleNavItems(accountNavItems, user);
+  const sidebarNavItems = getSidebarNavItems(user);
 
   // Update indicator position when pathname changes or when user/profile data loads
   // (menu items are conditionally rendered based on user state, and profile card affects layout)
@@ -116,7 +124,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
   }, [pathname, user, displayUser, isSidebarUserLoading]);
 
   return (
-    <Sidebar collapsible="none" className={`h-screen ${className}`}>
+    <Sidebar collapsible="none" className={`h-screen border-r border-sidebar-border/50 ${className}`}>
       <SidebarHeader>
         {/* Cassette Logo and Theme Switcher */}
         <div className="p-4 flex items-center justify-between">
@@ -188,12 +196,11 @@ export function AppSidebar({ className }: AppSidebarProps) {
         
         {/* Navigation */}
         <SidebarGroup>
-          <SidebarGroupLabel>Primary</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {sidebarPrimaryItems.map((item) => (
+              {sidebarNavItems.map((item) => (
                 <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname)}>
+                  <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname, user)}>
                     <Link href={resolveNavHref(item, user)}>
                       <item.icon className="mr-2 h-4 w-4" />
                       <span>{item.label}</span>
@@ -204,26 +211,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {sidebarAccountItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Account</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {sidebarAccountItems.map((item) => (
-                  <SidebarMenuItem key={item.key}>
-                    <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname)}>
-                      <Link href={resolveNavHref(item, user)}>
-                        <item.icon className="mr-2 h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4 space-y-2">
@@ -285,11 +272,7 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
     opacity: number;
     hasPositioned: boolean;
   }>({ top: 0, height: 0, opacity: 0, hasPositioned: false });
-  const sidebarPrimaryItems = getVisibleNavItems(
-    primaryNavItems.filter((item) => item.key !== 'home'),
-    user,
-  );
-  const sidebarAccountItems = getVisibleNavItems(accountNavItems, user);
+  const sidebarNavItems = getSidebarNavItems(user);
 
   // Update indicator position when pathname changes
   useEffect(() => {
@@ -368,12 +351,11 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Primary</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {sidebarPrimaryItems.map((item) => (
+              {sidebarNavItems.map((item) => (
                 <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname)}>
+                  <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname, user)}>
                     <Link href={resolveNavHref(item, user)}>
                       <item.icon className="mr-2 h-4 w-4" />
                       <span>{item.label}</span>
@@ -384,26 +366,6 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {sidebarAccountItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Account</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {sidebarAccountItems.map((item) => (
-                  <SidebarMenuItem key={item.key}>
-                    <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname)}>
-                      <Link href={resolveNavHref(item, user)}>
-                        <item.icon className="mr-2 h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4 space-y-2">

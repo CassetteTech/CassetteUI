@@ -81,7 +81,7 @@ export function SidebarProfileCard({
   const totalLikesReceived = getTotalLikesReceived(user);
 
   return (
-    <div className={`mx-2 p-4 rounded-xl bg-card/50 border border-border/30 transition-colors hover:bg-card/70 min-h-[156px] ${className}`}>
+    <div className={`mx-2 p-4 rounded-xl bg-background border border-border/30 transition-colors min-h-[156px] ${className}`}>
       <div className="flex flex-col gap-3">
         {/* Top row: Avatar left, Connected services top right */}
         <div className="flex items-start justify-between">
@@ -134,7 +134,7 @@ export function SidebarProfileCard({
             <span className="font-semibold text-foreground">
               {Math.max(0, totalLikesReceived).toLocaleString()}
             </span>
-            <span>likes received</span>
+            <span>likes</span>
           </div>
         )}
       </div>
@@ -147,7 +147,7 @@ export function SidebarProfileCard({
  */
 export function SidebarProfileCardSkeleton({ className = '' }: { className?: string }) {
   return (
-    <div className={`mx-2 p-4 rounded-xl bg-card/50 border border-border/30 min-h-[156px] ${className}`}>
+    <div className={`mx-2 p-4 rounded-xl bg-background border border-border/30 min-h-[156px] ${className}`}>
       <div className="flex flex-col gap-3">
         {/* Top row: Avatar left, services top right */}
         <div className="flex items-start justify-between">

@@ -117,9 +117,113 @@ interface ExploreUsersApiResponse {
   HasPrevious?: boolean;
 }
 
+const PLATFORM_BY_ENUM_INDEX = ['Spotify', 'AppleMusic', 'Deezer'] as const;
+
 export class ProfileService {
   // Note: Caching is now handled by React Query (see hooks/use-profile.ts)
   private readonly apiBaseUrl = getBrowserApiBaseUrl();
+
+  private firstArrayCandidate(...values: unknown[]): unknown[] | undefined {
+    let firstArray: unknown[] | undefined;
+
+    for (const value of values) {
+      if (!Array.isArray(value)) {
+        continue;
+      }
+
+      firstArray ??= value;
+      if (value.length > 0) {
+        return value;
+      }
+    }
+
+    return firstArray;
+  }
+
+  private normalizePlatformName(value: unknown): string {
+    if (typeof value === 'number') {
+      return PLATFORM_BY_ENUM_INDEX[value] ?? String(value);
+    }
+
+    return typeof value === 'string' ? value : '';
+  }
+
+  private normalizeConnectedServices(value: unknown): UserBio['connectedServices'] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value
+      .map((service) => {
+        if (typeof service === 'string' || typeof service === 'number') {
+          const serviceType = this.normalizePlatformName(service);
+          if (!serviceType) return null;
+
+          return {
+            serviceType,
+            connectedAt: '',
+          };
+        }
+
+        if (!service || typeof service !== 'object') {
+          return null;
+        }
+
+        const payload = service as Record<string, unknown>;
+        const serviceType = this.normalizePlatformName(payload.serviceType ?? payload.ServiceType);
+        if (!serviceType) {
+          return null;
+        }
+
+        const connectedAt = payload.connectedAt ?? payload.ConnectedAt;
+        const profileUrl = payload.profileUrl ?? payload.ProfileUrl;
+
+        return {
+          serviceType,
+          connectedAt: typeof connectedAt === 'string' ? connectedAt : '',
+          profileUrl: typeof profileUrl === 'string' ? profileUrl : undefined,
+        };
+      })
+      .filter((service): service is UserBio['connectedServices'][number] => service !== null);
+  }
+
+  private normalizePlatformPreferences(value: unknown): UserBio['platformPreferences'] {
+    if (!Array.isArray(value)) {
+      return undefined;
+    }
+
+    const normalized = value
+      .map((preference) => {
+        if (typeof preference === 'string' || typeof preference === 'number') {
+          const platform = this.normalizePlatformName(preference);
+          if (!platform) return null;
+
+          return {
+            platform,
+            addedAt: '',
+          };
+        }
+
+        if (!preference || typeof preference !== 'object') {
+          return null;
+        }
+
+        const payload = preference as Record<string, unknown>;
+        const platform = this.normalizePlatformName(payload.platform ?? payload.Platform);
+        if (!platform) {
+          return null;
+        }
+
+        const addedAt = payload.addedAt ?? payload.AddedAt;
+        return {
+          platform,
+          addedAt: typeof addedAt === 'string' ? addedAt : '',
+        };
+      })
+      .filter((preference): preference is NonNullable<UserBio['platformPreferences']>[number] => preference !== null);
+
+    return normalized.length > 0 ? normalized : undefined;
+  }
 
   private normalizeUserBio(data: Record<string, unknown>): UserBio {
     const nestedUser =
@@ -149,21 +253,16 @@ export class ProfileService {
               ? 'public'
               : undefined
           : undefined;
-    const rawPlatformPreferences = (merged.platformPreferences ?? merged.PlatformPreferences) as
-      | Array<Record<string, unknown>>
-      | undefined;
-    const platformPreferences = rawPlatformPreferences
-      ?.map((pref) => {
-        const platformValue = pref.platform ?? pref.Platform;
-        if (!platformValue) return null;
-
-        const addedAtValue = pref.addedAt ?? pref.AddedAt;
-        return {
-          platform: String(platformValue),
-          addedAt: String(addedAtValue ?? ''),
-        };
-      })
-      .filter((pref): pref is { platform: string; addedAt: string } => pref !== null);
+    const platformPreferences = this.normalizePlatformPreferences(
+      this.firstArrayCandidate(merged.platformPreferences, merged.PlatformPreferences),
+    );
+    const connectedServices = this.normalizeConnectedServices(
+      this.firstArrayCandidate(
+        merged.connectedServices,
+        merged.ConnectedServiceTypes,
+        merged.ConnectedServices,
+      ),
+    );
 
     return {
       id: String(merged.id || merged.Id || merged.userId || merged.UserId || ''),
@@ -196,10 +295,7 @@ export class ProfileService {
         merged.total_likes_received ??
         0
       ) || 0,
-      connectedServices: (merged.connectedServices ||
-        merged.ConnectedServiceTypes ||
-        merged.ConnectedServices ||
-        []) as UserBio['connectedServices'],
+      connectedServices,
       platformPreferences,
       accountType: (merged.accountType ?? merged.AccountType ?? merged.account_type) as UserBio['accountType'],
     };
@@ -757,7 +853,8 @@ export class ProfileService {
       });
 
       if (response.status !== 200) {
-        throw new Error('Failed to update profile');
+        const result = await response.json().catch(() => null) as { message?: string } | null;
+        throw new Error(result?.message || 'Failed to update profile');
       }
 
       const result = await response.json();

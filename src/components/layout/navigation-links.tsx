@@ -27,6 +27,7 @@ interface NavigationSectionProps {
   variant: 'primary' | 'account' | 'secondary';
   onLinkClick?: () => void;
   username?: string | null;
+  showSeparator?: boolean;
 }
 
 function getItemClassName(variant: NavigationSectionProps['variant'], isActive: boolean) {
@@ -69,22 +70,19 @@ function NavigationSection({
   variant,
   onLinkClick,
   username,
+  showSeparator = false,
 }: NavigationSectionProps) {
   if (items.length === 0) return null;
 
   return (
-    <section aria-label={title}>
-      <div className="mb-2.5 flex items-center gap-2 px-1">
-        <span className="h-px flex-1 bg-border/40" aria-hidden="true" />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/80">
-          {title}
-        </span>
-        <span className="h-px flex-[6] bg-border/40" aria-hidden="true" />
-      </div>
+    <section
+      aria-label={title}
+      className={cn(showSeparator && 'border-t border-border/40 pt-5')}
+    >
       <div className={cn(variant === 'primary' ? 'space-y-1.5' : 'space-y-0.5')}>
         {items.map((item) => {
           const href = resolveNavHref(item, { username });
-          const itemClassName = getItemClassName(variant, isNavItemActive(item, pathname));
+          const itemClassName = getItemClassName(variant, isNavItemActive(item, pathname, { username }));
 
           if (item.external) {
             return (
@@ -136,10 +134,14 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
   const pathname = usePathname();
 
   const primaryItems = getVisibleNavItems(
-    primaryNavItems.filter((item) => item.key !== 'home'),
+    primaryNavItems.filter(
+      (item) => item.key !== 'home' && item.key !== 'add-music',
+    ),
     user,
   );
-  const accountItems = getVisibleNavItems(accountNavItems, user);
+  const accountItems = getVisibleNavItems(accountNavItems, user).filter(
+    (item) => item.key !== 'edit-profile',
+  );
   const companyItems = getVisibleNavItems(companyNavItems, user);
 
   const handleSignOut = () => {
@@ -159,7 +161,7 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
       />
 
       {user && (
-        <section aria-label="Account">
+        <section aria-label="Account" className="border-t border-border/40 pt-5">
           <NavigationSection
             title="Account"
             items={accountItems}
@@ -178,7 +180,7 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
         </section>
       )}
 
-      <section aria-label="Company and support">
+      <section aria-label="Company and support" className="border-t border-border/40 pt-5">
         <NavigationSection
           title="Company & Support"
           items={companyItems}

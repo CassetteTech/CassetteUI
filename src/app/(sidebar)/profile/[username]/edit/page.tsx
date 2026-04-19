@@ -142,9 +142,11 @@ export default function EditProfilePage() {
             ) : userBio ? (
               <>
                 {/* Header */}
-                <div className="text-center mb-4 sm:mb-6 md:mb-8">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Edit Your Profile</h1>
-                  <p className="text-muted-foreground">Update your profile information and connected services</p>
+                <div className="max-w-lg mx-auto mb-4 sm:mb-6 px-4 sm:px-6">
+                  <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Edit profile</h1>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Update your profile information and connected services.
+                  </p>
                 </div>
 
                 {/* Edit Form */}
@@ -152,12 +154,12 @@ export default function EditProfilePage() {
                   initialData={userBio}
                   onSuccess={handleSuccess}
                   onCancel={handleCancel}
+                  footerContent={
+                    <div className="mt-6 sm:mt-8">
+                      <MusicConnectionsFlow />
+                    </div>
+                  }
                 />
-
-                {/* Music Services Connection */}
-                <div className="mt-6 sm:mt-8">
-                  <MusicConnectionsFlow />
-                </div>
               </>
             ) : null}
           </div>
@@ -171,9 +173,11 @@ export default function EditProfilePage() {
         ) : userBio ? (
           <>
             {/* Header */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-foreground mb-2">Edit Your Profile</h1>
-              <p className="text-muted-foreground">Update your profile information and connected services</p>
+            <div className="max-w-lg mx-auto mb-6 px-4 sm:px-6">
+              <h1 className="text-2xl font-semibold text-foreground">Edit profile</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Update your profile information and connected services.
+              </p>
             </div>
 
             {/* Edit Form */}
@@ -181,12 +185,12 @@ export default function EditProfilePage() {
               initialData={userBio}
               onSuccess={handleSuccess}
               onCancel={handleCancel}
+              footerContent={
+                <div className="mt-8">
+                  <MusicConnectionsFlow />
+                </div>
+              }
             />
-
-            {/* Music Services Connection */}
-            <div className="mt-8 max-w-xl mx-auto">
-              <MusicConnectionsFlow />
-            </div>
           </>
         ) : null}
       </div>

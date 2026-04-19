@@ -3,6 +3,8 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
 import { captureClientEvent } from '@/lib/analytics/client';
+import type { ElementTypeDimension, PlatformDimension } from '@/lib/analytics/events';
+import { normalizePlatform } from '@/lib/analytics/sanitize';
 
 interface PlayPreviewProps {
   previewUrl?: string;
@@ -11,6 +13,9 @@ interface PlayPreviewProps {
   artwork?: string;
   className?: string;
   mobile?: boolean;
+  postId?: string;
+  elementType?: ElementTypeDimension;
+  sourcePlatform?: string;
 }
 
 export const PlayPreview: React.FC<PlayPreviewProps> = ({
@@ -19,7 +24,10 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
   artist,
   artwork,
   className,
-  mobile = false
+  mobile = false,
+  postId,
+  elementType,
+  sourcePlatform,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,6 +67,8 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
     };
   }, []);
 
+  const normalizedSourcePlatform = (normalizePlatform(sourcePlatform) ?? 'unknown') as PlatformDimension;
+
   const handleTogglePlay = async () => {
     if (!previewUrl || !audioRef.current) return;
 
@@ -79,6 +89,9 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
         void captureClientEvent('preview_playback_started', {
           route: typeof window !== 'undefined' ? window.location.pathname : '/post',
           source_surface: 'post',
+          post_id: postId,
+          element_type: elementType,
+          source_platform: normalizedSourcePlatform,
         });
       }
     } catch (error) {
@@ -94,6 +107,14 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
 
   const handleExpandClick = () => {
     setIsExpanded(!isExpanded);
+  };
+
+  const handleContainerKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (isExpanded) return;
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+
+    event.preventDefault();
+    setIsExpanded(true);
   };
 
   const handleAudioEnded = () => {
@@ -126,6 +147,9 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
           className
         )}
         onClick={!isExpanded ? handleExpandClick : undefined}
+        onKeyDown={handleContainerKeyDown}
+        role={isExpanded ? 'group' : 'button'}
+        tabIndex={!isExpanded ? 0 : undefined}
       >
         <div className="relative flex-shrink-0">
           <Image
@@ -198,6 +222,9 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
         className
       )}
       onClick={!isExpanded ? handleExpandClick : undefined}
+      onKeyDown={handleContainerKeyDown}
+      role={isExpanded ? 'group' : 'button'}
+      tabIndex={!isExpanded ? 0 : undefined}
     >
       <div className="relative flex-shrink-0">
         <Image

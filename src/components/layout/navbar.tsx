@@ -280,9 +280,6 @@ export function Navbar() {
                 </Avatar>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="truncate text-[13px] uppercase tracking-[0.14em] text-muted-foreground">
-                  Signed in as
-                </p>
                 <p className="truncate text-[15px] font-semibold leading-tight text-foreground">
                   {user.displayName || user.username}
                 </p>

@@ -109,6 +109,64 @@ export function MusicConnectionsFlow({
     fetchPreferences();
   }, [onConnectionChange]);
 
+  const getSelectedPlatforms = (overrides: Partial<Record<ServiceId, boolean>> = {}) =>
+    Object.entries(platformStates)
+      .filter(([id, state]) => overrides[id as ServiceId] ?? state.isSelected)
+      .map(([id]) => id);
+
+  const handleAppleMusicAuthorization = async (ensureSelected = false) => {
+    setPlatformStates(prev => ({
+      ...prev,
+      AppleMusic: { ...prev.AppleMusic, isLoading: true },
+    }));
+
+    try {
+      const success = await platformConnectService.connectAppleMusic(window.location.pathname);
+
+      if (!success) {
+        setPlatformStates(prev => ({
+          ...prev,
+          AppleMusic: { ...prev.AppleMusic, isLoading: false },
+        }));
+        toast.error('Failed to connect Apple Music', {
+          description: 'Authorization was cancelled or failed.',
+        });
+        return;
+      }
+
+      await apiService.setPlatformPreferences(
+        getSelectedPlatforms(ensureSelected ? { AppleMusic: true } : {})
+      );
+
+      setPlatformStates(prev => {
+        const updated = {
+          ...prev,
+          AppleMusic: {
+            ...prev.AppleMusic,
+            isSelected: ensureSelected || prev.AppleMusic.isSelected,
+            isAuthenticated: true,
+            isLoading: false,
+            addedAt: prev.AppleMusic.addedAt ?? new Date().toISOString(),
+          },
+        };
+        onConnectionChange?.(Object.values(updated).some(state => state.isSelected));
+        return updated;
+      });
+
+      toast.success(ensureSelected ? 'Apple Music connected!' : 'Apple Music authorized!');
+    } catch (error) {
+      console.error('Failed to connect Apple Music:', error);
+      setPlatformStates(prev => ({
+        ...prev,
+        AppleMusic: { ...prev.AppleMusic, isLoading: false },
+      }));
+      const message = error instanceof Error ? error.message : 'Please try again.';
+      toast.error('Failed to connect Apple Music', {
+        description: message,
+      });
+    }
+  };
+
   const handleToggle = async (serviceId: ServiceId) => {
     const service = MUSIC_SERVICES.find(s => s.id === serviceId);
     if (!service) return;
@@ -118,52 +176,7 @@ export function MusicConnectionsFlow({
 
     // If turning on and requires auth (Apple Music), trigger auth flow
     if (newIsSelected && service.requiresAuth) {
-      setPlatformStates(prev => ({
-        ...prev,
-        [serviceId]: { ...prev[serviceId], isLoading: true },
-      }));
-
-      try {
-        const returnUrl = window.location.pathname;
-        const success = await platformConnectService.connectAppleMusic(returnUrl);
-
-        if (success) {
-          // Save preference after successful auth
-          const newSelectedPlatforms = Object.entries(platformStates)
-            .filter(([id, state]) => state.isSelected || id === serviceId)
-            .map(([id]) => id);
-
-          await apiService.setPlatformPreferences(newSelectedPlatforms);
-
-          setPlatformStates(prev => {
-            const updated = {
-              ...prev,
-              [serviceId]: { isSelected: true, isAuthenticated: true, isLoading: false },
-            };
-            onConnectionChange?.(Object.values(updated).some(s => s.isSelected));
-            return updated;
-          });
-          toast.success(`${service.name} connected!`);
-        } else {
-          setPlatformStates(prev => ({
-            ...prev,
-            [serviceId]: { ...prev[serviceId], isLoading: false },
-          }));
-          toast.error(`Failed to connect ${service.name}`, {
-            description: 'Authorization was cancelled or failed.',
-          });
-        }
-      } catch (error) {
-        console.error(`Failed to connect ${service.name}:`, error);
-        setPlatformStates(prev => ({
-          ...prev,
-          [serviceId]: { ...prev[serviceId], isLoading: false },
-        }));
-        const message = error instanceof Error ? error.message : 'Please try again.';
-        toast.error(`Failed to connect ${service.name}`, {
-          description: message,
-        });
-      }
+      await handleAppleMusicAuthorization(true);
       return;
     }
 
@@ -214,6 +227,8 @@ export function MusicConnectionsFlow({
   const selectedPlatforms = MUSIC_SERVICES.filter(s => platformStates[s.id].isSelected);
   const hasConnections = selectedPlatforms.length > 0;
   const hasUnselectedServices = selectedPlatforms.length < MUSIC_SERVICES.length;
+  const appleMusicNeedsAuthorization =
+    platformStates.AppleMusic.isSelected && !platformStates.AppleMusic.isAuthenticated;
 
   if (isLoading) {
     return (
@@ -250,6 +265,7 @@ export function MusicConnectionsFlow({
           </div>
           {hasConnections && (
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               onClick={() => setIsExpanded(!isExpanded)}
@@ -279,6 +295,24 @@ export function MusicConnectionsFlow({
                 </Badge>
               ))}
             </div>
+            {appleMusicNeedsAuthorization && (
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Apple Music is on your profile, but it still needs authorization to create playlists.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => void handleAppleMusicAuthorization()}
+                    disabled={platformStates.AppleMusic.isLoading}
+                    className="sm:shrink-0"
+                  >
+                    {platformStates.AppleMusic.isLoading ? 'Authorizing...' : 'Authorize Apple Music'}
+                  </Button>
+                </div>
+              </div>
+            )}
             {hasUnselectedServices && (
               <p className="text-sm text-muted-foreground">
                 Click &quot;Add More&quot; to add additional streaming services
@@ -317,20 +351,36 @@ export function MusicConnectionsFlow({
                           <Check className="w-4 h-4 text-success-text" />
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">{service.description}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {service.id === 'AppleMusic' && state.isSelected && !state.isAuthenticated
+                          ? 'Authorization required to create playlists'
+                          : service.description}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {state.isLoading ? (
                       <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                     ) : (
-                      <Switch
-                        checked={state.isSelected}
-                        onCheckedChange={() => handleToggle(service.id)}
-                        disabled={state.isLoading}
-                        aria-label={`Toggle ${service.name}`}
-                        data-testid={`music-service-toggle-${service.id.toLowerCase()}`}
-                      />
+                      <>
+                        {service.id === 'AppleMusic' && !state.isAuthenticated && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleAppleMusicAuthorization(!state.isSelected)}
+                          >
+                            {state.isSelected ? 'Authorize' : 'Add & Authorize'}
+                          </Button>
+                        )}
+                        <Switch
+                          checked={state.isSelected}
+                          onCheckedChange={() => handleToggle(service.id)}
+                          disabled={state.isLoading}
+                          aria-label={`Toggle ${service.name}`}
+                          data-testid={`music-service-toggle-${service.id.toLowerCase()}`}
+                        />
+                      </>
                     )}
                   </div>
                 </div>

@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiService } from '@/services/api';
-import { NotificationItem, NotificationListResponse, NotificationType } from '@/types';
+import {
+  NotificationItem,
+  NotificationListResponse,
+  NotificationType,
+  NotificationUnreadCountResponse,
+} from '@/types';
 
 type NotificationQueryParams = {
   page?: number;
@@ -8,6 +13,16 @@ type NotificationQueryParams = {
   enabled?: boolean;
   refetchIntervalMs?: number | false;
   refetchInBackground?: boolean;
+  refetchOnWindowFocus?: boolean;
+  refetchOnReconnect?: boolean;
+};
+
+type NotificationUnreadCountQueryParams = {
+  enabled?: boolean;
+  refetchIntervalMs?: number | false;
+  refetchInBackground?: boolean;
+  refetchOnWindowFocus?: boolean;
+  refetchOnReconnect?: boolean;
 };
 
 const DEFAULT_PAGE = 1;
@@ -108,9 +123,19 @@ const toNotificationList = (
   };
 };
 
+const toUnreadCountResponse = (raw: unknown): NotificationUnreadCountResponse => {
+  const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const unreadCountRaw = source.unreadCount ?? source.UnreadCount;
+
+  return {
+    unreadCount: typeof unreadCountRaw === 'number' ? Math.max(0, unreadCountRaw) : 0,
+  };
+};
+
 export const notificationQueryKeys = {
   list: (page = DEFAULT_PAGE, pageSize = DEFAULT_PAGE_SIZE) =>
     ['notifications', page, pageSize] as const,
+  unreadCount: () => ['notifications', 'unread-count'] as const,
 };
 
 export const useNotifications = ({
@@ -119,6 +144,8 @@ export const useNotifications = ({
   enabled = true,
   refetchIntervalMs = false,
   refetchInBackground = true,
+  refetchOnWindowFocus = true,
+  refetchOnReconnect = true,
 }: NotificationQueryParams = {}) => {
   return useQuery({
     queryKey: notificationQueryKeys.list(page, pageSize),
@@ -129,21 +156,47 @@ export const useNotifications = ({
     enabled,
     refetchInterval: enabled ? refetchIntervalMs : false,
     refetchIntervalInBackground: refetchInBackground,
-    refetchOnWindowFocus: enabled,
-    refetchOnReconnect: enabled,
+    refetchOnWindowFocus: enabled && refetchOnWindowFocus,
+    refetchOnReconnect: enabled && refetchOnReconnect,
   });
+};
+
+export const useUnreadNotificationCount = ({
+  enabled = true,
+  refetchIntervalMs = false,
+  refetchInBackground = false,
+  refetchOnWindowFocus = false,
+  refetchOnReconnect = false,
+}: NotificationUnreadCountQueryParams = {}) => {
+  return useQuery({
+    queryKey: notificationQueryKeys.unreadCount(),
+    queryFn: async () => {
+      const response = await apiService.getUnreadNotificationCount();
+      return toUnreadCountResponse(response);
+    },
+    enabled,
+    refetchInterval: enabled ? refetchIntervalMs : false,
+    refetchIntervalInBackground: refetchInBackground,
+    refetchOnWindowFocus: enabled && refetchOnWindowFocus,
+    refetchOnReconnect: enabled && refetchOnReconnect,
+  });
+};
+
+const isNotificationListResponse = (value: unknown): value is NotificationListResponse => {
+  if (!value || typeof value !== 'object') return false;
+  return Array.isArray((value as { items?: unknown }).items);
 };
 
 const patchNotificationCache = (
   queryClient: ReturnType<typeof useQueryClient>,
   update: (item: NotificationItem) => NotificationItem
 ) => {
-  const cachedEntries = queryClient.getQueriesData<NotificationListResponse>({
+  const cachedEntries = queryClient.getQueriesData<unknown>({
     queryKey: ['notifications'],
   });
 
   cachedEntries.forEach(([cacheKey, cacheValue]) => {
-    if (!cacheValue) return;
+    if (!isNotificationListResponse(cacheValue)) return;
 
     const nextItems = cacheValue.items.map(update);
     const unreadCount = nextItems.filter((item) => !item.isRead).length;
@@ -155,6 +208,45 @@ const patchNotificationCache = (
   });
 };
 
+const patchUnreadCountCache = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  update: (unreadCount: number) => number
+) => {
+  const cachedUnreadCount = queryClient.getQueryData<NotificationUnreadCountResponse>(
+    notificationQueryKeys.unreadCount()
+  );
+  if (!cachedUnreadCount) return;
+
+  queryClient.setQueryData<NotificationUnreadCountResponse>(
+    notificationQueryKeys.unreadCount(),
+    {
+      unreadCount: Math.max(0, update(cachedUnreadCount.unreadCount)),
+    }
+  );
+};
+
+const getUnreadSelectionCount = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  notificationIds: string[]
+) => {
+  const unreadIds = new Set<string>();
+  const cachedEntries = queryClient.getQueriesData<unknown>({
+    queryKey: ['notifications'],
+  });
+
+  cachedEntries.forEach(([, cacheValue]) => {
+    if (!isNotificationListResponse(cacheValue)) return;
+
+    cacheValue.items.forEach((item) => {
+      if (!item.isRead && notificationIds.includes(item.id)) {
+        unreadIds.add(item.id);
+      }
+    });
+  });
+
+  return unreadIds.size > 0 ? unreadIds.size : notificationIds.length;
+};
+
 export const useMarkNotificationsAsRead = () => {
   const queryClient = useQueryClient();
 
@@ -163,9 +255,12 @@ export const useMarkNotificationsAsRead = () => {
     onMutate: async (notificationIds) => {
       if (!notificationIds || notificationIds.length === 0) return;
 
+      const unreadSelectionCount = getUnreadSelectionCount(queryClient, notificationIds);
+
       patchNotificationCache(queryClient, (item) =>
         notificationIds.includes(item.id) ? { ...item, isRead: true } : item
       );
+      patchUnreadCountCache(queryClient, (unreadCount) => unreadCount - unreadSelectionCount);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -180,6 +275,7 @@ export const useMarkAllNotificationsAsRead = () => {
     mutationFn: () => apiService.markAllNotificationsAsRead(),
     onMutate: async () => {
       patchNotificationCache(queryClient, (item) => ({ ...item, isRead: true }));
+      patchUnreadCountCache(queryClient, () => 0);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });

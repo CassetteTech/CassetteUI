@@ -309,13 +309,13 @@ function CreatorsMarquee({
         </div>
       </div>
 
-      <div className="relative mb-6 max-w-md">
+      <div className="relative mb-6 max-w-md force-light-surface">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="who are you looking for?"
-          className="pl-9 pr-9 h-11 rounded-full border-2 border-foreground bg-card shadow-[3px_3px_0_hsl(var(--foreground))] focus-visible:ring-0 focus-visible:border-primary focus-visible:shadow-[3px_3px_0_hsl(var(--primary))]"
+          className="h-11 rounded-full border-2 border-foreground !bg-card pl-9 pr-9 text-foreground shadow-[3px_3px_0_hsl(var(--foreground))] focus-visible:border-primary focus-visible:ring-0 focus-visible:shadow-[3px_3px_0_hsl(var(--primary))]"
         />
         {searchValue && (
           <button onClick={() => onSearchChange('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Clear">

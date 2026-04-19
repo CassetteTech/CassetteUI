@@ -6,7 +6,6 @@ import { useState } from 'react';
 import { AuthProvider } from './auth-provider';
 import { ThemeProvider } from './theme-provider';
 import { ReportIssueProvider } from './report-issue-provider';
-import { NotificationPoller } from './notification-poller';
 import { ChunkLoadRecovery } from '@/components/system/chunk-load-recovery';
 
 interface ProvidersProps {
@@ -43,7 +42,6 @@ export function Providers({ children }: ProvidersProps) {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ReportIssueProvider>
-            <NotificationPoller />
             {children}
           </ReportIssueProvider>
         </AuthProvider>

@@ -6,12 +6,16 @@ import { PostComment } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
-import { Heart, Pencil, Trash2, X, Check, MessageCircle } from 'lucide-react';
+import { Heart, Pencil, Trash2, X, Check, MessageCircle, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 
 const COMMENT_MAX_LENGTH = 2000;
+const CHAR_WARNING_THRESHOLD = 200;
 const DEFAULT_VISIBLE_REPLIES = 2;
 
 interface PostCommentsCardProps {
@@ -299,10 +303,6 @@ export function PostCommentsCard({
   const canSubmit = newComment.trim().length > 0 && remainingCharacters >= 0 && commentsEnabled;
   const hasComments = comments.length > 0;
   const canSubmitReply = replyContent.trim().length > 0 && replyRemainingCharacters >= 0 && commentsEnabled;
-  const subtitle = useMemo(() => {
-    if (comments.length === 1) return '1 comment';
-    return `${comments.length} comments`;
-  }, [comments.length]);
 
   const thread = useMemo(() => {
     const roots: PostComment[] = [];
@@ -332,137 +332,221 @@ export function PostCommentsCard({
     const currentVisibleCount = visibleRepliesCount[comment.commentId] ?? DEFAULT_VISIBLE_REPLIES;
     const visibleChildren = isExpanded ? children.slice(0, currentVisibleCount) : [];
     const hasHiddenReplies = children.length > currentVisibleCount;
-    const nestedClass = depth > 0 ? 'ml-4 border-l border-border/60 pl-3' : '';
+    const commentInitial = comment.username?.charAt(0)?.toUpperCase() || 'U';
 
     return (
-      <div key={comment.commentId} className={nestedClass}>
-        <div className="rounded-xl border border-border/70 bg-background/30 p-3">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{comment.username}</p>
-              <p className="text-xs text-muted-foreground">{formatRelativeTime(comment.createdAt)}</p>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                disabled={likePending}
-                onClick={() => void handleToggleLike(comment)}
-                className={cn(
-                  'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs',
-                  comment.likedByCurrentUser
-                    ? 'border-primary/30 bg-primary/10 text-primary'
-                    : 'border-border text-muted-foreground hover:bg-muted'
+      <motion.div
+        key={comment.commentId}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className={cn(depth > 0 && 'ml-6 sm:ml-10')}
+      >
+        {depth > 0 && (
+          <div className="relative">
+            <div className="absolute -left-4 sm:-left-6 top-0 bottom-0 w-px bg-border/50" />
+            <div className="absolute -left-4 sm:-left-6 top-5 w-3 sm:w-5 h-px bg-border/50" />
+          </div>
+        )}
+
+        <div className={cn(
+          'group rounded-xl p-2.5 sm:p-4 transition-colors duration-150',
+          depth === 0
+            ? 'bg-background/50 border border-border/60 hover:border-border'
+            : 'bg-background/30 hover:bg-background/50'
+        )}>
+          <div className="flex gap-2.5 sm:gap-3">
+            <Link href={`/profile/${comment.username}`} className="flex-shrink-0">
+              <Avatar className={cn('ring-1 ring-border/50', depth === 0 ? 'h-7 w-7 sm:h-9 sm:w-9' : 'h-6 w-6 sm:h-7 sm:w-7')}>
+                <AvatarImage src={comment.userAvatarUrl ?? undefined} alt={`@${comment.username}`} className="object-cover" />
+                <AvatarFallback className="bg-muted text-muted-foreground font-semibold text-xs">
+                  {commentInitial}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-0.5">
+                <Link href={`/profile/${comment.username}`} className="text-sm font-semibold text-foreground hover:underline">
+                  {comment.username}
+                </Link>
+                <span className="text-xs text-muted-foreground">
+                  {formatRelativeTime(comment.createdAt)}
+                </span>
+                {comment.updatedAt && (
+                  <span className="text-xs text-muted-foreground italic">edited</span>
                 )}
-              >
-                <Heart className={cn('h-3.5 w-3.5', comment.likedByCurrentUser ? 'fill-current' : 'fill-none')} />
-                <span>{Math.max(0, comment.likeCount || 0)}</span>
-              </button>
-              <button
-                type="button"
-                disabled={!commentsEnabled}
-                onClick={() => {
-                  if (isReplyingHere) {
-                    cancelReply();
-                    return;
-                  }
-                  setReplyingToCommentId(comment.commentId);
-                  setReplyContent('');
-                }}
-                className="rounded-full border border-border p-1.5 text-muted-foreground hover:bg-muted disabled:opacity-50"
-                aria-label="Reply to comment"
-              >
-                <MessageCircle className="h-3.5 w-3.5" />
-              </button>
-              {comment.isOwnedByCurrentUser && (
-                <button
-                  type="button"
-                  onClick={() => startEdit(comment)}
-                  className="rounded-full border border-border p-1.5 text-muted-foreground hover:bg-muted"
-                  aria-label="Edit comment"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
+              </div>
+
+              {isEditing ? (
+                <div className="mt-2 space-y-2">
+                  <Textarea
+                    value={editingContent}
+                    onChange={(event) => setEditingContent(event.target.value)}
+                    className="min-h-[72px] resize-none bg-background border-border/60"
+                  />
+                  <div className="flex items-center justify-end gap-2">
+                    <Button type="button" size="sm" variant="ghost" onClick={cancelEdit} className="h-7 text-xs">
+                      <X className="mr-1 h-3 w-3" />
+                      Cancel
+                    </Button>
+                    <Button type="button" size="sm" onClick={() => void saveEdit()} className="h-7 text-xs">
+                      <Check className="mr-1 h-3 w-3" />
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="whitespace-pre-wrap break-words text-sm text-foreground/85 leading-relaxed">
+                  {comment.content}
+                </p>
               )}
-              {comment.canDelete && (
-                <button
-                  type="button"
-                  disabled={pendingDeleteId === comment.commentId}
-                  onClick={() => void handleDelete(comment.commentId)}
-                  className="rounded-full border border-border p-1.5 text-muted-foreground hover:bg-muted"
-                  aria-label="Delete comment"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+
+              {!isEditing && (
+                <div className="flex items-center gap-1 mt-2">
+                  <motion.button
+                    type="button"
+                    disabled={likePending}
+                    onClick={() => void handleToggleLike(comment)}
+                    whileTap={{ scale: 0.85 }}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium transition-all duration-200',
+                      comment.likedByCurrentUser
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    )}
+                  >
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={comment.likedByCurrentUser ? 'liked' : 'not'}
+                        initial={{ scale: 0.5 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                        className="flex items-center"
+                      >
+                        <Heart className={cn('h-3 w-3', comment.likedByCurrentUser ? 'fill-current' : 'fill-none')} />
+                      </motion.span>
+                    </AnimatePresence>
+                    {(comment.likeCount || 0) > 0 && (
+                      <span>{Math.max(0, comment.likeCount || 0)}</span>
+                    )}
+                  </motion.button>
+
+                  <button
+                    type="button"
+                    disabled={!commentsEnabled}
+                    onClick={() => {
+                      if (isReplyingHere) {
+                        cancelReply();
+                        return;
+                      }
+                      setReplyingToCommentId(comment.commentId);
+                      setReplyContent('');
+                    }}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium transition-colors',
+                      isReplyingHere
+                        ? 'bg-muted text-foreground'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+                      'disabled:opacity-50'
+                    )}
+                    aria-label="Reply to comment"
+                  >
+                    <MessageCircle className="h-3 w-3" />
+                    <span>Reply</span>
+                  </button>
+
+                  <div className="flex items-center gap-0.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                    {comment.isOwnedByCurrentUser && (
+                      <button
+                        type="button"
+                        onClick={() => startEdit(comment)}
+                        className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                        aria-label="Edit comment"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
+                    {comment.canDelete && (
+                      <button
+                        type="button"
+                        disabled={pendingDeleteId === comment.commentId}
+                        onClick={() => void handleDelete(comment.commentId)}
+                        className="rounded-full p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        aria-label="Delete comment"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               )}
+
+              <AnimatePresence>
+                {isReplyingHere && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-3 space-y-2 rounded-lg bg-background/60 p-3 border border-border/40">
+                      <Textarea
+                        value={replyContent}
+                        onChange={(event) => setReplyContent(event.target.value)}
+                        placeholder={`Reply to ${comment.username}...`}
+                        disabled={isReplying || !commentsEnabled}
+                        className="min-h-[64px] resize-none bg-transparent border-border/50 text-sm"
+                        autoFocus
+                      />
+                      <div className="flex items-center justify-between">
+                        {replyRemainingCharacters < CHAR_WARNING_THRESHOLD ? (
+                          <span className={cn('text-xs tabular-nums', replyRemainingCharacters < 0 ? 'text-destructive font-medium' : 'text-muted-foreground')}>
+                            {replyRemainingCharacters}
+                          </span>
+                        ) : (
+                          <span />
+                        )}
+                        <div className="flex items-center gap-2">
+                          <Button type="button" size="sm" variant="ghost" onClick={cancelReply} className="h-7 text-xs">
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={!canSubmitReply || isReplying}
+                            onClick={() => void handleReply(comment)}
+                            className="h-7 text-xs"
+                          >
+                            Reply
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
-
-          {isEditing ? (
-            <div className="space-y-2">
-              <Textarea
-                value={editingContent}
-                onChange={(event) => setEditingContent(event.target.value)}
-                className="min-h-[72px] resize-none"
-              />
-              <div className="flex items-center justify-end gap-2">
-                <Button type="button" size="sm" variant="ghost" onClick={cancelEdit}>
-                  <X className="mr-1 h-3.5 w-3.5" />
-                  Cancel
-                </Button>
-                <Button type="button" size="sm" onClick={() => void saveEdit()}>
-                  <Check className="mr-1 h-3.5 w-3.5" />
-                  Save
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <p className="whitespace-pre-wrap break-words text-sm text-foreground/90">{comment.content}</p>
-          )}
-
-          {isReplyingHere && (
-            <div className="mt-3 space-y-2 rounded-lg border border-border/60 bg-background/50 p-2.5">
-              <Textarea
-                value={replyContent}
-                onChange={(event) => setReplyContent(event.target.value)}
-                placeholder="Write a reply..."
-                disabled={isReplying || !commentsEnabled}
-                className="min-h-[72px] resize-none"
-              />
-              <div className="flex items-center justify-between">
-                <span className={cn('text-xs', replyRemainingCharacters < 0 ? 'text-destructive' : 'text-muted-foreground')}>
-                  {replyRemainingCharacters}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Button type="button" size="sm" variant="ghost" onClick={cancelReply}>
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={!canSubmitReply || isReplying}
-                    onClick={() => void handleReply(comment)}
-                  >
-                    Reply
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {children.length > 0 && (
-          <div className="mt-2 space-y-2">
-            <div className="flex items-center gap-2">
-              {!isExpanded ? (
-                <button
-                  type="button"
-                  onClick={() => setExpandedThreads((prev) => ({ ...prev, [comment.commentId]: true }))}
-                  className="text-xs font-medium text-muted-foreground hover:text-foreground"
-                >
-                  View replies ({children.length})
-                </button>
-              ) : (
-                <>
+          <div className="mt-1.5">
+            {!isExpanded ? (
+              <button
+                type="button"
+                onClick={() => setExpandedThreads((prev) => ({ ...prev, [comment.commentId]: true }))}
+                className="ml-6 sm:ml-10 inline-flex items-center gap-1.5 text-xs font-medium text-primary/80 hover:text-primary transition-colors py-1"
+              >
+                <ChevronDown className="h-3 w-3" />
+                {children.length === 1 ? '1 reply' : `${children.length} replies`}
+              </button>
+            ) : (
+              <div className="space-y-1.5 mt-1.5">
+                {visibleChildren.map((child) => renderCommentNode(child, depth + 1))}
+
+                <div className="ml-6 sm:ml-10 flex items-center gap-3 py-1">
                   {hasHiddenReplies && (
                     <button
                       type="button"
@@ -472,9 +556,10 @@ export function PostCommentsCard({
                           [comment.commentId]: (prev[comment.commentId] ?? DEFAULT_VISIBLE_REPLIES) + DEFAULT_VISIBLE_REPLIES,
                         }))
                       }
-                      className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-primary/80 hover:text-primary transition-colors"
                     >
-                      View more replies
+                      <ChevronDown className="h-3 w-3" />
+                      Show more
                     </button>
                   )}
                   <button
@@ -483,59 +568,82 @@ export function PostCommentsCard({
                       setExpandedThreads((prev) => ({ ...prev, [comment.commentId]: false }));
                       setVisibleRepliesCount((prev) => ({ ...prev, [comment.commentId]: DEFAULT_VISIBLE_REPLIES }));
                     }}
-                    className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    Collapse replies
+                    <ChevronUp className="h-3 w-3" />
+                    Collapse
                   </button>
-                </>
-              )}
-            </div>
-
-            {isExpanded && (
-              <div className="space-y-2">
-                {visibleChildren.map((child) => renderCommentNode(child, depth + 1))}
+                </div>
               </div>
             )}
           </div>
         )}
-      </div>
+      </motion.div>
     );
   };
 
   if (!isVisible) return null;
 
   return (
-    <div className={cn('w-full rounded-2xl border border-border bg-card p-5 shadow-lg', className)}>
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <h3 className="text-lg font-semibold text-foreground">Comments</h3>
-        <span className="text-xs text-muted-foreground">{subtitle}</span>
+    <div className={cn('w-full rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-lg', className)}>
+      <div className="flex items-center gap-3 mb-3 sm:mb-5">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="h-4.5 w-4.5 text-foreground" />
+          <h3 className="text-base font-semibold text-foreground">Comments</h3>
+        </div>
+        {hasComments && (
+          <span className="inline-flex items-center rounded-full bg-muted/60 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            {comments.length}
+          </span>
+        )}
       </div>
 
       <div className="space-y-2">
         <Textarea
           value={newComment}
           onChange={(event) => setNewComment(event.target.value)}
-          placeholder={commentsEnabled ? 'Write a comment...' : 'Comments are turned off'}
+          placeholder={commentsEnabled ? 'Share your thoughts...' : 'Comments are turned off'}
           disabled={isCreating || !commentsEnabled}
-          className="min-h-[88px] resize-none"
+          className="min-h-[64px] sm:min-h-[80px] resize-none bg-background/50 border-border/60 text-sm placeholder:text-muted-foreground/60"
         />
         <div className="flex items-center justify-between">
-          <span className={cn('text-xs', remainingCharacters < 0 ? 'text-destructive' : 'text-muted-foreground')}>
-            {remainingCharacters}
-          </span>
-          <Button onClick={handleCreate} disabled={!canSubmit || isCreating} size="sm">
-            Post
+          <div>
+            {remainingCharacters < CHAR_WARNING_THRESHOLD ? (
+              <span className={cn('text-xs tabular-nums', remainingCharacters < 0 ? 'text-destructive font-medium' : 'text-muted-foreground')}>
+                {remainingCharacters} characters remaining
+              </span>
+            ) : !commentsEnabled ? (
+              <span className="text-xs text-muted-foreground">Comments are disabled for this post.</span>
+            ) : null}
+          </div>
+          <Button
+            onClick={handleCreate}
+            disabled={!canSubmit || isCreating}
+            size="sm"
+            className="h-8 px-4 text-xs font-semibold"
+          >
+            {isCreating ? 'Sending...' : 'Comment'}
           </Button>
         </div>
-        {!commentsEnabled && (
-          <p className="text-xs text-muted-foreground">New comments are currently disabled for this post.</p>
-        )}
       </div>
 
-      <div className="mt-5 space-y-3">
-        {isLoading && <p className="text-sm text-muted-foreground">Loading comments...</p>}
+      <div className="mt-5 space-y-2">
+        {isLoading && (
+          <div className="flex flex-col items-center justify-center py-8 gap-2">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
+            <p className="text-xs text-muted-foreground">Loading comments...</p>
+          </div>
+        )}
         {!isLoading && !hasComments && (
-          <p className="text-sm text-muted-foreground">No comments yet.</p>
+          <div className="flex flex-col items-center justify-center py-10 gap-2">
+            <div className="rounded-full bg-muted/40 p-3">
+              <MessageSquare className="h-5 w-5 text-muted-foreground/60" />
+            </div>
+            <p className="text-sm text-muted-foreground">No comments yet</p>
+            {commentsEnabled && (
+              <p className="text-xs text-muted-foreground/60">Be the first to share your thoughts</p>
+            )}
+          </div>
         )}
         {thread.roots.map((comment) => renderCommentNode(comment))}
       </div>

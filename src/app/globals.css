@@ -499,6 +499,7 @@
   :root {
     --background: 44 43% 92%; /* #F8F0DE */
     --foreground: 210 10% 14%; /* #1F2327 */
+    --cassette-white: 44 100% 97%; /* #FFF8EC */
     --card: 44 100% 97%; /* #FFF8EC */
     --card-foreground: 210 10% 14%; /* #1F2327 */
     --popover: 44 100% 97%; /* #FFF8EC */
@@ -643,15 +644,15 @@
     --number-display: 349 89% 65%;         /* Decorative numbers */
   }
 
-  /* Force white surface colors regardless of theme (e.g. search/input surfaces) */
+  /* Force Cassette's warm white surface colors regardless of theme. */
   .force-light-surface {
-    --card: 0 0% 100%;
+    --card: var(--cassette-white);
     --card-foreground: 210 10% 14%;
     --border: 210 16% 82%;
     --muted: 210 20% 96%;
     --muted-foreground: 30 20% 38%;
     --foreground: 210 10% 14%;
-    --input: 0 0% 100%;
+    --input: var(--cassette-white);
   }
 }
 

@@ -295,6 +295,7 @@ export default function AddMusicPage() {
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
   const [pastedLinkSource, setPastedLinkSource] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   const lastTrackedSearchRef = useRef<string>('');
@@ -599,6 +600,7 @@ export default function AddMusicPage() {
     }
     
     const target = `/post?${params.toString()}`;
+    setIsSubmitting(true);
     if (resolvedReturnRoute) {
       router.replace(target);
     } else {
@@ -638,6 +640,11 @@ export default function AddMusicPage() {
   // Don't render if not authenticated (will redirect)
   if (!isAuthenticated) {
     return null;
+  }
+
+  // Show loading while navigating to the post page
+  if (isSubmitting) {
+    return <PageLoader message="Adding to your profile..." />;
   }
 
   return (

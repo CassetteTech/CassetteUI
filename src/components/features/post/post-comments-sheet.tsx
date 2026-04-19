@@ -654,22 +654,24 @@ export function PostCommentsSheet({
               {composer}
             </div>
           )}
-        </DialogPrimitive.Content>
 
-        {/* Mobile: input lives outside the sheet so the keyboard only lifts
-            this container — the comments list behind stays anchored. */}
-        {isMobile && open && (
-          <div
-            style={{ transform: `translate3d(0, -${keyboardOffset}px, 0)` }}
-            className={cn(
-              'fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur-sm px-3 py-2.5',
-              keyboardOffset === 0 && 'pb-[max(0.625rem,env(safe-area-inset-bottom))]',
-              'will-change-transform',
-            )}
-          >
-            {composer}
-          </div>
-        )}
+          {/* Mobile: composer is a child of Content (so Radix's focus trap
+              still allows taps/focus) but position:fixed so it escapes the
+              flex layout. Only this container lifts with the keyboard — the
+              comments list behind stays anchored. */}
+          {isMobile && (
+            <div
+              style={{ transform: `translate3d(0, -${keyboardOffset}px, 0)` }}
+              className={cn(
+                'fixed inset-x-0 bottom-0 z-10 border-t border-border bg-background/95 backdrop-blur-sm px-3 py-2.5',
+                keyboardOffset === 0 && 'pb-[max(0.625rem,env(safe-area-inset-bottom))]',
+                'will-change-transform',
+              )}
+            >
+              {composer}
+            </div>
+          )}
+        </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );

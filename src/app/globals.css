@@ -704,3 +704,16 @@
     opacity: 1;
   }
 }
+
+/* Album-art mesh background: slow drift so the gradient feels alive without reading as motion. */
+@keyframes mesh-drift {
+  0%   { transform: translate3d(-3%, -2%, 0) scale(1.04); }
+  50%  { transform: translate3d(2.5%, 2%,  0) scale(1.07); }
+  100% { transform: translate3d(-2%, 2.5%, 0) scale(1.04); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mesh-drift {
+    animation: mesh-drift 55s ease-in-out infinite alternate;
+  }
+}

@@ -3,13 +3,13 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Headphones, ListMusic, Disc3, UserRound } from "lucide-react";
+import { ArrowRight, ListMusic, Disc3, Music2, Mic2 } from "lucide-react";
 
-const stats = [
-  { icon: ListMusic, label: "Playlists", value: "18" },
-  { icon: Disc3, label: "Albums", value: "42" },
-  { icon: Headphones, label: "Top Tracks", value: "120" },
-  { icon: UserRound, label: "Following", value: "37" },
+const tabs = [
+  { icon: ListMusic, label: "Playlists" },
+  { icon: Music2, label: "Tracks" },
+  { icon: Mic2, label: "Artists" },
+  { icon: Disc3, label: "Albums" },
 ];
 
 const services = ["spotify", "apple_music", "deezer"] as const;
@@ -108,13 +108,13 @@ export function ExampleProfileSection() {
           </div>
 
           <div className="mt-6 grid grid-cols-4 gap-2 border-t-2 border-foreground/20 pt-4">
-            {stats.map(({ icon: Icon, label, value }) => (
-              <div key={label} className="text-center">
-                <Icon className="h-4 w-4 text-muted-foreground mx-auto mb-1.5" />
-                <p className="font-teko text-xl sm:text-2xl leading-none text-foreground">
-                  {value}
-                </p>
-                <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground mt-1">
+            {tabs.map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="border border-foreground/20 bg-background px-2 py-3 text-center"
+              >
+                <Icon className="h-4 w-4 text-foreground mx-auto mb-1.5" />
+                <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
                   {label}
                 </p>
               </div>

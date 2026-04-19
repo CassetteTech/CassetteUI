@@ -1,6 +1,6 @@
 
-**Effective Date:** October 27, 2025  
-**Contact:** [privacy@cassette.tech](mailto:privacy@cassette.tech) (or [contact@cassette.tech](mailto:contact@cassette.tech))  
+**Effective Date:** April 19, 2026  
+**Contact:** [contact@cassette.tech](mailto:contact@cassette.tech)  
 **Controller:** Cassette Technologies ('Cassette', 'we', 'us') is the data controller for personal data described here.
 
 ## 1) Scope
@@ -18,11 +18,11 @@ This Privacy Policy ('Policy') explains how we collect, use, disclose, and prote
 **Automatically collected:**
 
 - Device and usage data: IP address, device or browser type, language, referring or exit pages, timestamps, page views, clicks, link redirects, error logs, and performance metrics.
-- Cookies or SDKs: to run the site, remember choices, measure usage, and (where enabled) analytics.
+- Cookies, local storage, session storage, and similar technologies: to run the site, remember choices, maintain sessions, and measure product usage.
 
 **From third parties:**
 
-OAuth tokens and IDs from streaming services (Spotify, Apple Music, Deezer, Tidal, YouTube Music) to enable linking and conversion. We do not collect streaming-service passwords. Service metadata (for example, catalog IDs or territory availability) to resolve links.
+OAuth tokens and IDs from streaming services we support, such as Spotify, Apple Music, and Deezer, to enable linking and conversion. We do not collect streaming-service passwords. Service metadata (for example, catalog IDs or territory availability) may also be used to resolve links.
 
 We may create aggregated or de-identified data that cannot reasonably identify you; we may use and share such data for any lawful purpose.
 
@@ -31,16 +31,21 @@ We may create aggregated or de-identified data that cannot reasonably identify y
 - Provide, maintain, and improve the Service (for example, create or share MusicLinks, resolve conversions after recipient selection, show public profiles).
 - Authenticate you and your connected services (OAuth), store or refresh tokens, and manage sessions.
 - Prevent abuse, enforce policies, and secure the Service (rate limiting, fraud or malware detection, logging).
-- Communicate with you about changes, new features, or support and send optional newsletters or marketing (with opt out).
+- Communicate with you about your account, support requests, and important changes to the Service.
 - Comply with law and respond to lawful requests.
 
-**Legal bases (EEA/UK):** performance of a contract (providing the Service), legitimate interests (site security, analytics, product improvement), consent (where required for cookies or marketing), and legal obligation.
+**Legal bases (EEA/UK):** performance of a contract (providing the Service), legitimate interests (site security, product analytics, and product improvement), consent where required by law, and legal obligation.
 
 ## 4) Sharing of Information
 
-Service providers or processors performing services on our behalf (hosting, database, authentication, analytics, email). Example categories include cloud infrastructure, database providers such as a managed Postgres service like Supabase, email delivery, analytics such as Google Analytics, and customer support tools. Streaming services when you connect accounts or a recipient chooses a destination service (to open content in that service) Legal and compliance recipients (to comply with law, enforce terms, protect rights). Parties to corporate transactions (merger, acquisition, financing, or sale of assets) subject to standard safeguards.
+We may share information with:
 
-We do not sell your personal information for money. Where analytics or advertising cookies or SDKs are used, certain U.S. state laws (such as the CPRA) may treat that as a 'sale' or 'sharing' for targeted advertising; see Your Privacy Choices below.
+- Service providers and processors that help us operate the Service, such as hosting, database, authentication, infrastructure, analytics, and email vendors.
+- Streaming services when you connect an account or choose to open content in that service.
+- Legal, compliance, and safety recipients when needed to comply with law, enforce our terms, or protect rights, safety, and the Service.
+- Parties involved in a merger, acquisition, financing, or sale of assets, subject to appropriate confidentiality and legal safeguards.
+
+We do not sell your personal information for money, and we do not use it for third-party cross-context behavioral advertising.
 
 ## 5) Cookies and Analytics
 
@@ -48,23 +53,23 @@ We use:
 
 - Strictly necessary cookies (security, load balancing, session management).
 - Preference cookies (for example, to remember a chosen destination service).
-- Analytics (for example, Google Analytics) to understand usage and improve the Service.
+- Product analytics tools (for example, PostHog) to understand usage and improve the Service.
 
-You can control cookies via browser settings and, where required by law, through our cookie banner or preferences manager. If disabled, some features may not work.
+You can control cookies through your browser settings. If you disable certain cookies or storage mechanisms, some features may not work properly.
 
 ## 6) Data Retention
 
-We keep personal information for as long as needed to provide the Service and for legitimate business or legal purposes. Illustrative targets (adjust in practice):
+We keep personal information for as long as needed to provide the Service and for legitimate business or legal purposes. In general:
 
-- Account or profile data: for your active account plus up to 24 months after closure.
-- OAuth tokens: for the life of the connection; deleted or revoked upon disconnect or inactivity.
-- Logs and security data: 12-24 months.
+- Account and profile information are retained while your account is active and for a reasonable period afterward to comply with legal obligations, resolve disputes, and enforce agreements.
+- OAuth tokens are retained for the life of the connection and deleted or revoked when you disconnect the integration or when they are no longer needed.
+- Logs, analytics records, and security data are retained for a limited period appropriate to security, debugging, and operational needs.
 
 We may retain limited records to comply with legal obligations or resolve disputes.
 
 ## 7) Security
 
-We implement reasonable technical and organizational measures (HTTPS or TLS, access controls, encryption in transit, periodic audits, optional two-factor authentication). No system is 100% secure. You are responsible for safeguarding your credentials.
+We implement reasonable technical and organizational measures designed to protect personal information, including encryption in transit, access controls, and logging. No system is 100% secure. You are responsible for safeguarding your credentials.
 
 ## 8) International Data Transfers
 
@@ -72,16 +77,15 @@ We may process and store data in the United States and other countries. Where re
 
 ## 9) Your Rights and Choices
 
-**Email communications.** You can unsubscribe from marketing emails via the link in the message or in settings; we may still send transactional emails.
+**Email communications.** We may send service-related and transactional emails. If we send optional marketing messages, you can opt out using the unsubscribe mechanism in the message.
 
-**Cookies or analytics.** Use our cookie preferences manager and your browser controls to manage cookies.
+**Cookies or analytics.** You can manage cookies and related storage technologies through your browser settings.
 
 **EEA or UK individuals.** You may have rights to access, correct, delete, restrict, or port your data and to object to certain processing. Where we rely on consent, you can withdraw it at any time.
 
-**U.S. residents (including CA, VA, CO, CT, and UT).** You may have rights to (a) access or know, (b) delete, (c) correct, (d) portability, and (e) opt out of sale, sharing, or targeted advertising.
+**U.S. residents (including CA, VA, CO, CT, and UT).** Depending on your state, you may have rights to access, know, delete, correct, or obtain a portable copy of your personal information.
 
-- Exercise rights by emailing [privacy@cassette.tech](mailto:privacy@cassette.tech) or via in-product controls.
-- **Do Not Sell or Share / Opt-Out.** Use the footer link 'Do Not Sell or Share My Personal Information' or email us. We will honor opt-outs via the Global Privacy Control (GPC) signal where required.
+- Exercise rights by emailing [contact@cassette.tech](mailto:contact@cassette.tech).
 - We do not use or disclose sensitive personal information for purposes requiring a right to limit under the CPRA.
 
 We will verify requests and respond within required timeframes. You may appeal a decision by replying to our response email.
@@ -100,4 +104,4 @@ We may update this Policy and will post the revised version with a new effective
 
 ## 13) Contact
 
-Questions or requests: [privacy@cassette.tech](mailto:privacy@cassette.tech) (or [contact@cassette.tech](mailto:contact@cassette.tech)). If you are in the EEA or UK, you may also lodge a complaint with your local supervisory authority.
+Questions or requests: [contact@cassette.tech](mailto:contact@cassette.tech). If you are in the EEA or UK, you may also lodge a complaint with your local supervisory authority.

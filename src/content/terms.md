@@ -1,4 +1,4 @@
-**Effective Date:** October 27, 2025  
+**Effective Date:** April 19, 2026  
 **Contact:** [contact@cassette.tech](mailto:contact@cassette.tech)  
 **Entity:** 'Cassette Technologies' ('Cassette', 'we', 'us', 'our')
 
@@ -19,7 +19,7 @@ You are responsible for maintaining the confidentiality of your credentials and 
 **Linking, not hosting.** Cassette does not host copyrighted music. We convert or aggregate links and metadata to help recipients open content in their preferred streaming service.
 **Public by default.** MusicLinks and shareable profile URLs may be publicly accessible to anyone with the link. Do not post anything you do not want to be public.
 **Conversion timing.** For songs, albums, and artists, conversions may run in real time after a recipient selects a destination service. Availability depends on third-party catalogs and APIs.
-**No affiliation.** We are not affiliated with, endorsed by, or responsible for Spotify, Apple Music, Deezer, Tidal, YouTube Music, or any streaming service. Their content, availability, and terms are outside our control.
+**No affiliation.** We are not affiliated with, endorsed by, or responsible for Spotify, Apple Music, Deezer, or any other streaming service. Their content, availability, and terms are outside our control.
 
 ## 5) Third-Party Services and OAuth
 
@@ -47,24 +47,14 @@ We may throttle or block traffic and remove content or accounts that violate the
 
 We respect intellectual property rights and comply with the DMCA.
 
-**Notices.** Send alleged infringement notices to us:  
-  [PLACEHOLDER - Name/Title]  
-  Cassette Technologies - DMCA Agent  
-  [PLACEHOLDER - Postal Address]  
-  Email: [dmca@cassette.tech](mailto:dmca@cassette.tech) (or [contact@cassette.tech](mailto:contact@cassette.tech))  
-  Phone: [PLACEHOLDER]  
-  Your notice must include the elements required by the DMCA.
+**Notices.** Send alleged infringement notices to [contact@cassette.tech](mailto:contact@cassette.tech) with the subject line `DMCA Notice`. Your notice must include the information required by 17 U.S.C. Section 512(c)(3).
 
-- **Counter-notices.** Counter-notices may be submitted as permitted by law.
+- **Counter-notices.** If you believe material was removed in error, you may submit a counter-notice to [contact@cassette.tech](mailto:contact@cassette.tech) as permitted by law.
 - **Enforcement.** We may remove or disable access to allegedly infringing material and terminate repeat infringers.
-- **Registration.** Register the agent with the U.S. Copyright Office and update this section with the official record once complete.
 
 ## 9) Beta and Experimental Features
 
 Certain features (for example, real-time conversions or previews) may be labeled Beta, Preview, or similar. They are provided as-is, may change or be discontinued, and may be subject to additional terms or limits.
-
-We respect intellectual property rights and expect our users to do the same. If you believe that any material on the Site infringes your copyright, you may contact us with a proper notice under the Digital Millennium Copyright Act (DMCA).
-We may remove infringing material and, in the case of repeat offenders, terminate user accounts. If you believe material was removed in error, you may submit a counternotice as permitted by law.
 
 ## 10) Privacy
 

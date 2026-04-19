@@ -90,33 +90,37 @@ export function PostCommentsSheet({
     };
   }, [isMobile, open]);
 
-  // iOS Safari scrolls the window on input focus to bring the textarea above
-  // the keyboard — this visually drags the whole fixed sheet up. Cancel that
-  // auto-scroll so the comments list behind stays anchored.
+  // Hard-lock body scroll while the mobile sheet is open. With `position:
+  // fixed` on body, iOS Safari literally cannot scroll the window on input
+  // focus — so the comments list can never be dragged up by that behavior.
+  // We preserve the user's scroll position so the page looks unchanged
+  // underneath and restore it on close.
   useEffect(() => {
     if (!isMobile || !open) return;
-    const pinWindow = () => {
-      window.scrollTo(0, 0);
+    const body = document.body;
+    const scrollY = window.scrollY;
+    const previous = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
     };
-    const onFocusIn = (event: FocusEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (!target) return;
-      if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
-        requestAnimationFrame(pinWindow);
-        setTimeout(pinWindow, 100);
-        setTimeout(pinWindow, 300);
-      }
-    };
-    const onScroll = () => {
-      if (document.activeElement?.tagName === 'TEXTAREA' || document.activeElement?.tagName === 'INPUT') {
-        window.scrollTo(0, 0);
-      }
-    };
-    document.addEventListener('focusin', onFocusIn);
-    window.addEventListener('scroll', onScroll);
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener('focusin', onFocusIn);
-      window.removeEventListener('scroll', onScroll);
+      body.style.position = previous.position;
+      body.style.top = previous.top;
+      body.style.left = previous.left;
+      body.style.right = previous.right;
+      body.style.width = previous.width;
+      body.style.overflow = previous.overflow;
+      window.scrollTo(0, scrollY);
     };
   }, [isMobile, open]);
 

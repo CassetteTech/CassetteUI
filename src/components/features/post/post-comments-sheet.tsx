@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import Link from 'next/link';
 import { ApiError, apiService } from '@/services/api';
 import { PostComment } from '@/types';
@@ -25,9 +25,12 @@ import {
   ChevronUp,
   MessageSquare,
   XIcon,
+  ArrowRight,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
 
 const COMMENT_MAX_LENGTH = 2000;
 const CHAR_WARNING_THRESHOLD = 200;
@@ -70,15 +73,78 @@ export function PostCommentsSheet({
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
   const [visibleRepliesCount, setVisibleRepliesCount] = useState<Record<string, number>>({});
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [composerHeight, setComposerHeight] = useState(0);
+  const [hasMounted, setHasMounted] = useState(false);
+  const composerRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  // Mobile: lock the document so iOS Safari's form-assistant auto-scroll has
+  // no scrollable root to pin onto. The overlay itself is position: fixed, so
+  // even if something did scroll, the UI stays put.
+  useEffect(() => {
+    if (!isMobile || !open) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const savedScrollY = window.scrollY;
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: body.style.overflow,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyLeft: body.style.left,
+      bodyRight: body.style.right,
+      bodyWidth: body.style.width,
+    };
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${savedScrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    return () => {
+      html.style.overflow = prev.htmlOverflow;
+      body.style.overflow = prev.bodyOverflow;
+      body.style.position = prev.bodyPosition;
+      body.style.top = prev.bodyTop;
+      body.style.left = prev.bodyLeft;
+      body.style.right = prev.bodyRight;
+      body.style.width = prev.bodyWidth;
+      window.scrollTo(0, savedScrollY);
+    };
+  }, [isMobile, open]);
+
+  // Intercept the initial tap on the composer textarea so iOS Safari's
+  // form-assistant auto-scroll routine never runs. `focus({preventScroll:true})`
+  // is honored on iOS 15+; the focus must be synchronous with the user gesture
+  // or iOS will suppress the software keyboard.
+  const handleTextareaPointerDown = useCallback((event: ReactPointerEvent<HTMLTextAreaElement>) => {
+    if (event.pointerType === 'mouse') return;
+    const el = textareaRef.current;
+    if (!el) return;
+    if (document.activeElement === el) return;
+    event.preventDefault();
+    el.focus({ preventScroll: true });
+  }, []);
 
   // Track the on-screen keyboard via visualViewport so the mobile input bar
   // can slide up while the comments list behind stays anchored.
+  // Using documentElement.clientHeight (layout viewport) instead of
+  // window.innerHeight because iOS Safari 13+ shrinks innerHeight to the
+  // *visual* viewport height when the keyboard is up, which would make
+  // (innerHeight - vv.height) collapse to ~0 and leave the composer under the keyboard.
   useEffect(() => {
     if (!isMobile || !open) { setKeyboardOffset(0); return; }
     const vv = typeof window !== 'undefined' ? window.visualViewport : null;
     if (!vv) return;
     const update = () => {
-      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      const layoutHeight = document.documentElement.clientHeight;
+      const offset = Math.max(0, layoutHeight - vv.height - vv.offsetTop);
       setKeyboardOffset(offset);
     };
     update();
@@ -90,38 +156,171 @@ export function PostCommentsSheet({
     };
   }, [isMobile, open]);
 
-  // Hard-lock body scroll while the mobile sheet is open. With `position:
-  // fixed` on body, iOS Safari literally cannot scroll the window on input
-  // focus — so the comments list can never be dragged up by that behavior.
-  // We preserve the user's scroll position so the page looks unchanged
-  // underneath and restore it on close.
   useEffect(() => {
     if (!isMobile || !open) return;
-    const body = document.body;
-    const scrollY = window.scrollY;
-    const previous = {
-      position: body.style.position,
-      top: body.style.top,
-      left: body.style.left,
-      right: body.style.right,
-      width: body.style.width,
-      overflow: body.style.overflow,
+    const composerElement = composerRef.current;
+    if (!composerElement) return;
+
+    const ESTIMATED_KEYBOARD_HEIGHT = 320;
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
+        setKeyboardOffset((current) => (current > 0 ? current : ESTIMATED_KEYBOARD_HEIGHT));
+      }
     };
-    body.style.position = 'fixed';
-    body.style.top = `-${scrollY}px`;
-    body.style.left = '0';
-    body.style.right = '0';
-    body.style.width = '100%';
-    body.style.overflow = 'hidden';
+
+    const onFocusOut = (event: FocusEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
+        setTimeout(() => {
+          const vv = window.visualViewport;
+          const stillCovered = vv ? window.innerHeight - vv.height - vv.offsetTop : 0;
+          if (stillCovered <= 0) setKeyboardOffset(0);
+        }, 50);
+      }
+    };
+
+    composerElement.addEventListener('focusin', onFocusIn);
+    composerElement.addEventListener('focusout', onFocusOut);
     return () => {
-      body.style.position = previous.position;
-      body.style.top = previous.top;
-      body.style.left = previous.left;
-      body.style.right = previous.right;
-      body.style.width = previous.width;
-      body.style.overflow = previous.overflow;
-      window.scrollTo(0, scrollY);
+      composerElement.removeEventListener('focusin', onFocusIn);
+      composerElement.removeEventListener('focusout', onFocusOut);
     };
+  }, [isMobile, open]);
+
+  useEffect(() => {
+    if (!isMobile || !open) return;
+    const composerElement = composerRef.current;
+    const listElement = listRef.current;
+    if (!composerElement || !listElement) return;
+
+    const vv = window.visualViewport;
+    let releaseTimer = 0;
+    let restoreFrame = 0;
+    let restoreActive = false;
+    let restoreStartedAt = 0;
+    let lastViewportChangeAt = 0;
+    let lockedScrollTop = 0;
+    let userInteracting = false;
+
+    const clearRestore = () => {
+      restoreActive = false;
+      userInteracting = false;
+      if (restoreFrame) {
+        window.cancelAnimationFrame(restoreFrame);
+        restoreFrame = 0;
+      }
+      if (releaseTimer) {
+        window.clearTimeout(releaseTimer);
+        releaseTimer = 0;
+      }
+    };
+
+    const restoreScroll = () => {
+      if (!restoreActive || userInteracting) return;
+      if (Math.abs(listElement.scrollTop - lockedScrollTop) > 1) {
+        listElement.scrollTop = lockedScrollTop;
+      }
+
+      const now = Date.now();
+      const viewportSettled = keyboardOffset > 0 && now - lastViewportChangeAt > 120;
+      const expired = now - restoreStartedAt > 1400;
+
+      if (viewportSettled || expired) {
+        clearRestore();
+        return;
+      }
+
+      restoreFrame = window.requestAnimationFrame(restoreScroll);
+    };
+
+    const beginRestoreWindow = () => {
+      clearRestore();
+      lockedScrollTop = listElement.scrollTop;
+      restoreActive = true;
+      restoreStartedAt = Date.now();
+      lastViewportChangeAt = restoreStartedAt;
+      restoreFrame = window.requestAnimationFrame(restoreScroll);
+
+      releaseTimer = window.setTimeout(() => {
+        clearRestore();
+      }, 1500);
+    };
+
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
+        beginRestoreWindow();
+      }
+    };
+
+    const onComposerTouchStart = (event: TouchEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
+        beginRestoreWindow();
+      }
+    };
+
+    const onViewportChange = () => {
+      if (!restoreActive) return;
+      lastViewportChangeAt = Date.now();
+      restoreScroll();
+    };
+
+    const onListScroll = () => {
+      restoreScroll();
+    };
+
+    const onUserStart = () => {
+      if (!restoreActive) return;
+      userInteracting = true;
+      clearRestore();
+    };
+
+    composerElement.addEventListener('touchstart', onComposerTouchStart, { passive: true });
+    composerElement.addEventListener('focusin', onFocusIn);
+    listElement.addEventListener('scroll', onListScroll, { passive: true });
+    listElement.addEventListener('touchstart', onUserStart, { passive: true });
+    listElement.addEventListener('wheel', onUserStart, { passive: true });
+    vv?.addEventListener('resize', onViewportChange);
+    vv?.addEventListener('scroll', onViewportChange);
+
+    return () => {
+      clearRestore();
+      composerElement.removeEventListener('touchstart', onComposerTouchStart);
+      composerElement.removeEventListener('focusin', onFocusIn);
+      listElement.removeEventListener('scroll', onListScroll);
+      listElement.removeEventListener('touchstart', onUserStart);
+      listElement.removeEventListener('wheel', onUserStart);
+      vv?.removeEventListener('resize', onViewportChange);
+      vv?.removeEventListener('scroll', onViewportChange);
+    };
+  }, [isMobile, keyboardOffset, open]);
+
+  useEffect(() => {
+    if (!isMobile || !open) {
+      setComposerHeight(0);
+      return;
+    }
+    const composerElement = composerRef.current;
+    if (!composerElement) return;
+
+    const updateHeight = () => {
+      setComposerHeight(composerElement.getBoundingClientRect().height);
+    };
+
+    updateHeight();
+
+    const observer = new ResizeObserver(() => {
+      updateHeight();
+    });
+
+    observer.observe(composerElement);
+    return () => observer.disconnect();
   }, [isMobile, open]);
 
   useEffect(() => {
@@ -430,6 +629,9 @@ export function PostCommentsSheet({
                       if (isReplyingHere) { cancelReply(); return; }
                       setReplyingToCommentId(comment.commentId);
                       setReplyContent('');
+                      if (isMobile) {
+                        textareaRef.current?.focus({ preventScroll: true });
+                      }
                     }}
                     className={cn(
                       'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium transition-colors',
@@ -476,7 +678,7 @@ export function PostCommentsSheet({
               )}
 
               <AnimatePresence>
-                {isReplyingHere && (
+                {isReplyingHere && !isMobile && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
@@ -559,152 +761,224 @@ export function PostCommentsSheet({
     );
   };
 
-  const contentClasses = isMobile
-    ? cn(
-        'fixed inset-x-0 bottom-0 z-50 flex flex-col gap-0 h-[85vh] rounded-t-2xl border-t border-border bg-background shadow-2xl',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full',
-        'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
-        'data-[state=open]:duration-[400ms] data-[state=closed]:duration-[280ms]',
-        'data-[state=open]:ease-[cubic-bezier(0.22,1,0.36,1)]',
-        'data-[state=closed]:ease-[cubic-bezier(0.64,0,0.78,0)]',
-        'will-change-transform',
-      )
-    : cn(
-        'fixed inset-y-0 right-0 z-50 flex h-full w-full flex-col gap-0 border-l border-border bg-background shadow-2xl',
-        'sm:max-w-md md:max-w-lg',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=open]:slide-in-from-right-full data-[state=closed]:slide-out-to-right-full',
-        'data-[state=open]:duration-[450ms] data-[state=closed]:duration-[300ms]',
-        'data-[state=open]:ease-[cubic-bezier(0.22,1,0.36,1)]',
-        'data-[state=closed]:ease-[cubic-bezier(0.64,0,0.78,0)]',
-        'will-change-transform',
-      );
+  const contentClasses = cn(
+    'fixed inset-y-0 right-0 z-50 flex h-full w-full flex-col gap-0 border-l border-border bg-background shadow-2xl',
+    'sm:max-w-md md:max-w-lg',
+    'data-[state=open]:animate-in data-[state=closed]:animate-out',
+    'data-[state=open]:slide-in-from-right-full data-[state=closed]:slide-out-to-right-full',
+    'data-[state=open]:duration-[450ms] data-[state=closed]:duration-[300ms]',
+    'data-[state=open]:ease-[cubic-bezier(0.22,1,0.36,1)]',
+    'data-[state=closed]:ease-[cubic-bezier(0.64,0,0.78,0)]',
+    'will-change-transform',
+  );
+
+  const mobileReplyParent = isMobile && replyingToCommentId
+    ? comments.find((c) => c.commentId === replyingToCommentId) ?? null
+    : null;
+
+  const composerValue = mobileReplyParent ? replyContent : newComment;
+  const composerOnChange = mobileReplyParent ? setReplyContent : setNewComment;
+  const composerBusy = mobileReplyParent ? isReplying : isCreating;
+  const composerRemaining = mobileReplyParent ? replyRemainingCharacters : remainingCharacters;
+  const composerCanSubmit = mobileReplyParent ? canSubmitReply : canSubmit;
+  const composerPlaceholder = !commentsEnabled
+    ? 'Comments are turned off'
+    : mobileReplyParent
+      ? `Reply to ${mobileReplyParent.username}...`
+      : 'Share your thoughts...';
+  const composerSubmitLabel = mobileReplyParent
+    ? (isReplying ? 'Sending...' : 'Reply')
+    : (isCreating ? 'Sending...' : 'Comment');
+  const composerOnSubmit = mobileReplyParent
+    ? () => void handleReply(mobileReplyParent)
+    : () => void handleCreate();
+
+  const showComposerFooter = composerRemaining < CHAR_WARNING_THRESHOLD || !commentsEnabled;
 
   const composer = (
-    <div className="flex flex-col gap-2">
-      <Textarea
-        value={newComment}
-        onChange={(event) => setNewComment(event.target.value)}
-        placeholder={commentsEnabled ? 'Share your thoughts...' : 'Comments are turned off'}
-        disabled={isCreating || !commentsEnabled}
-        className="min-h-[64px] resize-none bg-background/50 border-border/60 text-sm placeholder:text-muted-foreground/60"
-      />
-      <div className="flex items-center justify-between">
-        <div>
-          {remainingCharacters < CHAR_WARNING_THRESHOLD ? (
-            <span className={cn('text-xs tabular-nums', remainingCharacters < 0 ? 'text-destructive font-medium' : 'text-muted-foreground')}>
-              {remainingCharacters} characters remaining
+    <div className="flex flex-col gap-1">
+      {mobileReplyParent && (
+        <div
+          key="reply-indicator"
+          className="flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1"
+        >
+          <MessageCircle className="size-3 shrink-0 text-primary" />
+          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+            Replying to <span className="font-semibold text-foreground">@{mobileReplyParent.username}</span>
+          </span>
+          <button
+            type="button"
+            onClick={cancelReply}
+            className="ml-auto rounded-full p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted"
+            aria-label="Cancel reply"
+          >
+            <X className="size-3" />
+          </button>
+        </div>
+      )}
+      <div key="composer-field" className="relative">
+        <Textarea
+          key="composer-textarea"
+          ref={textareaRef}
+          onPointerDown={handleTextareaPointerDown}
+          value={composerValue}
+          onChange={(event) => composerOnChange(event.target.value)}
+          placeholder={composerPlaceholder}
+          disabled={composerBusy || !commentsEnabled}
+          className="min-h-[64px] resize-none bg-background/50 border-border/60 pr-11 text-sm placeholder:text-muted-foreground/60"
+        />
+        <button
+          type="button"
+          onClick={composerOnSubmit}
+          disabled={!composerCanSubmit || composerBusy}
+          aria-label={composerSubmitLabel}
+          className={cn(
+            'absolute bottom-1.5 right-1.5 flex size-8 items-center justify-center rounded-full transition-all',
+            'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95',
+            'disabled:opacity-40 disabled:pointer-events-none',
+          )}
+        >
+          {composerBusy ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <ArrowRight className="size-4" />
+          )}
+        </button>
+      </div>
+      {showComposerFooter && (
+        <div key="composer-footer" className="px-1">
+          {composerRemaining < CHAR_WARNING_THRESHOLD ? (
+            <span className={cn('text-xs tabular-nums', composerRemaining < 0 ? 'text-destructive font-medium' : 'text-muted-foreground')}>
+              {composerRemaining} characters remaining
             </span>
           ) : !commentsEnabled ? (
             <span className="text-xs text-muted-foreground">Comments are disabled for this post.</span>
           ) : null}
         </div>
-        <Button onClick={handleCreate} disabled={!canSubmit || isCreating} size="sm" className="h-8 px-4 text-xs font-semibold">
-          {isCreating ? 'Sending...' : 'Comment'}
-        </Button>
-      </div>
+      )}
     </div>
   );
 
+  const header = (
+    <div className="flex items-center gap-2 px-3 sm:px-5 pt-3.5 pb-2.5 sm:pt-5 sm:pb-3 border-b border-border">
+      <MessageSquare className="size-4 text-muted-foreground" />
+      <span className="font-atkinson text-sm font-bold text-foreground tracking-wide">Comments</span>
+      {hasComments && (
+        <Badge variant="secondary" className="text-xs font-atkinson tracking-wide">
+          {comments.length}
+        </Badge>
+      )}
+      <button
+        type="button"
+        onClick={() => onOpenChange(false)}
+        className="ml-auto rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+        aria-label="Close comments"
+      >
+        <XIcon className="size-4" />
+      </button>
+    </div>
+  );
+
+  const commentsList = (
+    <div className="flex flex-col gap-1.5 sm:gap-2">
+      {isLoadingComments && !hasLoaded && (
+        <div className="flex flex-col items-center justify-center py-8 gap-2">
+          <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
+          <p className="text-xs text-muted-foreground">Loading comments...</p>
+        </div>
+      )}
+      {!isLoadingComments && !hasComments && (
+        <div className="flex flex-col items-center justify-center py-12 gap-2">
+          <div className="rounded-full bg-muted/40 p-3">
+            <MessageSquare className="size-5 text-muted-foreground/60" />
+          </div>
+          <p className="text-sm text-muted-foreground">No comments yet</p>
+          {commentsEnabled && (
+            <p className="text-xs text-muted-foreground/60">Be the first to share your thoughts</p>
+          )}
+        </div>
+      )}
+      {thread.roots.map((comment) => renderCommentNode(comment))}
+    </div>
+  );
+
+  if (isMobile) {
+    if (!hasMounted || !open) return null;
+
+    return createPortal(
+      <>
+        <div
+          className="fixed inset-0 z-50 bg-black/50"
+          onClick={() => onOpenChange(false)}
+          aria-hidden="true"
+        />
+        <div
+          className="fixed inset-0 z-[60] overflow-hidden pointer-events-none"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Comments"
+            className="flex h-full flex-col"
+          >
+            <button
+              type="button"
+              aria-label="Close comments"
+              onClick={() => onOpenChange(false)}
+              className="pointer-events-auto block h-[15%] w-full bg-transparent"
+            />
+            <div className="pointer-events-auto relative flex flex-1 flex-col overflow-hidden rounded-t-2xl border-t border-border bg-background shadow-2xl">
+              {header}
+              <div
+                ref={listRef}
+                className="flex-1 overflow-y-auto px-3 py-3 sm:px-5 sm:py-4"
+                style={{ paddingBottom: Math.max(0, composerHeight - keyboardOffset) }}
+              >
+                {commentsList}
+              </div>
+              <div
+                ref={composerRef}
+                style={keyboardOffset > 0 ? { paddingBottom: keyboardOffset } : undefined}
+                className={cn(
+                  'absolute inset-x-0 bottom-0 z-10 border-t border-border bg-background px-3 py-2.5',
+                  keyboardOffset === 0 && 'pb-[max(0.625rem,env(safe-area-inset-bottom))]',
+                )}
+              >
+                {composer}
+              </div>
+            </div>
+          </div>
+        </div>
+      </>,
+      document.body
+    );
+  }
+
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} modal={isMobile}>
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} modal={false}>
       <DialogPrimitive.Portal>
-        {isMobile && (
-          <DialogPrimitive.Overlay
-            className={cn(
-              'fixed inset-0 z-50 bg-black/50',
-              'data-[state=open]:animate-in data-[state=closed]:animate-out',
-              'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
-              'data-[state=open]:duration-[300ms] data-[state=closed]:duration-[200ms]',
-            )}
-          />
-        )}
         <DialogPrimitive.Content
           className={contentClasses}
           onInteractOutside={(event) => {
             // Desktop: panel stays open during any outside interaction so the
             // page remains fully clickable. Only the X button or re-clicking
-            // the trigger closes it. Mobile keeps the default modal dismiss.
-            if (!isMobile) {
-              event.preventDefault();
-            }
+            // the trigger closes it.
+            event.preventDefault();
           }}
           onFocusOutside={(event) => {
-            if (!isMobile) {
-              event.preventDefault();
-            }
+            event.preventDefault();
           }}
         >
           <DialogPrimitive.Title className="sr-only">Comments</DialogPrimitive.Title>
-
-          {/* Header */}
-          <div className="flex items-center gap-2 px-3 sm:px-5 pt-3.5 pb-2.5 sm:pt-5 sm:pb-3 border-b border-border">
-            <MessageSquare className="size-4 text-muted-foreground" />
-            <span className="font-atkinson text-sm font-bold text-foreground tracking-wide">Comments</span>
-            {hasComments && (
-              <Badge variant="secondary" className="text-xs font-atkinson tracking-wide">
-                {comments.length}
-              </Badge>
-            )}
-            <DialogPrimitive.Close
-              className="ml-auto rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-              aria-label="Close comments"
-            >
-              <XIcon className="size-4" />
-            </DialogPrimitive.Close>
-          </div>
-
-          {/* Scrollable list */}
-          <div className={cn(
-            'flex-1 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4',
-            isMobile && 'pb-[140px]',
-          )}>
-            <div className="flex flex-col gap-1.5 sm:gap-2">
-              {isLoadingComments && !hasLoaded && (
-                <div className="flex flex-col items-center justify-center py-8 gap-2">
-                  <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">Loading comments...</p>
-                </div>
-              )}
-              {!isLoadingComments && !hasComments && (
-                <div className="flex flex-col items-center justify-center py-12 gap-2">
-                  <div className="rounded-full bg-muted/40 p-3">
-                    <MessageSquare className="size-5 text-muted-foreground/60" />
-                  </div>
-                  <p className="text-sm text-muted-foreground">No comments yet</p>
-                  {commentsEnabled && (
-                    <p className="text-xs text-muted-foreground/60">Be the first to share your thoughts</p>
-                  )}
-                </div>
-              )}
-              {thread.roots.map((comment) => renderCommentNode(comment))}
-            </div>
+          {header}
+          <div ref={listRef} className="flex-1 overflow-y-auto px-3 py-3 sm:px-5 sm:py-4">
+            {commentsList}
           </div>
 
           {/* Desktop: input pinned inside the side panel */}
-          {!isMobile && (
-            <div className="border-t border-border bg-background/80 backdrop-blur-sm px-3 sm:px-5 py-2.5 sm:py-3 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
-              {composer}
-            </div>
-          )}
-
-          {/* Mobile: composer is a child of Content (so Radix's focus trap
-              still allows taps/focus) but position:fixed so it escapes the
-              flex layout. Only this container lifts with the keyboard — the
-              comments list behind stays anchored. */}
-          {isMobile && (
-            <div
-              style={{ transform: `translate3d(0, -${keyboardOffset}px, 0)` }}
-              className={cn(
-                'fixed inset-x-0 bottom-0 z-10 border-t border-border bg-background/95 backdrop-blur-sm px-3 py-2.5',
-                keyboardOffset === 0 && 'pb-[max(0.625rem,env(safe-area-inset-bottom))]',
-                'will-change-transform',
-              )}
-            >
-              {composer}
-            </div>
-          )}
+          <div className="border-t border-border bg-background/80 backdrop-blur-sm px-3 sm:px-5 py-2.5 sm:py-3 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+            {composer}
+          </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

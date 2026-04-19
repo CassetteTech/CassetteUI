@@ -90,6 +90,36 @@ export function PostCommentsSheet({
     };
   }, [isMobile, open]);
 
+  // iOS Safari scrolls the window on input focus to bring the textarea above
+  // the keyboard — this visually drags the whole fixed sheet up. Cancel that
+  // auto-scroll so the comments list behind stays anchored.
+  useEffect(() => {
+    if (!isMobile || !open) return;
+    const pinWindow = () => {
+      window.scrollTo(0, 0);
+    };
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
+        requestAnimationFrame(pinWindow);
+        setTimeout(pinWindow, 100);
+        setTimeout(pinWindow, 300);
+      }
+    };
+    const onScroll = () => {
+      if (document.activeElement?.tagName === 'TEXTAREA' || document.activeElement?.tagName === 'INPUT') {
+        window.scrollTo(0, 0);
+      }
+    };
+    document.addEventListener('focusin', onFocusIn);
+    window.addEventListener('scroll', onScroll);
+    return () => {
+      document.removeEventListener('focusin', onFocusIn);
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, [isMobile, open]);
+
   useEffect(() => {
     if (hasLoaded) {
       onCountChange?.(comments.length);

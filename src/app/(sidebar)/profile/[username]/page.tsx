@@ -5,6 +5,7 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import { useAuthState } from '@/hooks/use-auth';
 import { useUserBio, useUserActivity, useUserLikedPosts } from '@/hooks/use-profile';
 import { ProfileHeader } from '@/components/features/profile/profile-header';
+import { NotificationMenu } from '@/components/layout/notification-menu';
 import { ProfileHeaderSkeleton } from '@/components/features/profile/profile-header-skeleton';
 import { ProfileTabs, TabType } from '@/components/features/profile/profile-tabs';
 import { ProfileActivity, ActivitySkeleton } from '@/components/features/profile/profile-activity';
@@ -405,13 +406,20 @@ export default function ProfilePage() {
       {/* --- DESKTOP LAYOUT --- */}
       <div className="hidden lg:flex lg:flex-1 lg:min-h-0">
         <div className="min-w-0 flex-1 flex flex-col">
-          <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b">
-            <ProfileTabs
-              activeTab={activeTab}
-              onTabChange={filterByElementType}
-              showLikedTab={likedSectionVisible}
-              likedTabVisibility={likedTabVisibility}
-            />
+          <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b flex items-center">
+            <div className="flex-1 min-w-0">
+              <ProfileTabs
+                activeTab={activeTab}
+                onTabChange={filterByElementType}
+                showLikedTab={likedSectionVisible}
+                likedTabVisibility={likedTabVisibility}
+              />
+            </div>
+            {isCurrentUser && (
+              <div className="px-4 flex-shrink-0">
+                <NotificationMenu />
+              </div>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto" data-testid="profile-content-pane">
             {showActivitySkeleton ? (

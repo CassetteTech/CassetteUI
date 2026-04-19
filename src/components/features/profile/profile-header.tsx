@@ -91,7 +91,7 @@ export function ProfileHeader({
             {/* Mobile likes stat on its own line — no fragile dot-separator, no wrapping */}
             <span className="lg:hidden text-xs text-muted-foreground mt-0.5">
               <span className="font-semibold text-card-foreground">{totalLikesReceived.toLocaleString()}</span>
-              {' '}likes received
+              {' '}likes
             </span>
 
             {/* Desktop keeps the services in the identity column below username */}
@@ -111,10 +111,10 @@ export function ProfileHeader({
           </p>
         )}
 
-        {/* Desktop-only likes received row */}
+        {/* Desktop-only likes row */}
         <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground">
           <span className="font-semibold text-card-foreground">{totalLikesReceived.toLocaleString()}</span>
-          <span>likes received</span>
+          <span>likes</span>
         </div>
 
         {/* Action Buttons — full-width primary on mobile, ≥40px tap target */}

@@ -1,6 +1,9 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Inbox, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -15,7 +18,9 @@ import {
   useMarkAllNotificationsAsRead,
   useMarkNotificationsAsRead,
   useNotifications,
+  useUnreadNotificationCount,
 } from '@/hooks/use-notifications';
+import { useAuthState } from '@/hooks/use-auth';
 import { NotificationItem } from '@/types';
 import { formatRelativeTime } from '@/lib/utils/format-date';
 import { cn } from '@/lib/utils';
@@ -39,17 +44,54 @@ const getNotificationHref = (item: NotificationItem) => {
 };
 
 export function NotificationMenu() {
-  const { data, isLoading, isError } = useNotifications({ enabled: true, refetchIntervalMs: false });
+  const pathname = usePathname();
+  const queryClient = useQueryClient();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuthState();
+  const [open, setOpen] = useState(false);
+  const previousPathnameRef = useRef<string | null>(null);
+  const notificationsEnabled = !isAuthLoading && isAuthenticated;
+  const { data: unreadCountData } = useUnreadNotificationCount({
+    enabled: notificationsEnabled,
+    refetchIntervalMs: 120000,
+    refetchInBackground: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+  const { data, isLoading, isError } = useNotifications({
+    enabled: notificationsEnabled && open,
+    page: 1,
+    pageSize: 20,
+    refetchIntervalMs: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
   const { mutate: markAsRead, isPending: isMarkingSingle } = useMarkNotificationsAsRead();
   const { mutate: markAllAsRead, isPending: isMarkingAll } = useMarkAllNotificationsAsRead();
 
-  const unreadCount = data?.unreadCount ?? 0;
+  useEffect(() => {
+    if (!notificationsEnabled) {
+      previousPathnameRef.current = pathname;
+      return;
+    }
+
+    if (previousPathnameRef.current === null) {
+      previousPathnameRef.current = pathname;
+      return;
+    }
+
+    if (previousPathnameRef.current === pathname) return;
+
+    previousPathnameRef.current = pathname;
+    void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  }, [notificationsEnabled, pathname, queryClient]);
+
+  const unreadCount = unreadCountData?.unreadCount ?? data?.unreadCount ?? 0;
   const hasUnread = unreadCount > 0;
   const notifications = data?.items ?? [];
   const unreadIds = notifications.filter((item) => !item.isRead).map((item) => item.id);
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
@@ -72,10 +114,10 @@ export function NotificationMenu() {
             onClick={() => {
               if (unreadIds.length > 0) markAllAsRead();
             }}
-            disabled={!hasUnread || isMarkingAll}
+            disabled={!hasUnread || unreadIds.length === 0 || isMarkingAll}
             className={cn(
               'text-xs font-medium text-primary transition-opacity',
-              (!hasUnread || isMarkingAll) && 'opacity-50'
+              (!hasUnread || unreadIds.length === 0 || isMarkingAll) && 'opacity-50'
             )}
           >
             {isMarkingAll ? 'Marking...' : 'Mark all read'}

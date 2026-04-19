@@ -24,6 +24,10 @@ const PLATFORM_CONFIG: Record<string, { name: string; iconSrc: string }> = {
     name: 'Spotify',
     iconSrc: '/images/spotify_logo_colored.png',
   },
+  apple: {
+    name: 'Apple Music',
+    iconSrc: '/images/apple_music_logo_colored.png',
+  },
   applemusic: {
     name: 'Apple Music',
     iconSrc: '/images/apple_music_logo_colored.png',

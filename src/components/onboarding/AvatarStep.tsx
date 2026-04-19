@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Upload, User, Camera, X, ImagePlus } from 'lucide-react';
+import { AvatarCropDialog } from '@/components/shared/avatar-crop-dialog';
 
 interface FormData {
   username: string;
@@ -14,6 +15,7 @@ interface FormData {
 
 interface AvatarStepProps {
   formData: FormData;
+  avatarPreview: string | null;
   updateFormData: (updates: Partial<FormData>) => void;
   onNext: () => void;
   onBack: () => void;
@@ -26,24 +28,16 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export function AvatarStep({
   formData,
+  avatarPreview,
   updateFormData,
   onNext,
   onBack,
   isLastStep,
 }: AvatarStepProps) {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
-
-  // Cleanup preview URL on unmount
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
 
   const processFile = useCallback((file: File) => {
     // Validate file type
@@ -62,18 +56,8 @@ export function AvatarStep({
       return;
     }
 
-    updateFormData({ avatarFile: file });
-
-    // Cleanup previous preview URL
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-
-    // Create new preview URL
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    toast.success('Photo uploaded!');
-  }, [previewUrl, updateFormData]);
+    setPendingAvatarFile(file);
+  }, []);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -106,19 +90,32 @@ export function AvatarStep({
   };
 
   const handleUploadClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     fileInputRef.current?.click();
   };
 
   const handleRemovePhoto = () => {
     updateFormData({ avatarFile: null });
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
+    setPendingAvatarFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
     toast.info('Photo removed');
+  };
+
+  const handleCropCancel = () => {
+    setPendingAvatarFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleCropApply = async (croppedFile: File) => {
+    updateFormData({ avatarFile: croppedFile });
+    setPendingAvatarFile(null);
+    toast.success('Photo uploaded!');
   };
 
   const handlePrimaryAction = () => {
@@ -160,13 +157,13 @@ export function AvatarStep({
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className={`w-32 h-32 rounded-full border-4 overflow-hidden ${
-              previewUrl ? 'border-primary' : 'border-muted'
+              avatarPreview ? 'border-primary' : 'border-muted'
             }`}
           >
-            {previewUrl ? (
+            {avatarPreview ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={previewUrl}
+                src={avatarPreview}
                 alt="Profile preview"
                 className="w-full h-full object-cover"
               />
@@ -186,7 +183,7 @@ export function AvatarStep({
           </button>
 
           {/* Remove Button */}
-          {previewUrl && (
+          {avatarPreview && (
             <motion.button
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -200,7 +197,7 @@ export function AvatarStep({
 
         {/* Upload Instructions */}
         <div className="text-center space-y-3">
-          {!previewUrl ? (
+          {!avatarPreview ? (
             <>
               <div className="flex items-center justify-center gap-2 text-muted-foreground">
                 <ImagePlus className="w-5 h-5" />
@@ -214,6 +211,7 @@ export function AvatarStep({
             variant="outline"
             onClick={handleUploadClick}
             className="gap-2"
+            data-testid="onboarding-avatar-choose"
           >
             <Upload className="w-4 h-4" />
             {formData.avatarFile ? 'Change Photo' : 'Choose Photo'}
@@ -229,6 +227,7 @@ export function AvatarStep({
           type="file"
           accept="image/jpeg,image/png,image/webp"
           onChange={handleFileSelect}
+          data-testid="onboarding-avatar-file-input"
           className="hidden"
         />
       </div>
@@ -246,6 +245,13 @@ export function AvatarStep({
           {isLastStep ? 'Finish' : 'Next'}
         </Button>
       </div>
+
+      <AvatarCropDialog
+        open={pendingAvatarFile !== null}
+        file={pendingAvatarFile}
+        onApply={handleCropApply}
+        onCancel={handleCropCancel}
+      />
     </motion.div>
   );
 }

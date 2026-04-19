@@ -41,7 +41,7 @@ export function ProfileActivity({
 }: ProfileActivityProps) {
   if (isLoading && posts.length === 0) {
     return (
-      <div className="min-h-screen lg:min-h-0 lg:h-full">
+      <div className="lg:h-full">
         <div className="p-3 sm:p-4 md:p-6 lg:p-8">
           <ActivitySkeleton />
         </div>
@@ -51,7 +51,7 @@ export function ProfileActivity({
 
   if (posts.length === 0) {
     return (
-      <div className="min-h-screen lg:min-h-0 lg:h-full">
+      <div className="lg:h-full">
         <div className="flex flex-col items-center justify-center p-4 sm:p-8 md:p-12 text-center h-full">
           <div className="w-12 h-12 sm:w-16 sm:h-16 mb-4 flex items-center justify-center">
             <Music className="w-full h-full text-muted-foreground/70" aria-hidden="true" />
@@ -63,7 +63,7 @@ export function ProfileActivity({
   }
 
   return (
-    <div className="min-h-screen lg:min-h-0 lg:h-full">
+    <div>
       <div className="p-3 sm:p-4 md:p-6 lg:p-8">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
           {posts.map((post) => (
@@ -149,7 +149,7 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
 
   return (
     <>
-      <Card className="group relative gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden bg-card/70 backdrop-blur-sm border-border/60 hover:border-border hover:shadow-md transition-all duration-200">
+      <Card className="group relative gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden bg-card/70 backdrop-blur-sm border-border/60 font-atkinson hover:border-border hover:shadow-md transition-all duration-200">
         <Link href={getNavigationPath(post)} className="block px-3 sm:px-4 py-3">
           <div className="flex gap-3 sm:gap-4 items-start">
             {/* Artwork with overlaid type badge */}

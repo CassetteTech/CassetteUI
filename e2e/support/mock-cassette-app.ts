@@ -162,6 +162,9 @@ const getMultipartField = (body: string | null, fieldName: string) => {
   return body.slice(valueStart + 4, boundaryStart).trim();
 };
 
+const hasMultipartField = (body: string | null, fieldName: string) =>
+  body?.includes(`name="${fieldName}"`) || false;
+
 const ensureUser = (state: MockState, user: FixtureUser) => {
   const cloned = clone(user);
   state.usersById.set(cloned.id, cloned);
@@ -397,11 +400,13 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       const bio = getMultipartField(body, 'Bio') || getMultipartField(body, 'bio');
       const likedPostsPrivacy = getMultipartField(body, 'likedPostsPrivacy') as 'public' | 'private' | undefined;
       const isOnboarded = getMultipartField(body, 'isOnboarded');
+      const hasAvatarUpload = hasMultipartField(body, 'avatar') || hasMultipartField(body, 'Avatar');
 
       updateUser(state, currentUser.id, {
         username: username ? normalizeUsername(username) : currentUser.username,
         displayName: displayName || currentUser.displayName,
         bio: bio ?? currentUser.bio,
+        avatarUrl: hasAvatarUpload ? `/images/cassette_logo.png?avatar=${currentUser.id}` : currentUser.avatarUrl,
         likedPostsPrivacy: likedPostsPrivacy || currentUser.likedPostsPrivacy || 'public',
         isOnboarded: isOnboarded === 'true' ? true : currentUser.isOnboarded,
       });

@@ -13,6 +13,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { TextField } from '@/components/ui/text-field';
 import { DeleteAccountModal } from './delete-account-modal';
 import { AlertTriangle, Camera, Globe2, Lock } from 'lucide-react';
+import { AvatarCropDialog } from '@/components/shared/avatar-crop-dialog';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -50,6 +51,7 @@ export function EditProfileFormComponent({
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -123,6 +125,7 @@ export function EditProfileFormComponent({
     setAvatarError(null);
     setUsernameError(null);
     setAvatarFile(null);
+    setPendingAvatarFile(null);
     setAvatarPreviewUrl((current) => {
       if (current) {
         URL.revokeObjectURL(current);
@@ -219,13 +222,25 @@ export function EditProfileFormComponent({
     }
 
     setAvatarError(null);
-    setAvatarFile(file);
+    setPendingAvatarFile(file);
+  };
+
+  const handleAvatarCropCancel = () => {
+    setPendingAvatarFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleAvatarCropApply = async (croppedFile: File) => {
+    setPendingAvatarFile(null);
+    setAvatarFile(croppedFile);
 
     if (avatarPreviewUrl) {
       URL.revokeObjectURL(avatarPreviewUrl);
     }
 
-    const previewUrl = URL.createObjectURL(file);
+    const previewUrl = URL.createObjectURL(croppedFile);
     setAvatarPreviewUrl(previewUrl);
   };
 
@@ -249,6 +264,7 @@ export function EditProfileFormComponent({
               type="file"
               accept="image/jpeg,image/png,image/webp"
               onChange={handleAvatarFileChange}
+              data-testid="profile-avatar-file-input"
               className="hidden"
             />
           </div>
@@ -256,6 +272,7 @@ export function EditProfileFormComponent({
             <button
               type="button"
               onClick={handleImageUpload}
+              data-testid="profile-avatar-choose"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground border border-border rounded-md px-3 py-1.5 hover:bg-muted transition-colors"
             >
               <Camera className="h-3.5 w-3.5" />
@@ -379,6 +396,12 @@ export function EditProfileFormComponent({
         open={showDeleteModal}
         onOpenChange={setShowDeleteModal}
         username={initialData?.username || ''}
+      />
+      <AvatarCropDialog
+        open={pendingAvatarFile !== null}
+        file={pendingAvatarFile}
+        onApply={handleAvatarCropApply}
+        onCancel={handleAvatarCropCancel}
       />
     </div>
   );

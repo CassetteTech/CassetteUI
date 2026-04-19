@@ -8,7 +8,6 @@ import { ProfileHeader } from '@/components/features/profile/profile-header';
 import { ProfileHeaderSkeleton } from '@/components/features/profile/profile-header-skeleton';
 import { ProfileTabs, TabType } from '@/components/features/profile/profile-tabs';
 import { ProfileActivity, ActivitySkeleton } from '@/components/features/profile/profile-activity';
-import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
 import { profileService } from '@/services/profile';
 import { applyCachedArtwork } from '@/services/profile-artwork-cache';
 import { ActivityPost } from '@/types';
@@ -354,7 +353,7 @@ export default function ProfilePage() {
     <>
       {/* --- MOBILE & TABLET LAYOUT --- */}
       <div className="bg-background lg:hidden">
-        <Container className="min-h-screen bg-transparent p-0">
+        <Container className="bg-transparent p-0">
           <div className="max-w-4xl mx-auto">
             {/* Back button — only for other users' profiles */}
             {!isCurrentUser && userBio && (
@@ -372,15 +371,6 @@ export default function ProfilePage() {
                 onAddMusic={isCurrentUser ? handleAddMusic : undefined}
               />
             ) : null}
-            {isCurrentUser && !showHeaderSkeleton && (
-              <div className="px-4 mb-4">
-                <MusicConnectionsStatus
-                  variant="profile"
-                  platformPreferencesOverride={userBio?.platformPreferences}
-                  connectedServicesOverride={userBio?.connectedServices}
-                />
-              </div>
-            )}
             <div className="sticky top-0 z-10">
               <ProfileTabs
                 activeTab={activeTab}
@@ -423,7 +413,7 @@ export default function ProfilePage() {
               likedTabVisibility={likedTabVisibility}
             />
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto" data-testid="profile-content-pane">
             {showActivitySkeleton ? (
               <div className="p-3 sm:p-4 md:p-6 lg:p-8">
                 <ActivitySkeleton count={6} />

@@ -2,6 +2,15 @@ import { expect, test } from '@playwright/test';
 import { fixtureUsers } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
+const AVATAR_FILE = {
+  name: 'avatar.png',
+  mimeType: 'image/png',
+  buffer: Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a2ioAAAAASUVORK5CYII=',
+    'base64',
+  ),
+};
+
 test('redirects /profile and persists profile edits and music service preferences', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
@@ -32,6 +41,20 @@ test('redirects /profile and persists profile edits and music service preference
   await expect(
     reopenedProfileMain.locator('[data-testid="music-service-toggle-deezer"]:visible'),
   ).toHaveAttribute('data-state', 'checked');
+});
+
+test('crops a new avatar before saving profile edits', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+  });
+
+  await page.goto('/profile/miagroove/edit');
+  await page.getByTestId('profile-avatar-file-input').setInputFiles(AVATAR_FILE);
+  await expect(page.getByRole('dialog', { name: 'Adjust profile photo' })).toBeVisible();
+  await page.getByTestId('avatar-crop-apply').click();
+  await page.getByTestId('profile-save').click();
+
+  await expect(page).toHaveURL(/\/profile\/miagroove(?:\?tab=playlists)?$/);
 });
 
 test('persists liked-post privacy changes and hides the liked tab from other viewers', async ({

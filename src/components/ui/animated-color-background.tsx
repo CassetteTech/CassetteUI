@@ -5,14 +5,13 @@ import { useTheme } from 'next-themes';
 import { ColorExtractor, type ColorPalette } from '@/services/color-extractor';
 
 interface AnimatedColorBackgroundProps {
-  /** Full palette from ColorExtractor. If null, the background fades out. */
+  /** Full palette from ColorExtractor. If null, the background reverts to theme default. */
   palette: ColorPalette | null;
-  /** Duration of the opacity/palette crossfade between posts, in ms. */
+  /** Duration of the palette crossfade between posts, in ms. */
   duration?: number;
 }
 
 // Static SVG grain — feTurbulence noise, desaturated via feColorMatrix, tiled seamlessly.
-// Breaks up banding on large color fields; compiled once per page load.
 const GRAIN_DATA_URI = (() => {
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'>
     <filter id='n'>
@@ -37,67 +36,74 @@ export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = (
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
-  // Clamp intensity when the dominant hue would wash out content: pale covers in light mode,
-  // or low-confidence extractions where the palette isn't trustworthy enough to commit to.
   const shouldClamp = palette
     ? palette.confidence < 0.4 || (!isDark && ColorExtractor.isLightColor(palette.dominant))
     : false;
 
-  // screen in dark mode boosts luminance on a dark floor; multiply tints against a light floor.
   const blendMode = !isDark || shouldClamp ? 'multiply' : 'screen';
-
   const alphaCap = shouldClamp ? 0.55 : isDark ? 0.95 : 0.85;
 
   const meshBackground = React.useMemo(() => {
-    if (!palette) return 'transparent';
+    if (!palette) return '';
 
     const accentSource = palette.vibrant || palette.analogous?.[0] || palette.dominant;
 
-    // Weight concentrated in the bottom half so the top of the viewport fades cleanly into
-    // `--background` (no hard seam against the navbar). A small accent peeks in from the
-    // top-right corner (mostly off-canvas) to keep the composition asymmetric.
     const primary = hexWithAlpha(palette.dominant, alphaCap);
     const accent  = hexWithAlpha(accentSource, alphaCap * 0.9);
+    const fill    = hexWithAlpha(palette.muted, alphaCap * 0.75);
     const topPeek = hexWithAlpha(accentSource, alphaCap * 0.55);
+    const washMid = hexWithAlpha(palette.muted, alphaCap * 0.35);
+    const washEnd = hexWithAlpha(palette.muted, alphaCap * 0.50);
 
-    const blobs = [
-      // Bottom-left anchor: the dominant color carries the visual weight.
-      `radial-gradient(95vmax at 20% 110%, ${primary} 0%, ${palette.dominant}00 62%)`,
-      // Bottom-right counterbalance.
-      `radial-gradient(70vmax at 85% 95%, ${accent} 0%, ${accentSource}00 60%)`,
-      // Top-right peek: center pushed off-screen so it fades out before reaching the navbar.
+    return [
+      `radial-gradient(120vmax at 50% 110%, ${fill} 0%, ${palette.muted}00 62%)`,
+      `radial-gradient(85vmax at 15% 100%, ${primary} 0%, ${palette.dominant}00 58%)`,
+      `radial-gradient(75vmax at 90% 95%, ${accent} 0%, ${accentSource}00 58%)`,
       `radial-gradient(55vmax at 100% -10%, ${topPeek} 0%, ${accentSource}00 55%)`,
+      `linear-gradient(to bottom, ${palette.muted}00 8%, ${washMid} 45%, ${washEnd} 100%)`,
     ].join(', ');
-
-    return `${blobs}, hsl(var(--background))`;
   }, [palette, alphaCap]);
 
+  // Apply the mesh to <body> directly. On iOS Safari with viewport-fit=cover, body's
+  // background paints the full layout viewport — including under the URL pill and home
+  // indicator — unconditionally. A position:fixed wrapper can't match that because fixed
+  // elements track the visual viewport (smaller when Safari chrome is visible) and can also
+  // end up in odd stacking positions under transformed ancestors.
+  React.useEffect(() => {
+    const body = document.body;
+    if (!palette) {
+      body.style.backgroundImage = '';
+      body.style.backgroundAttachment = '';
+      body.style.backgroundBlendMode = '';
+      body.style.transition = '';
+      return;
+    }
+    body.style.backgroundImage = meshBackground;
+    body.style.backgroundAttachment = 'fixed';
+    body.style.backgroundBlendMode = blendMode;
+    body.style.transition = `background-image ${duration}ms ease-in-out`;
+    return () => {
+      body.style.backgroundImage = '';
+      body.style.backgroundAttachment = '';
+      body.style.backgroundBlendMode = '';
+      body.style.transition = '';
+    };
+  }, [palette, meshBackground, blendMode, duration]);
+
+  // Grain overlay stays as a pointer-none fixed element at -z-10; its small footprint in
+  // the Safari chrome area is imperceptible. mix-blend-soft-light needs the blob colors
+  // under it, so this sits above the body's background image.
   return (
     <div
-      className="fixed inset-0 -z-10 pointer-events-none overflow-hidden"
+      className="fixed inset-0 -z-10 pointer-events-none"
       aria-hidden="true"
       style={{
-        opacity: palette ? 1 : 0,
+        backgroundImage: GRAIN_DATA_URI,
+        backgroundSize: '240px 240px',
+        mixBlendMode: 'soft-light',
+        opacity: palette ? 0.12 : 0,
         transition: `opacity ${duration}ms ease-in-out`,
       }}
-    >
-      <div
-        className="absolute -inset-[8%] mesh-drift"
-        style={{
-          background: meshBackground,
-          backgroundBlendMode: blendMode,
-          transition: `background ${duration}ms ease-in-out`,
-          willChange: 'transform',
-        }}
-      />
-      <div
-        className="absolute inset-0 mix-blend-soft-light"
-        style={{
-          backgroundImage: GRAIN_DATA_URI,
-          backgroundSize: '240px 240px',
-          opacity: 0.12,
-        }}
-      />
-    </div>
+    />
   );
 };

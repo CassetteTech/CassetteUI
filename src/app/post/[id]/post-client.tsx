@@ -1933,10 +1933,12 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   </Button>
                 </div>
               )}
-              {showSignupCTA && (
-                <JoinCassetteCTA onClick={handleSignupClick} />
-              )}
-              <SupportCTA />
+              <div className="mt-4 pt-5 border-t border-border/40 space-y-5">
+                {showSignupCTA && (
+                  <JoinCassetteCTA onClick={handleSignupClick} />
+                )}
+                <SupportCTA />
+              </div>
 
               {/* Report Problem Button */}
               <div className="flex justify-center">

@@ -107,6 +107,14 @@ export function Navbar() {
                       )}
                     </DropdownMenuItem>
                   ))}
+                  <DropdownMenuSeparator className="bg-border/20" />
+                  <DropdownMenuItem
+                    onClick={() => openReportModal()}
+                    className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors cursor-pointer"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Report a Problem</span>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

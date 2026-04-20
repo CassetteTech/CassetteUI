@@ -33,6 +33,14 @@ export function isPasteLikeInputEvent(
     'inputType' in nativeEvent && typeof nativeEvent.inputType === 'string'
       ? nativeEvent.inputType
       : '';
+  const insertedData =
+    'data' in nativeEvent && typeof nativeEvent.data === 'string'
+      ? nativeEvent.data
+      : '';
 
-  return inputType === 'insertFromPaste';
+  return (
+    inputType === 'insertFromPaste' ||
+    inputType === 'insertReplacementText' ||
+    (inputType === 'insertText' && insertedData.length > 1)
+  );
 }

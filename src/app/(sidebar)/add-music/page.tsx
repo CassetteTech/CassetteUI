@@ -440,8 +440,12 @@ export default function AddMusicPage() {
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
     const pastedText = normalizeUrlInput(e.clipboardData.getData('text'));
+    if (!pastedText) {
+      return;
+    }
+
+    e.preventDefault();
     const detected = detectContentType(pastedText);
     const validationError = validateMusicLink(pastedText);
 

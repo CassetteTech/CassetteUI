@@ -2,12 +2,13 @@
 
 import type { Area } from 'react-easy-crop';
 
-const SUPPORTED_OUTPUT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const SUPPORTED_OUTPUT_TYPES = new Set(['image/jpeg', 'image/webp']);
 const EXTENSION_BY_TYPE: Record<string, string> = {
   'image/jpeg': '.jpg',
-  'image/png': '.png',
   'image/webp': '.webp',
 };
+const MAX_AVATAR_DIMENSION = 512;
+const DEFAULT_EXPORT_QUALITY = 0.82;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -18,7 +19,11 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob> {
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality = DEFAULT_EXPORT_QUALITY,
+): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (!blob) {
@@ -27,7 +32,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob> {
       }
 
       resolve(blob);
-    }, type, type === 'image/jpeg' ? 0.92 : undefined);
+    }, type, quality);
   });
 }
 
@@ -50,17 +55,20 @@ export async function cropAvatarFile(file: File, croppedAreaPixels: Area): Promi
 
   try {
     const image = await loadImage(objectUrl);
-    const outputType = SUPPORTED_OUTPUT_TYPES.has(file.type) ? file.type : 'image/png';
+    const outputType = file.type === 'image/webp' ? 'image/webp' : 'image/jpeg';
     const width = Math.max(1, Math.round(croppedAreaPixels.width));
     const height = Math.max(1, Math.round(croppedAreaPixels.height));
     const maxX = Math.max(0, image.naturalWidth - width);
     const maxY = Math.max(0, image.naturalHeight - height);
     const sourceX = Math.min(Math.max(0, Math.round(croppedAreaPixels.x)), maxX);
     const sourceY = Math.min(Math.max(0, Math.round(croppedAreaPixels.y)), maxY);
+    const scale = Math.min(1, MAX_AVATAR_DIMENSION / Math.max(width, height));
+    const targetWidth = Math.max(1, Math.round(width * scale));
+    const targetHeight = Math.max(1, Math.round(height * scale));
 
     const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
 
     const context = canvas.getContext('2d');
     if (!context) {
@@ -77,8 +85,8 @@ export async function cropAvatarFile(file: File, croppedAreaPixels: Area): Promi
       height,
       0,
       0,
-      width,
-      height,
+      targetWidth,
+      targetHeight,
     );
 
     const blob = await canvasToBlob(canvas, outputType);

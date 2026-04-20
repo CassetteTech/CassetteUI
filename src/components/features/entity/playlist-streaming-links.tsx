@@ -38,8 +38,11 @@ interface PlaylistStreamingLinksProps {
 interface CreationStatus {
   platform: PlatformKey;
   loading: boolean;
+  loadingMessage?: string;
   result?: CreatePlaylistResponse;
   error?: string;
+  requiresReconnect?: boolean;
+  actionLabel?: string;
 }
 
 const PLATFORMS: Array<PlatformKey> = ['spotify', 'appleMusic'];
@@ -114,6 +117,81 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     };
   }, [isAuthenticated, playlistId, playlistTrackCount, postId, resolvedSourceUrl, sourcePlatformKey]);
 
+  const setAppleMusicReconnectState = React.useCallback((message: string, actionLabel: string) => {
+    setCreationStatus({
+      platform: 'appleMusic',
+      loading: false,
+      error: message,
+      requiresReconnect: true,
+      actionLabel,
+    });
+  }, []);
+
+  const createPlaylistOnPlatform = React.useCallback(async (platform: PlatformKey) => {
+    const serviceName = streamingServices[platform]?.name || platform;
+    setCreationStatus({
+      platform,
+      loading: true,
+      loadingMessage: `Creating playlist on ${serviceName}...`,
+    });
+
+    const result = await apiService.createPlaylist(playlistId, platform.toLowerCase(), postId);
+    pendingActionService.clear();
+    setCreationStatus({ platform, loading: false, result });
+  }, [playlistId, postId]);
+
+  const connectAppleMusicAndCreatePlaylist = React.useCallback(async (actionLabel = 'Reconnect Apple Music') => {
+    const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+    pendingActionService.save(
+      pendingActionService.createPlaylistAction('appleMusic', playlistId, currentUrl)
+    );
+    setCreationStatus({
+      platform: 'appleMusic',
+      loading: true,
+      loadingMessage: 'Connecting to Apple Music...',
+    });
+
+    try {
+      const success = await platformConnectService.connectAppleMusic(currentUrl);
+      if (!success) {
+        setAppleMusicReconnectState('Failed to connect to Apple Music. Please try again.', actionLabel);
+        return;
+      }
+    } catch (error) {
+      if (error instanceof ApiError && error.requiresReauth) {
+        setAppleMusicReconnectState('Your Apple Music connection expired. Reconnect to continue.', 'Reconnect Apple Music');
+        return;
+      }
+
+      setCreationStatus({
+        platform: 'appleMusic',
+        loading: false,
+        error: error instanceof Error ? error.message : 'Failed to connect to Apple Music. Please try again.',
+        requiresReconnect: true,
+        actionLabel,
+      });
+      return;
+    }
+
+    pendingActionService.clear();
+
+    try {
+      await createPlaylistOnPlatform('appleMusic');
+    } catch (error) {
+      if (error instanceof ApiError && error.requiresReauth) {
+        setAppleMusicReconnectState('Your Apple Music connection expired. Reconnect to continue.', 'Reconnect Apple Music');
+        return;
+      }
+
+      setCreationStatus({
+        platform: 'appleMusic',
+        loading: false,
+        error: error instanceof Error ? error.message : 'Failed to create playlist',
+      });
+    }
+  }, [createPlaylistOnPlatform, playlistId, setAppleMusicReconnectState]);
+
   const handleCreatePlaylist = React.useCallback(async (platform: PlatformKey) => {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
     const normalizedTarget = platform === 'appleMusic' ? 'apple' : platform;
@@ -153,7 +231,11 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     }
 
     // Case 2: User logged in - check if they have platform connection
-    setCreationStatus({ platform, loading: true });
+    setCreationStatus({
+      platform,
+      loading: true,
+      loadingMessage: `Creating playlist on ${streamingServices[platform]?.name || platform}...`,
+    });
     setShowFailedTracks(false);
 
     try {
@@ -186,20 +268,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
           await platformConnectService.connectSpotify(currentUrl);
           return; // Will redirect to Spotify
         } else if (platform === 'appleMusic') {
-          // Apple Music uses modal-based auth (no redirect)
-          const success = await platformConnectService.connectAppleMusic(currentUrl);
-          if (success) {
-            // Connected successfully, now create the playlist
-            pendingActionService.clear();
-            const result = await apiService.createPlaylist(playlistId, platform.toLowerCase(), postId);
-            setCreationStatus({ platform, loading: false, result });
-          } else {
-            setCreationStatus({
-              platform,
-              loading: false,
-              error: 'Failed to connect to Apple Music. Please try again.',
-            });
-          }
+          await connectAppleMusicAndCreatePlaylist('Connect Apple Music');
           return;
         } else if (platform === 'deezer') {
           setCreationStatus({
@@ -212,37 +281,10 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       }
 
       // Case 3: Has connection - create playlist directly
-      const result = await apiService.createPlaylist(playlistId, platform.toLowerCase(), postId);
-      pendingActionService.clear();
-      setCreationStatus({ platform, loading: false, result });
+      await createPlaylistOnPlatform(platform);
     } catch (error) {
-      // Check if this is an auth error requiring re-authentication
       if (error instanceof ApiError && error.requiresReauth && platform === 'appleMusic') {
-        // Clear the old connection and trigger re-auth flow
-        pendingActionService.save(
-          pendingActionService.createPlaylistAction(platform, playlistId, currentUrl)
-        );
-        const success = await platformConnectService.connectAppleMusic(currentUrl);
-        if (success) {
-          // Reconnected successfully, retry the playlist creation
-          pendingActionService.clear();
-          try {
-            const retryResult = await apiService.createPlaylist(playlistId, platform.toLowerCase(), postId);
-            setCreationStatus({ platform, loading: false, result: retryResult });
-          } catch (retryError) {
-            setCreationStatus({
-              platform,
-              loading: false,
-              error: retryError instanceof Error ? retryError.message : 'Failed to create playlist after reconnecting',
-            });
-          }
-        } else {
-          setCreationStatus({
-            platform,
-            loading: false,
-            error: 'Please reconnect your Apple Music account to continue.',
-          });
-        }
+        setAppleMusicReconnectState('Your Apple Music connection expired. Reconnect to continue.', 'Reconnect Apple Music');
         return;
       }
 
@@ -252,7 +294,17 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
         error: error instanceof Error ? error.message : 'Failed to create playlist',
       });
     }
-  }, [buildPlaylistAnalyticsProps, isAuthenticated, playlistId, postId, resolvedSourceUrl, sourcePlatformKey]);
+  }, [
+    buildPlaylistAnalyticsProps,
+    connectAppleMusicAndCreatePlaylist,
+    createPlaylistOnPlatform,
+    isAuthenticated,
+    playlistId,
+    postId,
+    resolvedSourceUrl,
+    setAppleMusicReconnectState,
+    sourcePlatformKey,
+  ]);
 
   useEffect(() => {
     if (!isAuthenticated || creationStatus || autoResumeAttemptedRef.current) {
@@ -275,8 +327,24 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     }
 
     autoResumeAttemptedRef.current = true;
+
+    if (pendingAction.platform === 'appleMusic') {
+      setAppleMusicReconnectState('Connect Apple Music to continue converting this playlist.', 'Connect Apple Music');
+      return;
+    }
+
     void handleCreatePlaylist(pendingAction.platform);
-  }, [creationStatus, handleCreatePlaylist, isAuthenticated, playlistId]);
+  }, [creationStatus, handleCreatePlaylist, isAuthenticated, playlistId, setAppleMusicReconnectState]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    void platformConnectService.preloadAppleMusic().catch((error) => {
+      console.warn('Apple Music preload failed:', error);
+    });
+  }, [isAuthenticated]);
 
   // Save pending action before navigating to auth pages
   const handleAuthNavigate = () => {
@@ -299,7 +367,9 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
         <div className="mt-4 p-4 rounded-xl bg-info/10 border border-info/20">
           <div className="flex items-center gap-2 text-info-text">
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm font-medium">Creating playlist on {serviceName}...</span>
+            <span className="text-sm font-medium">
+              {creationStatus.loadingMessage || `Creating playlist on ${serviceName}...`}
+            </span>
           </div>
         </div>
       );
@@ -312,6 +382,26 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
             <AlertCircle className="w-4 h-4" />
             <span className="text-sm font-medium">{creationStatus.error}</span>
           </div>
+          {creationStatus.requiresReconnect && creationStatus.platform === 'appleMusic' && (
+            <button
+              type="button"
+              onClick={() => void connectAppleMusicAndCreatePlaylist(creationStatus.actionLabel || 'Reconnect Apple Music')}
+              className={cn(
+                'mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-full',
+                'bg-foreground text-background hover:opacity-90',
+                'text-sm font-medium transition-opacity w-fit cursor-pointer'
+              )}
+            >
+              <Image
+                src={streamingServices.appleMusic.icon}
+                alt={streamingServices.appleMusic.name}
+                width={16}
+                height={16}
+                className="object-contain"
+              />
+              <span>{creationStatus.actionLabel || 'Reconnect Apple Music'}</span>
+            </button>
+          )}
         </div>
       );
     }

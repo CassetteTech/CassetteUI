@@ -573,7 +573,7 @@ export function PostCommentsSheet({
                   <Textarea
                     value={editingContent}
                     onChange={(event) => setEditingContent(event.target.value)}
-                    className="min-h-[72px] resize-none bg-card border-border/60"
+                    className="min-h-[72px] resize-none bg-card border-border/60 dark:bg-secondary dark:text-secondary-foreground"
                   />
                   <div className="flex items-center justify-end gap-2">
                     <Button type="button" size="sm" variant="ghost" onClick={cancelEdit} className="h-7 text-xs">
@@ -692,7 +692,7 @@ export function PostCommentsSheet({
                         onChange={(event) => setReplyContent(event.target.value)}
                         placeholder={`Reply to ${comment.username}...`}
                         disabled={isReplying || !commentsEnabled}
-                        className="min-h-[64px] resize-none bg-card border-border/50 text-sm"
+                        className="min-h-[64px] resize-none bg-card border-border/50 text-sm dark:bg-secondary dark:text-secondary-foreground dark:placeholder:text-secondary-foreground/50"
                         autoFocus
                       />
                       <div className="flex items-center justify-between">
@@ -825,7 +825,7 @@ export function PostCommentsSheet({
           onChange={(event) => composerOnChange(event.target.value)}
           placeholder={composerPlaceholder}
           disabled={composerBusy || !commentsEnabled}
-          className="min-h-[64px] resize-none bg-card border-border/60 pr-11 text-sm placeholder:text-muted-foreground/60"
+          className="min-h-[64px] resize-none bg-card border-border/60 pr-11 text-sm placeholder:text-muted-foreground/60 dark:bg-secondary dark:text-secondary-foreground dark:placeholder:text-secondary-foreground/50"
         />
         <button
           type="button"

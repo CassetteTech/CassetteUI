@@ -706,6 +706,57 @@
   }
 }
 
+/* Conversion overlay: gentle halo breathing behind the logo */
+@keyframes progress-breath {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-progress-breath {
+    animation: progress-breath 2.4s ease-in-out infinite;
+  }
+}
+
+/* Conversion overlay: shimmer sweep across active step label */
+@keyframes shimmer-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.animate-shimmer-sweep {
+  animation: shimmer-sweep 2.4s ease-in-out infinite;
+}
+
+/* Conversion overlay: richer equalizer bars (replaces the 5-bar waveform) */
+@keyframes eq-dance {
+  0%, 100% { transform: scaleY(0.25); }
+  20%      { transform: scaleY(0.85); }
+  40%      { transform: scaleY(0.45); }
+  60%      { transform: scaleY(1);    }
+  80%      { transform: scaleY(0.55); }
+}
+
+.animate-eq-dance {
+  transform-origin: center bottom;
+  animation: eq-dance 1.3s ease-in-out infinite;
+}
+
+/* Conversion overlay: conic gradient ring rotation around the artwork */
+@keyframes ring-rotate {
+  to { transform: rotate(360deg); }
+}
+
+.animate-ring-rotate {
+  animation: ring-rotate 6s linear infinite;
+}
+
 /* Album-art mesh background: slow drift so the gradient feels alive without reading as motion. */
 @keyframes mesh-drift {
   0%   { transform: translate3d(-3%, -2%, 0) scale(1.04); }

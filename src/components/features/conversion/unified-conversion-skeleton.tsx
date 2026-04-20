@@ -78,6 +78,182 @@ interface LayoutProps {
 }
 
 /**
+ * The inner overlay shown on top of the artwork skeleton while the conversion
+ * API is in flight. Desktop uses a circular SVG progress ring around the logo;
+ * mobile falls back to a compact linear bar to keep vertical space usable.
+ *
+ * All animation work is visual — the percentage and step name are driven by
+ * useSimulatedProgress, which is untouched.
+ */
+interface ConversionOverlayProps {
+  progressPercent: number;
+  currentStepName: string;
+  variant: 'desktop' | 'mobile';
+}
+
+const ConversionOverlay: React.FC<ConversionOverlayProps> = ({
+  progressPercent,
+  currentStepName,
+  variant
+}) => {
+  const isDesktop = variant === 'desktop';
+  const eqBarCount = isDesktop ? 9 : 7;
+  const eqMaxHeight = isDesktop ? 28 : 20;
+
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-md">
+      {/* Layered radial glow background — matches the glass surface treatment elsewhere */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(circle at 50% 40%, hsl(var(--background) / 0.55) 0%, hsl(var(--background) / 0.82) 60%, hsl(var(--background) / 0.92) 100%)'
+        }}
+      />
+      {/* Slow-rotating conic primary ring — sits on the overlay, not outside the artwork */}
+      <div
+        aria-hidden
+        className="absolute inset-4 rounded-full opacity-40 animate-ring-rotate"
+        style={{
+          background:
+            'conic-gradient(from 0deg, hsl(var(--primary) / 0) 0deg, hsl(var(--primary) / 0.35) 90deg, hsl(var(--primary) / 0) 220deg, hsl(var(--primary) / 0.25) 330deg, hsl(var(--primary) / 0) 360deg)',
+          WebkitMaskImage:
+            'radial-gradient(circle, transparent 58%, black 60%, black 66%, transparent 68%)',
+          maskImage:
+            'radial-gradient(circle, transparent 58%, black 60%, black 66%, transparent 68%)'
+        }}
+      />
+
+      <div className="relative z-10 flex flex-col items-center w-full px-6">
+        {isDesktop ? (
+          <CircularProgress percent={progressPercent} />
+        ) : (
+          <Image
+            src="/images/cassette_logo.png"
+            alt="Cassette Logo"
+            width={40}
+            height={40}
+            className="object-contain animate-pulse mb-3"
+          />
+        )}
+
+        {/* Equalizer bars */}
+        <div
+          className="flex items-end justify-center gap-[3px] mt-4"
+          style={{ height: eqMaxHeight + 4 }}
+        >
+          {Array.from({ length: eqBarCount }).map((_, i) => {
+            const baseScale = 0.35 + ((i * 37) % 55) / 100;
+            return (
+              <span
+                key={i}
+                className="w-[3px] rounded-full bg-gradient-to-t from-primary/70 to-primary animate-eq-dance"
+                style={{
+                  height: `${Math.round(eqMaxHeight * baseScale + 6)}px`,
+                  animationDelay: `${i * 0.08}s`,
+                  animationDuration: `${1.1 + (i % 3) * 0.15}s`
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Step label — crossfades when currentStepName changes */}
+        <div className="h-6 w-full flex items-center justify-center mt-3 overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={currentStepName}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="text-xs font-medium text-foreground/90 text-center truncate px-3"
+            >
+              {currentStepName || 'Preparing...'}
+            </motion.p>
+          </AnimatePresence>
+        </div>
+
+        {/* Percent readout */}
+        <p className="text-[10px] font-mono tabular-nums tracking-widest text-muted-foreground/80 mt-1">
+          {progressPercent}%
+        </p>
+
+        {/* Mobile linear bar fallback */}
+        {!isDesktop && (
+          <div className="w-3/4 mt-3 h-1.5 rounded-full bg-muted/50 overflow-hidden">
+            <motion.div
+              className="h-full bg-primary rounded-full"
+              initial={{ width: '6%' }}
+              animate={{ width: `${progressPercent}%` }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * SVG circular progress ring wrapped around the Cassette logo.
+ *
+ * strokeDasharray / strokeDashoffset technique: we set dasharray to the
+ * circumference and animate dashoffset from full-circumference (empty) to
+ * zero (full). Framer-motion animates the offset value numerically.
+ */
+const CircularProgress: React.FC<{ percent: number }> = ({ percent }) => {
+  const size = 120;
+  const stroke = 4;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percent / 100) * circumference;
+
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg
+        width={size}
+        height={size}
+        className="-rotate-90"
+        aria-hidden
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="hsl(var(--muted) / 0.5)"
+          strokeWidth={stroke}
+        />
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="hsl(var(--primary))"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          initial={false}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <Image
+          src="/images/cassette_logo.png"
+          alt="Cassette Logo"
+          width={44}
+          height={44}
+          className="object-contain animate-pulse"
+        />
+      </div>
+    </div>
+  );
+};
+
+/**
  * Desktop layout - matches EntitySkeleton desktop layout exactly
  * Layout structure mirrors PostClientPage desktop track/artist layout
  */
@@ -113,46 +289,13 @@ const DesktopLayout: React.FC<LayoutProps> = ({ progressState, progressPercent, 
                       initial={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="absolute inset-0 flex flex-col items-center justify-center bg-background/70 backdrop-blur-sm rounded-xl"
+                      className="absolute inset-0 rounded-xl overflow-hidden"
                     >
-                      {/* Logo */}
-                      <Image
-                        src="/images/cassette_logo.png"
-                        alt="Cassette Logo"
-                        width={48}
-                        height={48}
-                        className="object-contain animate-pulse mb-4"
+                      <ConversionOverlay
+                        progressPercent={progressPercent}
+                        currentStepName={progressState.currentStepName}
+                        variant="desktop"
                       />
-
-                      {/* Waveform */}
-                      <div className="flex items-center justify-center space-x-1 h-8 mb-4">
-                        {[12, 24, 32, 20, 16].map((baseHeight, i) => (
-                          <div
-                            key={i}
-                            className="w-1 bg-primary rounded-full"
-                            style={{
-                              height: `${baseHeight}px`,
-                              animation: `waveform-pulse 1.5s ease-in-out infinite`,
-                              animationDelay: `${i * 0.1}s`,
-                            }}
-                          />
-                        ))}
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div className="w-3/4 space-y-2">
-                        <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
-                          <motion.div
-                            className="h-full bg-primary"
-                            initial={{ width: '6%' }}
-                            animate={{ width: `${progressPercent}%` }}
-                            transition={{ duration: 0.3, ease: 'easeOut' }}
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground text-center">
-                          {progressState.currentStepName || 'Preparing...'}
-                        </p>
-                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -267,45 +410,13 @@ const MobileLayout: React.FC<LayoutProps> = ({ progressState, progressPercent, c
                   initial={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="absolute inset-0 flex flex-col items-center justify-center bg-background/70 backdrop-blur-sm rounded-xl"
+                  className="absolute inset-0 rounded-xl overflow-hidden"
                 >
-                  <Image
-                    src="/images/cassette_logo.png"
-                    alt="Cassette Logo"
-                    width={40}
-                    height={40}
-                    className="object-contain animate-pulse mb-3"
+                  <ConversionOverlay
+                    progressPercent={progressPercent}
+                    currentStepName={progressState.currentStepName}
+                    variant="mobile"
                   />
-
-                  {/* Waveform */}
-                  <div className="flex items-center justify-center space-x-1 h-6 mb-3">
-                    {[10, 20, 26, 16, 12].map((baseHeight, i) => (
-                      <div
-                        key={i}
-                        className="w-1 bg-primary rounded-full"
-                        style={{
-                          height: `${baseHeight}px`,
-                          animation: `waveform-pulse 1.5s ease-in-out infinite`,
-                          animationDelay: `${i * 0.1}s`,
-                        }}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="w-3/4 space-y-1">
-                    <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
-                      <motion.div
-                        className="h-full bg-primary"
-                        initial={{ width: '6%' }}
-                        animate={{ width: `${progressPercent}%` }}
-                        transition={{ duration: 0.3, ease: 'easeOut' }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground text-center truncate px-2">
-                      {progressState.currentStepName || 'Preparing...'}
-                    </p>
-                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

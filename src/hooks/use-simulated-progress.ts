@@ -77,16 +77,27 @@ export const useSimulatedProgress = (
   const stepTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const trackMatchingIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const rapidCompletionRef = useRef<boolean>(false);
+  const rapidCompletionTimeoutsRef = useRef<NodeJS.Timeout[]>([]);
   const progressIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const startTimeRef = useRef<number | null>(null);
   const hasShownLongWaitMessageRef = useRef(false);
   const hasInitializedRef = useRef(false);
+  const stateRef = useRef(state);
 
   // Use ref for apiComplete to avoid stale closure issues in scheduled timeouts
   const apiCompleteRef = useRef(apiComplete);
   useEffect(() => {
     apiCompleteRef.current = apiComplete;
   }, [apiComplete]);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  const clearRapidCompletionTimeouts = useCallback(() => {
+    rapidCompletionTimeoutsRef.current.forEach(clearTimeout);
+    rapidCompletionTimeoutsRef.current = [];
+  }, []);
 
   // Track elapsed time and keep the progress bar feeling alive
   useEffect(() => {
@@ -159,7 +170,10 @@ export const useSimulatedProgress = (
       clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = undefined;
     }
-  }, [state.isComplete]);
+    if (state.isComplete) {
+      clearRapidCompletionTimeouts();
+    }
+  }, [state.isComplete, clearRapidCompletionTimeouts]);
 
   // Smart step timing logic - reads from ref to avoid stale closure
   const getStepDelay = useCallback((stepIndex: number, isLastStep: boolean) => {
@@ -216,6 +230,10 @@ export const useSimulatedProgress = (
   // Advance to next step - uses refs to avoid stale closures
   const advanceStep = useCallback(() => {
     setState(prev => {
+      if (prev.isComplete) {
+        return prev;
+      }
+
       const nextStep = prev.currentStep + 1;
       const steps = STEP_CONFIGS[contentType];
 
@@ -266,33 +284,36 @@ export const useSimulatedProgress = (
   const enterRapidCompletionMode = useCallback(() => {
     console.log('🏃 Entering rapid completion mode');
     rapidCompletionRef.current = true;
+    clearRapidCompletionTimeouts();
     
     // Clear any existing step timeout
     if (stepTimeoutRef.current) {
       clearTimeout(stepTimeoutRef.current);
+      stepTimeoutRef.current = undefined;
       console.log('🔄 Cleared existing step timeout');
     }
-    
-    // Complete remaining steps with 100ms delay each
-    setState(prev => {
-      const remainingSteps = prev.totalSteps - prev.currentStep;
-      console.log(`⚡ Remaining steps to complete: ${remainingSteps}`);
-      
-      for (let i = 1; i <= remainingSteps; i++) {
-        setTimeout(() => {
-          console.log(`📝 Advancing step ${i}/${remainingSteps}`);
-          advanceStep();
-        }, 100 * i); // 0.1 second delay for each step
-      }
-      
-      return prev;
-    });
-  }, [advanceStep]);
+
+    const { currentStep, totalSteps } = stateRef.current;
+    const remainingSteps = totalSteps - currentStep;
+    console.log(`⚡ Remaining steps to complete: ${remainingSteps}`);
+
+    for (let i = 1; i <= remainingSteps; i++) {
+      const timeout = setTimeout(() => {
+        console.log(`📝 Advancing step ${i}/${remainingSteps}`);
+        advanceStep();
+      }, 100 * i);
+      rapidCompletionTimeoutsRef.current.push(timeout);
+    }
+  }, [advanceStep, clearRapidCompletionTimeouts]);
 
   // Handle API completion
   useEffect(() => {
     if (apiComplete && !state.isComplete) {
-      setState(prev => ({ ...prev, isWaitingForApi: false }));
+      setState(prev => (
+        prev.isWaitingForApi
+          ? { ...prev, isWaitingForApi: false }
+          : prev
+      ));
       
       // If we're paused on the last step, complete it now
       if (state.currentStep === state.totalSteps - 1 && !rapidCompletionRef.current) {
@@ -373,10 +394,11 @@ export const useSimulatedProgress = (
       timeouts.forEach(clearTimeout);
       if (stepTimeoutRef.current) clearTimeout(stepTimeoutRef.current);
       if (trackMatchingIntervalRef.current) clearInterval(trackMatchingIntervalRef.current);
+      clearRapidCompletionTimeouts();
       // Reset initialization flag so StrictMode second run works correctly
       hasInitializedRef.current = false;
     };
-  }, [contentType, baseDelay, advanceStep, simulateTrackMatching, getStepDelay]);
+  }, [contentType, baseDelay, advanceStep, simulateTrackMatching, getStepDelay, clearRapidCompletionTimeouts]);
 
   return {
     ...state,

@@ -383,7 +383,7 @@ export function PostCommentsCard({
                   <Textarea
                     value={editingContent}
                     onChange={(event) => setEditingContent(event.target.value)}
-                    className="min-h-[72px] resize-none bg-background border-border/60"
+                    className="min-h-[72px] resize-none bg-card border-border/60 dark:bg-secondary dark:text-secondary-foreground"
                   />
                   <div className="flex items-center justify-end gap-2">
                     <Button type="button" size="sm" variant="ghost" onClick={cancelEdit} className="h-7 text-xs">
@@ -497,7 +497,7 @@ export function PostCommentsCard({
                         onChange={(event) => setReplyContent(event.target.value)}
                         placeholder={`Reply to ${comment.username}...`}
                         disabled={isReplying || !commentsEnabled}
-                        className="min-h-[64px] resize-none bg-transparent border-border/50 text-sm"
+                        className="min-h-[64px] resize-none bg-card border-border/50 text-sm dark:bg-secondary dark:text-secondary-foreground dark:placeholder:text-secondary-foreground/50"
                         autoFocus
                       />
                       <div className="flex items-center justify-between">
@@ -604,7 +604,7 @@ export function PostCommentsCard({
           onChange={(event) => setNewComment(event.target.value)}
           placeholder={commentsEnabled ? 'Share your thoughts...' : 'Comments are turned off'}
           disabled={isCreating || !commentsEnabled}
-          className="min-h-[64px] sm:min-h-[80px] resize-none bg-background/50 border-border/60 text-sm placeholder:text-muted-foreground/60"
+          className="min-h-[64px] sm:min-h-[80px] resize-none bg-card border-border/60 text-sm placeholder:text-muted-foreground/60 dark:bg-secondary dark:text-secondary-foreground dark:placeholder:text-secondary-foreground/50"
         />
         <div className="flex items-center justify-between">
           <div>

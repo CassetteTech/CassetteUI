@@ -1298,10 +1298,12 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             <div className="pt-16">
               {/* Header Toolbar */}
               <div className="pt-4 pb-6 px-3 relative z-20 max-w-7xl mx-auto w-full">
-                <div className="flex items-center justify-between gap-3">
-                  <BackButton route={backRoute} fallbackRoute="/explore" />
+                <div className="grid grid-cols-3 items-center gap-3">
+                  <div className="justify-self-start">
+                    <BackButton route={backRoute} fallbackRoute="/explore" />
+                  </div>
                   <motion.button
-                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 min-w-[120px] rounded-full border font-medium text-sm overflow-hidden ${
+                    className={`justify-self-center inline-flex items-center justify-center gap-2 px-4 py-2 min-w-[120px] rounded-full border font-medium text-sm overflow-hidden ${
                       copyState === 'copied'
                         ? 'bg-success/20 text-success-text border-success/30'
                         : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
@@ -1354,38 +1356,40 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     </AnimatePresence>
                   </motion.button>
                   {/* More Menu */}
-                  {isOwnPost && (
-                    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-                      <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="Post actions"
-                              data-testid="post-actions-trigger"
-                              className="rounded-full"
-                            >
-                          <MoreVertical className="h-5 w-5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {isOwnPost && (
-                          <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                        )}
-                        {isOwnPost && (
-                          <DropdownMenuItem
-                            onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
-                            className="text-destructive focus:text-destructive"
+                  <div className="justify-self-end">
+                    {isOwnPost && (
+                      <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Post actions"
+                            data-testid="post-actions-trigger"
+                            className="rounded-full"
                           >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
+                            <MoreVertical className="h-5 w-5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {isOwnPost && (
+                            <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {isOwnPost && (
+                            <DropdownMenuItem
+                              onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="px-8 max-w-7xl mx-auto pb-24 min-h-[calc(100vh-144px)] flex flex-col justify-center">

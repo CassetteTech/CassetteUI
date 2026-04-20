@@ -15,6 +15,7 @@ import { AnimatedBackground } from '@/components/ui/animated-background';
 import { MailCheck } from 'lucide-react';
 import { useSignUp, useSignInWithProvider } from '@/hooks/use-auth';
 import Image from 'next/image';
+import { GoogleGIcon } from '@/components/ui/google-g-icon';
 import { authRedirectService } from '@/utils/auth-redirect';
 
 export default function SignUpPage() {
@@ -52,7 +53,7 @@ export default function SignUpPage() {
               </Link>
             </div>
 
-            <Card className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground rounded-none shadow-[6px_6px_0_hsl(var(--foreground))] dark:shadow-[6px_6px_0_hsl(var(--cassette-white))]">
+            <Card className="bg-[hsl(var(--cassette-white))] dark:bg-[hsl(var(--secondary))] text-foreground border-2 border-foreground rounded-none shadow-[6px_6px_0_#232629] dark:shadow-none">
               <CardHeader className="text-center flex flex-col items-center gap-3">
                 <div className="h-14 w-14 border-2 border-foreground bg-background flex items-center justify-center shadow-[3px_3px_0_hsl(var(--foreground))]">
                   <MailCheck className="h-7 w-7 text-primary" aria-hidden />
@@ -71,8 +72,7 @@ export default function SignUpPage() {
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 <Button
-                  variant="outline"
-                  className="w-full h-11 rounded-none border-2 border-foreground bg-background text-foreground font-bold text-sm shadow-[3px_3px_0_hsl(var(--foreground))] hover:-translate-y-0.5 hover:shadow-[5px_5px_0_hsl(var(--primary))] transition-all"
+                  className="w-full h-11 rounded-none border-2 border-foreground bg-[hsl(var(--cassette-white))] dark:bg-background text-foreground font-bold text-sm shadow-[3px_3px_0_hsl(var(--foreground))] hover:-translate-y-0.5 hover:shadow-[5px_5px_0_hsl(var(--foreground))] transition-all"
                   onClick={() => window.location.href = '/auth/signin'}
                 >
                   Return to Sign In
@@ -106,7 +106,7 @@ export default function SignUpPage() {
             </Link>
           </div>
 
-          <Card className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground rounded-none shadow-[6px_6px_0_hsl(var(--foreground))] dark:shadow-[6px_6px_0_hsl(var(--cassette-white))]">
+          <Card className="bg-[hsl(var(--cassette-white))] dark:bg-[hsl(var(--secondary))] text-foreground border-2 border-foreground rounded-none shadow-[6px_6px_0_#232629] dark:shadow-none">
             <CardHeader className="text-center">
               <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2 flex items-center justify-center gap-1.5">
                 <Image
@@ -130,18 +130,11 @@ export default function SignUpPage() {
             {/* Google Sign In */}
             <div className="flex flex-col gap-4 mb-6">
               <Button
-                variant="outline"
                 onClick={handleGoogleSignIn}
                 disabled={isSigningInWithProvider}
-                className="w-full h-11 rounded-none border-2 border-foreground bg-background text-foreground font-bold text-sm shadow-[3px_3px_0_hsl(var(--foreground))] hover:-translate-y-0.5 hover:shadow-[5px_5px_0_hsl(var(--primary))] transition-all"
+                className="w-full h-11 rounded-none border-2 border-foreground bg-[hsl(var(--cassette-white))] dark:bg-background text-foreground font-bold text-sm shadow-[3px_3px_0_hsl(var(--foreground))] hover:-translate-y-0.5 hover:shadow-[5px_5px_0_hsl(var(--foreground))] transition-all"
               >
-                <Image
-                  src="/images/social_images/ic_auth_google.png"
-                  alt="Google"
-                  width={18}
-                  height={18}
-                  className="mr-2"
-                />
+                <GoogleGIcon className="mr-2 h-4 w-4" />
                 Continue with Google
               </Button>
             </div>

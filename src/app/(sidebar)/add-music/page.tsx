@@ -166,7 +166,7 @@ const AddMusicForm = ({
           
           {/* Selected Item Display */}
           {selectedItem && (
-            <div className="mt-4 p-4 bg-card rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
+            <div className="mt-4 p-4 bg-primary-foreground force-light-surface rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
               <div className="flex items-center gap-3">
                 {selectedItem.coverArtUrl ? (
                   <Image
@@ -201,7 +201,7 @@ const AddMusicForm = ({
 
           {/* Pasted Link Display */}
           {pastedLinkSource && !selectedItem && (
-            <div className="mt-4 p-4 bg-card rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
+            <div className="mt-4 p-4 bg-primary-foreground force-light-surface rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
                   <svg className="w-6 h-6 text-success-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">

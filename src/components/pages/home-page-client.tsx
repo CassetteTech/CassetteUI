@@ -19,7 +19,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { detectContentType } from '@/utils/content-type-detection';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
-import { normalizeMusicLinkInput, isSupportedMusicLink } from '@/utils/music-link-input';
+import {
+  normalizeMusicLinkInput,
+  isSupportedMusicLink,
+  isPasteLikeInputEvent,
+} from '@/utils/music-link-input';
 
 export default function HomePageClient() {
   const router = useRouter();
@@ -208,6 +212,40 @@ export default function HomePageClient() {
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    const normalizedValue = normalizeMusicLinkInput(value);
+    const validationError = validateMusicLink(normalizedValue);
+
+    if (isPasteLikeInputEvent(e) && normalizedValue) {
+      const detected = detectContentType(normalizedValue);
+      setMusicUrl(normalizedValue);
+      setUrlError(validationError);
+
+      if (validationError) {
+        void captureClientEvent('unsupported_music_link_pasted', {
+          route: '/',
+          source_surface: 'home',
+          source_domain: sanitizeDomain(normalizedValue),
+          source_platform: detected.platform,
+          element_type_guess: detected.type,
+          is_authenticated: isAuthenticated,
+        });
+        return;
+      }
+
+      if (isSupportedMusicLink(normalizedValue)) {
+        void captureClientEvent('music_link_pasted', {
+          route: '/',
+          source_surface: 'home',
+          source_domain: sanitizeDomain(normalizedValue),
+          source_platform: detected.platform,
+          element_type_guess: detected.type,
+          is_authenticated: isAuthenticated,
+        });
+        handleConvertLink(normalizedValue);
+        return;
+      }
+    }
+
     setMusicUrl(value);
 
     // Clear any existing error first
@@ -216,8 +254,8 @@ export default function HomePageClient() {
     }
 
     // Validate the input - check for URLs and common mistakes
-    const validationError = validateMusicLink(value);
-    setUrlError(validationError);
+    const nextValidationError = validateMusicLink(value);
+    setUrlError(nextValidationError);
 
     // Ensure search is active when typing
     if (value.trim() && !isSearchActive) {
@@ -227,8 +265,12 @@ export default function HomePageClient() {
 
   // Handle paste event for auto-conversion
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
     const pastedText = normalizeMusicLinkInput(e.clipboardData.getData('text'));
+    if (!pastedText) {
+      return;
+    }
+
+    e.preventDefault();
     const validationError = validateMusicLink(pastedText);
     const detected = detectContentType(pastedText);
 

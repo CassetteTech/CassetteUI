@@ -24,7 +24,8 @@ interface AvatarStepProps {
 }
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_SOURCE_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_UPLOAD_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export function AvatarStep({
   formData,
@@ -49,9 +50,9 @@ export function AvatarStep({
     }
 
     // Validate file size
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > MAX_SOURCE_FILE_SIZE) {
       toast.error('File too large', {
-        description: 'Maximum file size is 5MB.',
+        description: 'Please choose an image smaller than 20MB.',
       });
       return;
     }
@@ -113,6 +114,13 @@ export function AvatarStep({
   };
 
   const handleCropApply = async (croppedFile: File) => {
+    if (croppedFile.size > MAX_UPLOAD_FILE_SIZE) {
+      toast.error('Photo is still too large', {
+        description: 'Try zooming in a bit more or choose a smaller source image.',
+      });
+      return;
+    }
+
     updateFormData({ avatarFile: croppedFile });
     setPendingAvatarFile(null);
     toast.success('Photo uploaded!');
@@ -218,7 +226,7 @@ export function AvatarStep({
           </Button>
 
           <p className="text-xs text-muted-foreground">
-            JPEG, PNG, or WebP • Max 5MB
+            JPEG, PNG, or WebP • Source up to 20MB, cropped avatar under 5MB
           </p>
         </div>
 

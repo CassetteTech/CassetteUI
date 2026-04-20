@@ -17,7 +17,12 @@ import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { detectContentType } from '@/utils/content-type-detection';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
-import { normalizeMusicLinkInput, isSupportedMusicLink, getMusicSourceLabel } from '@/utils/music-link-input';
+import {
+  normalizeMusicLinkInput,
+  isSupportedMusicLink,
+  getMusicSourceLabel,
+  isPasteLikeInputEvent,
+} from '@/utils/music-link-input';
 
 type SelectedItem = {
   id: string;
@@ -371,8 +376,45 @@ export default function AddMusicPage() {
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    const normalizedValue = normalizeUrlInput(value);
+    const validationError = validateMusicLink(normalizedValue);
+
+    if (isPasteLikeInputEvent(e) && normalizedValue) {
+      const detected = detectContentType(normalizedValue);
+
+      if (validationError) {
+        setMusicUrl(normalizedValue);
+        setSelectedItem(null);
+        setPastedLinkSource(null);
+        setErrorMessage(validationError);
+        setIsSearchActive(false);
+        void captureClientEvent('unsupported_music_link_pasted', {
+          route: '/add-music',
+          source_surface: 'add_music',
+          source_domain: sanitizeDomain(normalizedValue),
+          source_platform: detected.platform,
+          element_type_guess: detected.type,
+          is_authenticated: true,
+        });
+        return;
+      }
+
+      if (isValidMusicUrl(normalizedValue)) {
+        commitMusicLinkInput(normalizedValue);
+        void captureClientEvent('music_link_pasted', {
+          route: '/add-music',
+          source_surface: 'add_music',
+          source_domain: sanitizeDomain(normalizedValue),
+          source_platform: detected.platform,
+          element_type_guess: detected.type,
+          is_authenticated: true,
+        });
+        return;
+      }
+    }
+
     setMusicUrl(value);
-    
+
     // Clear selected item and pasted link when typing
     if (selectedItem || pastedLinkSource) {
       setSelectedItem(null);
@@ -398,8 +440,12 @@ export default function AddMusicPage() {
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
     const pastedText = normalizeUrlInput(e.clipboardData.getData('text'));
+    if (!pastedText) {
+      return;
+    }
+
+    e.preventDefault();
     const detected = detectContentType(pastedText);
     const validationError = validateMusicLink(pastedText);
 

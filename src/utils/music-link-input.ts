@@ -1,3 +1,5 @@
+import type { SyntheticEvent } from 'react';
+
 const SUPPORTED_DOMAINS = ['spotify.com', 'apple.com/music', 'music.apple.com', 'deezer.com'] as const;
 
 export function normalizeMusicLinkInput(raw: string): string {
@@ -20,4 +22,25 @@ export function getMusicSourceLabel(raw: string): 'Spotify' | 'Apple Music' | 'D
   if (normalized.includes('apple.com/music') || normalized.includes('music.apple.com')) return 'Apple Music';
   if (normalized.includes('deezer.com')) return 'Deezer';
   return 'unknown';
+}
+
+export function isPasteLikeInputEvent(
+  event: Event | InputEvent | SyntheticEvent<HTMLInputElement, Event>,
+): boolean {
+  const nativeEvent =
+    'nativeEvent' in event ? (event.nativeEvent as InputEvent | Event) : event;
+  const inputType =
+    'inputType' in nativeEvent && typeof nativeEvent.inputType === 'string'
+      ? nativeEvent.inputType
+      : '';
+  const insertedData =
+    'data' in nativeEvent && typeof nativeEvent.data === 'string'
+      ? nativeEvent.data
+      : '';
+
+  return (
+    inputType === 'insertFromPaste' ||
+    inputType === 'insertReplacementText' ||
+    (inputType === 'insertText' && insertedData.length > 1)
+  );
 }

@@ -16,7 +16,8 @@ import { AlertTriangle, Camera, Globe2, Lock } from 'lucide-react';
 import { AvatarCropDialog } from '@/components/shared/avatar-crop-dialog';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_SOURCE_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_UPLOAD_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const editProfileSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
@@ -213,8 +214,8 @@ export function EditProfileFormComponent({
       return;
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      setAvatarError('File size must be 5MB or less.');
+    if (file.size > MAX_SOURCE_FILE_SIZE) {
+      setAvatarError('Please choose an image smaller than 20MB.');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -233,7 +234,13 @@ export function EditProfileFormComponent({
   };
 
   const handleAvatarCropApply = async (croppedFile: File) => {
+    if (croppedFile.size > MAX_UPLOAD_FILE_SIZE) {
+      setAvatarError('Cropped avatar must be 5MB or less.');
+      return;
+    }
+
     setPendingAvatarFile(null);
+    setAvatarError(null);
     setAvatarFile(croppedFile);
 
     if (avatarPreviewUrl) {

@@ -111,22 +111,27 @@ const toProfileBio = (user: FixtureUser, state: MockState) => ({
   accountType: user.accountType ?? null,
 });
 
-const toActivityItem = (post: FixturePost) => ({
-  postId: post.postId,
-  redirectPostId: post.postId,
-  isRepost: false,
-  elementType: post.elementType,
-  title: post.title,
-  description: post.description || '',
-  username: post.ownerUsername || '',
-  userId: post.ownerId || '',
-  createdAt: post.createdAt || FIXTURE_TIMESTAMP,
-  likeCount: post.likeCount || 0,
-  likedByCurrentUser: post.likedByCurrentUser || false,
-  commentsEnabled: post.commentsEnabled ?? true,
-  privacy: post.privacy || 'public',
-  conversionSuccessCount: post.conversionSuccessCount || 0,
-});
+const toActivityItem = (post: FixturePost, state: MockState) => {
+  const owner = post.ownerId ? state.usersById.get(post.ownerId) : undefined;
+
+  return {
+    postId: post.postId,
+    redirectPostId: post.postId,
+    isRepost: false,
+    elementType: post.elementType,
+    title: post.title,
+    description: post.description || '',
+    username: post.ownerUsername || '',
+    userId: post.ownerId || '',
+    createdAt: post.createdAt || FIXTURE_TIMESTAMP,
+    likeCount: post.likeCount || 0,
+    likedByCurrentUser: post.likedByCurrentUser || false,
+    commentsEnabled: post.commentsEnabled ?? true,
+    privacy: post.privacy || 'public',
+    conversionSuccessCount: post.conversionSuccessCount || 0,
+    accountType: owner?.accountType ?? null,
+  };
+};
 
 const toPostByIdResponse = (post: FixturePost) => ({
   success: true,
@@ -662,7 +667,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       const currentUser = getCurrentUserOrThrow(state);
       const items = Array.from(state.postsById.values()).filter((post) => post.ownerId === currentUser.id);
       return json(route, {
-        items: items.map(toActivityItem),
+        items: items.map((post) => toActivityItem(post, state)),
         page: 1,
         pageSize: Number(url.searchParams.get('pageSize') || 20),
         totalItems: items.length,
@@ -695,7 +700,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       });
 
       return json(route, {
-        items: items.slice(0, pageSize).map(toActivityItem),
+        items: items.slice(0, pageSize).map((post) => toActivityItem(post, state)),
         page: Number(url.searchParams.get('page') || 1),
         pageSize,
         totalItems: items.length,
@@ -704,12 +709,19 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
     }
 
     if (/^\/api\/v1\/social\/users\/[^/]+\/liked-posts$/.test(pathname) && method === 'GET') {
+      const userId = pathname.split('/')[5] || '';
+      const user = state.usersById.get(userId);
+      const pageSize = Number(url.searchParams.get('pageSize') || 20);
+      const items = user && state.currentUser?.id === user.id
+        ? Array.from(state.postsById.values()).filter((post) => post.likedByCurrentUser)
+        : [];
+
       return json(route, {
-        items: [],
+        items: items.slice(0, pageSize).map((post) => toActivityItem(post, state)),
         page: Number(url.searchParams.get('page') || 1),
-        pageSize: Number(url.searchParams.get('pageSize') || 20),
-        totalItems: 0,
-        totalPages: 0,
+        pageSize,
+        totalItems: items.length,
+        totalPages: items.length > 0 ? 1 : 0,
       });
     }
 

@@ -25,7 +25,8 @@ interface ProfileActivityProps {
   isLoading?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
-  ownerAccountType?: AccountType | number;
+  ownerAccountType?: AccountType | number | string;
+  ownerUsername?: string;
   isCurrentUser?: boolean;
   currentUserId?: string;
 }
@@ -36,6 +37,7 @@ export function ProfileActivity({
   onLoadMore,
   hasMore = false,
   ownerAccountType,
+  ownerUsername,
   isCurrentUser = false,
   currentUserId
 }: ProfileActivityProps) {
@@ -70,7 +72,8 @@ export function ProfileActivity({
             <ActivityPostItem
               key={post.postId}
               post={post}
-              accountType={ownerAccountType}
+              ownerAccountType={ownerAccountType}
+              ownerUsername={ownerUsername}
               isOwnPost={
                 isCurrentUser &&
                 !!currentUserId &&
@@ -96,7 +99,17 @@ export function ProfileActivity({
   );
 }
 
-function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: ActivityPost; accountType?: AccountType | number; isOwnPost?: boolean }) {
+function ActivityPostItem({
+  post,
+  ownerAccountType,
+  ownerUsername,
+  isOwnPost = false,
+}: {
+  post: ActivityPost;
+  ownerAccountType?: AccountType | number | string;
+  ownerUsername?: string;
+  isOwnPost?: boolean;
+}) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -143,6 +156,14 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
       post.username
     )
     : post.username;
+  const ownerAccountTypeApplies =
+    !!ownerUsername && sourceUsername.toLowerCase() === ownerUsername.toLowerCase();
+  const sourceAccountType = post.isRepost
+    ? post.originalPostOwnerAccountType
+    : post.accountType;
+  const displayedAccountType =
+    sourceAccountType ?? (ownerAccountTypeApplies ? ownerAccountType : undefined);
+
   // Only use description if it's a non-empty user-provided value
   const hasDescription = post.description && post.description.trim().length > 0;
   const detailText = hasDescription ? post.description : post.subtitle;
@@ -193,7 +214,7 @@ function ActivityPostItem({ post, accountType, isOwnPost = false }: { post: Acti
                   )}
                   <div className="flex items-center gap-1 text-[13px] text-muted-foreground min-w-0">
                     <span className="font-medium text-foreground/80 truncate">@{sourceUsername}</span>
-                    <VerificationBadge accountType={accountType} size="sm" />
+                    <VerificationBadge accountType={displayedAccountType} size="sm" />
                     {post.createdAt && (
                       <>
                         <span className="text-muted-foreground/50 flex-shrink-0">·</span>

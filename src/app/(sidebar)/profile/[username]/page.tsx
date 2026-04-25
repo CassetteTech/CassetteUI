@@ -395,6 +395,7 @@ export default function ProfilePage() {
                 onLoadMore={loadMore}
                 hasMore={allActivityPosts.length < totalItems}
                 ownerAccountType={userBio?.accountType}
+                ownerUsername={userBio?.username}
                 isCurrentUser={isCurrentUser}
                 currentUserId={user?.id}
               />
@@ -437,6 +438,7 @@ export default function ProfilePage() {
                 onLoadMore={loadMore}
                 hasMore={allActivityPosts.length < totalItems}
                 ownerAccountType={userBio?.accountType}
+                ownerUsername={userBio?.username}
                 isCurrentUser={isCurrentUser}
                 currentUserId={user?.id}
               />

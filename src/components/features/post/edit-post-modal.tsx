@@ -90,7 +90,7 @@ export function EditPostModal({
             value={description}
             onChange={handleDescriptionChange}
             placeholder="Add a description..."
-            className="min-h-[120px] resize-none"
+            className="min-h-[120px] resize-none bg-card border-border/60 text-sm placeholder:text-muted-foreground/60 dark:bg-secondary dark:text-secondary-foreground dark:placeholder:text-secondary-foreground/50"
             disabled={updatePost.isPending}
           />
           <div className={`text-right text-sm ${isOverLimit ? 'text-destructive' : 'text-muted-foreground'}`}>

@@ -50,6 +50,7 @@ export interface ActivityPost {
   originalPostOwnerUserId?: string | null;
   originalPostOwnerUsername?: string | null;
   originalPostOwnerAvatarUrl?: string | null;
+  originalPostOwnerAccountType?: AccountType | number | string | null;
   elementType: string;
   title: string;
   subtitle?: string;
@@ -63,6 +64,7 @@ export interface ActivityPost {
   likeCount?: number;
   likedByCurrentUser?: boolean;
   commentsEnabled?: boolean;
+  accountType?: AccountType | number | string;
 }
 
 export interface PaginatedActivityResponse {

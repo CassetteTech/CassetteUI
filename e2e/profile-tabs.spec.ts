@@ -138,6 +138,31 @@ test.describe('profile tabs', () => {
     await expect(page.getByRole('main').last()).toContainText('No items to display');
   });
 
+  test('uses liked post owner badges instead of the profile owner badge', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    await mockCassetteApp(page, {
+      currentUser: {
+        ...fixtureUsers.member,
+        accountType: 'CassetteTeam',
+      },
+      posts: [
+        {
+          ...fixturePosts.publicTrack,
+          likedByCurrentUser: true,
+        },
+      ],
+    });
+
+    await page.goto('/profile/miagroove?tab=liked');
+    await expect(page).toHaveURL(/\/profile\/miagroove\?tab=liked$/);
+
+    const content = page.locator('[data-testid="profile-content-pane"]:visible').first();
+    const likedPost = content.locator('a[href^="/post/post-public-track"]').first();
+    await expect(likedPost).toContainText('@djaurora');
+    await expect(likedPost.getByAltText('Cassette Team')).toHaveCount(0);
+  });
+
   test('auto-selects the first non-empty tab when playlists are empty', async ({ page }) => {
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.member,

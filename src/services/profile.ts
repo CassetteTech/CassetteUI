@@ -17,6 +17,7 @@ interface ActivityItemPayload {
   originalPostOwnerUserId?: string | null;
   originalPostOwnerUsername?: string | null;
   originalPostOwnerAvatarUrl?: string | null;
+  originalPostOwnerAccountType?: string | number | null;
   elementType: string;
   title: string;
   name?: string;
@@ -56,6 +57,7 @@ interface ActivityItemPayload {
   likeCount?: number;
   likedByCurrentUser?: boolean;
   commentsEnabled?: boolean;
+  accountType?: string | number;
   [key: string]: unknown;
 }
 
@@ -469,6 +471,16 @@ export class ProfileService {
             pickString(itemObj, ['originalPostOwnerAvatarUrl', 'OriginalPostOwnerAvatarUrl']) ||
             (originalOwnerObj ? pickString(originalOwnerObj, ['avatarUrl', 'AvatarUrl', 'profilePicture', 'ProfilePicture']) : undefined) ||
             null,
+          originalPostOwnerAccountType:
+            pickString(itemObj, ['originalPostOwnerAccountType', 'OriginalPostOwnerAccountType']) ??
+            pickNumber(itemObj, ['originalPostOwnerAccountType', 'OriginalPostOwnerAccountType']) ??
+            (originalOwnerObj
+              ? (
+                  pickString(originalOwnerObj, ['accountType', 'AccountType']) ??
+                  pickNumber(originalOwnerObj, ['accountType', 'AccountType'])
+                )
+              : undefined) ??
+            null,
           elementType:
             pickString(itemObj, ['elementType', 'ElementType']) ||
             'Track',
@@ -484,6 +496,9 @@ export class ProfileService {
           likeCount: pickNumber(itemObj, ['likeCount', 'LikeCount']),
           likedByCurrentUser: pickBoolean(itemObj, ['likedByCurrentUser', 'LikedByCurrentUser']),
           commentsEnabled: pickBoolean(itemObj, ['commentsEnabled', 'CommentsEnabled']),
+          accountType:
+            pickString(itemObj, ['accountType', 'AccountType']) ??
+            pickNumber(itemObj, ['accountType', 'AccountType']),
         };
       });
 

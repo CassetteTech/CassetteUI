@@ -79,17 +79,6 @@ export const teamMembers: TeamMember[] = [
     social: { github: "#", linkedin: "https://www.linkedin.com/in/sageduford/?skipRedirect=true", twitter: "#", email: "mailto:sage@cassette.tech" },
   },
   {
-    name: "Jenna O'Connell",
-    role: "Social Media Advisor",
-    type: "investor",
-    image: "/images/team/jenna-oconnell.jpg",
-    icon: TrendingUp,
-    fullBio: "Jenna is a Social Media Advisor to Cassette Technologies and a Content Marketing Specialist at RoomReady. She earned her bachelor's degree in Advertising, Marketing, and Communications from the Fashion Institute of Technology. Jenna specializes in managing social media accounts and creating engaging content for both B2C and B2B audiences.",
-    background: "She uses analytics to inform her strategy, focusing on boosting engagement and growing brand awareness. At Cassette Technologies, she has supported social media strategy, designed graphics, created original content, and collaborated with the broader marketing effort. She currently works as a Content Marketing Specialist at RoomReady.",
-    expertise: ["Social Media Marketing", "Content Creation", "Interpersonal Communication", "Organization", "Analytics"],
-    social: { github: "#", linkedin: "https://www.linkedin.com/in/jenna-o-connell/", twitter: "#", email: "mailto:jenna@cassette.tech" },
-  },
-  {
     name: "Vivian Carvalho",
     role: "Social Media Manager",
     type: "marketer",

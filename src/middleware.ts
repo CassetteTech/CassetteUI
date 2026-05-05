@@ -7,6 +7,39 @@ import {
   serializeSignupAttributionCookie,
 } from '@/lib/auth/signup-attribution';
 
+function getCanonicalUrl(request: NextRequest): URL | null {
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return null;
+  }
+
+  const configuredDomain = process.env.NEXT_PUBLIC_APP_DOMAIN;
+  if (!configuredDomain) {
+    return null;
+  }
+
+  let configuredUrl: URL;
+  try {
+    configuredUrl = new URL(configuredDomain);
+  } catch {
+    return null;
+  }
+
+  if (!configuredUrl.hostname.startsWith('www.')) {
+    return null;
+  }
+
+  const canonicalApexHost = configuredUrl.hostname.slice(4);
+  if (request.nextUrl.hostname !== canonicalApexHost) {
+    return null;
+  }
+
+  const redirectUrl = request.nextUrl.clone();
+  redirectUrl.protocol = configuredUrl.protocol;
+  redirectUrl.hostname = configuredUrl.hostname;
+  redirectUrl.port = configuredUrl.port;
+  return redirectUrl;
+}
+
 function buildCookieOptions(maxAgeSeconds?: number) {
   return {
     httpOnly: true,
@@ -18,6 +51,11 @@ function buildCookieOptions(maxAgeSeconds?: number) {
 }
 
 export function middleware(request: NextRequest) {
+  const canonicalUrl = getCanonicalUrl(request);
+  if (canonicalUrl) {
+    return NextResponse.redirect(canonicalUrl, 308);
+  }
+
   const existingAttribution = parseSignupAttributionCookie(
     request.cookies.get(SIGNUP_ATTRIBUTION_COOKIE_NAME)?.value,
   );

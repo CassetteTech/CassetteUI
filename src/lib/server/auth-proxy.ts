@@ -36,6 +36,18 @@ function normalizeOrigin(value: string | null | undefined): string | null {
   }
 }
 
+function getOriginHostVariant(origin: string): string | null {
+  try {
+    const url = new URL(origin);
+    url.hostname = url.hostname.startsWith('www.')
+      ? url.hostname.slice(4)
+      : `www.${url.hostname}`;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
 export function resolveForwardedOrigin(request: NextRequest): string | null {
   const forwardedHost =
     request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
@@ -55,17 +67,23 @@ export function resolveForwardedOrigin(request: NextRequest): string | null {
 function getExpectedRequestOrigins(request: NextRequest): Set<string> {
   const origins = new Set<string>();
 
-  const addOrigin = (value: string | null | undefined) => {
+  const addOrigin = (value: string | null | undefined, includeHostVariant = false) => {
     const origin = normalizeOrigin(value);
     if (origin) {
       origins.add(origin);
+      if (includeHostVariant) {
+        const variant = getOriginHostVariant(origin);
+        if (variant) {
+          origins.add(variant);
+        }
+      }
     }
   };
 
   addOrigin(request.nextUrl.origin);
   addOrigin(resolveForwardedOrigin(request));
-  addOrigin(process.env.NEXT_PUBLIC_APP_DOMAIN);
-  addOrigin(process.env.NEXTAUTH_URL);
+  addOrigin(process.env.NEXT_PUBLIC_APP_DOMAIN, true);
+  addOrigin(process.env.NEXTAUTH_URL, true);
 
   return origins;
 }

@@ -10,6 +10,12 @@ import { pendingActionService } from '@/utils/pending-action';
 const AUTH_API_BASE = '/api/auth';
 const PLATFORM_BY_ENUM_INDEX = ['Spotify', 'AppleMusic', 'Deezer'] as const;
 
+type ApiResponsePayload = {
+  success?: boolean;
+  message?: string;
+  authUrl?: string;
+};
+
 class AuthService {
   private initialized = false;
   private lastArtworkWarmupUserId: string | null = null;
@@ -259,9 +265,26 @@ class AuthService {
       },
     });
 
-    const data = await response.json();
+    let data: ApiResponsePayload = {};
+    try {
+      data = await response.json();
+    } catch {
+      data = {};
+    }
+
     if (!response.ok || !data.success || !data.authUrl) {
-      throw new Error(data.message || 'Failed to initiate Google sign-in.');
+      console.error('Google OAuth initiation failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        message: data.message,
+        success: data.success,
+        hasAuthUrl: Boolean(data.authUrl),
+      });
+
+      const details = data.message ? ` ${data.message}` : '';
+      throw new Error(
+        `Failed to initiate Google sign-in. Status: ${response.status}.${details}`
+      );
     }
 
     window.location.href = data.authUrl;

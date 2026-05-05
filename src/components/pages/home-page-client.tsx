@@ -9,7 +9,7 @@ import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
 import { SearchResults } from '@/components/features/search-results';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Play } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { HomeDemoSection } from '@/components/demo/home-demo-section';
@@ -17,8 +17,10 @@ import { AppleMusicHelpModal } from '@/components/features/apple-music-help-moda
 import { StageHoverCard } from '@/components/features/stage-hover-card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { HOMEPAGE_DEMO_VIDEO } from '@/lib/marketing-copy';
 import { detectContentType } from '@/utils/content-type-detection';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
+import { DemoVideoDialog } from '@/components/demo/demo-video-dialog';
 import {
   normalizeMusicLinkInput,
   isSupportedMusicLink,
@@ -433,6 +435,23 @@ export default function HomePageClient() {
                     <UIText className="text-center text-foreground font-bold leading-relaxed text-xs sm:text-sm md:text-base lg:text-xl lg:text-center">
                       Express yourself through your favorite songs and playlists - wherever you stream them
                     </UIText>
+                    <div className="mt-5 flex justify-center">
+                      <DemoVideoDialog
+                        title={HOMEPAGE_DEMO_VIDEO.title}
+                        videoSrc={HOMEPAGE_DEMO_VIDEO.videoSrc}
+                        videoType={HOMEPAGE_DEMO_VIDEO.videoType}
+                        caption={HOMEPAGE_DEMO_VIDEO.caption}
+                        trigger={
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-2 border-2 border-foreground bg-primary px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-primary-foreground shadow-[3px_3px_0_hsl(var(--foreground))] transition-transform hover:-translate-y-0.5 hover:shadow-[4px_4px_0_hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                          >
+                            <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+                            Watch demo
+                          </button>
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

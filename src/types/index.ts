@@ -233,6 +233,8 @@ export interface MusicLinkConversion {
   description?: string;
   username?: string;
   postId?: string;
+  conversionJobId?: string;
+  correlationId?: string;
   conversionSuccessCount?: number;
   tracks?: MediaListTrack[];
 }
@@ -261,6 +263,7 @@ export interface ConvertLifecycleResponse {
   retryAfterMs?: number;
   errorCode?: string;
   message?: string;
+  correlationId?: string;
 }
 
 // Legacy API response type for music link conversion (kept for backward compatibility)
@@ -303,6 +306,8 @@ export interface ConversionApiResponse {
   };
   caption?: string;
   description?: string;
+  correlationId?: string;
+  jobId?: string;
 }
 
 // API Response type for playlist creation (snake_case to match backend JSON)
@@ -313,6 +318,7 @@ export interface CreatePlaylistResponse {
   tracks_added: number;
   tracks_failed: number;
   total_tracks: number;
+  correlationId?: string;
   error_message?: string;
   failed_tracks?: FailedTrack[];
 }
@@ -596,8 +602,13 @@ export interface InternalIssueSummary {
   userEmail?: string | null;
   reportType: string;
   sourceContext: string;
-  pageUrl: string;
+  pageUrl?: string | null;
   sourceLink?: string | null;
+  correlationId?: string | null;
+  conversionJobId?: string | null;
+  sourceLinkHash?: string | null;
+  sourceDomain?: string | null;
+  routeContext?: string | null;
   createdAt: string;
 }
 

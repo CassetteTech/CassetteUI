@@ -29,6 +29,11 @@ const sanitize_1 = require("../sanitize");
         tracks_failed: 20,
         total_tracks: 200,
         connection_state: 'connection_required',
+        correlation_id: '44444444-4444-4444-4444-444444444444',
+        conversion_job_id: 'cj_123',
+        lambda_request_id: 'lambda-request-1',
+        source_link_hash: 'a'.repeat(64),
+        source_link: 'https://open.spotify.com/track/secret',
         description: 'should-not-pass',
         query_text: 'secret search',
         made_up: 'nope',
@@ -54,6 +59,11 @@ const sanitize_1 = require("../sanitize");
     strict_1.default.equal(result.tracks_failed, 20);
     strict_1.default.equal(result.total_tracks, 200);
     strict_1.default.equal(result.connection_state, 'connection_required');
+    strict_1.default.equal(result.correlation_id, '44444444-4444-4444-4444-444444444444');
+    strict_1.default.equal(result.conversion_job_id, 'cj_123');
+    strict_1.default.equal(result.lambda_request_id, 'lambda-request-1');
+    strict_1.default.equal(result.source_link_hash, 'a'.repeat(64));
+    strict_1.default.equal(result.source_link, undefined);
     strict_1.default.equal(result.description, undefined);
     strict_1.default.equal(result.query_text, undefined);
     strict_1.default.equal(result.made_up, undefined);

@@ -89,6 +89,17 @@ export type AnalyticsBaseProps = {
   success?: boolean;
   core_action?: boolean;
   reason_code?: string;
+  error_code?: string;
+  correlation_id?: string;
+  conversion_job_id?: string;
+  lambda_request_id?: string;
+  source_link_hash?: string;
+  route_context?: string;
+  deployment_version?: string;
+  duration_ms?: number;
+  http_status?: number;
+  platform?: PlatformDimension;
+  operation?: string;
   source_domain?: string;
   element_type_guess?: ElementTypeDimension;
   report_type?: 'conversion_issue' | 'ui_bug' | 'general_feedback' | 'missing_track' | 'wrong_match';

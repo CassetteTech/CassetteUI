@@ -14,7 +14,7 @@ const FORBIDDEN_KEY_PATTERNS = [
     /message/i,
     /body/i,
     /notes?/i,
-    /source_link/i,
+    /^source_link$/i,
     /url$/i,
     /pageurl/i,
     /title/i,
@@ -39,6 +39,17 @@ const ALLOWED_KEYS = new Set([
     'success',
     'core_action',
     'reason_code',
+    'error_code',
+    'correlation_id',
+    'conversion_job_id',
+    'lambda_request_id',
+    'source_link_hash',
+    'route_context',
+    'deployment_version',
+    'duration_ms',
+    'http_status',
+    'platform',
+    'operation',
     'source_domain',
     'element_type_guess',
     'report_type',
@@ -152,6 +163,12 @@ function sanitizeAnalyticsProps(input) {
                 sanitized.route = route;
             continue;
         }
+        if (key === 'route_context') {
+            const route = sanitizeRoute(rawValue);
+            if (route)
+                sanitized.route_context = route;
+            continue;
+        }
         if (key === 'source_domain') {
             const domain = sanitizeDomain(rawValue);
             if (domain)
@@ -168,6 +185,12 @@ function sanitizeAnalyticsProps(input) {
             const platform = normalizePlatform(rawValue);
             if (platform)
                 sanitized.source_platform = platform;
+            continue;
+        }
+        if (key === 'platform') {
+            const platform = normalizePlatform(rawValue);
+            if (platform)
+                sanitized.platform = platform;
             continue;
         }
         if (key === 'target_platform') {

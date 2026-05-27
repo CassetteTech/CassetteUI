@@ -13,14 +13,15 @@ export const SIGNUP_ATTRIBUTION_COOKIE_NAME = SIGNUP_ATTRIBUTION_COOKIE_NAME_VAL
 export const WEB_SESSION_HEADER = 'X-Cassette-Web-Session';
 export const INTERNAL_WEB_AUTH_HEADER = 'X-Cassette-Web-Internal';
 export const INTERNAL_WEB_AUTH_HEADER_VALUE = 'cassette-ui';
+export const CASSETTE_CORRELATION_HEADER = 'x-cassette-correlation-id';
 export const WEB_AUTH_PURPOSES = {
   interactive: 'interactive',
   oauthCallback: 'oauth_callback',
   passwordReset: 'password_reset',
 } as const;
 
-const FORWARDED_RESPONSE_HEADERS = ['content-type', 'content-disposition'] as const;
-const FORWARDED_REQUEST_HEADERS = ['accept', 'authorization', 'content-type', 'x-idempotency-key'] as const;
+const FORWARDED_RESPONSE_HEADERS = ['content-type', 'content-disposition', CASSETTE_CORRELATION_HEADER] as const;
+const FORWARDED_REQUEST_HEADERS = ['accept', 'authorization', 'content-type', 'x-idempotency-key', CASSETTE_CORRELATION_HEADER] as const;
 const INTERACTIVE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 const PASSWORD_RESET_MAX_AGE_SECONDS = 15 * 60;
 

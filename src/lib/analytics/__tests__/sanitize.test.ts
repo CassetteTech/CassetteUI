@@ -26,6 +26,11 @@ test('sanitizeAnalyticsProps strips forbidden and unknown fields', () => {
     tracks_failed: 20,
     total_tracks: 200,
     connection_state: 'connection_required',
+    correlation_id: '44444444-4444-4444-4444-444444444444',
+    conversion_job_id: 'cj_123',
+    lambda_request_id: 'lambda-request-1',
+    source_link_hash: 'a'.repeat(64),
+    source_link: 'https://open.spotify.com/track/secret',
     description: 'should-not-pass',
     query_text: 'secret search',
     made_up: 'nope',
@@ -52,6 +57,11 @@ test('sanitizeAnalyticsProps strips forbidden and unknown fields', () => {
   assert.equal(result.tracks_failed, 20);
   assert.equal(result.total_tracks, 200);
   assert.equal(result.connection_state, 'connection_required');
+  assert.equal(result.correlation_id, '44444444-4444-4444-4444-444444444444');
+  assert.equal(result.conversion_job_id, 'cj_123');
+  assert.equal(result.lambda_request_id, 'lambda-request-1');
+  assert.equal(result.source_link_hash, 'a'.repeat(64));
+  assert.equal((result as Record<string, unknown>).source_link, undefined);
   assert.equal((result as Record<string, unknown>).description, undefined);
   assert.equal((result as Record<string, unknown>).query_text, undefined);
   assert.equal((result as Record<string, unknown>).made_up, undefined);

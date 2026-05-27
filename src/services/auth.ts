@@ -6,9 +6,9 @@ import { prefetchProfileArtwork } from '@/services/profile-artwork-cache';
 import { platformConnectService } from '@/services/platform-connect';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { pendingActionService } from '@/utils/pending-action';
+import { normalizeConnectedServicePayload } from '@/utils/platform-normalization';
 
 const AUTH_API_BASE = '/api/auth';
-const PLATFORM_BY_ENUM_INDEX = ['Spotify', 'AppleMusic', 'Deezer'] as const;
 
 type ApiResponsePayload = {
   success?: boolean;
@@ -38,34 +38,7 @@ class AuthService {
 
     const normalized = raw
       .map((service): ConnectedService | null => {
-        if (!service || typeof service !== 'object') {
-          return null;
-        }
-
-        const payload = service as Record<string, unknown>;
-        const rawType = payload.serviceType ?? payload.ServiceType;
-        const serviceType =
-          typeof rawType === 'number'
-            ? PLATFORM_BY_ENUM_INDEX[rawType] ?? String(rawType)
-            : typeof rawType === 'string'
-              ? rawType
-              : '';
-
-        if (!serviceType) {
-          return null;
-        }
-
-        const connectedAt = payload.connectedAt ?? payload.ConnectedAt;
-        return {
-          serviceType,
-          connectedAt: typeof connectedAt === 'string' ? connectedAt : new Date().toISOString(),
-          profileUrl:
-            typeof payload.profileUrl === 'string'
-              ? payload.profileUrl
-              : typeof payload.ProfileUrl === 'string'
-                ? payload.ProfileUrl
-                : undefined,
-        };
+        return normalizeConnectedServicePayload(service, new Date().toISOString());
       });
 
     return normalized.filter((service): service is ConnectedService => service !== null);

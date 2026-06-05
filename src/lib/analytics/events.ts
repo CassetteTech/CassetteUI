@@ -27,6 +27,7 @@ export type AnalyticsEventName =
   | 'auth_google_oauth_started'
   | 'auth_google_oauth_completed'
   | 'auth_google_oauth_failed'
+  | 'account_created'
   | 'account_deleted'
   | 'account_delete_failed'
   | 'onboarding_started'
@@ -139,6 +140,7 @@ export const CANONICAL_SUCCESS_EVENTS = new Set<AnalyticsEventName>([
   'auth_signed_up',
   'auth_signed_in',
   'auth_google_oauth_completed',
+  'account_created',
   'account_deleted',
   'onboarding_completed',
   'profile_updated',

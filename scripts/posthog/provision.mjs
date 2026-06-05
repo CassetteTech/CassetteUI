@@ -115,6 +115,9 @@ const FUNNEL_WINDOW_14_DAYS = {
   funnel_window_interval: 14,
   funnel_window_interval_unit: 'day',
 };
+const EXTERNAL_ACTOR_CONDITION = '  and coalesce(toBool(properties.internal_actor), false) = false';
+const ORIGINAL_POST_CONDITION = "  and coalesce(toString(properties.is_repost), 'false') = 'false'";
+const CORE_ACTION_CONDITION = '  and coalesce(toBool(properties.core_action), false) = true';
 
 function linkConvertedEventForElementType(elementType, name = `link_converted (${elementType})`) {
   return {
@@ -652,6 +655,267 @@ function creatorIntentActivationFunnelInsight({ internalActor }) {
   };
 }
 
+function hogqlLineGraphInsight({ key, name, description, query, yAxisColumn, yAxisLabel }) {
+  return {
+    key,
+    name,
+    description,
+    query: {
+      kind: 'DataVisualizationNode',
+      display: 'ActionsLineGraph',
+      source: {
+        kind: 'HogQLQuery',
+        query,
+      },
+      chartSettings: {
+        xAxis: {
+          column: 'day',
+        },
+        yAxis: [
+          {
+            column: yAxisColumn,
+            settings: {
+              formatting: {
+                style: 'short',
+              },
+              display: {
+                label: yAxisLabel,
+                displayType: 'line',
+              },
+            },
+          },
+        ],
+        showLegend: false,
+        showNullsAsZero: true,
+        leftYAxisSettings: {
+          startAtZero: true,
+        },
+      },
+    },
+  };
+}
+
+function dailyEventQuery({ eventName, valueAlias, aggregate, extraConditions = [] }) {
+  return [
+    'select',
+    '  toDate(timestamp) as day,',
+    `  ${aggregate} as ${valueAlias}`,
+    'from events',
+    `where event = '${eventName}'`,
+    EXTERNAL_ACTOR_CONDITION,
+    ...extraConditions,
+    'group by day',
+    'order by day asc',
+  ].join('\n');
+}
+
+function cumulativeEventQuery({ eventName, dailyAlias, totalAlias, aggregate, extraConditions = [] }) {
+  return [
+    'with daily as (',
+    '  select',
+    '    toDate(timestamp) as day,',
+    `    ${aggregate} as ${dailyAlias}`,
+    '  from events',
+    `  where event = '${eventName}'`,
+    EXTERNAL_ACTOR_CONDITION,
+    ...extraConditions,
+    '  group by day',
+    ')',
+    'select',
+    '  day,',
+    `  ${dailyAlias},`,
+    `  sum(${dailyAlias}) over (order by day asc rows between unbounded preceding and current row) as ${totalAlias}`,
+    'from daily',
+    'order by day asc',
+  ].join('\n');
+}
+
+function cumulativeFirstActorEventQuery({ eventName, dailyAlias, totalAlias, actorAlias, extraConditions = [] }) {
+  return [
+    'with first_seen as (',
+    '  select',
+    `    coalesce(person_id, distinct_id) as ${actorAlias},`,
+    '    min(toDate(timestamp)) as first_seen_day',
+    '  from events',
+    `  where event = '${eventName}'`,
+    EXTERNAL_ACTOR_CONDITION,
+    ...extraConditions,
+    `  group by ${actorAlias}`,
+    '), daily as (',
+    '  select',
+    '    first_seen_day as day,',
+    `    count() as ${dailyAlias}`,
+    '  from first_seen',
+    '  group by day',
+    ')',
+    'select',
+    '  day,',
+    `  ${dailyAlias},`,
+    `  sum(${dailyAlias}) over (order by day asc rows between unbounded preceding and current row) as ${totalAlias}`,
+    'from daily',
+    'order by day asc',
+  ].join('\n');
+}
+
+function siteVisitorsUniqueQuery() {
+  return dailyEventQuery({
+    eventName: '$pageview',
+    valueAlias: 'unique_visitors',
+    aggregate: 'uniqExact(coalesce(person_id, distinct_id))',
+  });
+}
+
+function siteVisitorsUniqueInsight() {
+  return hogqlLineGraphInsight({
+    key: 'site_visitors_unique',
+    name: 'Site Visitors (Unique)',
+    description: 'Daily distinct visitors who loaded the site, including visitors who did not take a product action.',
+    query: siteVisitorsUniqueQuery(),
+    yAxisColumn: 'unique_visitors',
+    yAxisLabel: 'Unique visitors',
+  });
+}
+
+function totalUniqueSiteVisitorsQuery() {
+  return cumulativeFirstActorEventQuery({
+    eventName: '$pageview',
+    dailyAlias: 'new_unique_visitors',
+    totalAlias: 'total_unique_visitors',
+    actorAlias: 'visitor_id',
+  });
+}
+
+function totalUniqueSiteVisitorsInsight() {
+  return hogqlLineGraphInsight({
+    key: 'total_unique_site_visitors',
+    name: 'Total Unique Visitors (All Time)',
+    description: 'Cumulative distinct visitors who loaded the site, based on retained pageview history.',
+    query: totalUniqueSiteVisitorsQuery(),
+    yAxisColumn: 'total_unique_visitors',
+    yAxisLabel: 'Total unique visitors',
+  });
+}
+
+function accountsCreatedPerDayInsight() {
+  return hogqlLineGraphInsight({
+    key: 'accounts_created_per_day',
+    name: 'Accounts Created Per Day',
+    description: 'Daily external accounts created from canonical account_created events.',
+    query: dailyEventQuery({
+      eventName: 'account_created',
+      valueAlias: 'accounts_created',
+      aggregate: 'uniqExact(coalesce(person_id, distinct_id))',
+    }),
+    yAxisColumn: 'accounts_created',
+    yAxisLabel: 'Accounts created',
+  });
+}
+
+function totalAccountsCreatedInsight() {
+  return hogqlLineGraphInsight({
+    key: 'total_accounts_created',
+    name: 'Total Accounts Created',
+    description: 'Cumulative external accounts created from canonical account_created events.',
+    query: cumulativeFirstActorEventQuery({
+      eventName: 'account_created',
+      dailyAlias: 'new_accounts_created',
+      totalAlias: 'total_accounts_created',
+      actorAlias: 'account_id',
+    }),
+    yAxisColumn: 'total_accounts_created',
+    yAxisLabel: 'Total accounts created',
+  });
+}
+
+function postsCreatedPerDayInsight() {
+  return hogqlLineGraphInsight({
+    key: 'posts_created_per_day',
+    name: 'Posts Created Per Day',
+    description: 'Daily distinct original posts created by external users.',
+    query: dailyEventQuery({
+      eventName: 'post_created',
+      valueAlias: 'posts_created',
+      aggregate: 'uniqExact(toString(properties.post_id))',
+      extraConditions: [
+        '  and properties.post_id is not null',
+        ORIGINAL_POST_CONDITION,
+      ],
+    }),
+    yAxisColumn: 'posts_created',
+    yAxisLabel: 'Posts created',
+  });
+}
+
+function totalPostsCreatedInsight() {
+  return hogqlLineGraphInsight({
+    key: 'total_posts_created',
+    name: 'Total Posts Created',
+    description: 'Cumulative distinct original posts created by external users.',
+    query: cumulativeEventQuery({
+      eventName: 'post_created',
+      dailyAlias: 'posts_created',
+      totalAlias: 'total_posts_created',
+      aggregate: 'uniqExact(toString(properties.post_id))',
+      extraConditions: [
+        '  and properties.post_id is not null',
+        ORIGINAL_POST_CONDITION,
+      ],
+    }),
+    yAxisColumn: 'total_posts_created',
+    yAxisLabel: 'Total posts created',
+  });
+}
+
+function conversionsMadePerDayInsight() {
+  return hogqlLineGraphInsight({
+    key: 'conversions_made_per_day',
+    name: 'Conversions Made Per Day',
+    description: 'Daily successful link conversions by external users.',
+    query: dailyEventQuery({
+      eventName: 'link_converted',
+      valueAlias: 'conversions_made',
+      aggregate: 'count()',
+      extraConditions: [
+        CORE_ACTION_CONDITION,
+      ],
+    }),
+    yAxisColumn: 'conversions_made',
+    yAxisLabel: 'Conversions made',
+  });
+}
+
+function totalConversionsMadeInsight() {
+  return hogqlLineGraphInsight({
+    key: 'total_conversions_made',
+    name: 'Total Conversions Made',
+    description: 'Cumulative successful link conversions by external users.',
+    query: cumulativeEventQuery({
+      eventName: 'link_converted',
+      dailyAlias: 'conversions_made',
+      totalAlias: 'total_conversions_made',
+      aggregate: 'count()',
+      extraConditions: [
+        CORE_ACTION_CONDITION,
+      ],
+    }),
+    yAxisColumn: 'total_conversions_made',
+    yAxisLabel: 'Total conversions made',
+  });
+}
+
+function growthMetricInsights() {
+  return [
+    siteVisitorsUniqueInsight(),
+    totalUniqueSiteVisitorsInsight(),
+    accountsCreatedPerDayInsight(),
+    totalAccountsCreatedInsight(),
+    postsCreatedPerDayInsight(),
+    totalPostsCreatedInsight(),
+    conversionsMadePerDayInsight(),
+    totalConversionsMadeInsight(),
+  ];
+}
+
 const insightDefinitions = [
   {
     key: 'waa_core_actions',
@@ -927,7 +1191,10 @@ const deprecatedInsightNames = [
   'Internal Core Actions by Element Type',
 ];
 
-const productInsightDefinitions = withInternalActorFilter(insightDefinitions, false);
+const productInsightDefinitions = [
+  ...growthMetricInsights(),
+  ...withInternalActorFilter(insightDefinitions, false),
+];
 productInsightDefinitions.push(postDistributionMetricInsight({ internalActor: false }));
 productInsightDefinitions.push(postDistributionLadderInsight({ internalActor: false }));
 productInsightDefinitions.push(creatorRepeatAfterDistributionInsight({ internalActor: false }));

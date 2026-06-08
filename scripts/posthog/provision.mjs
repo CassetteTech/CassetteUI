@@ -44,6 +44,9 @@ loadEnvFile(path.join(projectRoot, '.env'));
 const dryRun = process.argv.includes('--dry-run');
 const pmfOnly = process.argv.includes('--pmf-only');
 const growthOnly = process.argv.includes('--growth-only');
+const playlistConversionsOnly = process.argv.includes('--playlist-conversions-only');
+const postsCreatedOnly = process.argv.includes('--posts-created-only');
+const redditBotOnly = process.argv.includes('--reddit-bot-only');
 
 const host = (
   process.env.POSTHOG_APP_HOST ||
@@ -67,7 +70,6 @@ if (!dryRun && !personalApiKey) {
 const scopePath = environmentId
   ? `/api/environments/${environmentId}`
   : `/api/projects/${projectId}`;
-const projectScopePath = projectId ? `/api/projects/${projectId}` : null;
 
 function internalActorPropertyFilter(internalActor) {
   return {
@@ -119,6 +121,15 @@ const FUNNEL_WINDOW_14_DAYS = {
 const EXTERNAL_ACTOR_CONDITION = '  and coalesce(toBool(properties.internal_actor), false) = false';
 const ORIGINAL_POST_CONDITION = "  and coalesce(toString(properties.is_repost), 'false') = 'false'";
 const CORE_ACTION_CONDITION = '  and coalesce(toBool(properties.core_action), false) = true';
+const productCoreActionEvents = [
+  'link_converted',
+  'post_created',
+  'profile_updated',
+  'playlist_created_on_platform',
+  'music_service_connected',
+  'onboarding_completed',
+];
+const contentCoreActionEvents = ['link_converted', 'post_created'];
 
 function linkConvertedEventForElementType(elementType, name = `link_converted (${elementType})`) {
   return {
@@ -130,6 +141,10 @@ function linkConvertedEventForElementType(elementType, name = `link_converted ($
       { key: 'element_type', value: elementType, operator: 'exact', type: 'event' },
     ],
   };
+}
+
+function eventNameList(events) {
+  return events.map((eventName) => `'${eventName}'`).join(', ');
 }
 
 function linkConvertedElementTypeSplitEvents() {
@@ -155,27 +170,6 @@ function postPlatformConversionEvent({ name, targetPlatform, elementType, math }
     type: 'events',
     ...(math ? { math } : {}),
     properties,
-  };
-}
-
-function redditBotTrafficFilter() {
-  return {
-    key: 'traffic_source',
-    value: 'redditbot',
-    operator: 'exact',
-    type: 'event',
-  };
-}
-
-function redditBotEvent(eventName, name = eventName, extraProperties = []) {
-  return {
-    id: eventName,
-    name,
-    type: 'events',
-    properties: [
-      redditBotTrafficFilter(),
-      ...extraProperties,
-    ],
   };
 }
 
@@ -520,15 +514,15 @@ function playlistCreationOutcomesQuery(internalActor) {
     "  coalesce(nullIf(toString(properties.target_platform), ''), 'unknown') as target_platform,",
     "  countIf(event = 'playlist_creation_submitted') as submitted,",
     "  countIf(event = 'playlist_creation_blocked') as blocked,",
-    "  countIf(event = 'playlist_created_on_platform') as created,",
+    "  countIf(event = 'playlist_created_on_platform') as conversions,",
     "  countIf(event = 'playlist_creation_failed') as failed,",
-    "  if(countIf(event = 'playlist_creation_submitted') = 0, 0, round(100.0 * countIf(event = 'playlist_created_on_platform') / countIf(event = 'playlist_creation_submitted'), 2)) as created_per_submit_pct,",
-    "  if(countIf(event = 'playlist_created_on_platform') = 0, 0, round(avgIf(toFloat64OrNull(toString(properties.tracks_failed)), event = 'playlist_created_on_platform'), 2)) as avg_tracks_failed_per_success,",
-    "  if(countIf(event = 'playlist_created_on_platform') = 0, 0, round(avgIf(toFloat64OrNull(toString(properties.total_tracks)), event = 'playlist_created_on_platform'), 2)) as avg_tracks_attempted_per_success",
+    "  if(countIf(event = 'playlist_creation_submitted') = 0, 0, round(100.0 * countIf(event = 'playlist_created_on_platform') / countIf(event = 'playlist_creation_submitted'), 2)) as conversions_per_submit_pct,",
+    "  if(countIf(event = 'playlist_created_on_platform') = 0, 0, round(avgIf(toFloatOrDefault(toString(properties.tracks_failed), 0), event = 'playlist_created_on_platform'), 2)) as avg_tracks_failed_per_conversion,",
+    "  if(countIf(event = 'playlist_created_on_platform') = 0, 0, round(avgIf(toFloatOrDefault(toString(properties.total_tracks), 0), event = 'playlist_created_on_platform'), 2)) as avg_tracks_attempted_per_conversion",
     'from events',
     "where event in ('playlist_creation_submitted', 'playlist_creation_blocked', 'playlist_created_on_platform', 'playlist_creation_failed')",
     `  and coalesce(toBool(properties.internal_actor), false) = ${internalActorLiteral}`,
-    '  and timestamp >= now() - INTERVAL 30 DAY',
+    '  and timestamp >= now() - INTERVAL 90 DAY',
     'group by target_platform',
     'order by submitted desc, target_platform asc',
   ].join('\n');
@@ -540,8 +534,9 @@ function playlistCreationOutcomesInsight({ internalActor }) {
 
   return {
     key: `${keyPrefix}playlist_creation_outcomes`,
-    name: `${prefix}Playlist Creation Outcomes`,
-    description: `${prefix || ''}30-day playlist creation submit, blocked, failure, and success outcomes by target platform.`,
+    name: `${prefix}Playlist Conversion Outcomes`,
+    previousNames: [`${prefix}Playlist Creation Outcomes`],
+    description: `${prefix || ''}90-day playlist conversion submitted, blocked, failed, and converted outcomes by target platform.`,
     query: {
       kind: 'DataTableNode',
       source: {
@@ -557,13 +552,12 @@ function playlistCreationFunnelInsight({ internalActor }) {
     key: internalActor ? 'internal_post_engagement_funnel' : 'post_engagement_funnel',
     name: internalActor ? 'Internal Post Engagement Funnel' : 'Post Engagement Funnel',
     description: internalActor
-      ? 'Internal playlist creation flow: post_viewed -> playlist convert CTA click -> playlist_created_on_platform.'
-      : 'Playlist creation flow: post_viewed -> playlist convert CTA click -> playlist_created_on_platform.',
+      ? 'Internal playlist conversion flow: post_viewed -> playlist convert CTA click -> playlist_created_on_platform.'
+      : 'Playlist conversion flow: post_viewed -> playlist convert CTA click -> playlist_created_on_platform.',
     query: {
       kind: 'InsightVizNode',
       source: {
         kind: 'FunnelsQuery',
-        ...FUNNEL_WINDOW_14_DAYS,
         series: [
           {
             kind: 'EventsNode',
@@ -677,7 +671,16 @@ function creatorIntentActivationFunnelInsight({ internalActor }) {
   };
 }
 
-function hogqlLineGraphInsight({ key, name, description, query, yAxisColumn, yAxisLabel, yAxis }) {
+function hogqlLineGraphInsight({
+  key,
+  name,
+  previousNames,
+  description,
+  query,
+  yAxisColumn,
+  yAxisLabel,
+  yAxis,
+}) {
   const yAxisSeries = yAxis || [
     {
       column: yAxisColumn,
@@ -688,6 +691,7 @@ function hogqlLineGraphInsight({ key, name, description, query, yAxisColumn, yAx
   return {
     key,
     name,
+    previousNames,
     description,
     query: {
       kind: 'DataVisualizationNode',
@@ -717,6 +721,22 @@ function hogqlLineGraphInsight({ key, name, description, query, yAxisColumn, yAx
         leftYAxisSettings: {
           startAtZero: true,
         },
+      },
+    },
+  };
+}
+
+function hogqlDataTableInsight({ key, name, previousNames, description, query }) {
+  return {
+    key,
+    name,
+    previousNames,
+    description,
+    query: {
+      kind: 'DataTableNode',
+      source: {
+        kind: 'HogQLQuery',
+        query,
       },
     },
   };
@@ -957,6 +977,128 @@ function postsCreatedPerDayInsight() {
   });
 }
 
+function postsCreatedBySourceQuery() {
+  return [
+    'with',
+    'filtered as (',
+    '  select',
+    '    timestamp,',
+    '    toString(properties.post_id) as post_id,',
+    "    if(event = 'reddit_bot_post_created', 'reddit_bot', 'website') as post_source",
+    '  from events',
+    "  where event in ('post_created', 'reddit_bot_post_created')",
+    EXTERNAL_ACTOR_CONDITION,
+    '    and properties.post_id is not null',
+    "    and (event != 'post_created' or coalesce(toString(properties.is_repost), 'false') = 'false')",
+    "    and (event != 'reddit_bot_post_created' or coalesce(toString(properties.traffic_source), '') = 'redditbot')",
+    '),',
+    `${dateSeriesCtes('filtered', 'toDate(timestamp)')},`,
+    'daily as (',
+    '  select',
+    '    toDate(timestamp) as day,',
+    "    uniqExactIf(post_id, post_source = 'reddit_bot') as reddit_bot_posts,",
+    "    uniqExactIf(post_id, post_source = 'website') as website_posts,",
+    '    uniqExact(post_id) as total_posts',
+    '  from filtered',
+    '  group by day',
+    ')',
+    'select',
+    '  dates.day,',
+    '  coalesce(daily.reddit_bot_posts, 0) as reddit_bot_posts,',
+    '  coalesce(daily.website_posts, 0) as website_posts,',
+    '  coalesce(daily.total_posts, 0) as total_posts',
+    'from dates',
+    'left join daily on daily.day = dates.day',
+    'order by dates.day asc',
+  ].join('\n');
+}
+
+function postsCreatedBySourceInsight() {
+  return hogqlLineGraphInsight({
+    key: 'posts_created_by_source',
+    name: 'Posts Created by Source',
+    description: 'Daily distinct Cassette posts created from the website, server-side Reddit bot, and both sources combined.',
+    query: postsCreatedBySourceQuery(),
+    yAxis: [
+      { column: 'reddit_bot_posts', label: 'Reddit bot posts' },
+      { column: 'website_posts', label: 'Website posts' },
+      { column: 'total_posts', label: 'Total posts' },
+    ],
+  });
+}
+
+function cumulativePostsCreatedBySourceQuery() {
+  return [
+    'with',
+    'filtered as (',
+    '  select',
+    '    timestamp,',
+    '    toString(properties.post_id) as post_id,',
+    "    if(event = 'reddit_bot_post_created', 'reddit_bot', 'website') as post_source",
+    '  from events',
+    "  where event in ('post_created', 'reddit_bot_post_created')",
+    EXTERNAL_ACTOR_CONDITION,
+    '    and properties.post_id is not null',
+    "    and (event != 'post_created' or coalesce(toString(properties.is_repost), 'false') = 'false')",
+    "    and (event != 'reddit_bot_post_created' or coalesce(toString(properties.traffic_source), '') = 'redditbot')",
+    '),',
+    `${dateSeriesCtes('filtered', 'toDate(timestamp)')},`,
+    'source_first_seen as (',
+    '  select',
+    '    post_id,',
+    '    post_source,',
+    '    min(toDate(timestamp)) as day',
+    '  from filtered',
+    '  group by post_id, post_source',
+    '),',
+    'total_first_seen as (',
+    '  select',
+    '    post_id,',
+    '    min(toDate(timestamp)) as day',
+    '  from filtered',
+    '  group by post_id',
+    '),',
+    'source_daily as (',
+    '  select',
+    '    day,',
+    "    countIf(post_source = 'reddit_bot') as new_reddit_bot_posts,",
+    "    countIf(post_source = 'website') as new_website_posts",
+    '  from source_first_seen',
+    '  group by day',
+    '),',
+    'total_daily as (',
+    '  select',
+    '    day,',
+    '    count() as new_total_posts',
+    '  from total_first_seen',
+    '  group by day',
+    ')',
+    'select',
+    '  dates.day,',
+    '  sum(coalesce(source_daily.new_reddit_bot_posts, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as cumulative_reddit_bot_posts,',
+    '  sum(coalesce(source_daily.new_website_posts, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as cumulative_website_posts,',
+    '  sum(coalesce(total_daily.new_total_posts, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as cumulative_total_posts',
+    'from dates',
+    'left join source_daily on source_daily.day = dates.day',
+    'left join total_daily on total_daily.day = dates.day',
+    'order by dates.day asc',
+  ].join('\n');
+}
+
+function cumulativePostsCreatedBySourceInsight() {
+  return hogqlLineGraphInsight({
+    key: 'cumulative_posts_created_by_source',
+    name: 'Cumulative Posts Created by Source',
+    description: 'Running distinct Cassette posts created from the website, server-side Reddit bot, and both sources combined.',
+    query: cumulativePostsCreatedBySourceQuery(),
+    yAxis: [
+      { column: 'cumulative_reddit_bot_posts', label: 'Reddit bot posts' },
+      { column: 'cumulative_website_posts', label: 'Website posts' },
+      { column: 'cumulative_total_posts', label: 'Total posts' },
+    ],
+  });
+}
+
 function totalPostsCreatedInsight() {
   return hogqlLineGraphInsight({
     key: 'total_posts_created',
@@ -1014,6 +1156,163 @@ function totalConversionsMadeInsight() {
   });
 }
 
+function coreActionFilteredCte({ events = productCoreActionEvents, extraConditions = [] } = {}) {
+  return [
+    'filtered as (',
+    '  select',
+    '    timestamp,',
+    '    coalesce(person_id, distinct_id) as actor_id,',
+    '    event,',
+    '    properties',
+    '  from events',
+    `  where event in (${eventNameList(events)})`,
+    EXTERNAL_ACTOR_CONDITION,
+    CORE_ACTION_CONDITION,
+    ...extraConditions,
+    ')',
+  ].join('\n');
+}
+
+function dailyCoreActionUsersQuery() {
+  return [
+    'with',
+    `${coreActionFilteredCte()},`,
+    `${dateSeriesCtes('filtered', 'toDate(timestamp)')},`,
+    'daily as (',
+    '  select',
+    '    toDate(timestamp) as day,',
+    '    uniqExact(actor_id) as daily_active_core_users',
+    '  from filtered',
+    '  group by day',
+    ')',
+    'select',
+    '  dates.day,',
+    '  coalesce(daily.daily_active_core_users, 0) as daily_active_core_users',
+    'from dates',
+    'left join daily on daily.day = dates.day',
+    'order by dates.day asc',
+  ].join('\n');
+}
+
+function dailyCoreActionUsersInsight() {
+  return hogqlLineGraphInsight({
+    key: 'dau_mau_core_actions',
+    name: 'Daily Active Users (Core Actions)',
+    previousNames: ['DAU/MAU Users (Core Actions)'],
+    description: 'Daily distinct external users who performed a successful core action.',
+    query: dailyCoreActionUsersQuery(),
+    yAxisColumn: 'daily_active_core_users',
+    yAxisLabel: 'Daily active core users',
+  });
+}
+
+function weeklyCoreActionUsersQuery() {
+  return [
+    'with',
+    `${coreActionFilteredCte()}`,
+    'select',
+    '  toStartOfWeek(toDate(timestamp)) as day,',
+    '  uniqExact(actor_id) as weekly_active_core_users',
+    'from filtered',
+    'group by day',
+    'order by day asc',
+  ].join('\n');
+}
+
+function weeklyCoreActionUsersInsight() {
+  return hogqlLineGraphInsight({
+    key: 'waa_core_actions',
+    name: 'Weekly Active Accounts (Core Actions)',
+    description: 'Weekly distinct external users who performed a successful core action.',
+    query: weeklyCoreActionUsersQuery(),
+    yAxisColumn: 'weekly_active_core_users',
+    yAxisLabel: 'Weekly active core users',
+  });
+}
+
+function contentCoreActionCountExpression() {
+  return [
+    "countIf(event = 'link_converted')",
+    "+",
+    "uniqExactIf(toString(properties.post_id), event = 'post_created' and properties.post_id is not null)",
+  ].join(' ');
+}
+
+function contentCoreActionByElementTypeQuery(elementType) {
+  return [
+    'with',
+    `${coreActionFilteredCte({
+      events: contentCoreActionEvents,
+      extraConditions: [
+        `  and coalesce(toString(properties.element_type), '') = '${elementType}'`,
+        "  and (event != 'post_created' or coalesce(toString(properties.is_repost), 'false') = 'false')",
+      ],
+    })},`,
+    `${dateSeriesCtes('filtered', 'toDate(timestamp)')},`,
+    'daily as (',
+    '  select',
+    '    toDate(timestamp) as day,',
+    `    ${contentCoreActionCountExpression()} as core_actions`,
+    '  from filtered',
+    '  group by day',
+    ')',
+    'select',
+    '  dates.day,',
+    '  coalesce(daily.core_actions, 0) as core_actions',
+    'from dates',
+    'left join daily on daily.day = dates.day',
+    'order by dates.day asc',
+  ].join('\n');
+}
+
+function contentCoreActionByElementTypeInsight(elementType) {
+  const titleType = elementType[0].toUpperCase() + elementType.slice(1);
+
+  return hogqlLineGraphInsight({
+    key: `core_actions_${elementType}`,
+    name: `Core Actions - ${titleType}`,
+    description: `Daily successful ${elementType} content core actions from original post_created events plus legacy link_converted events.`,
+    query: contentCoreActionByElementTypeQuery(elementType),
+    yAxisColumn: 'core_actions',
+    yAxisLabel: 'Core actions',
+  });
+}
+
+function contentCoreActionElementTypeShareQuery() {
+  return [
+    'with',
+    `${coreActionFilteredCte({
+      events: contentCoreActionEvents,
+      extraConditions: [
+        `  and coalesce(toString(properties.element_type), '') in (${eventNameList(elementTypes)})`,
+        "  and (event != 'post_created' or coalesce(toString(properties.is_repost), 'false') = 'false')",
+      ],
+    })},`,
+    'by_type as (',
+    '  select',
+    "    coalesce(toString(properties.element_type), 'unknown') as element_type,",
+    `    ${contentCoreActionCountExpression()} as core_actions`,
+    '  from filtered',
+    '  group by element_type',
+    ')',
+    'select',
+    '  element_type,',
+    '  core_actions,',
+    '  if(sum(core_actions) over () = 0, 0, round(100.0 * core_actions / sum(core_actions) over (), 2)) as share_pct',
+    'from by_type',
+    'order by core_actions desc, element_type asc',
+  ].join('\n');
+}
+
+function contentCoreActionElementTypeShareInsight() {
+  return hogqlDataTableInsight({
+    key: 'core_actions_element_type_share',
+    name: 'Core Actions - Element Type Share (%)',
+    description: 'Share of successful content core actions by element type, using original post_created events plus legacy link_converted events.',
+    query: contentCoreActionElementTypeShareQuery(),
+  });
+}
+
 function growthMetricInsights() {
   return [
     siteVisitorsUniqueInsight(),
@@ -1021,191 +1320,344 @@ function growthMetricInsights() {
     accountsCreatedPerDayInsight(),
     totalAccountsCreatedInsight(),
     postsCreatedPerDayInsight(),
+    postsCreatedBySourceInsight(),
+    cumulativePostsCreatedBySourceInsight(),
     totalPostsCreatedInsight(),
     conversionsMadePerDayInsight(),
     totalConversionsMadeInsight(),
   ];
 }
 
+function redditBotCondition() {
+  return "  and coalesce(toString(properties.traffic_source), '') = 'redditbot'";
+}
+
+function redditCommentPostReferralExpression() {
+  return [
+    "(position(toString(properties.$current_url), 'utm_source=redditbot') > 0 or position(toString(properties.$current_url), 'src=redditbot') > 0)",
+    "position(toString(properties.$current_url), 'utm_medium=reddit_comment') > 0",
+    "position(toString(properties.route), '/post/') = 1",
+  ].join(' and ');
+}
+
+function redditCommentPostReferralCondition() {
+  return `  and (${redditCommentPostReferralExpression()})`;
+}
+
+function redditSubredditExpression() {
+  return "coalesce(nullIf(toString(properties.reddit_subreddit), ''), nullIf(toString(properties.traffic_content), ''), 'unknown')";
+}
+
+function redditBotPostsCreatedQuery() {
+  return [
+    'with',
+    'filtered as (',
+    '  select',
+    '    timestamp,',
+    '    toString(properties.post_id) as post_id',
+    '  from events',
+    "  where event = 'reddit_bot_post_created'",
+    EXTERNAL_ACTOR_CONDITION,
+    '    and properties.post_id is not null',
+    redditBotCondition(),
+    '),',
+    `${dateSeriesCtes('filtered', 'toDate(timestamp)')},`,
+    'daily as (',
+    '  select',
+    '    toDate(timestamp) as day,',
+    '    uniqExact(post_id) as posts_created',
+    '  from filtered',
+    '  group by day',
+    ')',
+    'select',
+    '  dates.day,',
+    '  coalesce(daily.posts_created, 0) as posts_created',
+    'from dates',
+    'left join daily on daily.day = dates.day',
+    'order by dates.day asc',
+  ].join('\n');
+}
+
+function redditBotLinkEngagementQuery() {
+  return [
+    'with',
+    'filtered as (',
+    '  select',
+    '    timestamp,',
+    '    person_id,',
+    '    distinct_id',
+    '  from events',
+    "  where event = '$pageview'",
+    '    and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    redditBotCondition(),
+    redditCommentPostReferralCondition(),
+    '),',
+    `${dateSeriesCtes('filtered', 'toDate(timestamp)')},`,
+    'daily as (',
+    '  select',
+    '    toDate(timestamp) as day,',
+    '    count() as reddit_comment_post_referrals,',
+    '    uniqExact(coalesce(person_id, distinct_id)) as unique_visitors',
+    '  from filtered',
+    '  group by day',
+    ')',
+    'select',
+    '  dates.day,',
+    '  coalesce(daily.reddit_comment_post_referrals, 0) as reddit_comment_post_referrals,',
+    '  coalesce(daily.unique_visitors, 0) as unique_visitors',
+    'from dates',
+    'left join daily on daily.day = dates.day',
+    'order by dates.day asc',
+  ].join('\n');
+}
+
+function redditBotLinkOpensBySubredditQuery() {
+  return [
+    'with',
+    'referrals as (',
+    '  select',
+    `    ${redditSubredditExpression()} as reddit_subreddit,`,
+    '    count() as reddit_comment_post_referrals,',
+    '    uniqExact(coalesce(person_id, distinct_id)) as unique_visitors',
+    '  from events',
+    "  where event = '$pageview'",
+    '    and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    redditBotCondition(),
+    redditCommentPostReferralCondition(),
+    '  group by reddit_subreddit',
+    '),',
+    'bot_posts as (',
+    '  select',
+    `    ${redditSubredditExpression()} as reddit_subreddit,`,
+    '    uniqExact(toString(properties.post_id)) as bot_posts_created',
+    '  from events',
+    "  where event = 'reddit_bot_post_created'",
+    '    and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    redditBotCondition(),
+    '    and properties.post_id is not null',
+    '  group by reddit_subreddit',
+    '),',
+    'subreddits as (',
+    '  select reddit_subreddit from referrals',
+    '  union distinct',
+    '  select reddit_subreddit from bot_posts',
+    ')',
+    'select',
+    '  subreddits.reddit_subreddit,',
+    '  coalesce(referrals.reddit_comment_post_referrals, 0) as reddit_comment_post_referrals,',
+    '  coalesce(referrals.unique_visitors, 0) as unique_visitors,',
+    '  coalesce(bot_posts.bot_posts_created, 0) as bot_posts_created',
+    'from subreddits',
+    'left join referrals on referrals.reddit_subreddit = subreddits.reddit_subreddit',
+    'left join bot_posts on bot_posts.reddit_subreddit = subreddits.reddit_subreddit',
+    'order by reddit_comment_post_referrals desc, bot_posts_created desc',
+    'limit 50',
+  ].join('\n');
+}
+
+function redditBotDownstreamBySubredditQuery() {
+  return [
+    'select',
+    `  ${redditSubredditExpression()} as reddit_subreddit,`,
+    "  countIf(event = 'post_platform_conversion_clicked') as convert_to_platform_clicks,",
+    "  countIf(event in ('streaming_link_opened', 'playlist_opened_on_platform')) as streaming_platform_opens,",
+    "  countIf(event = 'playlist_created_on_platform') as playlists_created_on_platform",
+    'from events',
+    "where event in ('post_platform_conversion_clicked', 'streaming_link_opened', 'playlist_opened_on_platform', 'playlist_created_on_platform')",
+    EXTERNAL_ACTOR_CONDITION,
+    redditBotCondition(),
+    'group by reddit_subreddit',
+    'order by convert_to_platform_clicks desc, streaming_platform_opens desc, playlists_created_on_platform desc',
+    'limit 50',
+  ].join('\n');
+}
+
 function redditBotAttributionInsights() {
   return [
-    {
+    hogqlLineGraphInsight({
       key: 'reddit_bot_posts_created',
       name: 'Reddit Bot Cassette Posts Created',
-      description: 'Cassette playlist posts created by the Reddit bot, from the Bridge reddit_bot_post_created event.',
-      filters: {
-        insight: 'TRENDS',
-        interval: 'day',
-        display: 'ActionsLineGraph',
-        events: [
-          redditBotEvent('reddit_bot_post_created'),
-        ],
-      },
-    },
-    {
+      description: 'Cassette playlist posts created by the Reddit bot, counted from server-side reddit_bot_post_created events.',
+      query: redditBotPostsCreatedQuery(),
+      yAxisColumn: 'posts_created',
+      yAxisLabel: 'Posts created',
+    }),
+    hogqlLineGraphInsight({
       key: 'reddit_bot_link_engagement',
-      name: 'Reddit Bot Link Engagement',
-      description: 'Reddit-attributed post opens, post views, platform CTA clicks, platform opens, and playlist saves.',
-      filters: {
-        insight: 'TRENDS',
-        interval: 'day',
-        display: 'ActionsLineGraph',
-        events: [
-          redditBotEvent('$pageview', 'Reddit link opened'),
-          redditBotEvent('post_viewed', 'post_viewed'),
-          redditBotEvent('post_platform_conversion_clicked', 'post_platform_conversion_clicked'),
-          redditBotEvent('streaming_link_opened', 'streaming_link_opened'),
-          redditBotEvent('playlist_opened_on_platform', 'playlist_opened_on_platform'),
-          redditBotEvent('playlist_created_on_platform', 'playlist_created_on_platform'),
-        ],
-      },
-    },
-    {
+      name: 'Reddit Comment Post Referrals',
+      previousNames: ['Reddit Bot Link Engagement', 'Reddit Bot Traffic and Engagement'],
+      description: 'Direct arrivals from Reddit comments to Cassette post pages, counted from current URLs with redditbot source and reddit_comment medium.',
+      query: redditBotLinkEngagementQuery(),
+      yAxis: [
+        { column: 'reddit_comment_post_referrals', label: 'Reddit comment post referrals' },
+        { column: 'unique_visitors', label: 'Unique visitors' },
+      ],
+    }),
+    hogqlDataTableInsight({
       key: 'reddit_bot_link_opens_by_subreddit',
-      name: 'Reddit Bot Link Opens by Subreddit',
-      description: 'Reddit-attributed pageviews split by subreddit.',
-      filters: {
-        insight: 'TRENDS',
-        interval: 'day',
-        display: 'ActionsBar',
-        events: [
-          redditBotEvent('$pageview', 'Reddit link opened'),
-        ],
-        breakdown: 'reddit_subreddit',
-        breakdown_type: 'event',
-      },
-    },
-    {
+      name: 'Reddit Comment Referrals and Bot Posts by Subreddit',
+      previousNames: [
+        'Reddit Bot Link Opens by Subreddit',
+        'Reddit Comment Post Referrals by Subreddit',
+      ],
+      description: 'Direct arrivals from Reddit comments to Cassette post pages and distinct posts created by the Reddit bot, split by subreddit.',
+      query: redditBotLinkOpensBySubredditQuery(),
+    }),
+    hogqlDataTableInsight({
       key: 'reddit_bot_downstream_by_subreddit',
-      name: 'Reddit Bot Downstream Actions by Subreddit',
-      description: 'Reddit-attributed platform clicks, platform opens, and playlist saves split by subreddit.',
-      filters: {
-        insight: 'TRENDS',
-        interval: 'day',
-        display: 'ActionsBar',
-        events: [
-          redditBotEvent('post_platform_conversion_clicked', 'post_platform_conversion_clicked'),
-          redditBotEvent('streaming_link_opened', 'streaming_link_opened'),
-          redditBotEvent('playlist_opened_on_platform', 'playlist_opened_on_platform'),
-          redditBotEvent('playlist_created_on_platform', 'playlist_created_on_platform'),
-        ],
-        breakdown: 'reddit_subreddit',
-        breakdown_type: 'event',
-      },
-    },
+      name: 'Reddit-Attributed Downstream Actions by Subreddit',
+      previousNames: ['Reddit Bot Downstream Actions by Subreddit'],
+      description: 'Reddit-attributed convert-to-platform clicks, streaming platform opens, and playlists created on platform split by subreddit.',
+      query: redditBotDownstreamBySubredditQuery(),
+    }),
   ];
 }
 
+function dashboardLayout(x, y, w, h) {
+  return {
+    sm: {
+      x,
+      y,
+      w,
+      h,
+      minW: 1,
+      minH: 1,
+    },
+  };
+}
+
+function productDashboardLayoutByKey() {
+  const rows = [
+    [
+      { key: 'site_visitors_unique', w: 4, h: 4 },
+      { key: 'posts_created_by_source', w: 4, h: 4 },
+      { key: 'cumulative_posts_created_by_source', w: 4, h: 4 },
+    ],
+    [
+      { key: 'reddit_bot_posts_created', w: 6 },
+      { key: 'reddit_bot_link_engagement', w: 6 },
+    ],
+    [
+      { key: 'total_posts_created', w: 4, h: 4 },
+      { key: 'total_accounts_created', w: 4, h: 4 },
+      { key: 'total_conversions_made', w: 4, h: 4 },
+    ],
+    [
+      { key: 'posts_created_per_day', w: 4, h: 4 },
+      { key: 'accounts_created_per_day', w: 4, h: 4 },
+      { key: 'total_unique_site_visitors', w: 4, h: 4 },
+    ],
+    [
+      { key: 'creator_intent_activation', w: 6 },
+      { key: 'link_conversion_funnel', w: 6 },
+    ],
+    [
+      { key: 'post_engagement_funnel', w: 6 },
+      { key: 'playlist_creation_outcomes', w: 6 },
+    ],
+    [
+      { key: 'reddit_bot_link_opens_by_subreddit', w: 6, h: 6 },
+      { key: 'reddit_bot_downstream_by_subreddit', w: 6, h: 6 },
+    ],
+    [
+      { key: 'post_distribution_3plus_viewers_7d', w: 6, h: 5 },
+      { key: 'post_distribution_ladder', w: 6, h: 5 },
+    ],
+    [
+      { key: 'viewer_to_contributor', w: 6, h: 5 },
+      { key: 'creator_repeat_after_distribution', w: 6, h: 5 },
+    ],
+    [
+      { key: 'post_platform_cta_clicks_total', w: 6 },
+      { key: 'post_platform_cta_users_unique', w: 6 },
+    ],
+    [
+      { key: 'post_platform_cta_by_target_platform', w: 6 },
+      { key: 'post_platform_cta_by_element_type', w: 6 },
+    ],
+    [
+      { key: 'dau_mau_core_actions', w: 6 },
+      { key: 'waa_core_actions', w: 6 },
+    ],
+    [
+      { key: 'conversions_made_per_day', w: 6 },
+      { key: 'core_actions_element_type_share', w: 6 },
+    ],
+    [
+      { key: 'core_actions_playlist', w: 3, h: 4 },
+      { key: 'core_actions_track', w: 3, h: 4 },
+      { key: 'core_actions_album', w: 3, h: 4 },
+      { key: 'core_actions_artist', w: 3, h: 4 },
+    ],
+    [
+      { key: 'platform_source_mix', w: 12 },
+    ],
+    [
+      { key: 'conversion_funnel', w: 6 },
+      { key: 'onboarding_activation', w: 6 },
+    ],
+    [
+      { key: 'failure_monitor', w: 12, h: 6 },
+    ],
+  ];
+
+  const layouts = new Map();
+  let y = 0;
+
+  for (const row of rows) {
+    let x = 0;
+    const rowHeight = Math.max(...row.map((tile) => tile.h || 5));
+
+    for (const tile of row) {
+      const width = tile.w || 6;
+      layouts.set(tile.key, dashboardLayout(x, y, width, tile.h || rowHeight));
+      x += width;
+    }
+
+    y += rowHeight;
+  }
+
+  return layouts;
+}
+
+function productDashboardInsightDefinitions() {
+  const definitions = [
+    ...growthMetricInsights(),
+    ...withInternalActorFilter(insightDefinitions, false),
+    ...redditBotAttributionInsights(),
+    postDistributionMetricInsight({ internalActor: false }),
+    postDistributionLadderInsight({ internalActor: false }),
+    creatorRepeatAfterDistributionInsight({ internalActor: false }),
+    viewerToContributorInsight({ internalActor: false }),
+    playlistCreationOutcomesInsight({ internalActor: false }),
+  ];
+  const definitionsByKey = new Map(definitions.map((definition) => [definition.key, definition]));
+  const layoutsByKey = productDashboardLayoutByKey();
+
+  return [...layoutsByKey.entries()].map(([key, layout]) => {
+    const definition = definitionsByKey.get(key);
+    if (!definition) {
+      throw new Error(`Missing product dashboard insight definition for key "${key}".`);
+    }
+
+    return {
+      ...definition,
+      dashboardLayout: layout,
+    };
+  });
+}
+
 const insightDefinitions = [
-  {
-    key: 'waa_core_actions',
-    name: 'Weekly Active Accounts (Core Actions)',
-    description: 'Distinct active users with core_action=true over time.',
-    filters: {
-      insight: 'TRENDS',
-      interval: 'week',
-      display: 'ActionsLineGraph',
-      events: [
-        {
-          id: 'link_converted',
-          name: 'link_converted',
-          type: 'events',
-          math: 'dau',
-          properties: [
-            { key: 'core_action', value: 'true', operator: 'exact', type: 'event' },
-          ],
-        },
-      ],
-    },
-  },
-  {
-    key: 'dau_mau_core_actions',
-    name: 'DAU/MAU Users (Core Actions)',
-    description: 'DAU and MAU trend for users performing core actions.',
-    filters: {
-      insight: 'TRENDS',
-      interval: 'day',
-      display: 'ActionsLineGraph',
-      events: [
-        {
-          id: 'link_converted',
-          name: 'link_converted',
-          type: 'events',
-          math: 'dau',
-          properties: [
-            { key: 'core_action', value: 'true', operator: 'exact', type: 'event' },
-          ],
-        },
-      ],
-      compare: true,
-    },
-  },
-  {
-    key: 'core_actions_track',
-    name: 'Core Actions - Track',
-    description: 'Successful core link conversions for tracks.',
-    filters: {
-      insight: 'TRENDS',
-      interval: 'day',
-      display: 'ActionsLineGraph',
-      events: [linkConvertedEventForElementType('track')],
-    },
-  },
-  {
-    key: 'core_actions_album',
-    name: 'Core Actions - Album',
-    description: 'Successful core link conversions for albums.',
-    filters: {
-      insight: 'TRENDS',
-      interval: 'day',
-      display: 'ActionsLineGraph',
-      events: [linkConvertedEventForElementType('album')],
-    },
-  },
-  {
-    key: 'core_actions_artist',
-    name: 'Core Actions - Artist',
-    description: 'Successful core link conversions for artists.',
-    filters: {
-      insight: 'TRENDS',
-      interval: 'day',
-      display: 'ActionsLineGraph',
-      events: [linkConvertedEventForElementType('artist')],
-    },
-  },
-  {
-    key: 'core_actions_playlist',
-    name: 'Core Actions - Playlist',
-    description: 'Successful core link conversions for playlists.',
-    filters: {
-      insight: 'TRENDS',
-      interval: 'day',
-      display: 'ActionsLineGraph',
-      events: [linkConvertedEventForElementType('playlist')],
-    },
-  },
-  {
-    key: 'core_actions_element_type_share',
-    name: 'Core Actions - Element Type Share (%)',
-    description: 'Share of successful core link conversions by element type.',
-    filters: {
-      insight: 'TRENDS',
-      interval: 'day',
-      display: 'ActionsPie',
-      events: [
-        {
-          id: 'link_converted',
-          name: 'link_converted',
-          type: 'events',
-          properties: [
-            { key: 'core_action', value: 'true', operator: 'exact', type: 'event' },
-          ],
-        },
-      ],
-      breakdown: 'element_type',
-      breakdown_type: 'event',
-    },
-  },
+  weeklyCoreActionUsersInsight(),
+  dailyCoreActionUsersInsight(),
+  contentCoreActionByElementTypeInsight('track'),
+  contentCoreActionByElementTypeInsight('album'),
+  contentCoreActionByElementTypeInsight('artist'),
+  contentCoreActionByElementTypeInsight('playlist'),
+  contentCoreActionElementTypeShareInsight(),
   {
     key: 'link_conversion_funnel',
     name: 'Link Conversion Funnel',
@@ -1238,7 +1690,7 @@ const insightDefinitions = [
   {
     key: 'post_engagement_funnel',
     name: 'Post Engagement Funnel',
-    description: 'Playlist creation flow: post_viewed -> playlist convert CTA click -> playlist_created_on_platform.',
+    description: 'Playlist conversion flow: post_viewed -> playlist convert CTA click -> playlist_created_on_platform.',
     query: playlistCreationFunnelInsight({ internalActor: false }).query,
   },
   {
@@ -1369,14 +1821,14 @@ const internalDashboardName = 'Cassette Internal Activity';
 const deprecatedInsightNames = [
   'Core Actions by Element Type',
   'Internal Core Actions by Element Type',
+  'Reddit Bot Link Engagement',
+  'Reddit Bot Link Opens by Subreddit',
+  'Reddit Bot Traffic and Engagement',
+  'DAU/MAU Users (Core Actions)',
+  'Reddit Comment Post Referrals by Subreddit',
 ];
 
-const productInsightDefinitions = withInternalActorFilter(insightDefinitions, false);
-productInsightDefinitions.push(postDistributionMetricInsight({ internalActor: false }));
-productInsightDefinitions.push(postDistributionLadderInsight({ internalActor: false }));
-productInsightDefinitions.push(creatorRepeatAfterDistributionInsight({ internalActor: false }));
-productInsightDefinitions.push(viewerToContributorInsight({ internalActor: false }));
-productInsightDefinitions.push(playlistCreationOutcomesInsight({ internalActor: false }));
+const productInsightDefinitions = productDashboardInsightDefinitions();
 
 const internalInsightDefinitions = withInternalActorFilter([
   {
@@ -1578,7 +2030,6 @@ const internalInsightDefinitions = withInternalActorFilter([
     },
   },
 ], true);
-internalInsightDefinitions.push(...redditBotAttributionInsights());
 internalInsightDefinitions.push(postDistributionMetricInsight({ internalActor: true }));
 internalInsightDefinitions.push(postDistributionLadderInsight({ internalActor: true }));
 internalInsightDefinitions.push(creatorRepeatAfterDistributionInsight({ internalActor: true }));
@@ -1654,29 +2105,81 @@ async function api(path, { method = 'GET', body, allow404 = false } = {}) {
 }
 
 async function listAll(path) {
-  const data = await api(`${path}?limit=200`);
-  if (!data) return [];
-  if (Array.isArray(data.results)) return data.results;
-  if (Array.isArray(data)) return data;
-  return [];
+  const items = [];
+  let nextPath = `${path}${path.includes('?') ? '&' : '?'}limit=200`;
+
+  while (nextPath) {
+    const data = await api(nextPath);
+    if (!data) break;
+
+    if (Array.isArray(data.results)) {
+      items.push(...data.results);
+    } else if (Array.isArray(data)) {
+      items.push(...data);
+      break;
+    } else {
+      break;
+    }
+
+    if (!data.next) {
+      break;
+    }
+
+    nextPath = data.next.startsWith('http')
+      ? `${new URL(data.next).pathname}${new URL(data.next).search}`
+      : data.next;
+  }
+
+  return items;
 }
 
 async function upsertInsight(definition, dashboardId) {
   const insights = await listAll(`${scopePath}/insights/`);
-  const namedMatches = insights.filter((insight) => insight.name === definition.name);
+  const candidateNames = [
+    definition.name,
+    ...(Array.isArray(definition.previousNames) ? definition.previousNames : []),
+  ];
+  const namedMatches = insights.filter((insight) => candidateNames.includes(insight.name));
 
   if (namedMatches.length > 1) {
     const ids = namedMatches.map((insight) => insight.id).filter(Boolean).join(', ');
     console.warn(`Multiple insights named "${definition.name}" found (${ids || 'unknown ids'}).`);
   }
 
-  let existing = namedMatches[0];
+  let existing = namedMatches.find((insight) => insight.name === definition.name) || namedMatches[0];
   if (dashboardId && namedMatches.length > 1) {
     const attached = namedMatches.find((insight) => Array.isArray(insight.dashboards)
       && insight.dashboards.includes(dashboardId));
     if (attached) {
       existing = attached;
     }
+  }
+
+  const usesLegacyFilters = definition.filters && !definition.query;
+  if (usesLegacyFilters && existing) {
+    const currentDashboards = Array.isArray(existing.dashboards) ? existing.dashboards : [];
+    const isAttached = dashboardId && currentDashboards.includes(dashboardId);
+
+    console.log(`Using existing legacy insight: ${definition.name} (${existing.id})`);
+    if (!dryRun && dashboardId && !isAttached) {
+      return await api(`${scopePath}/insights/${existing.id}/`, {
+        method: 'PATCH',
+        body: {
+          dashboards: [...currentDashboards, dashboardId],
+        },
+      });
+    }
+
+    return existing;
+  }
+
+  if (usesLegacyFilters && dryRun) {
+    console.log(`Would use existing legacy insight: ${definition.name}`);
+    return { id: `${definition.key}-legacy-existing`, name: definition.name };
+  }
+
+  if (usesLegacyFilters && !existing) {
+    throw new Error(`Cannot create legacy-filter insight "${definition.name}" with this PostHog API key.`);
   }
 
   const payload = {
@@ -1727,90 +2230,189 @@ async function upsertDashboard(name, description) {
   return await api(`${scopePath}/dashboards/`, { method: 'POST', body: payload });
 }
 
-async function addInsightToDashboard(dashboardId, insightId, index) {
-  if (dryRun) {
-    console.log(`Would add insight ${insightId} to dashboard ${dashboardId} at position ${index}`);
-    return;
-  }
-
-  const tilePayload = {
-    insight: insightId,
-    name: `Tile ${index + 1}`,
-  };
-
-  const primary = await api(`${scopePath}/dashboards/${dashboardId}/tiles/`, {
-    method: 'POST',
-    body: tilePayload,
-    allow404: true,
-  });
-
-  if (primary !== null) {
-    return;
-  }
-
-  const fallbackScope = projectScopePath || scopePath;
-  await api(`${fallbackScope}/dashboard_tiles/`, {
-    method: 'POST',
-    body: {
-      dashboard: dashboardId,
-      insight: insightId,
-      order: index,
-    },
-  });
+function getTileInsightId(tile) {
+  if (!tile?.insight) return null;
+  if (typeof tile.insight === 'object') return tile.insight.id ?? null;
+  return tile.insight;
 }
 
-async function clearDashboardTiles(dashboardId) {
-  if (dryRun) {
-    console.log(`Would clear existing tiles for dashboard ${dashboardId}`);
+async function readDashboardTiles(dashboardId) {
+  const dashboard = await api(`${scopePath}/dashboards/${dashboardId}/`);
+  return Array.isArray(dashboard.tiles) ? dashboard.tiles : [];
+}
+
+async function readDashboardTilesAfterInsightAttachment(dashboardId, expectedInsightIds) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const tiles = await readDashboardTiles(dashboardId);
+    const tileInsightIds = new Set(tiles.map(getTileInsightId).filter(Boolean).map(String));
+    const missing = expectedInsightIds.filter((insightId) => !tileInsightIds.has(String(insightId)));
+
+    if (missing.length === 0) {
+      return tiles;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  return await readDashboardTiles(dashboardId);
+}
+
+async function applyDashboardLayout(dashboardId, provisionedInsights) {
+  const layoutTargets = provisionedInsights
+    .filter(({ definition, insight }) => definition.dashboardLayout && insight?.id)
+    .map(({ definition, insight }, index) => ({
+      definition,
+      insightId: insight.id,
+      order: index,
+    }));
+
+  if (layoutTargets.length === 0) {
     return;
   }
 
-  const dashboard = await api(`${scopePath}/dashboards/${dashboardId}/`);
-  const tiles = Array.isArray(dashboard.tiles) ? dashboard.tiles : [];
+  if (dryRun) {
+    console.log(`Would apply dashboard layout to ${layoutTargets.length} tiles on dashboard ${dashboardId}`);
+    return;
+  }
 
-  for (const tile of tiles) {
-    const scopedDelete = await api(`${scopePath}/dashboard_tiles/${tile.id}/`, {
-      method: 'DELETE',
-      allow404: true,
-    });
+  const tiles = await readDashboardTilesAfterInsightAttachment(
+    dashboardId,
+    layoutTargets.map(({ insightId }) => insightId),
+  );
+  const tileByInsightId = new Map(
+    tiles
+      .map((tile) => [getTileInsightId(tile), tile])
+      .filter(([insightId]) => insightId)
+      .map(([insightId, tile]) => [String(insightId), tile]),
+  );
+  const missing = [];
+  const orderedTiles = [];
 
-    if (scopedDelete !== null) {
+  for (const target of layoutTargets) {
+    const tile = tileByInsightId.get(String(target.insightId));
+    if (!tile) {
+      missing.push(target.definition.name);
       continue;
     }
 
-    if (!projectScopePath) {
-      throw new Error(
-        `Unable to delete dashboard tile ${tile.id} using ${scopePath}; set POSTHOG_PROJECT_ID to enable project-scope fallback.`,
-      );
-    }
-
-    await api(`${projectScopePath}/dashboard_tiles/${tile.id}/`, { method: 'DELETE' });
+    orderedTiles.push({
+      ...tile,
+      order: target.order,
+      layouts: target.definition.dashboardLayout,
+      show_description: false,
+    });
   }
+
+  if (missing.length > 0) {
+    throw new Error(`Unable to apply dashboard layout; missing tile(s): ${missing.join(', ')}`);
+  }
+
+  await api(`${scopePath}/dashboards/${dashboardId}/`, {
+    method: 'PATCH',
+    body: { tiles: orderedTiles },
+  });
+
+  console.log(`Applied dashboard layout to ${orderedTiles.length} tiles.`);
+}
+
+function productDashboardDescription() {
+  return [
+    'Auto-provisioned dashboard for Cassette product analytics (external actors only).',
+    'Ordered top-to-bottom: creation/source health, activation, Reddit acquisition, distribution, platform behavior, core actions, and failures.',
+  ].join(' ');
+}
+
+function defaultProductDashboardDescription() {
+  return 'Auto-provisioned dashboard for Cassette product analytics (external actors only).';
+}
+
+function internalDashboardDescription() {
+  return 'Auto-provisioned dashboard for Cassette internal team and operational attribution analytics.';
+}
+
+function shouldApplyDashboardLayout(dashboardSpec) {
+  return dashboardSpec.applyLayout === true && !pmfOnly && !growthOnly && !playlistConversionsOnly && !postsCreatedOnly && !redditBotOnly;
+}
+
+async function upsertDashboardInsights(dashboardSpec, dashboardId) {
+  const provisionedInsights = [];
+
+  for (const definition of dashboardSpec.insights) {
+    const insight = await upsertInsight(definition, dashboardId);
+    provisionedInsights.push({ definition, insight });
+  }
+
+  if (shouldApplyDashboardLayout(dashboardSpec)) {
+    await applyDashboardLayout(dashboardId, provisionedInsights);
+  }
+
+  return provisionedInsights.length;
 }
 
 async function main() {
-  const modeLabel = growthOnly ? 'growth-only' : pmfOnly ? 'pmf-only' : 'full';
+  const modeLabel = redditBotOnly
+    ? 'reddit-bot-only'
+    : playlistConversionsOnly
+      ? 'playlist-conversions-only'
+      : postsCreatedOnly
+        ? 'posts-created-only'
+        : growthOnly
+          ? 'growth-only'
+          : pmfOnly
+            ? 'pmf-only'
+            : 'full';
   console.log(`PostHog provisioning started (${dryRun ? 'dry-run' : 'apply'}, ${modeLabel})`);
   console.log(`Host: ${host}`);
   console.log(`Scope: ${scopePath}`);
 
-  const dashboardSpecs = growthOnly
+  const dashboardSpecs = redditBotOnly
     ? [
       {
         name: dashboardName,
-        description: 'Auto-provisioned dashboard for Cassette product analytics (external actors only).',
+        description: defaultProductDashboardDescription(),
+        insights: redditBotAttributionInsights(),
+      },
+    ]
+    : playlistConversionsOnly
+    ? [
+      {
+        name: dashboardName,
+        description: defaultProductDashboardDescription(),
+        insights: [
+          playlistCreationFunnelInsight({ internalActor: false }),
+          playlistCreationOutcomesInsight({ internalActor: false }),
+        ],
+      },
+    ]
+    : postsCreatedOnly
+    ? [
+      {
+        name: dashboardName,
+        description: defaultProductDashboardDescription(),
+        insights: [
+          postsCreatedBySourceInsight(),
+          cumulativePostsCreatedBySourceInsight(),
+        ],
+      },
+    ]
+    : growthOnly
+    ? [
+      {
+        name: dashboardName,
+        description: defaultProductDashboardDescription(),
         insights: growthMetricInsights(),
       },
     ]
     : [
       {
         name: dashboardName,
-        description: 'Auto-provisioned dashboard for Cassette product analytics (external actors only).',
+        description: pmfOnly ? defaultProductDashboardDescription() : productDashboardDescription(),
         insights: pmfOnly ? pmfProductInsightDefinitions : productInsightDefinitions,
+        applyLayout: !pmfOnly,
       },
       {
         name: internalDashboardName,
-        description: 'Auto-provisioned dashboard for Cassette internal team and operational attribution analytics.',
+        description: internalDashboardDescription(),
         insights: pmfOnly ? pmfInternalInsightDefinitions : internalInsightDefinitions,
       },
     ];
@@ -1818,20 +2420,17 @@ async function main() {
   let totalInsights = 0;
   for (const dashboardSpec of dashboardSpecs) {
     const dashboard = await upsertDashboard(dashboardSpec.name, dashboardSpec.description);
-    for (const definition of dashboardSpec.insights) {
-      await upsertInsight(definition, dashboard.id);
-      totalInsights += 1;
-    }
+    totalInsights += await upsertDashboardInsights(dashboardSpec, dashboard.id);
   }
 
-  if (!pmfOnly && !growthOnly) {
+  if (!pmfOnly && !growthOnly && !playlistConversionsOnly && !postsCreatedOnly && !redditBotOnly) {
     await detachDeprecatedInsights();
   }
 
   console.log('Provisioning complete.');
   console.log(`Dashboards provisioned: ${dashboardSpecs.length}`);
   console.log(`Insights provisioned: ${totalInsights}`);
-  console.log(`Dashboards: ${dashboardName}, ${internalDashboardName}`);
+  console.log(`Dashboards: ${dashboardSpecs.map((dashboardSpec) => dashboardSpec.name).join(', ')}`);
   console.log('Insights linked to dashboards via insight.dashboards.');
 }
 

@@ -16,6 +16,9 @@
     "posthog:provision:dry": "node scripts/posthog/provision.mjs --dry-run",
     "posthog:provision": "node scripts/posthog/provision.mjs",
     "posthog:provision:growth": "node scripts/posthog/provision.mjs --growth-only",
+    "posthog:provision:playlist-conversions": "node scripts/posthog/provision.mjs --playlist-conversions-only",
+    "posthog:provision:posts-created": "node scripts/posthog/provision.mjs --posts-created-only",
+    "posthog:provision:reddit": "node scripts/posthog/provision.mjs --reddit-bot-only",
     "posthog:backfill:account-created": "node scripts/posthog/backfill-account-created.mjs"
   },
   "dependencies": {

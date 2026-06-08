@@ -511,6 +511,12 @@ export interface SignupAttribution {
   source?: string;
   medium?: string;
   campaign?: string;
+  trafficSource?: string;
+  trafficMedium?: string;
+  trafficCampaign?: string;
+  trafficContent?: string;
+  redditSubreddit?: string;
+  redditPostId?: string;
   firstReferrerDomain?: string;
   capturedAt?: string;
 }

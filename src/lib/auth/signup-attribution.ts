@@ -4,12 +4,20 @@ export const SIGNUP_ATTRIBUTION_COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 const SIGNUP_SOURCE_MAX_LENGTH = 100;
 const SIGNUP_MEDIUM_MAX_LENGTH = 100;
 const SIGNUP_CAMPAIGN_MAX_LENGTH = 150;
+const TRAFFIC_CONTENT_MAX_LENGTH = 150;
+const REDDIT_METADATA_MAX_LENGTH = 100;
 const FIRST_REFERRER_DOMAIN_MAX_LENGTH = 255;
 
 export type SignupAttribution = {
   source?: string;
   medium?: string;
   campaign?: string;
+  trafficSource?: string;
+  trafficMedium?: string;
+  trafficCampaign?: string;
+  trafficContent?: string;
+  redditSubreddit?: string;
+  redditPostId?: string;
   firstReferrerDomain?: string;
   capturedAt?: string;
 };
@@ -70,6 +78,12 @@ export function normalizeSignupAttribution(
     source: normalizeString(input.source, SIGNUP_SOURCE_MAX_LENGTH),
     medium: normalizeString(input.medium, SIGNUP_MEDIUM_MAX_LENGTH),
     campaign: normalizeString(input.campaign, SIGNUP_CAMPAIGN_MAX_LENGTH),
+    trafficSource: normalizeString(input.trafficSource, SIGNUP_SOURCE_MAX_LENGTH),
+    trafficMedium: normalizeString(input.trafficMedium, SIGNUP_MEDIUM_MAX_LENGTH),
+    trafficCampaign: normalizeString(input.trafficCampaign, SIGNUP_CAMPAIGN_MAX_LENGTH),
+    trafficContent: normalizeString(input.trafficContent, TRAFFIC_CONTENT_MAX_LENGTH),
+    redditSubreddit: normalizeString(input.redditSubreddit, REDDIT_METADATA_MAX_LENGTH),
+    redditPostId: normalizeString(input.redditPostId, REDDIT_METADATA_MAX_LENGTH),
     firstReferrerDomain: normalizeDomain(input.firstReferrerDomain),
     capturedAt: normalizeTimestamp(input.capturedAt),
   };
@@ -78,6 +92,12 @@ export function normalizeSignupAttribution(
     !normalized.source &&
     !normalized.medium &&
     !normalized.campaign &&
+    !normalized.trafficSource &&
+    !normalized.trafficMedium &&
+    !normalized.trafficCampaign &&
+    !normalized.trafficContent &&
+    !normalized.redditSubreddit &&
+    !normalized.redditPostId &&
     !normalized.firstReferrerDomain &&
     !normalized.capturedAt
   ) {
@@ -94,8 +114,11 @@ export function extractSignupAttributionFromUrl(
   const source = url.searchParams.get('src') || url.searchParams.get('utm_source');
   const medium = url.searchParams.get('utm_medium');
   const campaign = url.searchParams.get('utm_campaign');
+  const content = url.searchParams.get('utm_content');
+  const redditSubreddit = url.searchParams.get('reddit_subreddit');
+  const redditPostId = url.searchParams.get('reddit_post_id');
 
-  if (!source && !medium && !campaign) {
+  if (!source && !medium && !campaign && !content && !redditSubreddit && !redditPostId) {
     return null;
   }
 
@@ -103,6 +126,12 @@ export function extractSignupAttributionFromUrl(
     source: source ?? undefined,
     medium: medium ?? undefined,
     campaign: campaign ?? undefined,
+    trafficSource: source ?? undefined,
+    trafficMedium: medium ?? undefined,
+    trafficCampaign: campaign ?? undefined,
+    trafficContent: content ?? undefined,
+    redditSubreddit: redditSubreddit ?? undefined,
+    redditPostId: redditPostId ?? undefined,
     firstReferrerDomain: normalizeDomain(referer),
     capturedAt: new Date().toISOString(),
   });

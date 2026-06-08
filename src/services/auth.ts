@@ -6,9 +6,9 @@ import { prefetchProfileArtwork } from '@/services/profile-artwork-cache';
 import { platformConnectService } from '@/services/platform-connect';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { pendingActionService } from '@/utils/pending-action';
+import { normalizeConnectedServicePayload } from '@/utils/platform-normalization';
 
 const AUTH_API_BASE = '/api/auth';
-const PLATFORM_BY_ENUM_INDEX = ['Spotify', 'AppleMusic', 'Deezer'] as const;
 
 type ApiResponsePayload = {
   success?: boolean;
@@ -38,34 +38,7 @@ class AuthService {
 
     const normalized = raw
       .map((service): ConnectedService | null => {
-        if (!service || typeof service !== 'object') {
-          return null;
-        }
-
-        const payload = service as Record<string, unknown>;
-        const rawType = payload.serviceType ?? payload.ServiceType;
-        const serviceType =
-          typeof rawType === 'number'
-            ? PLATFORM_BY_ENUM_INDEX[rawType] ?? String(rawType)
-            : typeof rawType === 'string'
-              ? rawType
-              : '';
-
-        if (!serviceType) {
-          return null;
-        }
-
-        const connectedAt = payload.connectedAt ?? payload.ConnectedAt;
-        return {
-          serviceType,
-          connectedAt: typeof connectedAt === 'string' ? connectedAt : new Date().toISOString(),
-          profileUrl:
-            typeof payload.profileUrl === 'string'
-              ? payload.profileUrl
-              : typeof payload.ProfileUrl === 'string'
-                ? payload.ProfileUrl
-                : undefined,
-        };
+        return normalizeConnectedServicePayload(service, new Date().toISOString());
       });
 
     return normalized.filter((service): service is ConnectedService => service !== null);
@@ -97,6 +70,42 @@ class AuthService {
           : typeof attribution.Campaign === 'string'
             ? attribution.Campaign
             : undefined,
+      trafficSource:
+        typeof attribution.trafficSource === 'string'
+          ? attribution.trafficSource
+          : typeof attribution.TrafficSource === 'string'
+            ? attribution.TrafficSource
+            : undefined,
+      trafficMedium:
+        typeof attribution.trafficMedium === 'string'
+          ? attribution.trafficMedium
+          : typeof attribution.TrafficMedium === 'string'
+            ? attribution.TrafficMedium
+            : undefined,
+      trafficCampaign:
+        typeof attribution.trafficCampaign === 'string'
+          ? attribution.trafficCampaign
+          : typeof attribution.TrafficCampaign === 'string'
+            ? attribution.TrafficCampaign
+            : undefined,
+      trafficContent:
+        typeof attribution.trafficContent === 'string'
+          ? attribution.trafficContent
+          : typeof attribution.TrafficContent === 'string'
+            ? attribution.TrafficContent
+            : undefined,
+      redditSubreddit:
+        typeof attribution.redditSubreddit === 'string'
+          ? attribution.redditSubreddit
+          : typeof attribution.RedditSubreddit === 'string'
+            ? attribution.RedditSubreddit
+            : undefined,
+      redditPostId:
+        typeof attribution.redditPostId === 'string'
+          ? attribution.redditPostId
+          : typeof attribution.RedditPostId === 'string'
+            ? attribution.RedditPostId
+            : undefined,
       firstReferrerDomain:
         typeof attribution.firstReferrerDomain === 'string'
           ? attribution.firstReferrerDomain
@@ -115,6 +124,12 @@ class AuthService {
       !normalized.source &&
       !normalized.medium &&
       !normalized.campaign &&
+      !normalized.trafficSource &&
+      !normalized.trafficMedium &&
+      !normalized.trafficCampaign &&
+      !normalized.trafficContent &&
+      !normalized.redditSubreddit &&
+      !normalized.redditPostId &&
       !normalized.firstReferrerDomain &&
       !normalized.capturedAt
     ) {
@@ -175,6 +190,14 @@ class AuthService {
       const user = this.mapToAuthUser(data.user);
       useAuthStore.getState().setUser(user);
       this.warmProfileArtworkCache(user);
+
+      void captureClientEvent('auth_signed_up', {
+        source_surface: 'auth',
+        route: typeof window !== 'undefined' ? window.location.pathname : '/auth/signup',
+        is_authenticated: true,
+        user_id: user.id,
+        auth_provider: 'email',
+      });
     }
 
     return data;

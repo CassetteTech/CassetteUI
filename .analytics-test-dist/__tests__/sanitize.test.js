@@ -20,6 +20,12 @@ const sanitize_1 = require("../sanitize");
         signup_source: 'friend',
         signup_medium: 'dm',
         signup_campaign: 'beta_batch',
+        traffic_source: 'redditbot',
+        traffic_medium: 'reddit_comment',
+        traffic_campaign: 'playlist_link',
+        traffic_content: 'cassetteclub',
+        reddit_subreddit: 'cassetteclub',
+        reddit_post_id: 't3_abc123',
         first_referrer_domain: 'https://www.instagram.com/cassette',
         first_touch_source: 'friend',
         user_id: 'user-1',
@@ -45,6 +51,12 @@ const sanitize_1 = require("../sanitize");
     strict_1.default.equal(result.signup_source, 'friend');
     strict_1.default.equal(result.signup_medium, 'dm');
     strict_1.default.equal(result.signup_campaign, 'beta_batch');
+    strict_1.default.equal(result.traffic_source, 'redditbot');
+    strict_1.default.equal(result.traffic_medium, 'reddit_comment');
+    strict_1.default.equal(result.traffic_campaign, 'playlist_link');
+    strict_1.default.equal(result.traffic_content, 'cassetteclub');
+    strict_1.default.equal(result.reddit_subreddit, 'cassetteclub');
+    strict_1.default.equal(result.reddit_post_id, 't3_abc123');
     strict_1.default.equal(result.first_referrer_domain, 'www.instagram.com');
     strict_1.default.equal(result.first_touch_source, 'friend');
     strict_1.default.equal(result.user_id, 'user-1');

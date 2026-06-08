@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": ".unit-test-dist",
+    "rootDir": "src",
+    "module": "commonjs",
+    "target": "es2020",
+    "moduleResolution": "node",
+    "incremental": false,
+    "isolatedModules": false,
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "src/utils/platform-normalization.ts",
+    "src/utils/__tests__/platform-normalization.test.ts"
+  ],
+  "exclude": ["node_modules"]
+}

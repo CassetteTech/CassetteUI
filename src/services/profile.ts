@@ -7,6 +7,10 @@ import {
   UserBio,
 } from '@/types';
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
+import {
+  normalizeConnectedServicePayload,
+  normalizeStreamingServiceType,
+} from '@/utils/platform-normalization';
 
 interface ActivityItemPayload {
   postId: string;
@@ -119,8 +123,6 @@ interface ExploreUsersApiResponse {
   HasPrevious?: boolean;
 }
 
-const PLATFORM_BY_ENUM_INDEX = ['Spotify', 'AppleMusic', 'Deezer'] as const;
-
 export class ProfileService {
   // Note: Caching is now handled by React Query (see hooks/use-profile.ts)
   private readonly apiBaseUrl = getBrowserApiBaseUrl();
@@ -143,11 +145,7 @@ export class ProfileService {
   }
 
   private normalizePlatformName(value: unknown): string {
-    if (typeof value === 'number') {
-      return PLATFORM_BY_ENUM_INDEX[value] ?? String(value);
-    }
-
-    return typeof value === 'string' ? value : '';
+    return normalizeStreamingServiceType(value);
   }
 
   private normalizeConnectedServices(value: unknown): UserBio['connectedServices'] {
@@ -157,34 +155,7 @@ export class ProfileService {
 
     return value
       .map((service) => {
-        if (typeof service === 'string' || typeof service === 'number') {
-          const serviceType = this.normalizePlatformName(service);
-          if (!serviceType) return null;
-
-          return {
-            serviceType,
-            connectedAt: '',
-          };
-        }
-
-        if (!service || typeof service !== 'object') {
-          return null;
-        }
-
-        const payload = service as Record<string, unknown>;
-        const serviceType = this.normalizePlatformName(payload.serviceType ?? payload.ServiceType);
-        if (!serviceType) {
-          return null;
-        }
-
-        const connectedAt = payload.connectedAt ?? payload.ConnectedAt;
-        const profileUrl = payload.profileUrl ?? payload.ProfileUrl;
-
-        return {
-          serviceType,
-          connectedAt: typeof connectedAt === 'string' ? connectedAt : '',
-          profileUrl: typeof profileUrl === 'string' ? profileUrl : undefined,
-        };
+        return normalizeConnectedServicePayload(service, '');
       })
       .filter((service): service is UserBio['connectedServices'][number] => service !== null);
   }

@@ -17,6 +17,12 @@ test('sanitizeAnalyticsProps strips forbidden and unknown fields', () => {
     signup_source: 'friend',
     signup_medium: 'dm',
     signup_campaign: 'beta_batch',
+    traffic_source: 'redditbot',
+    traffic_medium: 'reddit_comment',
+    traffic_campaign: 'playlist_link',
+    traffic_content: 'cassetteclub',
+    reddit_subreddit: 'cassetteclub',
+    reddit_post_id: 't3_abc123',
     first_referrer_domain: 'https://www.instagram.com/cassette',
     first_touch_source: 'friend',
     user_id: 'user-1',
@@ -43,6 +49,12 @@ test('sanitizeAnalyticsProps strips forbidden and unknown fields', () => {
   assert.equal(result.signup_source, 'friend');
   assert.equal(result.signup_medium, 'dm');
   assert.equal(result.signup_campaign, 'beta_batch');
+  assert.equal(result.traffic_source, 'redditbot');
+  assert.equal(result.traffic_medium, 'reddit_comment');
+  assert.equal(result.traffic_campaign, 'playlist_link');
+  assert.equal(result.traffic_content, 'cassetteclub');
+  assert.equal(result.reddit_subreddit, 'cassetteclub');
+  assert.equal(result.reddit_post_id, 't3_abc123');
   assert.equal(result.first_referrer_domain, 'www.instagram.com');
   assert.equal(result.first_touch_source, 'friend');
   assert.equal(result.user_id, 'user-1');

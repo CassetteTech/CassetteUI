@@ -138,7 +138,14 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     const result = await apiService.createPlaylist(playlistId, platform.toLowerCase(), postId);
     pendingActionService.clear();
     setCreationStatus({ platform, loading: false, result });
-  }, [playlistId, postId]);
+
+    void captureClientEvent('playlist_created_on_platform', {
+      ...buildPlaylistAnalyticsProps(platform),
+      tracks_added: result.tracks_added,
+      tracks_failed: result.tracks_failed,
+      total_tracks: result.total_tracks,
+    });
+  }, [buildPlaylistAnalyticsProps, playlistId, postId]);
 
   const connectAppleMusicAndCreatePlaylist = React.useCallback(async (actionLabel = 'Reconnect Apple Music') => {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';

@@ -54,6 +54,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signupSource: user.signupAttribution?.source,
       signupMedium: user.signupAttribution?.medium,
       signupCampaign: user.signupAttribution?.campaign,
+      trafficSource: user.signupAttribution?.trafficSource,
+      trafficMedium: user.signupAttribution?.trafficMedium,
+      trafficCampaign: user.signupAttribution?.trafficCampaign,
+      trafficContent: user.signupAttribution?.trafficContent,
+      redditSubreddit: user.signupAttribution?.redditSubreddit,
+      redditPostId: user.signupAttribution?.redditPostId,
       firstReferrerDomain: user.signupAttribution?.firstReferrerDomain,
     });
   }, [
@@ -62,6 +68,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user?.signupAttribution?.source,
     user?.signupAttribution?.medium,
     user?.signupAttribution?.campaign,
+    user?.signupAttribution?.trafficSource,
+    user?.signupAttribution?.trafficMedium,
+    user?.signupAttribution?.trafficCampaign,
+    user?.signupAttribution?.trafficContent,
+    user?.signupAttribution?.redditSubreddit,
+    user?.signupAttribution?.redditPostId,
     user?.signupAttribution?.firstReferrerDomain,
     isAuthenticated,
   ]);

@@ -718,6 +718,7 @@ function hogqlLineGraphInsight({
         })),
         showLegend: yAxisSeries.length > 1,
         showNullsAsZero: true,
+        showTotalRow: false,
         leftYAxisSettings: {
           startAtZero: true,
         },
@@ -1414,46 +1415,35 @@ function redditBotLinkEngagementQuery() {
 
 function redditBotLinkOpensBySubredditQuery() {
   return [
-    'with',
-    'referrals as (',
-    '  select',
-    `    ${redditSubredditExpression()} as reddit_subreddit,`,
-    '    count() as reddit_comment_post_referrals,',
-    '    uniqExact(coalesce(person_id, distinct_id)) as unique_visitors',
-    '  from events',
+    'select',
+    `  ${redditSubredditExpression()} as comment_subreddit,`,
+    '  count() as direct_comment_post_referrals,',
+    '  uniqExact(coalesce(person_id, distinct_id)) as unique_direct_visitors',
+    'from events',
     "  where event = '$pageview'",
-    '    and timestamp >= now() - INTERVAL 90 DAY',
+    '  and timestamp >= now() - INTERVAL 90 DAY',
     EXTERNAL_ACTOR_CONDITION,
     redditBotCondition(),
     redditCommentPostReferralCondition(),
-    '  group by reddit_subreddit',
-    '),',
-    'bot_posts as (',
-    '  select',
-    `    ${redditSubredditExpression()} as reddit_subreddit,`,
-    '    uniqExact(toString(properties.post_id)) as bot_posts_created',
-    '  from events',
+    'group by comment_subreddit',
+    'order by direct_comment_post_referrals desc, unique_direct_visitors desc, comment_subreddit asc',
+    'limit 50',
+  ].join('\n');
+}
+
+function redditBotPostsCreatedBySubredditQuery() {
+  return [
+    'select',
+    `  ${redditSubredditExpression()} as source_subreddit,`,
+    '  uniqExact(toString(properties.post_id)) as bot_posts_created',
+    'from events',
     "  where event = 'reddit_bot_post_created'",
-    '    and timestamp >= now() - INTERVAL 90 DAY',
+    '  and timestamp >= now() - INTERVAL 90 DAY',
     EXTERNAL_ACTOR_CONDITION,
     redditBotCondition(),
-    '    and properties.post_id is not null',
-    '  group by reddit_subreddit',
-    '),',
-    'subreddits as (',
-    '  select reddit_subreddit from referrals',
-    '  union distinct',
-    '  select reddit_subreddit from bot_posts',
-    ')',
-    'select',
-    '  subreddits.reddit_subreddit,',
-    '  coalesce(referrals.reddit_comment_post_referrals, 0) as reddit_comment_post_referrals,',
-    '  coalesce(referrals.unique_visitors, 0) as unique_visitors,',
-    '  coalesce(bot_posts.bot_posts_created, 0) as bot_posts_created',
-    'from subreddits',
-    'left join referrals on referrals.reddit_subreddit = subreddits.reddit_subreddit',
-    'left join bot_posts on bot_posts.reddit_subreddit = subreddits.reddit_subreddit',
-    'order by reddit_comment_post_referrals desc, bot_posts_created desc',
+    '  and properties.post_id is not null',
+    'group by source_subreddit',
+    'order by bot_posts_created desc, source_subreddit asc',
     'limit 50',
   ].join('\n');
 }
@@ -1498,13 +1488,20 @@ function redditBotAttributionInsights() {
     }),
     hogqlDataTableInsight({
       key: 'reddit_bot_link_opens_by_subreddit',
-      name: 'Reddit Comment Referrals and Bot Posts by Subreddit',
+      name: 'Reddit Comment Direct Referrals by Comment Subreddit',
       previousNames: [
+        'Reddit Comment Referrals and Bot Posts by Subreddit',
         'Reddit Bot Link Opens by Subreddit',
         'Reddit Comment Post Referrals by Subreddit',
       ],
-      description: 'Direct arrivals from Reddit comments to Cassette post pages and distinct posts created by the Reddit bot, split by subreddit.',
+      description: 'Direct arrivals from Reddit comments to Cassette post pages, split by the subreddit where the Reddit comment link was posted.',
       query: redditBotLinkOpensBySubredditQuery(),
+    }),
+    hogqlDataTableInsight({
+      key: 'reddit_bot_posts_created_by_subreddit',
+      name: 'Reddit Bot Posts Created by Source Subreddit',
+      description: 'Distinct Cassette posts created by the Reddit bot, split by the subreddit that supplied the source playlist.',
+      query: redditBotPostsCreatedBySubredditQuery(),
     }),
     hogqlDataTableInsight({
       key: 'reddit_bot_downstream_by_subreddit',
@@ -1560,7 +1557,10 @@ function productDashboardLayoutByKey() {
     ],
     [
       { key: 'reddit_bot_link_opens_by_subreddit', w: 6, h: 6 },
-      { key: 'reddit_bot_downstream_by_subreddit', w: 6, h: 6 },
+      { key: 'reddit_bot_posts_created_by_subreddit', w: 6, h: 6 },
+    ],
+    [
+      { key: 'reddit_bot_downstream_by_subreddit', w: 12, h: 6 },
     ],
     [
       { key: 'post_distribution_3plus_viewers_7d', w: 6, h: 5 },

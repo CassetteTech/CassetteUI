@@ -70,6 +70,42 @@ class AuthService {
           : typeof attribution.Campaign === 'string'
             ? attribution.Campaign
             : undefined,
+      trafficSource:
+        typeof attribution.trafficSource === 'string'
+          ? attribution.trafficSource
+          : typeof attribution.TrafficSource === 'string'
+            ? attribution.TrafficSource
+            : undefined,
+      trafficMedium:
+        typeof attribution.trafficMedium === 'string'
+          ? attribution.trafficMedium
+          : typeof attribution.TrafficMedium === 'string'
+            ? attribution.TrafficMedium
+            : undefined,
+      trafficCampaign:
+        typeof attribution.trafficCampaign === 'string'
+          ? attribution.trafficCampaign
+          : typeof attribution.TrafficCampaign === 'string'
+            ? attribution.TrafficCampaign
+            : undefined,
+      trafficContent:
+        typeof attribution.trafficContent === 'string'
+          ? attribution.trafficContent
+          : typeof attribution.TrafficContent === 'string'
+            ? attribution.TrafficContent
+            : undefined,
+      redditSubreddit:
+        typeof attribution.redditSubreddit === 'string'
+          ? attribution.redditSubreddit
+          : typeof attribution.RedditSubreddit === 'string'
+            ? attribution.RedditSubreddit
+            : undefined,
+      redditPostId:
+        typeof attribution.redditPostId === 'string'
+          ? attribution.redditPostId
+          : typeof attribution.RedditPostId === 'string'
+            ? attribution.RedditPostId
+            : undefined,
       firstReferrerDomain:
         typeof attribution.firstReferrerDomain === 'string'
           ? attribution.firstReferrerDomain
@@ -88,6 +124,12 @@ class AuthService {
       !normalized.source &&
       !normalized.medium &&
       !normalized.campaign &&
+      !normalized.trafficSource &&
+      !normalized.trafficMedium &&
+      !normalized.trafficCampaign &&
+      !normalized.trafficContent &&
+      !normalized.redditSubreddit &&
+      !normalized.redditPostId &&
       !normalized.firstReferrerDomain &&
       !normalized.capturedAt
     ) {
@@ -148,6 +190,14 @@ class AuthService {
       const user = this.mapToAuthUser(data.user);
       useAuthStore.getState().setUser(user);
       this.warmProfileArtworkCache(user);
+
+      void captureClientEvent('auth_signed_up', {
+        source_surface: 'auth',
+        route: typeof window !== 'undefined' ? window.location.pathname : '/auth/signup',
+        is_authenticated: true,
+        user_id: user.id,
+        auth_provider: 'email',
+      });
     }
 
     return data;

@@ -16,6 +16,17 @@ const ALIAS_MERGE_GUARD_PREFIX = 'cassette_posthog_alias';
 const SESSION_ID_KEY = 'cassette_posthog_session_id';
 const SESSION_LAST_SEEN_KEY = 'cassette_posthog_session_last_seen_at';
 const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const TRAFFIC_ATTRIBUTION_KEY = 'cassette_traffic_attribution';
+const TRAFFIC_ATTRIBUTION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const ATTRIBUTION_QUERY_PARAMS = [
+    'src',
+    'utm_source',
+    'utm_medium',
+    'utm_campaign',
+    'utm_content',
+    'reddit_subreddit',
+    'reddit_post_id',
+];
 let sharedContext = {};
 let activePageview = null;
 let beforeUnloadBound = false;
@@ -86,6 +97,89 @@ function getSafeReferrer() {
     catch {
         return {};
     }
+}
+function parseTrafficAttributionFromUrl() {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+    const params = new URLSearchParams(window.location.search || '');
+    const source = params.get('src') || params.get('utm_source') || undefined;
+    const properties = (0, sanitize_1.sanitizeAnalyticsProps)({
+        traffic_source: source,
+        traffic_medium: params.get('utm_medium') || undefined,
+        traffic_campaign: params.get('utm_campaign') || undefined,
+        traffic_content: params.get('utm_content') || undefined,
+        reddit_subreddit: params.get('reddit_subreddit') || undefined,
+        reddit_post_id: params.get('reddit_post_id') || undefined,
+    });
+    return Object.keys(properties).length > 0 ? properties : null;
+}
+function readStoredTrafficAttribution(nowMs = Date.now()) {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+    try {
+        const raw = window.localStorage.getItem(TRAFFIC_ATTRIBUTION_KEY);
+        if (!raw) {
+            return null;
+        }
+        const stored = JSON.parse(raw);
+        if (typeof stored.expiresAt !== 'number' ||
+            stored.expiresAt <= nowMs ||
+            !stored.properties ||
+            typeof stored.properties !== 'object') {
+            window.localStorage.removeItem(TRAFFIC_ATTRIBUTION_KEY);
+            return null;
+        }
+        const properties = (0, sanitize_1.sanitizeAnalyticsProps)(stored.properties);
+        return Object.keys(properties).length > 0 ? properties : null;
+    }
+    catch {
+        return null;
+    }
+}
+function writeTrafficAttribution(properties, nowMs = Date.now()) {
+    if (typeof window === 'undefined' || Object.keys(properties).length === 0) {
+        return;
+    }
+    try {
+        const stored = {
+            expiresAt: nowMs + TRAFFIC_ATTRIBUTION_TTL_MS,
+            properties,
+        };
+        window.localStorage.setItem(TRAFFIC_ATTRIBUTION_KEY, JSON.stringify(stored));
+    }
+    catch {
+        // ignore storage failures
+    }
+}
+function getCurrentTrafficAttribution() {
+    const fromUrl = parseTrafficAttributionFromUrl();
+    if (fromUrl) {
+        writeTrafficAttribution(fromUrl);
+        return fromUrl;
+    }
+    return readStoredTrafficAttribution() ?? {};
+}
+function buildSafeAttributionSearch() {
+    if (typeof window === 'undefined') {
+        return '';
+    }
+    const current = new URLSearchParams(window.location.search || '');
+    const safe = new URLSearchParams();
+    for (const key of ATTRIBUTION_QUERY_PARAMS) {
+        for (const value of current.getAll(key)) {
+            safe.append(key, value);
+        }
+    }
+    const query = safe.toString();
+    return query ? `?${query}` : '';
+}
+function buildSafeCurrentUrl(route) {
+    if (typeof window === 'undefined') {
+        return route;
+    }
+    return `${window.location.origin}${route}${buildSafeAttributionSearch()}`;
 }
 function posthogCapture(body, host) {
     if (typeof window === 'undefined')
@@ -228,6 +322,7 @@ async function trackBrowserPageview(options) {
     const distinctId = getClientDistinctId(options.userId);
     const sessionId = getOrCreateSessionId();
     const { referrer, referringDomain } = getSafeReferrer();
+    const attribution = getCurrentTrafficAttribution();
     if (activePageview && activePageview.route !== route) {
         flushCurrentPageleave({
             key,
@@ -241,7 +336,7 @@ async function trackBrowserPageview(options) {
     if (activePageview?.route === route) {
         return true;
     }
-    const currentUrl = `${window.location.origin}${route}`;
+    const currentUrl = buildSafeCurrentUrl(route);
     posthogCapture({
         api_key: key,
         event: '$pageview',
@@ -257,6 +352,7 @@ async function trackBrowserPageview(options) {
             $session_id: sessionId,
             $referrer: referrer,
             $referring_domain: referringDomain,
+            ...attribution,
         },
     }, host);
     activePageview = {
@@ -273,8 +369,10 @@ async function captureClientEvent(event, props = {}) {
         return false;
     }
     const route = resolveRoute(props) || sharedContext.route;
+    const attribution = getCurrentTrafficAttribution();
     const combinedProps = {
         ...sharedContext,
+        ...attribution,
         ...props,
         route,
         source_surface: props.source_surface || sharedContext.source_surface || surfaceFromRoute(route),
@@ -335,6 +433,7 @@ async function identifyClientUser(context) {
         plan: context.plan,
         account_type: context.accountType != null ? String(context.accountType) : undefined,
     });
+    const attribution = getCurrentTrafficAttribution();
     const setPayload = (0, sanitize_1.sanitizeAnalyticsProps)({
         user_id: context.userId,
         is_authenticated: context.isAuthenticated ?? true,
@@ -347,6 +446,12 @@ async function identifyClientUser(context) {
         signup_campaign: context.signupCampaign,
         first_referrer_domain: context.firstReferrerDomain,
         first_touch_source: context.signupSource,
+        traffic_source: context.trafficSource ?? attribution.traffic_source ?? context.signupSource,
+        traffic_medium: context.trafficMedium ?? attribution.traffic_medium ?? context.signupMedium,
+        traffic_campaign: context.trafficCampaign ?? attribution.traffic_campaign ?? context.signupCampaign,
+        traffic_content: context.trafficContent ?? attribution.traffic_content,
+        reddit_subreddit: context.redditSubreddit ?? attribution.reddit_subreddit,
+        reddit_post_id: context.redditPostId ?? attribution.reddit_post_id,
         internal_actor: resolveInternalActor(context.accountType),
     });
     posthogCapture({

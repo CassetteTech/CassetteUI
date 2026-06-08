@@ -43,6 +43,7 @@ loadEnvFile(path.join(projectRoot, '.env'));
 
 const dryRun = process.argv.includes('--dry-run');
 const pmfOnly = process.argv.includes('--pmf-only');
+const growthOnly = process.argv.includes('--growth-only');
 
 const host = (
   process.env.POSTHOG_APP_HOST ||
@@ -115,6 +116,9 @@ const FUNNEL_WINDOW_14_DAYS = {
   funnel_window_interval: 14,
   funnel_window_interval_unit: 'day',
 };
+const EXTERNAL_ACTOR_CONDITION = '  and coalesce(toBool(properties.internal_actor), false) = false';
+const ORIGINAL_POST_CONDITION = "  and coalesce(toString(properties.is_repost), 'false') = 'false'";
+const CORE_ACTION_CONDITION = '  and coalesce(toBool(properties.core_action), false) = true';
 
 function linkConvertedEventForElementType(elementType, name = `link_converted (${elementType})`) {
   return {
@@ -151,6 +155,27 @@ function postPlatformConversionEvent({ name, targetPlatform, elementType, math }
     type: 'events',
     ...(math ? { math } : {}),
     properties,
+  };
+}
+
+function redditBotTrafficFilter() {
+  return {
+    key: 'traffic_source',
+    value: 'redditbot',
+    operator: 'exact',
+    type: 'event',
+  };
+}
+
+function redditBotEvent(eventName, name = eventName, extraProperties = []) {
+  return {
+    id: eventName,
+    name,
+    type: 'events',
+    properties: [
+      redditBotTrafficFilter(),
+      ...extraProperties,
+    ],
   };
 }
 
@@ -652,6 +677,425 @@ function creatorIntentActivationFunnelInsight({ internalActor }) {
   };
 }
 
+function hogqlLineGraphInsight({ key, name, description, query, yAxisColumn, yAxisLabel, yAxis }) {
+  const yAxisSeries = yAxis || [
+    {
+      column: yAxisColumn,
+      label: yAxisLabel,
+    },
+  ];
+
+  return {
+    key,
+    name,
+    description,
+    query: {
+      kind: 'DataVisualizationNode',
+      display: 'ActionsLineGraph',
+      source: {
+        kind: 'HogQLQuery',
+        query,
+      },
+      chartSettings: {
+        xAxis: {
+          column: 'day',
+        },
+        yAxis: yAxisSeries.map((series) => ({
+          column: series.column,
+          settings: {
+            formatting: {
+              style: 'short',
+            },
+            display: {
+              label: series.label,
+              displayType: 'line',
+            },
+          },
+        })),
+        showLegend: yAxisSeries.length > 1,
+        showNullsAsZero: true,
+        leftYAxisSettings: {
+          startAtZero: true,
+        },
+      },
+    },
+  };
+}
+
+function filteredEventsCte(eventName, extraConditions) {
+  return [
+    'filtered as (',
+    'select',
+    '  timestamp,',
+    '  person_id,',
+    '  distinct_id,',
+    '  properties',
+    'from events',
+    `where event = '${eventName}'`,
+    EXTERNAL_ACTOR_CONDITION,
+    ...extraConditions,
+    ')',
+  ].join('\n');
+}
+
+function dateSeriesCtes(sourceName, sourceDayExpression) {
+  return [
+    'bounds as (',
+    '  select',
+    `    coalesce(min(${sourceDayExpression}), addDays(toDate(now()), 1)) as start_day,`,
+    '    toDate(now()) as end_day',
+    `  from ${sourceName}`,
+    '), dates as (',
+    '  select',
+    "    addDays(start_day, arrayJoin(range(toInt(greatest(dateDiff('day', start_day, end_day) + 1, 0))))) as day",
+    '  from bounds',
+    ')',
+  ].join('\n');
+}
+
+function dailyEventQuery({ eventName, valueAlias, aggregate, extraConditions = [], additionalAggregates = [] }) {
+  const aggregates = [
+    { alias: valueAlias, aggregate },
+    ...additionalAggregates,
+  ];
+
+  return [
+    'with',
+    `${filteredEventsCte(eventName, extraConditions)},`,
+    `${dateSeriesCtes('filtered', 'toDate(timestamp)')},`,
+    'daily as (',
+    '  select',
+    '    toDate(timestamp) as day,',
+    ...aggregates.map((definition, index) => {
+      const suffix = index === aggregates.length - 1 ? '' : ',';
+      return `    ${definition.aggregate} as ${definition.alias}${suffix}`;
+    }),
+    '  from filtered',
+    '  group by day',
+    ')',
+    'select',
+    '  dates.day,',
+    ...aggregates.map((definition, index) => {
+      const suffix = index === aggregates.length - 1 ? '' : ',';
+      return `  coalesce(daily.${definition.alias}, 0) as ${definition.alias}${suffix}`;
+    }),
+    'from dates',
+    'left join daily on daily.day = dates.day',
+    'order by dates.day asc',
+  ].join('\n');
+}
+
+function cumulativeEventQuery({ eventName, dailyAlias, totalAlias, aggregate, extraConditions = [] }) {
+  return [
+    'with',
+    `${filteredEventsCte(eventName, extraConditions)},`,
+    `${dateSeriesCtes('filtered', 'toDate(timestamp)')},`,
+    'daily as (',
+    '  select',
+    '    toDate(timestamp) as day,',
+    `    ${aggregate} as ${dailyAlias}`,
+    '  from filtered',
+    '  group by day',
+    ')',
+    'select',
+    '  dates.day,',
+    `  coalesce(daily.${dailyAlias}, 0) as ${dailyAlias},`,
+    `  sum(coalesce(daily.${dailyAlias}, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as ${totalAlias}`,
+    'from dates',
+    'left join daily on daily.day = dates.day',
+    'order by dates.day asc',
+  ].join('\n');
+}
+
+function cumulativeFirstActorEventQuery({
+  eventName,
+  dailyAlias,
+  totalAlias,
+  actorAlias,
+  actorExpression = 'coalesce(person_id, distinct_id)',
+  extraConditions = [],
+}) {
+  return [
+    'with',
+    `${filteredEventsCte(eventName, extraConditions)},`,
+    'first_seen as (',
+    '  select',
+    `    ${actorExpression} as ${actorAlias},`,
+    '    min(toDate(timestamp)) as first_seen_day',
+    '  from filtered',
+    `  group by ${actorAlias}`,
+    '),',
+    `${dateSeriesCtes('first_seen', 'first_seen_day')},`,
+    'daily as (',
+    '  select',
+    '    first_seen_day as day,',
+    `    count() as ${dailyAlias}`,
+    '  from first_seen',
+    '  group by day',
+    ')',
+    'select',
+    '  dates.day,',
+    `  coalesce(daily.${dailyAlias}, 0) as ${dailyAlias},`,
+    `  sum(coalesce(daily.${dailyAlias}, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as ${totalAlias}`,
+    'from dates',
+    'left join daily on daily.day = dates.day',
+    'order by dates.day asc',
+  ].join('\n');
+}
+
+function siteVisitorsUniqueQuery() {
+  return dailyEventQuery({
+    eventName: '$pageview',
+    valueAlias: 'unique_visitors',
+    aggregate: 'uniqExact(coalesce(person_id, distinct_id))',
+  });
+}
+
+function siteVisitorsUniqueInsight() {
+  return hogqlLineGraphInsight({
+    key: 'site_visitors_unique',
+    name: 'Site Visitors (Unique)',
+    description: 'Daily distinct visitors who loaded the site, including visitors who did not take a product action.',
+    query: siteVisitorsUniqueQuery(),
+    yAxisColumn: 'unique_visitors',
+    yAxisLabel: 'Unique visitors',
+  });
+}
+
+function totalUniqueSiteVisitorsQuery() {
+  return cumulativeFirstActorEventQuery({
+    eventName: '$pageview',
+    dailyAlias: 'new_unique_visitors',
+    totalAlias: 'total_unique_visitors',
+    actorAlias: 'visitor_id',
+  });
+}
+
+function totalUniqueSiteVisitorsInsight() {
+  return hogqlLineGraphInsight({
+    key: 'total_unique_site_visitors',
+    name: 'Total Unique Visitors (All Time)',
+    description: 'Cumulative distinct visitors who loaded the site, based on retained pageview history.',
+    query: totalUniqueSiteVisitorsQuery(),
+    yAxisColumn: 'total_unique_visitors',
+    yAxisLabel: 'Total unique visitors',
+  });
+}
+
+function accountsCreatedPerDayInsight() {
+  const accountActorExpression = "coalesce(nullIf(toString(properties.user_id), ''), distinct_id)";
+
+  return hogqlLineGraphInsight({
+    key: 'accounts_created_per_day',
+    name: 'Accounts Created Per Day',
+    description: 'Daily external accounts created from canonical account_created events, split by auth provider.',
+    query: dailyEventQuery({
+      eventName: 'account_created',
+      valueAlias: 'accounts_created',
+      aggregate: `uniqExact(${accountActorExpression})`,
+      additionalAggregates: [
+        {
+          alias: 'email_accounts_created',
+          aggregate: `uniqExactIf(${accountActorExpression}, coalesce(toString(properties.auth_provider), '') = 'email')`,
+        },
+        {
+          alias: 'google_accounts_created',
+          aggregate: `uniqExactIf(${accountActorExpression}, coalesce(toString(properties.auth_provider), '') = 'google')`,
+        },
+      ],
+    }),
+    yAxis: [
+      {
+        column: 'accounts_created',
+        label: 'Total accounts',
+      },
+      {
+        column: 'email_accounts_created',
+        label: 'Email accounts',
+      },
+      {
+        column: 'google_accounts_created',
+        label: 'Google accounts',
+      },
+    ],
+  });
+}
+
+function totalAccountsCreatedInsight() {
+  return hogqlLineGraphInsight({
+    key: 'total_accounts_created',
+    name: 'Total Accounts Created',
+    description: 'Cumulative external accounts created from canonical account_created events.',
+    query: cumulativeFirstActorEventQuery({
+      eventName: 'account_created',
+      dailyAlias: 'new_accounts_created',
+      totalAlias: 'total_accounts_created',
+      actorAlias: 'account_id',
+      actorExpression: "coalesce(nullIf(toString(properties.user_id), ''), distinct_id)",
+    }),
+    yAxisColumn: 'total_accounts_created',
+    yAxisLabel: 'Total accounts created',
+  });
+}
+
+function postsCreatedPerDayInsight() {
+  return hogqlLineGraphInsight({
+    key: 'posts_created_per_day',
+    name: 'Posts Created Per Day',
+    description: 'Daily distinct original posts created by external users.',
+    query: dailyEventQuery({
+      eventName: 'post_created',
+      valueAlias: 'posts_created',
+      aggregate: 'uniqExact(toString(properties.post_id))',
+      extraConditions: [
+        '  and properties.post_id is not null',
+        ORIGINAL_POST_CONDITION,
+      ],
+    }),
+    yAxisColumn: 'posts_created',
+    yAxisLabel: 'Posts created',
+  });
+}
+
+function totalPostsCreatedInsight() {
+  return hogqlLineGraphInsight({
+    key: 'total_posts_created',
+    name: 'Total Posts Created',
+    description: 'Cumulative distinct original posts created by external users.',
+    query: cumulativeEventQuery({
+      eventName: 'post_created',
+      dailyAlias: 'posts_created',
+      totalAlias: 'total_posts_created',
+      aggregate: 'uniqExact(toString(properties.post_id))',
+      extraConditions: [
+        '  and properties.post_id is not null',
+        ORIGINAL_POST_CONDITION,
+      ],
+    }),
+    yAxisColumn: 'total_posts_created',
+    yAxisLabel: 'Total posts created',
+  });
+}
+
+function conversionsMadePerDayInsight() {
+  return hogqlLineGraphInsight({
+    key: 'conversions_made_per_day',
+    name: 'Conversions Made Per Day',
+    description: 'Daily successful link conversions by external users.',
+    query: dailyEventQuery({
+      eventName: 'link_converted',
+      valueAlias: 'conversions_made',
+      aggregate: 'count()',
+      extraConditions: [
+        CORE_ACTION_CONDITION,
+      ],
+    }),
+    yAxisColumn: 'conversions_made',
+    yAxisLabel: 'Conversions made',
+  });
+}
+
+function totalConversionsMadeInsight() {
+  return hogqlLineGraphInsight({
+    key: 'total_conversions_made',
+    name: 'Total Conversions Made',
+    description: 'Cumulative successful link conversions by external users.',
+    query: cumulativeEventQuery({
+      eventName: 'link_converted',
+      dailyAlias: 'conversions_made',
+      totalAlias: 'total_conversions_made',
+      aggregate: 'count()',
+      extraConditions: [
+        CORE_ACTION_CONDITION,
+      ],
+    }),
+    yAxisColumn: 'total_conversions_made',
+    yAxisLabel: 'Total conversions made',
+  });
+}
+
+function growthMetricInsights() {
+  return [
+    siteVisitorsUniqueInsight(),
+    totalUniqueSiteVisitorsInsight(),
+    accountsCreatedPerDayInsight(),
+    totalAccountsCreatedInsight(),
+    postsCreatedPerDayInsight(),
+    totalPostsCreatedInsight(),
+    conversionsMadePerDayInsight(),
+    totalConversionsMadeInsight(),
+  ];
+}
+
+function redditBotAttributionInsights() {
+  return [
+    {
+      key: 'reddit_bot_posts_created',
+      name: 'Reddit Bot Cassette Posts Created',
+      description: 'Cassette playlist posts created by the Reddit bot, from the Bridge reddit_bot_post_created event.',
+      filters: {
+        insight: 'TRENDS',
+        interval: 'day',
+        display: 'ActionsLineGraph',
+        events: [
+          redditBotEvent('reddit_bot_post_created'),
+        ],
+      },
+    },
+    {
+      key: 'reddit_bot_link_engagement',
+      name: 'Reddit Bot Link Engagement',
+      description: 'Reddit-attributed post opens, post views, platform CTA clicks, platform opens, and playlist saves.',
+      filters: {
+        insight: 'TRENDS',
+        interval: 'day',
+        display: 'ActionsLineGraph',
+        events: [
+          redditBotEvent('$pageview', 'Reddit link opened'),
+          redditBotEvent('post_viewed', 'post_viewed'),
+          redditBotEvent('post_platform_conversion_clicked', 'post_platform_conversion_clicked'),
+          redditBotEvent('streaming_link_opened', 'streaming_link_opened'),
+          redditBotEvent('playlist_opened_on_platform', 'playlist_opened_on_platform'),
+          redditBotEvent('playlist_created_on_platform', 'playlist_created_on_platform'),
+        ],
+      },
+    },
+    {
+      key: 'reddit_bot_link_opens_by_subreddit',
+      name: 'Reddit Bot Link Opens by Subreddit',
+      description: 'Reddit-attributed pageviews split by subreddit.',
+      filters: {
+        insight: 'TRENDS',
+        interval: 'day',
+        display: 'ActionsBar',
+        events: [
+          redditBotEvent('$pageview', 'Reddit link opened'),
+        ],
+        breakdown: 'reddit_subreddit',
+        breakdown_type: 'event',
+      },
+    },
+    {
+      key: 'reddit_bot_downstream_by_subreddit',
+      name: 'Reddit Bot Downstream Actions by Subreddit',
+      description: 'Reddit-attributed platform clicks, platform opens, and playlist saves split by subreddit.',
+      filters: {
+        insight: 'TRENDS',
+        interval: 'day',
+        display: 'ActionsBar',
+        events: [
+          redditBotEvent('post_platform_conversion_clicked', 'post_platform_conversion_clicked'),
+          redditBotEvent('streaming_link_opened', 'streaming_link_opened'),
+          redditBotEvent('playlist_opened_on_platform', 'playlist_opened_on_platform'),
+          redditBotEvent('playlist_created_on_platform', 'playlist_created_on_platform'),
+        ],
+        breakdown: 'reddit_subreddit',
+        breakdown_type: 'event',
+      },
+    },
+  ];
+}
+
 const insightDefinitions = [
   {
     key: 'waa_core_actions',
@@ -1134,6 +1578,7 @@ const internalInsightDefinitions = withInternalActorFilter([
     },
   },
 ], true);
+internalInsightDefinitions.push(...redditBotAttributionInsights());
 internalInsightDefinitions.push(postDistributionMetricInsight({ internalActor: true }));
 internalInsightDefinitions.push(postDistributionLadderInsight({ internalActor: true }));
 internalInsightDefinitions.push(creatorRepeatAfterDistributionInsight({ internalActor: true }));
@@ -1344,23 +1789,31 @@ async function clearDashboardTiles(dashboardId) {
 }
 
 async function main() {
-  const modeLabel = pmfOnly ? 'pmf-only' : 'full';
+  const modeLabel = growthOnly ? 'growth-only' : pmfOnly ? 'pmf-only' : 'full';
   console.log(`PostHog provisioning started (${dryRun ? 'dry-run' : 'apply'}, ${modeLabel})`);
   console.log(`Host: ${host}`);
   console.log(`Scope: ${scopePath}`);
 
-  const dashboardSpecs = [
-    {
-      name: dashboardName,
-      description: 'Auto-provisioned dashboard for Cassette product analytics (external actors only).',
-      insights: pmfOnly ? pmfProductInsightDefinitions : productInsightDefinitions,
-    },
-    {
-      name: internalDashboardName,
-      description: 'Auto-provisioned dashboard for Cassette internal team analytics (CassetteTeam actors).',
-      insights: pmfOnly ? pmfInternalInsightDefinitions : internalInsightDefinitions,
-    },
-  ];
+  const dashboardSpecs = growthOnly
+    ? [
+      {
+        name: dashboardName,
+        description: 'Auto-provisioned dashboard for Cassette product analytics (external actors only).',
+        insights: growthMetricInsights(),
+      },
+    ]
+    : [
+      {
+        name: dashboardName,
+        description: 'Auto-provisioned dashboard for Cassette product analytics (external actors only).',
+        insights: pmfOnly ? pmfProductInsightDefinitions : productInsightDefinitions,
+      },
+      {
+        name: internalDashboardName,
+        description: 'Auto-provisioned dashboard for Cassette internal team and operational attribution analytics.',
+        insights: pmfOnly ? pmfInternalInsightDefinitions : internalInsightDefinitions,
+      },
+    ];
 
   let totalInsights = 0;
   for (const dashboardSpec of dashboardSpecs) {
@@ -1371,7 +1824,7 @@ async function main() {
     }
   }
 
-  if (!pmfOnly) {
+  if (!pmfOnly && !growthOnly) {
     await detachDeprecatedInsights();
   }
 

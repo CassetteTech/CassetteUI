@@ -14,7 +14,9 @@
     "test:analytics": "rm -rf .analytics-test-dist && tsc -p tsconfig.analytics-tests.json && node --test $(find .analytics-test-dist -name '*.test.js' -print)",
     "release:draft": "bash scripts/release-draft.sh",
     "posthog:provision:dry": "node scripts/posthog/provision.mjs --dry-run",
-    "posthog:provision": "node scripts/posthog/provision.mjs"
+    "posthog:provision": "node scripts/posthog/provision.mjs",
+    "posthog:provision:growth": "node scripts/posthog/provision.mjs --growth-only",
+    "posthog:backfill:account-created": "node scripts/posthog/backfill-account-created.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",

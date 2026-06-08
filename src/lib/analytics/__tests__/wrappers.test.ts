@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { captureClientEvent, identifyClientUser, resetAnalyticsContextForTests } from '../client';
+import { captureClientEvent, identifyClientUser, resetAnalyticsContextForTests, trackBrowserPageview } from '../client';
 import { shouldSuppressClientCapture, isCassetteInternalAccount, isInternalOrDemoRoute } from '../internal-suppression';
 
 type MemoryStorage = {
@@ -28,7 +28,7 @@ function createMemoryStorage(): MemoryStorage {
   };
 }
 
-function setupBrowserMocks(pathname = '/auth/signup') {
+function setupBrowserMocks(pathname = '/auth/signup', search = '') {
   const previousWindow = (globalThis as { window?: unknown }).window;
   const previousFetch = globalThis.fetch;
   const previousNavigator = (globalThis as { navigator?: { sendBeacon?: (url: string, data: Blob) => boolean } }).navigator;
@@ -44,7 +44,9 @@ function setupBrowserMocks(pathname = '/auth/signup') {
     sessionStorage,
     location: {
       pathname,
+      search,
       origin: 'https://cassette.test',
+      href: `https://cassette.test${pathname}${search}`,
     },
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
@@ -142,6 +144,12 @@ test('identifyClientUser emits alias merge and identify for anon-to-user transit
     signupSource: 'friend',
     signupMedium: 'dm',
     signupCampaign: 'spring_launch',
+    trafficSource: 'redditbot',
+    trafficMedium: 'reddit_comment',
+    trafficCampaign: 'playlist_link',
+    trafficContent: 'cassetteclub',
+    redditSubreddit: 'cassetteclub',
+    redditPostId: 't3_abc123',
     firstReferrerDomain: 'instagram.com',
   });
 
@@ -167,6 +175,30 @@ test('identifyClientUser emits alias merge and identify for anon-to-user transit
   assert.equal(
     ((identifyPayload?.properties as Record<string, unknown>)?.$set as Record<string, unknown>)?.signup_campaign,
     'spring_launch',
+  );
+  assert.equal(
+    ((identifyPayload?.properties as Record<string, unknown>)?.$set as Record<string, unknown>)?.traffic_source,
+    'redditbot',
+  );
+  assert.equal(
+    ((identifyPayload?.properties as Record<string, unknown>)?.$set as Record<string, unknown>)?.traffic_medium,
+    'reddit_comment',
+  );
+  assert.equal(
+    ((identifyPayload?.properties as Record<string, unknown>)?.$set as Record<string, unknown>)?.traffic_campaign,
+    'playlist_link',
+  );
+  assert.equal(
+    ((identifyPayload?.properties as Record<string, unknown>)?.$set as Record<string, unknown>)?.traffic_content,
+    'cassetteclub',
+  );
+  assert.equal(
+    ((identifyPayload?.properties as Record<string, unknown>)?.$set as Record<string, unknown>)?.reddit_subreddit,
+    'cassetteclub',
+  );
+  assert.equal(
+    ((identifyPayload?.properties as Record<string, unknown>)?.$set as Record<string, unknown>)?.reddit_post_id,
+    't3_abc123',
   );
   assert.equal(
     ((identifyPayload?.properties as Record<string, unknown>)?.$set as Record<string, unknown>)?.first_referrer_domain,
@@ -326,6 +358,59 @@ test('captureClientEvent preserves post viewer relationship flags', { concurrenc
   const props = postViewEvent?.properties as Record<string, unknown> | undefined;
 
   assert.equal(props?.is_creator_view, false);
+
+  mocks.restore();
+  process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
+  process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
+});
+
+test('trackBrowserPageview stores safe Reddit attribution for later events', { concurrency: false }, async () => {
+  const previousKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  const previousDevFlag = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV;
+  process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_test_key';
+  process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = 'true';
+  resetAnalyticsContextForTests();
+
+  const mocks = setupBrowserMocks(
+    '/post/post-123',
+    '?utm_source=redditbot&utm_medium=reddit_comment&utm_campaign=playlist_link&utm_content=cassetteclub&reddit_subreddit=cassetteclub&reddit_post_id=t3_abc123&token=secret',
+  );
+
+  await trackBrowserPageview({
+    route: '/post/post-123',
+    isAuthenticated: false,
+    accountType: 'Regular',
+  });
+
+  ((globalThis as { window: { location: { search: string; href: string } } }).window.location).search = '';
+  ((globalThis as { window: { location: { search: string; href: string } } }).window.location).href =
+    'https://cassette.test/post/post-123';
+
+  await captureClientEvent('post_viewed', {
+    route: '/post/post-123',
+    source_surface: 'post',
+    post_id: 'post-123',
+    element_type: 'playlist',
+  });
+
+  const captured = await collectCapturedPayloads(mocks.fetchPayloads, mocks.beaconPayloads);
+  const pageview = captured.find((payload) => payload.event === '$pageview');
+  const postView = captured.find((payload) => payload.event === 'post_viewed');
+  const pageviewProps = pageview?.properties as Record<string, unknown> | undefined;
+  const postViewProps = postView?.properties as Record<string, unknown> | undefined;
+
+  assert.equal(pageviewProps?.traffic_source, 'redditbot');
+  assert.equal(pageviewProps?.traffic_medium, 'reddit_comment');
+  assert.equal(pageviewProps?.traffic_campaign, 'playlist_link');
+  assert.equal(pageviewProps?.traffic_content, 'cassetteclub');
+  assert.equal(pageviewProps?.reddit_subreddit, 'cassetteclub');
+  assert.equal(pageviewProps?.reddit_post_id, 't3_abc123');
+  assert.match(String(pageviewProps?.$current_url), /utm_source=redditbot/);
+  assert.match(String(pageviewProps?.$current_url), /reddit_post_id=t3_abc123/);
+  assert.doesNotMatch(String(pageviewProps?.$current_url), /token=secret/);
+  assert.equal(postViewProps?.traffic_source, 'redditbot');
+  assert.equal(postViewProps?.reddit_subreddit, 'cassetteclub');
+  assert.equal(postViewProps?.reddit_post_id, 't3_abc123');
 
   mocks.restore();
   process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;

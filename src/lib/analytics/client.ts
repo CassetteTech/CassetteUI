@@ -11,6 +11,17 @@ const ALIAS_MERGE_GUARD_PREFIX = 'cassette_posthog_alias';
 const SESSION_ID_KEY = 'cassette_posthog_session_id';
 const SESSION_LAST_SEEN_KEY = 'cassette_posthog_session_last_seen_at';
 const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const TRAFFIC_ATTRIBUTION_KEY = 'cassette_traffic_attribution';
+const TRAFFIC_ATTRIBUTION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const ATTRIBUTION_QUERY_PARAMS = [
+  'src',
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_content',
+  'reddit_subreddit',
+  'reddit_post_id',
+] as const;
 
 type IdentifyUserContext = {
   userId?: string;
@@ -22,6 +33,12 @@ type IdentifyUserContext = {
   signupSource?: string;
   signupMedium?: string;
   signupCampaign?: string;
+  trafficSource?: string;
+  trafficMedium?: string;
+  trafficCampaign?: string;
+  trafficContent?: string;
+  redditSubreddit?: string;
+  redditPostId?: string;
   firstReferrerDomain?: string;
 };
 
@@ -40,6 +57,11 @@ type ActivePageview = {
   route: string;
   startedAtMs: number;
   sessionId: string;
+};
+
+type StoredTrafficAttribution = {
+  expiresAt: number;
+  properties: Partial<AnalyticsBaseProps>;
 };
 
 let sharedContext: SharedContext = {};
@@ -119,6 +141,106 @@ function getSafeReferrer(): { referrer?: string; referringDomain?: string } {
   } catch {
     return {};
   }
+}
+
+function parseTrafficAttributionFromUrl(): Partial<AnalyticsBaseProps> | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const params = new URLSearchParams(window.location.search || '');
+  const source = params.get('src') || params.get('utm_source') || undefined;
+  const properties = sanitizeAnalyticsProps({
+    traffic_source: source,
+    traffic_medium: params.get('utm_medium') || undefined,
+    traffic_campaign: params.get('utm_campaign') || undefined,
+    traffic_content: params.get('utm_content') || undefined,
+    reddit_subreddit: params.get('reddit_subreddit') || undefined,
+    reddit_post_id: params.get('reddit_post_id') || undefined,
+  });
+
+  return Object.keys(properties).length > 0 ? properties : null;
+}
+
+function readStoredTrafficAttribution(nowMs = Date.now()): Partial<AnalyticsBaseProps> | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(TRAFFIC_ATTRIBUTION_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const stored = JSON.parse(raw) as Partial<StoredTrafficAttribution>;
+    if (
+      typeof stored.expiresAt !== 'number' ||
+      stored.expiresAt <= nowMs ||
+      !stored.properties ||
+      typeof stored.properties !== 'object'
+    ) {
+      window.localStorage.removeItem(TRAFFIC_ATTRIBUTION_KEY);
+      return null;
+    }
+
+    const properties = sanitizeAnalyticsProps(stored.properties);
+    return Object.keys(properties).length > 0 ? properties : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeTrafficAttribution(properties: Partial<AnalyticsBaseProps>, nowMs = Date.now()): void {
+  if (typeof window === 'undefined' || Object.keys(properties).length === 0) {
+    return;
+  }
+
+  try {
+    const stored: StoredTrafficAttribution = {
+      expiresAt: nowMs + TRAFFIC_ATTRIBUTION_TTL_MS,
+      properties,
+    };
+    window.localStorage.setItem(TRAFFIC_ATTRIBUTION_KEY, JSON.stringify(stored));
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function getCurrentTrafficAttribution(): Partial<AnalyticsBaseProps> {
+  const fromUrl = parseTrafficAttributionFromUrl();
+  if (fromUrl) {
+    writeTrafficAttribution(fromUrl);
+    return fromUrl;
+  }
+
+  return readStoredTrafficAttribution() ?? {};
+}
+
+function buildSafeAttributionSearch(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const current = new URLSearchParams(window.location.search || '');
+  const safe = new URLSearchParams();
+
+  for (const key of ATTRIBUTION_QUERY_PARAMS) {
+    for (const value of current.getAll(key)) {
+      safe.append(key, value);
+    }
+  }
+
+  const query = safe.toString();
+  return query ? `?${query}` : '';
+}
+
+function buildSafeCurrentUrl(route: string): string {
+  if (typeof window === 'undefined') {
+    return route;
+  }
+
+  return `${window.location.origin}${route}${buildSafeAttributionSearch()}`;
 }
 
 function posthogCapture(body: Record<string, unknown>, host: string): void {
@@ -288,6 +410,7 @@ export async function trackBrowserPageview(options: {
   const distinctId = getClientDistinctId(options.userId);
   const sessionId = getOrCreateSessionId();
   const { referrer, referringDomain } = getSafeReferrer();
+  const attribution = getCurrentTrafficAttribution();
 
   if (activePageview && activePageview.route !== route) {
     flushCurrentPageleave({
@@ -304,7 +427,7 @@ export async function trackBrowserPageview(options: {
     return true;
   }
 
-  const currentUrl = `${window.location.origin}${route}`;
+  const currentUrl = buildSafeCurrentUrl(route);
 
   posthogCapture(
     {
@@ -322,6 +445,7 @@ export async function trackBrowserPageview(options: {
         $session_id: sessionId,
         $referrer: referrer,
         $referring_domain: referringDomain,
+        ...attribution,
       },
     },
     host,
@@ -347,8 +471,10 @@ export async function captureClientEvent<E extends AnalyticsEventName>(
   }
 
   const route = resolveRoute(props) || sharedContext.route;
+  const attribution = getCurrentTrafficAttribution();
   const combinedProps: AnalyticsBaseProps = {
     ...sharedContext,
+    ...attribution,
     ...props,
     route,
     source_surface: props.source_surface || sharedContext.source_surface || surfaceFromRoute(route),
@@ -424,6 +550,7 @@ export async function identifyClientUser(context: IdentifyUserContext): Promise<
     account_type: context.accountType != null ? String(context.accountType) : undefined,
   });
 
+  const attribution = getCurrentTrafficAttribution();
   const setPayload = sanitizeAnalyticsProps({
     user_id: context.userId,
     is_authenticated: context.isAuthenticated ?? true,
@@ -436,6 +563,12 @@ export async function identifyClientUser(context: IdentifyUserContext): Promise<
     signup_campaign: context.signupCampaign,
     first_referrer_domain: context.firstReferrerDomain,
     first_touch_source: context.signupSource,
+    traffic_source: context.trafficSource ?? attribution.traffic_source ?? context.signupSource,
+    traffic_medium: context.trafficMedium ?? attribution.traffic_medium ?? context.signupMedium,
+    traffic_campaign: context.trafficCampaign ?? attribution.traffic_campaign ?? context.signupCampaign,
+    traffic_content: context.trafficContent ?? attribution.traffic_content,
+    reddit_subreddit: context.redditSubreddit ?? attribution.reddit_subreddit,
+    reddit_post_id: context.redditPostId ?? attribution.reddit_post_id,
     internal_actor: resolveInternalActor(context.accountType),
   });
 

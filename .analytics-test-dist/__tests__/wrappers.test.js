@@ -24,7 +24,7 @@ function createMemoryStorage() {
         },
     };
 }
-function setupBrowserMocks(pathname = '/auth/signup') {
+function setupBrowserMocks(pathname = '/auth/signup', search = '') {
     const previousWindow = globalThis.window;
     const previousFetch = globalThis.fetch;
     const previousNavigator = globalThis.navigator;
@@ -38,7 +38,9 @@ function setupBrowserMocks(pathname = '/auth/signup') {
         sessionStorage,
         location: {
             pathname,
+            search,
             origin: 'https://cassette.test',
+            href: `https://cassette.test${pathname}${search}`,
         },
         addEventListener: () => undefined,
         removeEventListener: () => undefined,
@@ -124,6 +126,12 @@ async function collectCapturedPayloads(fetchPayloads, beaconPayloads) {
         signupSource: 'friend',
         signupMedium: 'dm',
         signupCampaign: 'spring_launch',
+        trafficSource: 'redditbot',
+        trafficMedium: 'reddit_comment',
+        trafficCampaign: 'playlist_link',
+        trafficContent: 'cassetteclub',
+        redditSubreddit: 'cassetteclub',
+        redditPostId: 't3_abc123',
         firstReferrerDomain: 'instagram.com',
     });
     const captured = await collectCapturedPayloads(mocks.fetchPayloads, mocks.beaconPayloads);
@@ -138,6 +146,12 @@ async function collectCapturedPayloads(fetchPayloads, beaconPayloads) {
     strict_1.default.equal(identifyPayload?.properties?.$set?.signup_source, 'friend');
     strict_1.default.equal(identifyPayload?.properties?.$set?.signup_medium, 'dm');
     strict_1.default.equal(identifyPayload?.properties?.$set?.signup_campaign, 'spring_launch');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.traffic_source, 'redditbot');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.traffic_medium, 'reddit_comment');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.traffic_campaign, 'playlist_link');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.traffic_content, 'cassetteclub');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.reddit_subreddit, 'cassetteclub');
+    strict_1.default.equal(identifyPayload?.properties?.$set?.reddit_post_id, 't3_abc123');
     strict_1.default.equal(identifyPayload?.properties?.$set?.first_referrer_domain, 'instagram.com');
     strict_1.default.equal(identifyPayload?.properties?.$set?.first_touch_source, 'friend');
     mocks.restore();
@@ -260,6 +274,48 @@ async function collectCapturedPayloads(fetchPayloads, beaconPayloads) {
     const postViewEvent = captured.find((payload) => payload.event === 'post_viewed');
     const props = postViewEvent?.properties;
     strict_1.default.equal(props?.is_creator_view, false);
+    mocks.restore();
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
+    process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
+});
+(0, node_test_1.default)('trackBrowserPageview stores safe Reddit attribution for later events', { concurrency: false }, async () => {
+    const previousKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    const previousDevFlag = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV;
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_test_key';
+    process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = 'true';
+    (0, client_1.resetAnalyticsContextForTests)();
+    const mocks = setupBrowserMocks('/post/post-123', '?utm_source=redditbot&utm_medium=reddit_comment&utm_campaign=playlist_link&utm_content=cassetteclub&reddit_subreddit=cassetteclub&reddit_post_id=t3_abc123&token=secret');
+    await (0, client_1.trackBrowserPageview)({
+        route: '/post/post-123',
+        isAuthenticated: false,
+        accountType: 'Regular',
+    });
+    (globalThis.window.location).search = '';
+    (globalThis.window.location).href =
+        'https://cassette.test/post/post-123';
+    await (0, client_1.captureClientEvent)('post_viewed', {
+        route: '/post/post-123',
+        source_surface: 'post',
+        post_id: 'post-123',
+        element_type: 'playlist',
+    });
+    const captured = await collectCapturedPayloads(mocks.fetchPayloads, mocks.beaconPayloads);
+    const pageview = captured.find((payload) => payload.event === '$pageview');
+    const postView = captured.find((payload) => payload.event === 'post_viewed');
+    const pageviewProps = pageview?.properties;
+    const postViewProps = postView?.properties;
+    strict_1.default.equal(pageviewProps?.traffic_source, 'redditbot');
+    strict_1.default.equal(pageviewProps?.traffic_medium, 'reddit_comment');
+    strict_1.default.equal(pageviewProps?.traffic_campaign, 'playlist_link');
+    strict_1.default.equal(pageviewProps?.traffic_content, 'cassetteclub');
+    strict_1.default.equal(pageviewProps?.reddit_subreddit, 'cassetteclub');
+    strict_1.default.equal(pageviewProps?.reddit_post_id, 't3_abc123');
+    strict_1.default.match(String(pageviewProps?.$current_url), /utm_source=redditbot/);
+    strict_1.default.match(String(pageviewProps?.$current_url), /reddit_post_id=t3_abc123/);
+    strict_1.default.doesNotMatch(String(pageviewProps?.$current_url), /token=secret/);
+    strict_1.default.equal(postViewProps?.traffic_source, 'redditbot');
+    strict_1.default.equal(postViewProps?.reddit_subreddit, 'cassetteclub');
+    strict_1.default.equal(postViewProps?.reddit_post_id, 't3_abc123');
     mocks.restore();
     process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
     process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;

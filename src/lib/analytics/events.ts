@@ -100,6 +100,14 @@ export type AnalyticsBaseProps = {
   signup_campaign?: string;
   first_referrer_domain?: string;
   first_touch_source?: string;
+  traffic_source?: string;
+  traffic_medium?: string;
+  traffic_campaign?: string;
+  traffic_content?: string;
+  reddit_subreddit?: string;
+  reddit_post_id?: string;
+  auth_provider?: 'email' | 'google' | string;
+  user_join_date?: string;
   has_description?: boolean;
   has_conversion_context?: boolean;
   platform_count?: number;

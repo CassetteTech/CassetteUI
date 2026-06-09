@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Users, AlertCircle, Link2, Shield } from 'lucide-react';
+import { Users, AlertCircle, Link2, Shield, Layers } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { apiService, ApiError } from '@/services/api';
 import {
@@ -20,10 +20,11 @@ import { normalizeAccountType, PAGE_SIZE } from './internal-utils';
 import { UsersTab } from './users-tab';
 import { IssuesTab } from './issues-tab';
 import { AttributionTab } from './attribution-tab';
+import { ExploreSnapshotsTab } from './explore-snapshots-tab';
 
 export function InternalDashboardShell() {
   const usersRequestIdRef = useRef(0);
-  const [activeTab, setActiveTab] = useState<'users' | 'issues' | 'attribution'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'issues' | 'attribution' | 'snapshots'>('users');
 
   // ─── Users state ───────────────────────────────────────────────────
   const [userSearch, setUserSearch] = useState('');
@@ -274,7 +275,7 @@ export function InternalDashboardShell() {
   return (
     <Tabs
       value={activeTab}
-      onValueChange={(value) => setActiveTab(value as 'users' | 'issues' | 'attribution')}
+      onValueChange={(value) => setActiveTab(value as 'users' | 'issues' | 'attribution' | 'snapshots')}
       className="flex flex-col bg-background lg:flex-1 lg:min-h-0"
     >
       {/* Header */}
@@ -315,6 +316,10 @@ export function InternalDashboardShell() {
             <TabsTrigger value="attribution" className="gap-1.5 text-xs">
               <Link2 className="h-3.5 w-3.5" />
               Attribution
+            </TabsTrigger>
+            <TabsTrigger value="snapshots" className="gap-1.5 text-xs">
+              <Layers className="h-3.5 w-3.5" />
+              Explore Snapshots
             </TabsTrigger>
           </TabsList>
         </div>
@@ -384,6 +389,10 @@ export function InternalDashboardShell() {
 
           <TabsContent value="attribution">
             <AttributionTab />
+          </TabsContent>
+
+          <TabsContent value="snapshots">
+            <ExploreSnapshotsTab />
           </TabsContent>
         </div>
       </div>

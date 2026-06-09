@@ -16,6 +16,8 @@ import {
   InternalAccountTypeAuditEntry,
   InternalIssuesResponse,
   InternalIssueDetail,
+  InternalExploreSnapshotsResponse,
+  InternalExploreSnapshotItemsResponse,
   InternalSignupAttributionOverview,
   InternalSignupAttributionBreakdownResponse,
   InternalSignupAttributionUsersResponse,
@@ -596,6 +598,23 @@ class ApiService {
     return this.request<InternalIssueDetail>(`/api/v1/internal/issues/${issueId}`, {
       timeoutMs: 20000,
     });
+  }
+
+  async getInternalExploreSnapshots(days = 14): Promise<InternalExploreSnapshotsResponse> {
+    return this.request<InternalExploreSnapshotsResponse>(
+      `/api/v1/internal/explore/snapshots?days=${days}`,
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async getInternalExploreSnapshotItems(
+    snapshotId: string,
+    limit = 50
+  ): Promise<InternalExploreSnapshotItemsResponse> {
+    return this.request<InternalExploreSnapshotItemsResponse>(
+      `/api/v1/internal/explore/snapshots/${encodeURIComponent(snapshotId)}/items?limit=${limit}`,
+      { timeoutMs: 20000 }
+    );
   }
 
   async exportInternalUsersCsv(params: {

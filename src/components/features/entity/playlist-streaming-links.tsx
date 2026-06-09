@@ -18,6 +18,7 @@ import { captureClientEvent } from '@/lib/analytics/client';
 import { normalizePlatform, sanitizeDomain } from '@/lib/analytics/sanitize';
 import { buildPostPlatformConversionClickedProps } from '@/lib/analytics/post-platform-conversion';
 import type { AnalyticsBaseProps, PlatformDimension } from '@/lib/analytics/events';
+import { appLogger } from '@/lib/observability/logger';
 
 type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
 
@@ -349,7 +350,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     }
 
     void platformConnectService.preloadAppleMusic().catch((error) => {
-      console.warn('Apple Music preload failed:', error);
+      appLogger.warn('apple_music_preload_failed', { error, route: '/post/[id]' });
     });
   }, [isAuthenticated]);
 

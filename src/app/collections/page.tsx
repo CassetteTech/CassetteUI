@@ -7,6 +7,7 @@ import { CollectionGrid, CollectionItemData } from '@/components/features/collec
 import { useMusicLinkConversion } from '@/hooks/use-music';
 import { Spinner } from '@/components/ui/spinner';
 import { BackButton } from '@/components/ui/back-button';
+import { appLogger } from '@/lib/observability/logger';
 
 // Sample collection items from the Flutter collection_items.dart
 const collectionItems: CollectionItemData[] = [
@@ -85,7 +86,7 @@ export default function CollectionsPage() {
           router.push(`/post?data=${encodeURIComponent(JSON.stringify(enrichedResult))}`);
         },
         onError: (error) => {
-          console.error('Conversion failed:', error);
+          appLogger.error('collections_conversion_failed', { error, route: '/collections' });
           setIsConverting(false);
           // In a real app, show an error toast
         },

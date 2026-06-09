@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config';
+import { appLogger } from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({ connections });
   } catch (error) {
-    console.error('Failed to fetch user music connections:', error);
+    appLogger.error('music_connections_route_fetch_failed', { error, route: '/api/user/music-connections' });
     return NextResponse.json(
       { error: 'Failed to fetch music connections' },
       { status: 500 }
@@ -86,7 +87,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('Failed to disconnect music service:', error);
+    appLogger.error('music_connections_route_disconnect_failed', { error, route: '/api/user/music-connections' });
     return NextResponse.json(
       { error: 'Failed to disconnect music service' },
       { status: 500 }

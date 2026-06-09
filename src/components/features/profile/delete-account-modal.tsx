@@ -15,6 +15,7 @@ import { TextField } from '@/components/ui/text-field';
 import { authService } from '@/services/auth';
 import { toast } from 'sonner';
 import { Loader2, AlertTriangle, User, FileText, Music, Library } from 'lucide-react';
+import { appLogger } from '@/lib/observability/logger';
 
 interface DeleteAccountModalProps {
   open: boolean;
@@ -43,7 +44,7 @@ export function DeleteAccountModal({
       onOpenChange(false);
       router.push('/');
     } catch (error) {
-      console.error('Failed to delete account:', error);
+      appLogger.error('account_delete_failed', { error, route: '/profile/edit' });
       toast.error('Failed to delete account. Please try again.');
     } finally {
       setIsDeleting(false);

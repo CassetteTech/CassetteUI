@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import Image from 'next/image';
 import { apiService } from '@/services/api';
 import { platformConnectService } from '@/services/platform-connect';
+import { appLogger } from '@/lib/observability/logger';
 
 interface PlatformState {
   isSelected: boolean;
@@ -68,10 +69,10 @@ export function MusicConnectionsFlow({
     const fetchPreferences = async () => {
       try {
         void platformConnectService.preloadAppleMusic().catch((error) => {
-          console.warn('Apple Music preload failed:', error);
+          appLogger.warn('apple_music_preload_failed', { error });
         });
 
-        console.log('MusicConnectionsFlow: Fetching preferences from API...');
+        appLogger.debug('music_connections_preferences_fetch_started');
         const response = await apiService.getPlatformPreferences();
 
         if (response.preferences) {
@@ -94,13 +95,15 @@ export function MusicConnectionsFlow({
           });
 
           setPlatformStates(newStates);
-          console.log('MusicConnectionsFlow: Loaded preferences:', newStates);
+          appLogger.debug('music_connections_preferences_loaded', {
+            selected_platform_count: Object.values(newStates).filter((state) => state.isSelected).length,
+          });
 
           const hasConnections = Object.values(newStates).some(s => s.isSelected);
           onConnectionChange?.(hasConnections);
         }
       } catch (error) {
-        console.error('MusicConnectionsFlow: Failed to fetch preferences:', error);
+        appLogger.error('music_connections_preferences_fetch_failed', { error });
       } finally {
         setIsLoading(false);
       }
@@ -155,7 +158,7 @@ export function MusicConnectionsFlow({
 
       toast.success(ensureSelected ? 'Apple Music connected!' : 'Apple Music authorized!');
     } catch (error) {
-      console.error('Failed to connect Apple Music:', error);
+      appLogger.error('music_connections_apple_music_connect_failed', { error, platform: 'AppleMusic' });
       setPlatformStates(prev => ({
         ...prev,
         AppleMusic: { ...prev.AppleMusic, isLoading: false },
@@ -215,7 +218,10 @@ export function MusicConnectionsFlow({
         toast.info(`${service.name} removed from your profile`);
       }
     } catch (error) {
-      console.error(`Failed to update ${service.name} preference:`, error);
+      appLogger.error('music_connections_preference_update_failed', {
+        error,
+        platform: serviceId,
+      });
       setPlatformStates(prev => ({
         ...prev,
         [serviceId]: { ...prev[serviceId], isLoading: false },

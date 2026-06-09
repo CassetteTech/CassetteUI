@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Track, Album, Artist, Playlist } from '@/types';
 import { rankSearchResults, RankedItem } from '@/utils/search-ranking';
 import { Spinner } from '@/components/ui/spinner';
+import { appLogger } from '@/lib/observability/logger';
 
 interface SearchResultsProps {
   results?: {
@@ -114,23 +115,19 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   };
 
   const handleItemClick = (item: typeof allResults[0]) => {
-    console.log('🔍 Item clicked:', item);
-    console.log('🔗 External URLs:', item.externalUrls);
-    
     // Try to find a valid URL from the item
     const url = item.externalUrls?.spotify || 
                 item.externalUrls?.appleMusic || 
                 item.externalUrls?.deezer;
-    
-    console.log('📎 Selected URL:', url);
-    
+
     if (url) {
       const typeDisplay = item.type.charAt(0).toUpperCase() + item.type.slice(1);
-      console.log('✅ Calling onSelectItem with:', { url, title: item.title, type: typeDisplay });
       onSelectItem(url, item.title, typeDisplay);
     } else {
-      console.error('❌ No valid URL found for this item');
-      console.error('Item data:', item);
+      appLogger.warn('search_result_missing_external_url', {
+        item_id: item.id,
+        element_type: item.type,
+      });
     }
   };
 
@@ -213,10 +210,10 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                       height={48}
                       className="object-cover w-full h-full"
                       onError={(e) => {
-                        console.error('🖼️ Image load error:', {
-                          src: item.artwork,
-                          title: item.title,
-                          error: e
+                        appLogger.warn('search_result_artwork_load_failed', {
+                          item_id: item.id,
+                          element_type: item.type,
+                          error: e,
                         });
                       }}
                     />

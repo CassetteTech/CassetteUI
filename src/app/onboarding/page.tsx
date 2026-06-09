@@ -19,6 +19,7 @@ import { pendingActionService } from '@/utils/pending-action';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
 import { authRedirectService } from '@/utils/auth-redirect';
+import { appLogger } from '@/lib/observability/logger';
 
 // Step definitions (excluding welcome and completion which are special)
 const STEPS = [
@@ -214,7 +215,7 @@ export default function OnboardingPage() {
         throw new Error('Failed to update user data');
       }
     } catch (error) {
-      console.error('Onboarding completion error:', error);
+      appLogger.error('onboarding_completion_failed', { error, route: '/onboarding' });
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast.error('Failed to complete setup', {
         description: errorMessage,

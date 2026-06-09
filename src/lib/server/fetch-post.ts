@@ -1,5 +1,6 @@
 import { PostByIdResponse } from '@/types';
 import { getApiUrl } from '@/lib/utils/url';
+import { appLogger } from '@/lib/observability/logger';
 
 /**
  * Server-side fetch utility for post data.
@@ -14,14 +15,14 @@ export async function fetchPostForMetadata(postId: string): Promise<PostByIdResp
     });
 
     if (!response.ok) {
-      console.error(`Failed to fetch post ${postId}: ${response.status}`);
+      appLogger.warn('metadata_post_fetch_failed', { post_id: postId, http_status: response.status });
       return null;
     }
 
     const data: PostByIdResponse = await response.json();
     return data;
   } catch (error) {
-    console.error(`Error fetching post ${postId}:`, error);
+    appLogger.warn('metadata_post_fetch_failed', { error, post_id: postId });
     return null;
   }
 }

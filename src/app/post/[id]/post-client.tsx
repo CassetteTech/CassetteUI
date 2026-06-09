@@ -39,6 +39,8 @@ import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { appLogger } from '@/lib/observability/logger';
+import { captureUiException } from '@/lib/observability/error-reporting';
 
 function JoinCassetteCTA({ onClick, className }: { onClick: () => void; className?: string }) {
   return (
@@ -383,7 +385,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         });
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
-          console.error('Share failed:', err);
+          appLogger.warn('post_share_failed', { error: err, route: '/post/[id]' });
         }
       }
     } else {
@@ -392,7 +394,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         await navigator.clipboard.writeText(shareUrl);
         setCopyState('copied');
       } catch (err) {
-        console.error('Failed to copy link:', err);
+        appLogger.warn('post_share_copy_failed', { error: err, route: '/post/[id]' });
         setCopyState('error');
         setTimeout(() => setCopyState('idle'), 2000);
       }
@@ -403,10 +405,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     const musicElementId = postData?.musicElementId;
     const elementType = postData?.metadata?.type;
 
-    console.log('🔍 Add to profile:', { musicElementId, elementType });
-
     if (!musicElementId || elementType === undefined) {
-      console.log('❌ Missing musicElementId or elementType');
+      appLogger.warn('post_add_to_profile_missing_metadata', { route: '/post/[id]', element_type: elementType });
       setAddStatus('error');
       setTimeout(() => setAddStatus('idle'), 3000);
       return;
@@ -422,7 +422,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
       {
         onSuccess: () => setAddStatus('added'),
         onError: (error) => {
-          console.error('❌ Add to profile failed:', error);
+          appLogger.error('post_add_to_profile_failed', { error, route: '/post/[id]', element_type: elementType });
           setAddStatus('error');
           setTimeout(() => setAddStatus('idle'), 3000);
         },
@@ -804,7 +804,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         }
       } catch (e) {
         if (isCancelled) return;
-        console.error('Error loading post data:', e);
+        captureUiException(e, { route: '/post/[id]', operation: 'post_load' });
         setError('Failed to load content');
       }
     };
@@ -856,7 +856,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
       const result = await ColorExtractor.extractPalette(artworkUrl);
       setPalette(result);
     } catch (error) {
-      console.error('Color extraction failed:', error);
+      appLogger.warn('post_artwork_color_extraction_failed', { error, route: '/post/[id]' });
       setPalette(ColorExtractor.getBrandPalette());
     }
   };

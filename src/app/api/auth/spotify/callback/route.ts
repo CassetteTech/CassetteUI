@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config';
+import { appLogger } from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,12 +11,15 @@ export async function GET(request: NextRequest) {
 
     // Check for authorization errors
     if (error) {
-      console.error('Spotify authorization error:', error);
+      appLogger.warn('spotify_callback_route_authorization_denied', {
+        error_code: error,
+        route: '/api/auth/spotify/callback',
+      });
       return NextResponse.json({ error: 'spotify-auth-denied' }, { status: 400 });
     }
 
     if (!code || !state) {
-      console.error('Missing code or state in Spotify callback');
+      appLogger.error('spotify_callback_route_invalid_request', { route: '/api/auth/spotify/callback' });
       return NextResponse.json({ error: 'spotify-invalid-callback' }, { status: 400 });
     }
 
@@ -51,7 +55,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'spotify-callback-failed' }, { status: 400 });
     }
   } catch (error) {
-    console.error('Spotify callback error:', error);
+    appLogger.error('spotify_callback_route_failed', { error, route: '/api/auth/spotify/callback' });
     return NextResponse.json({ error: 'spotify-callback-failed' }, { status: 500 });
   }
 }

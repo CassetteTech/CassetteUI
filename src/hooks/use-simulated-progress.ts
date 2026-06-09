@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { appLogger } from '@/lib/observability/logger';
 
 export type ContentType = 'track' | 'album' | 'artist' | 'playlist';
 
@@ -266,7 +267,7 @@ export const useSimulatedProgress = (
           }, delay);
         } else {
           // We're on the last step without API response - wait
-          console.log('⏸️ Pausing on last step - waiting for API response');
+          appLogger.debug('conversion_progress_waiting_for_api');
         }
       }
 
@@ -282,7 +283,7 @@ export const useSimulatedProgress = (
 
   // Rapid completion when API finishes first
   const enterRapidCompletionMode = useCallback(() => {
-    console.log('🏃 Entering rapid completion mode');
+    appLogger.debug('conversion_progress_rapid_completion_started');
     rapidCompletionRef.current = true;
     clearRapidCompletionTimeouts();
     
@@ -290,16 +291,16 @@ export const useSimulatedProgress = (
     if (stepTimeoutRef.current) {
       clearTimeout(stepTimeoutRef.current);
       stepTimeoutRef.current = undefined;
-      console.log('🔄 Cleared existing step timeout');
+      appLogger.debug('conversion_progress_step_timeout_cleared');
     }
 
     const { currentStep, totalSteps } = stateRef.current;
     const remainingSteps = totalSteps - currentStep;
-    console.log(`⚡ Remaining steps to complete: ${remainingSteps}`);
+    appLogger.debug('conversion_progress_remaining_steps', { remaining_steps: remainingSteps });
 
     for (let i = 1; i <= remainingSteps; i++) {
       const timeout = setTimeout(() => {
-        console.log(`📝 Advancing step ${i}/${remainingSteps}`);
+        appLogger.debug('conversion_progress_step_advanced', { step: i, remaining_steps: remainingSteps });
         advanceStep();
       }, 100 * i);
       rapidCompletionTimeoutsRef.current.push(timeout);
@@ -317,12 +318,12 @@ export const useSimulatedProgress = (
       
       // If we're paused on the last step, complete it now
       if (state.currentStep === state.totalSteps - 1 && !rapidCompletionRef.current) {
-        console.log('🎯 API completed on last step - completing in 0.1s');
+        appLogger.debug('conversion_progress_api_completed_on_last_step');
         setTimeout(() => {
           advanceStep();
         }, 100);
       } else if (!rapidCompletionRef.current) {
-        console.log('🚀 API completed, entering rapid completion mode');
+        appLogger.debug('conversion_progress_api_completed');
         enterRapidCompletionMode();
       }
     }

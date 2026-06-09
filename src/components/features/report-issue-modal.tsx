@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { apiService } from '@/services/api';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { appLogger } from '@/lib/observability/logger';
 
 type ReportType = 'conversion_issue' | 'ui_bug' | 'general_feedback' | 'missing_track' | 'wrong_match';
 
@@ -114,7 +115,7 @@ export function ReportIssueModal({
     } catch (error) {
       setSubmitStatus('error');
       setErrorMessage('An error occurred. Please try again.');
-      console.error('Report issue error:', error);
+      appLogger.error('report_issue_submit_failed', { error, route: sourceContext });
     } finally {
       setIsSubmitting(false);
     }

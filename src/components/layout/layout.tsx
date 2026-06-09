@@ -9,6 +9,7 @@ import { Navbar } from './navbar';
 import { Footer } from './footer';
 import { SupportFloatingButton } from './support-floating-button';
 import { PageLoader } from '@/components/ui/page-loader';
+import { appLogger } from '@/lib/observability/logger';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -21,7 +22,12 @@ export function Layout({ children }: LayoutProps) {
 
 useEffect(() => {
   const disposeAuthListener = authService.initializeAuthListener();
-  apiService.warmupLambdas().catch(console.warn);
+  apiService.warmupLambdas().catch((error) => {
+    appLogger.warn('lambda_warmup_failed', {
+      error,
+      route: typeof window !== 'undefined' ? window.location.pathname : '/',
+    });
+  });
 
   return () => {
     disposeAuthListener();

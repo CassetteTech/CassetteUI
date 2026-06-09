@@ -1,4 +1,5 @@
 import { getBaseUrl } from './utils/url';
+import { appLogger } from '@/lib/observability/logger';
 
 // Server-only configuration - contains sensitive secrets
 // This config should NEVER be imported by client components
@@ -38,34 +39,36 @@ export type ServerConfig = typeof serverConfig;
 
 // Validation function for server-only environment variables
 export function validateServerConfig() {
-  console.log('🔍 Validating server configuration...');
-  console.log('🌍 Environment Details:', {
-    NODE_ENV: process.env.NODE_ENV || 'not set',
-    isProduction: process.env.NODE_ENV === 'production',
-    isDevelopment: process.env.NODE_ENV === 'development',
+  appLogger.debug('server_config_validation_started', {
+    node_env: process.env.NODE_ENV || 'not set',
+    is_production: process.env.NODE_ENV === 'production',
+    is_development: process.env.NODE_ENV === 'development',
     platform: process.platform,
-    nodeVersion: process.version,
+    node_version: process.version,
   });
 
   // Check all music API credentials
   const musicApiStatus = {
     spotify: {
-      clientId: serverConfig.spotify.clientId ? `present (${serverConfig.spotify.clientId.length} chars)` : 'MISSING',
-      clientSecret: serverConfig.spotify.clientSecret ? `present (${serverConfig.spotify.clientSecret.length} chars)` : 'MISSING',
+      client_id_present: Boolean(serverConfig.spotify.clientId),
+      client_id_length: serverConfig.spotify.clientId.length || undefined,
+      client_secret_present: Boolean(serverConfig.spotify.clientSecret),
+      client_secret_length: serverConfig.spotify.clientSecret.length || undefined,
     },
     appleMusic: {
-      keyId: serverConfig.appleMusic.keyId ? `present (${serverConfig.appleMusic.keyId.length} chars)` : 'MISSING',
-      teamId: serverConfig.appleMusic.teamId ? `present (${serverConfig.appleMusic.teamId.length} chars)` : 'MISSING',
-      privateKey: serverConfig.appleMusic.privateKey ? {
+      key_id_present: Boolean(serverConfig.appleMusic.keyId),
+      key_id_length: serverConfig.appleMusic.keyId.length || undefined,
+      team_id_present: Boolean(serverConfig.appleMusic.teamId),
+      team_id_length: serverConfig.appleMusic.teamId.length || undefined,
+      private_key: serverConfig.appleMusic.privateKey ? {
         length: serverConfig.appleMusic.privateKey.length,
-        hasBeginMarker: serverConfig.appleMusic.privateKey.includes('-----BEGIN'),
-        hasEndMarker: serverConfig.appleMusic.privateKey.includes('-----END'),
-        preview: serverConfig.appleMusic.privateKey.substring(0, 50) + '...',
-      } : 'MISSING',
+        has_begin_marker: serverConfig.appleMusic.privateKey.includes('-----BEGIN'),
+        has_end_marker: serverConfig.appleMusic.privateKey.includes('-----END'),
+      } : { present: false },
     },
   };
 
-  console.log('🎵 Music API Configuration Status:', musicApiStatus);
+  appLogger.debug('music_api_configuration_status', musicApiStatus);
 
   const required = {
     'SUPABASE_SERVICE_ROLE_KEY': serverConfig.supabase.serviceRoleKey,
@@ -90,18 +93,18 @@ export function validateServerConfig() {
     .map(([key]) => key);
 
   if (missing.length > 0) {
-    console.error(`❌ Missing REQUIRED server-only environment variables:`, missing);
+    appLogger.error('server_config_required_env_missing', { missing });
   } else {
-    console.log('✅ All required server environment variables are present');
+    appLogger.debug('server_config_required_env_present');
   }
 
   if (missingOptional.length > 0) {
-    console.warn(`⚠️ Missing OPTIONAL environment variables (may affect some features):`, missingOptional);
+    appLogger.warn('server_config_optional_env_missing', { missing_optional: missingOptional });
   }
 
   // Log deployment info if available
   if (process.env.VERCEL) {
-    console.log('🚀 Running on Vercel:', {
+    appLogger.debug('server_config_vercel_environment', {
       env: process.env.VERCEL_ENV,
       region: process.env.VERCEL_REGION,
       url: process.env.VERCEL_URL,

@@ -5,6 +5,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { captureClientEvent } from '@/lib/analytics/client';
 import type { ElementTypeDimension, PlatformDimension } from '@/lib/analytics/events';
 import { normalizePlatform } from '@/lib/analytics/sanitize';
+import { appLogger } from '@/lib/observability/logger';
 
 interface PlayPreviewProps {
   previewUrl?: string;
@@ -95,7 +96,7 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
         });
       }
     } catch (error) {
-      console.error('Error playing audio:', error);
+      appLogger.warn('preview_playback_failed', { error, route: '/post' });
       setIsLoading(false);
       setIsPlaying(false);
       void captureClientEvent('preview_playback_failed', {
@@ -123,7 +124,7 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
   };
 
   const handleAudioError = (error: unknown) => {
-    console.error('Audio error:', error);
+    appLogger.warn('preview_audio_error', { error, route: '/post' });
     setIsPlaying(false);
     setIsLoading(false);
     void captureClientEvent('preview_playback_failed', {

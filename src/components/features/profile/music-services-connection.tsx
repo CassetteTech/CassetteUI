@@ -6,32 +6,35 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useAuthStore } from '@/stores/auth-store';
 import Image from 'next/image';
 import { Spinner } from '@/components/ui/spinner';
+import { appLogger } from '@/lib/observability/logger';
 
 export function MusicServicesConnection() {
   const { user, isLoading } = useAuthStore();
   
   const connectedServices = user?.connectedServices || [];
   
-  console.log('🔍 [MusicConnection] Connected services:', connectedServices);
+  appLogger.debug('profile_connected_services_loaded', {
+    connected_service_count: connectedServices.length,
+  });
 
   const handleSpotifyConnect = () => {
     // TODO: Implement actual Spotify connection logic
-    console.log('Connecting to Spotify...');
+    appLogger.debug('spotify_profile_connect_requested');
   };
 
   const handleSpotifyDisconnect = () => {
     // TODO: Implement actual Spotify disconnection logic
-    console.log('Disconnecting from Spotify...');
+    appLogger.debug('spotify_profile_disconnect_requested');
   };
 
   const handleAppleMusicConnect = () => {
     // TODO: Implement actual Apple Music connection logic
-    console.log('Connecting to Apple Music...');
+    appLogger.debug('apple_music_profile_connect_requested');
   };
 
   const handleAppleMusicDisconnect = () => {
     // TODO: Implement actual Apple Music disconnection logic
-    console.log('Disconnecting from Apple Music...');
+    appLogger.debug('apple_music_profile_disconnect_requested');
   };
 
   const spotifyConnection = connectedServices.find(service => service.serviceType === 'Spotify');

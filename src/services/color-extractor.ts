@@ -1,3 +1,5 @@
+import { appLogger } from '@/lib/observability/logger';
+
 export interface ColorPalette {
   dominant: string;      // Most prominent color (weighted by frequency + position)
   vibrant: string;       // Most saturated color (accent)
@@ -82,7 +84,7 @@ export class ColorExtractor {
       const basePalette = this.assignPaletteRoles(clusters, cfg);
       return this.generateHarmony(basePalette);
     } catch (error) {
-      console.error('Color extraction failed:', error);
+      appLogger.warn('color_extraction_failed', { error });
       return this.getBrandPalette();
     }
   }

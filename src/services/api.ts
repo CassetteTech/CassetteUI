@@ -36,6 +36,7 @@ import { sanitizeDomain } from '@/lib/analytics/sanitize';
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
 import { CASSETTE_CORRELATION_HEADER, createCorrelationId, normalizeCorrelationId } from '@/lib/observability/correlation';
 import { getSourceDomain, hashSourceLink, normalizeRouteContext } from '@/lib/observability/source-link';
+import { appLogger } from '@/lib/observability/logger';
 
 // interface MusicConnection {
 //   id: string;
@@ -143,7 +144,7 @@ class ApiService {
               return { message: text };
             }
           });
-        console.error('❌ API Error Response:', {
+        appLogger.error('api_error_response', {
           status: response.status,
           errorCode: error.error_code ?? error.errorCode,
           correlationId: error.correlationId ?? responseCorrelationId,
@@ -195,7 +196,7 @@ class ApiService {
         }
         data = JSON.parse(text);
       } catch (parseError) {
-        console.error('❌ JSON Parse Error:', parseError);
+        appLogger.error('api_json_parse_error', { error: parseError, correlationId: responseCorrelationId });
         throw new Error('Invalid JSON response from API');
       }
       if (data && typeof data === 'object' && responseCorrelationId && !('correlationId' in data)) {
@@ -204,15 +205,15 @@ class ApiService {
       return data;
     } catch (error) {
       if (error instanceof ApiError) {
-        console.error('API request failed', {
-          endpoint,
+        appLogger.error('api_request_failed', {
+          route: endpoint,
           status: error.status,
           errorCode: error.errorCode,
           correlationId: error.correlationId ?? correlationId,
         });
       } else {
-        console.error('API request failed', {
-          endpoint,
+        appLogger.error('api_request_failed', {
+          route: endpoint,
           correlationId,
           errorName: error instanceof Error ? error.name : typeof error,
         });
@@ -1063,7 +1064,7 @@ class ApiService {
     try {
       return this.request('/api/v1/convert/warmup', { method: 'GET', skipAuth: true, correlationId: createCorrelationId() });
     } catch (error) {
-      console.warn('Lambda warmup failed', {
+      appLogger.warn('lambda_warmup_failed', {
         correlationId: error instanceof ApiError ? error.correlationId : undefined,
         errorCode: error instanceof ApiError ? error.errorCode : undefined,
       });

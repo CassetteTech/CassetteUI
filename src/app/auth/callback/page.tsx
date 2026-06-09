@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { pendingActionService } from '@/utils/pending-action';
 import { PageLoader } from '@/components/ui/page-loader';
 import { authRedirectService } from '@/utils/auth-redirect';
+import { appLogger } from '@/lib/observability/logger';
 
 export default function OAuthCallbackPage() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function OAuthCallbackPage() {
         router.replace('/profile');
       })
       .catch((err: Error) => {
-        console.error('Callback session error:', err);
+        appLogger.error('auth_callback_session_failed', { error: err, route: '/auth/callback' });
         setError(err.message);
       });
   }, [router]);

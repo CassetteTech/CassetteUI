@@ -15,6 +15,7 @@ import { ActivityPost } from '@/types';
 import { Container } from '@/components/ui/container';
 import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { appLogger } from '@/lib/observability/logger';
 
 const TAB_ELEMENT_TYPE: Partial<Record<TabType, string>> = {
   playlists: 'Playlist',
@@ -214,7 +215,7 @@ export default function ProfilePage() {
       setAdditionalPosts(prev => [...prev, ...moreActivity.items]);
       setCurrentPage(nextPage);
     } catch (e) {
-      console.error('Error loading more activity:', e);
+      appLogger.error('profile_activity_load_more_failed', { error: e, route: '/profile/[username]' });
     } finally {
       setIsLoadingMore(false);
     }

@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { appLogger } from '@/lib/observability/logger';
 
 export default function ProfileRedirect() {
   const router = useRouter();
@@ -11,19 +12,19 @@ export default function ProfileRedirect() {
 
   useEffect(() => {
     if (!isLoading) {
-      console.log('🔄 [Profile] Profile redirect logic running', { user, isLoading });
+      appLogger.debug('profile_redirect_resolved', { has_user: Boolean(user), is_loading: isLoading });
       
       if (!user) {
-        console.log('❌ [Profile] No user, redirecting to signin');
+        appLogger.debug('profile_redirect_signin');
         router.replace('/auth/signin');
       } else if (!user.isOnboarded) {
-        console.log('⚠️ [Profile] User not onboarded, redirecting to onboarding', user);
+        appLogger.debug('profile_redirect_onboarding', { user_id: user.id });
         router.replace('/onboarding');
       } else if (user.username) {
-        console.log('✅ [Profile] User onboarded with username, redirecting to profile', user);
+        appLogger.debug('profile_redirect_username', { user_id: user.id });
         router.replace(`/profile/${user.username}`);
       } else {
-        console.log('❌ [Profile] User onboarded but no username, redirecting to signin', user);
+        appLogger.warn('profile_redirect_missing_username', { user_id: user.id });
         router.replace('/auth/signin');
       }
     }

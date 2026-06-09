@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { SignInForm, SignUpForm } from '@/types';
 import { useRouter } from 'next/navigation';
 import { pendingActionService } from '@/utils/pending-action';
+import { appLogger } from '@/lib/observability/logger';
 
 export const useSignIn = () => {
   const router = useRouter();
@@ -35,7 +36,7 @@ export const useSignIn = () => {
       router.push('/profile');
     },
     onError: (error: Error) => {
-      console.error('Sign in error:', error);
+      appLogger.error('signin_failed', { error });
     },
   });
 };
@@ -44,12 +45,8 @@ export const useSignUp = () => {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: (data: SignUpForm) => {
-      console.log('🚀 [useSignUp] Calling authService.signUp with:', { ...data, password: '[REDACTED]', confirmPassword: '[REDACTED]' });
-      return authService.signUp(data);
-    },
+    mutationFn: (data: SignUpForm) => authService.signUp(data),
     onSuccess: (result) => {
-      console.log('✅ [useSignUp] Signup successful:', result);
       const user = useAuthStore.getState().user;
       if (result?.success && user) {
         // Get the user from store (already set by authService.signUp)
@@ -72,7 +69,7 @@ export const useSignUp = () => {
       }
     },
     onError: (error: Error) => {
-      console.error('❌ [useSignUp] Sign up error:', error);
+      appLogger.error('signup_failed', { error });
     },
   });
 };
@@ -88,7 +85,7 @@ export const useSignOut = () => {
       router.push('/auth/signin');
     },
     onError: (error: Error) => {
-      console.error('Sign out error:', error);
+      appLogger.error('signout_failed', { error });
     },
   });
 };
@@ -98,7 +95,7 @@ export const useSignInWithProvider = () => {
     mutationFn: (provider: 'google' | 'apple') => 
       authService.signInWithProvider(provider),
     onError: (error: Error) => {
-      console.error('OAuth sign in error:', error);
+      appLogger.error('oauth_signin_failed', { error });
     },
   });
 };
@@ -107,7 +104,7 @@ export const useResetPassword = () => {
   return useMutation({
     mutationFn: (email: string) => authService.resetPassword(email),
     onError: (error: Error) => {
-      console.error('Reset password error:', error);
+      appLogger.error('reset_password_failed', { error });
     },
   });
 };
@@ -116,7 +113,7 @@ export const useUpdatePassword = () => {
   return useMutation({
     mutationFn: (password: string) => authService.updatePassword(password),
     onError: (error: Error) => {
-      console.error('Update password error:', error);
+      appLogger.error('update_password_failed', { error });
     },
   });
 };

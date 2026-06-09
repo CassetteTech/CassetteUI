@@ -2,6 +2,7 @@ import './server-only';
 import jwt from 'jsonwebtoken';
 import { serverConfig } from '@/lib/config-server';
 import { MusicSearchResult } from '@/types';
+import { appLogger } from '@/lib/observability/logger';
 import { 
   AppleMusicSearchResponse, 
   AppleMusicChartsResponse,
@@ -25,27 +26,13 @@ class AppleMusicService {
     const teamId = serverConfig.appleMusic.teamId;
     const privateKey = serverConfig.appleMusic.privateKey;
 
-    // Log credential availability (without exposing sensitive data)
-    console.log('🔐 Apple Music Config Check:', {
-      environment: process.env.NODE_ENV || 'unknown',
-      keyId: keyId ? `present (${keyId.length} chars)` : 'MISSING',
-      teamId: teamId ? `present (${teamId.length} chars)` : 'MISSING',
-      privateKey: privateKey ? `present (${privateKey.length} chars)` : 'MISSING',
-      privateKeyPreview: privateKey ? {
-        startsWithBegin: privateKey.includes('-----BEGIN'),
-        endsWithEnd: privateKey.includes('-----END'),
-        hasNewlines: privateKey.includes('\n'),
-        hasEscapedNewlines: privateKey.includes('\\n'),
-      } : 'MISSING',
-    });
-
     if (!keyId || !teamId || !privateKey) {
       const missing = [];
       if (!keyId) missing.push('APPLE_MUSIC_KEY_ID');
       if (!teamId) missing.push('APPLE_MUSIC_TEAM_ID');
       if (!privateKey) missing.push('APPLE_MUSIC_PRIVATE_KEY');
       
-      console.error('❌ Apple Music credentials missing:', missing.join(', '));
+      appLogger.error('apple_music_credentials_missing', { missing });
       throw new Error(`Apple Music credentials not configured. Missing: ${missing.join(', ')}`);
     }
 
@@ -58,39 +45,21 @@ class AppleMusicService {
       const now = new Date();
       const bufferTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 1 day buffer
       if (this.tokenExpiryTime > bufferTime) {
-        console.log('🔄 Using cached Apple Music token (expires:', this.tokenExpiryTime.toISOString(), ')');
+        appLogger.debug('apple_music_token_cache_hit');
         return this.token;
-      } else {
-        console.log('🔄 Apple Music token expired or expiring soon, generating new token');
       }
-    } else {
-      console.log('🔄 No cached Apple Music token, generating new token');
     }
 
     const { keyId, teamId, privateKey } = this.getConfig();
 
-    // Clean up the private key - handle both \n and actual newlines
-    console.log('🔑 Processing Apple Music private key:', {
-      originalLength: privateKey.length,
-      hasEscapedNewlines: privateKey.includes('\\n'),
-      hasActualNewlines: privateKey.includes('\n'),
-    });
-    
     const cleanPrivateKey = privateKey
       .replaceAll('\\n', '\n')
       .trim();
 
-    console.log('🔑 After cleaning private key:', {
-      cleanedLength: cleanPrivateKey.length,
-      hasBeginMarker: cleanPrivateKey.includes('-----BEGIN PRIVATE KEY-----'),
-      hasEndMarker: cleanPrivateKey.includes('-----END PRIVATE KEY-----'),
-      lineCount: cleanPrivateKey.split('\n').length,
-    });
-
     // Verify the private key is in PEM format
     if (!cleanPrivateKey.includes('-----BEGIN PRIVATE KEY-----') ||
         !cleanPrivateKey.includes('-----END PRIVATE KEY-----')) {
-      console.error('❌ Invalid private key format detected');
+      appLogger.error('apple_music_private_key_invalid_format');
       throw new Error('Invalid private key format. Must be in PEM format with BEGIN and END markers.');
     }
 
@@ -101,46 +70,30 @@ class AppleMusicService {
     };
 
     try {
-      console.log('🔐 Attempting to sign JWT with:', {
-        algorithm: 'ES256',
-        keyId: keyId,
-        teamId: teamId,
-        issuedAt: new Date(payload.iat * 1000).toISOString(),
-        expiresAt: new Date(payload.exp * 1000).toISOString(),
-      });
-      
       this.token = jwt.sign(payload, cleanPrivateKey, {
         algorithm: 'ES256',
         keyid: keyId,
       });
       this.tokenExpiryTime = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
       
-      console.log('✅ Apple Music JWT token generated successfully:', {
-        tokenLength: this.token.length,
-        expiresAt: this.tokenExpiryTime.toISOString(),
-      });
+      appLogger.debug('apple_music_token_generated');
       
       return this.token;
     } catch (error) {
-      console.error('❌ Failed to sign Apple Music token:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        keyId,
-        teamId,
-      });
+      appLogger.error('apple_music_token_sign_failed', { error });
       throw new Error(`Failed to generate Apple Music token: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async search(query: string): Promise<MusicSearchResult> {
-    console.log('🎵 Apple Music search starting for query:', query);
+    appLogger.debug('apple_music_search_started');
     const startTime = Date.now();
     
     let token: string;
     try {
       token = await this.getToken();
     } catch (error) {
-      console.error('❌ Failed to get Apple Music token for search:', error);
+      appLogger.error('apple_music_token_for_search_failed', { error });
       throw error;
     }
     
@@ -149,12 +102,6 @@ class AppleMusicService {
     url.searchParams.append('types', 'songs,artists,albums');
     url.searchParams.append('limit', '10');
 
-    console.log('🌐 Apple Music API request:', {
-      url: url.toString(),
-      tokenPresent: !!token,
-      tokenLength: token?.length,
-    });
-
     const response = await fetch(url.toString(), {
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -165,20 +112,17 @@ class AppleMusicService {
     const elapsedTime = Date.now() - startTime;
 
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error('❌ Apple Music search failed:', {
+      await response.body?.cancel();
+      appLogger.error('apple_music_search_failed', {
         status: response.status,
-        statusText: response.statusText,
-        body: errorBody.substring(0, 500), // First 500 chars of error
-        elapsedTime: `${elapsedTime}ms`,
-        headers: Object.fromEntries(response.headers.entries()),
+        duration_ms: elapsedTime,
       });
       throw new Error(`Failed to search Apple Music: ${response.status} ${response.statusText}`);
     }
 
-    console.log('✅ Apple Music search successful:', {
+    appLogger.debug('apple_music_search_succeeded', {
       status: response.status,
-      elapsedTime: `${elapsedTime}ms`,
+      duration_ms: elapsedTime,
     });
 
     const data = await response.json();
@@ -186,14 +130,14 @@ class AppleMusicService {
   }
 
   async fetchTopCharts(): Promise<MusicSearchResult> {
-    console.log('📊 Apple Music fetching top charts');
+    appLogger.debug('apple_music_charts_started');
     const startTime = Date.now();
     
     let token: string;
     try {
       token = await this.getToken();
     } catch (error) {
-      console.error('❌ Failed to get Apple Music token for charts:', error);
+      appLogger.error('apple_music_token_for_charts_failed', { error });
       throw error;
     }
     
@@ -202,12 +146,6 @@ class AppleMusicService {
     url.searchParams.append('limit', '50');
     url.searchParams.append('chart', 'most-played');
 
-    console.log('🌐 Apple Music charts API request:', {
-      url: url.toString(),
-      tokenPresent: !!token,
-      tokenLength: token?.length,
-    });
-
     const response = await fetch(url.toString(), {
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -218,20 +156,17 @@ class AppleMusicService {
     const elapsedTime = Date.now() - startTime;
 
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error('❌ Apple Music charts failed:', {
+      await response.body?.cancel();
+      appLogger.error('apple_music_charts_failed', {
         status: response.status,
-        statusText: response.statusText,
-        body: errorBody.substring(0, 500), // First 500 chars of error
-        elapsedTime: `${elapsedTime}ms`,
-        headers: Object.fromEntries(response.headers.entries()),
+        duration_ms: elapsedTime,
       });
       throw new Error(`Failed to fetch Apple Music charts: ${response.status} ${response.statusText}`);
     }
 
-    console.log('✅ Apple Music charts successful:', {
+    appLogger.debug('apple_music_charts_succeeded', {
       status: response.status,
-      elapsedTime: `${elapsedTime}ms`,
+      duration_ms: elapsedTime,
     });
 
     const data = await response.json();
@@ -242,13 +177,11 @@ class AppleMusicService {
    * Fetch a track directly by Apple Music track ID and return its preview URL.
    */
   async getPreviewByTrackId(trackId: string): Promise<string | null> {
-    console.log('🎵 Apple Music getPreviewByTrackId called for:', trackId);
+    appLogger.debug('apple_music_preview_lookup_started');
 
     try {
       const token = await this.getToken();
       const url = `https://api.music.apple.com/v1/catalog/us/songs/${trackId}`;
-
-      console.log('🔍 Fetching Apple Music track directly:', trackId);
 
       const response = await fetch(url, {
         headers: {
@@ -258,7 +191,8 @@ class AppleMusicService {
       });
 
       if (!response.ok) {
-        console.error('❌ Apple Music track fetch failed:', response.status, await response.text());
+        await response.body?.cancel();
+        appLogger.warn('apple_music_track_fetch_failed', { status: response.status });
         return null;
       }
 
@@ -266,14 +200,13 @@ class AppleMusicService {
       const previewUrl = data.data?.[0]?.attributes?.previews?.[0]?.url;
 
       if (previewUrl) {
-        console.log('✅ Found preview URL via Apple Music direct fetch:', previewUrl);
         return previewUrl;
       }
 
-      console.log('⚠️ Apple Music direct fetch succeeded but no preview URL available');
+      appLogger.debug('apple_music_preview_unavailable');
       return null;
     } catch (error) {
-      console.error('❌ Error fetching Apple Music track by ID:', error);
+      appLogger.warn('apple_music_preview_lookup_failed', { error });
       return null;
     }
   }

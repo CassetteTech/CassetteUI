@@ -6,6 +6,7 @@ import { platformConnectService } from '@/services/platform-connect';
 import { pendingActionService } from '@/utils/pending-action';
 import { PageLoader } from '@/components/ui/page-loader';
 import { apiService } from '@/services/api';
+import { appLogger } from '@/lib/observability/logger';
 
 export default function SpotifyCallbackPage() {
   const router = useRouter();
@@ -38,7 +39,7 @@ export default function SpotifyCallbackPage() {
       };
 
       if (error) {
-        console.error('Spotify authorization error:', error);
+        appLogger.warn('spotify_callback_authorization_denied', { error_code: error, route: '/spotify_callback' });
         const returnUrl = getReturnUrl();
         cleanupStorage();
         if (returnUrl) {
@@ -50,7 +51,7 @@ export default function SpotifyCallbackPage() {
       }
 
       if (!code || !state) {
-        console.error('Missing code or state in Spotify callback');
+        appLogger.error('spotify_callback_invalid_request', { route: '/spotify_callback' });
         const returnUrl = getReturnUrl();
         cleanupStorage();
         if (returnUrl) {
@@ -72,7 +73,7 @@ export default function SpotifyCallbackPage() {
           window.location.href = '/profile?success=spotify-connected';
         }
       } catch (error) {
-        console.error('Callback processing error:', error);
+        appLogger.error('spotify_callback_processing_failed', { error, route: '/spotify_callback' });
         const returnUrl = getReturnUrl();
         cleanupStorage();
         if (returnUrl) {

@@ -13,6 +13,7 @@ import { Heart, Pencil, Trash2, X, Check, MessageCircle, ChevronDown, ChevronUp,
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { appLogger } from '@/lib/observability/logger';
 
 const COMMENT_MAX_LENGTH = 2000;
 const CHAR_WARNING_THRESHOLD = 200;
@@ -57,7 +58,7 @@ export function PostCommentsCard({
       const response = await apiService.getPostComments(postId, 1, 50);
       setComments(Array.isArray(response.items) ? response.items : []);
     } catch (error) {
-      console.error('Failed to load comments:', error);
+      appLogger.error('post_comments_load_failed', { error, route: '/post/[id]', post_id: postId });
       toast.error('Failed to load comments.');
     } finally {
       setIsLoading(false);

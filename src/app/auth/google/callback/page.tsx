@@ -7,22 +7,29 @@ import { useRouter } from 'next/navigation';
 import { pendingActionService } from '@/utils/pending-action';
 import { PageLoader } from '@/components/ui/page-loader';
 import { authRedirectService } from '@/utils/auth-redirect';
+import { appLogger } from '@/lib/observability/logger';
 
 export default function GoogleCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
+    let cancelled = false;
+    let retryTimeout: number | undefined;
+
     const handleCallback = async () => {
       const redirectToDestination = (isOnboarded: boolean) => {
+        if (cancelled) {
+          return;
+        }
+
         if (!isOnboarded) {
-          console.log('🔄 [Google Callback] User not onboarded, redirecting to onboarding');
+          appLogger.debug('google_callback_redirect_onboarding');
           router.push('/onboarding');
           return;
         }
 
         const pendingAction = pendingActionService.get();
         if (pendingAction?.returnUrl) {
-          console.log('🔄 [Google Callback] Redirecting to pending action URL:', pendingAction.returnUrl);
           window.location.href = pendingAction.returnUrl;
           return;
         }
@@ -40,47 +47,56 @@ export default function GoogleCallbackPage() {
         const url = new URL(window.location.href);
         const error = url.searchParams.get('error');
 
-        console.log('🔄 [Google Callback] Starting callback processing');
-        console.log('URL:', url.toString());
-        console.log('Search params:', Object.fromEntries(url.searchParams.entries()));
-        console.log('Hash:', window.location.hash);
+        appLogger.debug('google_callback_started', { route: url.pathname });
 
         if (error) {
-          console.error('Google OAuth error:', error);
+          appLogger.error('google_callback_oauth_error', { error_code: error });
           authRedirectService.clear();
           router.push('/auth/signin?error=oauth-error');
           return;
         }
 
-        console.log('🔄 [Google Callback] Checking current session...');
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
           useAuthStore.getState().setUser(currentUser);
-          console.log('✅ [Google Callback] User already authenticated:', currentUser);
           redirectToDestination(currentUser.isOnboarded);
         } else {
-          console.error('❌ [Google Callback] No valid authentication found');
-          setTimeout(async () => {
+          appLogger.warn('google_callback_session_missing');
+          retryTimeout = window.setTimeout(async () => {
+            if (cancelled) {
+              return;
+            }
+
             const retryUser = await authService.getCurrentUser();
+            if (cancelled) {
+              return;
+            }
+
             if (retryUser) {
               useAuthStore.getState().setUser(retryUser);
-              console.log('✅ [Google Callback] User found on retry:', retryUser);
               redirectToDestination(retryUser.isOnboarded);
             } else {
-              console.error('❌ [Google Callback] Still no authentication after retry');
+              appLogger.error('google_callback_session_missing_after_retry');
               authRedirectService.clear();
               router.push('/auth/signin?error=callback-failed');
             }
           }, 1000);
         }
       } catch (error) {
-        console.error('Google callback processing error:', error);
+        appLogger.error('google_callback_processing_failed', { error });
         authRedirectService.clear();
         router.push('/auth/signin?error=callback-error');
       }
     };
 
     void handleCallback();
+
+    return () => {
+      cancelled = true;
+      if (retryTimeout !== undefined) {
+        window.clearTimeout(retryTimeout);
+      }
+    };
   }, [router]);
 
   return (

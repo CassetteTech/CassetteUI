@@ -4,6 +4,7 @@
  */
 
 import { apiService } from './api';
+import { appLogger } from '@/lib/observability/logger';
 
 interface MusicKitInstance {
   authorize: () => Promise<string>;
@@ -123,7 +124,7 @@ export const platformConnectService = {
 
       return false;
     } catch (error) {
-      console.error('Apple Music connection error:', error);
+      appLogger.error('apple_music_connection_failed', { error });
       throw error;
     }
   },
@@ -154,7 +155,7 @@ export const platformConnectService = {
       }
     } catch (error) {
       // Best effort cleanup; don't block sign-out flows on client SDK issues.
-      console.warn('Failed to clear Apple Music authorization:', error);
+      appLogger.warn('apple_music_authorization_clear_failed', { error });
     } finally {
       appleMusicReadyPromise = null;
       this.clearReturnUrl('appleMusic');

@@ -5,6 +5,7 @@ import { apiService } from '@/services/api';
 import { useMusicStore } from '@/stores/music-store';
 import { seedArtworkCache } from '@/services/profile-artwork-cache';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { appLogger } from '@/lib/observability/logger';
 
 function trackPostCreated(
   postId: string | undefined,
@@ -63,11 +64,10 @@ export const useMusicLinkConversion = (options?: { anonymous?: boolean }) => {
   return useMutation({
     mutationFn: (params: { url: string; description?: string; idempotencyKey?: string; anonymous?: boolean }) => {
       const anonymous = typeof params.anonymous === 'boolean' ? params.anonymous : options?.anonymous;
-      console.log('🎯 Mutation function called with URL:', params.url, 'description:', params.description, 'anonymous:', anonymous);
+      appLogger.debug('music_link_conversion_submitted', { anonymous });
       return musicService.convertMusicLink(params.url, { anonymous, description: params.description, idempotencyKey: params.idempotencyKey });
     },
     onSuccess: (data, variables) => {
-      console.log('✅ Mutation successful:', data);
       seedArtworkCache(data.postId, data.metadata?.artwork);
       trackPostCreated(data.postId, {
         elementType: data.metadata?.type,
@@ -88,7 +88,7 @@ export const useMusicLinkConversion = (options?: { anonymous?: boolean }) => {
       }
     },
     onError: (error) => {
-      console.error('❌ Mutation error:', error);
+      appLogger.error('music_link_conversion_failed', { error });
     },
   });
 };
@@ -164,11 +164,13 @@ export const useAddMusicToProfile = () => {
       description?: string;
       artworkUrl?: string;
     }) => {
-      console.log('🎯 useAddMusicToProfile mutation called with:', params);
+      appLogger.debug('add_music_to_profile_submitted', {
+        element_type: params.elementType,
+        music_element_id: params.musicElementId,
+      });
       return apiService.addToProfile(params.musicElementId, params.elementType, params.description);
     },
     onSuccess: (data, variables) => {
-      console.log('✅ Add music to profile successful:', data);
       seedArtworkCache(data.postId, variables.artworkUrl);
       trackPostCreated(data.postId, {
         elementType: variables.elementType,
@@ -180,7 +182,7 @@ export const useAddMusicToProfile = () => {
       queryClient.invalidateQueries({ queryKey: ['user-activity'], refetchType: 'all' });
     },
     onError: (error) => {
-      console.error('❌ Add music to profile error:', error);
+      appLogger.error('add_music_to_profile_failed', { error });
     },
   });
 };
@@ -190,7 +192,7 @@ export const useUpdatePost = () => {
 
   return useMutation({
     mutationFn: (params: { postId: string; description: string; privacy?: string; commentsEnabled?: boolean }) => {
-      console.log('🎯 useUpdatePost mutation called with:', params);
+      appLogger.debug('post_update_submitted', { post_id: params.postId });
       return apiService.updatePost(params.postId, {
         description: params.description,
         privacy: params.privacy,
@@ -198,14 +200,13 @@ export const useUpdatePost = () => {
       });
     },
     onSuccess: (_data, variables) => {
-      console.log('✅ Update post successful');
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['user-activity'] });
       queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
     },
     onError: (error) => {
-      console.error('❌ Update post error:', error);
+      appLogger.error('post_update_failed', { error });
     },
   });
 };
@@ -215,11 +216,10 @@ export const useDeletePost = () => {
 
   return useMutation({
     mutationFn: (postId: string) => {
-      console.log('🎯 useDeletePost mutation called with postId:', postId);
+      appLogger.debug('post_delete_submitted', { post_id: postId });
       return apiService.deletePost(postId);
     },
     onSuccess: () => {
-      console.log('✅ Delete post successful');
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['user-activity'] });
       queryClient.invalidateQueries({ queryKey: ['user-posts'] });
@@ -227,7 +227,7 @@ export const useDeletePost = () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
     onError: (error) => {
-      console.error('❌ Delete post error:', error);
+      appLogger.error('post_delete_failed', { error });
     },
   });
 };

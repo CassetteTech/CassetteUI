@@ -709,3 +709,69 @@ export interface UpdateInternalSignupLinkTemplateRequest {
   campaign?: string;
   isActive?: boolean;
 }
+
+// ─── Explore snapshot inspection (internal debugging) ───────────────────
+export interface InternalExploreSnapshotSummary {
+  snapshotId: string;
+  algorithmVersion: string;
+  status: string;
+  seed: string;
+  generatedAtUtc: string;
+  createdAtUtc: string;
+  completedAtUtc?: string | null;
+  candidateCount: number;
+  itemCount: number;
+  storedItemCount: number;
+  failureReason?: string | null;
+  isLatestSuccessful: boolean;
+  validationFatalErrors: string[];
+  validationWarnings: string[];
+  // Raw metrics object from ValidationJson (e.g. content_type_distribution); shape is intentionally open.
+  validationMetrics?: Record<string, unknown> | null;
+}
+
+export interface InternalExploreSnapshotsResponse {
+  days: number;
+  items: InternalExploreSnapshotSummary[];
+}
+
+export interface InternalExploreSnapshotItem {
+  rank: number;
+  postId: string;
+  userId?: string | null;
+  elementType: string;
+  musicElementId: string;
+  createdAtUtc: string;
+  rawScore: number;
+  finalScore: number;
+  rankReason: string;
+  title?: string | null;
+  subtitle?: string | null;
+  creatorUsername?: string | null;
+  creatorAccountType?: string | null;
+  isAvailable: boolean;
+  availability: string;
+  currentPrivacy?: string | null;
+  scoreComponents: Record<string, number>;
+  penalties: Record<string, number>;
+  boosts: Record<string, number>;
+  constraintNotes?: Record<string, unknown> | null;
+  candidateSources?: Record<string, unknown> | null;
+  playlistTitleNormalized?: string | null;
+  playlistFamilyKey?: string | null;
+  playlistFamilyConfidence?: number | null;
+  playlistFamilyReason?: string | null;
+  isGenericPlaylistFamily?: boolean | null;
+}
+
+export interface InternalExploreSnapshotItemsResponse {
+  snapshotId: string;
+  algorithmVersion: string;
+  status: string;
+  generatedAtUtc: string;
+  isLatestSuccessful: boolean;
+  totalItemCount: number;
+  returnedItemCount: number;
+  limit: number;
+  items: InternalExploreSnapshotItem[];
+}

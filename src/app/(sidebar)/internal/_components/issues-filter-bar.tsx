@@ -36,7 +36,7 @@ export function IssuesFilterBar({
           <Input
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search issues by ID, user, URL..."
+            placeholder="Search issues by ID, correlation, job, route..."
             className="pl-9 pr-8"
           />
           {search && (

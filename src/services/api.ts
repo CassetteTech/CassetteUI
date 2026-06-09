@@ -34,6 +34,8 @@ import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent, surfaceFromRoute } from '@/lib/analytics/client';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
+import { CASSETTE_CORRELATION_HEADER, createCorrelationId, normalizeCorrelationId } from '@/lib/observability/correlation';
+import { getSourceDomain, hashSourceLink, normalizeRouteContext } from '@/lib/observability/source-link';
 
 // interface MusicConnection {
 //   id: string;
@@ -54,13 +56,14 @@ export class ApiError extends Error {
   jobId?: string;
   postId?: string;
   apiStatus?: string;
+  correlationId?: string;
 
   constructor(
     message: string,
     requiresReauth = false,
     errorCode?: string,
     status?: number,
-    details?: { retryAfterMs?: number; jobId?: string; postId?: string; apiStatus?: string }
+    details?: { retryAfterMs?: number; jobId?: string; postId?: string; apiStatus?: string; correlationId?: string }
   ) {
     super(message);
     this.name = 'ApiError';
@@ -71,18 +74,12 @@ export class ApiError extends Error {
     this.jobId = details?.jobId;
     this.postId = details?.postId;
     this.apiStatus = details?.apiStatus;
+    this.correlationId = details?.correlationId;
   }
 }
 
 class ApiService {
   private baseUrl = getBrowserApiBaseUrl();
-
-  constructor() {
-    console.log('🔧 API Service initialized with URL:', this.baseUrl);
-    console.log('🔧 Environment:', process.env.NODE_ENV);
-    console.log('🔧 NEXT_PUBLIC_API_URL_LOCAL:', process.env.NEXT_PUBLIC_API_URL_LOCAL);
-    console.log('🔧 Config:', clientConfig.api);
-  }
 
   private async getAuthHeaders() {
     return {
@@ -104,10 +101,10 @@ class ApiService {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit & { skipAuth?: boolean; timeoutMs?: number } = {}
+    options: RequestInit & { skipAuth?: boolean; timeoutMs?: number; correlationId?: string } = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const { skipAuth, timeoutMs = 60000, signal: externalSignal, ...requestOptions } = options;
+    const { skipAuth, timeoutMs = 60000, signal: externalSignal, correlationId, ...requestOptions } = options;
     const headers = skipAuth ? { 'Content-Type': 'application/json' } : await this.getAuthHeaders();
     const timeoutController = new AbortController();
     const timeoutHandle = setTimeout(() => timeoutController.abort(), timeoutMs);
@@ -115,12 +112,6 @@ class ApiService {
     if (externalSignal) {
       externalSignal.addEventListener('abort', () => timeoutController.abort(), { once: true });
     }
-
-    console.log('🌐 API Request:', {
-      url,
-      method: options.method || 'GET',
-      body: options.body
-    });
 
     try {
       const response = await fetch(url, {
@@ -131,13 +122,12 @@ class ApiService {
         headers: {
           ...headers,
           ...requestOptions.headers,
+          ...(correlationId ? { [CASSETTE_CORRELATION_HEADER]: correlationId } : {}),
         },
       });
 
-      console.log('🌐 API Response:', {
-        status: response.status,
-        ok: response.ok
-      });
+      const responseCorrelationId =
+        normalizeCorrelationId(response.headers.get(CASSETTE_CORRELATION_HEADER)) ?? correlationId;
 
       if (!response.ok) {
         const error: Record<string, unknown> = await response
@@ -153,7 +143,11 @@ class ApiService {
               return { message: text };
             }
           });
-        console.error('❌ API Error Response:', error);
+        console.error('❌ API Error Response:', {
+          status: response.status,
+          errorCode: error.error_code ?? error.errorCode,
+          correlationId: error.correlationId ?? responseCorrelationId,
+        });
         // Check for auth errors that require re-authentication
         const requiresReauth = error.requires_reauth === true || error.error_code === 'AUTH_EXPIRED';
         const errorMessage =
@@ -162,11 +156,16 @@ class ApiService {
             : typeof error.message === 'string'
               ? error.message
               : 'API request failed';
-        const errorCode = typeof error.error_code === 'string' ? error.error_code : undefined;
+        const errorCode = typeof error.error_code === 'string'
+          ? error.error_code
+          : typeof error.errorCode === 'string'
+            ? error.errorCode
+            : undefined;
         const retryAfterMs = typeof error.retryAfterMs === 'number' ? error.retryAfterMs : undefined;
         const jobId = typeof error.jobId === 'string' ? error.jobId : undefined;
         const postId = typeof error.postId === 'string' ? error.postId : undefined;
         const apiStatus = typeof error.status === 'string' ? error.status : undefined;
+        const bodyCorrelationId = normalizeCorrelationId(error.correlationId);
         throw new ApiError(
           errorMessage,
           requiresReauth,
@@ -177,23 +176,21 @@ class ApiService {
             jobId,
             postId,
             apiStatus,
+            correlationId: bodyCorrelationId ?? responseCorrelationId,
           }
         );
       }
 
       // Handle 204 No Content responses (e.g., DELETE)
       if (response.status === 204) {
-        console.log('✅ API Response: 204 No Content');
         return undefined as T;
       }
 
       let data;
       try {
         const text = await response.text();
-        console.log('📝 API Response Text:', text);
         // Handle empty responses
         if (!text || text.trim() === '') {
-          console.log('✅ API Response: Empty body');
           return undefined as T;
         }
         data = JSON.parse(text);
@@ -201,10 +198,25 @@ class ApiService {
         console.error('❌ JSON Parse Error:', parseError);
         throw new Error('Invalid JSON response from API');
       }
-      console.log('✅ API Response Data:', data);
+      if (data && typeof data === 'object' && responseCorrelationId && !('correlationId' in data)) {
+        (data as Record<string, unknown>).correlationId = responseCorrelationId;
+      }
       return data;
     } catch (error) {
-      console.error('❌ API Request Failed:', error);
+      if (error instanceof ApiError) {
+        console.error('API request failed', {
+          endpoint,
+          status: error.status,
+          errorCode: error.errorCode,
+          correlationId: error.correlationId ?? correlationId,
+        });
+      } else {
+        console.error('API request failed', {
+          endpoint,
+          correlationId,
+          errorName: error instanceof Error ? error.name : typeof error,
+        });
+      }
       const aborted = error instanceof DOMException
         ? error.name === 'AbortError'
         : error instanceof Error && error.name === 'AbortError';
@@ -225,12 +237,15 @@ class ApiService {
     url: string,
     options?: { anonymous?: boolean; description?: string; idempotencyKey?: string }
   ): Promise<MusicLinkConversion> {
-    console.log('🔄 API Service: convertMusicLink called with:', url, options);
+    const correlationId = createCorrelationId();
     const detected = detectContentType(url);
+    const sourceLinkHash = await hashSourceLink(url);
 
     void captureClientEvent('link_conversion_submitted', {
       route: this.getCurrentRoute(),
       source_surface: this.getCurrentSurface(),
+      correlation_id: correlationId,
+      source_link_hash: sourceLinkHash,
       source_platform: detected.platform,
       element_type_guess: detected.type,
       source_domain: sanitizeDomain(url),
@@ -252,11 +267,10 @@ class ApiService {
         description: options?.description || undefined,
       }),
       skipAuth: options?.anonymous,
+      correlationId,
       // Authenticated add-to-profile flows can take longer.
       timeoutMs: options?.anonymous ? 60000 : 120000,
     });
-
-    console.log('🔄 API Service: Raw response:', JSON.stringify(response, null, 2));
 
     // New contract: convert returns a lifecycle envelope; poll jobs until ready.
     if ('status' in response && (response.status === 'ready' || response.status === 'processing' || response.status === 'failed')) {
@@ -275,11 +289,13 @@ class ApiService {
           },
           description: options?.description || undefined,
           postId: response.postId,
+          conversionJobId: response.jobId,
+          correlationId: response.correlationId ?? correlationId,
         };
       }
 
       if (response.status === 'processing' && response.jobId) {
-        const resolvedPostId = await this.waitForConvertJob(response.jobId, response.retryAfterMs, options?.anonymous);
+        const resolvedPostId = await this.waitForConvertJob(response.jobId, response.retryAfterMs, options?.anonymous, response.correlationId ?? correlationId);
         return {
           originalUrl: url,
           convertedUrls: {},
@@ -294,6 +310,8 @@ class ApiService {
           },
           description: options?.description || undefined,
           postId: resolvedPostId,
+          conversionJobId: response.jobId,
+          correlationId: response.correlationId ?? correlationId,
         };
       }
 
@@ -362,6 +380,8 @@ class ApiService {
         description: legacyResponse.description || legacyResponse.caption || undefined,
         username: legacyResponse.username || undefined,
         postId: resolvedPostId,
+        conversionJobId: legacyResponse.jobId,
+        correlationId: legacyResponse.correlationId ?? correlationId,
         conversionSuccessCount: legacyResponse.conversionSuccessCount,
       };
 
@@ -384,7 +404,6 @@ class ApiService {
           previewUrl: t.previewUrl,
         }));
         transformedData.tracks = mappedTracks;
-        console.log('🎼 API transform: mapped tracks count =', mappedTracks.length);
       }
 
       // Extract platform URLs and collect fallback artwork/preview
@@ -397,26 +416,17 @@ class ApiService {
           // Handle platform URLs - use provided URL or construct from platformSpecificId
           let platformUrl = data?.url;
           
-          console.log(`🔗 Processing ${platformKey}:`, { 
-            originalUrl: data?.url, 
-            platformSpecificId: data?.platformSpecificId,
-            elementType: data?.elementType 
-          });
-          
           // If URL is empty but we have platformSpecificId, construct the URL
           if (!platformUrl && data?.platformSpecificId) {
             const elementType = data.elementType?.toLowerCase() || legacyResponse.elementType?.toLowerCase() || 'track';
             
             if (platformKey === 'spotify') {
               platformUrl = `https://open.spotify.com/${elementType}/${data.platformSpecificId}`;
-              console.log(`🎵 Constructed Spotify URL: ${platformUrl}`);
             } else if (platformKey === 'deezer') {
               platformUrl = `https://www.deezer.com/${elementType}/${data.platformSpecificId}`;
-              console.log(`🎵 Constructed Deezer URL: ${platformUrl}`);
             } else if (platformKey === 'applemusic' || platformKey === 'apple') {
               // Apple Music URLs are more complex, use the provided URL if available
               platformUrl = data.url;
-              console.log(`🎵 Apple Music URL: ${platformUrl}`);
             }
           }
           
@@ -458,7 +468,6 @@ class ApiService {
         transformedData.metadata.artwork = fallbackArtwork;
       }
 
-      console.log('✅ API Service: Transformed response:', transformedData);
       return transformedData;
     } else {
       // If no data, throw an error
@@ -466,7 +475,7 @@ class ApiService {
     }
   }
 
-  private async waitForConvertJob(jobId: string, initialRetryMs?: number, anonymous?: boolean): Promise<string> {
+  private async waitForConvertJob(jobId: string, initialRetryMs?: number, anonymous?: boolean, correlationId?: string): Promise<string> {
     const startedAt = Date.now();
     const timeoutMs = 45_000;
     let retryMs = initialRetryMs ?? 400;
@@ -476,6 +485,7 @@ class ApiService {
       const jobResponse = await this.request<ConvertLifecycleResponse>(`/api/v1/convert/jobs/${encodeURIComponent(jobId)}`, {
         skipAuth: anonymous,
         timeoutMs: 60_000,
+        correlationId,
       });
 
       if (jobResponse.status === 'ready' && jobResponse.postId) {
@@ -975,6 +985,7 @@ class ApiService {
   }
 
   async createPlaylist(playlistId: string, targetPlatform: string, postId?: string): Promise<CreatePlaylistResponse> {
+    const correlationId = createCorrelationId();
     const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
     const targetKey = normalize(targetPlatform);
     const canonicalMap: Record<string, string> = {
@@ -990,18 +1001,16 @@ class ApiService {
     if (!skipConnectionCheck) {
       const connections = await this.getMusicConnections();
       const hasConnection = connections.services?.some(service => normalize(service) === targetKey);
-      console.log('createPlaylist connection check:', { connections, targetPlatform, canonicalTarget, hasConnection });
 
       if (!hasConnection) {
         throw new Error('No connection found for target platform');
       }
-    } else {
-      console.log('createPlaylist: Skipping connection check for Spotify (using Cassette account)');
     }
 
     return this.request<CreatePlaylistResponse>('/api/v1/convert/createPlaylist', {
       method: 'POST',
       body: JSON.stringify({ PlaylistId: playlistId, TargetPlatform: canonicalTarget, PostId: postId || undefined }),
+      correlationId,
     });
   }
 
@@ -1052,9 +1061,12 @@ class ApiService {
     }
 
     try {
-      return this.request('/api/v1/convert/warmup', { method: 'GET', skipAuth: true });
+      return this.request('/api/v1/convert/warmup', { method: 'GET', skipAuth: true, correlationId: createCorrelationId() });
     } catch (error) {
-      console.warn('Lambda warmup failed:', error);
+      console.warn('Lambda warmup failed', {
+        correlationId: error instanceof ApiError ? error.correlationId : undefined,
+        errorCode: error instanceof ApiError ? error.errorCode : undefined,
+      });
     }
   }
 
@@ -1062,26 +1074,53 @@ class ApiService {
   async reportIssue(data: {
     reportType: string;
     sourceContext: string;
-    pageUrl: string;
+    pageUrl?: string;
     sourceLink?: string;
+    correlationId?: string;
+    conversionJobId?: string;
+    sourceLinkHash?: string;
+    sourceDomain?: string;
+    routeContext?: string;
     description?: string;
     context?: Record<string, unknown>;
-  }): Promise<{ success: boolean; message?: string; issueId?: string }> {
-    console.log('📝 API Service: reportIssue called with:', data);
+  }): Promise<{ success: boolean; message?: string; issueId?: string; correlationId?: string }> {
+    const correlationId = normalizeCorrelationId(data.correlationId) ?? createCorrelationId();
+    const sourceLinkHash = data.sourceLinkHash ?? await hashSourceLink(data.sourceLink);
+    const sourceDomain = data.sourceDomain ?? getSourceDomain(data.sourceLink);
+    const routeContext = normalizeRouteContext(data.routeContext ?? data.pageUrl ?? this.getCurrentRoute());
+
     void captureClientEvent('issue_report_submitted', {
       route: this.getCurrentRoute(),
       source_surface: this.getCurrentSurface(),
       source_context: data.sourceContext,
       report_type: data.reportType as 'conversion_issue' | 'ui_bug' | 'general_feedback' | 'missing_track' | 'wrong_match',
       has_description: Boolean(data.description && data.description.trim().length > 0),
-      has_conversion_context: Boolean(data.sourceLink),
+      has_conversion_context: Boolean(sourceLinkHash || data.conversionJobId),
+      correlation_id: correlationId,
+      conversion_job_id: data.conversionJobId,
+      source_link_hash: sourceLinkHash,
+      source_domain: sourceDomain,
+      route_context: routeContext,
       status: 'submitted',
       success: false,
     });
 
+    const payload = {
+      reportType: data.reportType,
+      sourceContext: data.sourceContext,
+      routeContext,
+      correlationId,
+      conversionJobId: data.conversionJobId,
+      sourceLinkHash,
+      sourceDomain,
+      description: data.description,
+      context: data.context,
+    };
+
     return this.request('/api/v1/issues', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
+      correlationId,
     });
   }
 }

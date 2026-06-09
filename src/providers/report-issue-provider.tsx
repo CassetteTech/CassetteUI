@@ -9,6 +9,11 @@ interface ConversionData {
   title?: string;
   artist?: string;
   platforms?: Record<string, unknown>;
+  postId?: string;
+  conversionJobId?: string;
+  correlationId?: string;
+  sourcePlatform?: string;
+  targetPlatform?: string;
 }
 
 interface OpenReportModalOptions {

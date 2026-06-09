@@ -8,6 +8,7 @@ exports.CANONICAL_SUCCESS_EVENTS = new Set([
     'auth_signed_up',
     'auth_signed_in',
     'auth_google_oauth_completed',
+    'account_created',
     'account_deleted',
     'onboarding_completed',
     'profile_updated',

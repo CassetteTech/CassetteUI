@@ -27,6 +27,11 @@ interface ReportIssueModalProps {
     title?: string;
     artist?: string;
     platforms?: Record<string, unknown>;
+    postId?: string;
+    conversionJobId?: string;
+    correlationId?: string;
+    sourcePlatform?: string;
+    targetPlatform?: string;
   };
 }
 
@@ -73,11 +78,17 @@ export function ReportIssueModal({
       const response = await apiService.reportIssue({
         reportType,
         sourceContext,
-        pageUrl: typeof window !== 'undefined' ? window.location.href : '',
         sourceLink,
+        correlationId: conversionData?.correlationId,
+        conversionJobId: conversionData?.conversionJobId,
+        routeContext: typeof window !== 'undefined' ? window.location.pathname : undefined,
         description: description.trim() || undefined,
         context: {
-          ...conversionData,
+          elementType: conversionData?.elementType,
+          postId: conversionData?.postId,
+          conversionJobId: conversionData?.conversionJobId,
+          sourcePlatform: conversionData?.sourcePlatform,
+          targetPlatform: conversionData?.targetPlatform,
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           screenSize: typeof window !== 'undefined'
             ? `${window.innerWidth}x${window.innerHeight}`

@@ -11,6 +11,7 @@ import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
 import { apiService, ApiError } from '@/services/api';
+import { captureUiException } from '@/lib/observability/error-reporting';
 
 // This page handles:
 // 1. ?id=X - Redirects to /post/X (canonical route)
@@ -194,7 +195,7 @@ function PostPageContent() {
             return;
           }
 
-          console.error('Conversion failed:', err);
+          captureUiException(err, { route: '/post', operation: 'conversion_entry' });
           setApiComplete(true);
           setError(err instanceof Error ? err.message : 'Failed to convert link');
         }
@@ -325,7 +326,7 @@ function PostPageContent() {
                 return;
               }
 
-              console.error('Conversion failed:', err);
+              captureUiException(err, { route: '/post', operation: 'conversion_entry_data' });
               setApiComplete(true);
               setError(err instanceof Error ? err.message : 'Failed to convert link');
             }
@@ -335,7 +336,7 @@ function PostPageContent() {
           setError('No data provided');
         }
       } catch (e) {
-        console.error('Error parsing data:', e);
+        captureUiException(e, { route: '/post', operation: 'post_data_parse' });
         setError('Invalid data format');
       }
       return;

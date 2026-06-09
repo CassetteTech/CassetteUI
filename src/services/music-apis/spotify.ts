@@ -1,6 +1,7 @@
 import './server-only';
 import { serverConfig } from '@/lib/config-server';
 import { MusicSearchResult } from '@/types';
+import { appLogger } from '@/lib/observability/logger';
 import { 
   SpotifySearchResponse,
   SpotifyTrack,
@@ -21,19 +22,12 @@ class SpotifyService {
     const clientId = serverConfig.spotify.clientId;
     const clientSecret = serverConfig.spotify.clientSecret;
 
-    // Log credential availability (without exposing sensitive data)
-    console.log('🔐 Spotify Config Check:', {
-      environment: process.env.NODE_ENV || 'unknown',
-      clientId: clientId ? `present (${clientId.length} chars)` : 'MISSING',
-      clientSecret: clientSecret ? `present (${clientSecret.length} chars)` : 'MISSING',
-    });
-
     if (!clientId || !clientSecret) {
       const missing = [];
       if (!clientId) missing.push('SPOTIFY_CLIENT_ID');
       if (!clientSecret) missing.push('SPOTIFY_CLIENT_SECRET');
       
-      console.error('❌ Spotify credentials missing:', missing.join(', '));
+      appLogger.error('spotify_credentials_missing', { missing });
       throw new Error(`Spotify credentials not configured. Missing: ${missing.join(', ')}`);
     }
 
@@ -46,19 +40,14 @@ class SpotifyService {
       const now = new Date();
       const bufferTime = new Date(now.getTime() + 5 * 60 * 1000); // 5 minute buffer
       if (this.tokenExpiryTime > bufferTime) {
-        console.log('🔄 Using cached Spotify token (expires:', this.tokenExpiryTime.toISOString(), ')');
+        appLogger.debug('spotify_token_cache_hit');
         return this.accessToken;
-      } else {
-        console.log('🔄 Spotify token expired or expiring soon, fetching new token');
       }
-    } else {
-      console.log('🔄 No cached Spotify token, fetching new token');
     }
 
     const { clientId, clientSecret } = this.getConfig();
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
-    console.log('🔐 Requesting Spotify access token');
     const startTime = Date.now();
     
     const response = await fetch('https://accounts.spotify.com/api/token', {
@@ -73,12 +62,10 @@ class SpotifyService {
     const elapsedTime = Date.now() - startTime;
 
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error('❌ Spotify token error:', {
+      await response.body?.cancel();
+      appLogger.error('spotify_token_request_failed', {
         status: response.status,
-        statusText: response.statusText,
-        body: errorBody.substring(0, 500),
-        elapsedTime: `${elapsedTime}ms`,
+        duration_ms: elapsedTime,
       });
       throw new Error(`Failed to get Spotify access token: ${response.status} ${response.statusText}`);
     }
@@ -89,15 +76,10 @@ class SpotifyService {
     const expiresIn = data.expires_in || 3600;
     this.tokenExpiryTime = new Date(Date.now() + (expiresIn - 60) * 1000);
     
-    console.log('✅ Spotify token obtained successfully:', {
-      tokenLength: this.accessToken?.length,
-      expiresIn: `${expiresIn}s`,
-      expiresAt: this.tokenExpiryTime.toISOString(),
-      elapsedTime: `${elapsedTime}ms`,
-    });
+    appLogger.debug('spotify_token_request_succeeded', { duration_ms: elapsedTime });
     
     if (!this.accessToken) {
-      console.error('❌ No access token in Spotify response');
+      appLogger.error('spotify_token_missing_in_response');
       throw new Error('Failed to obtain access token from Spotify');
     }
     
@@ -105,15 +87,14 @@ class SpotifyService {
   }
 
   async search(query: string): Promise<MusicSearchResult> {
-    console.log('🎵 Spotify search starting for query:', query);
-    console.log('🔁 Note: Spotify being used as fallback service');
+    appLogger.debug('spotify_search_started');
     const startTime = Date.now();
     
     let token: string;
     try {
       token = await this.getAccessToken();
     } catch (error) {
-      console.error('❌ Failed to get Spotify token for search:', error);
+      appLogger.error('spotify_token_for_search_failed', { error });
       throw error;
     }
     
@@ -121,12 +102,6 @@ class SpotifyService {
     url.searchParams.append('q', query);
     url.searchParams.append('type', 'track,artist,album');
     url.searchParams.append('limit', '10');
-
-    console.log('🌐 Spotify API request:', {
-      url: url.toString(),
-      tokenPresent: !!token,
-      tokenLength: token?.length,
-    });
 
     const response = await fetch(url.toString(), {
       headers: {
@@ -138,20 +113,17 @@ class SpotifyService {
     const elapsedTime = Date.now() - startTime;
 
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error('❌ Spotify search failed:', {
+      await response.body?.cancel();
+      appLogger.error('spotify_search_failed', {
         status: response.status,
-        statusText: response.statusText,
-        body: errorBody.substring(0, 500),
-        elapsedTime: `${elapsedTime}ms`,
-        headers: Object.fromEntries(response.headers.entries()),
+        duration_ms: elapsedTime,
       });
       throw new Error(`Failed to search Spotify: ${response.status} ${response.statusText}`);
     }
 
-    console.log('✅ Spotify search successful:', {
+    appLogger.debug('spotify_search_succeeded', {
       status: response.status,
-      elapsedTime: `${elapsedTime}ms`,
+      duration_ms: elapsedTime,
     });
 
     const data = await response.json();
@@ -163,7 +135,11 @@ class SpotifyService {
    * Falls back to searching by track title + artist if ISRC search fails.
    */
   async getPreviewUrl(params: { isrc?: string; title?: string; artist?: string }): Promise<string | null> {
-    console.log('🎵 Spotify getPreviewUrl called with:', params);
+    appLogger.debug('spotify_preview_lookup_started', {
+      has_isrc: Boolean(params.isrc),
+      has_title: Boolean(params.title),
+      has_artist: Boolean(params.artist),
+    });
 
     const token = await this.getAccessToken();
     const url = new URL('https://api.spotify.com/v1/search');
@@ -173,8 +149,6 @@ class SpotifyService {
       url.searchParams.set('q', `isrc:${params.isrc}`);
       url.searchParams.set('type', 'track');
       url.searchParams.set('limit', '1');
-
-      console.log('🔍 Searching Spotify by ISRC:', params.isrc);
 
       const response = await fetch(url.toString(), {
         headers: {
@@ -187,10 +161,9 @@ class SpotifyService {
         const data = await response.json();
         const track = data.tracks?.items?.[0];
         if (track?.preview_url) {
-          console.log('✅ Found preview URL via ISRC search:', track.preview_url);
           return track.preview_url;
         }
-        console.log('⚠️ ISRC search found track but no preview URL');
+        appLogger.debug('spotify_isrc_preview_unavailable');
       }
     }
 
@@ -207,9 +180,6 @@ class SpotifyService {
       // Add market parameter - may help with preview availability
       url.searchParams.set('market', 'US');
 
-      console.log('🔍 Searching Spotify by title/artist:', query);
-      console.log('🔗 Full URL:', url.toString());
-
       const response = await fetch(url.toString(), {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -220,26 +190,21 @@ class SpotifyService {
       if (response.ok) {
         const data = await response.json();
         const totalTracks = data.tracks?.items?.length || 0;
-        console.log(`📊 Spotify returned ${totalTracks} tracks`);
-
-        // Log preview URL status for all tracks
-        data.tracks?.items?.forEach((t: SpotifyTrack, i: number) => {
-          console.log(`  Track ${i + 1}: "${t.name}" by ${t.artists?.[0]?.name} - preview: ${t.preview_url ? 'YES' : 'NO'}`);
-        });
+        appLogger.debug('spotify_title_preview_candidates_loaded', { result_count: totalTracks });
 
         // Find the first track with a preview URL
         const trackWithPreview = data.tracks?.items?.find((t: SpotifyTrack) => t.preview_url);
         if (trackWithPreview?.preview_url) {
-          console.log('✅ Found preview URL via title search:', trackWithPreview.preview_url);
           return trackWithPreview.preview_url;
         }
-        console.log('⚠️ Title search found tracks but none with preview URL');
+        appLogger.debug('spotify_title_preview_unavailable');
       } else {
-        console.error('❌ Spotify search failed:', response.status, await response.text());
+        await response.body?.cancel();
+        appLogger.warn('spotify_preview_search_failed', { status: response.status });
       }
     }
 
-    console.log('❌ No preview URL found for track');
+    appLogger.debug('spotify_preview_not_found');
     return null;
   }
 
@@ -249,13 +214,11 @@ class SpotifyService {
    * even though the search endpoint no longer does.
    */
   async getPreviewByTrackId(trackId: string): Promise<string | null> {
-    console.log('🎵 Spotify getPreviewByTrackId called for:', trackId);
+    appLogger.debug('spotify_track_preview_lookup_started');
 
     try {
       const token = await this.getAccessToken();
       const url = `https://api.spotify.com/v1/tracks/${trackId}`;
-
-      console.log('🔍 Fetching Spotify track directly:', trackId);
 
       const response = await fetch(url, {
         headers: {
@@ -265,21 +228,21 @@ class SpotifyService {
       });
 
       if (!response.ok) {
-        console.error('❌ Spotify track fetch failed:', response.status, await response.text());
+        await response.body?.cancel();
+        appLogger.warn('spotify_track_fetch_failed', { status: response.status });
         return null;
       }
 
       const track = await response.json();
 
       if (track.preview_url) {
-        console.log('✅ Found preview URL via direct track fetch:', track.preview_url);
         return track.preview_url;
       }
 
-      console.log('⚠️ Direct track fetch succeeded but no preview URL available');
+      appLogger.debug('spotify_track_preview_unavailable');
       return null;
     } catch (error) {
-      console.error('❌ Error fetching track by ID:', error);
+      appLogger.warn('spotify_track_preview_lookup_failed', { error });
       return null;
     }
   }

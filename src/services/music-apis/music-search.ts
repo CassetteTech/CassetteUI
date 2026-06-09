@@ -1,6 +1,7 @@
 import { appleMusicService } from './apple-music';
 import { spotifyService } from './spotify';
 import { MusicSearchResult } from '@/types';
+import { appLogger } from '@/lib/observability/logger';
 
 class MusicSearchService {
   private cachedChartsData: MusicSearchResult | null = null;
@@ -9,11 +10,7 @@ class MusicSearchService {
   private activeRequests = new Set<string>();
 
   async searchMusic(query: string): Promise<MusicSearchResult> {
-    console.log(`🔍 Starting music search for: "${query}"`);
-    console.log('🌍 Environment:', {
-      env: process.env.NODE_ENV || 'unknown',
-      isProduction: process.env.NODE_ENV === 'production',
-    });
+    appLogger.debug('music_search_started');
     
     const overallStartTime = Date.now();
     
@@ -25,7 +22,6 @@ class MusicSearchService {
 
     try {
       // Try Apple Music first
-      console.log('🎯 Attempting Apple Music as primary service');
       const appleMusicStartTime = Date.now();
       
       try {
@@ -35,21 +31,17 @@ class MusicSearchService {
         const totalTime = Date.now() - overallStartTime;
         const serviceTime = Date.now() - appleMusicStartTime;
         
-        console.log('✅ Apple Music search completed successfully:', {
-          serviceTime: `${serviceTime}ms`,
-          totalTime: `${totalTime}ms`,
-          resultCounts: {
-            tracks: results.tracks.length,
-            albums: results.albums.length,
-            artists: results.artists.length,
-          },
+        appLogger.debug('music_search_apple_succeeded', {
+          duration_ms: totalTime,
+          service_duration_ms: serviceTime,
+          result_count: results.tracks.length + results.albums.length + results.artists.length,
         });
         return results;
       } catch (error) {
         const appleMusicTime = Date.now() - appleMusicStartTime;
-        console.warn('⚠️ Apple Music search failed:', {
-          error: error instanceof Error ? error.message : 'Unknown error',
-          timeElapsed: `${appleMusicTime}ms`,
+        appLogger.warn('music_search_apple_failed', {
+          error,
+          duration_ms: appleMusicTime,
           willFallback: true,
         });
         
@@ -59,7 +51,6 @@ class MusicSearchService {
         }
 
         // Fallback to Spotify
-        console.log('🔁 Falling back to Spotify service');
         const spotifyStartTime = Date.now();
         
         const results = await spotifyService.search(query);
@@ -68,15 +59,11 @@ class MusicSearchService {
         const totalTime = Date.now() - overallStartTime;
         const spotifyTime = Date.now() - spotifyStartTime;
         
-        console.log('✅ Spotify search completed successfully (fallback):', {
-          spotifyTime: `${spotifyTime}ms`,
-          totalTime: `${totalTime}ms`,
-          appleMusicFailureTime: `${appleMusicTime}ms`,
-          resultCounts: {
-            tracks: results.tracks.length,
-            albums: results.albums.length,
-            artists: results.artists.length,
-          },
+        appLogger.debug('music_search_spotify_fallback_succeeded', {
+          duration_ms: totalTime,
+          service_duration_ms: spotifyTime,
+          apple_duration_ms: appleMusicTime,
+          result_count: results.tracks.length + results.albums.length + results.artists.length,
         });
         return results;
       }
@@ -84,21 +71,16 @@ class MusicSearchService {
       this.activeRequests.delete(requestId);
       const totalTime = Date.now() - overallStartTime;
       
-      console.error('❌ Both search services failed:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        totalTime: `${totalTime}ms`,
-        query,
+      appLogger.error('music_search_failed', {
+        error,
+        duration_ms: totalTime,
       });
       throw new Error('Failed to search music (both services failed)');
     }
   }
 
   async fetchTopCharts(): Promise<MusicSearchResult> {
-    console.log('🎵 Requesting top charts');
-    console.log('🌍 Environment:', {
-      env: process.env.NODE_ENV || 'unknown',
-      isProduction: process.env.NODE_ENV === 'production',
-    });
+    appLogger.debug('top_charts_requested');
     
     const startTime = Date.now();
 
@@ -106,27 +88,17 @@ class MusicSearchService {
     if (this.cachedChartsData && this.chartsLastFetched) {
       const cacheAge = Date.now() - this.chartsLastFetched.getTime();
       if (cacheAge < this.chartsCacheDuration) {
-        console.log(`📦 Using cached data:`, {
-          cacheAge: `${Math.floor(cacheAge / 60000)}m ${Math.floor((cacheAge % 60000) / 1000)}s`,
-          cacheDuration: `${this.chartsCacheDuration / 60000}m`,
-          remainingTime: `${Math.floor((this.chartsCacheDuration - cacheAge) / 60000)}m`,
+        appLogger.debug('top_charts_cache_hit', {
+          duration_ms: cacheAge,
         });
         return this.cachedChartsData;
-      } else {
-        console.log(`⌛ Cache expired:`, {
-          cacheAge: `${Math.floor(cacheAge / 60000)}m`,
-          cacheDuration: `${this.chartsCacheDuration / 60000}m`,
-        });
       }
-    } else {
-      console.log('📦 No cached charts data available');
     }
 
     const requestId = `charts_${Date.now()}`;
     this.activeRequests.add(requestId);
 
     try {
-      console.log('🎯 Fetching fresh charts from Apple Music');
       const fetchStartTime = Date.now();
       
       const results = await appleMusicService.fetchTopCharts();
@@ -145,11 +117,10 @@ class MusicSearchService {
       this.cachedChartsData = results;
       this.chartsLastFetched = new Date();
       
-      console.log('✅ Charts data cached successfully:', {
-        fetchTime: `${fetchTime}ms`,
-        totalTime: `${totalTime}ms`,
-        trackCount: results.tracks.length,
-        cacheExpiry: new Date(this.chartsLastFetched.getTime() + this.chartsCacheDuration).toISOString(),
+      appLogger.debug('top_charts_fetch_succeeded', {
+        duration_ms: totalTime,
+        service_duration_ms: fetchTime,
+        result_count: results.tracks.length,
       });
       
       return results;
@@ -162,17 +133,17 @@ class MusicSearchService {
         const cacheAge = this.chartsLastFetched ? 
           Date.now() - this.chartsLastFetched.getTime() : 0;
         
-        console.warn('⚠️ Error occurred, falling back to cached data:', {
-          error: error instanceof Error ? error.message : 'Unknown error',
-          cacheAge: `${Math.floor(cacheAge / 60000)}m`,
-          totalTime: `${totalTime}ms`,
+        appLogger.warn('top_charts_fallback_to_cache', {
+          error,
+          cache_age_ms: cacheAge,
+          duration_ms: totalTime,
         });
         return this.cachedChartsData;
       }
       
-      console.error('❌ Failed to fetch charts:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        totalTime: `${totalTime}ms`,
+      appLogger.error('top_charts_fetch_failed', {
+        error,
+        duration_ms: totalTime,
         hasCachedData: false,
       });
       throw new Error('Failed to fetch charts');
@@ -181,7 +152,7 @@ class MusicSearchService {
 
   cancelActiveRequests() {
     this.activeRequests.clear();
-    console.log('⚠️ Cancelled all active music service requests');
+    appLogger.debug('music_service_requests_cancelled');
   }
 }
 

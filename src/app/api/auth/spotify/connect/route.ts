@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config';
 import { getCallbackUrl } from '@/lib/utils/url';
+import { appLogger } from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,11 +34,11 @@ export async function GET(request: NextRequest) {
       // Return the auth URL as JSON so the frontend can redirect
       return NextResponse.json({ authUrl: data.authUrl });
     } else {
-      console.error('No auth URL received from backend');
+      appLogger.error('spotify_connect_auth_url_missing', { route: '/api/auth/spotify/connect' });
       return NextResponse.json({ error: 'No auth URL received from backend' }, { status: 500 });
     }
   } catch (error) {
-    console.error('Spotify connect error:', error);
+    appLogger.error('spotify_connect_failed', { error, route: '/api/auth/spotify/connect' });
     return NextResponse.json({ error: 'Failed to connect to Spotify' }, { status: 500 });
   }
 }

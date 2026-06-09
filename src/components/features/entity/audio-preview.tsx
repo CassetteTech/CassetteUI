@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
+import { appLogger } from '@/lib/observability/logger';
 
 interface AudioPreviewProps {
   previewUrl?: string;
@@ -27,7 +28,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ previewUrl, classNam
   const handleTogglePlay = async () => {
     if (!previewUrl || !audioRef.current) {
       // Show message that no preview is available
-      console.log('No preview available for this track');
+      appLogger.debug('audio_preview_unavailable');
       return;
     }
     
@@ -43,7 +44,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ previewUrl, classNam
         setIsLoading(false);
       }
     } catch (error) {
-      console.error('Error playing audio:', error);
+      appLogger.warn('audio_preview_playback_failed', { error });
       setIsLoading(false);
       setIsPlaying(false);
     }
@@ -103,7 +104,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ previewUrl, classNam
         ref={audioRef}
         onEnded={handleAudioEnded}
         onError={(e) => {
-          console.error('Audio error:', e);
+          appLogger.warn('audio_preview_error', { error: e });
           setIsPlaying(false);
           setIsLoading(false);
         }}

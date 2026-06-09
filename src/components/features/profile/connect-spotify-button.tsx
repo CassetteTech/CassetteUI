@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { apiService } from '@/services/api';
+import { appLogger } from '@/lib/observability/logger';
 
 interface ConnectSpotifyButtonProps {
   isConnected?: boolean;
@@ -44,27 +45,21 @@ export function ConnectSpotifyButton({
   const handleConnect = async () => {
     setIsLoading(true);
     try {
-      console.log("Attempting to connect to Spotify...");
+      appLogger.debug('spotify_profile_connect_started');
       const data = await apiService.connectSpotify();
-      
-      console.log("Full response from API:", data);
-      console.log("Response type:", typeof data);
-      console.log("Response authUrl:", data?.authUrl);
 
       // Check if we got the URL successfully
       if (data && data.authUrl) {
-        console.log("Received auth URL, redirecting user to Spotify:", data.authUrl);
         // Set pending OAuth so visibility listener will refetch user when returning
         setPendingOAuth(true);
         // Open Spotify auth in a new tab
         window.open(data.authUrl, '_blank');
       } else {
-        console.error("Did not receive a valid authUrl from the backend.");
-        console.error("Response was:", data);
+        appLogger.error('spotify_profile_connect_auth_url_missing');
         setIsLoading(false);
       }
     } catch (error) {
-      console.error("Failed to initiate Spotify connection:", error);
+      appLogger.error('spotify_profile_connect_failed', { error });
       setIsLoading(false);
     }
   };
@@ -75,7 +70,7 @@ export function ConnectSpotifyButton({
       // TODO: Implement disconnect functionality
       onDisconnect?.();
     } catch (error) {
-      console.error('Failed to disconnect from Spotify:', error);
+      appLogger.error('spotify_profile_disconnect_failed', { error });
     } finally {
       setIsLoading(false);
     }

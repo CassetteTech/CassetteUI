@@ -8,6 +8,7 @@ import { apiService } from '@/services/api';
 import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { platformConnectService } from '@/services/platform-connect';
+import { appLogger } from '@/lib/observability/logger';
 
 interface ConnectAppleMusicButtonProps {
   isConnected?: boolean;
@@ -50,7 +51,7 @@ export function ConnectAppleMusicButton({
         const response = await apiService.getAppleMusicDeveloperToken();
         setDeveloperToken(response.developerToken);
       } catch (error) {
-        console.error('Failed to fetch Apple Music developer token:', error);
+        appLogger.error('apple_music_developer_token_fetch_failed', { error });
       }
     };
 
@@ -58,7 +59,7 @@ export function ConnectAppleMusicButton({
   }, []);
   const handleConnect = async () => {
     if (!developerToken) {
-      console.error('Developer token not available');
+      appLogger.error('apple_music_developer_token_missing');
       return;
     }
 
@@ -77,7 +78,7 @@ export function ConnectAppleMusicButton({
         throw new Error('Failed to connect to Apple Music');
       }
     } catch (error) {
-      console.error('Failed to connect to Apple Music:', error);
+      appLogger.error('apple_music_profile_connect_failed', { error });
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +90,7 @@ export function ConnectAppleMusicButton({
       // TODO: Implement disconnect functionality
       onDisconnect?.();
     } catch (error) {
-      console.error('Failed to disconnect from Apple Music:', error);
+      appLogger.error('apple_music_profile_disconnect_failed', { error });
     } finally {
       setIsLoading(false);
     }

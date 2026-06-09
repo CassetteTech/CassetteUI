@@ -161,9 +161,7 @@ export default function HomePageClient() {
 
   const handleConvertLink = (url: string) => {
     const trimmed = normalizeMusicLinkInput(url);
-    console.log('🔄 handleConvertLink called with URL:', trimmed);
     if (!trimmed) {
-      console.log('❌ URL is empty, returning');
       return;
     }
 
@@ -179,7 +177,6 @@ export default function HomePageClient() {
     
     // Navigate immediately to the post page with the URL
     // The post page will show skeleton and handle the conversion
-    console.log('🚀 Navigating to post page with URL:', trimmed);
     router.push(`/post?url=${encodeURIComponent(trimmed)}`);
   };
 
@@ -327,8 +324,7 @@ export default function HomePageClient() {
   };
 
   // Handle selecting an item from search results
-  const handleSelectItem = (url: string, title: string, type: string) => {
-    console.log('🎵 handleSelectItem called with:', { url, title, type });
+  const handleSelectItem = (url: string) => {
     void captureClientEvent('search_result_selected', {
       route: '/',
       source_surface: 'home',

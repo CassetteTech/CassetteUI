@@ -7,6 +7,7 @@ import {
   UserBio,
 } from '@/types';
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
+import { appLogger } from '@/lib/observability/logger';
 import {
   normalizeConnectedServicePayload,
   normalizeStreamingServiceType,
@@ -500,7 +501,7 @@ export class ProfileService {
 
       const url = this.buildApiUrl(path);
 
-      console.log('dY"? Fetching bio from:', url);
+      appLogger.debug('profile_bio_fetch_started');
 
       const response = await fetch(url, {
         method: 'GET',
@@ -516,14 +517,14 @@ export class ProfileService {
       }
 
       if (response.status === 404) {
-        console.log('�?O User not found:', userIdentifier);
+        appLogger.warn('profile_bio_not_found');
         throw new Error('User not found');
       }
 
-      console.log('�?O Error fetching bio:', response.status);
+      appLogger.warn('profile_bio_fetch_failed', { status: response.status });
       throw new Error('Failed to load profile');
     } catch (e) {
-      console.log('�?O Bio fetch error:', e);
+      appLogger.warn('profile_bio_fetch_error', { error: e });
       throw e;
     }
   }
@@ -557,7 +558,7 @@ export class ProfileService {
 
       const requestUrl = `${url}?${queryParams}`;
 
-      console.log('dY"? Fetching activity from:', requestUrl);
+      appLogger.debug('profile_activity_fetch_started', { page, pageSize, element_type: elementType });
 
       const response = await fetch(requestUrl, {
         method: 'GET',
@@ -573,14 +574,14 @@ export class ProfileService {
       }
 
       if (response.status === 404) {
-        console.log('�?O User not found:', userIdentifier);
+        appLogger.warn('profile_activity_not_found');
         throw new Error('User not found');
       }
 
-      console.log('�?O Error fetching activity:', response.status);
+      appLogger.warn('profile_activity_fetch_failed', { status: response.status });
       throw new Error('Failed to load activity');
     } catch (e) {
-      console.log('�?O Activity fetch error:', e);
+      appLogger.warn('profile_activity_fetch_error', { error: e });
       throw e;
     }
   }
@@ -603,7 +604,7 @@ export class ProfileService {
 
       const requestUrl = `${url}?${queryParams}`;
 
-      console.log('dY"? Fetching explore activity from:', requestUrl);
+      appLogger.debug('explore_activity_fetch_started', { page, pageSize });
 
       const response = await fetch(requestUrl, {
         method: 'GET',
@@ -618,10 +619,10 @@ export class ProfileService {
         return this.mapActivityResponse(json, page, pageSize);
       }
 
-      console.log('�?O Error fetching explore activity:', response.status);
+      appLogger.warn('explore_activity_fetch_failed', { status: response.status });
       throw new Error('Failed to load explore activity');
     } catch (e) {
-      console.log('�?O Explore activity fetch error:', e);
+      appLogger.warn('explore_activity_fetch_error', { error: e });
       throw e;
     }
   }
@@ -871,7 +872,7 @@ export class ProfileService {
       }
       return false;
     } catch (e) {
-      console.log('�?O Error checking username availability:', e);
+      appLogger.warn('username_availability_check_failed', { error: e });
       return false;
     }
   }

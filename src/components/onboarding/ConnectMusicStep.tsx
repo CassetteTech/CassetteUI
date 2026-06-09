@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { platformConnectService } from '@/services/platform-connect';
 import { apiService } from '@/services/api';
 import { Switch } from '@/components/ui/switch';
+import { appLogger } from '@/lib/observability/logger';
 
 interface FormData {
   username: string;
@@ -78,7 +79,7 @@ export function ConnectMusicStep({
     async function fetchPreferences() {
       try {
         void platformConnectService.preloadAppleMusic().catch((error) => {
-          console.warn('Apple Music preload failed:', error);
+          appLogger.warn('apple_music_preload_failed', { error, route: '/onboarding' });
         });
 
         const response = await apiService.getPlatformPreferences();
@@ -103,7 +104,7 @@ export function ConnectMusicStep({
           setPlatformStates(newStates);
         }
       } catch (error) {
-        console.error('Failed to fetch platform preferences:', error);
+        appLogger.error('onboarding_platform_preferences_fetch_failed', { error, route: '/onboarding' });
       } finally {
         setIsLoadingPreferences(false);
       }
@@ -178,7 +179,11 @@ export function ConnectMusicStep({
           });
         }
       } catch (error) {
-        console.error(`Failed to connect ${service.name}:`, error);
+        appLogger.error('onboarding_platform_connection_failed', {
+          error,
+          route: '/onboarding',
+          platform: serviceId,
+        });
         setPlatformStates(prev => ({
           ...prev,
           [serviceId]: { ...prev[serviceId], isLoading: false },
@@ -222,7 +227,11 @@ export function ConnectMusicStep({
         toast.info(`${service.name} removed from your profile`);
       }
     } catch (error) {
-      console.error(`Failed to update ${service.name} preference:`, error);
+      appLogger.error('onboarding_platform_preference_update_failed', {
+        error,
+        route: '/onboarding',
+        platform: serviceId,
+      });
       setPlatformStates(prev => ({
         ...prev,
         [serviceId]: { ...prev[serviceId], isLoading: false },

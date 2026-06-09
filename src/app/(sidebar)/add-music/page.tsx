@@ -517,7 +517,6 @@ export default function AddMusicPage() {
   };
 
   const handleSelectItem = (url: string, title: string, type: string) => {
-    console.log('🎵 handleSelectItem called with:', { url, title, type });
     const detected = detectContentType(url);
     void captureClientEvent('search_result_selected', {
       route: '/add-music',
@@ -616,7 +615,6 @@ export default function AddMusicPage() {
       return;
     }
     
-    console.log('🎯 Adding music to profile:', { urlToConvert, description, itemDetails });
     const detected = detectContentType(urlToConvert);
     void captureClientEvent('conversion_entry_started', {
       route: '/add-music',

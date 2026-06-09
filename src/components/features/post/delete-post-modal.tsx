@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useDeletePost } from '@/hooks/use-music';
 import { toast } from 'sonner';
 import { Loader2, Trash2 } from 'lucide-react';
+import { appLogger } from '@/lib/observability/logger';
 
 interface DeletePostModalProps {
   open: boolean;
@@ -37,7 +38,7 @@ export function DeletePostModal({
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      console.error('Failed to delete post:', error);
+      appLogger.error('post_delete_failed', { error, route: '/post/[id]', post_id: postId });
       toast.error('Failed to delete post. Please try again.');
     }
   };

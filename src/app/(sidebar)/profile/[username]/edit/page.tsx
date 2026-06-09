@@ -10,6 +10,7 @@ import { profileService } from '@/services/profile';
 import { UserBio } from '@/types';
 import { Container } from '@/components/ui/container';
 import { BackButton } from '@/components/ui/back-button';
+import { appLogger } from '@/lib/observability/logger';
 
 export default function EditProfilePage() {
   const { username } = useParams();
@@ -51,7 +52,7 @@ export default function EditProfilePage() {
         const bio = await profileService.fetchUserBio(userIdToFetch || user.id);
         setUserBio(bio);
       } catch (e) {
-        console.error('❌ Error loading user data:', e);
+        appLogger.error('profile_edit_load_failed', { error: e, route: '/profile/[username]/edit' });
         setError(e instanceof Error ? e.message : 'Failed to load user data');
       } finally {
         setIsLoading(false);

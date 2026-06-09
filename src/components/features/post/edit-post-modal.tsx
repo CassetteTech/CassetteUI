@@ -17,6 +17,7 @@ import { useUpdatePost } from '@/hooks/use-music';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { PostPrivacy } from '@/types';
+import { appLogger } from '@/lib/observability/logger';
 
 const MAX_DESCRIPTION_LENGTH = 500;
 
@@ -60,7 +61,7 @@ export function EditPostModal({
       onOpenChange(false);
       onSuccess?.({ description, privacy, commentsEnabled });
     } catch (error) {
-      console.error('Failed to update post:', error);
+      appLogger.error('post_update_failed', { error, route: '/post/[id]', post_id: postId });
       toast.error('Failed to update post. Please try again.');
     }
   };

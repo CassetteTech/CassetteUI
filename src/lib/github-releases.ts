@@ -1,4 +1,5 @@
 import "server-only";
+import { appLogger } from "@/lib/observability/logger";
 
 export type PublishedGitHubRelease = {
   id: number;
@@ -44,14 +45,12 @@ export async function getPublishedGitHubReleases(): Promise<
   try {
     response = await fetch(GITHUB_RELEASES_URL, fetchOptions);
   } catch (error) {
-    console.warn("[github-releases] Failed to fetch releases.", error);
+    appLogger.warn("github_releases_fetch_failed", { error });
     return [];
   }
 
   if (!response.ok) {
-    console.warn(
-      `[github-releases] GitHub API returned ${response.status}; returning empty release list.`,
-    );
+    appLogger.warn("github_releases_api_failed", { http_status: response.status });
     return [];
   }
 
@@ -59,7 +58,7 @@ export async function getPublishedGitHubReleases(): Promise<
   try {
     releases = (await response.json()) as GitHubReleaseResponse[];
   } catch (error) {
-    console.warn("[github-releases] Failed to parse releases response.", error);
+    appLogger.warn("github_releases_parse_failed", { error });
     return [];
   }
 

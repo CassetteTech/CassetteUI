@@ -7,6 +7,7 @@ import { platformConnectService } from '@/services/platform-connect';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { pendingActionService } from '@/utils/pending-action';
 import { normalizeConnectedServicePayload } from '@/utils/platform-normalization';
+import { appLogger } from '@/lib/observability/logger';
 
 const AUTH_API_BASE = '/api/auth';
 
@@ -243,7 +244,7 @@ class AuthService {
         },
       });
     } catch (error) {
-      console.error('Sign out API error:', error);
+      appLogger.warn('signout_api_failed', { error });
     }
 
     await this.clearTokens();
@@ -296,9 +297,8 @@ class AuthService {
     }
 
     if (!response.ok || !data.success || !data.authUrl) {
-      console.error('Google OAuth initiation failed:', {
+      appLogger.error('google_oauth_initiation_failed', {
         status: response.status,
-        statusText: response.statusText,
         message: data.message,
         success: data.success,
         hasAuthUrl: Boolean(data.authUrl),
@@ -448,7 +448,7 @@ class AuthService {
       const data = await response.json();
       return data.success && data.user ? this.mapToAuthUser(data.user) : null;
     } catch (error) {
-      console.error('Get current user error:', error);
+      appLogger.warn('current_user_fetch_failed', { error });
       return null;
     }
   }

@@ -50,6 +50,11 @@ interface ParsedPayload {
   sourceContext?: string;
   pageUrl?: string;
   sourceLink?: string;
+  correlationId?: string;
+  conversionJobId?: string;
+  sourceLinkHash?: string;
+  sourceDomain?: string;
+  routeContext?: string;
   [key: string]: unknown;
 }
 
@@ -132,7 +137,7 @@ export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
   // Extract structured fields from parsed payload
   const description = parsed?.description;
   const context = parsed?.context;
-  const hasMusicContext = context?.title || context?.artist || context?.elementType;
+  const hasMusicContext = context?.elementType;
   const platforms = context?.platforms;
   const hasEnvironment = context?.userTimezone || context?.screenSize;
 
@@ -281,6 +286,36 @@ export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
                     <span className="truncate">{issue.pageUrl}</span>
                     <ExternalLink className="h-3 w-3 shrink-0" />
                   </a>
+                </MetadataRow>
+              )}
+
+              {issue.routeContext && (
+                <MetadataRow icon={Globe} label="Route Context">
+                  <span className="font-mono text-xs break-all">{issue.routeContext}</span>
+                </MetadataRow>
+              )}
+
+              {issue.correlationId && (
+                <MetadataRow icon={FileText} label="Correlation ID">
+                  <span className="font-mono text-xs break-all">{issue.correlationId}</span>
+                </MetadataRow>
+              )}
+
+              {issue.conversionJobId && (
+                <MetadataRow icon={FileText} label="Conversion Job">
+                  <span className="font-mono text-xs break-all">{issue.conversionJobId}</span>
+                </MetadataRow>
+              )}
+
+              {issue.sourceDomain && (
+                <MetadataRow icon={Globe} label="Source Domain">
+                  <span className="text-xs">{issue.sourceDomain}</span>
+                </MetadataRow>
+              )}
+
+              {issue.sourceLinkHash && (
+                <MetadataRow icon={Link} label="Source Hash">
+                  <span className="font-mono text-xs break-all">{issue.sourceLinkHash}</span>
                 </MetadataRow>
               )}
 

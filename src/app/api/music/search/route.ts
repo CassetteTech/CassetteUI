@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { musicSearchService } from '@/services/music-apis/music-search';
 import { validateServerConfig } from '@/lib/config-server';
+import { appLogger } from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     const results = await musicSearchService.searchMusic(query);
     return NextResponse.json(results);
   } catch (error) {
-    console.error('Music search error:', error);
+    appLogger.error('music_search_route_failed', { error, route: '/api/music/search' });
     return NextResponse.json(
       { error: 'Failed to search music' },
       { status: 500 }

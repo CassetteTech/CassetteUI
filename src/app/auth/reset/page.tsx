@@ -8,6 +8,7 @@ import { useUpdatePassword } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AuthInput } from '@/components/ui/auth-input';
+import { appLogger } from '@/lib/observability/logger';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -50,7 +51,10 @@ export default function ResetPasswordPage() {
             history.replaceState({}, '', window.location.pathname);
             return;
           } catch (callbackError) {
-            console.error('Failed to store tokens from reset callback', callbackError);
+            appLogger.error('password_reset_session_store_failed', {
+              error: callbackError,
+              route: '/auth/reset',
+            });
             if (!cancelled) {
               setSessionError('We could not verify your reset link. Please request a new email.');
             }

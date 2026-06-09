@@ -4,13 +4,14 @@ import { useState } from 'react';
 import { useMusicLinkConversion } from '@/hooks/use-music';
 import { AnimatedButton } from '@/components/ui/animated-button';
 import { UIText } from '@/components/ui/typography';
+import { appLogger } from '@/lib/observability/logger';
 
 export default function DebugPage() {
   const [testUrl, setTestUrl] = useState('https://open.spotify.com/track/6mH4EevpFs1sdHJOSkleN2?si=195882c7cae94654');
   const { mutate: convertLink, isPending, error, data } = useMusicLinkConversion();
   
   const handleTest = () => {
-    console.log('🧪 Debug: Testing conversion with URL:', testUrl);
+    appLogger.debug('debug_conversion_test_started', { route: '/debug' });
     convertLink({ url: testUrl });
   };
   

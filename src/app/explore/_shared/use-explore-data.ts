@@ -6,6 +6,7 @@ import { profileService } from '@/services/profile';
 import { applyCachedArtwork } from '@/services/profile-artwork-cache';
 import { useDebounce } from '@/hooks/use-debounce';
 import { ActivityPost, ExploreUser } from '@/types';
+import { appLogger } from '@/lib/observability/logger';
 
 export const PAGE_SIZE = 20;
 export const SECTION_INCREMENT = 8;
@@ -128,7 +129,7 @@ export function useExploreData() {
         setSectionHasMorePotential((prev) => ({ ...prev, [section]: false }));
       }
     } catch (e) {
-      console.error(`Error loading more explore posts for ${section}:`, e);
+      appLogger.error('explore_posts_load_more_failed', { error: e, route: '/explore', section });
     } finally {
       setIsLoadingMoreBySection((prev) => ({ ...prev, [section]: false }));
       setIsFetchingMorePosts(false);
@@ -160,7 +161,7 @@ export function useExploreData() {
           setCurrentUsersPage(nextPage);
         }
       } catch (e) {
-        console.error('Error loading more explore users:', e);
+        appLogger.error('explore_users_search_load_more_failed', { error: e, route: '/explore' });
       } finally {
         setIsLoadingMoreUsers(false);
       }
@@ -193,7 +194,7 @@ export function useExploreData() {
       }
       setVisibleUsersCount(Math.min(targetVisible, combinedUsers.length));
     } catch (e) {
-      console.error('Error loading more explore users:', e);
+      appLogger.error('explore_users_load_more_failed', { error: e, route: '/explore' });
     } finally {
       setIsLoadingMoreUsers(false);
     }

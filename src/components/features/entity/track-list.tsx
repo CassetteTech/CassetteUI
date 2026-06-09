@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
+import { appLogger } from '@/lib/observability/logger';
 
 export interface TrackListItem {
   trackNumber?: number;
@@ -74,14 +75,17 @@ export const TrackList: React.FC<TrackListProps> = ({
 
       const response = await fetch(`/api/music/preview?${params.toString()}`);
       if (!response.ok) {
-        console.error('Failed to fetch preview URL:', response.status);
+        appLogger.warn('track_preview_url_fetch_failed', {
+          http_status: response.status,
+          source_platform: sourcePlatform,
+        });
         return null;
       }
 
       const data = await response.json();
       return data.previewUrl || null;
     } catch (error) {
-      console.error('Error fetching preview URL:', error);
+      appLogger.warn('track_preview_url_fetch_failed', { error, source_platform: sourcePlatform });
       return null;
     }
   }, [sourcePlatform]);
@@ -117,7 +121,7 @@ export const TrackList: React.FC<TrackListProps> = ({
 
         // If no preview URL, try to fetch one
         if (!previewUrl) {
-          console.log('🎵 Fetching preview URL for:', track.title);
+          appLogger.debug('track_preview_url_fetch_started', { source_platform: sourcePlatform });
           previewUrl = await fetchPreviewUrl(track);
 
           // Cache the result (even if null, to avoid refetching)
@@ -126,7 +130,7 @@ export const TrackList: React.FC<TrackListProps> = ({
       }
 
       if (!previewUrl) {
-        console.log('❌ No preview available for:', track.title);
+        appLogger.debug('track_preview_unavailable', { source_platform: sourcePlatform });
         setIsLoading(null);
         return;
       }
@@ -146,7 +150,7 @@ export const TrackList: React.FC<TrackListProps> = ({
       setPlayingIndex(index);
       setIsLoading(null);
     } catch (error) {
-      console.error('Error playing audio:', error);
+      appLogger.warn('track_preview_playback_failed', { error, source_platform: sourcePlatform });
       setIsLoading(null);
       setPlayingIndex(null);
     }
@@ -280,5 +284,4 @@ export const TrackList: React.FC<TrackListProps> = ({
     </div>
   );
 };
-
 

@@ -10,6 +10,7 @@ import {
   surfaceFromRoute,
   trackBrowserPageview,
 } from '@/lib/analytics/client';
+import { setUiObservabilityContext } from '@/lib/observability/error-reporting';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -30,6 +31,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       is_authenticated: isAuthenticated,
       user_id: user?.id,
       account_type: user?.accountType != null ? String(user.accountType) : undefined,
+    });
+    setUiObservabilityContext({
+      route: pathname,
+      userId: user?.id,
     });
 
     if (!isLoading) {

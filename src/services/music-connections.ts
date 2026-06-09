@@ -1,4 +1,5 @@
 import { apiService } from './api';
+import { appLogger } from '@/lib/observability/logger';
 
 export interface MusicConnection {
   id: string;
@@ -34,7 +35,7 @@ class MusicConnectionsService {
         connectedAt: new Date().toISOString(),
       }));
     } catch (error) {
-      console.error('Failed to fetch user music connections:', error);
+      appLogger.error('music_connections_fetch_failed', { error });
       throw new Error('Failed to fetch music connections');
     }
   }
@@ -43,7 +44,7 @@ class MusicConnectionsService {
     try {
       await apiService.disconnectMusicService(service);
     } catch (error) {
-      console.error('Failed to disconnect music service:', error);
+      appLogger.error('music_connection_disconnect_failed', { error, service });
       throw new Error('Failed to disconnect music service');
     }
   }
@@ -66,9 +67,9 @@ class MusicConnectionsService {
     try {
       // Your backend API should handle token refresh automatically
       // This would be triggered when the backend detects expired tokens
-      console.log('Token refresh should be handled automatically by the backend');
+      appLogger.debug('spotify_token_refresh_delegated');
     } catch (error) {
-      console.error('Failed to refresh Spotify token:', error);
+      appLogger.error('spotify_token_refresh_failed', { error });
       throw error;
     }
   }

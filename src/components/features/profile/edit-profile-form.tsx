@@ -14,6 +14,7 @@ import { TextField } from '@/components/ui/text-field';
 import { DeleteAccountModal } from './delete-account-modal';
 import { AlertTriangle, Camera, Globe2, Lock } from 'lucide-react';
 import { AvatarCropDialog } from '@/components/shared/avatar-crop-dialog';
+import { appLogger } from '@/lib/observability/logger';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SOURCE_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -184,7 +185,7 @@ export function EditProfileFormComponent({
 
       onSuccess();
     } catch (error) {
-      console.error('Error updating profile:', error);
+      appLogger.error('profile_update_failed', { error, route: '/profile/edit' });
       startCooldown();
     } finally {
       setIsLoading(false);

@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { AnimatedButton } from '@/components/ui/animated-button';
 import { HeadlineText, BodyText } from '@/components/ui/typography';
 import { AnimatedBackground } from '@/components/ui/animated-background';
+import { captureUiException } from '@/lib/observability/error-reporting';
 
 export default function Error({
   error,
@@ -13,8 +14,10 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service
-    console.error('Application error:', error);
+    captureUiException(error, {
+      route: typeof window !== 'undefined' ? window.location.pathname : undefined,
+      operation: 'render_error_boundary',
+    });
   }, [error]);
 
   return (

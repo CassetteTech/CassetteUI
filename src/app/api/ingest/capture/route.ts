@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { appLogger } from '@/lib/observability/logger';
 
 const DEFAULT_POSTHOG_HOST = 'https://app.posthog.com';
 
@@ -29,10 +30,10 @@ export async function POST(request: Request) {
 
     if (!upstream.ok) {
       if (isDev) {
-        console.warn('PostHog ingest proxy rejected capture', {
-          status: upstream.status,
-          endpoint,
-          payloadBytes: body.length,
+        appLogger.warn('posthog_ingest_proxy_rejected_capture', {
+          http_status: upstream.status,
+          payload_bytes: body.length,
+          route: '/api/ingest/capture',
         });
       }
       return NextResponse.json({ error: 'Upstream capture rejected' }, { status: upstream.status });
@@ -41,9 +42,9 @@ export async function POST(request: Request) {
     return new NextResponse(null, { status: 204 });
   } catch {
     if (isDev) {
-      console.warn('PostHog ingest proxy failed to forward capture', {
-        endpoint,
-        payloadBytes: body.length,
+      appLogger.warn('posthog_ingest_proxy_forward_failed', {
+        payload_bytes: body.length,
+        route: '/api/ingest/capture',
       });
     }
     return NextResponse.json({ error: 'Failed to forward capture payload' }, { status: 502 });

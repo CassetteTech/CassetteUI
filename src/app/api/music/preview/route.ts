@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { spotifyService } from '@/services/music-apis/spotify';
 import { appleMusicService } from '@/services/music-apis/apple-music';
+import { appLogger } from '@/lib/observability/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,24 +36,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('🎵 Preview URL request:', { sourcePlatform, appleMusicTrackId, spotifyTrackId, isrc, title, artist });
-
     let previewUrl: string | null = null;
 
     // Use the appropriate service based on source platform
     if (sourcePlatform === 'applemusic' && appleMusicTrackId) {
       // Apple Music playlist - use Apple Music service
-      console.log('🍎 Using Apple Music service for preview (source platform: applemusic)');
+      appLogger.debug('music_preview_direct_fetch', { route: '/api/music/preview', source_platform: 'applemusic' });
       previewUrl = await appleMusicService.getPreviewByTrackId(appleMusicTrackId);
     } else if (spotifyTrackId) {
       // Spotify playlist or fallback - try Spotify direct fetch
-      console.log('🎧 Using Spotify service for preview');
+      appLogger.debug('music_preview_direct_fetch', { route: '/api/music/preview', source_platform: 'spotify' });
       previewUrl = await spotifyService.getPreviewByTrackId(spotifyTrackId);
     }
 
     // Fall back to Spotify ISRC/title search if direct fetch didn't work
     if (!previewUrl && (isrc || title)) {
-      console.log('🔍 Falling back to Spotify search');
+      appLogger.debug('music_preview_fallback_search', { route: '/api/music/preview', source_platform: sourcePlatform });
       previewUrl = await spotifyService.getPreviewUrl({
         isrc: isrc || undefined,
         title: title || undefined,
@@ -69,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ previewUrl });
   } catch (error) {
-    console.error('❌ Error fetching preview URL:', error);
+    appLogger.error('music_preview_fetch_failed', { error, route: '/api/music/preview' });
     return NextResponse.json(
       { error: 'Failed to fetch preview URL' },
       { status: 500 }

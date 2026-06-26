@@ -3,16 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
-  Calendar,
   Copy,
   Download,
   Link2,
   Pencil,
   Plus,
   RefreshCw,
-  Search,
   Trash2,
-  TrendingUp,
   Users,
   X,
 } from 'lucide-react';
@@ -26,9 +23,7 @@ import {
   InternalSignupLinkTemplate,
 } from '@/types';
 import { apiService } from '@/services/api';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -40,21 +35,22 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { DataTablePagination } from './data-table-pagination';
-import { EmptyState } from './empty-state';
 import { ErrorState } from './error-state';
 import { PAGE_SIZE, formatDate } from './internal-utils';
+import {
+  SectionHeader,
+  Panel,
+  StatStrip,
+  Stat,
+  StatusPill,
+  DataTable,
+  Toolbar,
+  SegmentedControl,
+  Pagination,
+  type Column,
+} from './kit';
 
 const UNATTRIBUTED_FILTER_VALUE = '__unattributed__';
 const DEFAULT_TEMPLATE_FORM = {
@@ -75,6 +71,15 @@ type BreakdownSelection = {
   isUnattributed: boolean;
 };
 type TemplateFormState = typeof DEFAULT_TEMPLATE_FORM;
+
+// Synthetic row shape for DataTable
+type BreakdownRow = {
+  key: string;
+  value?: string | null;
+  signups: number;
+  percentOfFilteredTotal: number;
+  isUnattributed: boolean;
+};
 
 function toDateInputValue(date: Date) {
   const year = date.getFullYear();
@@ -125,32 +130,6 @@ function buildSignupUrl(origin: string, template: {
   campaign?: string | null;
 }) {
   return `${origin.replace(/\/+$/, '')}${buildSignupRelativePath(template)}`;
-}
-
-/* ────────────────────────────── Stat Card ────────────────────────────── */
-
-function StatCard({ title, value, subtitle, accent }: {
-  title: string;
-  value: number;
-  subtitle: string;
-  accent?: 'default' | 'success' | 'warning';
-}) {
-  const accentClasses = {
-    default: 'from-primary/5 to-transparent',
-    success: 'from-[hsl(var(--success))]/8 to-transparent',
-    warning: 'from-[hsl(var(--warning))]/8 to-transparent',
-  };
-
-  return (
-    <div className="rounded-xl border bg-gradient-to-br p-4 relative overflow-hidden group">
-      <div className={`absolute inset-0 bg-gradient-to-br ${accentClasses[accent ?? 'default']} opacity-60`} />
-      <div className="relative">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
-        <p className="text-2xl font-bold tracking-tight mt-1">{value.toLocaleString()}</p>
-        <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
-      </div>
-    </div>
-  );
 }
 
 /* ────────────────────────────── Main Component ────────────────────────────── */
@@ -439,156 +418,241 @@ export function AttributionTab() {
 
   const hasAttributionFilters = sourceFilter || mediumFilter || campaignFilter || referrerDomainFilter;
 
+  // ─── Column definitions ────────────────────────────────────────────
+
+  const breakdownColumns: Column<BreakdownRow>[] = [
+    {
+      key: 'key',
+      header: groupBy,
+      cell: (row) => (
+        <span className="font-medium text-foreground">
+          {row.key}
+          {row.isUnattributed && (
+            <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">[none]</span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: 'signups',
+      header: 'Signups',
+      align: 'right',
+      className: 'w-[80px]',
+      cell: (row) => (
+        <span className="font-mono tabular-nums">{row.signups.toLocaleString()}</span>
+      ),
+    },
+    {
+      key: 'pct',
+      header: '% total',
+      align: 'right',
+      className: 'w-[110px]',
+      cell: (row) => (
+        <div className="flex items-center justify-end gap-2">
+          <div className="w-10 h-1 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-domain transition-all"
+              style={{ width: `${Math.min(row.percentOfFilteredTotal, 100)}%` }}
+            />
+          </div>
+          <span className="font-mono tabular-nums text-muted-foreground w-[44px] text-right">
+            {row.percentOfFilteredTotal.toFixed(1)}%
+          </span>
+        </div>
+      ),
+    },
+  ];
+
+  const usersColumns: Column<InternalSignupAttributionUserRow>[] = [
+    {
+      key: 'user',
+      header: 'User',
+      cell: (row) => (
+        <div>
+          <p className="font-medium text-foreground">{row.username}</p>
+          <p className="text-[11px] text-muted-foreground">{row.email}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'joined',
+      header: 'Joined',
+      className: 'hidden md:table-cell w-[100px]',
+      cell: (row) => (
+        <span className="font-mono tabular-nums text-muted-foreground whitespace-nowrap">
+          {formatDate(row.joinDate)}
+        </span>
+      ),
+    },
+    {
+      key: 'source',
+      header: 'Source',
+      className: 'hidden sm:table-cell',
+      cell: (row) =>
+        row.signupSource ? (
+          <span className="font-mono text-[11px] text-foreground">{row.signupSource}</span>
+        ) : (
+          <span className="text-muted-foreground/50">—</span>
+        ),
+    },
+    {
+      key: 'medium',
+      header: 'Medium',
+      className: 'hidden lg:table-cell',
+      cell: (row) =>
+        row.signupMedium ? (
+          <span className="font-mono text-[11px] text-foreground">{row.signupMedium}</span>
+        ) : (
+          <span className="text-muted-foreground/50">—</span>
+        ),
+    },
+    {
+      key: 'campaign',
+      header: 'Campaign',
+      className: 'hidden xl:table-cell',
+      cell: (row) =>
+        row.signupCampaign ? (
+          <span className="font-mono text-[11px] text-foreground">{row.signupCampaign}</span>
+        ) : (
+          <span className="text-muted-foreground/50">—</span>
+        ),
+    },
+  ];
+
+  const breakdownRows: BreakdownRow[] = breakdown?.items ?? [];
+
   // ─── Render ───────────────────────────────────────────────────────
   return (
-    <Tabs
-      value={activeView}
-      onValueChange={(value) => setActiveView(value as AttributionSubview)}
-      className="space-y-5"
-    >
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10">
-            <TrendingUp className="h-3.5 w-3.5 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-base font-semibold">Signup Attribution</h2>
-            <p className="text-xs text-muted-foreground">Track where signups come from and manage campaign links.</p>
-          </div>
-        </div>
-        <TabsList>
-          <TabsTrigger value="reporting" className="gap-1.5 text-xs">
-            <BarChart3 className="h-3.5 w-3.5" />
-            Reporting
-          </TabsTrigger>
-          <TabsTrigger value="templates" className="gap-1.5 text-xs">
-            <Link2 className="h-3.5 w-3.5" />
-            Link Templates
-          </TabsTrigger>
-        </TabsList>
-      </div>
+    <div className="space-y-4">
+      <SectionHeader
+        section="Growth"
+        title="Attribution"
+        actions={
+          <SegmentedControl<AttributionSubview>
+            value={activeView}
+            onChange={setActiveView}
+            options={[
+              { value: 'reporting', label: 'Reporting' },
+              { value: 'templates', label: 'Link Templates' },
+            ]}
+          />
+        }
+      />
 
       {/* ─────────────────── REPORTING TAB ─────────────────── */}
-      <TabsContent value="reporting" className="space-y-5">
-        {/* Filters */}
-        <div className="rounded-xl border bg-card p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">Filters</span>
-            </div>
-            <div className="flex items-center gap-2">
-              {hasAttributionFilters && (
-                <button
-                  onClick={() => {
-                    setSourceFilter('');
-                    setMediumFilter('');
-                    setCampaignFilter('');
-                    setReferrerDomainFilter('');
-                    setBreakdownPage(1);
-                    setUsersPage(1);
-                  }}
-                  className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-                >
-                  Clear filters
-                </button>
-              )}
-              <Button variant="outline" size="sm" onClick={() => void loadReporting()} disabled={reportingLoading} className="h-7 text-xs gap-1.5">
-                <RefreshCw className={`h-3 w-3 ${reportingLoading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-            </div>
-          </div>
-
-          {/* Date range: presets as chips + custom inputs */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground shrink-0">Range</span>
-            <div className="inline-flex items-center rounded-lg border bg-muted/40 p-0.5">
-              {(['7d', '30d', '90d', 'all'] as const).map((range) => (
-                <button
-                  key={range}
-                  onClick={() => handlePresetChange(range)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
-                    presetRange === range
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {range === 'all' ? 'All time' : `Last ${range}`}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-1.5 ml-auto">
-              <Input
-                type="date"
-                value={fromDate}
-                onChange={(e) => handleCustomDateChange('from', e.target.value)}
-                className="h-7 w-[130px] text-xs"
-              />
-              <span className="text-xs text-muted-foreground">to</span>
-              <Input
-                type="date"
-                value={toDate}
-                onChange={(e) => handleCustomDateChange('to', e.target.value)}
-                className="h-7 w-[130px] text-xs"
-              />
-            </div>
-          </div>
-
-          {/* Attribution dimension filters */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground shrink-0">Dims</span>
-            {[
-              { value: sourceFilter, onChange: setSourceFilter, placeholder: 'Source' },
-              { value: mediumFilter, onChange: setMediumFilter, placeholder: 'Medium' },
-              { value: campaignFilter, onChange: setCampaignFilter, placeholder: 'Campaign' },
-              { value: referrerDomainFilter, onChange: setReferrerDomainFilter, placeholder: 'Referrer' },
-            ].map((f) => (
-              <div key={f.placeholder} className="relative">
-                <Input
-                  value={f.value}
-                  onChange={(e) => {
-                    f.onChange(e.target.value);
-                    setBreakdownPage(1);
-                    setUsersPage(1);
-                  }}
-                  placeholder={f.placeholder}
-                  className="h-7 w-[120px] text-xs pl-2.5 pr-6"
+      {activeView === 'reporting' && (
+        <div className="space-y-4">
+          {/* Filters toolbar */}
+          <Panel title="Filters">
+            <div className="space-y-2 px-3 py-2.5">
+              {/* Date presets + custom range */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">Range</span>
+                <SegmentedControl<PresetRange>
+                  value={presetRange}
+                  onChange={handlePresetChange}
+                  options={[
+                    { value: '7d', label: 'Last 7d' },
+                    { value: '30d', label: 'Last 30d' },
+                    { value: '90d', label: 'Last 90d' },
+                    { value: 'all', label: 'All time' },
+                  ]}
                 />
-                {f.value && (
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <Input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => handleCustomDateChange('from', e.target.value)}
+                    className="h-7 w-[130px] text-xs"
+                  />
+                  <span className="text-xs text-muted-foreground">–</span>
+                  <Input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => handleCustomDateChange('to', e.target.value)}
+                    className="h-7 w-[130px] text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Dimension filters */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">Dims</span>
+                {[
+                  { value: sourceFilter, onChange: setSourceFilter, placeholder: 'Source' },
+                  { value: mediumFilter, onChange: setMediumFilter, placeholder: 'Medium' },
+                  { value: campaignFilter, onChange: setCampaignFilter, placeholder: 'Campaign' },
+                  { value: referrerDomainFilter, onChange: setReferrerDomainFilter, placeholder: 'Referrer' },
+                ].map((f) => (
+                  <div key={f.placeholder} className="relative">
+                    <Input
+                      value={f.value}
+                      onChange={(e) => {
+                        f.onChange(e.target.value);
+                        setBreakdownPage(1);
+                        setUsersPage(1);
+                      }}
+                      placeholder={f.placeholder}
+                      className="h-7 w-[110px] text-xs pl-2 pr-6"
+                    />
+                    {f.value && (
+                      <button
+                        onClick={() => { f.onChange(''); setBreakdownPage(1); setUsersPage(1); }}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {hasAttributionFilters && (
                   <button
-                    onClick={() => { f.onChange(''); setBreakdownPage(1); setUsersPage(1); }}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      setSourceFilter('');
+                      setMediumFilter('');
+                      setCampaignFilter('');
+                      setReferrerDomainFilter('');
+                      setBreakdownPage(1);
+                      setUsersPage(1);
+                    }}
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
                   >
-                    <X className="h-3 w-3" />
+                    Clear
                   </button>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void loadReporting()}
+                  disabled={reportingLoading}
+                  className="ml-auto h-7 text-xs gap-1.5"
+                >
+                  <RefreshCw className={`h-3 w-3 ${reportingLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          </Panel>
 
-        {reportingError && <ErrorState message={reportingError} onRetry={() => void loadReporting()} />}
+          {reportingError && <ErrorState message={reportingError} onRetry={() => void loadReporting()} />}
 
-        {/* Stats Row */}
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <StatCard title="Total Signups" value={overview?.totalSignups ?? 0} subtitle="In filtered window" />
-          <StatCard title="Attributed" value={overview?.attributedSignups ?? 0} subtitle="With attribution data" accent="success" />
-          <StatCard title="Unattributed" value={overview?.unattributedSignups ?? 0} subtitle="No attribution captured" accent="warning" />
-          <StatCard title="Sources" value={overview?.uniqueSources ?? 0} subtitle="Distinct sources" />
-          <StatCard title="Campaigns" value={overview?.uniqueCampaigns ?? 0} subtitle="Distinct campaigns" />
-          <StatCard title="Media" value={overview?.uniqueMedia ?? 0} subtitle="Distinct media" />
-        </div>
+          {/* Stats strip */}
+          <StatStrip>
+            <Stat label="Total Signups" value={overview?.totalSignups ?? 0} hint="Filtered window" />
+            <Stat label="Attributed" value={overview?.attributedSignups ?? 0} tone="success" hint="With attribution" />
+            <Stat label="Unattributed" value={overview?.unattributedSignups ?? 0} tone="warning" hint="No attribution" />
+            <Stat label="Sources" value={overview?.uniqueSources ?? 0} tone="domain" />
+            <Stat label="Campaigns" value={overview?.uniqueCampaigns ?? 0} tone="domain" />
+            <Stat label="Media" value={overview?.uniqueMedia ?? 0} tone="domain" />
+          </StatStrip>
 
-        {/* Breakdown + Users side by side */}
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          {/* Breakdown */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-sm">Breakdown</CardTitle>
+          {/* Breakdown + Users side by side */}
+          <div className="grid gap-4 xl:grid-cols-2">
+            {/* Breakdown */}
+            <Panel
+              title="Breakdown"
+              actions={
+                <div className="flex items-center gap-1.5">
                   <Select
                     value={groupBy}
                     onValueChange={(value: InternalSignupAttributionGroupBy) => {
@@ -596,7 +660,7 @@ export function AttributionTab() {
                       setBreakdownPage(1);
                     }}
                   >
-                    <SelectTrigger className="h-7 w-[140px] text-xs">
+                    <SelectTrigger className="h-7 w-[130px] text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -606,105 +670,53 @@ export function AttributionTab() {
                       <SelectItem value="referrerDomain">by referrer</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => void handleExportBreakdown()}
+                    disabled={reportingLoading || exportingBreakdown}
+                  >
+                    <Download className="h-3 w-3" />
+                    CSV
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs gap-1"
-                  onClick={() => void handleExportBreakdown()}
-                  disabled={reportingLoading || exportingBreakdown}
-                >
-                  <Download className="h-3 w-3" />
-                  CSV
-                </Button>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Click a row to filter the user drilldown.</p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {!breakdown?.items.length && !reportingLoading ? (
-                <EmptyState
-                  icon={BarChart3}
-                  title="No breakdown data"
-                  description="No signups match the current attribution filters."
-                />
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs">{groupBy}</TableHead>
-                        <TableHead className="text-xs text-right w-[80px]">Signups</TableHead>
-                        <TableHead className="text-xs text-right w-[100px]">% of total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {reportingLoading ? (
-                        Array.from({ length: 5 }).map((_, i) => (
-                          <TableRow key={i}>
-                            <TableCell colSpan={3} className="py-2">
-                              <div className="h-4 w-full animate-pulse rounded bg-muted" />
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        breakdown?.items.map((row) => {
-                          const isSelected =
-                            selectedBreakdown?.groupBy === groupBy &&
-                            selectedBreakdown?.value === row.value &&
-                            selectedBreakdown?.isUnattributed === row.isUnattributed;
-                          const pct = row.percentOfFilteredTotal;
-
-                          return (
-                            <TableRow
-                              key={`${row.key}-${row.value ?? 'null'}`}
-                              className={`cursor-pointer transition-colors ${
-                                isSelected ? 'bg-primary/5 ring-1 ring-inset ring-primary/20' : 'hover:bg-muted/40'
-                              }`}
-                              onClick={() =>
-                                handleSelectBreakdownRow({
-                                  groupBy,
-                                  key: row.key,
-                                  value: row.value,
-                                  isUnattributed: row.isUnattributed,
-                                })
-                              }
-                            >
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium">{row.key}</span>
-                                  {row.isUnattributed && (
-                                    <Badge variant="outline" className="text-[10px] h-4 px-1.5">
-                                      None
-                                    </Badge>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right font-mono text-sm">
-                                {row.signups.toLocaleString()}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
-                                    <div
-                                      className="h-full rounded-full bg-primary transition-all"
-                                      style={{ width: `${Math.min(pct, 100)}%` }}
-                                    />
-                                  </div>
-                                  <span className="text-xs text-muted-foreground w-[48px] text-right">
-                                    {pct.toFixed(1)}%
-                                  </span>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-
-              <DataTablePagination
+              }
+            >
+              <DataTable<BreakdownRow>
+                columns={breakdownColumns}
+                rows={breakdownRows}
+                rowKey={(row) => `${row.key}-${row.value ?? 'null'}`}
+                isLoading={reportingLoading}
+                skeletonRows={5}
+                selectedKey={
+                  selectedBreakdown
+                    ? `${selectedBreakdown.key}-${selectedBreakdown.value ?? 'null'}`
+                    : null
+                }
+                onRowClick={(row) =>
+                  handleSelectBreakdownRow({
+                    groupBy,
+                    key: row.key,
+                    value: row.value,
+                    isUnattributed: row.isUnattributed,
+                  })
+                }
+                empty={{
+                  icon: BarChart3,
+                  title: 'No breakdown data',
+                  description: 'No signups match the current attribution filters.',
+                }}
+                renderMobile={(row) => (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-foreground">{row.key}</span>
+                    <span className="font-mono tabular-nums text-xs text-muted-foreground">
+                      {row.signups.toLocaleString()} · {row.percentOfFilteredTotal.toFixed(1)}%
+                    </span>
+                  </div>
+                )}
+              />
+              <Pagination
                 page={breakdown?.page ?? breakdownPage}
                 totalPages={breakdown?.totalPages ?? 1}
                 totalItems={breakdown?.totalItems ?? 0}
@@ -712,130 +724,71 @@ export function AttributionTab() {
                 isLoading={reportingLoading}
                 onPageChange={setBreakdownPage}
               />
-            </CardContent>
-          </Card>
+            </Panel>
 
-          {/* Users drilldown */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm">Signup Users</CardTitle>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {selectedBreakdown ? (
-                      <span className="inline-flex items-center gap-1">
-                        Filtered to <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{selectedBreakdown.key}</Badge>
-                        <button onClick={() => setSelectedBreakdown(null)} className="text-muted-foreground hover:text-foreground">
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ) : (
-                      'Users matching the current filters.'
-                    )}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs gap-1"
-                  onClick={() => void handleExportUsers()}
-                  disabled={usersLoading || exportingUsers}
-                >
-                  <Download className="h-3 w-3" />
-                  CSV
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                <Input
-                  value={userSearch}
-                  onChange={(e) => { setUserSearch(e.target.value); setUsersPage(1); }}
-                  placeholder="Search username, email, or attribution value..."
-                  className="h-8 text-xs pl-8 pr-7"
-                />
-                {userSearch && (
-                  <button
-                    onClick={() => { setUserSearch(''); setUsersPage(1); }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            {/* Users drilldown */}
+            <Panel
+              title="Signup Users"
+              actions={
+                <div className="flex items-center gap-1.5">
+                  {selectedBreakdown && (
+                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <span className="font-mono text-foreground">{selectedBreakdown.key}</span>
+                      <button
+                        onClick={() => setSelectedBreakdown(null)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => void handleExportUsers()}
+                    disabled={usersLoading || exportingUsers}
                   >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
+                    <Download className="h-3 w-3" />
+                    CSV
+                  </Button>
+                </div>
+              }
+            >
+              <div className="px-3 py-2 border-b border-border">
+                <Toolbar
+                  search={userSearch}
+                  onSearchChange={(v) => { setUserSearch(v); setUsersPage(1); }}
+                  searchPlaceholder="Search username, email, or attribution…"
+                />
               </div>
 
-              {usersError && <ErrorState message={usersError} onRetry={() => void loadUsers()} />}
-
-              {!users?.items.length && !usersLoading ? (
-                <EmptyState
-                  icon={Users}
-                  title="No users found"
-                  description="No completed signups match the current drilldown."
-                />
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs">User</TableHead>
-                        <TableHead className="text-xs">Joined</TableHead>
-                        <TableHead className="text-xs">Source</TableHead>
-                        <TableHead className="text-xs">Medium</TableHead>
-                        <TableHead className="text-xs">Campaign</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {usersLoading ? (
-                        Array.from({ length: 5 }).map((_, i) => (
-                          <TableRow key={i}>
-                            <TableCell colSpan={5} className="py-2">
-                              <div className="h-4 w-full animate-pulse rounded bg-muted" />
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        users?.items.map((user: InternalSignupAttributionUserRow) => (
-                          <TableRow key={user.userId}>
-                            <TableCell>
-                              <div>
-                                <p className="text-sm font-medium">{user.username}</p>
-                                <p className="text-[11px] text-muted-foreground">{user.email}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                              {formatDate(user.joinDate)}
-                            </TableCell>
-                            <TableCell>
-                              {user.signupSource ? (
-                                <Badge variant="outline" className="text-[10px]">{user.signupSource}</Badge>
-                              ) : (
-                                <span className="text-[11px] text-muted-foreground/50">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {user.signupMedium ? (
-                                <Badge variant="outline" className="text-[10px]">{user.signupMedium}</Badge>
-                              ) : (
-                                <span className="text-[11px] text-muted-foreground/50">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {user.signupCampaign ? (
-                                <Badge variant="outline" className="text-[10px]">{user.signupCampaign}</Badge>
-                              ) : (
-                                <span className="text-[11px] text-muted-foreground/50">-</span>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+              {usersError && (
+                <div className="px-3 py-2">
+                  <ErrorState message={usersError} onRetry={() => void loadUsers()} />
                 </div>
               )}
 
-              <DataTablePagination
+              <DataTable<InternalSignupAttributionUserRow>
+                columns={usersColumns}
+                rows={users?.items ?? []}
+                rowKey={(row) => row.userId}
+                isLoading={usersLoading}
+                skeletonRows={5}
+                empty={{
+                  icon: Users,
+                  title: 'No users found',
+                  description: 'No completed signups match the current drilldown.',
+                }}
+                renderMobile={(row) => (
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-medium text-foreground">{row.username}</p>
+                    <p className="text-[11px] text-muted-foreground">{row.email}</p>
+                    <p className="font-mono text-[10px] text-muted-foreground">{formatDate(row.joinDate)}</p>
+                  </div>
+                )}
+              />
+              <Pagination
                 page={users?.page ?? usersPage}
                 totalPages={users?.totalPages ?? 1}
                 totalItems={users?.totalItems ?? 0}
@@ -843,244 +796,252 @@ export function AttributionTab() {
                 isLoading={usersLoading}
                 onPageChange={setUsersPage}
               />
-            </CardContent>
-          </Card>
+            </Panel>
+          </div>
         </div>
-      </TabsContent>
+      )}
 
       {/* ─────────────────── TEMPLATES TAB ─────────────────── */}
-      <TabsContent value="templates" className="space-y-4">
+      {activeView === 'templates' && (
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
           {/* Template list */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm">Saved Templates</CardTitle>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Reusable signup links for marketing and product teams.</p>
-                </div>
-                <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => void loadTemplates()} disabled={templatesLoading}>
-                  <RefreshCw className={`h-3 w-3 ${templatesLoading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
+          <Panel
+            title="Saved Templates"
+            actions={
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => void loadTemplates()}
+                disabled={templatesLoading}
+              >
+                <RefreshCw className={`h-3 w-3 ${templatesLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            }
+          >
+            {templatesError && (
+              <div className="px-3 py-2">
+                <ErrorState message={templatesError} onRetry={() => void loadTemplates()} />
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {templatesError && <ErrorState message={templatesError} onRetry={() => void loadTemplates()} />}
+            )}
 
-              {!templates.length && !templatesLoading ? (
-                <EmptyState
-                  icon={Link2}
-                  title="No saved templates"
-                  description="Create a reusable signup link template to get started."
-                />
-              ) : (
-                <div className="space-y-2">
-                  {templatesLoading ? (
-                    Array.from({ length: 3 }).map((_, i) => (
-                      <div key={i} className="h-16 animate-pulse rounded-lg border bg-muted/40" />
-                    ))
-                  ) : (
-                    templates.map((template) => {
-                      const url = buildSignupUrl(appOrigin, template);
-                      return (
-                        <div
-                          key={template.id}
-                          className={`group rounded-lg border p-3 transition-colors hover:bg-muted/30 ${
-                            editingTemplateId === template.id ? 'ring-1 ring-primary/30 bg-primary/5' : ''
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <p className="text-sm font-medium truncate">{template.name}</p>
-                                <Badge variant={template.isActive ? 'default' : 'outline'} className="text-[10px] h-4 px-1.5">
-                                  {template.isActive ? 'Active' : 'Inactive'}
-                                </Badge>
-                              </div>
-                              {template.description && (
-                                <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{template.description}</p>
-                              )}
-                              <div className="flex items-center gap-1.5 mt-1.5">
-                                {template.source && <Badge variant="outline" className="text-[10px] h-4 px-1.5">{template.source}</Badge>}
-                                {template.medium && <Badge variant="outline" className="text-[10px] h-4 px-1.5">{template.medium}</Badge>}
-                                {template.campaign && <Badge variant="outline" className="text-[10px] h-4 px-1.5">{template.campaign}</Badge>}
-                              </div>
-                            </div>
-                            <TooltipProvider delayDuration={200}>
-                              <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => void handleCopyText(url, 'URL')}>
-                                      <Copy className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom"><p className="text-xs">Copy URL</p></TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditTemplate(template)}>
-                                      <Pencil className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom"><p className="text-xs">Edit</p></TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDuplicateTemplate(template)}>
-                                      <Plus className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom"><p className="text-xs">Duplicate</p></TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 text-destructive hover:text-destructive"
-                                      disabled={deletingTemplateId === template.id}
-                                      onClick={() => void handleDeleteTemplate(template)}
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom"><p className="text-xs">Delete</p></TooltipContent>
-                                </Tooltip>
-                              </div>
-                            </TooltipProvider>
+            {!templates.length && !templatesLoading ? (
+              <div className="flex flex-col items-center justify-center gap-1 px-4 py-12 text-center">
+                <Link2 className="h-5 w-5 text-muted-foreground/60" />
+                <p className="text-sm font-medium text-foreground">No saved templates</p>
+                <p className="text-xs text-muted-foreground">Create a reusable signup link template to get started.</p>
+              </div>
+            ) : templatesLoading ? (
+              <div className="divide-y divide-border">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 px-3 py-3">
+                    <div className="h-3 w-40 animate-pulse rounded bg-muted" />
+                    <div className="ml-auto h-3 w-16 animate-pulse rounded bg-muted" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {templates.map((template) => {
+                  const url = buildSignupUrl(appOrigin, template);
+                  const isEditing = editingTemplateId === template.id;
+                  return (
+                    <div
+                      key={template.id}
+                      className={`group px-3 py-2.5 transition-colors hover:bg-muted/30 ${
+                        isEditing ? 'bg-domain/[0.04]' : ''
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-medium text-foreground truncate">{template.name}</p>
+                            <StatusPill
+                              tone={template.isActive ? 'success' : 'neutral'}
+                              label={template.isActive ? 'Active' : 'Inactive'}
+                            />
                           </div>
-                          <p className="font-mono text-[10px] text-muted-foreground mt-2 truncate">{url}</p>
+                          {template.description && (
+                            <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{template.description}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            {template.source && (
+                              <span className="font-mono text-[10px] text-muted-foreground">{template.source}</span>
+                            )}
+                            {template.medium && (
+                              <span className="font-mono text-[10px] text-muted-foreground">{template.medium}</span>
+                            )}
+                            {template.campaign && (
+                              <span className="font-mono text-[10px] text-muted-foreground">{template.campaign}</span>
+                            )}
+                          </div>
                         </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                        <TooltipProvider delayDuration={200}>
+                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => void handleCopyText(url, 'URL')}>
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom"><p className="text-xs">Copy URL</p></TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEditTemplate(template)}>
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom"><p className="text-xs">Edit</p></TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDuplicateTemplate(template)}>
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom"><p className="text-xs">Duplicate</p></TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-destructive hover:text-destructive"
+                                  disabled={deletingTemplateId === template.id}
+                                  onClick={() => void handleDeleteTemplate(template)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom"><p className="text-xs">Delete</p></TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
+                      </div>
+                      <p className="font-mono text-[10px] text-muted-foreground mt-1.5 truncate rounded bg-muted px-1.5 py-0.5">{url}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Panel>
 
           {/* Template form */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">
-                {editingTemplateId ? 'Edit Template' : 'New Template'}
-              </CardTitle>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Generate a reusable signup link and save it for the team.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <Panel
+            title={editingTemplateId ? 'Edit Template' : 'New Template'}
+            bodyClassName="space-y-3 px-3 py-3"
+          >
+            <div className="space-y-1.5">
+              <Label htmlFor="template-name" className="text-xs">Name</Label>
+              <Input
+                id="template-name"
+                value={templateForm.name}
+                onChange={(e) => setTemplateForm((c) => ({ ...c, name: e.target.value }))}
+                placeholder="Instagram paid social"
+                className="h-8 text-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="template-description" className="text-xs">Description</Label>
+              <Textarea
+                id="template-description"
+                value={templateForm.description}
+                onChange={(e) => setTemplateForm((c) => ({ ...c, description: e.target.value }))}
+                placeholder="Optional note about when to use this link"
+                rows={2}
+                className="text-sm resize-none"
+              />
+            </div>
+
+            <div className="grid gap-2 grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="template-name" className="text-xs">Name</Label>
+                <Label htmlFor="template-source" className="text-xs">Source *</Label>
                 <Input
-                  id="template-name"
-                  value={templateForm.name}
-                  onChange={(e) => setTemplateForm((c) => ({ ...c, name: e.target.value }))}
-                  placeholder="Instagram paid social"
+                  id="template-source"
+                  value={templateForm.source}
+                  onChange={(e) => setTemplateForm((c) => ({ ...c, source: e.target.value }))}
+                  placeholder="instagram"
                   className="h-8 text-sm"
                 />
               </div>
-
               <div className="space-y-1.5">
-                <Label htmlFor="template-description" className="text-xs">Description</Label>
-                <Textarea
-                  id="template-description"
-                  value={templateForm.description}
-                  onChange={(e) => setTemplateForm((c) => ({ ...c, description: e.target.value }))}
-                  placeholder="Optional note about when to use this link"
-                  rows={2}
-                  className="text-sm resize-none"
-                />
-              </div>
-
-              <div className="grid gap-2 grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="template-source" className="text-xs">Source *</Label>
-                  <Input
-                    id="template-source"
-                    value={templateForm.source}
-                    onChange={(e) => setTemplateForm((c) => ({ ...c, source: e.target.value }))}
-                    placeholder="instagram"
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="template-medium" className="text-xs">Medium</Label>
-                  <Input
-                    id="template-medium"
-                    value={templateForm.medium}
-                    onChange={(e) => setTemplateForm((c) => ({ ...c, medium: e.target.value }))}
-                    placeholder="paid-social"
-                    className="h-8 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="template-campaign" className="text-xs">Campaign</Label>
+                <Label htmlFor="template-medium" className="text-xs">Medium</Label>
                 <Input
-                  id="template-campaign"
-                  value={templateForm.campaign}
-                  onChange={(e) => setTemplateForm((c) => ({ ...c, campaign: e.target.value }))}
-                  placeholder="spring-drop-2026"
+                  id="template-medium"
+                  value={templateForm.medium}
+                  onChange={(e) => setTemplateForm((c) => ({ ...c, medium: e.target.value }))}
+                  placeholder="paid-social"
                   className="h-8 text-sm"
                 />
               </div>
+            </div>
 
-              <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-                <div>
-                  <p className="text-xs font-medium">Active</p>
-                  <p className="text-[10px] text-muted-foreground">Inactive templates stay saved but are hidden.</p>
-                </div>
-                <Switch
-                  checked={templateForm.isActive}
-                  onCheckedChange={(checked) => setTemplateForm((c) => ({ ...c, isActive: checked }))}
-                />
+            <div className="space-y-1.5">
+              <Label htmlFor="template-campaign" className="text-xs">Campaign</Label>
+              <Input
+                id="template-campaign"
+                value={templateForm.campaign}
+                onChange={(e) => setTemplateForm((c) => ({ ...c, campaign: e.target.value }))}
+                placeholder="spring-drop-2026"
+                className="h-8 text-sm"
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded border border-border px-3 py-2">
+              <div>
+                <p className="text-xs font-medium text-foreground">Active</p>
+                <p className="text-[10px] text-muted-foreground">Inactive templates stay saved but are hidden.</p>
               </div>
+              <Switch
+                checked={templateForm.isActive}
+                onCheckedChange={(checked) => setTemplateForm((c) => ({ ...c, isActive: checked }))}
+              />
+            </div>
 
-              <Separator />
+            <Separator />
 
-              {/* Preview */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Live Preview</Label>
-                <div className="rounded-lg border bg-muted/30 p-2.5">
-                  <p className="break-all font-mono text-[11px] leading-relaxed">{templatePreview}</p>
-                </div>
-                <div className="flex gap-1.5">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs gap-1 flex-1"
-                    onClick={() => void handleCopyText(templatePreview, 'Full URL')}
-                  >
-                    <Copy className="h-3 w-3" />
-                    Copy URL
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs gap-1 flex-1"
-                    onClick={() => void handleCopyText(buildSignupRelativePath(templateForm), 'Path')}
-                  >
-                    <Copy className="h-3 w-3" />
-                    Copy path
-                  </Button>
-                </div>
+            {/* URL preview */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Live Preview</Label>
+              <div className="rounded border border-border bg-muted px-2.5 py-2">
+                <p className="break-all font-mono text-[11px] leading-relaxed text-foreground">{templatePreview}</p>
               </div>
-
-              <div className="flex gap-2 pt-1">
-                <Button onClick={() => void handleSaveTemplate()} disabled={savingTemplate} className="flex-1 h-8 text-xs">
-                  {editingTemplateId ? 'Update template' : 'Create template'}
+              <div className="flex gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1 flex-1"
+                  onClick={() => void handleCopyText(templatePreview, 'Full URL')}
+                >
+                  <Copy className="h-3 w-3" />
+                  Copy URL
                 </Button>
-                <Button variant="outline" onClick={resetTemplateForm} disabled={savingTemplate} className="h-8 text-xs">
-                  Reset
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1 flex-1"
+                  onClick={() => void handleCopyText(buildSignupRelativePath(templateForm), 'Path')}
+                >
+                  <Copy className="h-3 w-3" />
+                  Copy path
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button onClick={() => void handleSaveTemplate()} disabled={savingTemplate} className="flex-1 h-8 text-xs">
+                {editingTemplateId ? 'Update template' : 'Create template'}
+              </Button>
+              <Button variant="outline" onClick={resetTemplateForm} disabled={savingTemplate} className="h-8 text-xs">
+                Reset
+              </Button>
+            </div>
+          </Panel>
         </div>
-      </TabsContent>
-    </Tabs>
+      )}
+    </div>
   );
 }

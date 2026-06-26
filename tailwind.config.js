@@ -38,6 +38,12 @@ module.exports = {
           DEFAULT: "hsl(var(--accent-royal))",
           foreground: "hsl(var(--accent-royal-foreground))",
         },
+        // Domain accent — remapped per console section via .domain-eng / .domain-growth.
+        domain: {
+          DEFAULT: "hsl(var(--domain))",
+          foreground: "hsl(var(--domain-foreground))",
+          muted: "hsl(var(--domain-muted))",
+        },
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",

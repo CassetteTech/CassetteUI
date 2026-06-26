@@ -569,6 +569,11 @@
     --editorial-rule-subtle: 35 25% 65%;   /* Lighter rule lines */
     --pullquote-bg: 38 40% 90%;            /* Warm tint for pull-quotes */
     --number-display: 350 76% 52%;         /* Decorative numbers */
+
+    /* ─── Console domain accent (default = brand) ───────────────────────── */
+    --domain: 350 76% 52%;                 /* Default to primary red */
+    --domain-foreground: 0 0% 100%;
+    --domain-muted: 350 60% 90%;           /* Soft accent tint */
   }
 
   .dark {
@@ -642,6 +647,11 @@
     --editorial-rule-subtle: 213 7% 35%;   /* Subtle rule lines */
     --pullquote-bg: 210 10% 22%;           /* Dark tint for pull-quotes */
     --number-display: 349 89% 65%;         /* Decorative numbers */
+
+    /* ─── Console domain accent (default = brand) ───────────────────────── */
+    --domain: 349 89% 65%;                 /* Default to primary red (dark) */
+    --domain-foreground: 0 0% 100%;
+    --domain-muted: 349 71% 25%;
   }
 
   /* Force Cassette's warm white surface colors regardless of theme. */
@@ -654,6 +664,26 @@
     --muted-foreground: 30 20% 38%;
     --foreground: 210 10% 14%;
     --input: var(--cassette-white);
+  }
+
+  /* ─── Console domain scopes ──────────────────────────────────────────────
+     Wrap a section in .domain-eng or .domain-growth to recolor every console
+     primitive that reads --domain. Engineering reads cool/telemetry; Growth
+     reads warm/editorial (brand red, auto-adapts via --primary). */
+  .domain-eng {
+    --domain: 212 90% 44%;       /* Systems blue */
+    --domain-foreground: 0 0% 100%;
+    --domain-muted: 212 60% 90%;
+  }
+  .dark .domain-eng {
+    --domain: 215 100% 74%;      /* Lighter blue for dark surfaces */
+    --domain-foreground: 210 10% 14%;
+    --domain-muted: 215 45% 24%;
+  }
+  .domain-growth {
+    --domain: var(--primary);
+    --domain-foreground: var(--primary-foreground);
+    --domain-muted: var(--accent);
   }
 }
 
@@ -678,6 +708,47 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* ─── Console chrome ───────────────────────────────────────────────────────
+   Signal light — a small status dot with a soft halo, like a console LED. */
+.signal-dot {
+  position: relative;
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 9999px;
+  background: currentColor;
+}
+.signal-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.2;
+}
+.signal-dot-pulse::after {
+  animation: signal-pulse 2s ease-in-out infinite;
+}
+@keyframes signal-pulse {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.05; transform: scale(1.6); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .signal-dot-pulse::after { animation: none; }
+}
+
+/* Staggered console entrance — chrome only, respects reduced motion. */
+@keyframes console-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.console-rise {
+  animation: console-rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .console-rise { animation: none; }
 }
 
 /* Hamburger menu animation */

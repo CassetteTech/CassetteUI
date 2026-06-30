@@ -9,6 +9,10 @@ export interface Column<T> {
   header: string;
   cell: (row: T) => ReactNode;
   align?: 'left' | 'right';
+  /** Vertical alignment of the cell body. Defaults to 'middle'; use 'top' for
+   *  columns that hold tall wrapped content (e.g. long descriptions) so they
+   *  don't float against short neighbours. */
+  valign?: 'top' | 'middle';
   /** Responsive visibility / width, e.g. 'hidden xl:table-cell'. Applied to th + td. */
   className?: string;
 }
@@ -109,7 +113,8 @@ export function DataTable<T>({
                   <td
                     key={col.key}
                     className={cn(
-                      'px-3 py-2 text-xs text-foreground align-middle',
+                      'px-3 py-2 text-xs text-foreground',
+                      col.valign === 'top' ? 'align-top' : 'align-middle',
                       col.align === 'right' && 'text-right tabular-nums',
                       col.className
                     )}

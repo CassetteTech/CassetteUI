@@ -237,22 +237,137 @@ function HeatLegend() {
   );
 }
 
+async function copyToClipboard(value: string, label: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    toast.success(`${label} copied`);
+  } catch {
+    toast.error('Failed to copy');
+  }
+}
+
+function formatPromptFields(entries: Array<[string, string]>): string {
+  if (!entries.length) return '- none';
+  return entries.map(([key, value]) => `- ${key}: ${value || '(empty)'}`).join('\n');
+}
+
+function likelyIdEntry([key, value]: [string, string]): boolean {
+  if (!value || value === 'missing') return false;
+  return key === 'id' || key.endsWith('_id') || key.endsWith('_ids') || key.includes('fingerprint');
+}
+
+function buildFindingInvestigationPrompt(
+  finding: InternalSentinelFinding,
+  note: InternalSentinelInvariantNote | null,
+): string {
+  const evidenceEntries = Object.entries(finding.evidence).sort(([a], [b]) => a.localeCompare(b));
+  const logEntries = evidenceEntries.filter(([key]) => key.startsWith('log_'));
+  const evidenceIdEntries = evidenceEntries.filter(likelyIdEntry);
+  const idEntries: Array<[string, string]> = [
+    ['fingerprint', finding.fingerprint],
+    ['invariant_id', finding.invariantId],
+    ['entity_type', finding.entityType],
+    ['entity_id', finding.entityId],
+    ['last_run_id', finding.lastRunId],
+    ...evidenceIdEntries,
+  ];
+  const noteEntries: Array<[string, string]> = [];
+  if (note) {
+    noteEntries.push(
+      ['root_cause_summary', note.rootCauseSummary ?? ''],
+      ['fixed_in_reference', note.fixedInReference ?? ''],
+      ['regression_test_reference', note.regressionTestReference ?? ''],
+      ['residue_note', note.residueNote ?? ''],
+      ['updated_by', note.updatedBy],
+      ['updated_at_utc', note.updatedAtUtc],
+    );
+  }
+
+  return [
+    'Investigate and fix this Cassette Sentinel finding. Find the root cause; do not apply a bandaid, hide the symptom, or add fallback logic that masks a broken contract.',
+    '',
+    'You are working in /Users/matttoppi/matt/dev/cassette/cassetteplatform, a multi-repo Cassette workspace. Read the relevant AGENTS.md before editing. The likely repos are CassetteBridge, cassette-sentinel, MusicPlatformLambdas, and CassetteUI only if the display layer is involved.',
+    '',
+    'Tooling available:',
+    '- AWS CLI access for CloudWatch, ECS/App Runner, SQS, and deployed-service inspection.',
+    '- Supabase CLI access for project inspection and database workflows.',
+    '- Terminal access in the Cassette workspace.',
+    '',
+    'Hard safety requirements:',
+    '- Do not make any database changes without explicit human approval.',
+    '- For any DB repair, produce read-only SELECT verification plus a dry-run or transaction plan first.',
+    '- Keep production database access read-only until the repair plan is reviewed.',
+    '- Fix the root cause with the smallest correct code change and targeted verification.',
+    '- Do not add frontend-only or backend fallback paths that mask a broken data contract.',
+    '',
+    'Spawn exactly two subagents before implementing:',
+    '1. DB remediation subagent: determine what is wrong with the persisted item, identify the exact rows/tables involved, write read-only verification queries, and propose a dry-run repair plan. Do not mutate the DB.',
+    '2. Code root-cause subagent: trace where this issue was created in code, inspect adjacent callers/callees/tests, and propose the smallest code fix that prevents recurrence without breaking existing conversion behavior.',
+    '',
+    'After both subagents report back, combine their findings. Implement code changes only when the root cause is clear. Ask for approval before any DB mutation, even if the dry-run looks safe.',
+    '',
+    'Finding context:',
+    `- summary: ${finding.summary}`,
+    `- severity: ${finding.severity}`,
+    `- status: ${finding.status}`,
+    `- first_seen_at_utc: ${finding.firstSeenAtUtc}`,
+    `- last_seen_at_utc: ${finding.lastSeenAtUtc}`,
+    `- last_observed_at_utc: ${finding.lastObservedAtUtc}`,
+    `- occurrence_count: ${finding.occurrenceCount}`,
+    `- recurrence_count: ${finding.recurrenceCount}`,
+    `- resolved_at_utc: ${finding.resolvedAtUtc ?? 'n/a'}`,
+    `- resolved_by_run_id: ${finding.resolvedByRunId ?? 'n/a'}`,
+    `- last_reactivated_at_utc: ${finding.lastReactivatedAtUtc ?? 'n/a'}`,
+    `- last_reactivated_run_id: ${finding.lastReactivatedRunId ?? 'n/a'}`,
+    '',
+    'Relevant IDs:',
+    formatPromptFields(idEntries),
+    '',
+    'Persisted evidence:',
+    formatPromptFields(evidenceEntries),
+    '',
+    'Persisted log evidence:',
+    logEntries.length
+      ? formatPromptFields(logEntries)
+      : '- none attached. If logs are needed, use AWS CLI/CloudWatch around the timestamps and IDs above.',
+    '',
+    'Invariant annotation:',
+    formatPromptFields(noteEntries.filter(([, value]) => Boolean(value))),
+  ].join('\n');
+}
+
+function CopyFindingPromptButton({
+  finding,
+  note,
+}: {
+  finding: InternalSentinelFinding;
+  note: InternalSentinelInvariantNote | null;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-7 gap-1.5 px-2 text-xs"
+      onClick={() =>
+        void copyToClipboard(buildFindingInvestigationPrompt(finding, note), 'Investigation prompt')
+      }
+      title="Copy AI investigation prompt"
+    >
+      <Copy className="h-3 w-3" />
+      Copy prompt
+    </Button>
+  );
+}
+
 /* Copyable identifier chip — the canonical way IDs surface in the detail sheet.
    IDs are long and noisy in a table row, so they live here where there's room
    to show them in full and one click puts them on the clipboard. */
 function CopyId({ value, label }: { value: string; label: string }) {
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success(`${label} copied`);
-    } catch {
-      toast.error('Failed to copy');
-    }
-  };
   return (
     <button
       type="button"
-      onClick={copy}
+      onClick={() => void copyToClipboard(value, label)}
       title={`Copy ${label}`}
       className="group inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 font-mono text-[10px] tabular-nums text-muted-foreground transition hover:border-domain/50 hover:text-foreground"
     >
@@ -459,10 +574,11 @@ function SentinelFindingsPanel() {
     ...(invariantId === ALL_FILTER ? [] : [invariantId]),
   ])).sort();
 
+  const activeCount = response ? statusCounts.active ?? 0 : undefined;
   const statusOptions = FINDING_STATUS_OPTIONS.map((option) => ({
     value: option.value,
-    label: statusCounts[option.value]
-      ? `${option.label} · ${statusCounts[option.value]}`
+    label: option.value === 'active' && typeof activeCount === 'number'
+      ? `${option.label} · ${activeCount}`
       : option.label,
   }));
 
@@ -682,6 +798,9 @@ function SentinelFindingDetailSheet({
                 <p className="font-mono text-[11px] text-muted-foreground">{finding.invariantId}</p>
               </div>
               <IdField label="Fingerprint" value={finding.fingerprint} />
+              <div>
+                <CopyFindingPromptButton finding={finding} note={note} />
+              </div>
             </SheetHeader>
 
             <ScrollArea className="min-h-0 flex-1">

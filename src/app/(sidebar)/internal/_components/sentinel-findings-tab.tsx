@@ -49,6 +49,7 @@ import {
 } from './kit';
 
 const ALL_FILTER = 'all';
+const COORDINATOR_PAGE_SIZE = 100;
 
 type SubView = 'findings' | 'runs' | 'invariants';
 
@@ -256,6 +257,41 @@ function likelyIdEntry([key, value]: [string, string]): boolean {
   return key === 'id' || key.endsWith('_id') || key.endsWith('_ids') || key.includes('fingerprint');
 }
 
+const COORDINATION_EVIDENCE_KEYS = [
+  'query_name',
+  'issue_type',
+  'issue_severity',
+  'entity_type',
+  'related_entity_type',
+  'trigger_source',
+  'expected_condition',
+] as const;
+
+function normalizeCoordinationValue(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+function buildFindingCoordinationKey(finding: InternalSentinelFinding): string {
+  const parts = [`invariant:${finding.invariantId}`];
+  for (const key of COORDINATION_EVIDENCE_KEYS) {
+    const value = finding.evidence[key];
+    if (!value || value === 'missing') continue;
+    parts.push(`${key}:${normalizeCoordinationValue(value)}`);
+  }
+
+  return parts.join(' | ');
+}
+
+function buildFindingItemKey(finding: InternalSentinelFinding): string {
+  const affectedType = finding.evidence.entity_type;
+  const affectedId = finding.evidence.entity_id;
+  const affectedPart = affectedType && affectedId && affectedType !== 'missing' && affectedId !== 'missing'
+    ? ` | affected:${affectedType}/${affectedId}`
+    : '';
+
+  return `${finding.fingerprint} | sentinel_entity:${finding.entityType}/${finding.entityId}${affectedPart}`;
+}
+
 function buildFindingInvestigationPrompt(
   finding: InternalSentinelFinding,
   note: InternalSentinelInvariantNote | null,
@@ -282,11 +318,16 @@ function buildFindingInvestigationPrompt(
       ['updated_at_utc', note.updatedAtUtc],
     );
   }
+  const coordinationKey = buildFindingCoordinationKey(finding);
+  const itemKey = buildFindingItemKey(finding);
 
   return [
     'Investigate and fix this Cassette Sentinel finding. Find the root cause; do not apply a bandaid, hide the symptom, or add fallback logic that masks a broken contract.',
     '',
     'You are working in /Users/matttoppi/matt/dev/cassette/cassetteplatform, a multi-repo Cassette workspace. Read the relevant AGENTS.md before editing. The likely repos are CassetteBridge, cassette-sentinel, MusicPlatformLambdas, and CassetteUI only if the display layer is involved.',
+    '',
+    'Recommended thread title:',
+    `Sentinel ${coordinationKey}`,
     '',
     'Tooling available:',
     '- AWS CLI access for CloudWatch, ECS/App Runner, SQS, and deployed-service inspection.',
@@ -300,13 +341,22 @@ function buildFindingInvestigationPrompt(
     '- Fix the root cause with the smallest correct code change and targeted verification.',
     '- Do not add frontend-only or backend fallback paths that mask a broken data contract.',
     '',
-    'Spawn exactly two subagents before implementing:',
-    '1. DB remediation subagent: determine what is wrong with the persisted item, identify the exact rows/tables involved, write read-only verification queries, and propose a dry-run repair plan. Do not mutate the DB.',
-    '2. Code root-cause subagent: trace where this issue was created in code, inspect adjacent callers/callees/tests, and propose the smallest code fix that prevents recurrence without breaking existing conversion behavior.',
+    'Parallelization and dedupe guard:',
+    `- item_key: ${itemKey}`,
+    `- coordination_key: ${coordinationKey}`,
+    '- Multiple findings with the same coordination_key are the same root-cause workstream. Do not let two agents independently patch code for the same coordination_key.',
+    '- If another active thread/task already owns this coordination_key, attach this item_key and evidence to that workstream instead of starting duplicate implementation work.',
+    '- DB remediation can be batched across item_keys sharing this coordination_key, but the shared code root-cause investigation should happen once.',
+    '',
+    'For a new coordination_key, spawn exactly two subagents before implementing:',
+    '1. DB remediation subagent: enumerate all active DB rows/items that share this coordination_key, identify the exact tables involved, write read-only verification queries, and propose one dry-run batch repair plan. Do not mutate the DB.',
+    '2. Code root-cause subagent: trace where this coordination_key is created in code, inspect adjacent callers/callees/tests, and propose the smallest code fix that prevents recurrence for all matching item_keys without breaking existing conversion behavior.',
     '',
     'After both subagents report back, combine their findings. Implement code changes only when the root cause is clear. Ask for approval before any DB mutation, even if the dry-run looks safe.',
     '',
     'Finding context:',
+    `- coordination_key: ${coordinationKey}`,
+    `- item_key: ${itemKey}`,
     `- summary: ${finding.summary}`,
     `- severity: ${finding.severity}`,
     `- status: ${finding.status}`,
@@ -334,6 +384,143 @@ function buildFindingInvestigationPrompt(
     'Invariant annotation:',
     formatPromptFields(noteEntries.filter(([, value]) => Boolean(value))),
   ].join('\n');
+}
+
+function groupFindingsByCoordinationKey(findings: InternalSentinelFinding[]) {
+  const groups = new Map<string, InternalSentinelFinding[]>();
+  for (const finding of findings) {
+    const key = buildFindingCoordinationKey(finding);
+    groups.set(key, [...(groups.get(key) ?? []), finding]);
+  }
+
+  return [...groups.entries()]
+    .map(([coordinationKey, groupFindings]) => ({
+      coordinationKey,
+      findings: groupFindings.sort((a, b) => a.fingerprint.localeCompare(b.fingerprint)),
+    }))
+    .sort((a, b) =>
+      b.findings.length - a.findings.length ||
+      a.coordinationKey.localeCompare(b.coordinationKey),
+    );
+}
+
+function formatCoordinatorFinding(finding: InternalSentinelFinding): string {
+  const evidenceEntries = Object.entries(finding.evidence).sort(([a], [b]) => a.localeCompare(b));
+  return [
+    `  - item_key: ${buildFindingItemKey(finding)}`,
+    `    summary: ${finding.summary}`,
+    `    severity: ${finding.severity}`,
+    `    last_seen_at_utc: ${finding.lastSeenAtUtc}`,
+    `    occurrence_count: ${finding.occurrenceCount}`,
+    `    evidence:\n${formatPromptFields(evidenceEntries).replace(/^/gm, '      ')}`,
+  ].join('\n');
+}
+
+function buildCoordinatorPrompt(findings: InternalSentinelFinding[]): string {
+  const groups = groupFindingsByCoordinationKey(findings);
+  const groupSections = groups.length
+    ? groups.map((group, index) => [
+        `Group ${index + 1}:`,
+        `- coordination_key: ${group.coordinationKey}`,
+        `- item_count: ${group.findings.length}`,
+        '- active_items:',
+        group.findings.map(formatCoordinatorFinding).join('\n'),
+      ].join('\n')).join('\n\n')
+    : '- No active findings were returned by the internal Sentinel API at prompt-copy time.';
+
+  return [
+    'Coordinate Cassette Sentinel remediation across all currently active findings. Your job is orchestration and dedupe first; do not directly patch code or mutate the database in this coordinator thread.',
+    '',
+    'You are working in /Users/matttoppi/matt/dev/cassette/cassetteplatform, a multi-repo Cassette workspace. Read the root AGENTS.md and relevant child repo AGENTS.md files before assigning work.',
+    '',
+    'Tooling available:',
+    '- AWS CLI access for CloudWatch, ECS/App Runner, SQS, and deployed-service inspection.',
+    '- Supabase CLI access for project inspection and database workflows.',
+    '- Terminal access in the Cassette workspace.',
+    '',
+    'Hard safety requirements:',
+    '- Do not make any database changes without explicit human approval.',
+    '- Require read-only SELECT verification and a dry-run or transaction plan before any DB repair.',
+    '- Keep production database access read-only until a human approves the exact mutation plan.',
+    '- Do not add fallbacks or masking logic. Every worker must find the root cause.',
+    '',
+    'Coordinator workflow:',
+    '1. Treat coordination_key as the unit of code ownership. There must be at most one implementation worker per coordination_key.',
+    '2. Treat item_key as the unit of DB/entity remediation. A coordination_key may have many item_keys, and the DB plan should batch them when safe.',
+    '3. Before assigning workers, verify the current active set by querying the internal Sentinel findings API or Supabase. Page through `/api/v1/internal/sentinel/findings?status=active&pageSize=100`; do not assume this copied prompt is still complete.',
+    '4. Build a work ledger with coordination_key, owner, item_keys, status, code PR/fix reference, DB dry-run reference, and approval state.',
+    '5. For each new coordination_key, start exactly one worker thread/task. Give that worker all item_keys and evidence for the group.',
+    '6. In each worker, require two subagents: one DB remediation subagent for the full item_key batch, and one code root-cause subagent for the shared coordination_key.',
+    '7. If a coordination_key is already owned by another active worker, append new item_keys/evidence to that worker instead of starting duplicate code work.',
+    '',
+    'Current active findings fetched for this seed prompt:',
+    `- active_finding_count: ${findings.length}`,
+    `- coordination_group_count: ${groups.length}`,
+    '',
+    'Grouped findings:',
+    groupSections,
+  ].join('\n');
+}
+
+async function fetchAllActiveFindings(): Promise<InternalSentinelFinding[]> {
+  const firstPage = await apiService.getInternalSentinelFindings({
+    status: 'active',
+    page: 1,
+    pageSize: COORDINATOR_PAGE_SIZE,
+  });
+  const findings = [...firstPage.items];
+
+  const remainingPageNumbers = Array.from(
+    { length: Math.max(0, firstPage.totalPages - 1) },
+    (_, index) => index + 2,
+  );
+  const remainingPages = await Promise.all(remainingPageNumbers.map((page) =>
+    apiService.getInternalSentinelFindings({
+      status: 'active',
+      page,
+      pageSize: COORDINATOR_PAGE_SIZE,
+    }),
+  ));
+  for (const page of remainingPages) {
+    findings.push(...page.items);
+  }
+
+  return findings;
+}
+
+function CopyCoordinatorPromptButton() {
+  const [pending, setPending] = useState(false);
+
+  const copyPrompt = async () => {
+    setPending(true);
+    try {
+      const findings = await fetchAllActiveFindings();
+      await copyToClipboard(buildCoordinatorPrompt(findings), 'Coordinator prompt');
+    } catch (promptError) {
+      toast.error(
+        promptError instanceof Error
+          ? promptError.message
+          : 'Failed to build coordinator prompt',
+      );
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-7 gap-1.5 px-2 text-xs"
+      disabled={pending}
+      onClick={() => void copyPrompt()}
+      title="Copy coordinator prompt for all active findings"
+    >
+      <Copy className="h-3 w-3" />
+      {pending ? 'Building...' : 'Coordinator'}
+    </Button>
+  );
 }
 
 function CopyFindingPromptButton({
@@ -664,6 +851,7 @@ function SentinelFindingsPanel() {
       actions={
         <div className="flex items-center gap-1">
           <RescanButton />
+          <CopyCoordinatorPromptButton />
           <RefreshButton loading={loading} onClick={() => void loadFindings()} />
         </div>
       }

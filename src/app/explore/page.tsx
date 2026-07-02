@@ -82,7 +82,7 @@ export default function ExplorePage() {
             </h1>
             <span
               aria-hidden
-              className="absolute top-1 right-1 sm:top-2 sm:right-6 rotate-[14deg] bg-primary text-primary-foreground px-2.5 py-0.5 sm:px-4 sm:py-1 font-teko text-base sm:text-2xl uppercase tracking-widest shadow-[2px_2px_0_hsl(var(--foreground))] sm:shadow-[3px_3px_0_hsl(var(--foreground))]"
+              className="absolute top-1 right-1 sm:top-2 sm:right-6 rotate-[14deg] bg-primary text-primary-foreground px-2.5 py-0.5 sm:px-4 sm:py-1 font-teko text-base sm:text-2xl uppercase tracking-widest shadow-flat-2 sm:shadow-flat-3"
             >
               Cassette
             </span>
@@ -109,7 +109,7 @@ export default function ExplorePage() {
         {isInitialLoading ? (
           <PolaroidSkeleton />
         ) : data.allPosts.length === 0 ? (
-          <div className="mx-auto max-w-md rotate-[-1.5deg] bg-card border-2 border-foreground px-6 py-10 text-center shadow-[6px_6px_0_hsl(var(--foreground))]">
+          <div className="mx-auto max-w-md rotate-[-1.5deg] bg-card border-2 border-foreground px-6 py-10 text-center shadow-flat-6">
             <p className="font-teko text-3xl uppercase">Nothing public — yet</p>
             <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
               Paste something in!
@@ -178,7 +178,7 @@ function ZineSection({
           <button
             onClick={onLoadMore}
             disabled={isLoadingMore}
-            className="shrink-0 rotate-[2deg] bg-background border-2 border-foreground px-4 py-2 font-mono text-[10px] uppercase tracking-[0.25em] hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors disabled:opacity-50 shadow-[3px_3px_0_hsl(var(--foreground))]"
+            className="shrink-0 rotate-[2deg] bg-background border-2 border-foreground px-4 py-2 font-mono text-[10px] uppercase tracking-[0.25em] hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors disabled:opacity-50 shadow-flat-3"
           >
             {isLoadingMore ? <Loader2 className="inline w-3 h-3 animate-spin" /> : 'More clips +'}
           </button>
@@ -234,7 +234,7 @@ function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
 
       <Link
         href={href}
-        className="group block bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-3 pb-4 shadow-[4px_4px_0_hsl(var(--foreground))] dark:shadow-[4px_4px_0_hsl(var(--cassette-white))] hover:shadow-[6px_6px_0_hsl(var(--primary))] dark:hover:shadow-[6px_6px_0_hsl(var(--primary))] transition-shadow"
+        className="group block bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-3 pb-4 shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow"
       >
         <div className="relative aspect-square overflow-hidden bg-muted">
           {post.imageUrl ? (
@@ -315,7 +315,7 @@ function CreatorsMarquee({
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="who are you looking for?"
-          className="h-11 rounded-full border-2 border-foreground !bg-primary-foreground pl-9 pr-9 text-foreground shadow-[3px_3px_0_hsl(var(--foreground))] focus-visible:border-primary focus-visible:ring-0 focus-visible:shadow-[3px_3px_0_hsl(var(--primary))]"
+          className="h-11 rounded-full border-2 border-foreground !bg-primary-foreground pl-9 pr-9 text-foreground shadow-flat-3 focus-visible:border-primary focus-visible:ring-0 focus-visible:shadow-flat-primary-3"
         />
         {searchValue && (
           <button onClick={() => onSearchChange('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Clear">
@@ -378,7 +378,7 @@ function CreatorSticker({ user, index }: { user: ExploreUser; index: number }) {
   return (
     <Link
       href={`/profile/${user.username}`}
-      className="group shrink-0 snap-start w-[220px] bg-primary-foreground force-light-surface text-foreground border-2 border-foreground rounded-2xl px-4 py-3 shadow-[4px_4px_0_hsl(var(--foreground))] dark:shadow-[4px_4px_0_hsl(var(--cassette-white))] hover:shadow-[6px_6px_0_hsl(var(--primary))] dark:hover:shadow-[6px_6px_0_hsl(var(--primary))] transition-all"
+      className="group shrink-0 snap-start w-[220px] bg-primary-foreground force-light-surface text-foreground border-2 border-foreground rounded-2xl px-4 py-3 shadow-flat-4 hover:shadow-flat-primary-6 transition-all"
       style={{ transform: `rotate(${rot}deg)` }}
     >
       <div className="flex items-center gap-3">
@@ -402,7 +402,7 @@ function PolaroidSkeleton() {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="bg-primary-foreground force-light-surface border-2 border-foreground p-3 pb-4 shadow-[4px_4px_0_hsl(var(--foreground))] dark:shadow-[4px_4px_0_hsl(var(--cassette-white))]">
+        <div key={i} className="bg-primary-foreground force-light-surface border-2 border-foreground p-3 pb-4 shadow-flat-4">
           <Skeleton className="aspect-square w-full rounded-none" />
           <Skeleton className="h-5 w-4/5 mt-3" />
           <Skeleton className="h-3 w-3/5 mt-2" />

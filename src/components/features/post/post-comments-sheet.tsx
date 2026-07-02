@@ -767,9 +767,9 @@ export function PostCommentsSheet({
     'sm:max-w-md md:max-w-lg',
     'data-[state=open]:animate-in data-[state=closed]:animate-out',
     'data-[state=open]:slide-in-from-right-full data-[state=closed]:slide-out-to-right-full',
-    'data-[state=open]:duration-[450ms] data-[state=closed]:duration-[300ms]',
-    'data-[state=open]:ease-[cubic-bezier(0.22,1,0.36,1)]',
-    'data-[state=closed]:ease-[cubic-bezier(0.64,0,0.78,0)]',
+    'data-[state=open]:duration-450 data-[state=closed]:duration-300',
+    'data-[state=open]:ease-out-quart',
+    'data-[state=closed]:ease-in-quart',
     'will-change-transform',
   );
 

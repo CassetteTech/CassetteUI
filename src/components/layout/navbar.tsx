@@ -222,7 +222,7 @@ export function Navbar() {
               <span className="relative block w-[18px] h-[14px]" aria-hidden="true">
                 <span
                   className={cn(
-                    "absolute left-0 h-[2px] rounded-full bg-current origin-center transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                    "absolute left-0 h-[2px] rounded-full bg-current origin-center transition-all duration-300 ease-out-quart",
                     isMobileMenuOpen
                       ? "top-1/2 -translate-y-1/2 w-full rotate-45"
                       : "top-0 w-full"
@@ -236,7 +236,7 @@ export function Navbar() {
                 />
                 <span
                   className={cn(
-                    "absolute left-0 h-[2px] rounded-full bg-current origin-center transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                    "absolute left-0 h-[2px] rounded-full bg-current origin-center transition-all duration-300 ease-out-quart",
                     isMobileMenuOpen
                       ? "top-1/2 -translate-y-1/2 w-full -rotate-45"
                       : "bottom-0 w-[85%]"
@@ -269,7 +269,7 @@ export function Navbar() {
         className={cn(
           "md:hidden absolute top-full left-3 right-3 z-50 origin-top",
           "overflow-hidden rounded-2xl border border-border/60 bg-card elev-4",
-          "transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "transition-[opacity,transform] duration-300 ease-out-quart",
           isMobileMenuOpen
             ? "opacity-100 translate-y-2 scale-100 pointer-events-auto"
             : "opacity-0 -translate-y-1 scale-[0.98] pointer-events-none"

@@ -19,6 +19,10 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        brutalist:
+          "rounded-none border-2 border-foreground bg-primary text-primary-foreground font-mono text-[10px] font-bold uppercase tracking-[0.2em] shadow-flat-3 transition-all hover:-translate-y-0.5 hover:shadow-flat-4 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none",
+        "brutalist-outline":
+          "rounded-none border-2 border-foreground bg-card text-foreground font-mono text-[10px] font-bold uppercase tracking-[0.2em] shadow-flat-3 transition-all hover:-translate-y-0.5 hover:shadow-flat-4 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",

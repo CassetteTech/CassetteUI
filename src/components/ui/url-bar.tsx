@@ -11,14 +11,15 @@ function UrlBar({ className, variant = "dark", hasError = false, ...props }: Url
     <div
       className={cn(
         "w-full h-12 sm:h-14 md:h-16 lg:h-20 rounded-lg sm:rounded-xl md:rounded-2xl border relative transition-colors duration-300",
-        "bg-primary-foreground force-light-surface",
+        // bg-field is pure white in light mode and follows the dark card surface in dark mode.
+        "bg-field text-card-foreground",
         variant === "dark"
           ? "border-border"
           : "border-foreground",
-        // Add retro shadow for light variant using CSS variable
-        variant === "light" && "shadow-[2px_2px_0px_0px_hsl(var(--foreground))] sm:shadow-[3px_3px_0px_0px_hsl(var(--foreground))] md:shadow-[4px_4px_0px_0px_hsl(var(--foreground))]",
-        // Add error state
-        hasError && "border-destructive shadow-[2px_2px_0px_0px_hsl(var(--destructive))] sm:shadow-[3px_3px_0px_0px_hsl(var(--destructive))] md:shadow-[4px_4px_0px_0px_hsl(var(--destructive))]",
+        // Retro offset shadow (tokens defined in tailwind.config.js)
+        variant === "light" && "shadow-flat-2 sm:shadow-flat-3 md:shadow-flat-4",
+        // Error state
+        hasError && "border-destructive shadow-flat-destructive-2 sm:shadow-flat-destructive-3 md:shadow-flat-destructive-4",
         className
       )}
       {...props}

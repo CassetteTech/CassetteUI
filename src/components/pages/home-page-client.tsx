@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { UrlBar } from '@/components/ui/url-bar';
+import { Button } from '@/components/ui/button';
 import { UIText } from '@/components/ui/typography';
 import { AnimatedBackground } from '@/components/ui/animated-background';
 import { useTopCharts, useMusicSearch } from '@/hooks/use-music';
@@ -364,7 +365,7 @@ export default function HomePageClient() {
 
 
   // Calculate animation classes
-  const logoClasses = `transition-[opacity,transform] ${isInitialLoad ? 'duration-[1100ms]' : 'duration-[500ms]'} ease-out ${
+  const logoClasses = `transition-[opacity,transform] ${isInitialLoad ? 'duration-1100' : 'duration-500'} ease-out ${
     logoVisible 
       ? (isSearchActive ? 'opacity-0 transform -translate-y-8 lg:opacity-100 lg:transform-none' : 'opacity-100 transform translate-y-0')
       : 'opacity-0 transform translate-y-16'
@@ -438,13 +439,10 @@ export default function HomePageClient() {
                         videoType={HOMEPAGE_DEMO_VIDEO.videoType}
                         caption={HOMEPAGE_DEMO_VIDEO.caption}
                         trigger={
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-2 border-2 border-foreground bg-primary px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-primary-foreground shadow-[3px_3px_0_hsl(var(--foreground))] transition-transform hover:-translate-y-0.5 hover:shadow-[4px_4px_0_hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                          >
+                          <Button type="button" variant="brutalist" className="gap-2 px-4 py-2 h-auto">
                             <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                             Watch demo
-                          </button>
+                          </Button>
                         }
                       />
                     </div>

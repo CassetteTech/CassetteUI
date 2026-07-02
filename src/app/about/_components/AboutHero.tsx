@@ -54,7 +54,7 @@ export function AboutHero() {
 
         <Link
           href={primaryCtaHref}
-          className="inline-flex items-center gap-3 bg-primary border-2 border-foreground text-primary-foreground font-mono text-[12px] uppercase tracking-[0.25em] px-6 py-3 shadow-[4px_4px_0_hsl(var(--foreground))] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_hsl(var(--foreground))] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          className="inline-flex items-center gap-3 bg-primary border-2 border-foreground text-primary-foreground font-mono text-[12px] uppercase tracking-[0.25em] px-6 py-3 shadow-flat-4 hover:-translate-y-0.5 hover:shadow-flat-6 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           <span>Create Your Universal Link</span>
           <ArrowRight size={16} />
@@ -71,7 +71,7 @@ export function AboutHero() {
         {heroStats.map((stat, i) => (
           <div
             key={stat.label}
-            className="bg-background border-2 border-foreground p-4 shadow-[3px_3px_0_hsl(var(--foreground))]"
+            className="bg-background border-2 border-foreground p-4 shadow-flat-3"
             style={{ transform: `rotate(${i === 0 ? -1 : 1.2}deg)` }}
           >
             <div className={`h-[3px] ${statColors[i]} mb-3 w-10`} />

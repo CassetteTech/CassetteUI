@@ -25,7 +25,7 @@ export function TeamCard({ member, onClick }: TeamCardProps) {
   return (
     <button
       onClick={onClick}
-      className="group text-left w-full h-full bg-background border-2 border-foreground p-4 flex gap-3 sm:gap-4 items-stretch shadow-[4px_4px_0_hsl(var(--foreground))] dark:shadow-[4px_4px_0_hsl(var(--cassette-white))] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[6px_6px_0_hsl(var(--primary))] transition-all duration-150 ease-linear focus-visible:outline-none focus-visible:shadow-[6px_6px_0_hsl(var(--primary))]"
+      className="group text-left w-full h-full bg-background border-2 border-foreground p-4 flex gap-3 sm:gap-4 items-stretch shadow-flat-4 dark:shadow-flat-white-4 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-flat-primary-6 transition-all duration-150 ease-linear focus-visible:outline-none focus-visible:shadow-flat-primary-6"
     >
       <div className="relative w-20 h-20 sm:w-24 sm:h-24 border-2 border-foreground shrink-0 bg-muted overflow-hidden">
         <Image

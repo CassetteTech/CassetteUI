@@ -7,7 +7,7 @@ import { streamingServices } from './streaming-links';
 import { apiService, ApiError } from '@/services/api';
 import { detectContentType } from '@/utils/content-type-detection';
 import { CreatePlaylistResponse, FailedTrack } from '@/types';
-import { ChevronDown, ChevronUp, ExternalLink, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, ChevronUp, ExternalLink, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuthState } from '@/hooks/use-auth';
 import { pendingActionService } from '@/utils/pending-action';
 import { platformConnectService } from '@/services/platform-connect';
@@ -478,9 +478,11 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
                   openInAppOrBrowser(playlist_url);
                 }}
                 className={cn(
-                  'inline-flex items-center gap-2 px-4 py-2 rounded-full',
+                  'inline-flex items-center gap-2 px-4 py-2 rounded-md',
                   'bg-success hover:bg-success/90 text-success-foreground',
-                  'text-sm font-medium transition-colors w-fit cursor-pointer'
+                  'font-mono text-[11px] font-bold uppercase tracking-[0.2em]',
+                  'elev-1 transition-colors duration-150',
+                  'w-fit cursor-pointer'
                 )}
               >
                 {service && (
@@ -532,13 +534,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   };
 
   return (
-    <div
-      className={cn(
-        'p-3 sm:p-4 md:p-6 rounded-2xl bg-card border border-border',
-        'shadow-sm',
-        className,
-      )}
-    >
+    <div className={cn('w-full', className)}>
       {conversionLimitExceeded && (
         <div className="mb-4 p-3 rounded-xl bg-warning/10 border border-warning/20">
           <p className="text-sm text-warning-text">
@@ -546,7 +542,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
           </p>
         </div>
       )}
-      <div className="flex flex-wrap gap-2 justify-center">
+      <div className="grid gap-2.5">
         {PLATFORMS.map((platform) => {
           const isSourcePlatform = sourcePlatformKey === platform;
           const url = links[platform];
@@ -558,12 +554,14 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
           const shouldShowConvertButton = isSourcePlatform || !url;
 
           const commonClasses = cn(
-            'group relative flex items-center justify-center',
-            'px-2.5 py-1.5 text-xs sm:px-4 sm:py-2.5 sm:text-sm rounded-full transition-all duration-200',
-            'border-2 border-border text-foreground',
-            'bg-muted hover:bg-muted/80 font-medium',
+            'group relative flex w-full items-stretch overflow-hidden rounded-md',
+            'border border-border bg-card text-foreground elev-1',
+            'transition-colors duration-150',
+            'hover:border-foreground/40 hover:bg-muted/40',
+            'active:bg-muted/60',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             isLoading && 'opacity-50 cursor-not-allowed',
-            isCreated && 'border-success bg-success/10',
+            isCreated && 'border-success',
           );
 
           return !shouldShowConvertButton && url ? (
@@ -590,10 +588,19 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
               }}
               className={commonClasses}
             >
-              <div className="relative mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4">
-                <Image src={service.icon} alt={service.name} width={16} height={16} className="object-contain" />
-              </div>
-              <span className="whitespace-nowrap">Open in {service.name}</span>
+              <span aria-hidden className="w-1.5 shrink-0" style={{ background: service.color }} />
+              <span className="flex flex-1 items-center gap-2.5 px-3 py-2.5 sm:gap-3 sm:px-4">
+                <span className="relative h-4 w-4 shrink-0 sm:h-5 sm:w-5">
+                  <Image src={service.icon} alt="" width={20} height={20} className="object-contain" />
+                </span>
+                <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
+                  {service.name}
+                </span>
+                <ArrowUpRight
+                  aria-hidden
+                  className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-all duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"
+                />
+              </span>
             </a>
           ) : (
             <button
@@ -604,15 +611,24 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
               disabled={isLoading}
               onClick={() => handleCreatePlaylist(platform)}
             >
-              {isLoading ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin sm:mr-2 sm:h-4 sm:w-4" />
-              ) : (
-                <div className="relative mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4">
-                  <Image src={service.icon} alt={service.name} width={16} height={16} className="object-contain" />
-                </div>
-              )}
-              <span className="whitespace-nowrap">
-                {isLoading ? 'Creating...' : `Convert to ${service.name}`}
+              <span aria-hidden className="w-1.5 shrink-0" style={{ background: service.color }} />
+              <span className="flex flex-1 items-center gap-2.5 px-3 py-2.5 sm:gap-3 sm:px-4">
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin sm:h-5 sm:w-5" />
+                ) : (
+                  <span className="relative h-4 w-4 shrink-0 sm:h-5 sm:w-5">
+                    <Image src={service.icon} alt="" width={20} height={20} className="object-contain" />
+                  </span>
+                )}
+                <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
+                  {isLoading ? 'Creating…' : service.name}
+                </span>
+                <span
+                  aria-hidden
+                  className="ml-auto font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground transition-colors group-hover:text-foreground"
+                >
+                  Convert
+                </span>
               </span>
             </button>
           );

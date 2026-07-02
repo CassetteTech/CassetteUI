@@ -1,5 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
+import { ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { normalizePlatform, sanitizeDomain } from '@/lib/analytics/sanitize';
@@ -82,12 +83,8 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
   }
   
   return (
-    <div className={cn(
-      "p-3 sm:p-4 md:p-6 rounded-2xl bg-card border border-border",
-      "shadow-sm",
-      className
-    )}>
-      <div className="flex flex-wrap gap-2 justify-center">
+    <div className={cn("w-full", className)}>
+      <div className="grid gap-2.5">
         {availableLinks.map(([platform, url]) => {
           const service = streamingServices[platform];
           if (!service || !url) return null;
@@ -131,28 +128,43 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                 });
               }}
               className={cn(
-                "group relative flex items-center justify-center",
-                "px-2.5 py-1.5 text-xs sm:px-4 sm:py-2.5 sm:text-sm rounded-full transition-all duration-200",
-                "hover:scale-105 hover:shadow-lg",
-                "border-2 border-border text-foreground",
-                "bg-muted hover:bg-muted/80",
-                "font-medium"
+                "group relative flex items-stretch overflow-hidden rounded-md",
+                "border border-border bg-card text-foreground elev-1",
+                "transition-colors duration-150",
+                "hover:border-foreground/40 hover:bg-muted/40",
+                "active:bg-muted/60",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               )}
             >
-              {/* Icon */}
-              <div className="relative mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4">
-                <Image
-                  src={service.icon}
-                  alt={service.name}
-                  width={16}
-                  height={16}
-                  className="object-contain"
+              {/* Platform color edge */}
+              <span
+                aria-hidden
+                className="w-1.5 shrink-0"
+                style={{ background: service.color }}
+              />
+
+              <span className="flex flex-1 items-center gap-2.5 px-3 py-2.5 sm:gap-3 sm:px-4">
+                {/* Icon */}
+                <span className="relative h-4 w-4 shrink-0 sm:h-5 sm:w-5">
+                  <Image
+                    src={service.icon}
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="object-contain"
+                  />
+                </span>
+
+                {/* Service Name */}
+                <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
+                  {service.name}
+                </span>
+
+                {/* Open affordance */}
+                <ArrowUpRight
+                  aria-hidden
+                  className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-all duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"
                 />
-              </div>
-              
-              {/* Service Name */}
-              <span className="whitespace-nowrap">
-                Open in {service.name}
               </span>
             </a>
           );

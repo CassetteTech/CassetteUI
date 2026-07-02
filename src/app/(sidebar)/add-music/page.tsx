@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { UrlBar } from '@/components/ui/url-bar';
-import { UIText } from '@/components/ui/typography';
-import { AnimatedBackground } from '@/components/ui/animated-background';
+import { Music2, X } from 'lucide-react';
 import { useTopCharts, useMusicSearch } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -138,18 +136,18 @@ const AddMusicForm = ({
     {/* Search/Input Section */}
     <div className={isSearchActive ? "fixed top-16 left-0 right-0 z-40 bg-background px-4 pt-3 pb-2 shadow-sm lg:static lg:z-auto lg:bg-transparent lg:px-0 lg:pt-0 lg:pb-4 lg:shadow-none" : "mb-4 sm:mb-6 md:mb-8"} style={{ opacity: searchBarOpacity, transition: 'opacity 120ms ease-out' }}>
       {!isSearchActive && (
-        <UIText className="text-center text-foreground font-atkinson font-bold mb-6 text-sm sm:text-base">
+        <p className="text-center text-muted-foreground mb-6 text-sm sm:text-base lg:hidden">
           Search or paste a link below to add music to your profile
-        </UIText>
+        </p>
       )}
 
         <div className={isSearchActive ? "" : "mb-6"}>
           {!isSearchActive && (
-            <label htmlFor="add-music-search-input" className="block text-foreground font-atkinson font-bold mb-3 text-sm">
+            <label htmlFor="add-music-search-input" className="block font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
               Music link or search
             </label>
           )}
-          
+
           {!selectedItem && !pastedLinkSource && (
             <UrlBar variant="light" className="w-full">
               <input
@@ -171,7 +169,7 @@ const AddMusicForm = ({
           
           {/* Selected Item Display */}
           {selectedItem && (
-            <div className="mt-4 p-4 bg-primary-foreground force-light-surface rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
+            <div className="mt-4 p-4 rounded-lg border border-border bg-card elev-2">
               <div className="flex items-center gap-3">
                 {selectedItem.coverArtUrl ? (
                   <Image
@@ -179,26 +177,22 @@ const AddMusicForm = ({
                     alt={selectedItem.title}
                     width={48}
                     height={48}
-                    className="rounded-md"
+                    className="rounded-md ring-1 ring-border/40"
                   />
                 ) : (
                   <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center">
-                    <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                    </svg>
+                    <Music2 className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
                   </div>
                 )}
-                <div className="flex-1">
-                  <p className="font-atkinson font-bold text-foreground">{selectedItem.title}</p>
-                  {selectedItem.artist && <p className="text-foreground text-sm">{selectedItem.artist}</p>}
-                  <span className="inline-block px-2 py-1 bg-primary/10 text-primary text-xs font-bold rounded uppercase">
+                <div className="flex-1 min-w-0">
+                  <p className="font-atkinson font-bold text-foreground truncate">{selectedItem.title}</p>
+                  {selectedItem.artist && <p className="text-muted-foreground text-sm truncate">{selectedItem.artist}</p>}
+                  <span className="mt-1 inline-block rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-primary">
                     {selectedItem.type}
                   </span>
                 </div>
-                <button onClick={clearSelection} className="p-1 hover:bg-muted rounded">
-                  <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <button onClick={clearSelection} aria-label="Clear selection" className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                  <X className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -206,21 +200,17 @@ const AddMusicForm = ({
 
           {/* Pasted Link Display */}
           {pastedLinkSource && !selectedItem && (
-            <div className="mt-4 p-4 bg-primary-foreground force-light-surface rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
+            <div className="mt-4 p-4 rounded-lg border border-border bg-card elev-2">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-success-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                  </svg>
+                <div className="w-12 h-12 shrink-0 bg-success/10 rounded-full flex items-center justify-center">
+                  <Music2 className="w-5 h-5 text-success-text" aria-hidden="true" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="font-atkinson font-bold text-foreground">{pastedLinkSource} link pasted</p>
-                  <p className="text-muted-foreground text-sm truncate">{musicUrl}</p>
+                  <p className="text-muted-foreground text-sm truncate font-mono">{musicUrl}</p>
                 </div>
-                <button onClick={clearSelection} className="p-1 hover:bg-muted rounded">
-                  <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <button onClick={clearSelection} aria-label="Clear link" className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                  <X className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -230,42 +220,37 @@ const AddMusicForm = ({
         {/* Description Field */}
         {!isSearchActive && (
           <div className="mb-4 sm:mb-6 md:mb-8">
-          <label htmlFor="add-music-description" className="block text-foreground font-atkinson font-bold mb-3 text-sm">
+          <label htmlFor="add-music-description" className="block font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
             Description
           </label>
-          <div className="relative">
-            <div className="absolute inset-0 translate-x-1 translate-y-1 bg-muted-foreground rounded-lg" />
-            <textarea
-              id="add-music-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Tell us how you feel about the music"
-              rows={6}
-              className="relative w-full rounded-lg border-2 border-foreground bg-primary-foreground p-4 font-atkinson text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary force-light-surface"
-              autoComplete="off"
-              spellCheck="false"
-            />
-          </div>
+          <textarea
+            id="add-music-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Tell us how you feel about the music"
+            rows={6}
+            className="w-full rounded-lg border border-border bg-field elev-1 p-4 text-sm text-foreground placeholder:text-muted-foreground resize-none transition-colors focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            autoComplete="off"
+            spellCheck="false"
+          />
         </div>
         )}
 
         {/* Add to Profile Button */}
         {!isSearchActive && (
           <div className="text-center">
-          <AnimatedPrimaryButton
-            text="Add to Profile"
+          <button
+            type="button"
             onClick={handleAddToProfile}
             disabled={!selectedItem && !musicUrl.trim()}
             data-testid="add-music-submit"
-            height={52}
-            width={280}
-            initialPos={6}
-            className="mx-auto shadow-[0_14px_32px_rgba(210,53,53,0.35)]"
-            textStyle="text-lg font-bold tracking-wide font-atkinson"
-          />
-          
+            className="inline-flex h-12 w-full max-w-[280px] items-center justify-center rounded-md bg-primary px-8 font-mono text-xs font-bold uppercase tracking-[0.2em] text-primary-foreground elev-2 transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            Add to Profile
+          </button>
+
           {errorMessage && (
-            <p className="mt-4 text-danger font-atkinson text-sm">{errorMessage}</p>
+            <p className="mt-4 text-destructive font-atkinson text-sm">{errorMessage}</p>
           )}
         </div>
         )}
@@ -695,9 +680,17 @@ export default function AddMusicPage() {
     <>
       {/* Mobile Layout */}
       <div className="lg:hidden">
-        <div className="min-h-screen relative">
-          {/* Animated Background */}
-          <AnimatedBackground className="fixed inset-0 z-0" />
+        <div className="min-h-screen relative bg-background">
+          {/* Subtle dotted paper — same texture as Explore */}
+          <div
+            aria-hidden
+            className="pointer-events-none fixed inset-0 z-0 opacity-[0.35]"
+            style={{
+              backgroundImage:
+                'radial-gradient(hsl(var(--foreground) / 0.08) 1px, transparent 1px)',
+              backgroundSize: '18px 18px',
+            }}
+          />
 
           <div className="relative z-10 min-h-screen">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -711,23 +704,23 @@ export default function AddMusicPage() {
 
               {/* Profile Section - hide when search active */}
               {!isSearchActive && (
-              <div className="flex items-center justify-center gap-3 sm:gap-6 mb-4 sm:mb-6 md:mb-8">
+              <div className="flex items-center justify-center gap-3 sm:gap-4 mb-4 sm:mb-6 md:mb-8">
                 {user?.profilePicture ? (
                   <Image
                     src={user.profilePicture}
                     alt={user.username}
                     width={60}
                     height={60}
-                    className="rounded-full border-2 border-foreground/20"
+                    className="rounded-full border-2 border-foreground/80"
                   />
                 ) : (
-                  <div className="w-15 h-15 rounded-full bg-foreground/10 border-2 border-foreground/20 flex items-center justify-center">
+                  <div className="w-15 h-15 rounded-full bg-muted border-2 border-foreground/80 flex items-center justify-center">
                     <span className="text-foreground text-2xl font-atkinson font-bold">
                       {user?.username?.charAt(0)?.toUpperCase() || 'U'}
                     </span>
                   </div>
                 )}
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-atkinson font-bold text-foreground">
+                <h1 className="font-teko text-4xl sm:text-5xl font-bold uppercase leading-none tracking-tight text-foreground">
                   Add Music
                 </h1>
               </div>
@@ -766,12 +759,22 @@ export default function AddMusicPage() {
       </div>
 
       {/* Desktop Layout - content only (sidebar handled by parent layout) */}
-      <div className="hidden lg:flex lg:flex-col lg:h-screen lg:overflow-hidden p-6">
-        <div className="flex-1 overflow-y-auto">
+      <div className="hidden lg:flex lg:flex-col lg:h-screen lg:overflow-hidden p-6 relative bg-background">
+        {/* Subtle dotted paper — same texture as Explore */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.35]"
+          style={{
+            backgroundImage:
+              'radial-gradient(hsl(var(--foreground) / 0.08) 1px, transparent 1px)',
+            backgroundSize: '18px 18px',
+          }}
+        />
+        <div className="flex-1 overflow-y-auto relative">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Add Music</h1>
-            <p className="text-muted-foreground">Search or paste a link to add music to your profile</p>
+            <h1 className="font-teko text-5xl font-bold uppercase leading-none tracking-tight text-foreground mb-2">Add Music</h1>
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Search or paste a link to add music to your profile</p>
           </div>
 
           {/* Add Music Form */}

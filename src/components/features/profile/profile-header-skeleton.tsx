@@ -46,8 +46,8 @@ export function ProfileHeaderSkeleton({
 
         {/* Action Buttons Skeleton */}
         <div className="flex gap-3 lg:flex-col lg:gap-4">
-          <Skeleton className={`${isLargeScreen ? 'w-[200px] h-12' : isSmallScreen ? 'w-[120px] h-8' : 'w-[132px] h-9'} rounded-xl`} />
-          <Skeleton className={`${isLargeScreen ? 'w-[200px] h-12' : isSmallScreen ? 'w-[120px] h-8' : 'w-[132px] h-9'} rounded-xl`} />
+          <Skeleton className={`${isLargeScreen ? 'w-[200px] h-12' : isSmallScreen ? 'w-[120px] h-8' : 'w-[132px] h-9'} rounded-md`} />
+          <Skeleton className={`${isLargeScreen ? 'w-[200px] h-12' : isSmallScreen ? 'w-[120px] h-8' : 'w-[132px] h-9'} rounded-md`} />
         </div>
       </div>
     </div>

@@ -36,7 +36,7 @@ function ReleaseEntry({
       {/* Timeline dot */}
       <div className="absolute -left-[32px] top-7 hidden h-3 w-3 border-2 border-foreground bg-primary lg:block" />
 
-      <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground shadow-[5px_5px_0_hsl(var(--foreground))] dark:shadow-[5px_5px_0_hsl(var(--cassette-white))] hover:shadow-[7px_7px_0_hsl(var(--primary))] dark:hover:shadow-[7px_7px_0_hsl(var(--primary))] transition-shadow">
+      <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground shadow-flat-5 dark:shadow-flat-white-5 hover:shadow-flat-primary-7 dark:hover:shadow-flat-primary-7 transition-shadow">
         {/* Header bar — catalog stamp */}
         <div className="flex flex-wrap items-center gap-2 border-b-2 border-foreground px-5 py-3">
           <span className="inline-flex items-center bg-foreground text-background font-mono text-[10px] uppercase tracking-[0.2em] px-2 py-0.5">
@@ -115,7 +115,7 @@ export default async function ReleaseNotesPage() {
         <div className="editorial-rule-thick mb-12" />
 
         {releases.length === 0 ? (
-          <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-10 text-center shadow-[5px_5px_0_hsl(var(--foreground))] dark:shadow-[5px_5px_0_hsl(var(--cassette-white))]">
+          <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-10 text-center shadow-flat-5 dark:shadow-flat-white-5">
             <Clock className="mx-auto h-8 w-8 text-muted-foreground mb-4" />
             <p className="font-teko text-2xl uppercase tracking-tight text-foreground">
               No Releases Yet

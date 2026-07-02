@@ -16,10 +16,13 @@ import {
   InternalAccountTypeAuditEntry,
   InternalIssuesResponse,
   InternalIssueDetail,
-  InternalSentinelFinding,
   InternalSentinelFindingsResponse,
   InternalSentinelAuditRunsResponse,
   InternalSentinelInvariantRegistryResponse,
+  InternalSentinelRescanResponse,
+  InternalSentinelInvariantNote,
+  InternalSentinelInvariantNoteInput,
+  InternalSentinelInvariantNotesResponse,
   InternalExploreSnapshotsResponse,
   InternalExploreSnapshotItemsResponse,
   InternalSignupAttributionOverview,
@@ -636,30 +639,36 @@ class ApiService {
     });
   }
 
-  async acknowledgeInternalSentinelFinding(
-    fingerprint: string,
-    reason: string,
-  ): Promise<InternalSentinelFinding> {
-    return this.request<InternalSentinelFinding>(
-      `/api/v1/internal/sentinel/findings/${encodeURIComponent(fingerprint)}/acknowledge`,
+  async requestInternalSentinelRescan(
+    invariantId?: string,
+  ): Promise<InternalSentinelRescanResponse> {
+    return this.request<InternalSentinelRescanResponse>(
+      '/api/v1/internal/sentinel/rescan',
       {
         method: 'POST',
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify(invariantId ? { invariantId } : {}),
         timeoutMs: 20000,
       },
     );
   }
 
-  async suppressInternalSentinelFinding(
-    fingerprint: string,
-    reason: string,
-    suppressedUntilUtc: string,
-  ): Promise<InternalSentinelFinding> {
-    return this.request<InternalSentinelFinding>(
-      `/api/v1/internal/sentinel/findings/${encodeURIComponent(fingerprint)}/suppress`,
+  async getInternalSentinelInvariantNotes(): Promise<InternalSentinelInvariantNotesResponse> {
+    return this.request<InternalSentinelInvariantNotesResponse>(
+      '/api/v1/internal/sentinel/invariants/notes',
+      { timeoutMs: 20000 },
+    );
+  }
+
+  // Saving with every field blank deletes the note; the API answers 204.
+  async saveInternalSentinelInvariantNote(
+    invariantId: string,
+    note: InternalSentinelInvariantNoteInput,
+  ): Promise<InternalSentinelInvariantNote | null> {
+    return this.request<InternalSentinelInvariantNote | null>(
+      `/api/v1/internal/sentinel/invariants/${encodeURIComponent(invariantId)}/note`,
       {
-        method: 'POST',
-        body: JSON.stringify({ reason, suppressedUntilUtc }),
+        method: 'PUT',
+        body: JSON.stringify(note),
         timeoutMs: 20000,
       },
     );

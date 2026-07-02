@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, Database, RefreshCw } from 'lucide-react';
+import { Copy, Database, RefreshCw, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiService } from '@/services/api';
 import type {
@@ -9,6 +9,7 @@ import type {
   InternalSentinelAuditRunsResponse,
   InternalSentinelFinding,
   InternalSentinelFindingsResponse,
+  InternalSentinelInvariantNote,
   InternalSentinelInvariantRegistryItem,
   InternalSentinelInvariantRegistryResponse,
   InternalSentinelInvariantResult,
@@ -51,25 +52,25 @@ const ALL_FILTER = 'all';
 
 type SubView = 'findings' | 'runs' | 'invariants';
 
-type FindingStatus = 'active' | 'acknowledged' | 'resolved' | 'suppressed';
+/* Findings are machine-only: active or resolved, decided exclusively by
+   Sentinel scans. Humans get an indirect lever (Rescan) and a human layer
+   (per-invariant cause annotations); nothing here can set a finding status. */
+type FindingStatus = 'active' | 'resolved';
 
 const FINDING_STATUS_OPTIONS: ReadonlyArray<{ value: FindingStatus; label: string }> = [
   { value: 'active', label: 'Active' },
-  { value: 'acknowledged', label: 'Acknowledged' },
   { value: 'resolved', label: 'Resolved' },
-  { value: 'suppressed', label: 'Suppressed' },
 ];
 
 function findingStatusTone(status: string): Tone {
   if (status === 'active') return 'warning';
-  if (status === 'acknowledged') return 'info';
   if (status === 'resolved') return 'success';
   return 'neutral';
 }
 
-/* Recurrence marker: a finding that came back after being resolved or
-   acknowledged is the most urgent thing on the page, so it gets the one loud
-   treatment in the row — colour-only mono text, no filled chip. */
+/* Recurrence marker: a finding that came back after being resolved is the
+   most urgent thing on the page, so it gets the one loud treatment in the
+   row — colour-only mono text, no filled chip. */
 function RecurrenceBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
@@ -309,6 +310,97 @@ function RefreshButton({ loading, onClick }: { loading: boolean; onClick: () => 
   );
 }
 
+/* Rescan: the one lever operators have over finding status, and it is
+   indirect — it queues an audit.requested run for the Sentinel worker and the
+   scan decides. Deliberately quiet: ghost variant, small, no colour. */
+function RescanButton({ invariantId, label }: { invariantId?: string; label?: string }) {
+  const [pending, setPending] = useState(false);
+
+  const rescan = async () => {
+    setPending(true);
+    try {
+      await apiService.requestInternalSentinelRescan(invariantId);
+      toast.success(
+        invariantId ? `Rescan queued for ${invariantId}` : 'Full rescan queued',
+        { description: 'Results land on the next worker pass.' },
+      );
+    } catch (rescanError) {
+      toast.error(rescanError instanceof Error ? rescanError.message : 'Rescan request failed');
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+      disabled={pending}
+      onClick={() => void rescan()}
+      title={invariantId ? `Queue a full-scope rescan of ${invariantId}` : 'Queue a full Sentinel rescan'}
+    >
+      <RotateCcw className={`h-3 w-3 ${pending ? 'animate-spin' : ''}`} />
+      {label ?? 'Rescan'}
+    </Button>
+  );
+}
+
+/* Cause annotations are keyed by invariant id; one fetch serves both the
+   findings sheet (read) and the invariant sheet (read/write). */
+function useInvariantNotes() {
+  const [notes, setNotes] = useState<Record<string, InternalSentinelInvariantNote>>({});
+
+  const loadNotes = useCallback(async () => {
+    try {
+      const response = await apiService.getInternalSentinelInvariantNotes();
+      setNotes(Object.fromEntries(response.items.map((note) => [note.invariantId, note])));
+    } catch {
+      // Notes are contextual enrichment; the findings themselves still load.
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadNotes();
+  }, [loadNotes]);
+
+  return { notes, reloadNotes: loadNotes };
+}
+
+/* Read-only rendering of an invariant's cause annotation. Shown with the
+   invariant's findings; it explains them and never restyles or hides them. */
+function InvariantNoteFields({ note }: { note: InternalSentinelInvariantNote }) {
+  return (
+    <div className="divide-y divide-border/60 rounded-lg border border-border bg-card/40 px-3">
+      {note.rootCauseSummary && (
+        <Field label="Root cause">
+          <span className="break-words text-muted-foreground">{note.rootCauseSummary}</span>
+        </Field>
+      )}
+      {note.fixedInReference && (
+        <Field label="Fixed in">
+          <span className="break-all font-mono tabular-nums">{note.fixedInReference}</span>
+        </Field>
+      )}
+      {note.regressionTestReference && (
+        <Field label="Regression test">
+          <span className="break-all font-mono tabular-nums">{note.regressionTestReference}</span>
+        </Field>
+      )}
+      {note.residueNote && (
+        <Field label="Residue">
+          <span className="break-words text-muted-foreground">{note.residueNote}</span>
+        </Field>
+      )}
+      <Field label="Annotated">
+        <span className="text-muted-foreground">
+          {note.updatedBy} · {formatDate(note.updatedAtUtc)}
+        </span>
+      </Field>
+    </div>
+  );
+}
+
 function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
@@ -332,6 +424,7 @@ function SentinelFindingsPanel() {
   const [selectedFingerprint, setSelectedFingerprint] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
+  const { notes } = useInvariantNotes();
 
   const loadFindings = useCallback(async () => {
     setLoading(true);
@@ -452,7 +545,12 @@ function SentinelFindingsPanel() {
     <>
     <Panel
       title={total > 0 ? `Findings · ${total}` : 'Findings'}
-      actions={<RefreshButton loading={loading} onClick={() => void loadFindings()} />}
+      actions={
+        <div className="flex items-center gap-1">
+          <RescanButton />
+          <RefreshButton loading={loading} onClick={() => void loadFindings()} />
+        </div>
+      }
     >
       <div className="space-y-2 border-b border-border px-3 py-2">
         <SegmentedControl<FindingStatus>
@@ -538,79 +636,32 @@ function SentinelFindingsPanel() {
 
     <SentinelFindingDetailSheet
       finding={selectedFinding}
+      note={selectedFinding ? notes[selectedFinding.invariantId] ?? null : null}
       open={sheetOpen}
       onOpenChange={setSheetOpen}
-      onChanged={() => void loadFindings()}
     />
     </>
   );
 }
 
-/* ─────────────────────── Finding lifecycle detail sheet ────────────────────
-   Everything lifecycle-related lives here rather than in the table: status,
-   recurrence context, prior acknowledgement, and the two operator actions.
-   Resolution is deliberately absent — only a passing full Sentinel run may
-   resolve a finding, so the sheet never offers it. */
-
-const SUPPRESS_PRESETS: ReadonlyArray<{ label: string; days: number }> = [
-  { label: '24 hours', days: 1 },
-  { label: '7 days', days: 7 },
-  { label: '30 days', days: 30 },
-  { label: '90 days (max)', days: 90 },
-];
+/* ─────────────────────── Finding detail sheet ──────────────────────────────
+   Read-only: status, recurrence context, entity, and evidence. There is no
+   status action here by design — resolution is machine-earned by a Sentinel
+   scan; the only lever is a quiet per-invariant rescan. The invariant's cause
+   annotation (if any) is shown alongside so the finding is explained without
+   ever being hidden or restyled. */
 
 function SentinelFindingDetailSheet({
   finding,
+  note,
   open,
   onOpenChange,
-  onChanged,
 }: {
   finding: InternalSentinelFinding | null;
+  note: InternalSentinelInvariantNote | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onChanged: () => void;
 }) {
-  const [action, setAction] = useState<'acknowledge' | 'suppress' | null>(null);
-  const [reason, setReason] = useState('');
-  const [suppressDays, setSuppressDays] = useState(7);
-  const [submitting, setSubmitting] = useState(false);
-
-  // Reset the action form whenever a different finding is opened.
-  useEffect(() => {
-    setAction(null);
-    setReason('');
-    setSuppressDays(7);
-  }, [finding?.fingerprint]);
-
-  const submit = async () => {
-    if (!finding || !action) return;
-    if (!reason.trim()) {
-      toast.error('A reason is required');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      if (action === 'acknowledge') {
-        await apiService.acknowledgeInternalSentinelFinding(finding.fingerprint, reason.trim());
-        toast.success('Finding acknowledged');
-      } else {
-        const until = new Date(Date.now() + suppressDays * 24 * 60 * 60 * 1000).toISOString();
-        await apiService.suppressInternalSentinelFinding(finding.fingerprint, reason.trim(), until);
-        toast.success(`Finding suppressed for ${suppressDays} day${suppressDays === 1 ? '' : 's'}`);
-      }
-      setAction(null);
-      setReason('');
-      onChanged();
-    } catch (submitError) {
-      toast.error(submitError instanceof Error ? submitError.message : 'Action failed');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const canAcknowledge = finding?.status === 'active';
-  const canSuppress = finding?.status === 'active' || finding?.status === 'acknowledged';
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="domain-eng flex w-full flex-col gap-0 p-0 sm:max-w-lg">
@@ -636,9 +687,12 @@ function SentinelFindingDetailSheet({
             <ScrollArea className="min-h-0 flex-1">
               <div className="space-y-5 p-4">
                 <section className="space-y-2.5">
-                  <h3 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Lifecycle
-                  </h3>
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Lifecycle
+                    </h3>
+                    <RescanButton invariantId={finding.invariantId} label="Rescan invariant" />
+                  </div>
                   <div className="divide-y divide-border/60 rounded-lg border border-border bg-card/40 px-3">
                     <Field label="Status">
                       <StatusPill tone={findingStatusTone(finding.status)} label={finding.status} />
@@ -661,118 +715,25 @@ function SentinelFindingDetailSheet({
                         </span>
                       </Field>
                     )}
-                    {finding.acknowledgedBy && (
-                      <Field label={finding.status === 'acknowledged' ? 'Acknowledged' : 'Prior ack'}>
-                        <span className="text-muted-foreground">
-                          {finding.acknowledgedBy}
-                          {finding.acknowledgedAtUtc ? ` · ${formatDate(finding.acknowledgedAtUtc)}` : ''}
-                        </span>
-                      </Field>
-                    )}
-                    {finding.acknowledgedReason && (
-                      <Field label="Ack reason">
-                        <span className="break-words text-muted-foreground">{finding.acknowledgedReason}</span>
-                      </Field>
-                    )}
-                    {finding.status === 'suppressed' && finding.suppressedUntilUtc && (
-                      <Field label="Suppressed until">
-                        <span>{formatDate(finding.suppressedUntilUtc)}</span>
-                      </Field>
-                    )}
-                    {finding.suppressedBy && finding.status === 'suppressed' && (
-                      <Field label="Suppressed by">
-                        <span className="text-muted-foreground">{finding.suppressedBy}</span>
-                      </Field>
-                    )}
-                    {finding.suppressedReason && finding.status === 'suppressed' && (
-                      <Field label="Suppress reason">
-                        <span className="break-words text-muted-foreground">{finding.suppressedReason}</span>
-                      </Field>
-                    )}
                     <Field label="First seen">{formatDate(finding.firstSeenAtUtc)}</Field>
                     <Field label="Occurrences">
                       <span className="font-mono tabular-nums">{finding.occurrenceCount}</span>
                     </Field>
                   </div>
-
-                  {(canAcknowledge || canSuppress) && action === null && (
-                    <div className="flex items-center gap-2">
-                      {canAcknowledge && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setAction('acknowledge')}
-                        >
-                          Acknowledge
-                        </Button>
-                      )}
-                      {canSuppress && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setAction('suppress')}
-                        >
-                          Suppress
-                        </Button>
-                      )}
-                    </div>
-                  )}
-
-                  {action !== null && (
-                    <div className="space-y-2 rounded-lg border border-border bg-card/40 p-3">
-                      <p className="text-[11px] text-muted-foreground">
-                        {action === 'acknowledge'
-                          ? 'Acknowledge: real and understood, tracked for now. It reactivates automatically if it recurs.'
-                          : 'Suppress: known noise for a bounded window. Expiry is required; there is no permanent suppression.'}
-                      </p>
-                      <textarea
-                        value={reason}
-                        onChange={(event) => setReason(event.target.value)}
-                        placeholder="Reason (required)"
-                        rows={2}
-                        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-domain"
-                      />
-                      {action === 'suppress' && (
-                        <Select
-                          value={String(suppressDays)}
-                          onValueChange={(value) => setSuppressDays(Number(value))}
-                        >
-                          <SelectTrigger className="h-8 w-[180px] text-xs">
-                            <SelectValue placeholder="Suppress for" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SUPPRESS_PRESETS.map((preset) => (
-                              <SelectItem key={preset.days} value={String(preset.days)}>
-                                {preset.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          className="h-7 text-xs"
-                          disabled={submitting || !reason.trim()}
-                          onClick={() => void submit()}
-                        >
-                          {action === 'acknowledge' ? 'Acknowledge finding' : 'Suppress finding'}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          disabled={submitting}
-                          onClick={() => setAction(null)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                  <p className="text-[10px] leading-snug text-muted-foreground">
+                    Status is machine-owned: a scan that re-checks this invariant&apos;s full scope
+                    resolves what it no longer sees, and re-emission reactivates it.
+                  </p>
                 </section>
+
+                {note && (
+                  <section className="space-y-2.5">
+                    <h3 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Cause annotation · {finding.invariantId}
+                    </h3>
+                    <InvariantNoteFields note={note} />
+                  </section>
+                )}
 
                 <section className="space-y-2.5">
                   <h3 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -1176,6 +1137,9 @@ function SentinelInvariantRegistryPanel() {
   const [response, setResponse] = useState<InternalSentinelInvariantRegistryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedInvariant, setSelectedInvariant] = useState<InternalSentinelInvariantRegistryItem | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const { notes, reloadNotes } = useInvariantNotes();
 
   const loadRegistry = useCallback(async () => {
     setLoading(true);
@@ -1223,6 +1187,9 @@ function SentinelInvariantRegistryPanel() {
         <div className="space-y-0.5">
           <p className="text-xs font-medium leading-snug text-foreground">{row.invariantName}</p>
           <p className="break-all font-mono text-[10px] tabular-nums text-muted-foreground">{row.invariantId}</p>
+          {notes[row.invariantId] && (
+            <p className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground/70">annotated</p>
+          )}
         </div>
       ),
     },
@@ -1297,22 +1264,222 @@ function SentinelInvariantRegistryPanel() {
     );
   }
 
+  const openInvariant = (row: InternalSentinelInvariantRegistryItem) => {
+    setSelectedInvariant(row);
+    setSheetOpen(true);
+  };
+
   return (
-    <div className="space-y-3">
-      {scopeGroups.map(([scope, items], index) => (
-        <Panel
-          key={scope}
-          title={`${scope} · ${items.length}`}
-          actions={index === 0 ? <RefreshButton loading={loading} onClick={() => void loadRegistry()} /> : undefined}
-        >
-          <DataTable<InternalSentinelInvariantRegistryItem>
-            columns={columns}
-            rows={items}
-            rowKey={(row) => row.invariantId}
-            renderMobile={renderMobile}
-          />
-        </Panel>
-      ))}
-    </div>
+    <>
+      <div className="space-y-3">
+        {scopeGroups.map(([scope, items], index) => (
+          <Panel
+            key={scope}
+            title={`${scope} · ${items.length}`}
+            actions={
+              index === 0 ? (
+                <div className="flex items-center gap-1">
+                  <RescanButton label="Rescan all" />
+                  <RefreshButton loading={loading} onClick={() => void loadRegistry()} />
+                </div>
+              ) : undefined
+            }
+          >
+            <DataTable<InternalSentinelInvariantRegistryItem>
+              columns={columns}
+              rows={items}
+              rowKey={(row) => row.invariantId}
+              onRowClick={openInvariant}
+              selectedKey={sheetOpen ? selectedInvariant?.invariantId ?? null : null}
+              renderMobile={renderMobile}
+            />
+          </Panel>
+        ))}
+      </div>
+
+      <SentinelInvariantDetailSheet
+        invariant={selectedInvariant}
+        note={selectedInvariant ? notes[selectedInvariant.invariantId] ?? null : null}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onNoteChanged={() => void reloadNotes()}
+      />
+    </>
+  );
+}
+
+/* ───────────────────── Invariant detail sheet ──────────────────────────────
+   The write surface for the human layer: the per-invariant cause annotation
+   (root cause, fixed-in, regression test, deliberate residue) plus a quiet
+   single-invariant rescan. Nothing here touches finding status. */
+function SentinelInvariantDetailSheet({
+  invariant,
+  note,
+  open,
+  onOpenChange,
+  onNoteChanged,
+}: {
+  invariant: InternalSentinelInvariantRegistryItem | null;
+  note: InternalSentinelInvariantNote | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onNoteChanged: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [rootCauseSummary, setRootCauseSummary] = useState('');
+  const [fixedInReference, setFixedInReference] = useState('');
+  const [regressionTestReference, setRegressionTestReference] = useState('');
+  const [residueNote, setResidueNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Re-seed the form whenever a different invariant (or fresh note) opens.
+  useEffect(() => {
+    setEditing(false);
+    setRootCauseSummary(note?.rootCauseSummary ?? '');
+    setFixedInReference(note?.fixedInReference ?? '');
+    setRegressionTestReference(note?.regressionTestReference ?? '');
+    setResidueNote(note?.residueNote ?? '');
+  }, [invariant?.invariantId, note]);
+
+  const save = async () => {
+    if (!invariant) return;
+    setSaving(true);
+    try {
+      const saved = await apiService.saveInternalSentinelInvariantNote(invariant.invariantId, {
+        rootCauseSummary: rootCauseSummary.trim() || null,
+        fixedInReference: fixedInReference.trim() || null,
+        regressionTestReference: regressionTestReference.trim() || null,
+        residueNote: residueNote.trim() || null,
+      });
+      toast.success(saved ? 'Annotation saved' : 'Annotation removed');
+      setEditing(false);
+      onNoteChanged();
+    } catch (saveError) {
+      toast.error(saveError instanceof Error ? saveError.message : 'Failed to save annotation');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const noteField = (
+    label: string,
+    value: string,
+    onChange: (value: string) => void,
+    rows: number,
+  ) => (
+    <label className="block space-y-1">
+      <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        rows={rows}
+        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-domain"
+      />
+    </label>
+  );
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="domain-eng flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+        {invariant && (
+          <>
+            <SheetHeader className="gap-3 border-b border-border bg-muted/20 p-4 pr-12">
+              <div className="flex items-center justify-between gap-2">
+                <StatusPill
+                  tone={statusTone(invariant.latestMaxSeverity ?? invariant.latestStatus)}
+                  label={`${invariant.latestFindingCount} finding${invariant.latestFindingCount === 1 ? '' : 's'}`}
+                />
+                <span className="text-[10px] text-muted-foreground">
+                  {formatDate(invariant.latestEvaluatedAtUtc)}
+                </span>
+              </div>
+              <div className="space-y-0.5">
+                <SheetTitle className="text-sm">{invariant.invariantName}</SheetTitle>
+                <SheetDescription className="sr-only">Sentinel invariant detail</SheetDescription>
+                <p className="text-[11px] leading-snug text-muted-foreground">
+                  {invariant.invariantDescription}
+                </p>
+              </div>
+              <IdField label="Invariant" value={invariant.invariantId} />
+            </SheetHeader>
+
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="space-y-5 p-4">
+                <section className="space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Scan
+                    </h3>
+                    <RescanButton invariantId={invariant.invariantId} />
+                  </div>
+                  <p className="text-[10px] leading-snug text-muted-foreground">
+                    A single-invariant rescan re-checks this invariant&apos;s full scope; findings
+                    it no longer sees resolve, and anything re-emitted stays (or returns to) active.
+                  </p>
+                </section>
+
+                <section className="space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Cause annotation
+                    </h3>
+                    {!editing && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => setEditing(true)}
+                      >
+                        {note ? 'Edit' : 'Add note'}
+                      </Button>
+                    )}
+                  </div>
+
+                  {!editing && note && <InvariantNoteFields note={note} />}
+                  {!editing && !note && (
+                    <p className="text-[11px] text-muted-foreground">
+                      No annotation yet. Use it to record the root cause, the fixing commit/PR,
+                      the regression test, or why remaining findings are deliberate residue.
+                      Annotations explain findings — they never hide them.
+                    </p>
+                  )}
+
+                  {editing && (
+                    <div className="space-y-2 rounded-lg border border-border bg-card/40 p-3">
+                      {noteField('Root cause', rootCauseSummary, setRootCauseSummary, 2)}
+                      {noteField('Fixed in (commit / PR)', fixedInReference, setFixedInReference, 1)}
+                      {noteField('Regression test', regressionTestReference, setRegressionTestReference, 1)}
+                      {noteField('Deliberate residue', residueNote, setResidueNote, 2)}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={saving}
+                          onClick={() => void save()}
+                        >
+                          Save annotation
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={saving}
+                          onClick={() => setEditing(false)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Saving with every field blank removes the annotation.
+                      </p>
+                    </div>
+                  )}
+                </section>
+              </div>
+            </ScrollArea>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -647,14 +647,37 @@ export interface InternalSentinelFinding {
   recurrenceCount: number;
   resolvedAtUtc?: string | null;
   resolvedByRunId?: string | null;
-  acknowledgedAtUtc?: string | null;
-  acknowledgedBy?: string | null;
-  acknowledgedReason?: string | null;
   lastReactivatedAtUtc?: string | null;
   lastReactivatedRunId?: string | null;
-  suppressedUntilUtc?: string | null;
-  suppressedBy?: string | null;
-  suppressedReason?: string | null;
+}
+
+export interface InternalSentinelRescanResponse {
+  invariantId?: string | null;
+  requestedBy: string;
+  messageId: string;
+  requestedAtUtc: string;
+}
+
+export interface InternalSentinelInvariantNote {
+  invariantId: string;
+  rootCauseSummary?: string | null;
+  fixedInReference?: string | null;
+  regressionTestReference?: string | null;
+  residueNote?: string | null;
+  updatedBy: string;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export interface InternalSentinelInvariantNotesResponse {
+  items: InternalSentinelInvariantNote[];
+}
+
+export interface InternalSentinelInvariantNoteInput {
+  rootCauseSummary?: string | null;
+  fixedInReference?: string | null;
+  regressionTestReference?: string | null;
+  residueNote?: string | null;
 }
 
 export interface InternalSentinelFindingsResponse {

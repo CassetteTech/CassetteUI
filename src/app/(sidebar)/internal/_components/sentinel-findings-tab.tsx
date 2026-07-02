@@ -51,6 +51,34 @@ const ALL_FILTER = 'all';
 
 type SubView = 'findings' | 'runs' | 'invariants';
 
+type FindingStatus = 'active' | 'acknowledged' | 'resolved' | 'suppressed';
+
+const FINDING_STATUS_OPTIONS: ReadonlyArray<{ value: FindingStatus; label: string }> = [
+  { value: 'active', label: 'Active' },
+  { value: 'acknowledged', label: 'Acknowledged' },
+  { value: 'resolved', label: 'Resolved' },
+  { value: 'suppressed', label: 'Suppressed' },
+];
+
+function findingStatusTone(status: string): Tone {
+  if (status === 'active') return 'warning';
+  if (status === 'acknowledged') return 'info';
+  if (status === 'resolved') return 'success';
+  return 'neutral';
+}
+
+/* Recurrence marker: a finding that came back after being resolved or
+   acknowledged is the most urgent thing on the page, so it gets the one loud
+   treatment in the row — colour-only mono text, no filled chip. */
+function RecurrenceBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="font-mono text-[10px] font-semibold uppercase tracking-wide text-destructive">
+      recurred ×{count}
+    </span>
+  );
+}
+
 const SUB_VIEW_OPTIONS: ReadonlyArray<{ value: SubView; label: string }> = [
   { value: 'findings', label: 'Findings' },
   { value: 'runs', label: 'Runs' },
@@ -296,10 +324,13 @@ function SentinelFindingsPanel() {
   const [search, setSearch] = useState('');
   const [severity, setSeverity] = useState(ALL_FILTER);
   const [invariantId, setInvariantId] = useState(ALL_FILTER);
+  const [status, setStatus] = useState<FindingStatus>('active');
   const [page, setPage] = useState(1);
   const [response, setResponse] = useState<InternalSentinelFindingsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFingerprint, setSelectedFingerprint] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
   const loadFindings = useCallback(async () => {
@@ -310,6 +341,7 @@ function SentinelFindingsPanel() {
         q: debouncedSearch || undefined,
         severity: severity === ALL_FILTER ? undefined : severity,
         invariantId: invariantId === ALL_FILTER ? undefined : invariantId,
+        status,
         page,
         pageSize: PAGE_SIZE,
       });
@@ -319,7 +351,7 @@ function SentinelFindingsPanel() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, severity, invariantId, page]);
+  }, [debouncedSearch, severity, invariantId, status, page]);
 
   useEffect(() => {
     void loadFindings();
@@ -327,10 +359,19 @@ function SentinelFindingsPanel() {
 
   const findings = response?.items ?? [];
   const total = response?.totalItems ?? 0;
+  const statusCounts = response?.statusCounts ?? {};
+  const selectedFinding = findings.find((finding) => finding.fingerprint === selectedFingerprint) ?? null;
   const invariantOptions = Array.from(new Set([
     ...findings.map((finding) => finding.invariantId),
     ...(invariantId === ALL_FILTER ? [] : [invariantId]),
   ])).sort();
+
+  const statusOptions = FINDING_STATUS_OPTIONS.map((option) => ({
+    value: option.value,
+    label: statusCounts[option.value]
+      ? `${option.label} · ${statusCounts[option.value]}`
+      : option.label,
+  }));
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
@@ -347,6 +388,16 @@ function SentinelFindingsPanel() {
     setPage(1);
   };
 
+  const handleStatusChange = (value: FindingStatus) => {
+    setStatus(value);
+    setPage(1);
+  };
+
+  const openFinding = (finding: InternalSentinelFinding) => {
+    setSelectedFingerprint(finding.fingerprint);
+    setSheetOpen(true);
+  };
+
   const columns: Column<InternalSentinelFinding>[] = [
     {
       key: 'finding',
@@ -354,7 +405,10 @@ function SentinelFindingsPanel() {
       valign: 'top',
       cell: (row) => (
         <div className="space-y-1">
-          <StatusPill tone={severityTone(row.severity)} label={row.severity} />
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill tone={severityTone(row.severity)} label={row.severity} />
+            <RecurrenceBadge count={row.recurrenceCount} />
+          </div>
           <p className="text-xs font-medium text-foreground">{row.summary}</p>
           <p className="font-mono text-[10px] text-muted-foreground">{row.invariantId}</p>
           <p className="font-mono text-[10px] tabular-nums text-muted-foreground/70">{row.fingerprint}</p>
@@ -395,11 +449,17 @@ function SentinelFindingsPanel() {
   ];
 
   return (
+    <>
     <Panel
       title={total > 0 ? `Findings · ${total}` : 'Findings'}
       actions={<RefreshButton loading={loading} onClick={() => void loadFindings()} />}
     >
-      <div className="border-b border-border px-3 py-2">
+      <div className="space-y-2 border-b border-border px-3 py-2">
+        <SegmentedControl<FindingStatus>
+          value={status}
+          onChange={handleStatusChange}
+          options={statusOptions}
+        />
         <Toolbar
           search={search}
           onSearchChange={handleSearchChange}
@@ -439,6 +499,8 @@ function SentinelFindingsPanel() {
         columns={columns}
         rows={findings}
         rowKey={(row) => row.fingerprint}
+        onRowClick={openFinding}
+        selectedKey={sheetOpen ? selectedFingerprint : null}
         isLoading={loading && !findings.length}
         empty={{
           icon: Database,
@@ -448,7 +510,10 @@ function SentinelFindingsPanel() {
         renderMobile={(row) => (
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <StatusPill tone={severityTone(row.severity)} label={row.severity} />
+              <span className="flex items-center gap-2">
+                <StatusPill tone={severityTone(row.severity)} label={row.severity} />
+                <RecurrenceBadge count={row.recurrenceCount} />
+              </span>
               <span className="text-[10px] text-muted-foreground">{formatDate(row.lastSeenAtUtc)}</span>
             </div>
             <p className="text-xs font-medium text-foreground">{row.summary}</p>
@@ -470,6 +535,274 @@ function SentinelFindingsPanel() {
         onPageChange={setPage}
       />
     </Panel>
+
+    <SentinelFindingDetailSheet
+      finding={selectedFinding}
+      open={sheetOpen}
+      onOpenChange={setSheetOpen}
+      onChanged={() => void loadFindings()}
+    />
+    </>
+  );
+}
+
+/* ─────────────────────── Finding lifecycle detail sheet ────────────────────
+   Everything lifecycle-related lives here rather than in the table: status,
+   recurrence context, prior acknowledgement, and the two operator actions.
+   Resolution is deliberately absent — only a passing full Sentinel run may
+   resolve a finding, so the sheet never offers it. */
+
+const SUPPRESS_PRESETS: ReadonlyArray<{ label: string; days: number }> = [
+  { label: '24 hours', days: 1 },
+  { label: '7 days', days: 7 },
+  { label: '30 days', days: 30 },
+  { label: '90 days (max)', days: 90 },
+];
+
+function SentinelFindingDetailSheet({
+  finding,
+  open,
+  onOpenChange,
+  onChanged,
+}: {
+  finding: InternalSentinelFinding | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onChanged: () => void;
+}) {
+  const [action, setAction] = useState<'acknowledge' | 'suppress' | null>(null);
+  const [reason, setReason] = useState('');
+  const [suppressDays, setSuppressDays] = useState(7);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Reset the action form whenever a different finding is opened.
+  useEffect(() => {
+    setAction(null);
+    setReason('');
+    setSuppressDays(7);
+  }, [finding?.fingerprint]);
+
+  const submit = async () => {
+    if (!finding || !action) return;
+    if (!reason.trim()) {
+      toast.error('A reason is required');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (action === 'acknowledge') {
+        await apiService.acknowledgeInternalSentinelFinding(finding.fingerprint, reason.trim());
+        toast.success('Finding acknowledged');
+      } else {
+        const until = new Date(Date.now() + suppressDays * 24 * 60 * 60 * 1000).toISOString();
+        await apiService.suppressInternalSentinelFinding(finding.fingerprint, reason.trim(), until);
+        toast.success(`Finding suppressed for ${suppressDays} day${suppressDays === 1 ? '' : 's'}`);
+      }
+      setAction(null);
+      setReason('');
+      onChanged();
+    } catch (submitError) {
+      toast.error(submitError instanceof Error ? submitError.message : 'Action failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const canAcknowledge = finding?.status === 'active';
+  const canSuppress = finding?.status === 'active' || finding?.status === 'acknowledged';
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="domain-eng flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+        {finding && (
+          <>
+            <SheetHeader className="gap-3 border-b border-border bg-muted/20 p-4 pr-12">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusPill tone={severityTone(finding.severity)} label={finding.severity} />
+                  <StatusPill tone={findingStatusTone(finding.status)} label={finding.status} />
+                  <RecurrenceBadge count={finding.recurrenceCount} />
+                </div>
+                <span className="text-[10px] text-muted-foreground">{formatDate(finding.lastSeenAtUtc)}</span>
+              </div>
+              <div className="space-y-0.5">
+                <SheetTitle className="text-sm">{finding.summary}</SheetTitle>
+                <SheetDescription className="sr-only">Sentinel finding detail</SheetDescription>
+                <p className="font-mono text-[11px] text-muted-foreground">{finding.invariantId}</p>
+              </div>
+              <IdField label="Fingerprint" value={finding.fingerprint} />
+            </SheetHeader>
+
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="space-y-5 p-4">
+                <section className="space-y-2.5">
+                  <h3 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Lifecycle
+                  </h3>
+                  <div className="divide-y divide-border/60 rounded-lg border border-border bg-card/40 px-3">
+                    <Field label="Status">
+                      <StatusPill tone={findingStatusTone(finding.status)} label={finding.status} />
+                    </Field>
+                    {finding.recurrenceCount > 0 && (
+                      <Field label="Recurred">
+                        <span className="font-mono tabular-nums text-destructive">
+                          ×{finding.recurrenceCount}
+                          {finding.lastReactivatedAtUtc
+                            ? ` · last ${formatDate(finding.lastReactivatedAtUtc)}`
+                            : ''}
+                        </span>
+                      </Field>
+                    )}
+                    {finding.resolvedByRunId && finding.resolvedAtUtc && (
+                      <Field label="Resolved">
+                        <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
+                          <span>{formatDate(finding.resolvedAtUtc)}</span>
+                          <CopyId value={finding.resolvedByRunId} label="Resolving run" />
+                        </span>
+                      </Field>
+                    )}
+                    {finding.acknowledgedBy && (
+                      <Field label={finding.status === 'acknowledged' ? 'Acknowledged' : 'Prior ack'}>
+                        <span className="text-muted-foreground">
+                          {finding.acknowledgedBy}
+                          {finding.acknowledgedAtUtc ? ` · ${formatDate(finding.acknowledgedAtUtc)}` : ''}
+                        </span>
+                      </Field>
+                    )}
+                    {finding.acknowledgedReason && (
+                      <Field label="Ack reason">
+                        <span className="break-words text-muted-foreground">{finding.acknowledgedReason}</span>
+                      </Field>
+                    )}
+                    {finding.status === 'suppressed' && finding.suppressedUntilUtc && (
+                      <Field label="Suppressed until">
+                        <span>{formatDate(finding.suppressedUntilUtc)}</span>
+                      </Field>
+                    )}
+                    {finding.suppressedBy && finding.status === 'suppressed' && (
+                      <Field label="Suppressed by">
+                        <span className="text-muted-foreground">{finding.suppressedBy}</span>
+                      </Field>
+                    )}
+                    {finding.suppressedReason && finding.status === 'suppressed' && (
+                      <Field label="Suppress reason">
+                        <span className="break-words text-muted-foreground">{finding.suppressedReason}</span>
+                      </Field>
+                    )}
+                    <Field label="First seen">{formatDate(finding.firstSeenAtUtc)}</Field>
+                    <Field label="Occurrences">
+                      <span className="font-mono tabular-nums">{finding.occurrenceCount}</span>
+                    </Field>
+                  </div>
+
+                  {(canAcknowledge || canSuppress) && action === null && (
+                    <div className="flex items-center gap-2">
+                      {canAcknowledge && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setAction('acknowledge')}
+                        >
+                          Acknowledge
+                        </Button>
+                      )}
+                      {canSuppress && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setAction('suppress')}
+                        >
+                          Suppress
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {action !== null && (
+                    <div className="space-y-2 rounded-lg border border-border bg-card/40 p-3">
+                      <p className="text-[11px] text-muted-foreground">
+                        {action === 'acknowledge'
+                          ? 'Acknowledge: real and understood, tracked for now. It reactivates automatically if it recurs.'
+                          : 'Suppress: known noise for a bounded window. Expiry is required; there is no permanent suppression.'}
+                      </p>
+                      <textarea
+                        value={reason}
+                        onChange={(event) => setReason(event.target.value)}
+                        placeholder="Reason (required)"
+                        rows={2}
+                        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-domain"
+                      />
+                      {action === 'suppress' && (
+                        <Select
+                          value={String(suppressDays)}
+                          onValueChange={(value) => setSuppressDays(Number(value))}
+                        >
+                          <SelectTrigger className="h-8 w-[180px] text-xs">
+                            <SelectValue placeholder="Suppress for" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SUPPRESS_PRESETS.map((preset) => (
+                              <SelectItem key={preset.days} value={String(preset.days)}>
+                                {preset.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={submitting || !reason.trim()}
+                          onClick={() => void submit()}
+                        >
+                          {action === 'acknowledge' ? 'Acknowledge finding' : 'Suppress finding'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={submitting}
+                          onClick={() => setAction(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </section>
+
+                <section className="space-y-2.5">
+                  <h3 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Entity
+                  </h3>
+                  <div className="divide-y divide-border/60 rounded-lg border border-border bg-card/40 px-3">
+                    <Field label="Type">{finding.entityType}</Field>
+                    <Field label="Id">
+                      <CopyId value={finding.entityId} label="Entity ID" />
+                    </Field>
+                    <Field label="Last run">
+                      <CopyId value={finding.lastRunId} label="Run ID" />
+                    </Field>
+                  </div>
+                </section>
+
+                <section className="space-y-2.5">
+                  <h3 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Evidence
+                  </h3>
+                  <div className="rounded-lg border border-border bg-card/40 px-3 py-1">
+                    <EvidenceList evidence={finding.evidence} />
+                  </div>
+                </section>
+              </div>
+            </ScrollArea>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -538,6 +871,11 @@ function SentinelRunsPanel() {
             {row.environmentName && (
               <span className="rounded border border-border bg-muted/40 px-1.5 py-px font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
                 {row.environmentName}
+              </span>
+            )}
+            {row.runScope && (
+              <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground/70">
+                {row.runScope}
               </span>
             )}
           </div>
@@ -759,6 +1097,7 @@ function SentinelRunDetailSheet({
                   </h3>
                   <div className="divide-y divide-border/60 rounded-lg border border-border bg-card/40 px-3">
                     <Field label="Environment">{run.environmentName || '—'}</Field>
+                    <Field label="Scope">{run.runScope || '—'}</Field>
                     {run.targetEntityType && run.targetEntityId && (
                       <Field label="Target">
                         <span className="inline-flex flex-wrap items-center justify-end gap-1.5">

@@ -16,6 +16,7 @@ import {
   InternalAccountTypeAuditEntry,
   InternalIssuesResponse,
   InternalIssueDetail,
+  InternalSentinelFinding,
   InternalSentinelFindingsResponse,
   InternalSentinelAuditRunsResponse,
   InternalSentinelInvariantRegistryResponse,
@@ -618,6 +619,7 @@ class ApiService {
     q?: string;
     severity?: string;
     invariantId?: string;
+    status?: string;
     page?: number;
     pageSize?: number;
   } = {}): Promise<InternalSentinelFindingsResponse> {
@@ -625,12 +627,42 @@ class ApiService {
     if (params.q) query.set('q', params.q);
     if (params.severity) query.set('severity', params.severity);
     if (params.invariantId) query.set('invariantId', params.invariantId);
+    if (params.status) query.set('status', params.status);
     if (params.page) query.set('page', String(params.page));
     if (params.pageSize) query.set('pageSize', String(params.pageSize));
     const suffix = query.toString() ? `?${query.toString()}` : '';
     return this.request<InternalSentinelFindingsResponse>(`/api/v1/internal/sentinel/findings${suffix}`, {
       timeoutMs: 20000,
     });
+  }
+
+  async acknowledgeInternalSentinelFinding(
+    fingerprint: string,
+    reason: string,
+  ): Promise<InternalSentinelFinding> {
+    return this.request<InternalSentinelFinding>(
+      `/api/v1/internal/sentinel/findings/${encodeURIComponent(fingerprint)}/acknowledge`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+        timeoutMs: 20000,
+      },
+    );
+  }
+
+  async suppressInternalSentinelFinding(
+    fingerprint: string,
+    reason: string,
+    suppressedUntilUtc: string,
+  ): Promise<InternalSentinelFinding> {
+    return this.request<InternalSentinelFinding>(
+      `/api/v1/internal/sentinel/findings/${encodeURIComponent(fingerprint)}/suppress`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ reason, suppressedUntilUtc }),
+        timeoutMs: 20000,
+      },
+    );
   }
 
   async getInternalSentinelRuns(params: {

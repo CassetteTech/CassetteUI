@@ -643,6 +643,18 @@ export interface InternalSentinelFinding {
   lastObservedAtUtc: string;
   lastRunId: string;
   occurrenceCount: number;
+  status: string;
+  recurrenceCount: number;
+  resolvedAtUtc?: string | null;
+  resolvedByRunId?: string | null;
+  acknowledgedAtUtc?: string | null;
+  acknowledgedBy?: string | null;
+  acknowledgedReason?: string | null;
+  lastReactivatedAtUtc?: string | null;
+  lastReactivatedRunId?: string | null;
+  suppressedUntilUtc?: string | null;
+  suppressedBy?: string | null;
+  suppressedReason?: string | null;
 }
 
 export interface InternalSentinelFindingsResponse {
@@ -651,6 +663,7 @@ export interface InternalSentinelFindingsResponse {
   pageSize: number;
   totalItems: number;
   totalPages: number;
+  statusCounts: Record<string, number>;
 }
 
 export interface InternalSentinelInvariantResult {
@@ -686,6 +699,7 @@ export interface InternalSentinelAuditRun {
   findingCount: number;
   targetEntityType?: string | null;
   targetEntityId?: string | null;
+  runScope: string;
   runMetadata: Record<string, string>;
   startedAtUtc: string;
   completedAtUtc: string;

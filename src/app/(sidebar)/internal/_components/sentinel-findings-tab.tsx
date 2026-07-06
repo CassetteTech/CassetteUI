@@ -1,10 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, Database, RefreshCw, RotateCcw } from 'lucide-react';
+import { Copy, Database, ListChecks, RefreshCw, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiService } from '@/services/api';
 import type {
+  ConversionIssueRevalidationSummary,
   InternalSentinelAuditRun,
   InternalSentinelAuditRunsResponse,
   InternalSentinelFinding,
@@ -648,6 +649,49 @@ function RescanButton({ invariantId, label }: { invariantId?: string; label?: st
   );
 }
 
+/* Revalidate: sweeps every unresolved conversion issue and resolves the ones
+   whose detection condition no longer holds. Unlike Rescan, the Bridge endpoint
+   runs synchronously and hands back a summary, so we surface the resolved /
+   still-holding / skipped counts inline rather than waiting on a worker pass.
+   Kept as quiet as Rescan — ghost, small, no colour. */
+function RevalidateIssuesButton() {
+  const [pending, setPending] = useState(false);
+
+  const revalidate = async () => {
+    setPending(true);
+    try {
+      const summary: ConversionIssueRevalidationSummary =
+        await apiService.revalidateInternalConversionIssues();
+      toast.success(
+        `Revalidated ${summary.checked} issue${summary.checked === 1 ? '' : 's'}`,
+        {
+          description: `${summary.resolved} resolved · ${summary.stillHolding} still holding · ${summary.skippedUnknown} skipped`,
+        },
+      );
+    } catch (revalidateError) {
+      toast.error(
+        revalidateError instanceof Error ? revalidateError.message : 'Revalidation request failed',
+      );
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+      disabled={pending}
+      onClick={() => void revalidate()}
+      title="Re-check every unresolved conversion issue and resolve the ones that no longer hold"
+    >
+      <ListChecks className={`h-3 w-3 ${pending ? 'animate-pulse' : ''}`} />
+      Revalidate issues
+    </Button>
+  );
+}
+
 /* Cause annotations are keyed by invariant id; one fetch serves both the
    findings sheet (read) and the invariant sheet (read/write). */
 function useInvariantNotes() {
@@ -851,6 +895,7 @@ function SentinelFindingsPanel() {
       actions={
         <div className="flex items-center gap-1">
           <RescanButton />
+          <RevalidateIssuesButton />
           <CopyCoordinatorPromptButton />
           <RefreshButton loading={loading} onClick={() => void loadFindings()} />
         </div>

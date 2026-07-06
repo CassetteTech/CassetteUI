@@ -658,6 +658,21 @@ export interface InternalSentinelRescanResponse {
   requestedAtUtc: string;
 }
 
+/* Result of a synchronous conversion-issue revalidation sweep: unlike the
+   fire-and-forget Sentinel rescan, the Bridge endpoint runs inline and returns
+   the counts directly, so the caller can surface them immediately. Mirrors
+   CassetteBridge's ConversionIssueRevalidationSummary. */
+export interface ConversionIssueRevalidationSummary {
+  checked: number;
+  resolved: number;
+  resolvedByType: Record<string, number>;
+  resolvedByResolution: Record<string, number>;
+  stillHolding: number;
+  stillHoldingByType: Record<string, number>;
+  skippedUnknown: number;
+  skippedUnknownByType: Record<string, number>;
+}
+
 export interface InternalSentinelInvariantNote {
   invariantId: string;
   rootCauseSummary?: string | null;

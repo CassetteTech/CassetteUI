@@ -3,7 +3,7 @@
 ## Test Scenarios
 
 ### 1. Homepage Music Link Conversion
-1. Open http://localhost:3001
+1. Open the local app, usually http://localhost:3000
 2. Paste a music link (e.g., Spotify track URL) in the search bar
 3. Verify that:
    - Loading indicator appears immediately
@@ -12,13 +12,13 @@
    - Entity page displays with correct information
 
 ### 2. Search Results Selection
-1. Open http://localhost:3001
+1. Open the local app, usually http://localhost:3000
 2. Type a search query (e.g., "Best Part Daniel Caesar")
 3. Click on a search result
 4. Verify conversion and navigation to post page
 
 ### 3. Collections Page
-1. Navigate to http://localhost:3001/collections
+1. Navigate to `/collections`
 2. Click on any collection item
 3. Verify that it navigates to the post page with the item details
 

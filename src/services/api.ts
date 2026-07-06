@@ -20,6 +20,7 @@ import {
   InternalSentinelAuditRunsResponse,
   InternalSentinelInvariantRegistryResponse,
   InternalSentinelRescanResponse,
+  ConversionIssueRevalidationSummary,
   InternalSentinelInvariantNote,
   InternalSentinelInvariantNoteInput,
   InternalSentinelInvariantNotesResponse,
@@ -648,6 +649,18 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify(invariantId ? { invariantId } : {}),
         timeoutMs: 20000,
+      },
+    );
+  }
+
+  async revalidateInternalConversionIssues(): Promise<ConversionIssueRevalidationSummary> {
+    return this.request<ConversionIssueRevalidationSummary>(
+      '/api/v1/internal/conversion-issues/revalidate',
+      {
+        method: 'POST',
+        // Synchronous sweep over every unresolved issue — give it more room
+        // than the fire-and-forget rescan before the client-side timeout trips.
+        timeoutMs: 60000,
       },
     );
   }

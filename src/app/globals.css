@@ -1,6 +1,3 @@
-
-@custom-variant dark (&:is(.dark *));
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -88,291 +85,13 @@
       0 8px 16px rgba(0, 0, 0, 0.25);
   }
 
-  /* ─── Sunken Effect (Inner Shadows) ────────────────────────────────────── */
-  .sunken {
-    box-shadow:
-      inset 0 1px 1.5px rgba(255, 255, 255, 0.12),
-      inset 0 -1px 1.5px rgba(0, 0, 0, 0.25);
-    background: hsl(var(--muted));
-  }
-
-  .dark .sunken {
-    box-shadow:
-      inset 0 1px 1.5px rgba(255, 255, 255, 0.05),
-      inset 0 -1px 1.5px rgba(0, 0, 0, 0.35);
-  }
-
-  /* ─── Deep Inset Effect ──────────────────────────────────────────────────── */
-  .inset-deep {
-    box-shadow:
-      inset 0 2px 4px rgba(0, 0, 0, 0.1),
-      inset 0 4px 8px rgba(0, 0, 0, 0.06);
-  }
-
-  .dark .inset-deep {
-    box-shadow:
-      inset 0 2px 4px rgba(0, 0, 0, 0.3),
-      inset 0 4px 8px rgba(0, 0, 0, 0.2);
-  }
-
-  /* ─── Subtle Gloss (Optional for CTAs) ─────────────────────────────────── */
-  .gloss {
-    background:
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
-      hsl(var(--card));
-  }
-
-  .dark .gloss {
-    background:
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
-      hsl(var(--card));
-  }
-
-  /* ─── 3-Layer Surface System ───────────────────────────────────────────── */
+  /* ─── Surface Layers ───────────────────────────────────────────────────── */
   .surface-bottom {
     background: hsl(var(--background));
   }
 
-  .surface-middle {
-    background: hsl(var(--muted));
-  }
-
   .surface-top {
     background: hsl(var(--card));
-  }
-
-  /* ─── Inner Glow for Interactive Elements ──────────────────────────────── */
-  .inner-glow {
-    box-shadow: inset 0 0 20px hsl(var(--primary) / 0.1);
-  }
-
-  .dark .inner-glow {
-    box-shadow: inset 0 0 20px hsl(var(--primary) / 0.15);
-  }
-
-  /* ─── Gradient Borders ──────────────────────────────────────────────────── */
-  .gradient-border {
-    position: relative;
-    background: hsl(var(--card));
-    border: 1px solid transparent;
-  }
-
-  .gradient-border::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-    opacity: 0.3;
-  }
-
-  .dark .gradient-border::before {
-    opacity: 0.4;
-  }
-
-  /* ─── Gradient Border Hover ─────────────────────────────────────────────── */
-  .gradient-border-hover {
-    position: relative;
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-  }
-
-  .gradient-border-hover::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-
-  .gradient-border-hover:hover::before {
-    opacity: 0.5;
-  }
-
-  .dark .gradient-border-hover:hover::before {
-    opacity: 0.6;
-  }
-
-  /* ─── Accent Line ───────────────────────────────────────────────────────── */
-  .accent-line {
-    position: relative;
-    padding-left: 1.25rem;
-  }
-
-  .accent-line::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: linear-gradient(to bottom, hsl(var(--primary)), hsl(var(--accent)));
-    border-radius: 9999px;
-  }
-
-  /* ─── Shimmer Effect ────────────────────────────────────────────────────── */
-  @keyframes shimmer {
-    0% {
-      background-position: -200% center;
-    }
-    100% {
-      background-position: 200% center;
-    }
-  }
-
-  .shimmer {
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.1) 50%,
-      transparent 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 3s infinite;
-  }
-
-  .dark .shimmer {
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.05) 50%,
-      transparent 100%
-    );
-    background-size: 200% 100%;
-  }
-
-  /* ─── Glass Effect ──────────────────────────────────────────────────────── */
-  .glass {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .dark .glass {
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-  }
-
-  /* ─── Spotlight Effect ──────────────────────────────────────────────────── */
-  .spotlight {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .spotlight::after {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(
-      circle,
-      rgba(255, 255, 255, 0.1) 0%,
-      transparent 70%
-    );
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-  }
-
-  .spotlight:hover::after {
-    opacity: 1;
-  }
-
-  .dark .spotlight::after {
-    background: radial-gradient(
-      circle,
-      rgba(255, 255, 255, 0.05) 0%,
-      transparent 70%
-    );
-  }
-
-  /* ─── Mesh Gradient Background ──────────────────────────────────────────── */
-  .mesh-gradient {
-    background:
-      radial-gradient(at 27% 37%, hsl(var(--primary) / 0.05) 0px, transparent 50%),
-      radial-gradient(at 97% 21%, hsl(var(--secondary) / 0.05) 0px, transparent 50%),
-      radial-gradient(at 52% 99%, hsl(var(--accent) / 0.03) 0px, transparent 50%),
-      radial-gradient(at 10% 29%, hsl(var(--primary) / 0.04) 0px, transparent 50%),
-      radial-gradient(at 97% 96%, hsl(var(--accent) / 0.04) 0px, transparent 50%);
-  }
-
-  /* ─── Bordered Glow ─────────────────────────────────────────────────────── */
-  .bordered-glow {
-    position: relative;
-  }
-
-  .bordered-glow::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg,
-      hsl(var(--primary)) 0%,
-      hsl(var(--accent)) 50%,
-      hsl(var(--secondary)) 100%
-    );
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-
-  .bordered-glow:hover::before {
-    opacity: 0.6;
-  }
-
-  /* ─── Text Gradient ─────────────────────────────────────────────────────── */
-  .text-gradient {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* ─── Floating Animation ────────────────────────────────────────────────── */
-  @keyframes float {
-    0%, 100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-  }
-
-  .float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  /* ─── Pulse Glow ────────────────────────────────────────────────────────── */
-  @keyframes pulse-glow {
-    0%, 100% {
-      box-shadow: 0 0 20px hsl(var(--primary) / 0.1);
-    }
-    50% {
-      box-shadow: 0 0 30px hsl(var(--primary) / 0.2);
-    }
-  }
-
-  .pulse-glow {
-    animation: pulse-glow 3s ease-in-out infinite;
   }
 
   /* ─── Editorial Section Wrappers ─────────────────────────────────────── */
@@ -419,80 +138,6 @@
     border-top: 1px dashed hsl(var(--editorial-rule-subtle));
   }
 
-  /* ─── Pull Quote (editorial blockquote treatment) ────────────────────── */
-  .pullquote {
-    position: relative;
-    padding: 2rem 2.5rem;
-    background: hsl(var(--pullquote-bg));
-    border-left: 4px solid hsl(var(--primary));
-    border-radius: var(--radius);
-  }
-
-  .pullquote::before {
-    content: '\201C';
-    font-family: var(--font-teko), 'Teko', sans-serif;
-    font-size: 6rem;
-    line-height: 1;
-    position: absolute;
-    top: -0.5rem;
-    left: 1rem;
-    color: hsl(var(--primary) / 0.15);
-    pointer-events: none;
-  }
-
-  /* ─── Display Number (oversized editorial watermark) ─────────────────── */
-  .display-number {
-    font-family: var(--font-teko), 'Teko', sans-serif;
-    font-weight: 700;
-    font-size: 8rem;
-    line-height: 0.8;
-    color: hsl(var(--number-display) / 0.07);
-    position: absolute;
-    top: -0.5rem;
-    right: 1rem;
-    pointer-events: none;
-    user-select: none;
-  }
-
-  /* ─── Section Label (editorial labeling with line) ───────────────────── */
-  .section-label {
-    font-family: var(--font-teko), 'Teko', sans-serif;
-    font-size: 0.6875rem;
-    letter-spacing: 0.25em;
-    text-transform: uppercase;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .section-label::before {
-    content: '';
-    display: inline-block;
-    width: 1.5rem;
-    height: 1px;
-    background: currentColor;
-    opacity: 0.4;
-  }
-
-  /* ─── Inset Panel (editorial callout box) ────────────────────────────── */
-  .inset-panel {
-    background: hsl(var(--pullquote-bg));
-    border: 1px solid hsl(var(--border));
-    padding: 1.5rem 2rem;
-    position: relative;
-    border-radius: var(--radius);
-  }
-
-  .inset-panel::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)));
-    border-radius: var(--radius) var(--radius) 0 0;
-  }
 }
 
 @layer base {
@@ -516,6 +161,7 @@
     --destructive-foreground: 0 0% 100%; /* #FFFFFF */
     --border: 35 25% 75%; /* #CBBFA8 */
     --input: 38 30% 85%; /* #DDD0B8 */
+    --field: 0 0% 100%; /* #FFFFFF — pure white input surfaces on the warm paper bg */
     --ring: 350 76% 52%; /* #E22645 */
     --radius: 0.5rem;
 
@@ -569,6 +215,11 @@
     --editorial-rule-subtle: 35 25% 65%;   /* Lighter rule lines */
     --pullquote-bg: 38 40% 90%;            /* Warm tint for pull-quotes */
     --number-display: 350 76% 52%;         /* Decorative numbers */
+
+    /* ─── Console domain accent (default = brand) ───────────────────────── */
+    --domain: 350 76% 52%;                 /* Default to primary red */
+    --domain-foreground: 0 0% 100%;
+    --domain-muted: 350 60% 90%;           /* Soft accent tint */
   }
 
   .dark {
@@ -590,6 +241,7 @@
     --destructive-foreground: 0 0% 100%; /* #FFFFFF */
     --border: 213 7% 22%; /* #333740 */
     --input: 210 10% 19%; /* #2B3035 */
+    --field: 210 10% 17%; /* #252A2F — inputs follow the dark card surface */
     --ring: 349 89% 65%; /* #F05070 */
 
     --accent-royal: 235 86% 65%; /* #5865F2 */
@@ -642,6 +294,11 @@
     --editorial-rule-subtle: 213 7% 35%;   /* Subtle rule lines */
     --pullquote-bg: 210 10% 22%;           /* Dark tint for pull-quotes */
     --number-display: 349 89% 65%;         /* Decorative numbers */
+
+    /* ─── Console domain accent (default = brand) ───────────────────────── */
+    --domain: 349 89% 65%;                 /* Default to primary red (dark) */
+    --domain-foreground: 0 0% 100%;
+    --domain-muted: 349 71% 25%;
   }
 
   /* Force Cassette's warm white surface colors regardless of theme. */
@@ -655,6 +312,26 @@
     --foreground: 210 10% 14%;
     --input: var(--cassette-white);
   }
+
+  /* ─── Console domain scopes ──────────────────────────────────────────────
+     Wrap a section in .domain-eng or .domain-growth to recolor every console
+     primitive that reads --domain. Engineering reads cool/telemetry; Growth
+     reads warm/editorial (brand red, auto-adapts via --primary). */
+  .domain-eng {
+    --domain: 212 90% 44%;       /* Systems blue */
+    --domain-foreground: 0 0% 100%;
+    --domain-muted: 212 60% 90%;
+  }
+  .dark .domain-eng {
+    --domain: 215 100% 74%;      /* Lighter blue for dark surfaces */
+    --domain-foreground: 210 10% 14%;
+    --domain-muted: 215 45% 24%;
+  }
+  .domain-growth {
+    --domain: var(--primary);
+    --domain-foreground: var(--primary-foreground);
+    --domain-muted: var(--accent);
+  }
 }
 
 @layer base {
@@ -663,21 +340,50 @@
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Inter', 'Roboto Flex', sans-serif;
+    /* font-sans resolves to var(--font-inter) via tailwind.config.js. */
+    @apply bg-background text-foreground font-sans;
   }
 }
 
-/* ─── Theme inline utilities for sidebar ─────────────────────────────────── */
-@theme inline {
-  --color-sidebar: var(--sidebar-background);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+/* ─── Console chrome ───────────────────────────────────────────────────────
+   Signal light — a small status dot with a soft halo, like a console LED. */
+.signal-dot {
+  position: relative;
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 9999px;
+  background: currentColor;
+}
+.signal-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.2;
+}
+.signal-dot-pulse::after {
+  animation: signal-pulse 2s ease-in-out infinite;
+}
+@keyframes signal-pulse {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.05; transform: scale(1.6); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .signal-dot-pulse::after { animation: none; }
+}
+
+/* Staggered console entrance — chrome only, respects reduced motion. */
+@keyframes console-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.console-rise {
+  animation: console-rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .console-rise { animation: none; }
 }
 
 /* Hamburger menu animation */

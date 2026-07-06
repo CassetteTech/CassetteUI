@@ -539,9 +539,9 @@ export function PostInsightsSheet({
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full',
         'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
-        'data-[state=open]:duration-[400ms] data-[state=closed]:duration-[280ms]',
-        'data-[state=open]:ease-[cubic-bezier(0.22,1,0.36,1)]',
-        'data-[state=closed]:ease-[cubic-bezier(0.64,0,0.78,0)]',
+        'data-[state=open]:duration-400 data-[state=closed]:duration-280',
+        'data-[state=open]:ease-out-quart',
+        'data-[state=closed]:ease-in-quart',
         'will-change-transform',
       )
     : cn(
@@ -549,9 +549,9 @@ export function PostInsightsSheet({
         'sm:max-w-md md:max-w-lg',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=open]:slide-in-from-right-full data-[state=closed]:slide-out-to-right-full',
-        'data-[state=open]:duration-[450ms] data-[state=closed]:duration-[300ms]',
-        'data-[state=open]:ease-[cubic-bezier(0.22,1,0.36,1)]',
-        'data-[state=closed]:ease-[cubic-bezier(0.64,0,0.78,0)]',
+        'data-[state=open]:duration-450 data-[state=closed]:duration-300',
+        'data-[state=open]:ease-out-quart',
+        'data-[state=closed]:ease-in-quart',
         'will-change-transform',
       );
 
@@ -660,7 +660,7 @@ export function PostInsightsSheet({
               'fixed inset-0 z-50 bg-foreground/40',
               'data-[state=open]:animate-in data-[state=closed]:animate-out',
               'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
-              'data-[state=open]:duration-[300ms] data-[state=closed]:duration-[200ms]',
+              'data-[state=open]:duration-300 data-[state=closed]:duration-200',
             )}
           />
         )}

@@ -27,7 +27,7 @@ export function SupportCTA() {
         />
 
         <div
-          className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 sm:p-8 shadow-[6px_6px_0_hsl(var(--foreground))] dark:shadow-[6px_6px_0_hsl(var(--cassette-white))]"
+          className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 sm:p-8 shadow-flat-6 dark:shadow-flat-white-6"
           style={{ transform: "rotate(-1deg)" }}
         >
           <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">
@@ -51,7 +51,7 @@ export function SupportCTA() {
             </div>
             <button
               onClick={openKoFiSupport}
-              className="inline-flex items-center justify-center gap-3 bg-background border-2 border-foreground text-foreground font-mono text-[11px] uppercase tracking-[0.25em] px-5 py-3 shadow-[4px_4px_0_hsl(var(--foreground))] hover:bg-primary hover:text-primary-foreground hover:border-primary hover:shadow-[6px_6px_0_hsl(var(--primary))] transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="inline-flex items-center justify-center gap-3 bg-background border-2 border-foreground text-foreground font-mono text-[11px] uppercase tracking-[0.25em] px-5 py-3 shadow-flat-4 hover:bg-primary hover:text-primary-foreground hover:border-primary hover:shadow-flat-primary-6 transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               aria-label="Support Cassette on Ko-fi"
             >
               <Image

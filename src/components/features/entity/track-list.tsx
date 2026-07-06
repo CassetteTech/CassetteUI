@@ -209,7 +209,7 @@ export const TrackList: React.FC<TrackListProps> = ({
                   'group grid items-center gap-3 px-3 sm:px-4 transition-colors duration-200 grid-cols-[auto_1fr_auto] border-b border-border/40 last:border-b-0 min-h-[52px]',
                   compact ? 'py-2' : 'py-2.5',
                   'hover:bg-muted/40',
-                  isPlaying && 'bg-primary/10 shadow-[inset_2px_0_0_theme(colors.primary)]'
+                  isPlaying && 'bg-primary/10 shadow-[inset_2px_0_0_hsl(var(--primary))]'
                 )}
               >
                 {/* Track number / play button */}

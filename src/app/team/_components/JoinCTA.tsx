@@ -46,7 +46,7 @@ export function JoinCTA() {
         >
           <a
             href="mailto:team@cassette.com"
-            className="inline-flex items-center justify-center gap-3 bg-primary border-2 border-foreground text-primary-foreground font-mono text-[12px] uppercase tracking-[0.25em] px-6 py-3 shadow-[4px_4px_0_hsl(var(--foreground))] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_hsl(var(--foreground))] transition-all"
+            className="inline-flex items-center justify-center gap-3 bg-primary border-2 border-foreground text-primary-foreground font-mono text-[12px] uppercase tracking-[0.25em] px-6 py-3 shadow-flat-4 hover:-translate-y-0.5 hover:shadow-flat-6 transition-all"
           >
             <Mail size={16} />
             <span>Get In Touch</span>

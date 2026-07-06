@@ -61,7 +61,7 @@ export function ExampleProfileSection() {
 
         <Link
           href="/profile/matttoppi"
-          className="group block bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 sm:p-8 shadow-[6px_6px_0_hsl(var(--foreground))] dark:shadow-[6px_6px_0_hsl(var(--cassette-white))] hover:shadow-[8px_8px_0_hsl(var(--primary))] dark:hover:shadow-[8px_8px_0_hsl(var(--primary))] transition-shadow"
+          className="group block bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 sm:p-8 shadow-flat-6 dark:shadow-flat-white-6 hover:shadow-flat-primary-8 dark:hover:shadow-flat-primary-8 transition-shadow"
         >
           <div className="flex items-center gap-4 sm:gap-5">
             <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 border-2 border-foreground rounded-full overflow-hidden bg-muted">

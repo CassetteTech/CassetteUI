@@ -144,8 +144,13 @@ export default function EditProfilePage() {
               <>
                 {/* Header */}
                 <div className="max-w-lg mx-auto mb-4 sm:mb-6 px-4 sm:px-6">
-                  <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Edit profile</h1>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                    Profile settings
+                  </p>
+                  <h1 className="mt-1.5 font-teko text-4xl sm:text-5xl font-bold uppercase leading-none tracking-tight text-foreground">
+                    Edit profile
+                  </h1>
+                  <p className="mt-2 text-sm text-muted-foreground">
                     Update your profile information and connected services.
                   </p>
                 </div>
@@ -174,9 +179,14 @@ export default function EditProfilePage() {
         ) : userBio ? (
           <>
             {/* Header */}
-            <div className="max-w-lg mx-auto mb-6 px-4 sm:px-6">
-              <h1 className="text-2xl font-semibold text-foreground">Edit profile</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
+            <div className="max-w-lg mx-auto mb-6 px-4 sm:px-6 w-full">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                Profile settings
+              </p>
+              <h1 className="mt-1.5 font-teko text-5xl font-bold uppercase leading-none tracking-tight text-foreground">
+                Edit profile
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground">
                 Update your profile information and connected services.
               </p>
             </div>

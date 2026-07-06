@@ -51,7 +51,7 @@ export function FeaturesSection() {
                 aria-hidden
                 className="absolute -top-2 left-6 z-10 h-5 w-20 rotate-[-6deg] opacity-80 border border-foreground/10 bg-primary/70"
               />
-              <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-5 shadow-[5px_5px_0_hsl(var(--foreground))] dark:shadow-[5px_5px_0_hsl(var(--cassette-white))]">
+              <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-5 shadow-flat-5 dark:shadow-flat-white-5">
                 <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">
                   Profile Preview
                 </p>
@@ -79,7 +79,7 @@ export function FeaturesSection() {
                     ease: [0.23, 1, 0.32, 1],
                   }}
                 >
-                  <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 relative overflow-hidden shadow-[5px_5px_0_hsl(var(--foreground))] dark:shadow-[5px_5px_0_hsl(var(--cassette-white))] hover:-translate-y-1 hover:shadow-[7px_7px_0_hsl(var(--primary))] transition-all duration-150 ease-linear">
+                  <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 relative overflow-hidden shadow-flat-5 dark:shadow-flat-white-5 hover:-translate-y-1 hover:shadow-flat-primary-7 transition-all duration-150 ease-linear">
                     {/* Accent bar */}
                     <div
                       className={`h-[3px] w-12 ${card.accentBar} mb-4`}
@@ -105,7 +105,7 @@ export function FeaturesSection() {
                           <Link
                             key={link.title}
                             href={link.href}
-                            className="bg-background border-2 border-foreground p-3 shadow-[3px_3px_0_hsl(var(--foreground))] hover:-translate-y-0.5 hover:shadow-[4px_4px_0_hsl(var(--primary))] transition-all"
+                            className="bg-background border-2 border-foreground p-3 shadow-flat-3 hover:-translate-y-0.5 hover:shadow-flat-primary-4 transition-all"
                           >
                             <div className="flex items-center gap-3">
                               <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center flex-shrink-0">
@@ -132,7 +132,7 @@ export function FeaturesSection() {
                         {identityTiles.map((tile) => (
                           <div
                             key={tile.title}
-                            className="bg-background border-2 border-foreground p-3 shadow-[3px_3px_0_hsl(var(--foreground))]"
+                            className="bg-background border-2 border-foreground p-3 shadow-flat-3"
                           >
                             <p className="text-xs font-medium text-foreground">
                               {tile.title}

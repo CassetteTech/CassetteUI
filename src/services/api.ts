@@ -16,6 +16,13 @@ import {
   InternalAccountTypeAuditEntry,
   InternalIssuesResponse,
   InternalIssueDetail,
+  InternalSentinelFindingsResponse,
+  InternalSentinelAuditRunsResponse,
+  InternalSentinelInvariantRegistryResponse,
+  InternalSentinelRescanResponse,
+  InternalSentinelInvariantNote,
+  InternalSentinelInvariantNoteInput,
+  InternalSentinelInvariantNotesResponse,
   InternalExploreSnapshotsResponse,
   InternalExploreSnapshotItemsResponse,
   InternalSignupAttributionOverview,
@@ -607,6 +614,85 @@ class ApiService {
 
   async getInternalIssueById(issueId: string): Promise<InternalIssueDetail> {
     return this.request<InternalIssueDetail>(`/api/v1/internal/issues/${issueId}`, {
+      timeoutMs: 20000,
+    });
+  }
+
+  async getInternalSentinelFindings(params: {
+    q?: string;
+    severity?: string;
+    invariantId?: string;
+    status?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}): Promise<InternalSentinelFindingsResponse> {
+    const query = new URLSearchParams();
+    if (params.q) query.set('q', params.q);
+    if (params.severity) query.set('severity', params.severity);
+    if (params.invariantId) query.set('invariantId', params.invariantId);
+    if (params.status) query.set('status', params.status);
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request<InternalSentinelFindingsResponse>(`/api/v1/internal/sentinel/findings${suffix}`, {
+      timeoutMs: 20000,
+    });
+  }
+
+  async requestInternalSentinelRescan(
+    invariantId?: string,
+  ): Promise<InternalSentinelRescanResponse> {
+    return this.request<InternalSentinelRescanResponse>(
+      '/api/v1/internal/sentinel/rescan',
+      {
+        method: 'POST',
+        body: JSON.stringify(invariantId ? { invariantId } : {}),
+        timeoutMs: 20000,
+      },
+    );
+  }
+
+  async getInternalSentinelInvariantNotes(): Promise<InternalSentinelInvariantNotesResponse> {
+    return this.request<InternalSentinelInvariantNotesResponse>(
+      '/api/v1/internal/sentinel/invariants/notes',
+      { timeoutMs: 20000 },
+    );
+  }
+
+  // Saving with every field blank deletes the note; the API answers 204.
+  async saveInternalSentinelInvariantNote(
+    invariantId: string,
+    note: InternalSentinelInvariantNoteInput,
+  ): Promise<InternalSentinelInvariantNote | null> {
+    return this.request<InternalSentinelInvariantNote | null>(
+      `/api/v1/internal/sentinel/invariants/${encodeURIComponent(invariantId)}/note`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(note),
+        timeoutMs: 20000,
+      },
+    );
+  }
+
+  async getInternalSentinelRuns(params: {
+    q?: string;
+    status?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}): Promise<InternalSentinelAuditRunsResponse> {
+    const query = new URLSearchParams();
+    if (params.q) query.set('q', params.q);
+    if (params.status) query.set('status', params.status);
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request<InternalSentinelAuditRunsResponse>(`/api/v1/internal/sentinel/runs${suffix}`, {
+      timeoutMs: 20000,
+    });
+  }
+
+  async getInternalSentinelInvariantRegistry(): Promise<InternalSentinelInvariantRegistryResponse> {
+    return this.request<InternalSentinelInvariantRegistryResponse>('/api/v1/internal/sentinel/invariants', {
       timeoutMs: 20000,
     });
   }

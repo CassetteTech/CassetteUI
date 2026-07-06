@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTheme } from 'next-themes';
-import { ColorExtractor, type ColorPalette } from '@/services/color-extractor';
+import { type ColorPalette } from '@/services/color-extractor';
 
 interface AnimatedColorBackgroundProps {
   /** Full palette from ColorExtractor. If null, the background reverts to theme default. */
@@ -23,10 +23,62 @@ const GRAIN_DATA_URI = (() => {
   return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
 })();
 
-function hexWithAlpha(hex: string, alpha: number): string {
-  const clamped = Math.max(0, Math.min(1, alpha));
-  const a = Math.round(clamped * 255).toString(16).padStart(2, '0');
-  return `${hex}${a}`;
+// ─── Tone mapping ────────────────────────────────────────────────────────────
+// Raw extracted colors can be any lightness; compositing them directly over the
+// theme surface produces mud (dark album colors × cream paper) or glare. Instead
+// we re-tone every palette color into a band that sits comfortably on the current
+// surface, keeping the HUE (the part that identifies the album) and taming the rest.
+
+function hexToHslLocal(hex: string): { h: number; s: number; l: number } {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      default: h = (r - g) / d + 4;
+    }
+    h /= 6;
+  }
+  return { h, s, l };
+}
+
+function hslToCss(h: number, s: number, l: number, alpha: number): string {
+  return `hsl(${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}% / ${alpha.toFixed(3)})`;
+}
+
+/**
+ * Clamp a color into a theme band. Light mode gets pastel washes that tint the
+ * cream paper without swallowing it; dark mode gets deep jewel tones that glow
+ * against the charcoal without going black. Near-grayscale colors stay neutral
+ * (no fake saturation), so B&W artwork yields a quiet page instead of mud.
+ */
+function tone(
+  hex: string,
+  isDark: boolean,
+  alpha: number,
+  role: 'star' | 'support' = 'support'
+): string {
+  const { h, s, l } = hexToHslLocal(hex);
+  const isNeutral = s < 0.12;
+  const sat = isNeutral
+    ? s
+    : isDark
+      ? Math.min(s * 1.05, 0.6)
+      : Math.min(s * 1.1, role === 'star' ? 0.8 : 0.6);
+  const light = isDark
+    ? Math.max(0.2, Math.min(role === 'star' ? 0.36 : 0.3, l))
+    : Math.max(role === 'star' ? 0.64 : 0.72, Math.min(0.86, l))
+  ;
+  return hslToCss(h, sat, light, alpha);
 }
 
 export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = ({
@@ -36,33 +88,33 @@ export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = (
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
-  const shouldClamp = palette
-    ? palette.confidence < 0.4 || (!isDark && ColorExtractor.isLightColor(palette.dominant))
-    : false;
-
-  const blendMode = !isDark || shouldClamp ? 'multiply' : 'screen';
-  const alphaCap = shouldClamp ? 0.55 : isDark ? 0.95 : 0.85;
+  // Low-confidence extractions (busy or near-monochrome art) get a quieter wash.
+  const alphaCap = palette && palette.confidence < 0.4 ? 0.5 : 0.85;
 
   const meshBackground = React.useMemo(() => {
     if (!palette) return '';
 
-    const accentSource = palette.vibrant || palette.analogous?.[0] || palette.dominant;
+    // The "star" is the most chromatic color — it identifies the record.
+    // Dominant (most populous) is often a dull background; use it as support.
+    const starHsl = hexToHslLocal(palette.vibrant);
+    const star = starHsl.s >= 0.2 ? palette.vibrant : palette.dominant;
+    const support = star === palette.vibrant ? palette.dominant : palette.muted;
 
-    const primary = hexWithAlpha(palette.dominant, alphaCap);
-    const accent  = hexWithAlpha(accentSource, alphaCap * 0.9);
-    const fill    = hexWithAlpha(palette.muted, alphaCap * 0.75);
-    const topPeek = hexWithAlpha(accentSource, alphaCap * 0.55);
-    const washMid = hexWithAlpha(palette.muted, alphaCap * 0.35);
-    const washEnd = hexWithAlpha(palette.muted, alphaCap * 0.50);
+    const glow      = tone(star, isDark, alphaCap, 'star');
+    const glowFade  = tone(star, isDark, 0, 'star');
+    const side      = tone(support, isDark, alphaCap * 0.7);
+    const sideFade  = tone(support, isDark, 0);
+    const horizon   = tone(palette.muted, isDark, alphaCap * 0.6);
+    const horizonFade = tone(palette.muted, isDark, 0);
 
+    // Coverage is deliberately partial: the top ~third stays theme paper so the
+    // page still reads as Cassette, with the album glowing up from below.
     return [
-      `radial-gradient(120vmax at 50% 110%, ${fill} 0%, ${palette.muted}00 62%)`,
-      `radial-gradient(85vmax at 15% 100%, ${primary} 0%, ${palette.dominant}00 58%)`,
-      `radial-gradient(75vmax at 90% 95%, ${accent} 0%, ${accentSource}00 58%)`,
-      `radial-gradient(55vmax at 100% -10%, ${topPeek} 0%, ${accentSource}00 55%)`,
-      `linear-gradient(to bottom, ${palette.muted}00 8%, ${washMid} 45%, ${washEnd} 100%)`,
+      `radial-gradient(90vmax at 22% 85%, ${glow} 0%, ${glowFade} 60%)`,
+      `radial-gradient(70vmax at 88% 70%, ${side} 0%, ${sideFade} 55%)`,
+      `linear-gradient(to bottom, ${horizonFade} 38%, ${horizon} 100%)`,
     ].join(', ');
-  }, [palette, alphaCap]);
+  }, [palette, alphaCap, isDark]);
 
   // Apply the mesh to <body> directly. On iOS Safari with viewport-fit=cover, body's
   // background paints the full layout viewport — including under the URL pill and home
@@ -80,7 +132,9 @@ export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = (
     }
     body.style.backgroundImage = meshBackground;
     body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundBlendMode = blendMode;
+    // Colors are pre-toned to sit on the theme surface, so plain compositing is
+    // predictable — multiply/screen were the source of the muddy full-page wash.
+    body.style.backgroundBlendMode = 'normal';
     body.style.transition = `background-image ${duration}ms ease-in-out`;
     return () => {
       body.style.backgroundImage = '';
@@ -88,7 +142,7 @@ export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = (
       body.style.backgroundBlendMode = '';
       body.style.transition = '';
     };
-  }, [palette, meshBackground, blendMode, duration]);
+  }, [palette, meshBackground, duration]);
 
   // Grain overlay stays as a pointer-none fixed element at -z-10; its small footprint in
   // the Safari chrome area is imperceptible. mix-blend-soft-light needs the blob colors

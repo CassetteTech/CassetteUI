@@ -45,7 +45,7 @@ export function VisionSection() {
             aria-hidden
             className="absolute -top-2 right-6 z-10 h-5 w-20 rotate-[4deg] opacity-80 border border-foreground/10 bg-accentRoyal/60"
           />
-          <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 sm:p-8 shadow-[6px_6px_0_hsl(var(--cassette-white))]">
+          <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 sm:p-8 shadow-flat-white-6">
             <p className="font-teko text-2xl sm:text-3xl uppercase tracking-tight leading-tight mb-4">
               Curators deserve credit—and rewards—for their influence.
             </p>

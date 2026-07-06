@@ -58,18 +58,17 @@ export function ProfileTabs({
   };
 
   return (
-    <div className="p-3 sm:p-4 lg:p-6">
+    <div className="bg-background/95 backdrop-blur-sm px-3 pt-3 sm:px-4 sm:pt-4 lg:px-6 lg:pt-5">
       <div
         ref={containerRef}
-        className="relative flex h-11 sm:h-12 items-center justify-start rounded-xl w-full lg:w-fit p-1 bg-muted/50 backdrop-blur-sm border border-border/50"
+        className="relative flex items-center justify-start w-full lg:w-fit border-b-2 border-border/70"
       >
-        {/* Sliding indicator */}
+        {/* Sliding underline indicator */}
         <div
-          className="absolute top-1 bottom-1 rounded-lg shadow-sm transition-all duration-300 ease-out"
+          className="absolute -bottom-0.5 h-0.5 bg-primary transition-all duration-300 ease-out"
           style={{
             left: sliderStyle.left,
             width: sliderStyle.width,
-            backgroundColor: 'hsl(var(--primary))',
           }}
         />
 
@@ -82,11 +81,11 @@ export function ProfileTabs({
             className={`
               relative z-10 flex-1 min-w-0 lg:flex-none lg:min-w-fit
               inline-flex items-center justify-center whitespace-nowrap
-              rounded-lg px-1.5 sm:px-3 lg:px-4 py-2
-              text-xs sm:text-sm font-medium
+              px-1.5 sm:px-3 lg:px-4 py-2.5
+              font-mono text-[11px] sm:text-xs uppercase tracking-[0.15em]
               transition-colors duration-200
               ${activeTab === tab.key
-                ? 'text-white'
+                ? 'font-bold text-foreground'
                 : 'text-muted-foreground hover:text-foreground'
               }
             `}

@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Layers,
   RefreshCw,
-  AlertTriangle,
-  CheckCircle2,
   XCircle,
   Hash,
   Database,
@@ -16,8 +14,6 @@ import type {
   InternalExploreSnapshotSummary,
   InternalExploreSnapshotItemsResponse,
 } from '@/types';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate } from './internal-utils';
 import {
@@ -29,17 +25,26 @@ import {
 import { ExploreSnapshotItemsTable } from './explore-snapshot-items-table';
 import { EmptyState } from './empty-state';
 import { ErrorState } from './error-state';
+import {
+  SectionHeader,
+  Panel,
+  StatStrip,
+  Stat,
+  StatusPill,
+  Field,
+  type Tone,
+} from './kit';
 
 const DAY_RANGES = [7, 14, 30, 90];
 
-function statusBadgeClass(status: string) {
+function statusTone(status: string): Tone {
   switch (snapshotStatusTone(status)) {
     case 'success':
-      return 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-[hsl(var(--success))]/20';
+      return 'success';
     case 'failed':
-      return 'bg-destructive/10 text-destructive border-destructive/20';
+      return 'critical';
     default:
-      return 'bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/20';
+      return 'warning';
   }
 }
 
@@ -53,18 +58,6 @@ function readContentTypeDistribution(
     ([, value]) => typeof value === 'number'
   ) as [string, number][];
   return entries.length ? entries : null;
-}
-
-function SummaryStat({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2">
-      <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-      <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-        <p className="truncate text-sm font-medium tabular-nums">{value}</p>
-      </div>
-    </div>
-  );
 }
 
 export function ExploreSnapshotsTab() {
@@ -143,30 +136,12 @@ export function ExploreSnapshotsTab() {
   };
 
   return (
-    <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-      {/* Snapshot selector */}
-      <div className="xl:w-[320px] xl:shrink-0">
-        <Card>
-          <div className="flex items-center justify-between px-4 pt-4 pb-2">
-            <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10">
-                <Layers className="h-3.5 w-3.5 text-primary" />
-              </div>
-              <h2 className="text-sm font-semibold">Snapshots</h2>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              disabled={snapshotsLoading}
-              onClick={() => void loadSnapshots()}
-              title="Refresh"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${snapshotsLoading ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-1 px-4 pb-3">
+    <div className="flex flex-col gap-4">
+      <SectionHeader
+        section="Engineering"
+        title="Snapshots"
+        actions={
+          <div className="flex items-center gap-1">
             {DAY_RANGES.map((range) => (
               <Button
                 key={range}
@@ -178,25 +153,47 @@ export function ExploreSnapshotsTab() {
                 {range}d
               </Button>
             ))}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={snapshotsLoading}
+              onClick={() => void loadSnapshots()}
+              title="Refresh"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${snapshotsLoading ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
+        }
+      />
 
-          <CardContent className="pt-0">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
+        {/* Snapshot selector */}
+        <div className="xl:w-[300px] xl:shrink-0">
+          <Panel title="Snapshots">
             {snapshotsError ? (
-              <ErrorState message={snapshotsError} onRetry={() => void loadSnapshots()} />
+              <div className="p-3">
+                <ErrorState message={snapshotsError} onRetry={() => void loadSnapshots()} />
+              </div>
             ) : snapshotsLoading && !snapshots.length ? (
-              <div className="space-y-2">
+              <div className="divide-y divide-border">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-16 animate-pulse rounded-lg bg-muted/40" />
+                  <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+                    <div className="h-3 w-24 animate-pulse rounded bg-muted" />
+                    <div className="ml-auto h-3 w-12 animate-pulse rounded bg-muted" />
+                  </div>
                 ))}
               </div>
             ) : !snapshots.length ? (
-              <EmptyState
-                icon={Database}
-                title="No snapshots"
-                description={`No Explore snapshots generated in the last ${days} days.`}
-              />
+              <div className="p-3">
+                <EmptyState
+                  icon={Database}
+                  title="No snapshots"
+                  description={`No Explore snapshots generated in the last ${days} days.`}
+                />
+              </div>
             ) : (
-              <div className="max-h-[calc(100vh-16rem)] space-y-1.5 overflow-y-auto no-scrollbar">
+              <div className="max-h-[calc(100vh-14rem)] overflow-y-auto no-scrollbar divide-y divide-border">
                 {snapshots.map((snapshot) => {
                   const isSelected = snapshot.snapshotId === selectedId;
                   const warnings = snapshot.validationWarnings.length;
@@ -206,151 +203,163 @@ export function ExploreSnapshotsTab() {
                       key={snapshot.snapshotId}
                       type="button"
                       onClick={() => handleSelect(snapshot.snapshotId)}
-                      className={`w-full rounded-lg border p-2.5 text-left transition-all ${
+                      className={`w-full px-3 py-2 text-left transition-colors ${
                         isSelected
-                          ? 'border-primary/30 bg-primary/5 ring-1 ring-primary/10'
-                          : 'hover:border-border/80 hover:bg-muted/30'
+                          ? 'bg-domain/[0.07]'
+                          : 'hover:bg-muted/50'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="flex items-center gap-1 text-xs font-medium">
+                        <span className="flex items-center gap-1.5 font-mono text-[11px] tabular-nums text-foreground">
                           <Clock className="h-3 w-3 text-muted-foreground" />
                           {formatDate(snapshot.generatedAtUtc)}
                         </span>
-                        <Badge variant="outline" className={`text-[10px] ${statusBadgeClass(snapshot.status)}`}>
-                          {snapshot.status}
-                        </Badge>
+                        <StatusPill
+                          tone={statusTone(snapshot.status)}
+                          label={snapshot.status}
+                        />
                       </div>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                        <span className="font-mono">{snapshot.algorithmVersion}</span>
-                        <span className="tabular-nums">
-                          {snapshot.candidateCount} cand · {snapshot.storedItemCount} items
-                        </span>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground font-mono tabular-nums">
+                        <span>{snapshot.algorithmVersion}</span>
+                        <span>{snapshot.candidateCount} cand · {snapshot.storedItemCount} items</span>
                       </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-1">
-                        {snapshot.isLatestSuccessful && (
-                          <Badge
-                            variant="outline"
-                            className="h-4 gap-0.5 px-1 text-[9px] bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-[hsl(var(--success))]/20"
-                          >
-                            <CheckCircle2 className="h-2.5 w-2.5" /> Live
-                          </Badge>
-                        )}
-                        {fatals > 0 && (
-                          <Badge variant="outline" className="h-4 gap-0.5 px-1 text-[9px] bg-destructive/10 text-destructive border-destructive/20">
-                            <XCircle className="h-2.5 w-2.5" /> {fatals} fatal
-                          </Badge>
-                        )}
-                        {warnings > 0 && (
-                          <Badge variant="outline" className="h-4 gap-0.5 px-1 text-[9px] bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/20">
-                            <AlertTriangle className="h-2.5 w-2.5" /> {warnings} warn
-                          </Badge>
-                        )}
-                      </div>
+                      {(snapshot.isLatestSuccessful || fatals > 0 || warnings > 0) && (
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          {snapshot.isLatestSuccessful && (
+                            <StatusPill tone="domain" label="Live" />
+                          )}
+                          {fatals > 0 && (
+                            <StatusPill tone="critical" label={`${fatals} fatal`} />
+                          )}
+                          {warnings > 0 && (
+                            <StatusPill tone="warning" label={`${warnings} warn`} />
+                          )}
+                        </div>
+                      )}
                     </button>
                   );
                 })}
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </Panel>
+        </div>
 
-      {/* Selected snapshot detail + ranked items */}
-      <div className="min-w-0 flex-1">
-        <Card>
-          <CardContent className="space-y-4 p-4 md:p-6">
-            {!selectedSnapshot ? (
-              <EmptyState
-                icon={Layers}
-                title="No snapshot selected"
-                description="Pick a snapshot from the list to inspect its ranked items."
-              />
-            ) : (
-              <>
-                {/* Summary header */}
-                <div className="space-y-3 border-b pb-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-sm font-semibold">{selectedSnapshot.snapshotId}</span>
-                    <Badge variant="outline" className={`text-[10px] ${statusBadgeClass(selectedSnapshot.status)}`}>
-                      {selectedSnapshot.status}
-                    </Badge>
+        {/* Selected snapshot detail + ranked items */}
+        <div className="min-w-0 flex-1 flex flex-col gap-3">
+          {!selectedSnapshot ? (
+            <Panel>
+              <div className="p-4">
+                <EmptyState
+                  icon={Layers}
+                  title="No snapshot selected"
+                  description="Pick a snapshot from the list to inspect its ranked items."
+                />
+              </div>
+            </Panel>
+          ) : (
+            <>
+              {/* Detail panel */}
+              <Panel
+                title={
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-mono text-[11px] tabular-nums text-foreground truncate">
+                      {selectedSnapshot.snapshotId}
+                    </span>
+                    <StatusPill tone={statusTone(selectedSnapshot.status)} label={selectedSnapshot.status} />
                     {selectedSnapshot.isLatestSuccessful && (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-[hsl(var(--success))]/20"
-                      >
-                        Live on Explore
-                      </Badge>
+                      <StatusPill tone="domain" label="Live on Explore" />
                     )}
                   </div>
+                }
+              >
+                <div className="divide-y divide-border">
+                  {/* Stat strip */}
+                  <StatStrip className="rounded-none border-0 border-b">
+                    <Stat label="Generated" value={formatDate(selectedSnapshot.generatedAtUtc)} />
+                    <Stat label="Algorithm" value={selectedSnapshot.algorithmVersion} />
+                    <Stat label="Candidates" value={selectedSnapshot.candidateCount} />
+                    <Stat label="Items" value={selectedSnapshot.storedItemCount} />
+                    <Stat label="Seed" value={selectedSnapshot.seed || '—'} />
+                  </StatStrip>
 
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                    <SummaryStat icon={Clock} label="Generated" value={formatDate(selectedSnapshot.generatedAtUtc)} />
-                    <SummaryStat icon={Hash} label="Algorithm" value={selectedSnapshot.algorithmVersion} />
-                    <SummaryStat icon={Database} label="Candidates" value={selectedSnapshot.candidateCount.toLocaleString()} />
-                    <SummaryStat icon={Layers} label="Items" value={selectedSnapshot.storedItemCount.toLocaleString()} />
-                    <SummaryStat icon={Hash} label="Seed" value={selectedSnapshot.seed || '—'} />
-                  </div>
+                  {/* Field rows */}
+                  {(selectedSnapshot.failureReason ||
+                    selectedSnapshot.validationFatalErrors.length > 0 ||
+                    selectedSnapshot.validationWarnings.length > 0 ||
+                    distribution) && (
+                    <div className="px-3 py-2 space-y-2">
+                      {selectedSnapshot.failureReason && (
+                        <div className="flex items-start gap-2">
+                          <XCircle className="mt-0.5 h-3 w-3 shrink-0 text-destructive" />
+                          <span className="font-mono text-[11px] text-destructive">{selectedSnapshot.failureReason}</span>
+                        </div>
+                      )}
 
-                  {selectedSnapshot.failureReason && (
-                    <div className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive/5 p-2.5">
-                      <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
-                      <p className="text-xs text-destructive">{selectedSnapshot.failureReason}</p>
-                    </div>
-                  )}
+                      {selectedSnapshot.validationFatalErrors.length > 0 && (
+                        <div className="space-y-0.5">
+                          <Field label="Fatal errors" icon={XCircle}>
+                            <span className="text-destructive font-mono tabular-nums">
+                              {selectedSnapshot.validationFatalErrors.length}
+                            </span>
+                          </Field>
+                          {selectedSnapshot.validationFatalErrors.map((err, i) => (
+                            <p key={i} className="font-mono text-[11px] text-destructive pl-3">{err}</p>
+                          ))}
+                        </div>
+                      )}
 
-                  {selectedSnapshot.validationFatalErrors.length > 0 && (
-                    <div className="space-y-1 rounded-md border border-destructive/20 bg-destructive/5 p-2.5">
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-destructive">Fatal errors</p>
-                      {selectedSnapshot.validationFatalErrors.map((err, i) => (
-                        <p key={i} className="font-mono text-[11px] text-destructive">{err}</p>
-                      ))}
-                    </div>
-                  )}
+                      {selectedSnapshot.validationWarnings.length > 0 && (
+                        <div className="space-y-0.5">
+                          <Field label="Warnings" icon={Hash}>
+                            <span className="font-mono tabular-nums text-[hsl(var(--warning-text))]">
+                              {selectedSnapshot.validationWarnings.length}
+                            </span>
+                          </Field>
+                          {selectedSnapshot.validationWarnings.map((warn, i) => (
+                            <p key={i} className="font-mono text-[11px] text-[hsl(var(--warning-text))] pl-3">{warn}</p>
+                          ))}
+                        </div>
+                      )}
 
-                  {selectedSnapshot.validationWarnings.length > 0 && (
-                    <div className="space-y-1 rounded-md border border-[hsl(var(--warning))]/20 bg-[hsl(var(--warning))]/5 p-2.5">
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-[hsl(var(--warning))]">Warnings</p>
-                      {selectedSnapshot.validationWarnings.map((warn, i) => (
-                        <p key={i} className="font-mono text-[11px] text-[hsl(var(--warning))]">{warn}</p>
-                      ))}
-                    </div>
-                  )}
-
-                  {distribution && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                        Type distribution
-                      </span>
-                      {distribution.map(([type, count]) => (
-                        <Badge key={type} variant="secondary" className="text-[10px] tabular-nums">
-                          {type}: {count}
-                        </Badge>
-                      ))}
+                      {distribution && (
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 pt-1">
+                          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Type dist
+                          </span>
+                          {distribution.map(([type, count]) => (
+                            <span key={type} className="font-mono text-[11px] tabular-nums text-foreground">
+                              {type}: {count}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
+              </Panel>
 
-                {/* Ranked items */}
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">Ranked items</h3>
-                  {itemsResponse && (
-                    <span className="text-[11px] text-muted-foreground tabular-nums">
+              {/* Ranked items */}
+              <Panel
+                title="Ranked items"
+                actions={
+                  itemsResponse ? (
+                    <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
                       Top {itemsResponse.returnedItemCount} of {itemsResponse.totalItemCount.toLocaleString()}
                     </span>
-                  )}
-                </div>
-
+                  ) : undefined
+                }
+              >
                 {itemsError ? (
-                  <ErrorState message={itemsError} onRetry={() => selectedId && void loadItems(selectedId)} />
+                  <div className="p-4">
+                    <ErrorState message={itemsError} onRetry={() => selectedId && void loadItems(selectedId)} />
+                  </div>
                 ) : (
                   <ExploreSnapshotItemsTable items={itemsResponse?.items ?? []} isLoading={itemsLoading} />
                 )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+              </Panel>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

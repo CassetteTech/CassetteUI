@@ -55,10 +55,11 @@ export function ProfileActivity({
     return (
       <div className="lg:h-full">
         <div className="flex flex-col items-center justify-center p-4 sm:p-8 md:p-12 text-center h-full">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 mb-4 flex items-center justify-center">
-            <Music className="w-full h-full text-muted-foreground/70" aria-hidden="true" />
+          <div className="w-full max-w-sm">
+            <p className="font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground border-t-2 border-dashed border-foreground/20 py-5">
+              — Nothing on this side yet —
+            </p>
           </div>
-          <p className="text-muted-foreground text-base sm:text-lg">No items to display</p>
         </div>
       </div>
     );
@@ -86,12 +87,14 @@ export function ProfileActivity({
         
         {hasMore && onLoadMore && (
           <div className="flex justify-center mt-6">
-            <Button
+            <button
+              type="button"
               onClick={onLoadMore}
               disabled={isLoading}
+              className="rounded-md border border-border bg-transparent px-6 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
             >
-              {isLoading ? 'Loading...' : 'Load More'}
-            </Button>
+              {isLoading ? 'Loading…' : 'Load more +'}
+            </button>
           </div>
         )}
       </div>
@@ -170,7 +173,7 @@ function ActivityPostItem({
 
   return (
     <>
-      <Card className="group relative gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden bg-card/70 backdrop-blur-sm border-border/60 font-atkinson hover:border-border hover:shadow-md transition-all duration-200">
+      <Card className="group relative gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden rounded-lg bg-card border-border/70 font-atkinson elev-1 hover:border-foreground/30 transition-colors duration-200">
         <Link href={getNavigationPath(post)} className="block px-3 sm:px-4 py-3">
           <div className="flex gap-3 sm:gap-4 items-start">
             {/* Artwork with overlaid type badge */}
@@ -181,17 +184,17 @@ function ActivityPostItem({
                   alt={post.title}
                   width={128}
                   height={128}
-                  className="w-full h-full rounded-lg object-cover ring-1 ring-border/40 shadow-sm"
+                  className="w-full h-full rounded-md object-cover ring-1 ring-border/40"
                   placeholder="blur"
                   blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJoc2woMjQwLCA0LjglLCA4My45JSkiLz48L3N2Zz4="
                 />
               ) : (
-                <div className="w-full h-full rounded-lg bg-muted/60 ring-1 ring-border/40 shadow-sm flex items-center justify-center">
+                <div className="w-full h-full rounded-md bg-muted/60 ring-1 ring-border/40 flex items-center justify-center">
                   <Music className="h-8 w-8 text-muted-foreground/50" aria-hidden="true" />
                 </div>
               )}
-              {/* Type chip overlaid on artwork — editorial/music-magazine style */}
-              <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-background/85 backdrop-blur-md text-[10px] font-semibold uppercase tracking-wide text-foreground/80 ring-1 ring-border/50 shadow-sm">
+              {/* Type chip overlaid on artwork — mono annotation voice */}
+              <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-background/85 backdrop-blur-md font-mono text-[9px] uppercase tracking-[0.15em] text-foreground/80 ring-1 ring-border/50">
                 <TypeIcon className="h-2.5 w-2.5" aria-hidden="true" />
                 {post.elementType}
               </span>
@@ -204,21 +207,21 @@ function ActivityPostItem({
                 <div className="min-w-0 flex-1">
                   {/* Repost caption — only rendered when isRepost; sits above original poster */}
                   {post.isRepost && (
-                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80 mb-0.5 min-w-0">
+                    <div className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground/80 mb-1 min-w-0">
                       <Repeat2 className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
                       <span className="truncate">
                         reposted by{' '}
-                        <span className="font-medium text-foreground/70">@{post.username}</span>
+                        <span className="text-foreground/70">@{post.username}</span>
                       </span>
                     </div>
                   )}
-                  <div className="flex items-center gap-1 text-[13px] text-muted-foreground min-w-0">
-                    <span className="font-medium text-foreground/80 truncate">@{sourceUsername}</span>
+                  <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground min-w-0">
+                    <span className="font-bold text-foreground/80 truncate">@{sourceUsername}</span>
                     <VerificationBadge accountType={displayedAccountType} size="sm" />
                     {post.createdAt && (
                       <>
-                        <span className="text-muted-foreground/50 flex-shrink-0">·</span>
-                        <span className="text-muted-foreground flex-shrink-0">
+                        <span className="text-muted-foreground/50 flex-shrink-0">/</span>
+                        <span className="flex-shrink-0">
                           {formatRelativeTime(post.createdAt)}
                         </span>
                       </>
@@ -281,21 +284,21 @@ function ActivityPostItem({
                 </div>
               </div>
 
-              {/* Title — the hero */}
-              <h3 className="text-foreground font-semibold text-base sm:text-lg leading-tight line-clamp-2 mt-1">
+              {/* Title — the hero, set in the display face like Explore/post pages */}
+              <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight text-foreground line-clamp-2 mt-1.5">
                 {post.title}
               </h3>
 
               {/* Description (optional) */}
               {detailText && (
-                <p className="text-muted-foreground text-sm line-clamp-2 leading-snug mt-1">
+                <p className="text-muted-foreground text-sm italic line-clamp-2 leading-snug mt-1">
                   {detailText}
                 </p>
               )}
 
               {/* Private flag (own private posts only) */}
               {isOwnPost && post.privacy?.toLowerCase() === 'private' && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/60 text-[10px] font-medium text-muted-foreground ring-1 ring-border/40 self-start mt-1.5">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/60 font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground ring-1 ring-border/40 self-start mt-1.5">
                   <Lock className="h-2.5 w-2.5" aria-hidden="true" />
                   Private
                 </span>
@@ -329,9 +332,9 @@ export function ActivitySkeleton({ count = 3 }: { count?: number }) {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
       {Array.from({ length: count }).map((_, index) => (
-        <Card key={index} className="gap-0 sm:gap-0 p-0 sm:p-0 bg-card/70 backdrop-blur-sm">
+        <Card key={index} className="gap-0 sm:gap-0 p-0 sm:p-0 rounded-lg bg-card border-border/70 elev-1">
           <div className="flex gap-3 sm:gap-4 items-start px-3 sm:px-4 py-3 animate-pulse">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 bg-muted/50 rounded-lg flex-shrink-0" />
+            <div className="w-24 h-24 sm:w-28 sm:h-28 bg-muted/50 rounded-md flex-shrink-0" />
             <div className="flex-1 min-w-0 space-y-2">
               <div className="w-1/2 h-3 bg-muted/40 rounded" />
               <div className="w-3/4 h-5 bg-muted/50 rounded" />

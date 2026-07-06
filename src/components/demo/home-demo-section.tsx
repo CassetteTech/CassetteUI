@@ -128,7 +128,7 @@ function StepTile({
       }}
       style={{ transform: `rotate(${rot}deg)` }}
     >
-      <div className="relative w-20 h-20 bg-primary-foreground force-light-surface text-foreground border-2 border-foreground shadow-[4px_4px_0_hsl(var(--foreground))] dark:shadow-[4px_4px_0_hsl(var(--cassette-white))]">
+      <div className="relative w-20 h-20 bg-primary-foreground force-light-surface text-foreground border-2 border-foreground shadow-flat-4">
         <div className="absolute inset-0 flex items-center justify-center">
           <Icon className="h-7 w-7 text-foreground" strokeWidth={2} />
         </div>
@@ -279,7 +279,7 @@ export function HomeDemoSection({ isAuthenticated }: HomeDemoSectionProps) {
                 />
                 <Link
                   href={link.href}
-                  className="group block relative bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-4 pb-5 shadow-[4px_4px_0_hsl(var(--foreground))] dark:shadow-[4px_4px_0_hsl(var(--cassette-white))] hover:shadow-[6px_6px_0_hsl(var(--primary))] dark:hover:shadow-[6px_6px_0_hsl(var(--primary))] transition-shadow"
+                  className="group block relative bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-4 pb-5 shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow"
                 >
                   <span className="inline-flex items-center gap-1 bg-foreground text-background font-mono text-[9px] uppercase tracking-[0.2em] px-1.5 py-0.5 mb-3">
                     <Music2 className="h-2.5 w-2.5" />

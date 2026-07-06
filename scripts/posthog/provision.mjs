@@ -118,9 +118,17 @@ const FUNNEL_WINDOW_14_DAYS = {
   funnel_window_interval: 14,
   funnel_window_interval_unit: 'day',
 };
+const TIME_SERIES_LOOKBACK_DAYS = 90;
 const EXTERNAL_ACTOR_CONDITION = '  and coalesce(toBool(properties.internal_actor), false) = false';
 const ORIGINAL_POST_CONDITION = "  and coalesce(toString(properties.is_repost), 'false') = 'false'";
 const CORE_ACTION_CONDITION = '  and coalesce(toBool(properties.core_action), false) = true';
+const POST_SURFACE_CONDITION = "  and coalesce(toString(properties.source_surface), '') = 'post'";
+function actorExpression(tableAlias = '') {
+  const prefix = tableAlias ? `${tableAlias}.` : '';
+  return `coalesce(nullIf(toString(${prefix}properties.user_id), ''), nullIf(toString(${prefix}person_id), ''), ${prefix}distinct_id)`;
+}
+
+const ACTOR_EXPRESSION = actorExpression();
 const productCoreActionEvents = [
   'link_converted',
   'post_created',
@@ -323,7 +331,7 @@ function creatorRepeatAfterDistributionQuery(internalActor) {
     'with candidate_posts as (',
     '  select',
     '    properties.post_id as post_id,',
-    '    coalesce(person_id, distinct_id) as creator_actor_id,',
+    `    ${ACTOR_EXPRESSION} as creator_actor_id,`,
     '    min(timestamp) as created_at',
     '  from events',
     "  where event = 'post_created'",
@@ -342,6 +350,8 @@ function creatorRepeatAfterDistributionQuery(internalActor) {
     '    coalesce(toBool(properties.internal_actor), false) as internal_actor',
     '  from events',
     "  where event = 'post_viewed'",
+    '    and timestamp >= now() - INTERVAL 67 DAY',
+    '    and timestamp < now() - INTERVAL 23 DAY',
     '), distributed_posts as (',
     '  select',
     '    p.post_id,',
@@ -364,19 +374,24 @@ function creatorRepeatAfterDistributionQuery(internalActor) {
     '  from distributed_posts',
     '  where distinct_non_creator_viewers >= 3',
     '  group by creator_actor_id',
+    '), repeat_posts as (',
+    '  select',
+    `    ${ACTOR_EXPRESSION} as creator_actor_id,`,
+    '    timestamp',
+    '  from events',
+    "  where event = 'post_created'",
+    `    and coalesce(toBool(properties.internal_actor), false) = ${internalActorLiteral}`,
+    '    and coalesce(toBool(properties.is_repost), false) = false',
+    '    and timestamp >= now() - INTERVAL 67 DAY',
+    '    and timestamp < now()',
     '), creator_next_post as (',
     '  select',
     '    d.creator_actor_id,',
     '    d.first_distributed_at,',
-    '    min(p.timestamp) as next_post_at',
+    '    min(if(p.timestamp > d.first_distributed_at and p.timestamp < d.first_distributed_at + INTERVAL 30 DAY, p.timestamp, null)) as next_post_at',
     '  from creator_first_distributed d',
-    '  left join events p',
-    "    on p.event = 'post_created'",
-    '   and coalesce(p.person_id, p.distinct_id) = d.creator_actor_id',
-    `   and coalesce(toBool(p.properties.internal_actor), false) = ${internalActorLiteral}`,
-    '   and coalesce(toBool(p.properties.is_repost), false) = false',
-    '   and p.timestamp > d.first_distributed_at',
-    '   and p.timestamp < d.first_distributed_at + INTERVAL 30 DAY',
+    '  left join repeat_posts p',
+    '    on p.creator_actor_id = d.creator_actor_id',
     '  group by d.creator_actor_id, d.first_distributed_at',
     ')',
     'select',
@@ -412,7 +427,7 @@ function viewerToContributorQuery(internalActor) {
   return [
     'with viewer_first_touch as (',
     '  select',
-    '    coalesce(person_id, distinct_id) as viewer_actor_id,',
+    `    ${ACTOR_EXPRESSION} as viewer_actor_id,`,
     '    min(timestamp) as first_view_at,',
     "    argMin(coalesce(toString(properties.is_authenticated), 'false'), timestamp) as first_view_authenticated",
     '  from events',
@@ -422,30 +437,40 @@ function viewerToContributorQuery(internalActor) {
     '    and timestamp >= now() - INTERVAL 44 DAY',
     '    and timestamp < now() - INTERVAL 14 DAY',
     '  group by viewer_actor_id',
+    '), auth_events as (',
+    '  select',
+    `    ${ACTOR_EXPRESSION} as viewer_actor_id,`,
+    '    timestamp',
+    '  from events',
+    "  where event in ('auth_signed_up', 'auth_signed_in', 'auth_google_oauth_completed')",
+    `    and coalesce(toBool(properties.internal_actor), false) = ${internalActorLiteral}`,
+    '    and timestamp >= now() - INTERVAL 44 DAY',
+    '    and timestamp < now()',
+    '), post_events as (',
+    '  select',
+    `    ${ACTOR_EXPRESSION} as viewer_actor_id,`,
+    '    timestamp',
+    '  from events',
+    "  where event = 'post_created'",
+    `    and coalesce(toBool(properties.internal_actor), false) = ${internalActorLiteral}`,
+    '    and coalesce(toBool(properties.is_repost), false) = false',
+    '    and timestamp >= now() - INTERVAL 44 DAY',
+    '    and timestamp < now()',
     '), viewer_auth as (',
     '  select',
     '    v.viewer_actor_id,',
-    '    min(a.timestamp) as auth_success_at',
+    '    min(if(a.timestamp > v.first_view_at and a.timestamp < v.first_view_at + INTERVAL 7 DAY, a.timestamp, null)) as auth_success_at',
     '  from viewer_first_touch v',
-    '  left join events a',
-    "    on a.event in ('auth_signed_up', 'auth_signed_in', 'auth_google_oauth_completed')",
-    '   and coalesce(a.person_id, a.distinct_id) = v.viewer_actor_id',
-    `   and coalesce(toBool(a.properties.internal_actor), false) = ${internalActorLiteral}`,
-    '   and a.timestamp > v.first_view_at',
-    '   and a.timestamp < v.first_view_at + INTERVAL 7 DAY',
+    '  left join auth_events a',
+    '    on a.viewer_actor_id = v.viewer_actor_id',
     '  group by v.viewer_actor_id',
     '), viewer_post as (',
     '  select',
     '    v.viewer_actor_id,',
-    '    min(p.timestamp) as first_post_at',
+    '    min(if(p.timestamp > v.first_view_at and p.timestamp < v.first_view_at + INTERVAL 14 DAY, p.timestamp, null)) as first_post_at',
     '  from viewer_first_touch v',
-    '  left join events p',
-    "    on p.event = 'post_created'",
-    '   and coalesce(p.person_id, p.distinct_id) = v.viewer_actor_id',
-    `   and coalesce(toBool(p.properties.internal_actor), false) = ${internalActorLiteral}`,
-    '   and coalesce(toBool(p.properties.is_repost), false) = false',
-    '   and p.timestamp > v.first_view_at',
-    '   and p.timestamp < v.first_view_at + INTERVAL 14 DAY',
+    '  left join post_events p',
+    '    on p.viewer_actor_id = v.viewer_actor_id',
     '  group by v.viewer_actor_id',
     '), viewer_outcomes as (',
     '  select',
@@ -565,6 +590,18 @@ function playlistCreationFunnelInsight({ internalActor }) {
             name: 'post_viewed',
             properties: [
               internalActorPropertyFilter(internalActor),
+              {
+                key: 'source_surface',
+                value: 'post',
+                operator: 'exact',
+                type: 'event',
+              },
+              {
+                key: 'is_creator_view',
+                value: 'false',
+                operator: 'exact',
+                type: 'event',
+              },
             ],
           },
           {
@@ -579,6 +616,12 @@ function playlistCreationFunnelInsight({ internalActor }) {
                 operator: 'exact',
                 type: 'event',
               },
+              {
+                key: 'source_surface',
+                value: 'post',
+                operator: 'exact',
+                type: 'event',
+              },
             ],
           },
           {
@@ -587,6 +630,12 @@ function playlistCreationFunnelInsight({ internalActor }) {
             name: 'playlist_created_on_platform',
             properties: [
               internalActorPropertyFilter(internalActor),
+              {
+                key: 'source_surface',
+                value: 'post',
+                operator: 'exact',
+                type: 'event',
+              },
             ],
           },
         ],
@@ -602,12 +651,13 @@ function playlistCreationFunnelInsight({ internalActor }) {
 }
 
 function creatorIntentActivationFunnelInsight({ internalActor }) {
+  const prefix = internalActor ? 'Internal ' : '';
+  const keyPrefix = internalActor ? 'internal_' : '';
+
   return {
-    key: internalActor ? 'internal_creator_intent_activation' : 'creator_intent_activation',
-    name: internalActor ? 'Internal Creator Intent Activation Funnel' : 'Creator Intent Activation Funnel',
-    description: internalActor
-      ? 'Internal explicit creator intent: conversion_entry_started -> auth_signed_up -> onboarding_completed -> music_service_connected -> post_created.'
-      : 'Explicit creator intent: conversion_entry_started -> auth_signed_up -> onboarding_completed -> music_service_connected -> post_created.',
+    key: `${keyPrefix}creator_intent_activation`,
+    name: `${prefix}Creator Intent Activation Funnel`,
+    description: `${prefix || ''}Explicit creator intent flow: conversion_entry_started -> original website post_created.`,
     query: {
       kind: 'InsightVizNode',
       source: {
@@ -623,8 +673,47 @@ function creatorIntentActivationFunnelInsight({ internalActor }) {
           },
           {
             kind: 'EventsNode',
-            event: 'auth_signed_up',
-            name: 'auth_signed_up',
+            event: 'post_created',
+            name: 'website post_created',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+              {
+                key: 'is_repost',
+                value: 'false',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+        ],
+        funnelsFilter: {
+          layout: 'horizontal',
+          funnelVizType: 'steps',
+        },
+        properties: [],
+        filterTestAccounts: false,
+      },
+    },
+  };
+}
+
+function accountToWebsitePostFunnelInsight({ internalActor }) {
+  const prefix = internalActor ? 'Internal ' : '';
+  const keyPrefix = internalActor ? 'internal_' : '';
+
+  return {
+    key: `${keyPrefix}account_to_website_post_funnel`,
+    name: `${prefix}Account to Website Post Funnel`,
+    description: `${prefix || ''}New account activation flow: account_created -> onboarding_completed -> original website post_created.`,
+    query: {
+      kind: 'InsightVizNode',
+      source: {
+        kind: 'FunnelsQuery',
+        series: [
+          {
+            kind: 'EventsNode',
+            event: 'account_created',
+            name: 'account_created',
             properties: [
               internalActorPropertyFilter(internalActor),
             ],
@@ -639,16 +728,8 @@ function creatorIntentActivationFunnelInsight({ internalActor }) {
           },
           {
             kind: 'EventsNode',
-            event: 'music_service_connected',
-            name: 'music_service_connected',
-            properties: [
-              internalActorPropertyFilter(internalActor),
-            ],
-          },
-          {
-            kind: 'EventsNode',
             event: 'post_created',
-            name: 'post_created',
+            name: 'website post_created',
             properties: [
               internalActorPropertyFilter(internalActor),
               {
@@ -657,6 +738,202 @@ function creatorIntentActivationFunnelInsight({ internalActor }) {
                 operator: 'exact',
                 type: 'event',
               },
+            ],
+          },
+        ],
+        funnelsFilter: {
+          layout: 'horizontal',
+          funnelVizType: 'steps',
+        },
+        properties: [],
+        filterTestAccounts: false,
+      },
+    },
+  };
+}
+
+function postViewerConversionFunnelInsight({ internalActor }) {
+  const prefix = internalActor ? 'Internal ' : '';
+  const keyPrefix = internalActor ? 'internal_' : '';
+
+  return {
+    key: `${keyPrefix}conversion_funnel`,
+    name: `${prefix}Post Viewer to Platform Click Funnel`,
+    previousNames: [`${prefix}Conversion Funnel`],
+    description: `${prefix || ''}Post viewer conversion flow: non-creator post_viewed -> post_platform_conversion_clicked.`,
+    query: {
+      kind: 'InsightVizNode',
+      source: {
+        kind: 'FunnelsQuery',
+        series: [
+          {
+            kind: 'EventsNode',
+            event: 'post_viewed',
+            name: 'post_viewed',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+              {
+                key: 'source_surface',
+                value: 'post',
+                operator: 'exact',
+                type: 'event',
+              },
+              {
+                key: 'is_creator_view',
+                value: 'false',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'post_platform_conversion_clicked',
+            name: 'post_platform_conversion_clicked',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+              {
+                key: 'source_surface',
+                value: 'post',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+        ],
+        funnelsFilter: {
+          layout: 'horizontal',
+          funnelVizType: 'steps',
+        },
+        properties: [],
+        filterTestAccounts: false,
+      },
+    },
+  };
+}
+
+function postViewerSignupToWebsitePostFunnelInsight({ internalActor }) {
+  const prefix = internalActor ? 'Internal ' : '';
+  const keyPrefix = internalActor ? 'internal_' : '';
+
+  return {
+    key: `${keyPrefix}post_viewer_signup_to_website_post_funnel`,
+    name: `${prefix}Post Viewer Signup to Website Post Funnel`,
+    description: `${prefix || ''}Non-creator viewer flow: post_viewed -> account_created -> original website post_created.`,
+    query: {
+      kind: 'InsightVizNode',
+      source: {
+        kind: 'FunnelsQuery',
+        series: [
+          {
+            kind: 'EventsNode',
+            event: 'post_viewed',
+            name: 'post_viewed',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+              {
+                key: 'source_surface',
+                value: 'post',
+                operator: 'exact',
+                type: 'event',
+              },
+              {
+                key: 'is_creator_view',
+                value: 'false',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'account_created',
+            name: 'account_created',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'post_created',
+            name: 'website post_created',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+              {
+                key: 'is_repost',
+                value: 'false',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+        ],
+        funnelsFilter: {
+          layout: 'horizontal',
+          funnelVizType: 'steps',
+        },
+        properties: [],
+        filterTestAccounts: false,
+      },
+    },
+  };
+}
+
+function onboardingActivationFunnelInsight({ internalActor }) {
+  const prefix = internalActor ? 'Internal ' : '';
+  const keyPrefix = internalActor ? 'internal_' : '';
+
+  function onboardingStep(step) {
+    return {
+      kind: 'EventsNode',
+      event: 'onboarding_step_completed',
+      name: `onboarding_step_completed (${step})`,
+      properties: [
+        internalActorPropertyFilter(internalActor),
+        {
+          key: 'step',
+          value: step,
+          operator: 'exact',
+          type: 'event',
+        },
+      ],
+    };
+  }
+
+  return {
+    key: `${keyPrefix}onboarding_activation`,
+    name: `${prefix}Onboarding Activation Funnel`,
+    description: `${prefix || ''}Account creation through onboarding start, handle, avatar, music preferences, and completion.`,
+    query: {
+      kind: 'InsightVizNode',
+      source: {
+        kind: 'FunnelsQuery',
+        series: [
+          {
+            kind: 'EventsNode',
+            event: 'account_created',
+            name: 'account_created',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'onboarding_started',
+            name: 'onboarding_started',
+            properties: [
+              internalActorPropertyFilter(internalActor),
+            ],
+          },
+          onboardingStep('handle'),
+          onboardingStep('avatar'),
+          onboardingStep('music'),
+          {
+            kind: 'EventsNode',
+            event: 'onboarding_completed',
+            name: 'onboarding_completed',
+            properties: [
+              internalActorPropertyFilter(internalActor),
             ],
           },
         ],
@@ -743,6 +1020,525 @@ function hogqlDataTableInsight({ key, name, previousNames, description, query })
   };
 }
 
+function contentEngagementQualityQuery() {
+  return [
+    'with filtered as (',
+    '  select',
+    '    event,',
+    '    properties,',
+    `    ${ACTOR_EXPRESSION} as actor_id`,
+    '  from events',
+    "  where event in ('post_created', 'post_viewed', 'post_platform_conversion_clicked')",
+    '    and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    '), by_type as (',
+    '  select',
+    "    coalesce(nullIf(toString(properties.element_type), ''), 'unknown') as element_type,",
+    "    uniqExactIf(toString(properties.post_id), event = 'post_created' and properties.post_id is not null and coalesce(toString(properties.is_repost), 'false') = 'false') as posts_created,",
+    "    countIf(event = 'post_viewed' and coalesce(toString(properties.is_creator_view), 'false') = 'false') as non_creator_views,",
+    "    uniqExactIf(actor_id, event = 'post_viewed' and coalesce(toString(properties.is_creator_view), 'false') = 'false') as non_creator_viewers,",
+    "    countIf(event = 'post_platform_conversion_clicked' and coalesce(toString(properties.source_surface), '') = 'post') as platform_clicks,",
+    "    uniqExactIf(actor_id, event = 'post_platform_conversion_clicked' and coalesce(toString(properties.source_surface), '') = 'post') as platform_clickers",
+    '  from filtered',
+    '  group by element_type',
+    ')',
+    'select',
+    '  element_type,',
+    '  posts_created,',
+    '  non_creator_views,',
+    '  non_creator_viewers,',
+    '  platform_clicks,',
+    '  platform_clickers,',
+    '  if(non_creator_views = 0, 0, round(100.0 * platform_clicks / non_creator_views, 2)) as clicks_per_view_pct,',
+    '  if(non_creator_viewers = 0, 0, round(100.0 * platform_clickers / non_creator_viewers, 2)) as clicker_rate_pct',
+    'from by_type',
+    'order by platform_clicks desc, non_creator_views desc, element_type asc',
+  ].join('\n');
+}
+
+function contentEngagementQualityInsight() {
+  return hogqlDataTableInsight({
+    key: 'content_engagement_quality',
+    name: 'Content Engagement Quality',
+    description: '90-day view and platform-click quality by content type, showing what people actually engage with.',
+    query: contentEngagementQualityQuery(),
+  });
+}
+
+function platformDemandMatrixQuery() {
+  return [
+    'select',
+    "  coalesce(nullIf(toString(properties.source_platform), ''), 'unknown') as source_platform,",
+    "  coalesce(nullIf(toString(properties.target_platform), ''), 'unknown') as target_platform,",
+    "  coalesce(nullIf(toString(properties.source_context), ''), 'unknown') as source_context,",
+    '  count() as clicks,',
+    `  uniqExact(${ACTOR_EXPRESSION}) as clickers,`,
+    "  countIf(coalesce(toString(properties.is_authenticated), 'false') = 'false') as signed_out_clicks",
+    'from events',
+    "where event = 'post_platform_conversion_clicked'",
+    '  and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    POST_SURFACE_CONDITION,
+    'group by source_platform, target_platform, source_context',
+    'order by clicks desc, clickers desc, source_platform asc, target_platform asc',
+    'limit 50',
+  ].join('\n');
+}
+
+function platformDemandMatrixInsight() {
+  return hogqlDataTableInsight({
+    key: 'platform_demand_matrix',
+    name: 'Platform Demand Matrix',
+    description: '90-day source-to-target platform demand from post-page platform clicks.',
+    query: platformDemandMatrixQuery(),
+  });
+}
+
+function playlistConversionFrictionQuery() {
+  return [
+    'with by_platform as (',
+    '  select',
+    "    coalesce(nullIf(toString(properties.target_platform), ''), 'unknown') as target_platform,",
+    "    countIf(event = 'post_platform_conversion_clicked' and coalesce(toString(properties.source_context), '') = 'playlist_convert_button') as convert_clicks,",
+    "    countIf(event = 'playlist_creation_submitted') as submitted,",
+    "    countIf(event = 'playlist_creation_blocked') as blocked,",
+    "    countIf(event = 'playlist_creation_blocked' and coalesce(toString(properties.reason_code), '') = 'auth_required') as auth_required_blocks,",
+    "    countIf(event = 'playlist_created_on_platform') as created,",
+    "    countIf(event = 'playlist_creation_failed') as failed",
+    '  from events',
+    "  where event in ('post_platform_conversion_clicked', 'playlist_creation_submitted', 'playlist_creation_blocked', 'playlist_created_on_platform', 'playlist_creation_failed')",
+    '    and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    '  group by target_platform',
+    ')',
+    'select',
+    '  target_platform,',
+    '  convert_clicks,',
+    '  submitted,',
+    '  blocked,',
+    '  auth_required_blocks,',
+    '  created,',
+    '  failed,',
+    '  if(convert_clicks = 0, 0, round(100.0 * created / convert_clicks, 2)) as created_per_click_pct,',
+    '  if(convert_clicks = 0, 0, round(100.0 * auth_required_blocks / convert_clicks, 2)) as auth_block_per_click_pct,',
+    '  if(submitted = 0, 0, round(100.0 * failed / submitted, 2)) as failure_per_submit_pct',
+    'from by_platform',
+    'order by convert_clicks desc, target_platform asc',
+  ].join('\n');
+}
+
+function playlistConversionFrictionInsight() {
+  return hogqlDataTableInsight({
+    key: 'playlist_conversion_friction',
+    name: 'Playlist Conversion Friction',
+    description: '90-day playlist save friction by target platform: intent, auth blocks, created playlists, and failures.',
+    query: playlistConversionFrictionQuery(),
+  });
+}
+
+function signedOutConversionIntentQuery() {
+  return [
+    'select',
+    "  coalesce(nullIf(toString(properties.source_context), ''), 'unknown') as source_context,",
+    "  coalesce(nullIf(toString(properties.target_platform), ''), 'unknown') as target_platform,",
+    '  count() as signed_out_clicks,',
+    `  uniqExact(${ACTOR_EXPRESSION}) as signed_out_clickers`,
+    'from events',
+    "where event = 'post_platform_conversion_clicked'",
+    '  and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    POST_SURFACE_CONDITION,
+    "  and coalesce(toString(properties.is_authenticated), 'false') = 'false'",
+    'group by source_context, target_platform',
+    'order by signed_out_clicks desc, signed_out_clickers desc, source_context asc',
+    'limit 50',
+  ].join('\n');
+}
+
+function signedOutConversionIntentInsight() {
+  return hogqlDataTableInsight({
+    key: 'signed_out_conversion_intent',
+    name: 'Signed-Out Conversion Intent',
+    description: '90-day post-page platform clicks from signed-out visitors, showing account-wall demand.',
+    query: signedOutConversionIntentQuery(),
+  });
+}
+
+function signupAttributionMixQuery() {
+  return [
+    'select',
+    "  coalesce(nullIf(toString(properties.traffic_source), ''), nullIf(toString(properties.signup_source), ''), nullIf(toString(properties.first_touch_source), ''), 'unknown') as signup_source,",
+    "  coalesce(nullIf(toString(properties.traffic_medium), ''), nullIf(toString(properties.signup_medium), ''), 'unknown') as signup_medium,",
+    "  coalesce(nullIf(toString(properties.auth_provider), ''), 'unknown') as auth_provider,",
+    '  count() as accounts_created,',
+    `  uniqExact(${ACTOR_EXPRESSION}) as unique_accounts,`,
+    "  countIf(coalesce(nullIf(toString(properties.reddit_subreddit), ''), nullIf(toString(properties.traffic_content), '')) is not null) as reddit_attributed_accounts",
+    'from events',
+    "where event = 'account_created'",
+    '  and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    'group by signup_source, signup_medium, auth_provider',
+    'order by accounts_created desc, signup_source asc, signup_medium asc',
+    'limit 50',
+  ].join('\n');
+}
+
+function signupAttributionMixInsight() {
+  return hogqlDataTableInsight({
+    key: 'signup_attribution_mix',
+    name: 'Signup Attribution Mix',
+    description: '90-day account creation mix by source, medium, and auth provider.',
+    query: signupAttributionMixQuery(),
+  });
+}
+
+function creatorStickinessQuery() {
+  return [
+    'with creator_posts as (',
+    '  select',
+    `    ${ACTOR_EXPRESSION} as actor_id,`,
+    '    uniqExact(toString(properties.post_id)) as posts_created,',
+    '    min(toDate(timestamp)) as first_post_day,',
+    '    max(toDate(timestamp)) as latest_post_day',
+    '  from events',
+    "  where event = 'post_created'",
+    '    and timestamp >= now() - INTERVAL 180 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    '    and properties.post_id is not null',
+    ORIGINAL_POST_CONDITION,
+    '  group by actor_id',
+    ')',
+    'select',
+    '  count() as creators,',
+    '  countIf(posts_created >= 2) as repeat_creators,',
+    '  countIf(posts_created >= 3) as three_plus_post_creators,',
+    "  countIf(latest_post_day >= toDate(now() - INTERVAL 30 DAY)) as active_creators_30d,",
+    '  round(avg(posts_created), 2) as avg_posts_per_creator,',
+    '  if(count() = 0, 0, round(100.0 * countIf(posts_created >= 2) / count(), 2)) as repeat_creator_pct,',
+    "  if(count() = 0, 0, round(100.0 * countIf(latest_post_day >= toDate(now() - INTERVAL 30 DAY)) / count(), 2)) as active_creator_pct_30d",
+    'from creator_posts',
+  ].join('\n');
+}
+
+function creatorStickinessInsight() {
+  return hogqlDataTableInsight({
+    key: 'creator_stickiness',
+    name: 'Creator Stickiness',
+    description: '180-day creator repeat behavior: repeat creators, three-plus-post creators, and recent active creators.',
+    query: creatorStickinessQuery(),
+  });
+}
+
+function viewerReturnQualityQuery() {
+  return [
+    'with viewer_activity as (',
+    '  select',
+    `    ${ACTOR_EXPRESSION} as actor_id,`,
+    '    count() as post_views,',
+    '    uniqExact(toDate(timestamp)) as view_days,',
+    '    max(toDate(timestamp)) as latest_view_day',
+    '  from events',
+    "  where event = 'post_viewed'",
+    '    and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    "    and coalesce(toString(properties.is_creator_view), 'false') = 'false'",
+    '  group by actor_id',
+    ')',
+    'select',
+    '  count() as viewers,',
+    '  countIf(view_days >= 2) as returning_viewers_2plus_days,',
+    '  countIf(post_views >= 5) as highly_engaged_viewers_5plus_views,',
+    "  countIf(latest_view_day >= toDate(now() - INTERVAL 30 DAY)) as active_viewers_30d,",
+    '  round(avg(post_views), 2) as avg_views_per_viewer,',
+    '  round(avg(view_days), 2) as avg_view_days_per_viewer,',
+    '  if(count() = 0, 0, round(100.0 * countIf(view_days >= 2) / count(), 2)) as return_viewer_pct',
+    'from viewer_activity',
+  ].join('\n');
+}
+
+function viewerReturnQualityInsight() {
+  return hogqlDataTableInsight({
+    key: 'viewer_return_quality',
+    name: 'Viewer Return Quality',
+    description: '90-day non-creator viewer return behavior: repeat view days and high-engagement viewers.',
+    query: viewerReturnQualityQuery(),
+  });
+}
+
+function platformPreferenceStickinessQuery() {
+  return [
+    'select',
+    '  target_platform,',
+    '  count() as clicks,',
+    '  uniqExact(actor_id) as clickers,',
+    '  uniqExactIf(actor_id, actor_platform_clicks >= 2) as repeat_clickers,',
+    '  if(uniqExact(actor_id) = 0, 0, round(100.0 * uniqExactIf(actor_id, actor_platform_clicks >= 2) / uniqExact(actor_id), 2)) as repeat_clicker_pct',
+    'from (',
+    '  select',
+    "    coalesce(nullIf(toString(properties.target_platform), ''), 'unknown') as target_platform,",
+    `    ${ACTOR_EXPRESSION} as actor_id,`,
+    `    count() over (partition by coalesce(nullIf(toString(properties.target_platform), ''), 'unknown'), ${ACTOR_EXPRESSION}) as actor_platform_clicks`,
+    '  from events',
+    "  where event = 'post_platform_conversion_clicked'",
+    '    and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    POST_SURFACE_CONDITION,
+    ') as clicks_with_actor_counts',
+    'group by target_platform',
+    'order by clicks desc, clickers desc, target_platform asc',
+  ].join('\n');
+}
+
+function platformPreferenceStickinessInsight() {
+  return hogqlDataTableInsight({
+    key: 'platform_preference_stickiness',
+    name: 'Platform Preference Stickiness',
+    description: '90-day repeat platform click behavior by target streaming platform.',
+    query: platformPreferenceStickinessQuery(),
+  });
+}
+
+function redditSubredditBusinessQualityQuery() {
+  return [
+    'select',
+    `  ${redditSubredditExpression()} as subreddit,`,
+    "  countIf(event = '$pageview') as pageviews,",
+    `  uniqExactIf(${ACTOR_EXPRESSION}, event = '$pageview') as visitors,`,
+    "  countIf(event = 'account_created') as accounts_created,",
+    "  countIf(event = 'post_platform_conversion_clicked') as platform_clicks,",
+    "  countIf(event = 'playlist_created_on_platform') as playlists_created_on_platform",
+    'from events',
+    "where event in ('$pageview', 'account_created', 'post_platform_conversion_clicked', 'playlist_created_on_platform')",
+    '  and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    redditBotCondition(),
+    'group by subreddit',
+    'order by visitors desc, platform_clicks desc, accounts_created desc, subreddit asc',
+    'limit 50',
+  ].join('\n');
+}
+
+function redditSubredditBusinessQualityInsight() {
+  return hogqlDataTableInsight({
+    key: 'reddit_subreddit_business_quality',
+    name: 'Reddit Subreddit Business Quality',
+    description: '90-day Reddit bot traffic quality by subreddit: visitors, signups, platform clicks, and playlist saves.',
+    query: redditSubredditBusinessQualityQuery(),
+  });
+}
+
+function searchIntentQualityQuery() {
+  const resultCountExpression = "toFloatOrDefault(toString(properties.result_count), 0)";
+
+  return [
+    'with by_surface as (',
+    '  select',
+    "    coalesce(nullIf(toString(properties.source_surface), ''), 'unknown') as source_surface,",
+    "    countIf(event = 'search_submitted') as searches,",
+    `    countIf(event = 'search_submitted' and ${resultCountExpression} = 0) as zero_result_searches,`,
+    "    countIf(event = 'search_result_selected') as result_selections,",
+    `    uniqExactIf(${ACTOR_EXPRESSION}, event = 'search_submitted') as searchers,`,
+    `    uniqExactIf(${ACTOR_EXPRESSION}, event = 'search_result_selected') as selectors`,
+    '  from events',
+    "  where event in ('search_submitted', 'search_result_selected')",
+    '    and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    '  group by source_surface',
+    ')',
+    'select',
+    '  source_surface,',
+    '  searches,',
+    '  zero_result_searches,',
+    '  result_selections,',
+    '  searchers,',
+    '  selectors,',
+    '  if(searches = 0, 0, round(100.0 * result_selections / searches, 2)) as selection_per_search_pct,',
+    '  if(searches = 0, 0, round(100.0 * zero_result_searches / searches, 2)) as zero_result_pct',
+    'from by_surface',
+    'order by searches desc, source_surface asc',
+  ].join('\n');
+}
+
+function searchIntentQualityInsight() {
+  return hogqlDataTableInsight({
+    key: 'search_intent_quality',
+    name: 'Search Intent Quality',
+    description: '90-day search demand and result-selection quality by surface.',
+    query: searchIntentQualityQuery(),
+  });
+}
+
+function searchIntentToPostFunnelInsight() {
+  return {
+    key: 'search_intent_to_post_funnel',
+    name: 'Search Intent to Website Post Funnel',
+    description: 'Search activation flow: search_submitted -> search_result_selected -> original website post_created.',
+    query: {
+      kind: 'InsightVizNode',
+      source: {
+        kind: 'FunnelsQuery',
+        series: [
+          {
+            kind: 'EventsNode',
+            event: 'search_submitted',
+            name: 'search_submitted',
+            properties: [
+              internalActorPropertyFilter(false),
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'search_result_selected',
+            name: 'search_result_selected',
+            properties: [
+              internalActorPropertyFilter(false),
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'post_created',
+            name: 'website post_created',
+            properties: [
+              internalActorPropertyFilter(false),
+              {
+                key: 'is_repost',
+                value: 'false',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+        ],
+        funnelsFilter: {
+          layout: 'horizontal',
+          funnelVizType: 'steps',
+        },
+        properties: [],
+        filterTestAccounts: false,
+      },
+    },
+  };
+}
+
+function unsupportedLinkDemandQuery() {
+  return [
+    'with by_input as (',
+    '  select',
+    "    coalesce(nullIf(toString(properties.source_surface), ''), 'unknown') as source_surface,",
+    "    coalesce(nullIf(toString(properties.source_platform), ''), 'unknown') as source_platform,",
+    "    coalesce(nullIf(toString(properties.element_type_guess), ''), 'unknown') as element_type_guess,",
+    "    countIf(event = 'music_link_pasted') as supported_pastes,",
+    "    countIf(event = 'unsupported_music_link_pasted') as unsupported_pastes,",
+    `    uniqExactIf(${ACTOR_EXPRESSION}, event = 'unsupported_music_link_pasted') as unsupported_users`,
+    '  from events',
+    "  where event in ('music_link_pasted', 'unsupported_music_link_pasted')",
+    '    and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    '  group by source_surface, source_platform, element_type_guess',
+    ')',
+    'select',
+    '  source_surface,',
+    '  source_platform,',
+    '  element_type_guess,',
+    '  supported_pastes,',
+    '  unsupported_pastes,',
+    '  unsupported_users,',
+    '  if(supported_pastes + unsupported_pastes = 0, 0, round(100.0 * unsupported_pastes / (supported_pastes + unsupported_pastes), 2)) as unsupported_rate_pct',
+    'from by_input',
+    'where unsupported_pastes > 0',
+    'order by unsupported_pastes desc, unsupported_users desc, source_surface asc',
+    'limit 50',
+  ].join('\n');
+}
+
+function unsupportedLinkDemandInsight() {
+  return hogqlDataTableInsight({
+    key: 'unsupported_link_demand',
+    name: 'Unsupported Link Demand',
+    description: '90-day unsupported pasted-link demand by surface, guessed platform, and guessed content type.',
+    query: unsupportedLinkDemandQuery(),
+  });
+}
+
+function pageEngagementQualityQuery() {
+  const durationExpression = "toFloatOrDefault(toString(properties.$prev_pageview_duration), 0)";
+
+  return [
+    'with by_surface as (',
+    '  select',
+    "    coalesce(nullIf(toString(properties.source_surface), ''), 'unknown') as source_surface,",
+    '    count() as pageleaves,',
+    `    uniqExact(${ACTOR_EXPRESSION}) as visitors,`,
+    `    round(avg(${durationExpression}), 2) as avg_duration_seconds,`,
+    `    countIf(${durationExpression} < 5) as short_visits_under_5s`,
+    '  from events',
+    "  where event = '$pageleave'",
+    '    and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    '  group by source_surface',
+    ')',
+    'select',
+    '  source_surface,',
+    '  pageleaves,',
+    '  visitors,',
+    '  avg_duration_seconds,',
+    '  short_visits_under_5s,',
+    '  if(pageleaves = 0, 0, round(100.0 * short_visits_under_5s / pageleaves, 2)) as short_visit_pct',
+    'from by_surface',
+    'order by pageleaves desc, source_surface asc',
+  ].join('\n');
+}
+
+function pageEngagementQualityInsight() {
+  return hogqlDataTableInsight({
+    key: 'page_engagement_quality',
+    name: 'Page Engagement Quality',
+    description: '90-day pageleave engagement by surface: average duration and short-visit rate.',
+    query: pageEngagementQualityQuery(),
+  });
+}
+
+function issueReportHotspotsQuery() {
+  return [
+    'with by_issue_type as (',
+    '  select',
+    "    coalesce(nullIf(toString(properties.report_type), ''), 'unknown') as report_type,",
+    "    coalesce(nullIf(toString(properties.source_surface), ''), 'unknown') as source_surface,",
+    "    coalesce(nullIf(toString(properties.source_context), ''), 'unknown') as source_context,",
+    '    count() as reports_submitted,',
+    `    uniqExact(${ACTOR_EXPRESSION}) as reporters,`,
+    "    countIf(coalesce(toBool(properties.has_description), false)) as reports_with_description,",
+    "    countIf(coalesce(toBool(properties.has_conversion_context), false)) as reports_with_conversion_context",
+    '  from events',
+    "  where event = 'issue_report_submitted'",
+    '    and timestamp >= now() - INTERVAL 90 DAY',
+    EXTERNAL_ACTOR_CONDITION,
+    '  group by report_type, source_surface, source_context',
+    ')',
+    'select',
+    '  report_type,',
+    '  source_surface,',
+    '  source_context,',
+    '  reports_submitted,',
+    '  reporters,',
+    '  reports_with_description,',
+    '  reports_with_conversion_context,',
+    '  if(reports_submitted = 0, 0, round(100.0 * reports_with_conversion_context / reports_submitted, 2)) as conversion_context_pct',
+    'from by_issue_type',
+    'order by reports_submitted desc, reporters desc, report_type asc',
+    'limit 50',
+  ].join('\n');
+}
+
+function issueReportHotspotsInsight() {
+  return hogqlDataTableInsight({
+    key: 'issue_report_hotspots',
+    name: 'Issue Report Hotspots',
+    description: '90-day user-submitted issue report volume by report type, surface, and source context.',
+    query: issueReportHotspotsQuery(),
+  });
+}
+
 function filteredEventsCte(eventName, extraConditions) {
   return [
     'filtered as (',
@@ -759,13 +1555,14 @@ function filteredEventsCte(eventName, extraConditions) {
   ].join('\n');
 }
 
-function dateSeriesCtes(sourceName, sourceDayExpression) {
+function dateSeriesCtes() {
+  const startDayExpression = `addDays(toDate(now()), -${TIME_SERIES_LOOKBACK_DAYS})`;
+
   return [
     'bounds as (',
     '  select',
-    `    coalesce(min(${sourceDayExpression}), addDays(toDate(now()), 1)) as start_day,`,
+    `    ${startDayExpression} as start_day,`,
     '    toDate(now()) as end_day',
-    `  from ${sourceName}`,
     '), dates as (',
     '  select',
     "    addDays(start_day, arrayJoin(range(toInt(greatest(dateDiff('day', start_day, end_day) + 1, 0))))) as day",
@@ -817,13 +1614,19 @@ function cumulativeEventQuery({ eventName, dailyAlias, totalAlias, aggregate, ex
     `    ${aggregate} as ${dailyAlias}`,
     '  from filtered',
     '  group by day',
+    '), prior as (',
+    '  select',
+    `    ${aggregate} as prior_total`,
+    '  from filtered, bounds',
+    '  where toDate(timestamp) < bounds.start_day',
     ')',
     'select',
     '  dates.day,',
     `  coalesce(daily.${dailyAlias}, 0) as ${dailyAlias},`,
-    `  sum(coalesce(daily.${dailyAlias}, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as ${totalAlias}`,
+    `  prior.prior_total + sum(coalesce(daily.${dailyAlias}, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as ${totalAlias}`,
     'from dates',
     'left join daily on daily.day = dates.day',
+    'cross join prior',
     'order by dates.day asc',
   ].join('\n');
 }
@@ -833,7 +1636,7 @@ function cumulativeFirstActorEventQuery({
   dailyAlias,
   totalAlias,
   actorAlias,
-  actorExpression = 'coalesce(person_id, distinct_id)',
+  actorExpression = ACTOR_EXPRESSION,
   extraConditions = [],
 }) {
   return [
@@ -853,13 +1656,19 @@ function cumulativeFirstActorEventQuery({
     `    count() as ${dailyAlias}`,
     '  from first_seen',
     '  group by day',
+    '), prior as (',
+    '  select',
+    '    count() as prior_total',
+    '  from first_seen, bounds',
+    '  where first_seen_day < bounds.start_day',
     ')',
     'select',
     '  dates.day,',
     `  coalesce(daily.${dailyAlias}, 0) as ${dailyAlias},`,
-    `  sum(coalesce(daily.${dailyAlias}, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as ${totalAlias}`,
+    `  prior.prior_total + sum(coalesce(daily.${dailyAlias}, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as ${totalAlias}`,
     'from dates',
     'left join daily on daily.day = dates.day',
+    'cross join prior',
     'order by dates.day asc',
   ].join('\n');
 }
@@ -868,7 +1677,7 @@ function siteVisitorsUniqueQuery() {
   return dailyEventQuery({
     eventName: '$pageview',
     valueAlias: 'unique_visitors',
-    aggregate: 'uniqExact(coalesce(person_id, distinct_id))',
+    aggregate: `uniqExact(${ACTOR_EXPRESSION})`,
   });
 }
 
@@ -1073,15 +1882,28 @@ function cumulativePostsCreatedBySourceQuery() {
     '    count() as new_total_posts',
     '  from total_first_seen',
     '  group by day',
+    '), source_prior as (',
+    '  select',
+    "    countIf(post_source = 'reddit_bot') as prior_reddit_bot_posts,",
+    "    countIf(post_source = 'website') as prior_website_posts",
+    '  from source_first_seen, bounds',
+    '  where day < bounds.start_day',
+    '), total_prior as (',
+    '  select',
+    '    count() as prior_total_posts',
+    '  from total_first_seen, bounds',
+    '  where day < bounds.start_day',
     ')',
     'select',
     '  dates.day,',
-    '  sum(coalesce(source_daily.new_reddit_bot_posts, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as cumulative_reddit_bot_posts,',
-    '  sum(coalesce(source_daily.new_website_posts, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as cumulative_website_posts,',
-    '  sum(coalesce(total_daily.new_total_posts, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as cumulative_total_posts',
+    '  source_prior.prior_reddit_bot_posts + sum(coalesce(source_daily.new_reddit_bot_posts, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as cumulative_reddit_bot_posts,',
+    '  source_prior.prior_website_posts + sum(coalesce(source_daily.new_website_posts, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as cumulative_website_posts,',
+    '  total_prior.prior_total_posts + sum(coalesce(total_daily.new_total_posts, 0)) over (order by dates.day asc rows between unbounded preceding and current row) as cumulative_total_posts',
     'from dates',
     'left join source_daily on source_daily.day = dates.day',
     'left join total_daily on total_daily.day = dates.day',
+    'cross join source_prior',
+    'cross join total_prior',
     'order by dates.day asc',
   ].join('\n');
 }
@@ -1123,37 +1945,39 @@ function totalPostsCreatedInsight() {
 function conversionsMadePerDayInsight() {
   return hogqlLineGraphInsight({
     key: 'conversions_made_per_day',
-    name: 'Conversions Made Per Day',
-    description: 'Daily successful link conversions by external users.',
+    name: 'Post Platform Clicks Per Day',
+    previousNames: ['Conversions Made Per Day'],
+    description: 'Daily clicks on post-page platform conversion buttons by external users.',
     query: dailyEventQuery({
-      eventName: 'link_converted',
-      valueAlias: 'conversions_made',
+      eventName: 'post_platform_conversion_clicked',
+      valueAlias: 'post_platform_clicks',
       aggregate: 'count()',
       extraConditions: [
-        CORE_ACTION_CONDITION,
+        POST_SURFACE_CONDITION,
       ],
     }),
-    yAxisColumn: 'conversions_made',
-    yAxisLabel: 'Conversions made',
+    yAxisColumn: 'post_platform_clicks',
+    yAxisLabel: 'Post platform clicks',
   });
 }
 
 function totalConversionsMadeInsight() {
   return hogqlLineGraphInsight({
     key: 'total_conversions_made',
-    name: 'Total Conversions Made',
-    description: 'Cumulative successful link conversions by external users.',
+    name: 'Total Post Platform Clicks',
+    previousNames: ['Total Conversions Made'],
+    description: 'Cumulative clicks on post-page platform conversion buttons by external users.',
     query: cumulativeEventQuery({
-      eventName: 'link_converted',
-      dailyAlias: 'conversions_made',
-      totalAlias: 'total_conversions_made',
+      eventName: 'post_platform_conversion_clicked',
+      dailyAlias: 'post_platform_clicks',
+      totalAlias: 'total_post_platform_clicks',
       aggregate: 'count()',
       extraConditions: [
-        CORE_ACTION_CONDITION,
+        POST_SURFACE_CONDITION,
       ],
     }),
-    yAxisColumn: 'total_conversions_made',
-    yAxisLabel: 'Total conversions made',
+    yAxisColumn: 'total_post_platform_clicks',
+    yAxisLabel: 'Total post platform clicks',
   });
 }
 
@@ -1162,7 +1986,7 @@ function coreActionFilteredCte({ events = productCoreActionEvents, extraConditio
     'filtered as (',
     '  select',
     '    timestamp,',
-    '    coalesce(person_id, distinct_id) as actor_id,',
+    `    ${ACTOR_EXPRESSION} as actor_id,`,
     '    event,',
     '    properties',
     '  from events',
@@ -1333,6 +2157,13 @@ function redditBotCondition() {
   return "  and coalesce(toString(properties.traffic_source), '') = 'redditbot'";
 }
 
+function redditBotReferenceConditions() {
+  return [
+    redditBotCondition(),
+    "  and coalesce(toString(properties.traffic_medium), '') = 'reddit_comment'",
+  ];
+}
+
 function redditCommentPostReferralExpression() {
   return [
     "(position(toString(properties.$current_url), 'utm_source=redditbot') > 0 or position(toString(properties.$current_url), 'src=redditbot') > 0)",
@@ -1347,6 +2178,223 @@ function redditCommentPostReferralCondition() {
 
 function redditSubredditExpression() {
   return "coalesce(nullIf(toString(properties.reddit_subreddit), ''), nullIf(toString(properties.traffic_content), ''), 'unknown')";
+}
+
+function redditBotVisitorsPerDayInsight() {
+  return hogqlLineGraphInsight({
+    key: 'reddit_bot_visitors_per_day',
+    name: 'Reddit Bot Visitors Per Day',
+    description: 'Daily distinct visitors whose pageview was attributed to the Reddit bot comment reference.',
+    query: dailyEventQuery({
+      eventName: '$pageview',
+      valueAlias: 'unique_visitors',
+      aggregate: `uniqExact(${ACTOR_EXPRESSION})`,
+      extraConditions: redditBotReferenceConditions(),
+    }),
+    yAxisColumn: 'unique_visitors',
+    yAxisLabel: 'Unique visitors',
+  });
+}
+
+function totalRedditBotVisitorsInsight() {
+  return hogqlLineGraphInsight({
+    key: 'total_reddit_bot_visitors',
+    name: 'Total Reddit Bot Visitors',
+    description: 'Cumulative distinct visitors whose first retained pageview was attributed to the Reddit bot comment reference.',
+    query: cumulativeFirstActorEventQuery({
+      eventName: '$pageview',
+      dailyAlias: 'new_reddit_bot_visitors',
+      totalAlias: 'total_reddit_bot_visitors',
+      actorAlias: 'visitor_id',
+      extraConditions: redditBotReferenceConditions(),
+    }),
+    yAxisColumn: 'total_reddit_bot_visitors',
+    yAxisLabel: 'Total Reddit bot visitors',
+  });
+}
+
+function redditBotSignupToWebsitePostFunnelInsight() {
+  return {
+    key: 'reddit_bot_signup_to_website_post_funnel',
+    name: 'Reddit Bot Signup to Website Post Funnel',
+    description: 'Reddit bot comment visitor flow: attributed pageview -> account_created -> original website post_created.',
+    query: {
+      kind: 'InsightVizNode',
+      source: {
+        kind: 'FunnelsQuery',
+        series: [
+          {
+            kind: 'EventsNode',
+            event: '$pageview',
+            name: 'Reddit bot comment pageview',
+            properties: [
+              internalActorPropertyFilter(false),
+              {
+                key: 'traffic_source',
+                value: 'redditbot',
+                operator: 'exact',
+                type: 'event',
+              },
+              {
+                key: 'traffic_medium',
+                value: 'reddit_comment',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'account_created',
+            name: 'account_created',
+            properties: [
+              internalActorPropertyFilter(false),
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'post_created',
+            name: 'website post_created',
+            properties: [
+              internalActorPropertyFilter(false),
+              {
+                key: 'is_repost',
+                value: 'false',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+        ],
+        funnelsFilter: {
+          layout: 'horizontal',
+          funnelVizType: 'steps',
+        },
+        properties: [],
+        filterTestAccounts: false,
+      },
+    },
+  };
+}
+
+function redditBotVisitorToPlatformClickFunnelInsight() {
+  return {
+    key: 'reddit_bot_visitor_to_platform_click_funnel',
+    name: 'Reddit Bot Visitor to Platform Click Funnel',
+    description: 'Reddit bot comment visitor flow: attributed pageview -> post-page platform conversion click.',
+    query: {
+      kind: 'InsightVizNode',
+      source: {
+        kind: 'FunnelsQuery',
+        series: [
+          {
+            kind: 'EventsNode',
+            event: '$pageview',
+            name: 'Reddit bot comment pageview',
+            properties: [
+              internalActorPropertyFilter(false),
+              {
+                key: 'traffic_source',
+                value: 'redditbot',
+                operator: 'exact',
+                type: 'event',
+              },
+              {
+                key: 'traffic_medium',
+                value: 'reddit_comment',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'post_platform_conversion_clicked',
+            name: 'post_platform_conversion_clicked',
+            properties: [
+              internalActorPropertyFilter(false),
+              {
+                key: 'source_surface',
+                value: 'post',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+        ],
+        funnelsFilter: {
+          layout: 'horizontal',
+          funnelVizType: 'steps',
+        },
+        properties: [],
+        filterTestAccounts: false,
+      },
+    },
+  };
+}
+
+function redditBotPlaylistSaveFunnelInsight() {
+  return {
+    key: 'reddit_bot_playlist_save_funnel',
+    name: 'Reddit Bot Playlist Save Funnel',
+    description: 'Reddit bot comment visitor flow: attributed pageview -> playlist convert click -> playlist_created_on_platform.',
+    query: {
+      kind: 'InsightVizNode',
+      source: {
+        kind: 'FunnelsQuery',
+        series: [
+          {
+            kind: 'EventsNode',
+            event: '$pageview',
+            name: 'Reddit bot comment pageview',
+            properties: [
+              internalActorPropertyFilter(false),
+              {
+                key: 'traffic_source',
+                value: 'redditbot',
+                operator: 'exact',
+                type: 'event',
+              },
+              {
+                key: 'traffic_medium',
+                value: 'reddit_comment',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'post_platform_conversion_clicked',
+            name: 'playlist_convert_button',
+            properties: [
+              internalActorPropertyFilter(false),
+              {
+                key: 'source_context',
+                value: 'playlist_convert_button',
+                operator: 'exact',
+                type: 'event',
+              },
+            ],
+          },
+          {
+            kind: 'EventsNode',
+            event: 'playlist_created_on_platform',
+            name: 'playlist_created_on_platform',
+            properties: [
+              internalActorPropertyFilter(false),
+            ],
+          },
+        ],
+        funnelsFilter: {
+          layout: 'horizontal',
+          funnelVizType: 'steps',
+        },
+        properties: [],
+        filterTestAccounts: false,
+      },
+    },
+  };
 }
 
 function redditBotPostsCreatedQuery() {
@@ -1386,7 +2434,8 @@ function redditBotLinkEngagementQuery() {
     '  select',
     '    timestamp,',
     '    person_id,',
-    '    distinct_id',
+    '    distinct_id,',
+    '    properties',
     '  from events',
     "  where event = '$pageview'",
     '    and timestamp >= now() - INTERVAL 90 DAY',
@@ -1399,7 +2448,7 @@ function redditBotLinkEngagementQuery() {
     '  select',
     '    toDate(timestamp) as day,',
     '    count() as reddit_comment_post_referrals,',
-    '    uniqExact(coalesce(person_id, distinct_id)) as unique_visitors',
+    `    uniqExact(${ACTOR_EXPRESSION}) as unique_visitors`,
     '  from filtered',
     '  group by day',
     ')',
@@ -1418,7 +2467,7 @@ function redditBotLinkOpensBySubredditQuery() {
     'select',
     `  ${redditSubredditExpression()} as comment_subreddit,`,
     '  count() as direct_comment_post_referrals,',
-    '  uniqExact(coalesce(person_id, distinct_id)) as unique_direct_visitors',
+    `  uniqExact(${ACTOR_EXPRESSION}) as unique_direct_visitors`,
     'from events',
     "  where event = '$pageview'",
     '  and timestamp >= now() - INTERVAL 90 DAY',
@@ -1467,6 +2516,11 @@ function redditBotDownstreamBySubredditQuery() {
 
 function redditBotAttributionInsights() {
   return [
+    redditBotVisitorsPerDayInsight(),
+    totalRedditBotVisitorsInsight(),
+    redditBotSignupToWebsitePostFunnelInsight(),
+    redditBotVisitorToPlatformClickFunnelInsight(),
+    redditBotPlaylistSaveFunnelInsight(),
     hogqlLineGraphInsight({
       key: 'reddit_bot_posts_created',
       name: 'Reddit Bot Cassette Posts Created',
@@ -1526,84 +2580,7 @@ function dashboardLayout(x, y, w, h) {
   };
 }
 
-function productDashboardLayoutByKey() {
-  const rows = [
-    [
-      { key: 'site_visitors_unique', w: 4, h: 4 },
-      { key: 'posts_created_by_source', w: 4, h: 4 },
-      { key: 'cumulative_posts_created_by_source', w: 4, h: 4 },
-    ],
-    [
-      { key: 'reddit_bot_posts_created', w: 6 },
-      { key: 'reddit_bot_link_engagement', w: 6 },
-    ],
-    [
-      { key: 'total_posts_created', w: 4, h: 4 },
-      { key: 'total_accounts_created', w: 4, h: 4 },
-      { key: 'total_conversions_made', w: 4, h: 4 },
-    ],
-    [
-      { key: 'posts_created_per_day', w: 4, h: 4 },
-      { key: 'accounts_created_per_day', w: 4, h: 4 },
-      { key: 'total_unique_site_visitors', w: 4, h: 4 },
-    ],
-    [
-      { key: 'creator_intent_activation', w: 6 },
-      { key: 'link_conversion_funnel', w: 6 },
-    ],
-    [
-      { key: 'post_engagement_funnel', w: 6 },
-      { key: 'playlist_creation_outcomes', w: 6 },
-    ],
-    [
-      { key: 'reddit_bot_link_opens_by_subreddit', w: 6, h: 6 },
-      { key: 'reddit_bot_posts_created_by_subreddit', w: 6, h: 6 },
-    ],
-    [
-      { key: 'reddit_bot_downstream_by_subreddit', w: 12, h: 6 },
-    ],
-    [
-      { key: 'post_distribution_3plus_viewers_7d', w: 6, h: 5 },
-      { key: 'post_distribution_ladder', w: 6, h: 5 },
-    ],
-    [
-      { key: 'viewer_to_contributor', w: 6, h: 5 },
-      { key: 'creator_repeat_after_distribution', w: 6, h: 5 },
-    ],
-    [
-      { key: 'post_platform_cta_clicks_total', w: 6 },
-      { key: 'post_platform_cta_users_unique', w: 6 },
-    ],
-    [
-      { key: 'post_platform_cta_by_target_platform', w: 6 },
-      { key: 'post_platform_cta_by_element_type', w: 6 },
-    ],
-    [
-      { key: 'dau_mau_core_actions', w: 6 },
-      { key: 'waa_core_actions', w: 6 },
-    ],
-    [
-      { key: 'conversions_made_per_day', w: 6 },
-      { key: 'core_actions_element_type_share', w: 6 },
-    ],
-    [
-      { key: 'core_actions_playlist', w: 3, h: 4 },
-      { key: 'core_actions_track', w: 3, h: 4 },
-      { key: 'core_actions_album', w: 3, h: 4 },
-      { key: 'core_actions_artist', w: 3, h: 4 },
-    ],
-    [
-      { key: 'platform_source_mix', w: 12 },
-    ],
-    [
-      { key: 'conversion_funnel', w: 6 },
-      { key: 'onboarding_activation', w: 6 },
-    ],
-    [
-      { key: 'failure_monitor', w: 12, h: 6 },
-    ],
-  ];
-
+function dashboardLayoutByRows(rows) {
   const layouts = new Map();
   let y = 0;
 
@@ -1623,8 +2600,139 @@ function productDashboardLayoutByKey() {
   return layouts;
 }
 
-function productDashboardInsightDefinitions() {
-  const definitions = [
+function productDashboardLayoutByKey() {
+  return dashboardLayoutByRows([
+    [
+      { key: 'site_visitors_unique', w: 4, h: 4 },
+      { key: 'accounts_created_per_day', w: 4, h: 4 },
+      { key: 'posts_created_by_source', w: 4, h: 4 },
+    ],
+    [
+      { key: 'total_unique_site_visitors', w: 4, h: 4 },
+      { key: 'total_accounts_created', w: 4, h: 4 },
+      { key: 'cumulative_posts_created_by_source', w: 4, h: 4 },
+    ],
+    [
+      { key: 'total_posts_created', w: 4, h: 4 },
+      { key: 'conversions_made_per_day', w: 4, h: 4 },
+      { key: 'total_conversions_made', w: 4, h: 4 },
+    ],
+    [
+      { key: 'creator_intent_activation', w: 6, h: 5 },
+      { key: 'conversion_funnel', w: 6, h: 5 },
+    ],
+    [
+      { key: 'account_to_website_post_funnel', w: 6, h: 5 },
+      { key: 'post_engagement_funnel', w: 6, h: 5 },
+    ],
+    [
+      { key: 'content_engagement_quality', w: 6, h: 6 },
+      { key: 'post_distribution_3plus_viewers_7d', w: 6, h: 5 },
+    ],
+    [
+      { key: 'dau_mau_core_actions', w: 6 },
+      { key: 'waa_core_actions', w: 6 },
+    ],
+    [
+      { key: 'reddit_bot_visitors_per_day', w: 6, h: 4 },
+      { key: 'reddit_bot_posts_created', w: 6, h: 4 },
+    ],
+    [
+      { key: 'playlist_creation_outcomes', w: 6, h: 6 },
+      { key: 'failure_monitor', w: 6, h: 6 },
+    ],
+  ]);
+}
+
+function productActivationDashboardLayoutByKey() {
+  return dashboardLayoutByRows([
+    [
+      { key: 'onboarding_activation', w: 12, h: 5 },
+    ],
+    [
+      { key: 'post_viewer_signup_to_website_post_funnel', w: 12, h: 5 },
+    ],
+    [
+      { key: 'viewer_to_contributor', w: 6, h: 5 },
+      { key: 'creator_repeat_after_distribution', w: 6, h: 5 },
+    ],
+    [
+      { key: 'search_intent_to_post_funnel', w: 6, h: 5 },
+      { key: 'reddit_bot_signup_to_website_post_funnel', w: 6, h: 5 },
+    ],
+    [
+      { key: 'reddit_bot_visitor_to_platform_click_funnel', w: 6, h: 5 },
+      { key: 'reddit_bot_playlist_save_funnel', w: 6, h: 5 },
+    ],
+  ]);
+}
+
+function productAcquisitionDashboardLayoutByKey() {
+  return dashboardLayoutByRows([
+    [
+      { key: 'posts_created_per_day', w: 6, h: 4 },
+      { key: 'total_reddit_bot_visitors', w: 6, h: 4 },
+    ],
+    [
+      { key: 'signup_attribution_mix', w: 6, h: 6 },
+      { key: 'search_intent_quality', w: 6, h: 6 },
+    ],
+    [
+      { key: 'reddit_bot_link_engagement', w: 6, h: 4 },
+      { key: 'reddit_subreddit_business_quality', w: 6, h: 6 },
+    ],
+    [
+      { key: 'reddit_bot_link_opens_by_subreddit', w: 6, h: 6 },
+      { key: 'reddit_bot_posts_created_by_subreddit', w: 6, h: 6 },
+    ],
+    [
+      { key: 'reddit_bot_downstream_by_subreddit', w: 6, h: 6 },
+      { key: 'post_distribution_ladder', w: 6, h: 5 },
+    ],
+  ]);
+}
+
+function productDiagnosticsDashboardLayoutByKey() {
+  return dashboardLayoutByRows([
+    [
+      { key: 'platform_demand_matrix', w: 6, h: 6 },
+      { key: 'playlist_conversion_friction', w: 6, h: 6 },
+    ],
+    [
+      { key: 'signed_out_conversion_intent', w: 6, h: 6 },
+      { key: 'platform_preference_stickiness', w: 6, h: 6 },
+    ],
+    [
+      { key: 'creator_stickiness', w: 6, h: 5 },
+      { key: 'viewer_return_quality', w: 6, h: 5 },
+    ],
+    [
+      { key: 'page_engagement_quality', w: 6, h: 6 },
+      { key: 'unsupported_link_demand', w: 6, h: 6 },
+    ],
+    [
+      { key: 'issue_report_hotspots', w: 6, h: 6 },
+      { key: 'post_platform_cta_users_unique', w: 6, h: 4 },
+    ],
+    [
+      { key: 'post_platform_cta_by_target_platform', w: 6, h: 4 },
+      { key: 'post_platform_cta_by_element_type', w: 6, h: 4 },
+    ],
+    [
+      { key: 'core_actions_element_type_share', w: 6, h: 6 },
+      { key: 'platform_source_mix', w: 6, h: 5 },
+    ],
+    [
+      { key: 'core_actions_playlist', w: 3, h: 4 },
+      { key: 'core_actions_track', w: 3, h: 4 },
+      { key: 'core_actions_album', w: 3, h: 4 },
+      { key: 'core_actions_artist', w: 3, h: 4 },
+    ],
+  ]);
+}
+
+function productInsightDefinitionCatalog() {
+  return [
     ...growthMetricInsights(),
     ...withInternalActorFilter(insightDefinitions, false),
     ...redditBotAttributionInsights(),
@@ -1634,8 +2742,12 @@ function productDashboardInsightDefinitions() {
     viewerToContributorInsight({ internalActor: false }),
     playlistCreationOutcomesInsight({ internalActor: false }),
   ];
-  const definitionsByKey = new Map(definitions.map((definition) => [definition.key, definition]));
-  const layoutsByKey = productDashboardLayoutByKey();
+}
+
+function dashboardInsightDefinitions(layoutsByKey) {
+  const definitionsByKey = new Map(
+    productInsightDefinitionCatalog().map((definition) => [definition.key, definition]),
+  );
 
   return [...layoutsByKey.entries()].map(([key, layout]) => {
     const definition = definitionsByKey.get(key);
@@ -1650,6 +2762,22 @@ function productDashboardInsightDefinitions() {
   });
 }
 
+function productDashboardInsightDefinitions() {
+  return dashboardInsightDefinitions(productDashboardLayoutByKey());
+}
+
+function productActivationDashboardInsightDefinitions() {
+  return dashboardInsightDefinitions(productActivationDashboardLayoutByKey());
+}
+
+function productAcquisitionDashboardInsightDefinitions() {
+  return dashboardInsightDefinitions(productAcquisitionDashboardLayoutByKey());
+}
+
+function productDiagnosticsDashboardInsightDefinitions() {
+  return dashboardInsightDefinitions(productDiagnosticsDashboardLayoutByKey());
+}
+
 const insightDefinitions = [
   weeklyCoreActionUsersInsight(),
   dailyCoreActionUsersInsight(),
@@ -1658,6 +2786,20 @@ const insightDefinitions = [
   contentCoreActionByElementTypeInsight('artist'),
   contentCoreActionByElementTypeInsight('playlist'),
   contentCoreActionElementTypeShareInsight(),
+  contentEngagementQualityInsight(),
+  platformDemandMatrixInsight(),
+  playlistConversionFrictionInsight(),
+  signedOutConversionIntentInsight(),
+  signupAttributionMixInsight(),
+  creatorStickinessInsight(),
+  viewerReturnQualityInsight(),
+  platformPreferenceStickinessInsight(),
+  redditSubredditBusinessQualityInsight(),
+  searchIntentQualityInsight(),
+  searchIntentToPostFunnelInsight(),
+  unsupportedLinkDemandInsight(),
+  pageEngagementQualityInsight(),
+  issueReportHotspotsInsight(),
   {
     key: 'link_conversion_funnel',
     name: 'Link Conversion Funnel',
@@ -1668,28 +2810,30 @@ const insightDefinitions = [
       events: [
         { id: 'link_conversion_submitted', type: 'events', order: 0, name: 'link_conversion_submitted' },
         { id: 'link_converted', type: 'events', order: 1, name: 'link_converted' },
-        { id: 'post_created', type: 'events', order: 2, name: 'post_created' },
+        {
+          id: 'post_created',
+          type: 'events',
+          order: 2,
+          name: 'website post_created',
+          properties: [
+            {
+              key: 'is_repost',
+              value: 'false',
+              operator: 'exact',
+              type: 'event',
+            },
+          ],
+        },
       ],
     },
   },
-  {
-    key: 'conversion_funnel',
-    name: 'Conversion Funnel',
-    description: 'Creator flow: post_viewed -> auth_signed_up -> post_created.',
-    filters: {
-      insight: 'FUNNELS',
-      layout: 'horizontal',
-      ...FUNNEL_WINDOW_7_DAYS,
-      events: [
-        { id: 'post_viewed', type: 'events', order: 0, name: 'post_viewed' },
-        { id: 'auth_signed_up', type: 'events', order: 1, name: 'auth_signed_up' },
-        { id: 'post_created', type: 'events', order: 2, name: 'post_created' },
-      ],
-    },
-  },
+  postViewerConversionFunnelInsight({ internalActor: false }),
+  accountToWebsitePostFunnelInsight({ internalActor: false }),
+  postViewerSignupToWebsitePostFunnelInsight({ internalActor: false }),
   {
     key: 'post_engagement_funnel',
-    name: 'Post Engagement Funnel',
+    name: 'Playlist Save Funnel',
+    previousNames: ['Post Engagement Funnel'],
     description: 'Playlist conversion flow: post_viewed -> playlist convert CTA click -> playlist_created_on_platform.',
     query: playlistCreationFunnelInsight({ internalActor: false }).query,
   },
@@ -1731,15 +2875,17 @@ const insightDefinitions = [
   },
   {
     key: 'post_platform_cta_by_element_type',
-    name: 'Post Platform CTA by Element Type',
-    description: 'Post-page destination CTA clicks split by element type.',
+    name: 'Post Platform CTA by Content Type',
+    previousNames: ['Post Platform CTA by Element Type'],
+    description: 'Post-page destination CTA clicks split by actual content type: track, album, artist, and playlist.',
     filters: {
       insight: 'TRENDS',
       interval: 'day',
       display: 'ActionsBar',
-      events: [postPlatformConversionEvent()],
-      breakdown: 'element_type',
-      breakdown_type: 'event',
+      events: elementTypes.map((elementType) => postPlatformConversionEvent({
+        name: `post_platform_conversion_clicked (${elementType})`,
+        elementType,
+      })),
     },
   },
   {
@@ -1783,44 +2929,20 @@ const insightDefinitions = [
       breakdown_type: 'event',
     },
   },
-  {
-    key: 'onboarding_activation',
-    name: 'Onboarding Activation Funnel',
-    description: 'auth_signed_up -> onboarding_completed -> first link_converted.',
-    filters: {
-      insight: 'FUNNELS',
-      layout: 'horizontal',
-      events: [
-        { id: 'auth_signed_up', type: 'events', order: 0, name: 'auth_signed_up' },
-        { id: 'onboarding_completed', type: 'events', order: 1, name: 'onboarding_completed' },
-        { id: 'link_converted', type: 'events', order: 2, name: 'link_converted' },
-      ],
-    },
-  },
-  {
-    key: 'creator_intent_activation',
-    name: 'Creator Intent Activation Funnel',
-    description: 'Explicit creator intent: conversion_entry_started -> auth_signed_up -> onboarding_completed -> music_service_connected -> post_created.',
-    filters: {
-      insight: 'FUNNELS',
-      layout: 'horizontal',
-      ...FUNNEL_WINDOW_14_DAYS,
-      events: [
-        { id: 'conversion_entry_started', type: 'events', order: 0, name: 'conversion_entry_started' },
-        { id: 'auth_signed_up', type: 'events', order: 1, name: 'auth_signed_up' },
-        { id: 'onboarding_completed', type: 'events', order: 2, name: 'onboarding_completed' },
-        { id: 'music_service_connected', type: 'events', order: 3, name: 'music_service_connected' },
-        { id: 'post_created', type: 'events', order: 4, name: 'post_created' },
-      ],
-    },
-  },
+  onboardingActivationFunnelInsight({ internalActor: false }),
+  creatorIntentActivationFunnelInsight({ internalActor: false }),
 ];
 
 const dashboardName = 'Cassette Product Analytics';
+const productActivationDashboardName = 'Cassette Product Analytics: Activation & Funnels';
+const productAcquisitionDashboardName = 'Cassette Product Analytics: Acquisition & Distribution';
+const productDiagnosticsDashboardName = 'Cassette Product Analytics: Diagnostics';
 const internalDashboardName = 'Cassette Internal Activity';
 const deprecatedInsightNames = [
   'Core Actions by Element Type',
   'Internal Core Actions by Element Type',
+  'Link Conversion Funnel',
+  'Post Platform CTA Clicks (Total)',
   'Reddit Bot Link Engagement',
   'Reddit Bot Link Opens by Subreddit',
   'Reddit Bot Traffic and Engagement',
@@ -1829,6 +2951,9 @@ const deprecatedInsightNames = [
 ];
 
 const productInsightDefinitions = productDashboardInsightDefinitions();
+const productActivationInsightDefinitions = productActivationDashboardInsightDefinitions();
+const productAcquisitionInsightDefinitions = productAcquisitionDashboardInsightDefinitions();
+const productDiagnosticsInsightDefinitions = productDiagnosticsDashboardInsightDefinitions();
 
 const internalInsightDefinitions = withInternalActorFilter([
   {
@@ -2317,13 +3442,25 @@ async function applyDashboardLayout(dashboardId, provisionedInsights) {
 
 function productDashboardDescription() {
   return [
-    'Auto-provisioned dashboard for Cassette product analytics (external actors only).',
-    'Ordered top-to-bottom: creation/source health, activation, Reddit acquisition, distribution, platform behavior, core actions, and failures.',
+    'Auto-provisioned executive overview for Cassette product analytics (external actors only).',
+    'Detailed funnels, acquisition breakdowns, and diagnostic tables are provisioned to secondary Product Analytics dashboards.',
   ].join(' ');
 }
 
 function defaultProductDashboardDescription() {
   return 'Auto-provisioned dashboard for Cassette product analytics (external actors only).';
+}
+
+function productActivationDashboardDescription() {
+  return 'Auto-provisioned dashboard for detailed Cassette activation, conversion, and funnel analysis (external actors only).';
+}
+
+function productAcquisitionDashboardDescription() {
+  return 'Auto-provisioned dashboard for Cassette acquisition, Reddit distribution, search intent, and post distribution detail (external actors only).';
+}
+
+function productDiagnosticsDashboardDescription() {
+  return 'Auto-provisioned dashboard for Cassette demand, friction, retention, and failure diagnostics (external actors only).';
 }
 
 function internalDashboardDescription() {
@@ -2410,6 +3547,28 @@ async function main() {
         insights: pmfOnly ? pmfProductInsightDefinitions : productInsightDefinitions,
         applyLayout: !pmfOnly,
       },
+      ...(!pmfOnly
+        ? [
+          {
+            name: productActivationDashboardName,
+            description: productActivationDashboardDescription(),
+            insights: productActivationInsightDefinitions,
+            applyLayout: true,
+          },
+          {
+            name: productAcquisitionDashboardName,
+            description: productAcquisitionDashboardDescription(),
+            insights: productAcquisitionInsightDefinitions,
+            applyLayout: true,
+          },
+          {
+            name: productDiagnosticsDashboardName,
+            description: productDiagnosticsDashboardDescription(),
+            insights: productDiagnosticsInsightDefinitions,
+            applyLayout: true,
+          },
+        ]
+        : []),
       {
         name: internalDashboardName,
         description: internalDashboardDescription(),

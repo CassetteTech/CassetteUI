@@ -2,9 +2,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Settings, Shield } from 'lucide-react';
+import { Plus, Settings, Share2, Shield } from 'lucide-react';
 import { UserBio, ConnectedService, PlatformPreferenceInfo } from '@/types';
-import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
@@ -54,7 +53,7 @@ export function ProfileHeader({
               aria-label={`View ${userBio.displayName || userBio.username}'s profile picture`}
               className="flex-shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:opacity-90 transition-opacity"
             >
-              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 border-2 border-border/20">
+              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 border-2 border-foreground/80">
                 <AvatarImage
                   src={userBio.avatarUrl}
                   alt={`@${userBio.username}`}
@@ -69,7 +68,7 @@ export function ProfileHeader({
           {/* User Info */}
           <div className="flex-1 min-w-0 flex flex-col gap-1">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="font-semibold tracking-tight text-card-foreground truncate text-xl sm:text-2xl lg:text-3xl">
+              <span className="font-teko font-bold leading-none text-card-foreground truncate text-3xl sm:text-4xl lg:text-5xl">
                 {userBio.displayName || userBio.username}
               </span>
               <VerificationBadge
@@ -89,7 +88,7 @@ export function ProfileHeader({
 
             {/* @username + connected-service icons on the right, same row */}
             <div className="flex items-center gap-2 min-w-0">
-              <span className="leading-none text-muted-foreground text-sm sm:text-base lg:text-lg truncate min-w-0 flex-1">
+              <span className="leading-none font-mono text-[11px] sm:text-xs uppercase tracking-[0.2em] text-muted-foreground truncate min-w-0 flex-1">
                 @{userBio.username}
               </span>
               <div className="flex-shrink-0 lg:hidden">
@@ -103,9 +102,9 @@ export function ProfileHeader({
             </div>
 
             {/* Mobile likes stat on its own line — no fragile dot-separator, no wrapping */}
-            <span className="lg:hidden text-xs text-muted-foreground mt-0.5">
-              <span className="font-semibold text-card-foreground">{totalLikesReceived.toLocaleString()}</span>
-              {' '}likes
+            <span className="lg:hidden font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-0.5">
+              <span className="font-bold text-card-foreground">{totalLikesReceived.toLocaleString()}</span>
+              {' '}{totalLikesReceived === 1 ? 'like' : 'likes'}
             </span>
 
             {/* Desktop keeps the services in the identity column below username */}
@@ -126,55 +125,41 @@ export function ProfileHeader({
         )}
 
         {/* Desktop-only likes row */}
-        <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="font-semibold text-card-foreground">{totalLikesReceived.toLocaleString()}</span>
-          <span>likes</span>
+        <div className="hidden lg:flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+          <span className="font-bold text-card-foreground">{totalLikesReceived.toLocaleString()}</span>
+          <span>{totalLikesReceived === 1 ? 'like' : 'likes'}</span>
         </div>
 
-        {/* Action Buttons — full-width primary on mobile, ≥40px tap target */}
-        <div className="flex flex-row gap-2 sm:gap-3 lg:flex-col lg:gap-4">
-          <Button
+        {/* Action Buttons — editorial voice: mono labels, quiet chrome, ≥40px tap target */}
+        <div className="flex flex-row gap-2 sm:gap-3 lg:flex-col lg:gap-3">
+          <button
+            type="button"
             onClick={onShare}
-            className="rounded-xl gap-2 h-10 px-4 text-sm flex-1 min-w-0 lg:flex-none lg:w-full lg:h-12 lg:px-6 lg:text-base"
+            className="inline-flex h-10 flex-1 min-w-0 items-center justify-center gap-2 rounded-md bg-primary px-4 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-primary-foreground elev-1 transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:w-full lg:flex-none"
           >
-            <Image
-              src="/images/ic_share.png"
-              alt="Share"
-              width={16}
-              height={16}
-              className="w-4 h-4"
-            />
-            <span>Share Profile</span>
-          </Button>
+            <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="truncate">Share Profile</span>
+          </button>
 
           {isCurrentUser && onAddMusic && (
-            <Button
-              variant="outline"
+            <button
+              type="button"
               onClick={onAddMusic}
-              className="rounded-xl gap-2 h-10 px-4 text-sm flex-1 min-w-0 lg:flex-none lg:w-full lg:h-12 lg:px-6 lg:text-base"
+              className="inline-flex h-10 flex-1 min-w-0 items-center justify-center gap-2 rounded-md border border-border bg-card px-4 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-foreground elev-1 transition-colors hover:border-foreground/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:w-full lg:flex-none"
             >
-              <Image
-                src="/images/ic_music.png"
-                alt="Add Music"
-                width={16}
-                height={16}
-                className="w-4 h-4 dark:invert"
-              />
-              <span>Add Music</span>
-            </Button>
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="truncate">Add Music</span>
+            </button>
           )}
 
           {isCurrentUser && isCassetteInternalAccount(userBio.accountType) && (
-            <Button
-              variant="outline"
-              asChild
-              className="rounded-xl gap-2 h-10 px-4 text-sm flex-1 min-w-0 lg:flex-none lg:w-full lg:h-12 lg:px-6 lg:text-base"
+            <Link
+              href="/internal"
+              className="inline-flex h-10 flex-1 min-w-0 items-center justify-center gap-2 rounded-md border border-border bg-card px-4 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-foreground elev-1 transition-colors hover:border-foreground/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:w-full lg:flex-none"
             >
-              <Link href="/internal">
-                <Shield className="w-4 h-4" />
-                <span>Internal</span>
-              </Link>
-            </Button>
+              <Shield className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="truncate">Internal</span>
+            </Link>
           )}
         </div>
       </div>

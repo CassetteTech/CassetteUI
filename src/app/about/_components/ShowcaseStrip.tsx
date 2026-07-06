@@ -53,7 +53,7 @@ export function ShowcaseStrip() {
 
         <Link
           href="/auth/signup"
-          className="hidden sm:inline-flex shrink-0 rotate-[2deg] items-center gap-2 bg-background border-2 border-foreground px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.25em] text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors shadow-[3px_3px_0_hsl(var(--foreground))]"
+          className="hidden sm:inline-flex shrink-0 rotate-[2deg] items-center gap-2 bg-background border-2 border-foreground px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.25em] text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors shadow-flat-3"
         >
           Start Free
           <ArrowRight className="h-3.5 w-3.5" />
@@ -93,7 +93,7 @@ export function ShowcaseStrip() {
 
               <Link
                 href={link.href}
-                className="group block bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-4 pb-5 shadow-[4px_4px_0_hsl(var(--foreground))] dark:shadow-[4px_4px_0_hsl(var(--cassette-white))] hover:shadow-[6px_6px_0_hsl(var(--primary))] dark:hover:shadow-[6px_6px_0_hsl(var(--primary))] transition-shadow"
+                className="group block bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-4 pb-5 shadow-flat-4 dark:shadow-flat-white-4 hover:shadow-flat-primary-6 dark:hover:shadow-flat-primary-6 transition-shadow"
               >
                 <span className="inline-block font-mono text-[9px] uppercase tracking-[0.2em] bg-foreground text-background px-1.5 py-0.5 mb-3">
                   {link.meta}
@@ -120,7 +120,7 @@ export function ShowcaseStrip() {
       <div className="mt-10 sm:hidden text-center">
         <Link
           href="/auth/signup"
-          className="inline-flex items-center gap-2 bg-background border-2 border-foreground px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.25em] text-foreground shadow-[3px_3px_0_hsl(var(--foreground))]"
+          className="inline-flex items-center gap-2 bg-background border-2 border-foreground px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.25em] text-foreground shadow-flat-3"
         >
           Start Free
           <ArrowRight className="h-3.5 w-3.5" />

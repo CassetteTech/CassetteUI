@@ -81,7 +81,7 @@ export function SidebarProfileCard({
   const totalLikesReceived = getTotalLikesReceived(user);
 
   return (
-    <div className={`mx-2 p-4 rounded-xl bg-background border border-border/30 transition-colors min-h-[156px] ${className}`}>
+    <div className={`mx-2 p-4 rounded-lg bg-background border border-border/50 transition-colors min-h-[156px] ${className}`}>
       <div className="flex flex-col gap-3">
         {/* Top row: Avatar left, Connected services top right */}
         <div className="flex items-start justify-between">
@@ -96,7 +96,7 @@ export function SidebarProfileCard({
               aria-label={`View ${displayName}'s profile picture`}
               className="flex-shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:opacity-90 transition-opacity"
             >
-              <Avatar className="h-14 w-14 border-2 border-border/30 ring-2 ring-primary/10 shadow-sm">
+              <Avatar className="h-14 w-14 border-2 border-foreground/80">
                 <AvatarImage src={avatarUrl} alt={`@${user.username}`} />
                 <AvatarFallback className="bg-primary text-white font-atkinson font-bold text-lg">
                   {initial}
@@ -114,14 +114,14 @@ export function SidebarProfileCard({
         </div>
 
         {/* Name + username - left aligned */}
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           <div className="flex items-center gap-1.5">
-            <p className="font-semibold text-base text-foreground truncate leading-tight">
+            <p className="font-teko font-bold text-2xl text-foreground truncate leading-none">
               {displayName}
             </p>
             <VerificationBadge accountType={getAccountType(user)} size="sm" />
           </div>
-          <p className="text-sm text-muted-foreground leading-none">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground leading-none">
             @{user.username}
           </p>
         </div>
@@ -143,11 +143,11 @@ export function SidebarProfileCard({
         )}
 
         {typeof totalLikesReceived === 'number' && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">
+          <div className="flex items-center gap-1.5 border-t border-border/70 pt-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            <span className="font-bold text-foreground">
               {Math.max(0, totalLikesReceived).toLocaleString()}
             </span>
-            <span>likes</span>
+            <span>{totalLikesReceived === 1 ? 'like' : 'likes'}</span>
           </div>
         )}
       </div>
@@ -160,7 +160,7 @@ export function SidebarProfileCard({
  */
 export function SidebarProfileCardSkeleton({ className = '' }: { className?: string }) {
   return (
-    <div className={`mx-2 p-4 rounded-xl bg-background border border-border/30 min-h-[156px] ${className}`}>
+    <div className={`mx-2 p-4 rounded-lg bg-background border border-border/50 min-h-[156px] ${className}`}>
       <div className="flex flex-col gap-3">
         {/* Top row: Avatar left, services top right */}
         <div className="flex items-start justify-between">

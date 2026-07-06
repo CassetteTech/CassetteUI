@@ -630,6 +630,113 @@ export interface InternalIssueDetail extends InternalIssueSummary {
   payload: string;
 }
 
+export interface InternalSentinelFinding {
+  fingerprint: string;
+  invariantId: string;
+  severity: string;
+  entityType: string;
+  entityId: string;
+  summary: string;
+  evidence: Record<string, string>;
+  firstSeenAtUtc: string;
+  lastSeenAtUtc: string;
+  lastObservedAtUtc: string;
+  lastRunId: string;
+  occurrenceCount: number;
+  status: string;
+  recurrenceCount: number;
+  resolvedAtUtc?: string | null;
+  resolvedByRunId?: string | null;
+  lastReactivatedAtUtc?: string | null;
+  lastReactivatedRunId?: string | null;
+}
+
+export interface InternalSentinelRescanResponse {
+  invariantId?: string | null;
+  requestedBy: string;
+  messageId: string;
+  requestedAtUtc: string;
+}
+
+export interface InternalSentinelInvariantNote {
+  invariantId: string;
+  rootCauseSummary?: string | null;
+  fixedInReference?: string | null;
+  regressionTestReference?: string | null;
+  residueNote?: string | null;
+  updatedBy: string;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export interface InternalSentinelInvariantNotesResponse {
+  items: InternalSentinelInvariantNote[];
+}
+
+export interface InternalSentinelInvariantNoteInput {
+  rootCauseSummary?: string | null;
+  fixedInReference?: string | null;
+  regressionTestReference?: string | null;
+  residueNote?: string | null;
+}
+
+export interface InternalSentinelFindingsResponse {
+  items: InternalSentinelFinding[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  statusCounts: Record<string, number>;
+}
+
+export interface InternalSentinelInvariantResult {
+  invariantId: string;
+  invariantName: string;
+  invariantDescription: string;
+  scope: string;
+  status: string;
+  findingCount: number;
+  maxSeverity?: string | null;
+  evaluatedAtUtc: string;
+}
+
+export interface InternalSentinelInvariantRegistryItem {
+  invariantId: string;
+  invariantName: string;
+  invariantDescription: string;
+  scope: string;
+  latestStatus: string;
+  latestFindingCount: number;
+  latestMaxSeverity?: string | null;
+  latestEvaluatedAtUtc: string;
+}
+
+export interface InternalSentinelInvariantRegistryResponse {
+  items: InternalSentinelInvariantRegistryItem[];
+}
+
+export interface InternalSentinelAuditRun {
+  runId: string;
+  environmentName: string;
+  invariantCount: number;
+  findingCount: number;
+  targetEntityType?: string | null;
+  targetEntityId?: string | null;
+  runScope: string;
+  runMetadata: Record<string, string>;
+  startedAtUtc: string;
+  completedAtUtc: string;
+  invariantResults: InternalSentinelInvariantResult[];
+}
+
+export interface InternalSentinelAuditRunsResponse {
+  items: InternalSentinelAuditRun[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
 export interface UpdateInternalAccountTypeRequest {
   accountType: 'Regular' | 'Verified' | 'CassetteTeam';
   canAssignVerified?: boolean;

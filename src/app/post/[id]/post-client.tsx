@@ -26,7 +26,7 @@ import {
 import { AnimatedColorBackground } from '@/components/ui/animated-color-background';
 import { ColorExtractor, ColorPalette } from '@/services/color-extractor';
 import { MainContainer } from '@/components/ui/container';
-import { HeadlineText, BodyText, UIText } from '@/components/ui/typography';
+import { HeadlineText, BodyText } from '@/components/ui/typography';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError, apiService } from '@/services/api';
@@ -73,6 +73,73 @@ function SupportCTA({ className }: { className?: string }) {
         <span>Tip us</span>
       </button>
     </div>
+  );
+}
+
+// Shared by all three layout branches so the toolbar Share affordance stays identical.
+function PostShareButton({
+  copyState,
+  onShare,
+  className,
+}: {
+  copyState: 'idle' | 'copied' | 'error';
+  onShare: () => void;
+  className?: string;
+}) {
+  return (
+    <motion.button
+      className={`inline-flex h-9 min-w-[120px] items-center justify-center gap-2 overflow-hidden rounded-md border px-4 font-mono text-[10px] font-bold uppercase tracking-[0.2em] backdrop-blur-sm transition-colors ${
+        copyState === 'copied'
+          ? 'border-success/40 bg-success/10 text-success-text'
+          : 'border-primary/25 bg-primary/10 text-primary elev-1 hover:bg-primary/20 hover:border-primary/40'
+      } ${className ?? ''}`}
+      onClick={onShare}
+      aria-label="Share"
+      whileTap={{ scale: 0.97 }}
+      animate={copyState === 'copied' ? { scale: [1, 1.03, 1] } : {}}
+      transition={{ duration: 0.2 }}
+    >
+      <AnimatePresence mode="wait">
+        {copyState === 'copied' ? (
+          <motion.span
+            key="copied"
+            className="flex items-center justify-center gap-2"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.15 }}
+          >
+            <Check className="w-3.5 h-3.5" />
+            <span>Copied!</span>
+          </motion.span>
+        ) : (
+          <motion.span
+            key="share"
+            className="flex items-center justify-center gap-2"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.15 }}
+          >
+            <span
+              aria-hidden="true"
+              className="w-3.5 h-3.5 bg-current shrink-0"
+              style={{
+                WebkitMaskImage: "url(/images/ic_share.png)",
+                maskImage: "url(/images/ic_share.png)",
+                WebkitMaskSize: "contain",
+                maskSize: "contain",
+                WebkitMaskRepeat: "no-repeat",
+                maskRepeat: "no-repeat",
+                WebkitMaskPosition: "center",
+                maskPosition: "center",
+              }}
+            />
+            <span>Share</span>
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </motion.button>
   );
 }
 
@@ -255,7 +322,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
   const [insightsSheetOpen, setInsightsSheetOpen] = useState(false);
   const panelSwitchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Roughly matches the sheet's `data-[state=closed]:duration-[300ms]` slide-out
+  // Roughly matches the sheet's `data-[state=closed]:duration-300` slide-out
   // with a small buffer so the outgoing panel finishes animating before the
   // incoming one starts. Keeps cross-panel swaps visually clean on desktop.
   const PANEL_SWITCH_DELAY_MS = 320;
@@ -951,8 +1018,18 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
       {/* Animated Gradient Background */}
       <AnimatedColorBackground palette={palette} />
 
+      {/* Dotted paper texture over the gradient — ties the page to the zine surfaces */}
       <div
-        className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"} transition-[padding] duration-[450ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${commentsSheetOpen || insightsSheetOpen ? "md:pr-[512px]" : ""}`}
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0 opacity-30"
+        style={{
+          backgroundImage: 'radial-gradient(hsl(var(--foreground) / 0.10) 1px, transparent 1px)',
+          backgroundSize: '18px 18px',
+        }}
+      />
+
+      <div
+        className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"} transition-[padding] duration-450 ease-out-quart ${commentsSheetOpen || insightsSheetOpen ? "md:pr-[512px]" : ""}`}
       >
         {isDesktop ? (
           useSplitScrollLayout ? (
@@ -962,59 +1039,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             <div className="pt-4 pb-6 px-3 shrink-0 max-w-7xl mx-auto w-full">
               <div className="flex items-center justify-between gap-3">
                 <BackButton route={backRoute} fallbackRoute="/explore" />
-                <motion.button
-                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 min-w-[120px] rounded-full border font-medium text-sm overflow-hidden ${
-                    copyState === 'copied'
-                      ? 'bg-success/20 text-success-text border-success/30'
-                      : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
-                  }`}
-                  onClick={handleShare}
-                  aria-label="Share"
-                  whileTap={{ scale: 0.95 }}
-                  animate={copyState === 'copied' ? { scale: [1, 1.05, 1] } : {}}
-                  transition={{ duration: 0.2 }}
-                >
-                  <AnimatePresence mode="wait">
-                    {copyState === 'copied' ? (
-                      <motion.span
-                        key="copied"
-                        className="flex items-center justify-center gap-2"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.15 }}
-                      >
-                        <Check className="w-4 h-4" />
-                        <span>Copied!</span>
-                      </motion.span>
-                    ) : (
-                      <motion.span
-                        key="share"
-                        className="flex items-center justify-center gap-2"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.15 }}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className="w-4 h-4 bg-current shrink-0"
-                          style={{
-                            WebkitMaskImage: "url(/images/ic_share.png)",
-                            maskImage: "url(/images/ic_share.png)",
-                            WebkitMaskSize: "contain",
-                            maskSize: "contain",
-                            WebkitMaskRepeat: "no-repeat",
-                            maskRepeat: "no-repeat",
-                            WebkitMaskPosition: "center",
-                            maskPosition: "center",
-                          }}
-                        />
-                        <span>Share</span>
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </motion.button>
+                <PostShareButton copyState={copyState} onShare={handleShare} />
                 {/* More Menu */}
                 {isOwnPost && (
                   <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
@@ -1056,34 +1081,35 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               <div className="flex-[2] sticky top-0 h-full overflow-y-auto no-scrollbar">
                 {/* Make the left column fill the available height and center content vertically */}
                 <div className="min-h-full flex flex-col items-center justify-start min-w-0 pt-2 pb-[calc(6rem+env(safe-area-inset-bottom))]">
-                  <UIText className="text-foreground font-bold mb-3 uppercase tracking-wider text-lg">
+                  <span className="inline-block font-mono text-[11px] font-bold uppercase tracking-[0.3em] text-primary mb-3">
                     {typeLabel}
-                  </UIText>
+                  </span>
                   {hasGenres && (
                     <div className="flex flex-wrap justify-center gap-1.5 mb-6 max-w-xs">
                       {filteredGenres.map((genre) => (
                         <span
                           key={genre}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground border border-border/50"
+                          className="inline-flex items-center font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground"
                         >
                           {genre}
                         </span>
                       ))}
                     </div>
                   )}
-                  {/* Artwork */}
+                  {/* Artwork — clean sleeve */}
                   <div className="relative mb-8">
-                    <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
-                    <Image
-                      src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
-                      alt={metadata.title}
-                      width={340}
-                      height={340}
-                      className="relative rounded-xl object-cover shadow-xl"
-                      priority
-                      onError={() => setImageError(true)}
-                      unoptimized={!imageError && !!metadata.artwork}
-                    />
+                    <div className="relative rounded-md bg-card p-2.5 elev-3 ring-1 ring-foreground/10">
+                      <Image
+                        src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
+                        alt={metadata.title}
+                        width={340}
+                        height={340}
+                        className="block rounded-sm object-cover"
+                        priority
+                        onError={() => setImageError(true)}
+                        unoptimized={!imageError && !!metadata.artwork}
+                      />
+                    </div>
                     {isTrack && postData?.previewUrl && (
                       <div className="absolute -bottom-4 -right-4">
                         <PlayPreview
@@ -1100,12 +1126,12 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   </div>
                   {/* Info Card (moved from right) */}
                   {(isAlbum || isPlaylist) && (
-                    <div className="p-8 rounded-2xl border border-border bg-card shadow-lg w-full max-w-xl">
+                    <div className="p-8 rounded-lg border border-border bg-card elev-2 w-full max-w-xl">
                       <div className="space-y-6">
                         {/* Title block: title (with inline source badge for playlist) + artist (album) */}
                         <div className="space-y-2">
                           <div className="relative flex justify-center items-center">
-                            <HeadlineText className="text-3xl font-bold text-foreground text-center leading-tight">
+                            <HeadlineText className="text-3xl sm:text-4xl uppercase leading-[0.95] tracking-tight text-foreground text-center">
                               {metadata.title}
                             </HeadlineText>
                             {isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService && (
@@ -1144,7 +1170,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           {/* Artist line for album */}
                           {isAlbum && (
                             <div className="text-center">
-                              <BodyText className="text-lg text-muted-foreground">
+                              <BodyText className="text-lg italic text-muted-foreground">
                                 {postData?.details?.artists && postData.details.artists.length > 0 ? (
                                   postData.details.artists.map((artist, idx) => (
                                     <span key={idx}>
@@ -1161,9 +1187,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                           )}
                         </div>
                         {/* Listen Now (merged into info card) */}
-                        <div className="border-t border-border/30 mx-6" />
+                        <div className="border-t border-border/70 mx-6" />
                         <div>
-                          <h3 className="text-base font-semibold text-foreground mb-4 text-center">Listen Now</h3>
+                          <h3 className="mb-3 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+                            Listen on
+                          </h3>
                           {isPlaylist ? (
                             <PlaylistStreamingLinks
                               links={convertedUrls}
@@ -1188,7 +1216,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                         {/* Social: author header + engagement bar (moved inside card) */}
                         {postData?.username && hasPostOwner && (
                           <>
-                            <div className="border-t border-border/30 mx-6" />
+                            <div className="border-t border-border/70 mx-6" />
                             <div className="flex flex-col gap-2 text-left relative z-20">
                               <PostAuthorHeader
                                 username={postData.username}
@@ -1266,7 +1294,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   <div className="space-y-8">
                     {/* Track list for album/playlist */}
                     {showTracks && (
-                      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-lg">
+                      <div className="rounded-lg border border-border bg-card overflow-hidden elev-2">
                         <div className="p-5 border-b border-border bg-muted/50 flex items-baseline justify-between gap-3">
                           <h3 className="text-lg font-semibold text-foreground">
                             {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
@@ -1302,59 +1330,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   <div className="justify-self-start">
                     <BackButton route={backRoute} fallbackRoute="/explore" />
                   </div>
-                  <motion.button
-                    className={`justify-self-center inline-flex items-center justify-center gap-2 px-4 py-2 min-w-[120px] rounded-full border font-medium text-sm overflow-hidden ${
-                      copyState === 'copied'
-                        ? 'bg-success/20 text-success-text border-success/30'
-                        : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
-                    }`}
-                    onClick={handleShare}
-                    aria-label="Share"
-                    whileTap={{ scale: 0.95 }}
-                    animate={copyState === 'copied' ? { scale: [1, 1.05, 1] } : {}}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <AnimatePresence mode="wait">
-                      {copyState === 'copied' ? (
-                        <motion.span
-                          key="copied"
-                          className="flex items-center justify-center gap-2"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.15 }}
-                        >
-                          <Check className="w-4 h-4" />
-                          <span>Copied!</span>
-                        </motion.span>
-                      ) : (
-                        <motion.span
-                          key="share"
-                          className="flex items-center justify-center gap-2"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.15 }}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className="w-4 h-4 bg-current shrink-0"
-                            style={{
-                              WebkitMaskImage: "url(/images/ic_share.png)",
-                              maskImage: "url(/images/ic_share.png)",
-                              WebkitMaskSize: "contain",
-                              maskSize: "contain",
-                              WebkitMaskRepeat: "no-repeat",
-                              maskRepeat: "no-repeat",
-                              WebkitMaskPosition: "center",
-                              maskPosition: "center",
-                            }}
-                          />
-                          <span>Share</span>
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </motion.button>
+                  <PostShareButton
+                    copyState={copyState}
+                    onShare={handleShare}
+                    className="justify-self-center"
+                  />
                   {/* More Menu */}
                   <div className="justify-self-end">
                     {isOwnPost && (
@@ -1398,15 +1378,15 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   <div className="flex-[2]" aria-hidden="true" />
                   <div className="flex-[3] flex justify-center">
                     <div className="max-w-xl w-full flex flex-col items-center">
-                      <UIText className="text-foreground font-bold mb-2 uppercase tracking-wider text-lg">
+                      <span className="inline-block font-mono text-[11px] font-bold uppercase tracking-[0.3em] text-primary mb-2">
                         {typeLabel}
-                      </UIText>
+                      </span>
                       {hasGenres && (
                         <div className="flex flex-wrap justify-center gap-1.5 max-w-xs">
                           {filteredGenres.map((genre) => (
                             <span
                               key={genre}
-                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground border border-border/50"
+                              className="inline-flex items-center font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground"
                             >
                               {genre}
                             </span>
@@ -1420,17 +1400,18 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   {/* Left Column - Artwork only */}
                   <div className="flex-[2] flex justify-center">
                     <div className="relative">
-                      <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
-                      <Image
-                        src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
-                        alt={metadata.title}
-                        width={440}
-                        height={440}
-                        className="relative rounded-xl object-cover shadow-lg"
-                        priority
-                        onError={() => setImageError(true)}
-                        unoptimized={!imageError && !!metadata.artwork}
-                      />
+                      <div className="relative rounded-md bg-card p-3 elev-3 ring-1 ring-foreground/10">
+                        <Image
+                          src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
+                          alt={metadata.title}
+                          width={440}
+                          height={440}
+                          className="block rounded-sm object-cover"
+                          priority
+                          onError={() => setImageError(true)}
+                          unoptimized={!imageError && !!metadata.artwork}
+                        />
+                      </div>
                       {isTrack && postData?.previewUrl && (
                         <div className="absolute -bottom-4 -right-4">
                           <PlayPreview
@@ -1451,14 +1432,14 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     <div className="max-w-xl w-full mx-auto">
                       <div className="space-y-6">
                         {/* Info Card */}
-                        <div className="p-6 rounded-2xl border border-border bg-card shadow-lg">
+                        <div className="p-6 rounded-lg border border-border bg-card elev-2">
                           <div className="space-y-3">
-                            <HeadlineText className="text-2xl font-bold text-foreground text-center leading-tight">
+                            <HeadlineText className="text-3xl sm:text-4xl uppercase leading-[0.95] tracking-tight text-foreground text-center">
                               {metadata.title}
                             </HeadlineText>
                             {(isTrack || isAlbum) && (
                               <div className="text-center">
-                                <BodyText className="text-base text-muted-foreground">
+                                <BodyText className="text-base italic text-muted-foreground">
                                   {postData?.details?.artists && postData.details.artists.length > 0 ? (
                                     postData.details.artists.map((artist, idx) => (
                                       <span key={idx}>
@@ -1473,30 +1454,32 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                                 </BodyText>
                               </div>
                             )}
-                            <div className="border-t border-border/30 mx-4" />
+                            <div className="border-t border-border/70 mx-4" />
                             {isTrack ? (
-                              <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
+                              <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1.5 font-mono text-[10px] sm:text-[11px] uppercase tracking-[0.2em]">
                                 {metadata.duration && (
                                   <div>
-                                    <span className="text-muted-foreground">Duration: </span>
-                                    <span className="font-medium">{metadata.duration}</span>
+                                    <span className="text-muted-foreground">Duration&nbsp;</span>
+                                    <span className="font-bold text-foreground">{metadata.duration}</span>
                                   </div>
                                 )}
                                 {metadata.duration && postData?.albumName && (
-                                  <span className="text-muted-foreground">•</span>
+                                  <span className="text-muted-foreground">/</span>
                                 )}
                                 {postData?.albumName && (
                                   <div>
-                                    <span className="text-muted-foreground">Album: </span>
-                                    <span className="font-medium">{postData.albumName}</span>
+                                    <span className="text-muted-foreground">Album&nbsp;</span>
+                                    <span className="font-bold text-foreground">{postData.albumName}</span>
                                   </div>
                                 )}
                               </div>
                             ) : null}
                             {/* Listen Now (merged into info card) */}
-                            <div className="border-t border-border/30 mx-4" />
+                            <div className="border-t border-border/70 mx-4" />
                             <div>
-                              <h3 className="text-base font-semibold text-foreground mb-3 text-center">Listen Now</h3>
+                              <h3 className="mb-3 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+                                Listen on
+                              </h3>
                               {isPlaylist ? (
                                 <PlaylistStreamingLinks
                                   links={convertedUrls}
@@ -1521,7 +1504,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                             {/* Social: author header + engagement bar (moved inside card) */}
                             {postData?.username && hasPostOwner && (
                               <>
-                                <div className="border-t border-border/30 mx-4" />
+                                <div className="border-t border-border/70 mx-4" />
                                 <div className="flex flex-col gap-2.5 relative z-20">
                                   <PostAuthorHeader
                                     username={postData.username}
@@ -1600,59 +1583,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 <div className="justify-self-start">
                   <BackButton route={backRoute} fallbackRoute="/explore" />
                 </div>
-                <motion.button
-                  className={`justify-self-center inline-flex items-center justify-center gap-2 px-4 py-2 min-w-[120px] rounded-full border font-medium text-sm overflow-hidden ${
-                    copyState === 'copied'
-                      ? 'bg-success/20 text-success-text border-success/30'
-                      : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
-                  }`}
-                  onClick={handleShare}
-                  aria-label="Share"
-                  whileTap={{ scale: 0.95 }}
-                  animate={copyState === 'copied' ? { scale: [1, 1.05, 1] } : {}}
-                  transition={{ duration: 0.2 }}
-                >
-                  <AnimatePresence mode="wait">
-                    {copyState === 'copied' ? (
-                      <motion.span
-                        key="copied"
-                        className="flex items-center justify-center gap-2"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.15 }}
-                      >
-                        <Check className="w-4 h-4" />
-                        <span>Copied!</span>
-                      </motion.span>
-                    ) : (
-                      <motion.span
-                        key="share"
-                        className="flex items-center justify-center gap-2"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.15 }}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className="w-4 h-4 bg-current shrink-0"
-                          style={{
-                            WebkitMaskImage: "url(/images/ic_share.png)",
-                            maskImage: "url(/images/ic_share.png)",
-                            WebkitMaskSize: "contain",
-                            maskSize: "contain",
-                            WebkitMaskRepeat: "no-repeat",
-                            maskRepeat: "no-repeat",
-                            WebkitMaskPosition: "center",
-                            maskPosition: "center",
-                          }}
-                        />
-                        <span>Share</span>
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </motion.button>
+                <PostShareButton
+                  copyState={copyState}
+                  onShare={handleShare}
+                  className="justify-self-center"
+                />
                 {/* More Menu */}
                 <div className="justify-self-end">
                   {isOwnPost ? (
@@ -1693,15 +1628,15 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             <div className="text-center space-y-2 sm:space-y-6">
               {/* Element Type */}
               <div>
-                <UIText className="text-foreground font-bold mb-2 uppercase tracking-wider text-sm sm:text-base">
+                <span className="inline-block font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.3em] text-primary mb-2">
                   {typeLabel}
-                </UIText>
+                </span>
                 {hasGenres && (
                   <div className="flex flex-wrap justify-center gap-1.5 max-w-xs mx-auto">
                     {filteredGenres.map((genre) => (
                       <span
                         key={genre}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground border border-border/50"
+                        className="inline-flex items-center font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground"
                       >
                         {genre}
                       </span>
@@ -1712,20 +1647,21 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
 
               {/* Album Art Container */}
               <div>
-                {/* Album Art with Shadow */}
+                {/* Album Art — clean sleeve */}
                 <div className="relative inline-block">
-                  <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
-                  <Image
-                    src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
-                    alt={metadata.title}
-                    width={0}
-                    height={0}
-                    sizes="(max-width: 640px) 260px, 340px"
-                    className="relative rounded-xl object-cover shadow-lg w-[260px] h-[260px] sm:w-[340px] sm:h-[340px]"
-                    priority
-                    onError={() => setImageError(true)}
-                    unoptimized={!imageError && !!metadata.artwork}
-                  />
+                  <div className="relative rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10">
+                    <Image
+                      src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
+                      alt={metadata.title}
+                      width={0}
+                      height={0}
+                      sizes="(max-width: 640px) 260px, 340px"
+                      className="block rounded-sm object-cover w-[260px] h-[260px] sm:w-[340px] sm:h-[340px]"
+                      priority
+                      onError={() => setImageError(true)}
+                      unoptimized={!imageError && !!metadata.artwork}
+                    />
+                  </div>
 
                   {/* Play Preview for Tracks only */}
                   {isTrack && postData?.previewUrl && (
@@ -1746,11 +1682,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
               </div>
 
               {/* Track Information Card - Mobile */}
-              <div className="p-3 sm:p-5 rounded-2xl border border-border bg-card shadow-lg">
+              <div className="p-3 sm:p-5 rounded-lg border border-border bg-card elev-2">
                 <div className="space-y-2.5 sm:space-y-4">
                   {/* Title (with source badge right-aligned for playlist) */}
                   <div className="relative flex justify-center items-center">
-                    <HeadlineText className="text-lg sm:text-xl font-bold text-foreground text-center leading-tight">
+                    <HeadlineText className="text-2xl sm:text-3xl uppercase leading-[0.95] tracking-tight text-foreground text-center">
                       {metadata.title}
                     </HeadlineText>
                     {isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService && (
@@ -1790,7 +1726,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   {/* Artists with roles (show for Track/Album) */}
                   {(isTrack || isAlbum) && (
                     <div className="text-center">
-                      <BodyText className="text-sm sm:text-base text-muted-foreground">
+                      <BodyText className="text-sm sm:text-base italic text-muted-foreground">
                         {postData?.details?.artists && postData.details.artists.length > 0 ? (
                           postData.details.artists.map((artist, idx) => (
                             <span key={idx}>
@@ -1809,24 +1745,24 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   {/* Metadata (track-only: duration + album; album released date) */}
                   {isTrack ? (
                     <>
-                      <div className="border-t border-border/30" />
-                      <div className="space-y-2 text-sm">
-                        <div className="flex flex-wrap justify-center gap-3">
+                      <div className="border-t border-border/70" />
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5 font-mono text-[10px] uppercase tracking-[0.2em]">
                           {postData?.metadata?.duration && (
                             <div>
-                              <span className="text-muted-foreground">Duration: </span>
-                              <span className="font-medium">{postData.metadata.duration}</span>
+                              <span className="text-muted-foreground">Duration&nbsp;</span>
+                              <span className="font-bold text-foreground">{postData.metadata.duration}</span>
                             </div>
                           )}
 
                           {postData?.metadata?.duration && postData?.albumName && (
-                            <span className="text-muted-foreground">•</span>
+                            <span className="text-muted-foreground">/</span>
                           )}
 
                           {postData?.albumName && (
                             <div>
-                              <span className="text-muted-foreground">Album: </span>
-                              <span className="font-medium">{postData.albumName}</span>
+                              <span className="text-muted-foreground">Album&nbsp;</span>
+                              <span className="font-bold text-foreground">{postData.albumName}</span>
                             </div>
                           )}
                         </div>
@@ -1834,18 +1770,20 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                     </>
                   ) : isAlbum && postData?.releaseDate ? (
                     <>
-                      <div className="border-t border-border/30" />
-                      <div className="text-sm text-center">
-                        <span className="text-muted-foreground">Released: </span>
-                        <span className="font-medium">{postData.releaseDate}</span>
+                      <div className="border-t border-border/70" />
+                      <div className="text-center font-mono text-[10px] uppercase tracking-[0.2em]">
+                        <span className="text-muted-foreground">Released&nbsp;</span>
+                        <span className="font-bold text-foreground">{postData.releaseDate}</span>
                       </div>
                     </>
                   ) : null}
 
                   {/* Listen Now (merged into info card) */}
-                  <div className="border-t border-border/30" />
+                  <div className="border-t border-border/70" />
                   <div>
-                    <h3 className="sr-only sm:not-sr-only sm:block text-base font-semibold text-foreground sm:mb-3 text-center">Listen Now</h3>
+                    <h3 className="sr-only sm:not-sr-only sm:block sm:text-left font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground sm:mb-3">
+                      Listen on
+                    </h3>
                     {isPlaylist ? (
                       <PlaylistStreamingLinks
                         links={convertedUrls}
@@ -1870,7 +1808,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   {/* Social: author header + engagement bar (moved inside card) */}
                   {postData?.username && hasPostOwner && (
                     <>
-                      <div className="border-t border-border/30" />
+                      <div className="border-t border-border/70" />
                       <div className="flex flex-col gap-2 sm:gap-2.5 text-left relative z-20">
                         <PostAuthorHeader
                           username={postData.username}
@@ -1901,7 +1839,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
 
               {/* Track list for album/playlist - mobile */}
               {showTracks && (
-                <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-lg">
+                <div className="border-2 border-foreground bg-card overflow-hidden shadow-flat-4">
                   <div className="p-3 sm:p-4 border-b border-border bg-muted/50 flex items-baseline justify-center gap-2">
                     <h3 className="text-sm sm:text-base font-semibold text-foreground text-center">
                       {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}

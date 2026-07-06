@@ -79,7 +79,7 @@ export function JourneyTimeline() {
                 )}
               />
 
-              <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 h-full relative overflow-hidden shadow-[5px_5px_0_hsl(var(--foreground))] dark:shadow-[5px_5px_0_hsl(var(--cassette-white))]">
+              <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 h-full relative overflow-hidden shadow-flat-5 dark:shadow-flat-white-5">
                 <span className="font-teko text-7xl sm:text-8xl font-bold text-foreground/[0.06] absolute -top-3 right-3 leading-none pointer-events-none select-none">
                   {milestone.year}
                 </span>

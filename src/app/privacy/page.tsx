@@ -25,7 +25,7 @@ export default function PrivacyPage() {
           <div className="editorial-rule-thick mt-6" />
         </header>
 
-        <article className="bg-background border-2 border-foreground p-6 sm:p-10 shadow-[6px_6px_0_hsl(var(--foreground))] max-w-none">
+        <article className="bg-background border-2 border-foreground p-6 sm:p-10 shadow-flat-6 max-w-none">
           <Markdown content={privacyMarkdown} />
         </article>
       </div>

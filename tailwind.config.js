@@ -8,9 +8,63 @@ module.exports = {
   ],
   theme: {
     extend: {
+      // Font utilities map to the next/font CSS variables set in src/app/layout.tsx.
+      fontFamily: {
+        sans: [
+          "var(--font-inter)",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
+        teko: ["var(--font-teko)", "ui-sans-serif", "sans-serif"],
+        atkinson: ["var(--font-atkinson)", "ui-sans-serif", "sans-serif"],
+        "roboto-flex": ["var(--font-roboto-flex)", "ui-sans-serif", "sans-serif"],
+        // Legacy alias: Roboto was never loaded; these usages get Roboto Flex.
+        roboto: ["var(--font-roboto-flex)", "ui-sans-serif", "sans-serif"],
+      },
+      // Named values so we avoid arbitrary duration-[...]/ease-[...] classes,
+      // which are ambiguous with tailwindcss-animate and silently dropped.
+      transitionDuration: {
+        280: "280ms",
+        400: "400ms",
+        450: "450ms",
+        1100: "1100ms",
+      },
+      transitionTimingFunction: {
+        "out-quart": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "in-quart": "cubic-bezier(0.64, 0, 0.78, 0)",
+      },
+      letterSpacing: {
+        "custom-2": "0.02em",
+        "custom-4": "0.04em",
+        "custom-5": "0.05em",
+        "custom-7": "0.07em",
+      },
+      boxShadow: {
+        main: "0 4px 12px rgba(0, 0, 0, 0.12)",
+        // Retro offset shadows (neo-brutalist brand language).
+        // Numeric suffix = offset in px; color variants for dark sections and hovers.
+        "flat-2": "2px 2px 0 0 hsl(var(--foreground))",
+        "flat-3": "3px 3px 0 0 hsl(var(--foreground))",
+        "flat-4": "4px 4px 0 0 hsl(var(--foreground))",
+        "flat-5": "5px 5px 0 0 hsl(var(--foreground))",
+        "flat-6": "6px 6px 0 0 hsl(var(--foreground))",
+        "flat-white-4": "4px 4px 0 0 hsl(var(--cassette-white))",
+        "flat-white-5": "5px 5px 0 0 hsl(var(--cassette-white))",
+        "flat-white-6": "6px 6px 0 0 hsl(var(--cassette-white))",
+        "flat-primary-3": "3px 3px 0 0 hsl(var(--primary))",
+        "flat-primary-4": "4px 4px 0 0 hsl(var(--primary))",
+        "flat-primary-6": "6px 6px 0 0 hsl(var(--primary))",
+        "flat-primary-7": "7px 7px 0 0 hsl(var(--primary))",
+        "flat-primary-8": "8px 8px 0 0 hsl(var(--primary))",
+        "flat-destructive-2": "2px 2px 0 0 hsl(var(--destructive))",
+        "flat-destructive-3": "3px 3px 0 0 hsl(var(--destructive))",
+        "flat-destructive-4": "4px 4px 0 0 hsl(var(--destructive))",
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
+        field: "hsl(var(--field))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
@@ -37,6 +91,12 @@ module.exports = {
         accentRoyal: {
           DEFAULT: "hsl(var(--accent-royal))",
           foreground: "hsl(var(--accent-royal-foreground))",
+        },
+        // Domain accent — remapped per console section via .domain-eng / .domain-growth.
+        domain: {
+          DEFAULT: "hsl(var(--domain))",
+          foreground: "hsl(var(--domain-foreground))",
+          muted: "hsl(var(--domain-muted))",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",

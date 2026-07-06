@@ -45,7 +45,7 @@ export function ProblemSection() {
             aria-hidden
             className="absolute -top-2 left-6 z-10 h-5 w-20 rotate-[-6deg] opacity-80 border border-foreground/10 bg-warning/70"
           />
-          <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 sm:p-8 shadow-[6px_6px_0_hsl(var(--cassette-white))]">
+          <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 sm:p-8 shadow-flat-white-6">
             <p className="font-teko text-3xl sm:text-4xl font-bold uppercase leading-tight mb-4">
               &ldquo;Sorry, I use Apple Music.&rdquo;{" "}
               <span className="text-primary">That ends today.</span>

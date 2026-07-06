@@ -92,7 +92,7 @@ export function ValuesSection() {
                     tapeSide === "left" ? "left-6" : "right-6"
                   )}
                 />
-                <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 h-full relative overflow-hidden shadow-[5px_5px_0_hsl(var(--cassette-white))]">
+                <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 h-full relative overflow-hidden shadow-flat-white-5">
                   <div className="w-11 h-11 mb-5 border-2 border-foreground bg-background flex items-center justify-center">
                     {value.useLogo ? (
                       <div className="relative w-6 h-6">

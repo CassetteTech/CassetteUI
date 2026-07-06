@@ -57,7 +57,7 @@ export function TeamHero() {
         {stats.map((stat, i) => (
           <div
             key={stat.label}
-            className="bg-background border-2 border-foreground p-4 shadow-[3px_3px_0_hsl(var(--foreground))]"
+            className="bg-background border-2 border-foreground p-4 shadow-flat-3"
             style={{ transform: `rotate(${i === 0 ? -1 : 1.2}deg)` }}
           >
             <div className={`h-[3px] ${stat.barColor} mb-3 w-10`} />

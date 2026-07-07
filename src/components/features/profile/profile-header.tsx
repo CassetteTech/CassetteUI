@@ -9,6 +9,7 @@ import { VerificationBadge } from '@/components/ui/verification-badge';
 import { MusicConnectionsStatus } from '@/components/features/music/music-connections-status';
 import { AvatarPreviewDialog } from '@/components/features/profile/avatar-preview-dialog';
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
+import { getDisplayPlatformDefinition, isAppleMusicPlatform } from '@/lib/platforms';
 
 interface ProfileHeaderProps {
   userBio: UserBio;
@@ -174,27 +175,12 @@ function ConnectedServices({
   services: ConnectedService[];
   platformPreferences?: PlatformPreferenceInfo[];
 }) {
-  const normalize = (value: unknown) => (typeof value === 'string' ? value : value ? String(value) : '').toLowerCase().replace(/[^a-z0-9]/g, '');
-
   const getServiceIcon = (serviceType: string): string | null => {
-    const normalized = normalize(serviceType);
-    const iconMap: Record<string, string> = {
-      'spotify': '/images/spotify_logo_colored.png',
-      'applemusic': '/images/apple_music_logo_colored.png',
-      'apple': '/images/apple_music_logo_colored.png',
-      'youtube': '/images/social_images/ic_yt_music.png',
-      'youtubemusic': '/images/social_images/ic_yt_music.png',
-      'tidal': '/images/social_images/ic_tidal.png',
-      'deezer': '/images/deezer_logo_colored.png',
-    };
-
-    return iconMap[normalized] ?? null;
+    return getDisplayPlatformDefinition(serviceType)?.logoSrc ?? null;
   };
 
   const getServiceIconClassName = (serviceType: string) => {
-    const normalized = normalize(serviceType);
-
-    if (normalized === 'applemusic' || normalized === 'apple') {
+    if (isAppleMusicPlatform(serviceType)) {
       return 'w-full h-full object-contain dark:invert';
     }
 
@@ -202,18 +188,7 @@ function ConnectedServices({
   };
 
   const getServiceColor = (serviceType: string) => {
-    const normalized = normalize(serviceType);
-    const colorMap: Record<string, string> = {
-      'spotify': 'bg-platform-spotify/20 border-platform-spotify/50',
-      'applemusic': 'bg-platform-apple-music/20 border-platform-apple-music/50',
-      'apple': 'bg-platform-apple-music/20 border-platform-apple-music/50',
-      'youtube': 'bg-platform-youtube/20 border-platform-youtube/50',
-      'youtubemusic': 'bg-platform-youtube/20 border-platform-youtube/50',
-      'tidal': 'bg-platform-tidal/20 border-platform-tidal/50',
-      'deezer': 'bg-platform-deezer/20 border-platform-deezer/50',
-    };
-
-    return colorMap[normalized] || 'bg-muted/20 border-muted-foreground/50';
+    return getDisplayPlatformDefinition(serviceType)?.profileBadgeClassName || 'bg-muted/20 border-muted-foreground/50';
   };
 
   // Use platformPreferences if available, fall back to connectedServices

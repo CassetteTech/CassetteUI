@@ -5,6 +5,7 @@
 
 import { apiService } from './api';
 import { appLogger } from '@/lib/observability/logger';
+import type { PlatformUiKey } from '@/lib/platforms';
 
 interface MusicKitInstance {
   authorize: () => Promise<string>;
@@ -19,7 +20,7 @@ interface MusicKitWindow {
   };
 }
 
-export type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
+export type PlatformKey = PlatformUiKey;
 
 const RETURN_URL_PREFIX = 'cassette_platform_return_url_';
 const APPLE_AUTH_TIMEOUT_MS = 60_000;

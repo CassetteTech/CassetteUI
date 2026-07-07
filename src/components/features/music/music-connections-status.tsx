@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { PlatformPreferenceInfo } from '@/types';
+import { getDisplayPlatformDefinition } from '@/lib/platforms';
 
 interface MusicConnectionsStatusProps {
   variant?: 'sidebar' | 'sidebar-enhanced' | 'profile' | 'compact';
@@ -19,25 +20,6 @@ interface MusicConnectionsStatusProps {
   connectedServicesOverride?: Array<{ serviceType: string; connectedAt?: string }>;
 }
 
-const PLATFORM_CONFIG: Record<string, { name: string; iconSrc: string }> = {
-  spotify: {
-    name: 'Spotify',
-    iconSrc: '/images/spotify_logo_colored.png',
-  },
-  apple: {
-    name: 'Apple Music',
-    iconSrc: '/images/apple_music_logo_colored.png',
-  },
-  applemusic: {
-    name: 'Apple Music',
-    iconSrc: '/images/apple_music_logo_colored.png',
-  },
-  deezer: {
-    name: 'Deezer',
-    iconSrc: '/images/deezer_logo_colored.png',
-  },
-};
-
 export function MusicConnectionsStatus({
   variant = 'sidebar',
   className = "",
@@ -45,8 +27,6 @@ export function MusicConnectionsStatus({
   connectedServicesOverride
 }: MusicConnectionsStatusProps) {
   const { user, isLoading } = useAuthStore();
-  const normalize = (value: unknown) => (typeof value === 'string' ? value : value ? String(value) : '').toLowerCase().replace(/[^a-z0-9]/g, '');
-
   // When override is provided, we have the data - don't use auth store loading state
   const hasOverride = platformPreferencesOverride !== undefined || connectedServicesOverride !== undefined;
 
@@ -57,10 +37,9 @@ export function MusicConnectionsStatus({
     // Use platform preferences (new system)
     displayPlatforms = platformPreferencesOverride
       .map(pref => {
-        const normalizedPlatform = normalize(pref.platform);
-        const config = PLATFORM_CONFIG[normalizedPlatform];
+        const config = getDisplayPlatformDefinition(pref.platform);
         if (config) {
-          return { platform: normalizedPlatform, ...config };
+          return { platform: config.uiKey, name: config.displayName, iconSrc: config.logoSrc };
         }
         return null;
       })
@@ -69,10 +48,9 @@ export function MusicConnectionsStatus({
     // Fall back to connected services (legacy)
     displayPlatforms = connectedServicesOverride
       .map(service => {
-        const normalizedPlatform = normalize(service.serviceType);
-        const config = PLATFORM_CONFIG[normalizedPlatform];
+        const config = getDisplayPlatformDefinition(service.serviceType);
         if (config) {
-          return { platform: normalizedPlatform, ...config };
+          return { platform: config.uiKey, name: config.displayName, iconSrc: config.logoSrc };
         }
         return null;
       })
@@ -81,10 +59,9 @@ export function MusicConnectionsStatus({
     // Use auth store data
     displayPlatforms = user.connectedServices
       .map(service => {
-        const normalizedPlatform = normalize(service.serviceType);
-        const config = PLATFORM_CONFIG[normalizedPlatform];
+        const config = getDisplayPlatformDefinition(service.serviceType);
         if (config) {
-          return { platform: normalizedPlatform, ...config };
+          return { platform: config.uiKey, name: config.displayName, iconSrc: config.logoSrc };
         }
         return null;
       })

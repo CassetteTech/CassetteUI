@@ -45,6 +45,7 @@ import { getBrowserApiBaseUrl } from '@/lib/utils/url';
 import { CASSETTE_CORRELATION_HEADER, createCorrelationId, normalizeCorrelationId } from '@/lib/observability/correlation';
 import { getSourceDomain, hashSourceLink, normalizeRouteContext } from '@/lib/observability/source-link';
 import { appLogger } from '@/lib/observability/logger';
+import { getPlatformDefinition } from '@/lib/platforms';
 
 // interface MusicConnection {
 //   id: string;
@@ -1087,13 +1088,9 @@ class ApiService {
   async createPlaylist(playlistId: string, targetPlatform: string, postId?: string): Promise<CreatePlaylistResponse> {
     const correlationId = createCorrelationId();
     const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
-    const targetKey = normalize(targetPlatform);
-    const canonicalMap: Record<string, string> = {
-      spotify: 'spotify',
-      applemusic: 'applemusic',
-      deezer: 'deezer',
-    };
-    const canonicalTarget = canonicalMap[targetKey] || targetPlatform.toLowerCase();
+    const targetDefinition = getPlatformDefinition(targetPlatform);
+    const targetKey = normalize(targetDefinition?.preferenceKey ?? targetPlatform);
+    const canonicalTarget = targetDefinition?.key ?? targetPlatform.toLowerCase();
 
     // Skip connection check for Spotify if using Cassette's account
     const skipConnectionCheck = targetKey === 'spotify' && clientConfig.features.useCassetteSpotifyAccount;

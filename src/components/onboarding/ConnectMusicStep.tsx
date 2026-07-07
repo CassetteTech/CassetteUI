@@ -11,6 +11,11 @@ import { platformConnectService } from '@/services/platform-connect';
 import { apiService } from '@/services/api';
 import { Switch } from '@/components/ui/switch';
 import { appLogger } from '@/lib/observability/logger';
+import {
+  ACTIVE_PLATFORM_DEFINITIONS,
+  ACTIVE_PLATFORM_PREFERENCE_KEYS,
+  type PlatformPreferenceKey,
+} from '@/lib/platforms';
 
 interface FormData {
   username: string;
@@ -33,45 +38,31 @@ interface PlatformState {
   isLoading: boolean;
 }
 
-const MUSIC_SERVICES = [
-  {
-    id: 'Spotify' as const,
-    name: 'Spotify',
-    iconSrc: '/images/spotify_logo_colored.png',
-    description: 'Add Spotify to your profile',
-    bgColor: 'bg-platform-spotify',
-    requiresAuth: false,
-  },
-  {
-    id: 'AppleMusic' as const,
-    name: 'Apple Music',
-    iconSrc: '/images/apple_music_logo_colored.png',
-    description: 'Connect to create playlists',
-    bgColor: 'bg-platform-apple-music',
-    requiresAuth: true,
-  },
-  {
-    id: 'Deezer' as const,
-    name: 'Deezer',
-    iconSrc: '/images/deezer_logo_colored.png',
-    description: 'Add Deezer to your profile',
-    bgColor: 'bg-platform-deezer',
-    requiresAuth: false,
-  },
-];
+const MUSIC_SERVICES = ACTIVE_PLATFORM_DEFINITIONS.map((platform) => ({
+  id: platform.preferenceKey,
+  name: platform.displayName,
+  iconSrc: platform.logoSrc,
+  description: platform.onboardingDescription,
+  bgColor: platform.solidBgColor,
+  requiresAuth: platform.requiresAuthForPlaylistCreation,
+}));
 
-type ServiceId = 'Spotify' | 'AppleMusic' | 'Deezer';
+type ServiceId = PlatformPreferenceKey;
+
+const createEmptyPlatformStates = (): Record<ServiceId, PlatformState> =>
+  Object.fromEntries(
+    ACTIVE_PLATFORM_PREFERENCE_KEYS.map((platform) => [
+      platform,
+      { isSelected: false, isAuthenticated: false, isLoading: false },
+    ]),
+  ) as Record<ServiceId, PlatformState>;
 
 export function ConnectMusicStep({
   onBack,
   onNext,
   isLastStep,
 }: ConnectMusicStepProps) {
-  const [platformStates, setPlatformStates] = useState<Record<ServiceId, PlatformState>>({
-    Spotify: { isSelected: false, isAuthenticated: false, isLoading: false },
-    AppleMusic: { isSelected: false, isAuthenticated: false, isLoading: false },
-    Deezer: { isSelected: false, isAuthenticated: false, isLoading: false },
-  });
+  const [platformStates, setPlatformStates] = useState<Record<ServiceId, PlatformState>>(createEmptyPlatformStates);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
 
   // Fetch existing preferences and auth status on mount
@@ -84,11 +75,7 @@ export function ConnectMusicStep({
 
         const response = await apiService.getPlatformPreferences();
         if (response.preferences) {
-          const newStates: Record<ServiceId, PlatformState> = {
-            Spotify: { isSelected: false, isAuthenticated: false, isLoading: false },
-            AppleMusic: { isSelected: false, isAuthenticated: false, isLoading: false },
-            Deezer: { isSelected: false, isAuthenticated: false, isLoading: false },
-          };
+          const newStates = createEmptyPlatformStates();
 
           response.preferences.forEach(pref => {
             const platform = pref.platform as ServiceId;

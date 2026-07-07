@@ -11,6 +11,11 @@ import Image from 'next/image';
 import { apiService } from '@/services/api';
 import { platformConnectService } from '@/services/platform-connect';
 import { appLogger } from '@/lib/observability/logger';
+import {
+  ACTIVE_PLATFORM_DEFINITIONS,
+  ACTIVE_PLATFORM_PREFERENCE_KEYS,
+  type PlatformPreferenceKey,
+} from '@/lib/platforms';
 
 interface PlatformState {
   isSelected: boolean;
@@ -19,34 +24,24 @@ interface PlatformState {
   addedAt?: string;
 }
 
-type ServiceId = 'Spotify' | 'AppleMusic' | 'Deezer';
+type ServiceId = PlatformPreferenceKey;
 
-const MUSIC_SERVICES = [
-  {
-    id: 'Spotify' as ServiceId,
-    name: 'Spotify',
-    iconSrc: '/images/spotify_logo_colored.png',
-    bgColor: 'bg-platform-spotify',
-    requiresAuth: false,
-    description: 'Share music and create playlists',
-  },
-  {
-    id: 'AppleMusic' as ServiceId,
-    name: 'Apple Music',
-    iconSrc: '/images/apple_music_logo_colored.png',
-    bgColor: 'bg-platform-apple-music',
-    requiresAuth: true,
-    description: 'Requires authorization for playlists',
-  },
-  {
-    id: 'Deezer' as ServiceId,
-    name: 'Deezer',
-    iconSrc: '/images/deezer_logo_colored.png',
-    bgColor: 'bg-platform-deezer',
-    requiresAuth: false,
-    description: 'Share music from Deezer',
-  },
-];
+const MUSIC_SERVICES = ACTIVE_PLATFORM_DEFINITIONS.map((platform) => ({
+  id: platform.preferenceKey,
+  name: platform.displayName,
+  iconSrc: platform.logoSrc,
+  bgColor: platform.solidBgColor,
+  requiresAuth: platform.requiresAuthForPlaylistCreation,
+  description: platform.connectionDescription,
+}));
+
+const createEmptyPlatformStates = (): Record<ServiceId, PlatformState> =>
+  Object.fromEntries(
+    ACTIVE_PLATFORM_PREFERENCE_KEYS.map((platform) => [
+      platform,
+      { isSelected: false, isAuthenticated: false, isLoading: false },
+    ]),
+  ) as Record<ServiceId, PlatformState>;
 
 interface MusicConnectionsFlowProps {
   className?: string;
@@ -57,11 +52,7 @@ export function MusicConnectionsFlow({
   className = "",
   onConnectionChange
 }: MusicConnectionsFlowProps) {
-  const [platformStates, setPlatformStates] = useState<Record<ServiceId, PlatformState>>({
-    Spotify: { isSelected: false, isAuthenticated: false, isLoading: false },
-    AppleMusic: { isSelected: false, isAuthenticated: false, isLoading: false },
-    Deezer: { isSelected: false, isAuthenticated: false, isLoading: false },
-  });
+  const [platformStates, setPlatformStates] = useState<Record<ServiceId, PlatformState>>(createEmptyPlatformStates);
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -76,11 +67,7 @@ export function MusicConnectionsFlow({
         const response = await apiService.getPlatformPreferences();
 
         if (response.preferences) {
-          const newStates: Record<ServiceId, PlatformState> = {
-            Spotify: { isSelected: false, isAuthenticated: false, isLoading: false },
-            AppleMusic: { isSelected: false, isAuthenticated: false, isLoading: false },
-            Deezer: { isSelected: false, isAuthenticated: false, isLoading: false },
-          };
+          const newStates = createEmptyPlatformStates();
 
           response.preferences.forEach(pref => {
             const platform = pref.platform as ServiceId;

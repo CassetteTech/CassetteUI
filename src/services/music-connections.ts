@@ -1,5 +1,6 @@
 import { apiService } from './api';
 import { appLogger } from '@/lib/observability/logger';
+import { normalizeDisplayPlatformKey } from '@/lib/platforms';
 
 export interface MusicConnection {
   id: string;
@@ -16,16 +17,10 @@ class MusicConnectionsService {
     try {
       const data = await apiService.getMusicConnections();
       const normalizeService = (value: string): MusicConnection['service'] => {
-        switch (value.toLowerCase()) {
-          case 'applemusic':
-          case 'apple_music':
-            return 'apple_music';
-          case 'youtube_music':
-          case 'youtubemusic':
-            return 'youtube_music';
-          default:
-            return value.toLowerCase() as MusicConnection['service'];
-        }
+        const normalized = normalizeDisplayPlatformKey(value);
+        if (normalized === 'appleMusic') return 'apple_music';
+        if (normalized === 'youtubeMusic') return 'youtube_music';
+        return (normalized ?? value.toLowerCase()) as MusicConnection['service'];
       };
 
       return (data.services || []).map((service) => ({

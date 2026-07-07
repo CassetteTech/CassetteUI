@@ -14,6 +14,8 @@
   "include": [
     "src/utils/platform-normalization.ts",
     "src/utils/__tests__/platform-normalization.test.ts",
+    "src/lib/platforms.ts",
+    "src/lib/__tests__/platforms.test.ts",
     "src/app/(sidebar)/internal/_components/explore-snapshot-utils.ts",
     "src/app/(sidebar)/internal/_components/__tests__/explore-snapshot-utils.test.ts",
     "src/lib/analytics/events.ts",

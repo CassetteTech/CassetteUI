@@ -1,11 +1,6 @@
-const STREAMING_SERVICE_BY_ENUM_INDEX = ['Spotify', 'AppleMusic', 'Deezer'] as const;
+import { ACTIVE_PLATFORM_PREFERENCE_KEYS, normalizePlatformPreferenceKey } from '../lib/platforms';
 
-const STREAMING_SERVICE_ALIASES: Record<string, string> = {
-  spotify: 'Spotify',
-  apple: 'AppleMusic',
-  applemusic: 'AppleMusic',
-  deezer: 'Deezer',
-};
+const STREAMING_SERVICE_BY_ENUM_INDEX = ACTIVE_PLATFORM_PREFERENCE_KEYS;
 
 export interface NormalizedConnectedService {
   serviceType: string;
@@ -27,8 +22,7 @@ export function normalizeStreamingServiceType(value: unknown): string {
     return '';
   }
 
-  const key = trimmed.toLowerCase().replace(/[^a-z0-9]/g, '');
-  return STREAMING_SERVICE_ALIASES[key] ?? trimmed;
+  return normalizePlatformPreferenceKey(trimmed) ?? trimmed;
 }
 
 function isExplicitFalse(value: unknown): boolean {

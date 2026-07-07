@@ -17,6 +17,7 @@ export interface PlatformDefinition {
   analyticsKey: PlatformAnalyticsKey;
   displayName: string;
   aliases: readonly string[];
+  sourceHosts: readonly string[];
   logoSrc: string;
   color: string;
   bgColor: string;
@@ -49,6 +50,7 @@ export const ACTIVE_PLATFORM_DEFINITIONS = [
     analyticsKey: 'spotify',
     displayName: 'Spotify',
     aliases: ['spotify'],
+    sourceHosts: ['open.spotify.com', 'play.spotify.com'],
     logoSrc: '/images/spotify_logo_colored.png',
     color: 'hsl(var(--platform-spotify))',
     bgColor: 'bg-platform-spotify/10',
@@ -66,6 +68,7 @@ export const ACTIVE_PLATFORM_DEFINITIONS = [
     analyticsKey: 'apple',
     displayName: 'Apple Music',
     aliases: ['apple', 'applemusic', 'apple_music', 'apple-music', 'apple music', 'am'],
+    sourceHosts: ['music.apple.com'],
     logoSrc: '/images/apple_music_logo_colored.png',
     color: 'hsl(var(--platform-apple-music))',
     bgColor: 'bg-platform-apple-music/10',
@@ -83,6 +86,7 @@ export const ACTIVE_PLATFORM_DEFINITIONS = [
     analyticsKey: 'deezer',
     displayName: 'Deezer',
     aliases: ['deezer'],
+    sourceHosts: ['deezer.com', 'www.deezer.com', 'link.deezer.com', 'deezer.page.link', 'dzr.page.link'],
     logoSrc: '/images/deezer_logo_colored.png',
     color: 'hsl(var(--platform-deezer))',
     bgColor: 'bg-platform-deezer/10',
@@ -150,6 +154,7 @@ const normalizeAlias = (value: unknown): string =>
 
 const activeByAlias = new Map<string, PlatformDefinition>();
 const displayByAlias = new Map<string, DisplayPlatformDefinition>();
+const activeByHost = new Map<string, PlatformDefinition>();
 
 for (const platform of ACTIVE_PLATFORM_DEFINITIONS) {
   activeByAlias.set(normalizeAlias(platform.key), platform);
@@ -158,6 +163,9 @@ for (const platform of ACTIVE_PLATFORM_DEFINITIONS) {
   activeByAlias.set(normalizeAlias(platform.analyticsKey), platform);
   for (const alias of platform.aliases) {
     activeByAlias.set(normalizeAlias(alias), platform);
+  }
+  for (const host of platform.sourceHosts) {
+    activeByHost.set(host.toLowerCase(), platform);
   }
 }
 
@@ -186,6 +194,21 @@ export function normalizeDisplayPlatformKey(value: unknown): PlatformDisplayKey 
 
 export function getPlatformDefinition(value: unknown): PlatformDefinition | null {
   return activeByAlias.get(normalizeAlias(value)) ?? null;
+}
+
+export function getPlatformDefinitionForHostname(hostname: unknown): PlatformDefinition | null {
+  if (typeof hostname !== 'string') {
+    return null;
+  }
+
+  const normalizedHostname = hostname.trim().toLowerCase();
+  for (const [sourceHost, platform] of activeByHost) {
+    if (normalizedHostname === sourceHost || normalizedHostname.endsWith(`.${sourceHost}`)) {
+      return platform;
+    }
+  }
+
+  return null;
 }
 
 export function getDisplayPlatformDefinition(value: unknown): DisplayPlatformDefinition | null {

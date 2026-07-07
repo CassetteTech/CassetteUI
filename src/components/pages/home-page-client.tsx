@@ -26,6 +26,7 @@ import {
   normalizeMusicLinkInput,
   isSupportedMusicLink,
   isPasteLikeInputEvent,
+  validateMusicLink,
 } from '@/utils/music-link-input';
 
 export default function HomePageClient() {
@@ -107,58 +108,6 @@ export default function HomePageClient() {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
-
-  const validateMusicLink = (url: string): string | null => {
-    try {
-      if (!url.startsWith('http')) {
-        // Only validate if it looks like it should be a URL
-        if (url.includes('.com') || url.includes('http') || url.includes('www')) {
-          return "Please enter a valid URL starting with http:// or https://";
-        }
-        return null;
-      }
-      
-      const parsedUrl = new URL(url);
-      const hostname = parsedUrl.hostname.toLowerCase();
-      
-      // Check for private Apple Music library links
-      if (hostname.includes('music.apple.com') && parsedUrl.pathname.includes('/library/')) {
-        if (parsedUrl.pathname.includes('/library/playlist/')) {
-          return "You've pasted a private Apple Music playlist link. Please use the 'Share Playlist' option to copy the correct link.";
-        }
-        return "You've pasted a private Apple Music library link. Please use the 'Share' option to copy the correct link.";
-      }
-      
-      // Check if it's a music service but potentially unsupported
-      const supportedServices = ['spotify.com', 'music.apple.com', 'deezer.com'];
-      const isMusicService = supportedServices.some(service => hostname.includes(service));
-      
-      if (!isMusicService && (
-        hostname.includes('youtube.com') || 
-        hostname.includes('soundcloud.com') ||
-        hostname.includes('bandcamp.com') ||
-        hostname.includes('tidal.com') ||
-        hostname.includes('amazon.com')
-      )) {
-        return "This music service isn't supported yet. Please use a link from Spotify, Apple Music, or Deezer.";
-      }
-      
-      // Check for obviously non-music links
-      if (!isMusicService && url.length > 10) {
-        const commonNonMusicDomains = ['google.com', 'facebook.com', 'twitter.com', 'instagram.com', 'tiktok.com'];
-        if (commonNonMusicDomains.some(domain => hostname.includes(domain))) {
-          return "This doesn't look like a music link or that service isn't supported yet. Please paste a link from Spotify, Apple Music, or Deezer.";
-        }
-      }
-      
-    } catch {
-      // If URL parsing fails but it looks like it should be a URL
-      if (url.includes('.com') || url.includes('http') || url.includes('www')) {
-        return "Please enter a valid URL.";
-      }
-    }
-    return null;
-  };
 
   const handleConvertLink = (url: string) => {
     const trimmed = normalizeMusicLinkInput(url);

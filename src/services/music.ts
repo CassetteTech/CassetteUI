@@ -1,5 +1,6 @@
 import { apiService } from './api';
 import { MusicSearchResult, MusicLinkConversion, Track, Album, Artist, Playlist } from '@/types';
+import { detectContentType } from '@/utils/content-type-detection';
 
 class MusicService {
   async searchMusic(query: string): Promise<MusicSearchResult> {
@@ -100,53 +101,12 @@ class MusicService {
     type: 'track' | 'album' | 'artist' | 'playlist' | 'unknown';
     id: string;
   } {
-    const urlObj = new URL(url);
-
-    if (urlObj.hostname.includes('spotify.com')) {
-      const pathParts = urlObj.pathname.split('/');
-      const typeIndex = pathParts.findIndex(part => 
-        ['track', 'album', 'artist', 'playlist'].includes(part)
-      );
-      
-      if (typeIndex !== -1 && pathParts[typeIndex + 1]) {
-        return {
-          platform: 'spotify',
-          type: pathParts[typeIndex] as 'track' | 'album' | 'artist' | 'playlist',
-          id: pathParts[typeIndex + 1],
-        };
-      }
-    } else if (urlObj.hostname.includes('music.apple.com')) {
-      const pathParts = urlObj.pathname.split('/');
-      const typeIndex = pathParts.findIndex(part => 
-        ['song', 'album', 'artist', 'playlist'].includes(part)
-      );
-      
-      if (typeIndex !== -1 && pathParts[typeIndex + 1]) {
-        return {
-          platform: 'apple',
-          type: pathParts[typeIndex] === 'song' ? 'track' : pathParts[typeIndex] as 'track' | 'album' | 'artist' | 'playlist',
-          id: pathParts[typeIndex + 1],
-        };
-      }
-    } else if (urlObj.hostname.includes('deezer.com')) {
-      const pathParts = urlObj.pathname.split('/');
-      const typeIndex = pathParts.findIndex(part => 
-        ['track', 'album', 'artist', 'playlist'].includes(part)
-      );
-      
-      if (typeIndex !== -1 && pathParts[typeIndex + 1]) {
-        return {
-          platform: 'deezer',
-          type: pathParts[typeIndex] as 'track' | 'album' | 'artist' | 'playlist',
-          id: pathParts[typeIndex + 1],
-        };
-      }
-    }
+    const detected = detectContentType(url);
 
     return {
-      platform: 'unknown',
-      type: 'unknown',
-      id: '',
+      platform: detected.platform,
+      type: detected.id ? detected.type : 'unknown',
+      id: detected.id,
     };
   }
 }

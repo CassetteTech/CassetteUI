@@ -20,6 +20,7 @@ import {
   isSupportedMusicLink,
   getMusicSourceLabel,
   isPasteLikeInputEvent,
+  validateMusicLink,
 } from '@/utils/music-link-input';
 
 type SelectedItem = {
@@ -29,59 +30,6 @@ type SelectedItem = {
   type: string;
   url: string;
   coverArtUrl: string;
-};
-
-const validateMusicLink = (url: string): string | null => {
-  try {
-    if (!url.startsWith('http')) {
-      if (url.includes('.com') || url.includes('http') || url.includes('www')) {
-        return 'Please enter a valid URL starting with http:// or https://';
-      }
-      return null;
-    }
-
-    const parsedUrl = new URL(url);
-    const hostname = parsedUrl.hostname.toLowerCase();
-
-    if (hostname.includes('music.apple.com') && parsedUrl.pathname.includes('/library/')) {
-      if (parsedUrl.pathname.includes('/library/playlist/')) {
-        return "You've pasted a private Apple Music playlist link. Please use the 'Share Playlist' option to copy the correct link.";
-      }
-      return "You've pasted a private Apple Music library link. Please use the 'Share' option to copy the correct link.";
-    }
-
-    const supportedServices = ['spotify.com', 'music.apple.com', 'deezer.com'];
-    const isMusicService = supportedServices.some((service) => hostname.includes(service));
-
-    if (!isMusicService && (
-      hostname.includes('youtube.com') ||
-      hostname.includes('soundcloud.com') ||
-      hostname.includes('bandcamp.com') ||
-      hostname.includes('tidal.com') ||
-      hostname.includes('amazon.com')
-    )) {
-      return "This music service isn't supported yet. Please use a link from Spotify, Apple Music, or Deezer.";
-    }
-
-    if (!isMusicService && url.length > 10) {
-      const commonNonMusicDomains = [
-        'google.com',
-        'facebook.com',
-        'twitter.com',
-        'instagram.com',
-        'tiktok.com',
-      ];
-      if (commonNonMusicDomains.some((domain) => hostname.includes(domain))) {
-        return "This doesn't look like a music link or that service isn't supported yet. Please paste a link from Spotify, Apple Music, or Deezer.";
-      }
-    }
-  } catch {
-    if (url.includes('.com') || url.includes('http') || url.includes('www')) {
-      return 'Please enter a valid URL.';
-    }
-  }
-
-  return null;
 };
 
 // Add Music Form component extracted to prevent recreation on every render

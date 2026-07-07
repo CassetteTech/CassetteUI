@@ -1,0 +1,14 @@
+{
+  "contractVersion": 1,
+  "name": "convert-response.failed",
+  "method": "POST",
+  "path": "/api/v1/convert",
+  "body": {
+    "success": false,
+    "status": "failed",
+    "jobId": "job_fixture_failed",
+    "errorCode": "UNSUPPORTED_PLATFORM",
+    "message": "Unsupported music service",
+    "correlationId": "33333333-3333-3333-3333-333333333333"
+  }
+}

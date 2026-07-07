@@ -21,6 +21,7 @@
     "src/lib/__tests__/platforms.test.ts",
     "src/services/conversion-lifecycle.ts",
     "src/services/__tests__/conversion-lifecycle.test.ts",
+    "src/services/__tests__/conversion-contract-fixtures.test.ts",
     "src/app/(sidebar)/internal/_components/explore-snapshot-utils.ts",
     "src/app/(sidebar)/internal/_components/__tests__/explore-snapshot-utils.test.ts",
     "src/lib/analytics/events.ts",

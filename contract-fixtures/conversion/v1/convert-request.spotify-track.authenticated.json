@@ -1,0 +1,14 @@
+{
+  "contractVersion": 1,
+  "name": "convert-request.spotify-track.authenticated",
+  "method": "POST",
+  "path": "/api/v1/convert",
+  "headers": {
+    "Content-Type": "application/json",
+    "X-Idempotency-Key": "fixture-idempotency-key"
+  },
+  "body": {
+    "sourceLink": "https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh",
+    "description": "Shared conversion contract fixture"
+  }
+}

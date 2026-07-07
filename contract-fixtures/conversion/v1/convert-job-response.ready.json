@@ -1,0 +1,13 @@
+{
+  "contractVersion": 1,
+  "name": "convert-job-response.ready",
+  "method": "GET",
+  "path": "/api/v1/convert/jobs/job_fixture_processing",
+  "body": {
+    "success": true,
+    "status": "ready",
+    "postId": "post_fixture_after_poll",
+    "jobId": "job_fixture_processing",
+    "correlationId": "22222222-2222-2222-2222-222222222222"
+  }
+}

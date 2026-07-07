@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { BackButton } from '@/components/ui/back-button';
+import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
 
 interface EntitySkeletonProps {
   isDesktop?: boolean;
@@ -14,6 +15,10 @@ interface EntitySkeletonProps {
   progressPercent?: number;
   /** Current step name to display */
   progressStepName?: string;
+  /** Zero-based index of the current conversion step */
+  progressStepIndex?: number;
+  /** Total number of conversion steps */
+  progressTotalSteps?: number;
   /** Callback when back button is clicked */
   onCancel?: () => void;
 }
@@ -30,6 +35,8 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
   showProgress = false,
   progressPercent = 0,
   progressStepName,
+  progressStepIndex,
+  progressTotalSteps,
   onCancel
 }) => {
   // When isDesktop is undefined (e.g., SSR/Suspense), show both layouts and let CSS handle it
@@ -49,6 +56,8 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
               showProgress={showProgress}
               progressPercent={progressPercent}
               progressStepName={progressStepName}
+              progressStepIndex={progressStepIndex}
+              progressTotalSteps={progressTotalSteps}
               onCancel={onCancel}
             />
           </div>
@@ -61,6 +70,8 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
               showProgress={showProgress}
               progressPercent={progressPercent}
               progressStepName={progressStepName}
+              progressStepIndex={progressStepIndex}
+              progressTotalSteps={progressTotalSteps}
               onCancel={onCancel}
             />
           </div>
@@ -74,27 +85,34 @@ interface SkeletonLayoutProps {
   showProgress?: boolean;
   progressPercent?: number;
   progressStepName?: string;
+  progressStepIndex?: number;
+  progressTotalSteps?: number;
   onCancel?: () => void;
 }
 
 /**
- * Minimal conversion overlay sitting on top of the artwork skeleton.
+ * Conversion overlay sitting on top of the artwork skeleton.
  *
- * Kept intentionally simple: logo, thin primary progress bar, and a
- * crossfading status line that reflects the current fake simulation step.
- * The crossfading label alone communicates progression, so no explicit
- * stepper is rendered (fast API responses skip steps too quickly for one
- * to feel useful).
+ * The artwork skeleton stays visible under a light scrim — the post reads
+ * as "under assembly" rather than blocked. A traveling border beam
+ * (ConversionBeam, wrapped around the artwork by the layouts) carries the
+ * activity signal, so the overlay itself stays quiet: centered logo with a
+ * breathing halo, and an editorial readout strip pinned to the bottom edge
+ * (step counter, crossfading step name, percent) over a hairline progress
+ * bar hugging the card's bottom border.
  */
 const ProgressOverlay: React.FC<{
   show: boolean;
   percent: number;
   stepName?: string;
+  stepIndex?: number;
+  totalSteps?: number;
   size?: 'desktop' | 'mobile';
-}> = ({ show, percent, stepName, size = 'desktop' }) => {
+}> = ({ show, percent, stepName, stepIndex, totalSteps, size = 'desktop' }) => {
   const isDesktop = size === 'desktop';
-  const logoSize = isDesktop ? 44 : 36;
+  const logoSize = isDesktop ? 40 : 32;
   const safePercent = Math.max(6, Math.min(100, Math.round(percent)));
+  const showCounter = isDesktop && stepIndex != null && totalSteps != null && totalSteps > 0;
 
   return (
     <AnimatePresence>
@@ -103,69 +121,79 @@ const ProgressOverlay: React.FC<{
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-card/70 backdrop-blur-md border border-border/60 shadow-sm ring-1 ring-inset ring-primary/5 overflow-hidden"
+          className="absolute inset-0 rounded-xl overflow-hidden"
         >
+          {/* Light scrim: keep the skeleton shimmer visible underneath */}
+          <div className="absolute inset-0 bg-card/35 backdrop-blur-[2px]" />
           <div
             aria-hidden
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                'radial-gradient(circle at 50% 38%, hsl(var(--primary) / 0.10), transparent 65%)'
+                'radial-gradient(circle at 50% 42%, hsl(var(--primary) / 0.08), transparent 62%)'
             }}
           />
 
-          <div className="relative mb-4 flex items-center justify-center">
-            <span
-              aria-hidden
-              className="absolute inset-0 -m-2 rounded-full bg-primary/10 blur-md animate-progress-breath"
-            />
-            <Image
-              src="/images/cassette_logo.png"
-              alt="Cassette Logo"
-              width={logoSize}
-              height={logoSize}
-              className="object-contain relative"
-            />
+          {/* Center emblem */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="relative flex items-center justify-center">
+              <span
+                aria-hidden
+                className="absolute inset-0 -m-2 rounded-full bg-primary/10 blur-md animate-progress-breath"
+              />
+              <Image
+                src="/images/cassette_logo.png"
+                alt="Cassette Logo"
+                width={logoSize}
+                height={logoSize}
+                className="object-contain relative"
+              />
+            </div>
           </div>
 
-          <div
-            className={`relative ${
-              isDesktop ? 'w-3/4 max-w-[220px]' : 'w-4/5 max-w-[180px]'
-            } space-y-2`}
-          >
-            <div className="h-1.5 rounded-full bg-muted/60 ring-1 ring-inset ring-border/40 overflow-hidden">
+          {/* Bottom readout strip */}
+          <div className="absolute inset-x-0 bottom-0">
+            <div
+              className={`bg-gradient-to-t from-card/95 via-card/70 to-transparent ${
+                isDesktop ? 'px-4 pt-8 pb-2.5' : 'px-3 pt-6 pb-2'
+              }`}
+            >
+              <div className="flex items-baseline gap-2 overflow-hidden">
+                {showCounter && (
+                  <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 shrink-0">
+                    {String((stepIndex ?? 0) + 1).padStart(2, '0')}
+                    <span className="text-muted-foreground/40">
+                      {' / '}
+                      {String(totalSteps).padStart(2, '0')}
+                    </span>
+                  </span>
+                )}
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={stepName || 'prep'}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="flex-1 text-xs text-foreground/80 truncate"
+                  >
+                    {stepName || 'Preparing...'}
+                  </motion.p>
+                </AnimatePresence>
+                <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 shrink-0">
+                  {safePercent}%
+                </span>
+              </div>
+            </div>
+
+            {/* Hairline progress bar on the card's bottom edge */}
+            <div className="h-[3px] bg-muted/50">
               <motion.div
-                className="h-full bg-primary rounded-full shadow-[0_0_8px_hsl(var(--primary)/0.45)]"
+                className="h-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.45)]"
                 initial={{ width: '6%' }}
                 animate={{ width: `${safePercent}%` }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
               />
-            </div>
-
-            <div
-              className={`h-4 flex items-center gap-2 overflow-hidden ${
-                isDesktop ? 'justify-between' : 'justify-center'
-              }`}
-            >
-              <AnimatePresence mode="wait">
-                <motion.p
-                  key={stepName || 'prep'}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.2, ease: 'easeOut' }}
-                  className={`text-xs text-muted-foreground truncate ${
-                    isDesktop ? 'flex-1' : 'text-center px-2'
-                  }`}
-                >
-                  {stepName || 'Preparing...'}
-                </motion.p>
-              </AnimatePresence>
-              {isDesktop && (
-                <span className="text-[10px] font-mono tabular-nums text-muted-foreground/60 shrink-0">
-                  {safePercent}%
-                </span>
-              )}
             </div>
           </div>
         </motion.div>
@@ -181,6 +209,8 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
   showProgress,
   progressPercent,
   progressStepName,
+  progressStepIndex,
+  progressTotalSteps,
   onCancel
 }) => {
   return (
@@ -204,15 +234,24 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
               {/* Album Art with Shadow - matches PostClientPage 360x360 */}
               <div className="relative mb-6">
                 <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
-                <Skeleton className="relative w-[360px] h-[360px] rounded-xl" />
+                <ConversionBeam
+                  active={!!showProgress && (progressPercent ?? 0) < 100}
+                  borderRadius={12}
+                >
+                  <div className="relative">
+                    <Skeleton className="relative w-[360px] h-[360px] rounded-xl" />
 
-                {/* Progress Overlay */}
-                <ProgressOverlay
-                  show={showProgress || false}
-                  percent={progressPercent || 0}
-                  stepName={progressStepName}
-                  size="desktop"
-                />
+                    {/* Progress Overlay */}
+                    <ProgressOverlay
+                      show={showProgress || false}
+                      percent={progressPercent || 0}
+                      stepName={progressStepName}
+                      stepIndex={progressStepIndex}
+                      totalSteps={progressTotalSteps}
+                      size="desktop"
+                    />
+                  </div>
+                </ConversionBeam>
               </div>
             </div>
           </div>
@@ -286,6 +325,8 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
   showProgress,
   progressPercent,
   progressStepName,
+  progressStepIndex,
+  progressTotalSteps,
   onCancel
 }) => {
   return (
@@ -308,15 +349,24 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
         <div>
           <div className="relative inline-block">
             <div className="absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg" />
-            <Skeleton className="relative w-[220px] h-[220px] sm:w-[280px] sm:h-[280px] rounded-xl" />
+            <ConversionBeam
+              active={!!showProgress && (progressPercent ?? 0) < 100}
+              borderRadius={12}
+            >
+              <div className="relative">
+                <Skeleton className="relative w-[220px] h-[220px] sm:w-[280px] sm:h-[280px] rounded-xl" />
 
-            {/* Progress Overlay */}
-            <ProgressOverlay
-              show={showProgress || false}
-              percent={progressPercent || 0}
-              stepName={progressStepName}
-              size="mobile"
-            />
+                {/* Progress Overlay */}
+                <ProgressOverlay
+                  show={showProgress || false}
+                  percent={progressPercent || 0}
+                  stepName={progressStepName}
+                  stepIndex={progressStepIndex}
+                  totalSteps={progressTotalSteps}
+                  size="mobile"
+                />
+              </div>
+            </ConversionBeam>
           </div>
         </div>
 

@@ -258,6 +258,8 @@ export type ConvertStatus = 'ready' | 'processing' | 'failed';
 export interface ConvertLifecycleResponse {
   success: boolean;
   status: ConvertStatus;
+  /** Coarse live progress stage while status is "processing" (ConvertStage on Bridge). */
+  stage?: string;
   postId?: string;
   jobId?: string;
   retryAfterMs?: number;
@@ -784,6 +786,7 @@ export type InternalSignupAttributionGroupBy =
   | 'source'
   | 'medium'
   | 'campaign'
+  | 'content'
   | 'referrerDomain';
 
 export interface InternalSignupAttributionOverview {
@@ -821,6 +824,7 @@ export interface InternalSignupAttributionUserRow {
   signupSource?: string | null;
   signupMedium?: string | null;
   signupCampaign?: string | null;
+  signupContent?: string | null;
   firstReferrerDomain?: string | null;
   attributionCapturedAt?: string | null;
 }
@@ -840,6 +844,7 @@ export interface InternalSignupLinkTemplate {
   source: string;
   medium?: string | null;
   campaign?: string | null;
+  destinationPath?: string | null;
   isActive: boolean;
   createdByUserId: string;
   createdByUsername?: string | null;
@@ -853,6 +858,7 @@ export interface CreateInternalSignupLinkTemplateRequest {
   source: string;
   medium?: string;
   campaign?: string;
+  destinationPath?: string;
   isActive?: boolean;
 }
 
@@ -862,6 +868,7 @@ export interface UpdateInternalSignupLinkTemplateRequest {
   source?: string;
   medium?: string;
   campaign?: string;
+  destinationPath?: string;
   isActive?: boolean;
 }
 

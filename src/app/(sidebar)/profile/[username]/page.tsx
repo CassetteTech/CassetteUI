@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
-import { useUserBio, useUserActivity, useUserLikedPosts } from '@/hooks/use-profile';
+import { useUserBio, useUserActivity, useUserLikedPosts, profileQueryKeys } from '@/hooks/use-profile';
 import { ProfileHeader } from '@/components/features/profile/profile-header';
 import { NotificationMenu } from '@/components/layout/notification-menu';
 import { ProfileHeaderSkeleton } from '@/components/features/profile/profile-header-skeleton';
@@ -29,6 +30,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { user } = useAuthState();
 
   const [activeTab, setActiveTab] = useState<TabType>('playlists');
@@ -128,6 +130,11 @@ export default function ProfilePage() {
       return;
     }
 
+    // Probe only after the bio has settled: likedSectionVisible and
+    // likedPostsUserId derive from it, and rerunning before then restarts the
+    // chain with stale liked-tab inputs.
+    if (isLoadingBio) return;
+
     const tabOrder: Array<{ tab: TabType; elementType?: string }> = [
       { tab: 'playlists', elementType: 'Playlist' },
       { tab: 'tracks', elementType: 'Track' },
@@ -136,23 +143,37 @@ export default function ProfilePage() {
       ...(likedSectionVisible ? [{ tab: 'liked' as TabType }] : []),
     ];
 
+    // fetchQuery dedupes concurrent and recently-completed probes, so a
+    // rerun of this effect never re-issues a request for the same tab.
+    const PROBE_STALE_TIME = 60 * 1000;
+    const probeTab = (candidate: { tab: TabType; elementType?: string }) => {
+      if (candidate.tab === 'liked') {
+        if (!likedPostsUserId) return Promise.resolve(null);
+        return queryClient.fetchQuery({
+          queryKey: profileQueryKeys.tabProbe(likedPostsUserId, 'liked'),
+          queryFn: () => profileService.fetchUserLikedPosts(likedPostsUserId, { page: 1, pageSize: 1 }),
+          staleTime: PROBE_STALE_TIME,
+          retry: false,
+        });
+      }
+      return queryClient.fetchQuery({
+        queryKey: profileQueryKeys.tabProbe(userIdToFetch, candidate.elementType ?? ''),
+        queryFn: () => profileService.fetchUserActivity(userIdToFetch, {
+          page: 1,
+          pageSize: 1,
+          elementType: candidate.elementType,
+        }),
+        staleTime: PROBE_STALE_TIME,
+        retry: false,
+      });
+    };
+
     let isCancelled = false;
     const resolveInitialTab = async () => {
       for (const candidate of tabOrder) {
         if (isCancelled) return;
         try {
-          const response = candidate.tab === 'liked'
-            ? (
-                likedPostsUserId
-                  ? await profileService.fetchUserLikedPosts(likedPostsUserId, { page: 1, pageSize: 1 })
-                  : null
-              )
-            : await profileService.fetchUserActivity(userIdToFetch, {
-                page: 1,
-                pageSize: 1,
-                elementType: candidate.elementType,
-              });
-
+          const response = await probeTab(candidate);
           if (isCancelled) return;
           if (response && response.totalItems > 0) {
             setActiveTab(candidate.tab);
@@ -175,7 +196,7 @@ export default function ProfilePage() {
     return () => {
       isCancelled = true;
     };
-  }, [hasResolvedInitialTab, likedPostsUserId, likedSectionVisible, searchParams, updateUrlForTab, userIdToFetch]);
+  }, [hasResolvedInitialTab, isLoadingBio, likedPostsUserId, likedSectionVisible, queryClient, searchParams, updateUrlForTab, userIdToFetch]);
 
   useEffect(() => {
     if (!likedSectionVisible && activeTab === 'liked') {

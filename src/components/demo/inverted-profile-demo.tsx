@@ -169,42 +169,42 @@ export default function AboutPageReimagined() {
 
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <SampleCard
-              href="/post?url=https://open.spotify.com/track/4fzsfWzRhPawzqhX8Qt9F3"
+              href="/?url=https://open.spotify.com/track/4fzsfWzRhPawzqhX8Qt9F3"
               title="Stronger"
               subtitle="Kanye West"
               accent="from-emerald-400 to-emerald-600"
               meta="Spotify → Universal"
             />
             <SampleCard
-              href="/post?url=https://music.apple.com/us/album/the-dark-side-of-the-moon/1065973699?i=1065973705"
+              href="/?url=https://music.apple.com/us/album/the-dark-side-of-the-moon/1065973699?i=1065973705"
               title="Time"
               subtitle="Pink Floyd"
               accent="from-pink-400 to-pink-600"
               meta="Apple Music → Universal"
             />
             <SampleCard
-              href="/post?url=https://open.spotify.com/track/3jtvJtAA25a7d0BLOJ8Dqo"
+              href="/?url=https://open.spotify.com/track/3jtvJtAA25a7d0BLOJ8Dqo"
               title="Daft Punk is Playing at My House"
               subtitle="LCD Soundsystem"
               accent="from-violet-400 to-violet-600"
               meta="Dance/Electronic"
             />
             <SampleCard
-              href="/post?url=https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj"
+              href="/?url=https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj"
               title="After Hours"
               subtitle="The Weeknd"
               accent="from-rose-400 to-rose-600"
               meta="Full Album"
             />
             <SampleCard
-              href="/post?url=https://open.spotify.com/album/79dL7FLiJFOO0EoehUHQBv"
+              href="/?url=https://open.spotify.com/album/79dL7FLiJFOO0EoehUHQBv"
               title="Currents"
               subtitle="Tame Impala"
               accent="from-amber-400 to-orange-600"
               meta="Psychedelic Rock"
             />
             <SampleCard
-              href="/post?url=https://open.spotify.com/track/5UH5s7VwbSkFExIl1oqNux"
+              href="/?url=https://open.spotify.com/track/5UH5s7VwbSkFExIl1oqNux"
               title="Feels Like Summer"
               subtitle="Childish Gambino"
               accent="from-sky-400 to-sky-600"

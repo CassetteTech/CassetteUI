@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, Database, ListChecks, RefreshCw, RotateCcw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Copy, Database, GitMerge, ListChecks, RefreshCw, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiService } from '@/services/api';
 import type {
   ConversionIssueRevalidationSummary,
+  StubDuplicateAdjudicationSummary,
   InternalSentinelAuditRun,
   InternalSentinelAuditRunsResponse,
   InternalSentinelFinding,
@@ -31,6 +32,15 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDebounce } from '@/hooks/use-debounce';
 import { PAGE_SIZE, formatDate } from './internal-utils';
@@ -615,8 +625,18 @@ function RefreshButton({ loading, onClick }: { loading: boolean; onClick: () => 
 
 /* Rescan: the one lever operators have over finding status, and it is
    indirect — it queues an audit.requested run for the Sentinel worker and the
-   scan decides. Deliberately quiet: ghost variant, small, no colour. */
-function RescanButton({ invariantId, label }: { invariantId?: string; label?: string }) {
+   scan decides. Deliberately quiet: ghost variant, small, no colour.
+   `withTitle={false}` drops the native tooltip when a richer Radix tooltip
+   wraps the button (the maintenance strip). */
+function RescanButton({
+  invariantId,
+  label,
+  withTitle = true,
+}: {
+  invariantId?: string;
+  label?: string;
+  withTitle?: boolean;
+}) {
   const [pending, setPending] = useState(false);
 
   const rescan = async () => {
@@ -625,7 +645,10 @@ function RescanButton({ invariantId, label }: { invariantId?: string; label?: st
       await apiService.requestInternalSentinelRescan(invariantId);
       toast.success(
         invariantId ? `Rescan queued for ${invariantId}` : 'Full rescan queued',
-        { description: 'Results land on the next worker pass.' },
+        {
+          description:
+            'Async — the run lands in ~30–90 s; a busy queue or a first-attempt retry (~5 min) adds time.',
+        },
       );
     } catch (rescanError) {
       toast.error(rescanError instanceof Error ? rescanError.message : 'Rescan request failed');
@@ -641,7 +664,13 @@ function RescanButton({ invariantId, label }: { invariantId?: string; label?: st
       className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
       disabled={pending}
       onClick={() => void rescan()}
-      title={invariantId ? `Queue a full-scope rescan of ${invariantId}` : 'Queue a full Sentinel rescan'}
+      title={
+        withTitle
+          ? invariantId
+            ? `Queue an async full-scope rescan of ${invariantId}`
+            : 'Queue an async full Sentinel rescan'
+          : undefined
+      }
     >
       <RotateCcw className={`h-3 w-3 ${pending ? 'animate-spin' : ''}`} />
       {label ?? 'Rescan'}
@@ -654,7 +683,7 @@ function RescanButton({ invariantId, label }: { invariantId?: string; label?: st
    runs synchronously and hands back a summary, so we surface the resolved /
    still-holding / skipped counts inline rather than waiting on a worker pass.
    Kept as quiet as Rescan — ghost, small, no colour. */
-function RevalidateIssuesButton() {
+function RevalidateIssuesButton({ withTitle = true }: { withTitle?: boolean }) {
   const [pending, setPending] = useState(false);
 
   const revalidate = async () => {
@@ -665,7 +694,7 @@ function RevalidateIssuesButton() {
       toast.success(
         `Revalidated ${summary.checked} issue${summary.checked === 1 ? '' : 's'}`,
         {
-          description: `${summary.resolved} resolved · ${summary.stillHolding} still holding · ${summary.skippedUnknown} skipped`,
+          description: `${summary.resolved} resolved · ${summary.stillHolding} still holding · ${summary.skippedUnknown} skipped. Findings are untouched — a full rescan resolves those.`,
         },
       );
     } catch (revalidateError) {
@@ -684,11 +713,227 @@ function RevalidateIssuesButton() {
       className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
       disabled={pending}
       onClick={() => void revalidate()}
-      title="Re-check every unresolved conversion issue and resolve the ones that no longer hold"
+      title={
+        withTitle
+          ? 'Re-check every unresolved conversion issue and resolve the ones that no longer hold'
+          : undefined
+      }
     >
       <ListChecks className={`h-3 w-3 ${pending ? 'animate-pulse' : ''}`} />
       Revalidate issues
     </Button>
+  );
+}
+
+/* Adjudicate: deterministic duplicate-pair merges sourced from unresolved
+   duplicate_stub issues. Two-step by design — this button only ever runs a
+   dry run; committing is an explicit confirm inside the summary dialog. Dry
+   runs execute the full merge in a transaction and roll back, so every count
+   shown is real. */
+function AdjudicateDuplicatesButton() {
+  const [pending, setPending] = useState(false);
+  const [committing, setCommitting] = useState(false);
+  const [confirmingCommit, setConfirmingCommit] = useState(false);
+  const [summary, setSummary] = useState<StubDuplicateAdjudicationSummary | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const runDry = async () => {
+    setPending(true);
+    try {
+      const next = await apiService.adjudicateInternalDuplicates(true);
+      setSummary(next);
+      setConfirmingCommit(false);
+      setDialogOpen(true);
+    } catch (adjudicateError) {
+      toast.error(
+        adjudicateError instanceof Error ? adjudicateError.message : 'Adjudication dry run failed',
+      );
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const commit = async () => {
+    setCommitting(true);
+    try {
+      const next = await apiService.adjudicateInternalDuplicates(false);
+      setSummary(next);
+      setConfirmingCommit(false);
+      toast.success(`Merged ${next.merged} pair${next.merged === 1 ? '' : 's'}`, {
+        description: `${next.pairsConsidered} considered · ${next.skipped} skipped`,
+      });
+    } catch (commitError) {
+      toast.error(commitError instanceof Error ? commitError.message : 'Merge commit failed');
+    } finally {
+      setCommitting(false);
+    }
+  };
+
+  const mergeLabel = summary
+    ? `${summary.merged} pair${summary.merged === 1 ? '' : 's'}`
+    : '';
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+        disabled={pending}
+        onClick={() => void runDry()}
+      >
+        <GitMerge className={`h-3 w-3 ${pending ? 'animate-pulse' : ''}`} />
+        {pending ? 'Dry run…' : 'Adjudicate duplicates'}
+      </Button>
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setConfirmingCommit(false);
+        }}
+      >
+        <DialogContent className="domain-eng sm:max-w-lg">
+          {summary && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-sm">
+                  Duplicate adjudication · {summary.dryRun ? 'dry run' : 'committed'}
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  {summary.dryRun
+                    ? 'The full merge executed in a transaction and rolled back — these counts are real, and nothing has changed.'
+                    : 'Merges are committed: each loser’s references were re-pointed to its survivor and the loser row was deleted.'}
+                </DialogDescription>
+              </DialogHeader>
+
+              <StatStrip>
+                <Stat label="Pairs considered" value={summary.pairsConsidered} />
+                <Stat
+                  label="Merged"
+                  value={summary.merged}
+                  tone={summary.merged ? 'success' : 'neutral'}
+                />
+                <Stat
+                  label="Skipped"
+                  value={summary.skipped}
+                  tone={summary.skipped ? 'warning' : 'neutral'}
+                />
+              </StatStrip>
+
+              {summary.outcomes.length > 0 && (
+                <div className="max-h-[320px] divide-y divide-border/60 overflow-y-auto rounded-lg border border-border">
+                  {summary.outcomes.map((outcome, index) => (
+                    <div
+                      key={`${outcome.entityType}-${outcome.survivorId}-${outcome.loserId}-${index}`}
+                      className="space-y-1 px-3 py-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <StatusPill
+                          tone={outcome.action === 'merged' ? 'success' : 'warning'}
+                          label={outcome.action}
+                        />
+                        <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                          {outcome.entityType}
+                        </span>
+                      </div>
+                      <div className="break-all font-mono text-[10px] tabular-nums">
+                        <p className="text-foreground">survivor · {outcome.survivorId}</p>
+                        <p className="text-muted-foreground">loser · {outcome.loserId}</p>
+                      </div>
+                      <p className="text-[10px] leading-snug text-muted-foreground">
+                        {outcome.action === 'skipped' && outcome.skipReason
+                          ? outcome.skipReason
+                          : outcome.survivorReason}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-[10px] leading-snug text-muted-foreground">
+                Survivor rule: post-referenced first, then most platform data, then most
+                playlist/user references, then the older row.
+              </p>
+
+              {summary.dryRun && summary.merged > 0 && (
+                <DialogFooter className="sm:justify-start">
+                  {confirmingCommit ? (
+                    <div className="w-full space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                      <p className="text-xs text-foreground">
+                        Re-run with dryRun: false? This re-points every loser reference to its
+                        survivor and deletes the loser rows ({mergeLabel} in this dry run). It
+                        cannot be undone.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={committing}
+                          onClick={() => void commit()}
+                        >
+                          {committing ? 'Merging…' : 'Confirm merge'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={committing}
+                          onClick={() => setConfirmingCommit(false)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setConfirmingCommit(true)}
+                    >
+                      Apply merges…
+                    </Button>
+                  )}
+                </DialogFooter>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/* One maintenance control: a quiet button, a one-line caption beneath it, and
+   a hover tooltip carrying the operational fine print. Keeps the fact sheet
+   available without an explainer card. */
+function MaintenanceAction({
+  caption,
+  details,
+  children,
+}: {
+  caption: string;
+  details: string[];
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex max-w-[240px] flex-col items-start gap-0.5">
+          {children}
+          <p className="pl-2 text-[10px] leading-snug text-muted-foreground">{caption}</p>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="start" className="max-w-[320px]">
+        <ul className="list-disc space-y-1 pl-3.5 text-left text-[11px] leading-snug">
+          {details.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -894,13 +1139,49 @@ function SentinelFindingsPanel() {
       title={total > 0 ? `Findings · ${total}` : 'Findings'}
       actions={
         <div className="flex items-center gap-1">
-          <RescanButton />
-          <RevalidateIssuesButton />
           <CopyCoordinatorPromptButton />
           <RefreshButton loading={loading} onClick={() => void loadFindings()} />
         </div>
       }
     >
+      {/* Maintenance strip: the three operational levers, each with a one-line
+          caption and a hover tooltip for the fine print. Quiet on purpose. */}
+      <div className="flex flex-wrap items-start gap-x-6 gap-y-2 border-b border-border px-3 py-2">
+        <MaintenanceAction
+          caption="Async full audit — results land in ~30–90 s."
+          details={[
+            'Publishes an audit.requested message; the Sentinel worker runs it as a full-scope audit.',
+            'Asynchronous: the run appears under Runs in ~30–90 s — longer if the queue is busy.',
+            'Only full-scope runs resolve findings the scan no longer sees.',
+            'If a conversion-triggered audit is mid-write, the first attempt can retry after the ~5 min visibility timeout. That is normal.',
+          ]}
+        >
+          <RescanButton withTitle={false} />
+        </MaintenanceAction>
+        <MaintenanceAction
+          caption="Resolves stale conversion issues — never findings."
+          details={[
+            'Re-checks every unresolved conversion issue against its original trigger condition and resolves the ones that verifiably no longer hold.',
+            'Covers duplicate_stub, invalid_track_number, multiple_primary_artists, and duplicate_platform_id.',
+            'Never deletes rows and never mutates domain data.',
+            'Does not resolve Sentinel findings — a full rescan does that.',
+          ]}
+        >
+          <RevalidateIssuesButton withTitle={false} />
+        </MaintenanceAction>
+        <MaintenanceAction
+          caption="Dry run first — committing is a separate confirm."
+          details={[
+            'Deterministically merges duplicate pairs from unresolved duplicate_stub issues.',
+            'Survivor rule: post-referenced, then most platform data, then most playlist/user references, then the older row.',
+            'The dry run executes the full merge in a transaction and rolls back, so the reported counts are real.',
+            'Nothing commits until you confirm the second step in the results dialog.',
+          ]}
+        >
+          <AdjudicateDuplicatesButton />
+        </MaintenanceAction>
+      </div>
+
       <div className="space-y-2 border-b border-border px-3 py-2">
         <SegmentedControl<FindingStatus>
           value={status}

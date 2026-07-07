@@ -673,6 +673,28 @@ export interface ConversionIssueRevalidationSummary {
   skippedUnknownByType: Record<string, number>;
 }
 
+/* Mirrors CassetteBridge's StubDuplicateAdjudicationSummary. Dry runs execute
+   the full merge inside a transaction and roll back, so every count below is
+   real even when dryRun is true. */
+export interface StubDuplicateAdjudicationPairOutcome {
+  entityType: string;
+  survivorId: string;
+  loserId: string;
+  survivorReason: string;
+  action: string; // merged | skipped
+  skipReason?: string | null;
+  repointedByTable: Record<string, number>;
+  deletedByTable: Record<string, number>;
+}
+
+export interface StubDuplicateAdjudicationSummary {
+  dryRun: boolean;
+  pairsConsidered: number;
+  merged: number;
+  skipped: number;
+  outcomes: StubDuplicateAdjudicationPairOutcome[];
+}
+
 export interface InternalSentinelInvariantNote {
   invariantId: string;
   rootCauseSummary?: string | null;

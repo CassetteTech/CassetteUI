@@ -21,6 +21,7 @@ import {
   InternalSentinelInvariantRegistryResponse,
   InternalSentinelRescanResponse,
   ConversionIssueRevalidationSummary,
+  StubDuplicateAdjudicationSummary,
   InternalSentinelInvariantNote,
   InternalSentinelInvariantNoteInput,
   InternalSentinelInvariantNotesResponse,
@@ -660,6 +661,22 @@ class ApiService {
         method: 'POST',
         // Synchronous sweep over every unresolved issue — give it more room
         // than the fire-and-forget rescan before the client-side timeout trips.
+        timeoutMs: 60000,
+      },
+    );
+  }
+
+  // Deterministic duplicate-pair merge over unresolved duplicate_stub issues.
+  // Dry runs execute the full merge in a transaction and roll back, so the
+  // returned counts are real; only dryRun=false commits.
+  async adjudicateInternalDuplicates(dryRun: boolean): Promise<StubDuplicateAdjudicationSummary> {
+    return this.request<StubDuplicateAdjudicationSummary>(
+      '/api/v1/internal/adjudication/duplicates',
+      {
+        method: 'POST',
+        body: JSON.stringify({ dryRun, includeDuplicateStubIssues: true }),
+        // Runs the whole merge transaction inline (even for dry runs), so it
+        // needs the same headroom as the revalidation sweep.
         timeoutMs: 60000,
       },
     );

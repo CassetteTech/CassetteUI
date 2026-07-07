@@ -11,7 +11,9 @@ export async function fetchPostForMetadata(postId: string): Promise<PostByIdResp
 
   try {
     const response = await fetch(`${apiUrl}/api/v1/social/posts/${postId}`, {
-      next: { revalidate: 60 }, // Cache for 60 seconds
+      next: { revalidate: 300 },
+      // Metadata is best-effort: never let a slow Bridge lookup block page delivery.
+      signal: AbortSignal.timeout(2000),
     });
 
     if (!response.ok) {

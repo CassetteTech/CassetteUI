@@ -62,25 +62,25 @@ export const heroPreviewLinks = [
   {
     title: "Stronger",
     artist: "Kanye West",
-    href: "/post?url=https://open.spotify.com/track/4fzsfWzRhPawzqhX8Qt9F3",
+    href: "/?url=https://open.spotify.com/track/4fzsfWzRhPawzqhX8Qt9F3",
     badge: "Spotify \u2192 Universal",
   },
   {
     title: "Time",
     artist: "Pink Floyd",
-    href: "/post?url=https://music.apple.com/us/album/the-dark-side-of-the-moon/1065973699?i=1065973705",
+    href: "/?url=https://music.apple.com/us/album/the-dark-side-of-the-moon/1065973699?i=1065973705",
     badge: "Apple Music \u2192 Universal",
   },
   {
     title: "Daft Punk is Playing at My House",
     artist: "LCD Soundsystem",
-    href: "/post?url=https://open.spotify.com/track/3jtvJtAA25a7d0BLOJ8Dqo",
+    href: "/?url=https://open.spotify.com/track/3jtvJtAA25a7d0BLOJ8Dqo",
     badge: "Dance / Electronic",
   },
   {
     title: "After Hours",
     artist: "The Weeknd",
-    href: "/post?url=https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj",
+    href: "/?url=https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj",
     badge: "Full Album",
   },
 ];
@@ -191,37 +191,37 @@ export const showcaseLinks = [
   {
     title: "Stronger",
     artist: "Kanye West",
-    href: "/post?url=https://open.spotify.com/track/4fzsfWzRhPawzqhX8Qt9F3",
+    href: "/?url=https://open.spotify.com/track/4fzsfWzRhPawzqhX8Qt9F3",
     meta: "Spotify \u2192 Universal",
   },
   {
     title: "Time",
     artist: "Pink Floyd",
-    href: "/post?url=https://music.apple.com/us/album/the-dark-side-of-the-moon/1065973699?i=1065973705",
+    href: "/?url=https://music.apple.com/us/album/the-dark-side-of-the-moon/1065973699?i=1065973705",
     meta: "Apple \u2192 Universal",
   },
   {
     title: "Daft Punk is Playing at My House",
     artist: "LCD Soundsystem",
-    href: "/post?url=https://open.spotify.com/track/3jtvJtAA25a7d0BLOJ8Dqo",
+    href: "/?url=https://open.spotify.com/track/3jtvJtAA25a7d0BLOJ8Dqo",
     meta: "Electronic",
   },
   {
     title: "After Hours",
     artist: "The Weeknd",
-    href: "/post?url=https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj",
+    href: "/?url=https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj",
     meta: "Full Album",
   },
   {
     title: "Currents",
     artist: "Tame Impala",
-    href: "/post?url=https://open.spotify.com/album/79dL7FLiJFOO0EoehUHQBv",
+    href: "/?url=https://open.spotify.com/album/79dL7FLiJFOO0EoehUHQBv",
     meta: "Psychedelic",
   },
   {
     title: "Feels Like Summer",
     artist: "Childish Gambino",
-    href: "/post?url=https://open.spotify.com/track/5UH5s7VwbSkFExIl1oqNux",
+    href: "/?url=https://open.spotify.com/track/5UH5s7VwbSkFExIl1oqNux",
     meta: "Hip-Hop/R&B",
   },
 ];

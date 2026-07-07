@@ -21,6 +21,7 @@ import {
   InternalSentinelInvariantRegistryResponse,
   InternalSentinelRescanResponse,
   ConversionIssueRevalidationSummary,
+  StubDuplicateAdjudicationSummary,
   InternalSentinelInvariantNote,
   InternalSentinelInvariantNoteInput,
   InternalSentinelInvariantNotesResponse,
@@ -510,6 +511,29 @@ class ApiService {
     throw new Error('Conversion is still processing. Please try again.');
   }
 
+  /**
+   * Looks up the caller's conversion job by the X-Idempotency-Key sent to /convert.
+   * The job row exists from submission, so this can be polled while the convert
+   * request is still in flight to observe the live stage. Returns null while the
+   * job isn't visible yet (or on transient poll failures) so callers just retry.
+   */
+  async getConvertJobByKey(
+    idempotencyKey: string,
+    options?: { anonymous?: boolean }
+  ): Promise<ConvertLifecycleResponse | null> {
+    try {
+      return await this.request<ConvertLifecycleResponse>(
+        `/api/v1/convert/jobs/by-key/${encodeURIComponent(idempotencyKey)}`,
+        {
+          skipAuth: options?.anonymous,
+          timeoutMs: 10_000,
+        }
+      );
+    } catch {
+      return null;
+    }
+  }
+
   // Profile endpoints
   async getProfile(userId: string) {
     return this.request(`/api/v1/profile/${userId}`);
@@ -665,6 +689,22 @@ class ApiService {
     );
   }
 
+  // Deterministic duplicate-pair merge over unresolved duplicate_stub issues.
+  // Dry runs execute the full merge in a transaction and roll back, so the
+  // returned counts are real; only dryRun=false commits.
+  async adjudicateInternalDuplicates(dryRun: boolean): Promise<StubDuplicateAdjudicationSummary> {
+    return this.request<StubDuplicateAdjudicationSummary>(
+      '/api/v1/internal/adjudication/duplicates',
+      {
+        method: 'POST',
+        body: JSON.stringify({ dryRun, includeDuplicateStubIssues: true }),
+        // Runs the whole merge transaction inline (even for dry runs), so it
+        // needs the same headroom as the revalidation sweep.
+        timeoutMs: 60000,
+      },
+    );
+  }
+
   async getInternalSentinelInvariantNotes(): Promise<InternalSentinelInvariantNotesResponse> {
     return this.request<InternalSentinelInvariantNotesResponse>(
       '/api/v1/internal/sentinel/invariants/notes',
@@ -763,6 +803,7 @@ class ApiService {
     source?: string;
     medium?: string;
     campaign?: string;
+    content?: string;
     referrerDomain?: string;
   } = {}): Promise<InternalSignupAttributionOverview> {
     const query = new URLSearchParams();
@@ -771,6 +812,7 @@ class ApiService {
     if (params.source) query.set('source', params.source);
     if (params.medium) query.set('medium', params.medium);
     if (params.campaign) query.set('campaign', params.campaign);
+    if (params.content) query.set('content', params.content);
     if (params.referrerDomain) query.set('referrerDomain', params.referrerDomain);
     const suffix = query.toString() ? `?${query.toString()}` : '';
     return this.request<InternalSignupAttributionOverview>(
@@ -786,6 +828,7 @@ class ApiService {
     source?: string;
     medium?: string;
     campaign?: string;
+    content?: string;
     referrerDomain?: string;
     page?: number;
     pageSize?: number;
@@ -797,6 +840,7 @@ class ApiService {
     if (params.source) query.set('source', params.source);
     if (params.medium) query.set('medium', params.medium);
     if (params.campaign) query.set('campaign', params.campaign);
+    if (params.content) query.set('content', params.content);
     if (params.referrerDomain) query.set('referrerDomain', params.referrerDomain);
     if (params.page) query.set('page', String(params.page));
     if (params.pageSize) query.set('pageSize', String(params.pageSize));
@@ -814,6 +858,7 @@ class ApiService {
     source?: string;
     medium?: string;
     campaign?: string;
+    content?: string;
     referrerDomain?: string;
     page?: number;
     pageSize?: number;
@@ -825,6 +870,7 @@ class ApiService {
     if (params.source) query.set('source', params.source);
     if (params.medium) query.set('medium', params.medium);
     if (params.campaign) query.set('campaign', params.campaign);
+    if (params.content) query.set('content', params.content);
     if (params.referrerDomain) query.set('referrerDomain', params.referrerDomain);
     if (params.page) query.set('page', String(params.page));
     if (params.pageSize) query.set('pageSize', String(params.pageSize));
@@ -844,6 +890,7 @@ class ApiService {
     source?: string;
     medium?: string;
     campaign?: string;
+    content?: string;
     referrerDomain?: string;
   }): Promise<Blob> {
     const query = new URLSearchParams();
@@ -855,6 +902,7 @@ class ApiService {
     if (params.source) query.set('source', params.source);
     if (params.medium) query.set('medium', params.medium);
     if (params.campaign) query.set('campaign', params.campaign);
+    if (params.content) query.set('content', params.content);
     if (params.referrerDomain) query.set('referrerDomain', params.referrerDomain);
 
     const url = `${this.baseUrl}/api/v1/internal/signup-attribution/export?${query.toString()}`;

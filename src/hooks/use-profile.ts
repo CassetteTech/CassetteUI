@@ -12,6 +12,8 @@ export const profileQueryKeys = {
     ['user-activity', userIdentifier, page, elementType] as const,
   allActivity: (userIdentifier: string) => ['user-activity', userIdentifier] as const,
   likedActivity: (userId: string, page?: number) => ['user-liked-activity', userId, page] as const,
+  tabProbe: (userIdentifier: string, slot: string) =>
+    ['profile-tab-probe', userIdentifier, slot] as const,
   exploreActivity: (page?: number, pageSize?: number) =>
     ['explore-activity', page, pageSize] as const,
   exploreUsers: (page?: number, pageSize?: number, q?: string) =>

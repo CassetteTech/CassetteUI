@@ -430,6 +430,7 @@
   }
 }
 
+
 /* Conversion overlay: shimmer sweep across active step label */
 @keyframes shimmer-sweep {
   0%   { transform: translateX(-100%); }

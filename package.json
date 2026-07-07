@@ -46,6 +46,8 @@
     "@tanstack/react-query-devtools": "^5.81.5",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/three": "^0.178.1",
+    "@web-kits/audio": "^0.1.0",
+    "border-beam": "^1.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.0",

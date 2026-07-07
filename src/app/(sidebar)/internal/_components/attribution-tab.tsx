@@ -23,6 +23,14 @@ import {
   InternalSignupLinkTemplate,
 } from '@/types';
 import { apiService } from '@/services/api';
+import {
+  DEFAULT_TEMPLATE_DESTINATION,
+  POST_SHARE_DESTINATION,
+  TEMPLATE_DESTINATION_PRESETS,
+  buildTemplateRelativePath,
+  buildTemplateUrl,
+  isPostShareTemplate,
+} from '@/lib/attribution/attribution-links';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -59,6 +67,7 @@ const DEFAULT_TEMPLATE_FORM = {
   source: '',
   medium: '',
   campaign: '',
+  destinationPath: DEFAULT_TEMPLATE_DESTINATION,
   isActive: true,
 };
 
@@ -103,33 +112,11 @@ function toApiDate(value: string, endOfDay = false) {
   return endOfDay ? `${value}T23:59:59.999Z` : `${value}T00:00:00.000Z`;
 }
 
-function normalizeTemplateValue(value?: string | null) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function buildSignupRelativePath(template: {
-  source?: string | null;
-  medium?: string | null;
-  campaign?: string | null;
-}) {
-  const params = new URLSearchParams();
-  const source = normalizeTemplateValue(template.source);
-  const medium = normalizeTemplateValue(template.medium);
-  const campaign = normalizeTemplateValue(template.campaign);
-  if (source) params.set('src', source);
-  if (medium) params.set('utm_medium', medium);
-  if (campaign) params.set('utm_campaign', campaign);
-  const search = params.toString();
-  return search ? `/signup?${search}` : '/signup';
-}
-
-function buildSignupUrl(origin: string, template: {
-  source?: string | null;
-  medium?: string | null;
-  campaign?: string | null;
-}) {
-  return `${origin.replace(/\/+$/, '')}${buildSignupRelativePath(template)}`;
+function normalizePresetDestination(path?: string | null) {
+  const value = path || DEFAULT_TEMPLATE_DESTINATION;
+  return TEMPLATE_DESTINATION_PRESETS.some((preset) => preset.value === value)
+    ? value
+    : DEFAULT_TEMPLATE_DESTINATION;
 }
 
 /* ────────────────────────────── Main Component ────────────────────────────── */
@@ -143,6 +130,7 @@ export function AttributionTab() {
   const [sourceFilter, setSourceFilter] = useState('');
   const [mediumFilter, setMediumFilter] = useState('');
   const [campaignFilter, setCampaignFilter] = useState('');
+  const [contentFilter, setContentFilter] = useState('');
   const [referrerDomainFilter, setReferrerDomainFilter] = useState('');
   const [userSearch, setUserSearch] = useState('');
   const [groupBy, setGroupBy] = useState<InternalSignupAttributionGroupBy>('source');
@@ -180,9 +168,10 @@ export function AttributionTab() {
       source: sourceFilter.trim() || undefined,
       medium: mediumFilter.trim() || undefined,
       campaign: campaignFilter.trim() || undefined,
+      content: contentFilter.trim() || undefined,
       referrerDomain: referrerDomainFilter.trim() || undefined,
     }),
-    [fromDate, toDate, sourceFilter, mediumFilter, campaignFilter, referrerDomainFilter]
+    [fromDate, toDate, sourceFilter, mediumFilter, campaignFilter, contentFilter, referrerDomainFilter]
   );
 
   const usersParams = useMemo(() => {
@@ -197,13 +186,26 @@ export function AttributionTab() {
     if (selectedBreakdown.groupBy === 'source') return { ...params, source: filterValue };
     if (selectedBreakdown.groupBy === 'medium') return { ...params, medium: filterValue };
     if (selectedBreakdown.groupBy === 'campaign') return { ...params, campaign: filterValue };
+    if (selectedBreakdown.groupBy === 'content') return { ...params, content: filterValue };
     return { ...params, referrerDomain: filterValue };
   }, [baseReportingParams, selectedBreakdown, userSearch]);
 
   const templatePreview = useMemo(
-    () => buildSignupUrl(appOrigin, templateForm),
+    () => buildTemplateUrl(appOrigin, templateForm),
     [appOrigin, templateForm]
   );
+
+  const isPostTemplateForm = templateForm.destinationPath === POST_SHARE_DESTINATION;
+
+  // Illustrates what the Share menu copies for a post template; the real link is
+  // built per post via buildAttributedPostPath.
+  const postSharePreviewPath = useMemo(() => {
+    const parts = [`src=${templateForm.source.trim() || '<source>'}`];
+    if (templateForm.medium.trim()) parts.push(`utm_medium=${templateForm.medium.trim()}`);
+    if (templateForm.campaign.trim()) parts.push(`utm_campaign=${templateForm.campaign.trim()}`);
+    parts.push('utm_content=post-{id}');
+    return `/post/{id}?${parts.join('&')}`;
+  }, [templateForm.source, templateForm.medium, templateForm.campaign]);
 
   // ─── Data loaders ─────────────────────────────────────────────────
   const loadReporting = useCallback(async () => {
@@ -349,6 +351,7 @@ export function AttributionTab() {
         source: templateForm.source.trim(),
         medium: templateForm.medium.trim(),
         campaign: templateForm.campaign.trim(),
+        destinationPath: templateForm.destinationPath.trim(),
         isActive: templateForm.isActive,
       };
       if (editingTemplateId) {
@@ -375,6 +378,7 @@ export function AttributionTab() {
       source: template.source,
       medium: template.medium ?? '',
       campaign: template.campaign ?? '',
+      destinationPath: normalizePresetDestination(template.destinationPath),
       isActive: template.isActive,
     });
   };
@@ -387,6 +391,7 @@ export function AttributionTab() {
       source: template.source,
       medium: template.medium ?? '',
       campaign: template.campaign ?? '',
+      destinationPath: normalizePresetDestination(template.destinationPath),
       isActive: template.isActive,
     });
   };
@@ -416,7 +421,7 @@ export function AttributionTab() {
     }
   };
 
-  const hasAttributionFilters = sourceFilter || mediumFilter || campaignFilter || referrerDomainFilter;
+  const hasAttributionFilters = sourceFilter || mediumFilter || campaignFilter || contentFilter || referrerDomainFilter;
 
   // ─── Column definitions ────────────────────────────────────────────
 
@@ -517,6 +522,17 @@ export function AttributionTab() {
           <span className="text-muted-foreground/50">—</span>
         ),
     },
+    {
+      key: 'content',
+      header: 'Content',
+      className: 'hidden xl:table-cell',
+      cell: (row) =>
+        row.signupContent ? (
+          <span className="font-mono text-[11px] text-foreground">{row.signupContent}</span>
+        ) : (
+          <span className="text-muted-foreground/50">—</span>
+        ),
+    },
   ];
 
   const breakdownRows: BreakdownRow[] = breakdown?.items ?? [];
@@ -582,6 +598,7 @@ export function AttributionTab() {
                   { value: sourceFilter, onChange: setSourceFilter, placeholder: 'Source' },
                   { value: mediumFilter, onChange: setMediumFilter, placeholder: 'Medium' },
                   { value: campaignFilter, onChange: setCampaignFilter, placeholder: 'Campaign' },
+                  { value: contentFilter, onChange: setContentFilter, placeholder: 'Content' },
                   { value: referrerDomainFilter, onChange: setReferrerDomainFilter, placeholder: 'Referrer' },
                 ].map((f) => (
                   <div key={f.placeholder} className="relative">
@@ -611,6 +628,7 @@ export function AttributionTab() {
                       setSourceFilter('');
                       setMediumFilter('');
                       setCampaignFilter('');
+                      setContentFilter('');
                       setReferrerDomainFilter('');
                       setBreakdownPage(1);
                       setUsersPage(1);
@@ -667,6 +685,7 @@ export function AttributionTab() {
                       <SelectItem value="source">by source</SelectItem>
                       <SelectItem value="medium">by medium</SelectItem>
                       <SelectItem value="campaign">by campaign</SelectItem>
+                      <SelectItem value="content">by content</SelectItem>
                       <SelectItem value="referrerDomain">by referrer</SelectItem>
                     </SelectContent>
                   </Select>
@@ -844,7 +863,7 @@ export function AttributionTab() {
             ) : (
               <div className="divide-y divide-border">
                 {templates.map((template) => {
-                  const url = buildSignupUrl(appOrigin, template);
+                  const url = buildTemplateUrl(appOrigin, template);
                   const isEditing = editingTemplateId === template.id;
                   return (
                     <div
@@ -866,6 +885,11 @@ export function AttributionTab() {
                             <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{template.description}</p>
                           )}
                           <div className="flex items-center gap-2 mt-1">
+                            <span className="font-mono text-[10px] text-muted-foreground">
+                              {isPostShareTemplate(template)
+                                ? 'post share'
+                                : template.destinationPath || DEFAULT_TEMPLATE_DESTINATION}
+                            </span>
                             {template.source && (
                               <span className="font-mono text-[10px] text-muted-foreground">{template.source}</span>
                             )}
@@ -879,14 +903,16 @@ export function AttributionTab() {
                         </div>
                         <TooltipProvider delayDuration={200}>
                           <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => void handleCopyText(url, 'URL')}>
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom"><p className="text-xs">Copy URL</p></TooltipContent>
-                            </Tooltip>
+                            {!isPostShareTemplate(template) && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => void handleCopyText(url, 'URL')}>
+                                    <Copy className="h-3 w-3" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom"><p className="text-xs">Copy URL</p></TooltipContent>
+                              </Tooltip>
+                            )}
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEditTemplate(template)}>
@@ -920,7 +946,9 @@ export function AttributionTab() {
                           </div>
                         </TooltipProvider>
                       </div>
-                      <p className="font-mono text-[10px] text-muted-foreground mt-1.5 truncate rounded bg-muted px-1.5 py-0.5">{url}</p>
+                      <p className="font-mono text-[10px] text-muted-foreground mt-1.5 truncate rounded bg-muted px-1.5 py-0.5">
+                        {isPostShareTemplate(template) ? 'Copied from the Share menu on any post page' : url}
+                      </p>
                     </div>
                   );
                 })}
@@ -990,6 +1018,31 @@ export function AttributionTab() {
               />
             </div>
 
+            <div className="space-y-1.5">
+              <Label htmlFor="template-destination" className="text-xs">Destination</Label>
+              <Select
+                value={normalizePresetDestination(templateForm.destinationPath)}
+                onValueChange={(value) => setTemplateForm((c) => ({ ...c, destinationPath: value }))}
+              >
+                <SelectTrigger id="template-destination" className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEMPLATE_DESTINATION_PRESETS.map((preset) => (
+                    <SelectItem key={preset.value} value={preset.value}>
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isPostTemplateForm && (
+                <p className="text-[11px] text-muted-foreground">
+                  Post templates appear in the Share menu on every post page. The copied link points at that post
+                  and tags it automatically.
+                </p>
+              )}
+            </div>
+
             <div className="flex items-center justify-between rounded border border-border px-3 py-2">
               <div>
                 <p className="text-xs font-medium text-foreground">Active</p>
@@ -1007,28 +1060,32 @@ export function AttributionTab() {
             <div className="space-y-1.5">
               <Label className="text-xs">Live Preview</Label>
               <div className="rounded border border-border bg-muted px-2.5 py-2">
-                <p className="break-all font-mono text-[11px] leading-relaxed text-foreground">{templatePreview}</p>
+                <p className="break-all font-mono text-[11px] leading-relaxed text-foreground">
+                  {isPostTemplateForm ? postSharePreviewPath : templatePreview}
+                </p>
               </div>
-              <div className="flex gap-1.5">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs gap-1 flex-1"
-                  onClick={() => void handleCopyText(templatePreview, 'Full URL')}
-                >
-                  <Copy className="h-3 w-3" />
-                  Copy URL
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs gap-1 flex-1"
-                  onClick={() => void handleCopyText(buildSignupRelativePath(templateForm), 'Path')}
-                >
-                  <Copy className="h-3 w-3" />
-                  Copy path
-                </Button>
-              </div>
+              {!isPostTemplateForm && (
+                <div className="flex gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1 flex-1"
+                    onClick={() => void handleCopyText(templatePreview, 'Full URL')}
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copy URL
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1 flex-1"
+                    onClick={() => void handleCopyText(buildTemplateRelativePath(templateForm), 'Path')}
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copy path
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2 pt-1">

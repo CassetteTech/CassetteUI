@@ -13,7 +13,7 @@ test('converts a pasted add-music link with the drafted description and saves it
   await page.goto('/add-music');
   await page
     .locator(
-      'textarea[placeholder="Let us know a little bit about this song or playlist!"]:visible',
+      'textarea[placeholder="Tell us how you feel about the music"]:visible',
     )
     .fill('Locked in for every late-night drive.');
 
@@ -22,6 +22,11 @@ test('converts a pasted add-music link with the drafted description and saves it
     'add-music-input',
     fixtureConvertTemplates.addMusicTrack.originalUrl,
   );
+
+  await expect(
+    page.locator('p:visible').filter({ hasText: 'Spotify link pasted' }),
+  ).toBeVisible();
+  await page.locator('[data-testid="add-music-submit"]:not([disabled])').last().click();
 
   const postMain = page.getByRole('main').last();
   await expect(page).toHaveURL(/\/post\/post-created-track(\?.*)?$/);
@@ -40,20 +45,22 @@ test('commits a typed add-music link on Enter so it can be submitted', async ({ 
   });
 
   await page.goto('/add-music');
-  await page
-    .locator('[data-testid="add-music-input"]:visible')
-    .fill(fixtureConvertTemplates.addMusicTrack.originalUrl);
-  await page.locator('[data-testid="add-music-input"]:visible').press('Enter');
+  const input = page.locator('[data-testid="add-music-input"]:visible');
+  await input.pressSequentially(fixtureConvertTemplates.addMusicTrack.originalUrl);
+  await input.press('Enter');
 
   await expect(
+    page.locator('p:visible').filter({ hasText: 'Spotify link pasted' }),
+  ).toBeVisible();
+  await expect(
     page.locator(
-      'textarea[placeholder="Let us know a little bit about this song or playlist!"]:visible',
+      'textarea[placeholder="Tell us how you feel about the music"]:visible',
     ),
   ).toBeVisible();
 
   await page
     .locator(
-      'textarea[placeholder="Let us know a little bit about this song or playlist!"]:visible',
+      'textarea[placeholder="Tell us how you feel about the music"]:visible',
     )
     .fill('Typed by hand and still ready to post.');
   await page.locator('[data-testid="add-music-submit"]:not([disabled])').last().click();

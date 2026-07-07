@@ -380,6 +380,8 @@ function PostPageContent() {
       showProgress={!!showProgress}
       progressPercent={progressPercent}
       progressStepName={progressState.currentStepName}
+      progressStepIndex={progressState.currentStep}
+      progressTotalSteps={progressState.totalSteps}
       onCancel={() => router.back()}
     />
   );

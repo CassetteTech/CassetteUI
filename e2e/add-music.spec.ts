@@ -15,7 +15,7 @@ test('creates a post from add-music search and shows it on the profile', async (
 
   await page
     .locator(
-      '[placeholder="Let us know a little bit about this song or playlist!"]:visible',
+      '[placeholder="Tell us how you feel about the music"]:visible',
     )
     .fill(
       'A permanent resident in my rotation.',

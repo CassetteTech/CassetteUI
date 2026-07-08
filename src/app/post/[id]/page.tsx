@@ -59,5 +59,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PostPage({ params }: Props) {
   const { id } = await params;
-  return <PostClientPage postId={id} />;
+  // Shares the generateMetadata fetch via cache() — no extra Bridge call.
+  // Null (miss/timeout) just means the client falls back to fetching itself.
+  const initialPost = await fetchPostForMetadata(id);
+  return <PostClientPage postId={id} initialPost={initialPost} />;
 }

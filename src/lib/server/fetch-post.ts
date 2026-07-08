@@ -1,17 +1,21 @@
+import { cache } from 'react';
 import { PostByIdResponse } from '@/types';
 import { getApiUrl } from '@/lib/utils/url';
 import { appLogger } from '@/lib/observability/logger';
 
 /**
  * Server-side fetch utility for post data.
- * Used by generateMetadata to fetch post info without client-side dependencies.
+ * Used by generateMetadata and the page component; `cache()` dedupes the two
+ * callers into a single Bridge request per navigation.
  */
-export async function fetchPostForMetadata(postId: string): Promise<PostByIdResponse | null> {
+export const fetchPostForMetadata = cache(async function fetchPostForMetadata(postId: string): Promise<PostByIdResponse | null> {
   const apiUrl = getApiUrl();
 
   try {
     const response = await fetch(`${apiUrl}/api/v1/social/posts/${postId}`, {
-      next: { revalidate: 60 }, // Cache for 60 seconds
+      next: { revalidate: 300 },
+      // Metadata is best-effort: never let a slow Bridge lookup block page delivery.
+      signal: AbortSignal.timeout(2000),
     });
 
     if (!response.ok) {
@@ -25,7 +29,7 @@ export async function fetchPostForMetadata(postId: string): Promise<PostByIdResp
     appLogger.warn('metadata_post_fetch_failed', { error, post_id: postId });
     return null;
   }
-}
+});
 
 /**
  * Extract artwork URL from post data with fallbacks.

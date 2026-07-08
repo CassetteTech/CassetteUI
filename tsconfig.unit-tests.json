@@ -26,6 +26,8 @@
     "src/app/(sidebar)/internal/_components/__tests__/explore-snapshot-utils.test.ts",
     "src/lib/analytics/events.ts",
     "src/lib/analytics/sanitize.ts",
+    "src/lib/attribution/attribution-links.ts",
+    "src/lib/attribution/__tests__/attribution-links.test.ts",
     "src/lib/observability/**/*.ts"
   ],
   "exclude": ["node_modules"]

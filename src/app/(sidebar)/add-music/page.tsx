@@ -4,15 +4,22 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { UrlBar } from '@/components/ui/url-bar';
 import { Music2, X } from 'lucide-react';
-import { useTopCharts, useMusicSearch } from '@/hooks/use-music';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTopCharts, useMusicSearch, useMusicLinkConversion } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useConversionStage } from '@/hooks/use-conversion-stage';
+import { PLATFORM_LABELS, pickConvertingHeadline } from '@/components/features/conversion/conversion-copy';
+import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
 import { SearchResults } from '@/components/features/search-results';
 import { MusicSearchResult } from '@/types';
 import { PageLoader } from '@/components/ui/page-loader';
 import Image from 'next/image';
 import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { apiService } from '@/services/api';
+import { savePrefetchedPost } from '@/lib/post-prefetch';
+import { playErrorTone, playLinkRecognized } from '@/lib/sounds';
 import { detectContentType } from '@/utils/content-type-detection';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
 import {
@@ -56,6 +63,7 @@ const AddMusicForm = ({
   handleSelectItem,
   closeSearch,
   searchBarOpacity,
+  isConverting,
 }: {
   isSearchActive: boolean;
   selectedItem: SelectedItem | null;
@@ -79,6 +87,7 @@ const AddMusicForm = ({
   handleSelectItem: (url: string, title: string, type: string) => void;
   closeSearch: () => void;
   searchBarOpacity: number;
+  isConverting: boolean;
 }) => (
   <>
     {/* Search/Input Section */}
@@ -108,8 +117,9 @@ const AddMusicForm = ({
                 onBlur={handleSearchBlur}
                 onPaste={handlePaste}
                 onKeyDown={handleInputKeyDown}
+                disabled={isConverting}
                 placeholder="Search or paste your music link here"
-                className="w-full h-full bg-transparent border-none outline-none text-center text-foreground placeholder:text-muted-foreground px-3 sm:px-4 md:px-6 text-sm sm:text-base"
+                className="w-full h-full bg-transparent border-none outline-none text-center text-foreground placeholder:text-muted-foreground px-3 sm:px-4 md:px-6 text-sm sm:text-base disabled:opacity-70"
                 style={{ fontSize: '16px', touchAction: 'manipulation' }}
               />
             </UrlBar>
@@ -117,7 +127,7 @@ const AddMusicForm = ({
           
           {/* Selected Item Display */}
           {selectedItem && (
-            <div className="mt-4 p-4 rounded-lg border border-border bg-card elev-2">
+            <div className="mt-4 p-4 rounded-lg border bg-card border-border elev-2">
               <div className="flex items-center gap-3">
                 {selectedItem.coverArtUrl ? (
                   <Image
@@ -139,7 +149,7 @@ const AddMusicForm = ({
                     {selectedItem.type}
                   </span>
                 </div>
-                <button onClick={clearSelection} aria-label="Clear selection" className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                <button onClick={clearSelection} disabled={isConverting} aria-label="Clear selection" className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:pointer-events-none disabled:opacity-40">
                   <X className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
@@ -148,7 +158,7 @@ const AddMusicForm = ({
 
           {/* Pasted Link Display */}
           {pastedLinkSource && !selectedItem && (
-            <div className="mt-4 p-4 rounded-lg border border-border bg-card elev-2">
+            <div className="mt-4 p-4 rounded-lg border bg-card border-border elev-2">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 shrink-0 bg-success/10 rounded-full flex items-center justify-center">
                   <Music2 className="w-5 h-5 text-success-text" aria-hidden="true" />
@@ -157,7 +167,7 @@ const AddMusicForm = ({
                   <p className="font-atkinson font-bold text-foreground">{pastedLinkSource} link pasted</p>
                   <p className="text-muted-foreground text-sm truncate font-mono">{musicUrl}</p>
                 </div>
-                <button onClick={clearSelection} aria-label="Clear link" className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                <button onClick={clearSelection} disabled={isConverting} aria-label="Clear link" className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:pointer-events-none disabled:opacity-40">
                   <X className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
@@ -177,7 +187,8 @@ const AddMusicForm = ({
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Tell us how you feel about the music"
             rows={6}
-            className="w-full rounded-lg border border-border bg-field elev-1 p-4 text-sm text-foreground placeholder:text-muted-foreground resize-none transition-colors focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            disabled={isConverting}
+            className="w-full rounded-lg border border-border bg-field elev-1 p-4 text-sm text-foreground placeholder:text-muted-foreground resize-none transition-colors focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-70"
             autoComplete="off"
             spellCheck="false"
           />
@@ -190,11 +201,11 @@ const AddMusicForm = ({
           <button
             type="button"
             onClick={handleAddToProfile}
-            disabled={!selectedItem && !musicUrl.trim()}
+            disabled={isConverting || (!selectedItem && !musicUrl.trim())}
             data-testid="add-music-submit"
             className="inline-flex h-12 w-full max-w-[280px] items-center justify-center rounded-md bg-primary px-8 font-mono text-xs font-bold uppercase tracking-[0.2em] text-primary-foreground elev-2 transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            Add to Profile
+            {isConverting ? 'Adding to your profile…' : 'Add to Profile'}
           </button>
 
           {errorMessage && (
@@ -233,14 +244,27 @@ export default function AddMusicPage() {
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
   const [pastedLinkSource, setPastedLinkSource] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  // Idempotency key of the in-flight conversion; doubles as the "converting" flag.
+  const [conversionKey, setConversionKey] = useState<string | null>(null);
+  // What's being converted, for the takeover overlay copy.
+  const [convertingMeta, setConvertingMeta] = useState<{
+    title?: string;
+    artist?: string;
+    artwork?: string;
+    kicker: string;
+    fallbackLabel: string;
+    headline: string;
+  } | null>(null);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const lastTrackedSearchRef = useRef<string>('');
   const debouncedSearchTerm = useDebounce(musicUrl, 500); // 500ms debounce for search
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
   const resolvedReturnRoute = user?.username ? `/profile/${user.username}` : null;
+  const linkConversion = useMusicLinkConversion();
+  const { label: conversionStageLabel } = useConversionStage(conversionKey);
+  const isConverting = conversionKey != null;
   const { data: topCharts, isLoading: isLoadingCharts } = useTopCharts();
   
   // Music search - only search if it's not a link and has sufficient length
@@ -370,6 +394,7 @@ export default function AddMusicPage() {
     setErrorMessage('');
     setIsSearchActive(false);
     searchInputRef.current?.blur();
+    playLinkRecognized();
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
@@ -388,6 +413,7 @@ export default function AddMusicPage() {
       setPastedLinkSource(null);
       setErrorMessage(validationError);
       setIsSearchActive(false);
+      playErrorTone();
 
       void captureClientEvent('unsupported_music_link_pasted', {
         route: '/add-music',
@@ -431,6 +457,7 @@ export default function AddMusicPage() {
     const validationError = validateMusicLink(normalizedUrl);
     if (validationError) {
       setErrorMessage(validationError);
+      playErrorTone();
       return;
     }
 
@@ -519,20 +546,14 @@ export default function AddMusicPage() {
     setErrorMessage('');
   };
 
-  const handleAddToProfile = useCallback(() => {
+  const handleAddToProfile = useCallback(async () => {
+    if (conversionKey) return;
     setErrorMessage('');
-    
+
     let urlToConvert = '';
-    let itemDetails = undefined;
-    
+
     if (selectedItem) {
       urlToConvert = normalizeUrlInput(selectedItem.url);
-      itemDetails = {
-        title: selectedItem.title,
-        artist: selectedItem.artist,
-        type: selectedItem.type,
-        coverArtUrl: selectedItem.coverArtUrl
-      };
     } else if (musicUrl.trim()) {
       urlToConvert = normalizeUrlInput(musicUrl);
       const validationError = validateMusicLink(urlToConvert);
@@ -557,33 +578,70 @@ export default function AddMusicPage() {
       source_domain: sanitizeDomain(urlToConvert),
       is_authenticated: true,
     });
-    
-    // Navigate immediately to post page with skeleton loading
-    // Pass the URL and description as query parameters
-    const params = new URLSearchParams({
-      url: urlToConvert,
-      fromAddMusic: 'true'
+
+    // Convert in place: a centered takeover (beamed card + live Bridge
+    // stages) carries the busy state, and we only navigate once the post is
+    // ready, so the user lands directly on the finished post — no skeleton.
+    const platformLabel = PLATFORM_LABELS[detected.platform];
+    const typeLabel = selectedItem?.type?.toLowerCase() ?? (detected.id ? detected.type : null);
+    setConvertingMeta({
+      title: selectedItem?.title,
+      artist: selectedItem?.artist || undefined,
+      artwork: selectedItem?.coverArtUrl || undefined,
+      // Search selections hide the platform — the catalog source behind
+      // search is an implementation detail. Pasted links name the platform.
+      kicker: selectedItem
+        ? ['Converting', typeLabel].filter(Boolean).join(' ')
+        : ['Converting', platformLabel, typeLabel].filter(Boolean).join(' '),
+      fallbackLabel: platformLabel ? `${platformLabel} link` : 'Music link',
+      headline: pickConvertingHeadline(),
     });
-    if (resolvedReturnRoute) {
-      params.append('from', resolvedReturnRoute);
+
+    const key =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `key-${Date.now()}-${Math.random()}`;
+    setConversionKey(key);
+
+    try {
+      const result = await linkConversion.mutateAsync({
+        url: urlToConvert,
+        description: description.trim() || undefined,
+        idempotencyKey: key,
+      });
+
+      // Warm handoff: prefetch the route and stash the post payload so
+      // /post/[id] renders real content immediately — no skeleton phase.
+      router.prefetch(`/post/${result.postId}`);
+      if (result.postId) {
+        try {
+          const post = await apiService.fetchPostById(result.postId);
+          if (post?.success) {
+            savePrefetchedPost(result.postId, post);
+          }
+        } catch {
+          // Post page falls back to fetching with retries.
+        }
+      }
+
+      const fromQuery = resolvedReturnRoute ? `?from=${encodeURIComponent(resolvedReturnRoute)}` : '';
+      const target = `/post/${result.postId}${fromQuery}`;
+      if (resolvedReturnRoute) {
+        router.replace(target);
+      } else {
+        router.push(target);
+      }
+    } catch (error) {
+      setConversionKey(null);
+      setConvertingMeta(null);
+      playErrorTone();
+      setErrorMessage(
+        error instanceof Error && error.message
+          ? error.message
+          : 'Something went wrong while converting your link. Please try again.',
+      );
     }
-    
-    if (description.trim()) {
-      params.append('description', description.trim());
-    }
-    
-    if (itemDetails) {
-      params.append('itemDetails', JSON.stringify(itemDetails));
-    }
-    
-    const target = `/post?${params.toString()}`;
-    setIsSubmitting(true);
-    if (resolvedReturnRoute) {
-      router.replace(target);
-    } else {
-      router.push(target);
-    }
-  }, [description, isValidMusicUrl, musicUrl, normalizeUrlInput, resolvedReturnRoute, router, selectedItem]);
+  }, [conversionKey, description, isValidMusicUrl, linkConversion, musicUrl, normalizeUrlInput, resolvedReturnRoute, router, selectedItem]);
 
   useEffect(() => {
     const query = debouncedSearchTerm.trim();
@@ -619,13 +677,84 @@ export default function AddMusicPage() {
     return null;
   }
 
-  // Show loading while navigating to the post page
-  if (isSubmitting) {
-    return <PageLoader message="Adding to your profile..." />;
-  }
 
   return (
     <>
+      {/* Conversion takeover: everything yields to a centered beamed card
+          narrating what's converting + the live Bridge stage. */}
+      <AnimatePresence>
+        {isConverting && (
+          <motion.div
+            key="add-music-converting"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm px-6"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              className="w-full max-w-xl text-center"
+            >
+              <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-primary">
+                {convertingMeta?.kicker ?? 'Converting'}
+              </p>
+              <p className="mb-6 font-teko text-2xl sm:text-3xl font-bold uppercase tracking-wide leading-none text-foreground">
+                {convertingMeta?.headline ?? 'Building your universal link'}
+              </p>
+              <ConversionBeam active borderRadius={12}>
+                <div className="rounded-xl border border-border/70 bg-card px-5 py-4 shadow-[0_2px_6px_rgba(0,0,0,0.05),0_4px_42px_rgba(0,0,0,0.06)]">
+                  <div className="flex items-center gap-4">
+                    {convertingMeta?.artwork ? (
+                      <Image
+                        src={convertingMeta.artwork}
+                        alt=""
+                        width={56}
+                        height={56}
+                        className="rounded-md ring-1 ring-border/40"
+                      />
+                    ) : (
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                        <Music2 className="h-6 w-6 text-primary" aria-hidden="true" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1 text-left">
+                      <p className="truncate font-atkinson font-bold text-foreground">
+                        {convertingMeta?.title ?? convertingMeta?.fallbackLabel ?? 'Music link'}
+                      </p>
+                      {convertingMeta?.artist && (
+                        <p className="truncate text-sm text-muted-foreground">{convertingMeta.artist}</p>
+                      )}
+                      <AnimatePresence mode="wait">
+                        <motion.p
+                          key={conversionStageLabel}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.2, ease: 'easeOut' }}
+                          className="mt-1 font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+                          aria-live="polite"
+                        >
+                          {conversionStageLabel}
+                        </motion.p>
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                </div>
+              </ConversionBeam>
+              {description.trim() && (
+                <p className="mx-auto mt-4 max-w-md text-sm italic text-muted-foreground line-clamp-2">
+                  &ldquo;{description.trim()}&rdquo;
+                </p>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Mobile Layout */}
       <div className="lg:hidden">
         <div className="min-h-screen relative bg-background">
@@ -699,6 +828,7 @@ export default function AddMusicPage() {
                   handleSelectItem={handleSelectItem}
                   closeSearch={closeSearch}
                   searchBarOpacity={searchBarOpacity}
+                  isConverting={isConverting}
                 />
               </div>
             </div>
@@ -750,6 +880,7 @@ export default function AddMusicPage() {
               handleSelectItem={handleSelectItem}
               closeSearch={closeSearch}
               searchBarOpacity={searchBarOpacity}
+              isConverting={isConverting}
             />
           </div>
         </div>

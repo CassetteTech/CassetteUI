@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { MusicLinkConversion, ElementType, MediaListTrack } from '@/types';
+import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTemplate, PostByIdResponse } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
 import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
@@ -14,7 +14,9 @@ import { PostInsightsSheet } from '@/components/features/post/post-insights-shee
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
+import { PostShareMenu } from '@/components/features/post/post-share-menu';
 import { useReportIssue } from '@/providers/report-issue-provider';
+import { takePrefetchedPost } from '@/lib/post-prefetch';
 import { Button } from '@/components/ui/button';
 import { BackButton } from '@/components/ui/back-button';
 import {
@@ -32,12 +34,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError, apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
-import { AlertCircle, Check, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AlertCircle, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
 import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
+import { buildAttributedPostPath } from '@/lib/attribution/attribution-links';
 import { toast } from 'sonner';
+import { playCopyConfirm, playErrorTone, playLikePop } from '@/lib/sounds';
 import { useQueryClient } from '@tanstack/react-query';
 import { appLogger } from '@/lib/observability/logger';
 import { captureUiException } from '@/lib/observability/error-reporting';
@@ -76,75 +80,15 @@ function SupportCTA({ className }: { className?: string }) {
   );
 }
 
-// Shared by all three layout branches so the toolbar Share affordance stays identical.
-function PostShareButton({
-  copyState,
-  onShare,
-  className,
-}: {
-  copyState: 'idle' | 'copied' | 'error';
-  onShare: () => void;
-  className?: string;
-}) {
-  return (
-    <motion.button
-      className={`inline-flex h-9 min-w-[120px] items-center justify-center gap-2 overflow-hidden rounded-md border px-4 font-mono text-[10px] font-bold uppercase tracking-[0.2em] backdrop-blur-sm transition-colors ${
-        copyState === 'copied'
-          ? 'border-success/40 bg-success/10 text-success-text'
-          : 'border-primary/25 bg-primary/10 text-primary elev-1 hover:bg-primary/20 hover:border-primary/40'
-      } ${className ?? ''}`}
-      onClick={onShare}
-      aria-label="Share"
-      whileTap={{ scale: 0.97 }}
-      animate={copyState === 'copied' ? { scale: [1, 1.03, 1] } : {}}
-      transition={{ duration: 0.2 }}
-    >
-      <AnimatePresence mode="wait">
-        {copyState === 'copied' ? (
-          <motion.span
-            key="copied"
-            className="flex items-center justify-center gap-2"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
-          >
-            <Check className="w-3.5 h-3.5" />
-            <span>Copied!</span>
-          </motion.span>
-        ) : (
-          <motion.span
-            key="share"
-            className="flex items-center justify-center gap-2"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
-          >
-            <span
-              aria-hidden="true"
-              className="w-3.5 h-3.5 bg-current shrink-0"
-              style={{
-                WebkitMaskImage: "url(/images/ic_share.png)",
-                maskImage: "url(/images/ic_share.png)",
-                WebkitMaskSize: "contain",
-                maskSize: "contain",
-                WebkitMaskRepeat: "no-repeat",
-                maskRepeat: "no-repeat",
-                WebkitMaskPosition: "center",
-                maskPosition: "center",
-              }}
-            />
-            <span>Share</span>
-          </motion.span>
-        )}
-      </AnimatePresence>
-    </motion.button>
-  );
-}
-
 interface PostClientPageProps {
   postId: string;
+  /**
+   * Post payload fetched server-side during the RSC render (shared with
+   * generateMetadata). Lets the page render without a client fetch; viewer-
+   * specific fields (liked/reposted) are reconciled in the background since
+   * the server fetch is unauthenticated.
+   */
+  initialPost?: PostByIdResponse | null;
 }
 
 type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
@@ -293,11 +237,12 @@ const unmarkPostAsReposted = (userId: string | undefined, targetPostId: string |
   }
 };
 
-export default function PostClientPage({ postId }: PostClientPageProps) {
+export default function PostClientPage({ postId, initialPost }: PostClientPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { isAuthenticated, isLoading, user } = useAuthState();
+  const isTeamAccount = isCassetteInternalAccount(user?.accountType ?? null);
   const { mutate: addToProfile, isPending: isAddingToProfile } = useAddMusicToProfile();
   const [addStatus, setAddStatus] = useState<'idle' | 'added' | 'error'>('idle');
   const [postData, setPostData] = useState<PostPageData | null>(null);
@@ -428,6 +373,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
       source_platform: sourcePlatformRef.current as 'spotify' | 'apple' | 'deezer' | 'unknown' | undefined,
       user_id: user?.id,
       is_authenticated: isAuthenticated,
+      ...(isTeamAccount ? { source_context: 'share_menu_plain' } : {}),
     });
 
     const shareUrl = buildShareUrl();
@@ -460,13 +406,50 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
       try {
         await navigator.clipboard.writeText(shareUrl);
         setCopyState('copied');
+        playCopyConfirm();
       } catch (err) {
         appLogger.warn('post_share_copy_failed', { error: err, route: '/post/[id]' });
         setCopyState('error');
+        playErrorTone();
         setTimeout(() => setCopyState('idle'), 2000);
       }
     }
-  }, [buildShareUrl, postData?.metadata?.title, postData?.metadata?.artist, postData?.postId, postData?.metadata?.type, postId, user?.id, isAuthenticated]);
+  }, [buildShareUrl, postData?.metadata?.title, postData?.metadata?.artist, postData?.postId, postData?.metadata?.type, postId, user?.id, isAuthenticated, isTeamAccount]);
+
+  // Team-only: copy the post URL tagged with a link template's utm params so the
+  // resulting traffic and signups surface in the internal attribution dashboard.
+  const handleAttributedCopy = useCallback(async (template: InternalSignupLinkTemplate) => {
+    const resolvedPostId = postData?.postId || postId;
+    if (!resolvedPostId || typeof window === 'undefined') return;
+
+    const shareUrl = `${window.location.origin}${buildAttributedPostPath(resolvedPostId, template)}`;
+
+    void captureClientEvent('post_shared', {
+      route: `/post/${resolvedPostId}`,
+      source_surface: 'post',
+      post_id: resolvedPostId,
+      element_type: postData?.metadata?.type as 'track' | 'album' | 'artist' | 'playlist' | undefined,
+      source_platform: sourcePlatformRef.current as 'spotify' | 'apple' | 'deezer' | 'unknown' | undefined,
+      user_id: user?.id,
+      is_authenticated: isAuthenticated,
+      source_context: 'share_menu_template',
+      traffic_source: template.source,
+      traffic_medium: template.medium ?? undefined,
+      traffic_campaign: template.campaign ?? undefined,
+      traffic_content: `post-${resolvedPostId}`,
+    });
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopyState('copied');
+      playCopyConfirm();
+    } catch (err) {
+      appLogger.warn('post_share_copy_failed', { error: err, route: '/post/[id]' });
+      setCopyState('error');
+      playErrorTone();
+      setTimeout(() => setCopyState('idle'), 2000);
+    }
+  }, [postData?.postId, postData?.metadata?.type, postId, user?.id, isAuthenticated]);
 
   const handleAddToProfile = useCallback(() => {
     const musicElementId = postData?.musicElementId;
@@ -565,6 +548,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     const optimisticLiked = !previousLiked;
     const optimisticLikeCount = Math.max(0, previousLikeCount + (optimisticLiked ? 1 : -1));
 
+    // Sound on like only; unlike stays silent.
+    if (optimisticLiked) {
+      playLikePop();
+    }
+
     setIsLikePending(true);
     setPostData((prev) =>
       prev
@@ -652,9 +640,23 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         setError(null);
 
         const startedAt = Date.now();
-        let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null = null;
+        // Inline conversion surfaces stash the finished post before
+        // navigating here (see lib/post-prefetch) — consume it instead of
+        // re-fetching so post-conversion arrivals never see the skeleton.
+        let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null =
+          takePrefetchedPost(postId);
 
-        while (Date.now() - startedAt < maxWaitMs) {
+        // The server render already fetched this post for metadata; reuse it
+        // so profile/shared-link arrivals skip the client fetch entirely. The
+        // server payload is unauthenticated, so signed-in viewers reconcile
+        // like/repost state in the background after first paint.
+        let reconcileViewerState = false;
+        if (!response && initialPost?.success) {
+          response = initialPost;
+          reconcileViewerState = isAuthenticated;
+        }
+
+        while (!response && Date.now() - startedAt < maxWaitMs) {
           if (isCancelled) return;
           try {
             const candidate = await apiService.fetchPostById(postId);
@@ -682,7 +684,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           throw new Error('Post is still finalizing. Please try again in a moment.');
         }
 
-        if (response.success) {
+        const applyResponse = (payload: PostByIdResponse) => {
+          const response = payload;
           setError(null);
           const elementTypeLower = response.elementType?.toLowerCase();
           const isTrackResp = elementTypeLower === 'track';
@@ -866,8 +869,34 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           if (transformedData.metadata.artwork) {
             extractColorFromArtwork(transformedData.metadata.artwork);
           }
-        } else {
+        };
+
+        if (!response.success) {
           throw new Error('Invalid response format');
+        }
+
+        applyResponse(response);
+
+        if (reconcileViewerState) {
+          try {
+            // The server payload only goes stale on viewer-specific fields, so
+            // ask for just those instead of re-running the full post query.
+            const viewerState = await apiService.fetchPostViewerState(postId);
+            if (!isCancelled && viewerState?.success) {
+              setPostData((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      likeCount: typeof viewerState.likeCount === 'number' ? viewerState.likeCount : prev.likeCount,
+                      likedByCurrentUser: Boolean(viewerState.likedByCurrentUser),
+                    }
+                  : prev
+              );
+            }
+          } catch {
+            // Best-effort — the post content is already rendered; only
+            // viewer-specific like state could be stale.
+          }
         }
       } catch (e) {
         if (isCancelled) return;
@@ -880,7 +909,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     return () => {
       isCancelled = true;
     };
-  }, [postId, user?.id, isAuthenticated]);
+  }, [postId, user?.id, isAuthenticated, initialPost]);
 
   useEffect(() => {
     if (isLoading || !postData) {
@@ -1039,7 +1068,12 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
             <div className="pt-4 pb-6 px-3 shrink-0 max-w-7xl mx-auto w-full">
               <div className="flex items-center justify-between gap-3">
                 <BackButton route={backRoute} fallbackRoute="/explore" />
-                <PostShareButton copyState={copyState} onShare={handleShare} />
+                <PostShareMenu
+                  isTeamAccount={isTeamAccount}
+                  copyState={copyState}
+                  onPlainShare={handleShare}
+                  onTemplateCopy={handleAttributedCopy}
+                />
                 {/* More Menu */}
                 {isOwnPost && (
                   <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
@@ -1330,9 +1364,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                   <div className="justify-self-start">
                     <BackButton route={backRoute} fallbackRoute="/explore" />
                   </div>
-                  <PostShareButton
+                  <PostShareMenu
+                    isTeamAccount={isTeamAccount}
                     copyState={copyState}
-                    onShare={handleShare}
+                    onPlainShare={handleShare}
+                    onTemplateCopy={handleAttributedCopy}
                     className="justify-self-center"
                   />
                   {/* More Menu */}
@@ -1583,9 +1619,11 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
                 <div className="justify-self-start">
                   <BackButton route={backRoute} fallbackRoute="/explore" />
                 </div>
-                <PostShareButton
+                <PostShareMenu
+                  isTeamAccount={isTeamAccount}
                   copyState={copyState}
-                  onShare={handleShare}
+                  onPlainShare={handleShare}
+                  onTemplateCopy={handleAttributedCopy}
                   className="justify-self-center"
                 />
                 {/* More Menu */}

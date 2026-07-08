@@ -388,6 +388,15 @@ export interface PostByIdResponse {
   originalLink?: string;
 }
 
+// API Response type for fetchPostViewerState — viewer-specific state only,
+// used to reconcile a server-rendered post without refetching the full payload.
+export interface PostViewerStateResponse {
+  success: boolean;
+  postId: string;
+  likeCount: number;
+  likedByCurrentUser: boolean;
+}
+
 export interface PostInsightsLifetimeMetrics {
   views: number;
   uniqueViewers: number;

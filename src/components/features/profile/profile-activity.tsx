@@ -174,7 +174,10 @@ function ActivityPostItem({
   return (
     <>
       <Card className="group relative gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden rounded-lg bg-card border-border/70 font-atkinson elev-1 hover:border-foreground/30 transition-colors duration-200">
-        <Link href={getNavigationPath(post)} className="block px-3 sm:px-4 py-3">
+        {/* prefetch={false}: viewport prefetch runs /post/[id] generateMetadata on the
+            server, bursting one Bridge GetPost per visible card (see 2026-07-08 prod
+            latency investigation). Cards navigate fine without route prefetch. */}
+        <Link href={getNavigationPath(post)} prefetch={false} className="block px-3 sm:px-4 py-3">
           <div className="flex gap-3 sm:gap-4 items-start">
             {/* Artwork with overlaid type badge */}
             <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 relative">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTemplate } from '@/types';
+import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTemplate, PostByIdResponse } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
 import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
@@ -82,6 +82,13 @@ function SupportCTA({ className }: { className?: string }) {
 
 interface PostClientPageProps {
   postId: string;
+  /**
+   * Post payload fetched server-side during the RSC render (shared with
+   * generateMetadata). Lets the page render without a client fetch; viewer-
+   * specific fields (liked/reposted) are reconciled in the background since
+   * the server fetch is unauthenticated.
+   */
+  initialPost?: PostByIdResponse | null;
 }
 
 type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
@@ -230,7 +237,7 @@ const unmarkPostAsReposted = (userId: string | undefined, targetPostId: string |
   }
 };
 
-export default function PostClientPage({ postId }: PostClientPageProps) {
+export default function PostClientPage({ postId, initialPost }: PostClientPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -639,6 +646,16 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
         let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null =
           takePrefetchedPost(postId);
 
+        // The server render already fetched this post for metadata; reuse it
+        // so profile/shared-link arrivals skip the client fetch entirely. The
+        // server payload is unauthenticated, so signed-in viewers reconcile
+        // like/repost state in the background after first paint.
+        let reconcileViewerState = false;
+        if (!response && initialPost?.success) {
+          response = initialPost;
+          reconcileViewerState = isAuthenticated;
+        }
+
         while (!response && Date.now() - startedAt < maxWaitMs) {
           if (isCancelled) return;
           try {
@@ -667,7 +684,8 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           throw new Error('Post is still finalizing. Please try again in a moment.');
         }
 
-        if (response.success) {
+        const applyResponse = (payload: PostByIdResponse) => {
+          const response = payload;
           setError(null);
           const elementTypeLower = response.elementType?.toLowerCase();
           const isTrackResp = elementTypeLower === 'track';
@@ -851,8 +869,24 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
           if (transformedData.metadata.artwork) {
             extractColorFromArtwork(transformedData.metadata.artwork);
           }
-        } else {
+        };
+
+        if (!response.success) {
           throw new Error('Invalid response format');
+        }
+
+        applyResponse(response);
+
+        if (reconcileViewerState) {
+          try {
+            const fresh = await apiService.fetchPostById(postId);
+            if (!isCancelled && fresh?.success) {
+              applyResponse(fresh);
+            }
+          } catch {
+            // Best-effort — the post content is already rendered; only
+            // viewer-specific like/repost state could be stale.
+          }
         }
       } catch (e) {
         if (isCancelled) return;
@@ -865,7 +899,7 @@ export default function PostClientPage({ postId }: PostClientPageProps) {
     return () => {
       isCancelled = true;
     };
-  }, [postId, user?.id, isAuthenticated]);
+  }, [postId, user?.id, isAuthenticated, initialPost]);
 
   useEffect(() => {
     if (isLoading || !postData) {

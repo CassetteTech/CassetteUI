@@ -2,6 +2,7 @@ import { clientConfig } from '@/lib/config-client';
 import {
   MusicLinkConversion,
   PostByIdResponse,
+  PostViewerStateResponse,
   PostComment,
   PaginatedPostCommentsResponse,
   CommentLikeResponse,
@@ -1055,6 +1056,14 @@ class ApiService {
   // Fetch post by ID (includes conversion data)
   async fetchPostById(postId: string, options?: { signal?: AbortSignal }): Promise<PostByIdResponse> {
     return this.request<PostByIdResponse>(`/api/v1/social/posts/${postId}`, {
+      signal: options?.signal,
+    });
+  }
+
+  // Fetch only viewer-specific post state (like count + liked-by-viewer).
+  // Much cheaper than fetchPostById; used to reconcile server-rendered posts.
+  async fetchPostViewerState(postId: string, options?: { signal?: AbortSignal }): Promise<PostViewerStateResponse> {
+    return this.request<PostViewerStateResponse>(`/api/v1/social/posts/${postId}/viewer-state`, {
       signal: options?.signal,
     });
   }

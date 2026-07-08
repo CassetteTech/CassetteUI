@@ -879,13 +879,23 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
 
         if (reconcileViewerState) {
           try {
-            const fresh = await apiService.fetchPostById(postId);
-            if (!isCancelled && fresh?.success) {
-              applyResponse(fresh);
+            // The server payload only goes stale on viewer-specific fields, so
+            // ask for just those instead of re-running the full post query.
+            const viewerState = await apiService.fetchPostViewerState(postId);
+            if (!isCancelled && viewerState?.success) {
+              setPostData((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      likeCount: typeof viewerState.likeCount === 'number' ? viewerState.likeCount : prev.likeCount,
+                      likedByCurrentUser: Boolean(viewerState.likedByCurrentUser),
+                    }
+                  : prev
+              );
             }
           } catch {
             // Best-effort — the post content is already rendered; only
-            // viewer-specific like/repost state could be stale.
+            // viewer-specific like state could be stale.
           }
         }
       } catch (e) {

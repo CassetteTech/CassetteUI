@@ -1,47 +1,60 @@
 "use client";
 
 import React from "react";
-import { TeamHero } from "./_components/TeamHero";
+import { TeamPixelHero } from "./_components/TeamPixelHero";
+import { CurtainSheet } from "@/components/features/marketing/curtain-sheet";
+import { StatStrip } from "@/components/features/marketing/stat-strip";
+import { KofiSupportBand } from "@/components/features/marketing/kofi-support-band";
 import { TeamGrid } from "./_components/TeamGrid";
 import { TeamMemberModal } from "./_components/TeamMemberModal";
 import { ValuesSection } from "./_components/ValuesSection";
-import { SupportCTA } from "./_components/SupportCTA";
 import { JoinCTA } from "./_components/JoinCTA";
+import { teamMembers } from "./_data";
 
+const teamStats = [
+  { value: String(teamMembers.length), label: "Crew Members" },
+  { value: "∞", label: "Music Connections" },
+  { value: "2022", label: "Founded" },
+];
+
+/**
+ * Mirrors /about's structure: pinned pixel hero, curtain sheet, liner-notes
+ * strip, then the roster and values bands.
+ */
 export default function TeamPage() {
-  const [expandedMember, setExpandedMember] = React.useState<string | null>(null);
+  const [expandedMember, setExpandedMember] = React.useState<string | null>(
+    null
+  );
 
   return (
-    <div className="min-h-screen surface-bottom relative">
-      {/* Subtle grain texture overlay */}
-      <div
-        className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-          backgroundRepeat: "repeat",
-        }}
-      />
+    <div className="relative">
+      {/* Pinned image hero — the sheet below scrolls up and over it */}
+      <TeamPixelHero />
 
-      <div className="relative z-10">
-        {/* Hero — on page background */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-32">
-          <TeamHero />
-        </div>
+      <CurtainSheet tab="The Crew">
+        {/* Liner notes — quiet stat strip. Bottom padding keeps clear of any
+            following band's 24px dither edge. */}
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 md:pt-20 pb-14">
+          <StatStrip items={teamStats} />
+        </section>
 
-        {/* Team Grid — cream band */}
+        {/* Roster on page background */}
         <TeamGrid onSelectMember={setExpandedMember} />
 
-        {/* Values — dark band */}
+        {/* Values — dark statement band */}
         <ValuesSection />
 
-        {/* Support — on page background */}
+        {/* Support — quiet ruled strip */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <SupportCTA />
+          <KofiSupportBand
+            title="Back The Team"
+            copy="Love what we're building? Drop a Ko-fi so we can keep shipping new sharing tools."
+          />
         </div>
 
-        {/* Join CTA — wine band */}
+        {/* Closing CTA — navy band, bookended with the hero halftone */}
         <JoinCTA />
-      </div>
+      </CurtainSheet>
 
       <TeamMemberModal
         memberName={expandedMember}

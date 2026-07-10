@@ -2,12 +2,17 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
+import { DitherEdge } from "@/components/features/marketing/dither-edge";
 import { KOFI_ICON_SRC } from "@/lib/ko-fi";
 
+/**
+ * Cream band carrying the Ko-fi embed after the dark statement band.
+ * Kept light so it blends with the widget's background.
+ */
 export function SupportersShowcase() {
   return (
-    <section className="section-cream">
-      <div className="editorial-rule" />
+    <section className="section-cream relative">
+      <DitherEdge color="hsl(var(--section-cream))" side="top" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
         <motion.div
@@ -17,7 +22,6 @@ export function SupportersShowcase() {
           transition={{ duration: 0.5 }}
           className="flex flex-col items-center"
         >
-          {/* Header */}
           <div className="flex items-center gap-3 mb-2">
             <Image
               src={KOFI_ICON_SRC}
@@ -26,11 +30,11 @@ export function SupportersShowcase() {
               height={28}
               className="rounded-full"
             />
-            <h3 className="font-teko text-3xl sm:text-4xl text-foreground leading-tight">
-              Buy the Team a Coffee
+            <h3 className="font-teko text-3xl sm:text-4xl uppercase tracking-tight leading-none">
+              Buy The Team A Coffee
             </h3>
           </div>
-          <p className="font-roboto text-muted-foreground text-sm mb-8">
+          <p className="font-roboto text-sm italic opacity-70 mb-8">
             Fuel development — support goes directly to the team.
           </p>
 
@@ -38,7 +42,7 @@ export function SupportersShowcase() {
              The container is shorter than the iframe; pt pushes the
              form down so it sits visually centred, and overflow-hidden
              clips the empty whitespace that falls below the fold. */}
-          <div className="w-full max-w-md h-[480px] sm:h-[540px] md:h-[620px] rounded-xl overflow-hidden elev-2">
+          <div className="w-full max-w-md h-[480px] sm:h-[540px] md:h-[620px] border-2 border-foreground overflow-hidden">
             <iframe
               id="kofiframe"
               src="https://ko-fi.com/cassettetech/?hidefeed=true&widget=true&embed=true&preview=true"

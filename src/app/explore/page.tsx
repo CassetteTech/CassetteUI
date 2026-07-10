@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -202,7 +201,6 @@ function ZineSection({
 }
 
 function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
-  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
   const rand = hashRand(post.postId || String(index));
   const rot = (rand() - 0.5) * 5;
   const tapeColor = TAPE_COLORS[index % TAPE_COLORS.length];
@@ -214,7 +212,6 @@ function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
   const username = post.isRepost
     ? post.originalPostOwnerUsername || post.originalUsername || post.username
     : post.username;
-  const artworkUrl = post.imageUrl?.trim();
 
   return (
     <motion.div
@@ -240,14 +237,13 @@ function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
         className="group block bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-3 pb-4 shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow"
       >
         <div className="relative aspect-square overflow-hidden bg-muted">
-          {artworkUrl && artworkUrl !== failedArtworkUrl ? (
+          {post.imageUrl ? (
             <Image
-              src={artworkUrl}
+              src={post.imageUrl}
               alt={post.title}
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"
-              onError={() => setFailedArtworkUrl(artworkUrl)}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">

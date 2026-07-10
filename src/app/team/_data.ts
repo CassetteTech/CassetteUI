@@ -147,15 +147,6 @@ export function getTypeConfig(type: string | string[]): TypeConfig {
   }
 }
 
-// Color classes for category filter tabs
-export const categoryColors: Record<TeamCategory, { activeBg: string; activeBorder: string; countBg: string }> = {
-  all:       { activeBg: "bg-foreground text-background", activeBorder: "border-foreground", countBg: "bg-background/20 text-background" },
-  cofounder: { activeBg: "bg-primary text-primary-foreground", activeBorder: "border-primary", countBg: "bg-primary-foreground/20 text-primary-foreground" },
-  engineer:  { activeBg: "bg-info text-info-foreground", activeBorder: "border-info", countBg: "bg-info-foreground/20 text-info-foreground" },
-  marketer:  { activeBg: "bg-accentRoyal text-accentRoyal-foreground", activeBorder: "border-accentRoyal", countBg: "bg-accentRoyal-foreground/20 text-accentRoyal-foreground" },
-  investor:  { activeBg: "bg-warning text-foreground", activeBorder: "border-warning", countBg: "bg-foreground/15 text-foreground" },
-};
-
 export const categoryDefs: { id: TeamCategory; label: string; count: number }[] = [
   { id: "all", label: "All Team", count: teamMembers.length },
   { id: "cofounder", label: "Co-Founders", count: teamMembers.filter(m => (Array.isArray(m.type) ? m.type.includes("cofounder") : m.type === "cofounder")).length },

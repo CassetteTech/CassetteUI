@@ -1,61 +1,64 @@
 "use client";
 
-import { AboutHero } from "./_components/AboutHero";
+import { PixelHero } from "./_components/PixelHero";
+import { CurtainSheet } from "@/components/features/marketing/curtain-sheet";
+import { StatStrip } from "@/components/features/marketing/stat-strip";
+import { KofiSupportBand } from "@/components/features/marketing/kofi-support-band";
 import { ProblemSection } from "./_components/ProblemSection";
 import { JourneyTimeline } from "./_components/JourneyTimeline";
-import { SupportCTA } from "./_components/SupportCTA";
-import { FeaturesSection } from "./_components/FeaturesSection";
+import { MusicIdentitySection } from "./_components/MusicIdentitySection";
 import { ShowcaseStrip } from "./_components/ShowcaseStrip";
 import { ExampleProfileSection } from "./_components/ExampleProfileSection";
 import { VisionSection } from "./_components/VisionSection";
 import { SupportersShowcase } from "./_components/SupportersShowcase";
 import { FinalCTA } from "./_components/FinalCTA";
+import { linerNotes } from "./_data";
 
+/**
+ * A pinned pixel hero, then a curtain content sheet that scrolls up over it.
+ */
 export default function AboutPage() {
   return (
-    <div className="min-h-screen surface-bottom relative">
-      {/* Subtle grain texture overlay */}
-      <div
-        className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-          backgroundRepeat: "repeat",
-        }}
-      />
+    <div className="relative">
+      {/* Pinned image hero — the sheet below scrolls up and over it */}
+      <PixelHero />
 
-      <div className="relative z-10">
-        {/* Hero — on page background */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-32">
-          <AboutHero />
-        </div>
+      <CurtainSheet tab="The Story">
+        {/* Liner notes — quiet stat strip. Bottom padding must clear the
+            next band's 24px dither edge so it doesn't shadow the strip. */}
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 md:pt-20 pb-14">
+          <StatStrip items={linerNotes} />
+        </section>
 
-        {/* Problem — navy band */}
+        {/* The Problem — charcoal statement band */}
         <ProblemSection />
 
-        {/* Example Profile + Showcase — featured high up */}
+        {/* The Profile — cream band with the interactive demo */}
+        <MusicIdentitySection />
+
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Focal profile card — a real one in the wild */}
           <ExampleProfileSection />
+          {/* Live smart-link demo */}
           <ShowcaseStrip />
-        </div>
-
-        {/* Journey & Support — on page background */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Spool-line timeline */}
           <JourneyTimeline />
-          <SupportCTA />
+          {/* Support — quiet ruled strip */}
+          <KofiSupportBand
+            title="Fuel The Mission"
+            copy="Indie team, indie budget. If our story resonates, drop a Ko-fi."
+          />
         </div>
 
-        {/* Features — cream band */}
-        <FeaturesSection />
-
-        {/* Vision — dark band */}
+        {/* Vision — dark statement band */}
         <VisionSection />
 
-        {/* Supporters — light band to blend with Ko-fi widget */}
+        {/* Supporters — light band to blend with the Ko-fi widget */}
         <SupportersShowcase />
 
-        {/* Final CTA — wine band */}
+        {/* Closing CTA — wine band, bookended with the hero halftone */}
         <FinalCTA />
-      </div>
+      </CurtainSheet>
     </div>
   );
 }

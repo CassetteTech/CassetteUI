@@ -9,6 +9,7 @@ import {
   useTransform,
 } from "framer-motion";
 import { ArrowRight, ChevronDown, Mail } from "lucide-react";
+import heroHalftone from "@/assets/images/hero-halftone.webp";
 
 /**
  * Pinned halftone hero for /team. Same image as /about, framed low on the
@@ -36,10 +37,11 @@ export function TeamPixelHero() {
         className="absolute inset-0"
       >
         <Image
-          src="/images/backgrounds/image.png"
+          src={heroHalftone}
           alt=""
           fill
           priority
+          placeholder="blur"
           sizes="100vw"
           className="object-cover object-[30%_78%]"
         />

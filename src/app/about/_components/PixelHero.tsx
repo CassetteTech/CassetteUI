@@ -10,6 +10,7 @@ import {
 } from "framer-motion";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { useAuthState } from "@/hooks/use-auth";
+import heroHalftone from "@/assets/images/hero-halftone.webp";
 
 /**
  * Full-viewport halftone hero. Pinned via `sticky` so the content sheet in
@@ -41,10 +42,11 @@ export function PixelHero() {
         className="absolute inset-0"
       >
         <Image
-          src="/images/backgrounds/image.png"
+          src={heroHalftone}
           alt=""
           fill
           priority
+          placeholder="blur"
           sizes="100vw"
           className="object-cover"
         />

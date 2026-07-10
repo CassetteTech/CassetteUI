@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { DITHER_BAND_MASK_TOP } from "@/components/features/marketing/dither-edge";
+import heroHalftone from "@/assets/images/hero-halftone.webp";
 
 /**
  * Closing CTA — wine band bookended with the hero halftone. The band itself
@@ -22,7 +23,7 @@ export function FinalCTA() {
         {/* Bookend: same halftone as the hero, dimmed under the wine band */}
         <div className="absolute inset-0 opacity-[0.14] pointer-events-none select-none">
           <Image
-            src="/images/backgrounds/image.png"
+            src={heroHalftone}
             alt=""
             fill
             sizes="100vw"

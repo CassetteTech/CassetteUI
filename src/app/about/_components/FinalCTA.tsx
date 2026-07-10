@@ -47,14 +47,14 @@ export function FinalCTA() {
         >
           <Link
             href="/auth/signup"
-            className="inline-flex items-center justify-center gap-3 bg-primary border-2 border-foreground text-primary-foreground font-mono text-[12px] uppercase tracking-[0.25em] px-6 py-3 shadow-flat-4 hover:-translate-y-0.5 hover:shadow-flat-6 transition-all"
+            className="inline-flex items-center justify-center gap-3 bg-primary border-2 border-foreground text-primary-foreground font-mono text-[12px] uppercase tracking-[0.25em] px-6 py-3 shadow-flat-4 hover:-translate-y-0.5 hover:shadow-flat-6 transition-[transform,box-shadow]"
           >
             <span>Start Sharing Free</span>
             <ArrowRight size={16} />
           </Link>
           <Link
             href="/profile/matttoppi"
-            className="inline-flex items-center justify-center gap-3 bg-background border-2 border-foreground text-foreground font-mono text-[12px] uppercase tracking-[0.25em] px-6 py-3 shadow-flat-4 hover:bg-primary-foreground hover:-translate-y-0.5 hover:shadow-flat-primary-6 transition-all"
+            className="inline-flex items-center justify-center gap-3 bg-background border-2 border-foreground text-foreground font-mono text-[12px] uppercase tracking-[0.25em] px-6 py-3 shadow-flat-4 hover:bg-primary-foreground hover:-translate-y-0.5 hover:shadow-flat-primary-6 transition-[color,background-color,transform,box-shadow]"
           >
             See An Example
           </Link>

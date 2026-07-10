@@ -410,13 +410,13 @@ export default function HomePageClient() {
 
 
   // Calculate animation classes
-  const logoClasses = `transition-[opacity,transform] ${isInitialLoad ? 'duration-1100' : 'duration-500'} ease-out ${
+  const logoClasses = `transition-[opacity,transform] ${isInitialLoad ? 'duration-1100' : 'duration-300'} ease-out ${
     logoVisible 
       ? (isSearchActive ? 'opacity-0 transform -translate-y-8 lg:opacity-100 lg:transform-none' : 'opacity-100 transform translate-y-0')
       : 'opacity-0 transform translate-y-16'
   }`;
 
-  const taglineClasses = `transition-all duration-1000 ease-out ${
+  const taglineClasses = `transition-opacity duration-1000 ease-out ${
     taglineVisible && !isSearchActive ? 'opacity-100' : 'opacity-0 lg:opacity-100'
   }`;
 
@@ -424,7 +424,7 @@ export default function HomePageClient() {
     ? 'fixed top-16 left-0 right-0 z-40 bg-background pt-3 pb-2 shadow-sm lg:top-0 lg:bg-transparent lg:pt-0 lg:pb-0 lg:left-auto lg:shadow-none'
     : '';
 
-  const bottomContentClasses = `transition-all duration-1000 ease-out ${
+  const bottomContentClasses = `transition-opacity duration-1000 ease-out ${
     bottomVisible && !isSearchActive ? 'opacity-100' : 'opacity-0 lg:opacity-100'
   }`;
 
@@ -637,7 +637,7 @@ export default function HomePageClient() {
 
               {/* Search Results Container - Desktop only in right column.
                   Removed from flow while converting so the bar can center. */}
-              <div className={`${isConverting ? 'lg:hidden' : 'lg:block'} hidden search-container transition-all duration-500 ease-out w-full opacity-100 flex-1 overflow-hidden pb-8`} style={{overscrollBehavior: 'contain'}}>
+              <div className={`${isConverting ? 'lg:hidden' : 'lg:block'} hidden search-container transition-opacity duration-300 ease-out w-full opacity-100 flex-1 overflow-hidden pb-8`} style={{overscrollBehavior: 'contain'}}>
                 <SearchResults
                   results={displayData}
                   query={debouncedSearchTerm}

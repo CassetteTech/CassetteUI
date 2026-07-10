@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EASE_OUT_QUART } from "@/lib/motion";
 import { showcaseLinks } from "../_data";
 
 const TAPE_COLORS = [
@@ -77,7 +78,7 @@ export function ShowcaseStrip() {
               transition={{
                 duration: 0.4,
                 delay: Math.min(index * 0.04, 0.2),
-                ease: [0.23, 1, 0.32, 1],
+                ease: EASE_OUT_QUART,
               }}
               className="relative"
               style={{ transformOrigin: "center" }}
@@ -109,7 +110,7 @@ export function ShowcaseStrip() {
 
                 <div className="mt-3 flex items-center gap-2">
                   <span className="h-px flex-1 bg-foreground/20" />
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-[color,transform]" />
                 </div>
               </Link>
             </motion.div>

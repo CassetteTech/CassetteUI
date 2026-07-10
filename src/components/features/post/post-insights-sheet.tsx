@@ -421,13 +421,13 @@ function TrendChart({ points }: { points: PostInsightsTrendPoint[] }) {
                 title={`${formatShortDate(point.date)} · ${point.views} views · ${point.destinationOpens} opens`}
               >
                 <div
-                  className="w-[6px] rounded-sm bg-foreground/80 transition-[height] duration-500 ease-out"
-                  style={{ height: `${viewH}px` }}
+                  className="h-24 w-[6px] origin-bottom rounded-sm bg-foreground/80 transition-transform duration-300 ease-out"
+                  style={{ transform: `scaleY(${viewH / 96})` }}
                   aria-hidden
                 />
                 <div
-                  className="w-[6px] rounded-sm bg-primary transition-[height] duration-500 ease-out"
-                  style={{ height: `${openH}px` }}
+                  className="h-24 w-[6px] origin-bottom rounded-sm bg-primary transition-transform duration-300 ease-out"
+                  style={{ transform: `scaleY(${openH / 96})` }}
                   aria-hidden
                 />
               </div>

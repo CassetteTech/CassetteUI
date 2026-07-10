@@ -103,7 +103,7 @@ export const TrackMatchingList: React.FC<TrackMatchingListProps> = ({
             <div
               key={index}
               className={`
-                flex items-center gap-3 p-2 rounded-md border transition-all duration-300
+                flex items-center gap-3 p-2 rounded-md border transition-colors duration-300
                 ${status === 'matched' 
                   ? 'bg-success/5 border-success/20' 
                   : status === 'searching'
@@ -152,10 +152,10 @@ export const TrackMatchingList: React.FC<TrackMatchingListProps> = ({
             : `Matching ${contentType} tracks...`
           }
         </div>
-        <div className="w-full bg-border rounded-full h-2">
-          <div 
-            className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
-            style={{ width: `${(matchedCount / totalCount) * 100}%` }}
+        <div className="w-full bg-border rounded-full h-2 overflow-hidden">
+          <div
+            className="bg-primary h-2 w-full origin-left rounded-full transition-transform duration-300 ease-out"
+            style={{ transform: `scaleX(${(matchedCount / totalCount) || 0})` }}
           />
         </div>
       </div>

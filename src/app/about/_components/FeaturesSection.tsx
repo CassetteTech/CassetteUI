@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { Music2 } from "lucide-react";
 import { ProfileDemo } from "@/components/demo/profile-demo";
+import { EASE_OUT_QUART } from "@/lib/motion";
 import { featureCards, identityTiles, heroPreviewLinks } from "../_data";
 
 export function FeaturesSection() {
@@ -76,10 +77,10 @@ export function FeaturesSection() {
                   transition={{
                     duration: 0.4,
                     delay: index * 0.08,
-                    ease: [0.23, 1, 0.32, 1],
+                    ease: EASE_OUT_QUART,
                   }}
                 >
-                  <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 relative overflow-hidden shadow-flat-5 dark:shadow-flat-white-5 hover:-translate-y-1 hover:shadow-flat-primary-7 transition-all duration-150 ease-linear">
+                  <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 relative overflow-hidden shadow-flat-5 dark:shadow-flat-white-5 hover:-translate-y-1 hover:shadow-flat-primary-7 transition-[transform,box-shadow] duration-150 ease-out-quart">
                     {/* Accent bar */}
                     <div
                       className={`h-[3px] w-12 ${card.accentBar} mb-4`}
@@ -105,7 +106,7 @@ export function FeaturesSection() {
                           <Link
                             key={link.title}
                             href={link.href}
-                            className="bg-background border-2 border-foreground p-3 shadow-flat-3 hover:-translate-y-0.5 hover:shadow-flat-primary-4 transition-all"
+                            className="bg-background border-2 border-foreground p-3 shadow-flat-3 hover:-translate-y-0.5 hover:shadow-flat-primary-4 transition-[transform,box-shadow]"
                           >
                             <div className="flex items-center gap-3">
                               <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center flex-shrink-0">

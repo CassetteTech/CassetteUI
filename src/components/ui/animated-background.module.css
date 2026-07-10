@@ -1,0 +1,54 @@
+/* Pure-CSS drift for the floating animation elements.
+ *
+ * Replaces the old per-frame requestAnimationFrame + React setState loop.
+ * Each element is generated once; drift/entrance run entirely on the
+ * compositor (transform + opacity only). Per-element randomness
+ * (duration, delay, direction, distance) is supplied via inline
+ * CSS custom properties from the component.
+ */
+
+.element {
+  position: absolute;
+  /* Entrance: fade + settle from 0.9 -> 1 (no scale(0)). */
+  opacity: 0;
+  transform: translate3d(0, 0, 0) scale(0.9);
+  animation:
+    ab-enter 0.5s ease-out forwards,
+    ab-drift var(--drift-duration, 24s) ease-in-out infinite alternate;
+  /* Enter first, then start drifting after it has settled. */
+  animation-delay: 0s, var(--drift-delay, 0s);
+  will-change: transform, opacity;
+}
+
+@keyframes ab-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.9)
+      rotate(var(--rotation, 0deg));
+  }
+  to {
+    opacity: var(--target-opacity, 0.5);
+    transform: translate3d(0, 0, 0) scale(1)
+      rotate(var(--rotation, 0deg));
+  }
+}
+
+@keyframes ab-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1)
+      rotate(var(--rotation, 0deg));
+  }
+  to {
+    transform: translate3d(var(--drift-x, 0px), var(--drift-y, 0px), 0)
+      scale(1)
+      rotate(calc(var(--rotation, 0deg) + var(--drift-rotate, 0deg)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .element {
+    /* Drop the drift; keep a settled, static element at full opacity. */
+    animation: ab-enter 0.5s ease-out forwards;
+    transform: translate3d(0, 0, 0) scale(1) rotate(var(--rotation, 0deg));
+  }
+}

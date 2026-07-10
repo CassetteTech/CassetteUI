@@ -34,7 +34,7 @@ export const CollectionItem: React.FC<CollectionItemProps> = ({ item, onClick })
     <div
       onClick={onClick}
       className={cn(
-        "relative group cursor-pointer transition-all duration-200",
+        "relative group cursor-pointer transition-transform duration-200",
         "hover:transform hover:scale-[1.02]"
       )}
     >

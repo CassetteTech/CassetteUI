@@ -15,7 +15,7 @@ export const HeadlineText: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'h1' 
 }) => (
-  <Component className={cn('font-teko text-xl sm:text-2xl font-bold text-foreground', className)}>
+  <Component className={cn('font-teko text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-tight', className)}>
     {children}
   </Component>
 );
@@ -25,7 +25,7 @@ export const CassetteTitle: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'h1' 
 }) => (
-  <Component className={cn('font-teko text-xl sm:text-2xl md:text-3xl font-semibold text-foreground', className)}>
+  <Component className={cn('font-teko text-xl sm:text-2xl md:text-3xl font-semibold text-foreground tracking-tight leading-tight', className)}>
     {children}
   </Component>
 );
@@ -35,7 +35,7 @@ export const SongTitle: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'h2' 
 }) => (
-  <Component className={cn('font-teko text-2xl sm:text-3xl md:text-4xl font-bold text-foreground tracking-custom-5', className)}>
+  <Component className={cn('font-teko text-2xl sm:text-3xl md:text-4xl font-bold text-foreground tracking-tight', className)}>
     {children}
   </Component>
 );
@@ -137,7 +137,7 @@ export const ButtonText: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'span' 
 }) => (
-  <Component className={cn('font-teko text-base sm:text-lg md:text-xl font-bold text-white tracking-custom-4', className)}>
+  <Component className={cn('font-teko text-base sm:text-lg md:text-xl font-bold text-white tracking-normal', className)}>
     {children}
   </Component>
 );
@@ -189,7 +189,7 @@ export const TrackPageSongTitle: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'h1' 
 }) => (
-  <Component className={cn('font-teko text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-custom-5', className)}>
+  <Component className={cn('font-teko text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight', className)}>
     {children}
   </Component>
 );
@@ -230,7 +230,7 @@ export const AddMusicTitle: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'h1' 
 }) => (
-  <Component className={cn('font-atkinson text-3xl sm:text-4xl md:text-5xl font-bold text-foreground tracking-wide', className)}>
+  <Component className={cn('font-atkinson text-3xl sm:text-4xl md:text-5xl font-bold text-foreground tracking-tight', className)}>
     {children}
   </Component>
 );

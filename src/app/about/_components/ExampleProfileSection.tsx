@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, ListMusic, Disc3, Music2, Mic2 } from "lucide-react";
+import { EASE_OUT_QUART } from "@/lib/motion";
 
 const tabs = [
   { icon: ListMusic, label: "Playlists" },
@@ -46,7 +47,7 @@ export function ExampleProfileSection() {
         whileInView={{ opacity: 1, y: 0, rotate: -1.2 }}
         whileHover={{ rotate: 0, y: -4 }}
         viewport={{ once: true, margin: "-5%" }}
-        transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+        transition={{ duration: 0.5, ease: EASE_OUT_QUART }}
         className="relative max-w-2xl mx-auto"
         style={{ transformOrigin: "center" }}
       >
@@ -83,7 +84,7 @@ export function ExampleProfileSection() {
                 @matttoppi
               </p>
             </div>
-            <ArrowRight className="hidden sm:block h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
+            <ArrowRight className="hidden sm:block h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-[color,transform] shrink-0" />
           </div>
 
           <p className="mt-5 text-sm text-foreground/80 italic border-l-2 border-foreground/30 pl-3">

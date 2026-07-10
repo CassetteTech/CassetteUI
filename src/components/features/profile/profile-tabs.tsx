@@ -65,10 +65,9 @@ export function ProfileTabs({
       >
         {/* Sliding underline indicator */}
         <div
-          className="absolute -bottom-0.5 h-0.5 bg-primary transition-all duration-300 ease-out"
+          className="absolute -bottom-0.5 left-0 h-0.5 w-px origin-left bg-primary transition-transform duration-300 ease-out-quart"
           style={{
-            left: sliderStyle.left,
-            width: sliderStyle.width,
+            transform: `translateX(${sliderStyle.left}px) scaleX(${sliderStyle.width})`,
           }}
         />
 

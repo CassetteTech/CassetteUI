@@ -69,15 +69,14 @@ export function PostEngagementBar({
       )}
     >
       {/* Like */}
-      <motion.button
+      <button
         type="button"
         onClick={onToggleLike}
         disabled={!onToggleLike || isLikePending}
-        whileTap={{ scale: 0.92 }}
         aria-label={likedByCurrentUser ? 'Unlike post' : 'Like post'}
         aria-pressed={likedByCurrentUser}
         className={cn(
-          'inline-flex items-center rounded-full font-atkinson text-xs font-bold tracking-wide transition-colors duration-100',
+          'inline-flex items-center rounded-full font-atkinson text-xs font-bold tracking-wide transition-[color,background-color,transform] duration-150 active:scale-[0.96]',
           btnGap,
           btnPadding,
           likedByCurrentUser
@@ -95,20 +94,19 @@ export function PostEngagementBar({
           <Heart className={cn('size-3.5', likedByCurrentUser && 'fill-current')} />
         </motion.span>
         {hasLikeData && <span className="tabular-nums">{formattedLikes}</span>}
-      </motion.button>
+      </button>
 
       <span className="h-4 w-px bg-border/40" aria-hidden />
 
       {/* Comments trigger */}
-      <motion.button
+      <button
         type="button"
         data-comments-trigger
         onClick={onOpenComments}
         disabled={!onOpenComments}
-        whileTap={{ scale: 0.92 }}
         aria-label={commentsAriaLabel}
         className={cn(
-          'inline-flex items-center rounded-full font-atkinson text-xs font-bold tracking-wide transition-colors duration-200',
+          'inline-flex items-center rounded-full font-atkinson text-xs font-bold tracking-wide transition-[color,background-color,transform] duration-200 active:scale-[0.96]',
           btnGap,
           btnPadding,
           'text-muted-foreground hover:text-foreground hover:bg-muted/60',
@@ -124,7 +122,7 @@ export function PostEngagementBar({
             className="size-3 animate-spin rounded-full border-[1.5px] border-current border-t-transparent opacity-60"
           />
         )}
-      </motion.button>
+      </button>
 
       {/* Repost */}
       {canRepost && (
@@ -132,15 +130,14 @@ export function PostEngagementBar({
           <span className="h-4 w-px bg-border/40" aria-hidden />
           <Tooltip>
             <TooltipTrigger asChild>
-              <motion.button
+              <button
                 type="button"
                 onClick={onRepost}
                 disabled={!onRepost || isRepostPending}
-                whileTap={{ scale: 0.92 }}
                 aria-label={hasReposted ? 'Remove repost' : 'Repost'}
                 aria-pressed={hasReposted}
                 className={cn(
-                  'inline-flex items-center justify-center rounded-full p-1.5 transition-colors duration-200',
+                  'inline-flex items-center justify-center rounded-full p-1.5 transition-[color,background-color,transform] duration-200 active:scale-[0.96]',
                   hasReposted
                     ? 'text-success-text hover:bg-success/10'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
@@ -148,7 +145,7 @@ export function PostEngagementBar({
                 )}
               >
                 <Repeat2 className="size-3.5" />
-              </motion.button>
+              </button>
             </TooltipTrigger>
             <TooltipContent>{hasReposted ? 'Remove repost' : 'Repost'}</TooltipContent>
           </Tooltip>
@@ -161,20 +158,19 @@ export function PostEngagementBar({
           <span className="h-4 w-px bg-border/40" aria-hidden />
           <Tooltip>
             <TooltipTrigger asChild>
-              <motion.button
+              <button
                 type="button"
                 data-insights-trigger
                 onClick={onOpenInsights}
                 disabled={!onOpenInsights}
-                whileTap={{ scale: 0.92 }}
                 aria-label="Open post insights"
                 className={cn(
-                  'inline-flex items-center justify-center rounded-full p-1.5 transition-colors duration-200',
+                  'inline-flex items-center justify-center rounded-full p-1.5 transition-[color,background-color,transform] duration-200 active:scale-[0.96]',
                   'text-muted-foreground hover:text-foreground hover:bg-muted/60',
                 )}
               >
                 <BarChart3 className="size-3.5" />
-              </motion.button>
+              </button>
             </TooltipTrigger>
             <TooltipContent>Insights</TooltipContent>
           </Tooltip>

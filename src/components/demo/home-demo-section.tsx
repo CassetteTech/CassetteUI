@@ -13,18 +13,19 @@ import {
 } from 'lucide-react';
 import { ProfileDemo } from '@/components/demo/profile-demo';
 import { AnimatedButton } from '@/components/ui/animated-button';
+import { EASE_OUT_QUART } from '@/lib/motion';
 
 interface HomeDemoSectionProps {
   isAuthenticated: boolean;
 }
 
 /* ─── Shared easing ────────────────────────────────────── */
-const ease = [0.22, 1, 0.36, 1] as const;
+const ease = EASE_OUT_QUART;
 
 /* ─── Reusable variants ────────────────────────────────── */
 const stagger = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.14 } },
+  visible: { transition: { staggerChildren: 0.06 } },
 };
 
 const fadeUp = {
@@ -295,7 +296,7 @@ export function HomeDemoSection({ isAuthenticated }: HomeDemoSectionProps) {
 
                   <div className="mt-3 flex items-center gap-2">
                     <span className="h-px flex-1 bg-foreground/20" />
-                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-[color,transform]" />
                   </div>
                 </Link>
               </motion.div>
@@ -342,8 +343,8 @@ export function HomeDemoSection({ isAuthenticated }: HomeDemoSectionProps) {
                     key={service}
                     className="w-8 h-8 relative"
                     variants={{
-                      hidden: { opacity: 0, scale: 0.6 },
-                      visible: { opacity: 0.65, scale: 1, transition: { type: 'spring', stiffness: 300, damping: 20 } },
+                      hidden: { opacity: 0, scale: 0.9 },
+                      visible: { opacity: 0.65, scale: 1, transition: { duration: 0.3, ease: EASE_OUT_QUART } },
                     }}
                     whileHover={{ opacity: 1, scale: 1.15 }}
                   >

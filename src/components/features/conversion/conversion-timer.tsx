@@ -63,9 +63,9 @@ export const ConversionTimer: React.FC<ConversionTimerProps> = ({
       {/* Progress indicator */}
       <div className="w-full max-w-xs mx-auto">
         <div className="h-1 bg-border rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-primary transition-all duration-1000 ease-out"
-            style={{ width: `${progress}%` }}
+          <div
+            className="h-full w-full origin-left bg-primary transition-transform duration-1000 ease-linear"
+            style={{ transform: `scaleX(${progress / 100})` }}
           />
         </div>
       </div>

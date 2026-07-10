@@ -54,7 +54,7 @@ export default function AboutPageReimagined() {
               <Button
                 asChild
                 size="lg"
-                className="group bg-gradient-to-r from-primary to-secondary text-foreground shadow-lg shadow-primary/10 transition-all hover:shadow-xl hover:shadow-secondary/20"
+                className="group bg-gradient-to-r from-primary to-secondary text-foreground shadow-lg shadow-primary/10 transition-shadow hover:shadow-xl hover:shadow-secondary/20"
               >
                 <Link href="/auth/signup">
                   Create your first smart link
@@ -221,8 +221,8 @@ export default function AboutPageReimagined() {
         {/* SECTION: Story + Vision (re-ordered and condensed) */}
         <section className="mt-28 grid items-stretch gap-8 lg:grid-cols-2">
           <div className="group relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-8 backdrop-blur">
-            <div className="pointer-events-none absolute -top-16 -left-16 h-48 w-48 rounded-full bg-primary/25 blur-2xl transition-all group-hover:scale-110" />
-            <div className="pointer-events-none absolute -bottom-16 -right-16 h-48 w-48 rounded-full bg-secondary/25 blur-2xl transition-all group-hover:scale-110" />
+            <div className="pointer-events-none absolute -top-16 -left-16 h-48 w-48 rounded-full bg-primary/25 blur-2xl transition-transform group-hover:scale-110" />
+            <div className="pointer-events-none absolute -bottom-16 -right-16 h-48 w-48 rounded-full bg-secondary/25 blur-2xl transition-transform group-hover:scale-110" />
             <h3 className="font-teko text-3xl text-foreground md:text-4xl">
               The story behind Cassette
             </h3>
@@ -278,7 +278,7 @@ export default function AboutPageReimagined() {
               <Button
                 asChild
                 size="lg"
-                className="bg-gradient-to-r from-primary to-secondary text-foreground shadow-lg shadow-primary/10 transition-all hover:shadow-xl hover:shadow-secondary/20"
+                className="bg-gradient-to-r from-primary to-secondary text-foreground shadow-lg shadow-primary/10 transition-shadow hover:shadow-xl hover:shadow-secondary/20"
               >
                 <Link href="/auth/signup">
                   Start sharing free
@@ -340,7 +340,7 @@ function GradientCard({
   items: string[];
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/5">
+    <div className="group relative overflow-hidden rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/5">
       <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gradient-to-br from-primary/25 to-secondary/25 blur-2xl transition-transform group-hover:scale-110" />
       <div className="flex items-center gap-3">
         <div className="grid h-10 w-10 place-items-center rounded-lg bg-muted">
@@ -376,7 +376,7 @@ function SampleCard({
 }) {
   return (
     <Link href={href} className="group block">
-      <div className="relative overflow-hidden rounded-xl border border-border/60 bg-card/70 p-4 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/10">
+      <div className="relative overflow-hidden rounded-xl border border-border/60 bg-card/70 p-4 backdrop-blur transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/10">
         <div
           className={`mb-3 h-12 w-12 shrink-0 rounded-lg bg-gradient-to-br ${accent} grid place-items-center`}
         >

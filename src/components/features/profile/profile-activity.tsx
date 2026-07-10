@@ -116,6 +116,7 @@ function ActivityPostItem({
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -170,6 +171,7 @@ function ActivityPostItem({
   // Only use description if it's a non-empty user-provided value
   const hasDescription = post.description && post.description.trim().length > 0;
   const detailText = hasDescription ? post.description : post.subtitle;
+  const artworkUrl = post.imageUrl?.trim();
 
   return (
     <>
@@ -181,15 +183,16 @@ function ActivityPostItem({
           <div className="flex gap-3 sm:gap-4 items-start">
             {/* Artwork with overlaid type badge */}
             <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 relative">
-              {post.imageUrl ? (
+              {artworkUrl && artworkUrl !== failedArtworkUrl ? (
                 <Image
-                  src={post.imageUrl}
+                  src={artworkUrl}
                   alt={post.title}
                   width={128}
                   height={128}
                   className="w-full h-full rounded-md object-cover ring-1 ring-border/40"
                   placeholder="blur"
                   blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJoc2woMjQwLCA0LjglLCA4My45JSkiLz48L3N2Zz4="
+                  onError={() => setFailedArtworkUrl(artworkUrl)}
                 />
               ) : (
                 <div className="w-full h-full rounded-md bg-muted/60 ring-1 ring-border/40 flex items-center justify-center">

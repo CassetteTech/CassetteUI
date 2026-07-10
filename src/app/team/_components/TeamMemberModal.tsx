@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Github, Linkedin, Link2, Twitter, Mail } from "lucide-react";
 import Image from "next/image";
 import { teamMembers, getTypeConfig } from "../_data";
+import { EASE_OUT_QUART, EASE_IN_QUART } from "@/lib/motion";
 
 interface TeamMemberModalProps {
   memberName: string | null;
@@ -46,9 +47,18 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
           <motion.div
             key={`modal-${memberName}`}
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 8 }}
-            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              y: 0,
+              transition: { duration: 0.2, ease: EASE_OUT_QUART },
+            }}
+            exit={{
+              opacity: 0,
+              scale: 0.95,
+              y: 8,
+              transition: { duration: 0.15, ease: EASE_IN_QUART },
+            }}
             className="surface-top border border-foreground/15 dark:border-border rounded-lg elev-4 max-w-3xl w-full max-h-[92vh] sm:max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >

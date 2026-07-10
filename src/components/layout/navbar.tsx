@@ -208,7 +208,7 @@ export function Navbar() {
             <button
               type="button"
               className={cn(
-                "md:hidden relative inline-flex items-center justify-center w-10 h-10 rounded-xl border transition-all duration-200",
+                "md:hidden relative inline-flex items-center justify-center w-10 h-10 rounded-xl border transition-colors duration-200",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                 isMobileMenuOpen
                   ? "bg-primary text-primary-foreground border-primary shadow-[0_4px_14px_-4px_hsl(var(--primary)/0.6)]"
@@ -222,24 +222,24 @@ export function Navbar() {
               <span className="relative block w-[18px] h-[14px]" aria-hidden="true">
                 <span
                   className={cn(
-                    "absolute left-0 h-[2px] rounded-full bg-current origin-center transition-all duration-300 ease-out-quart",
+                    "absolute left-0 top-1/2 w-full h-[2px] rounded-full bg-current origin-center transition-transform duration-300 ease-out-quart",
                     isMobileMenuOpen
-                      ? "top-1/2 -translate-y-1/2 w-full rotate-45"
-                      : "top-0 w-full"
+                      ? "-translate-y-1/2 rotate-45"
+                      : "-translate-y-[6px]"
                   )}
                 />
                 <span
                   className={cn(
-                    "absolute left-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full bg-current transition-all duration-200 ease-out",
-                    isMobileMenuOpen ? "opacity-0 w-0" : "opacity-100 w-[70%]"
+                    "absolute left-0 top-1/2 -translate-y-1/2 w-[70%] h-[2px] rounded-full bg-current origin-left transition-transform duration-200 ease-out-quart",
+                    isMobileMenuOpen ? "scale-x-0" : "scale-x-100"
                   )}
                 />
                 <span
                   className={cn(
-                    "absolute left-0 h-[2px] rounded-full bg-current origin-center transition-all duration-300 ease-out-quart",
+                    "absolute left-0 top-1/2 w-full h-[2px] rounded-full bg-current origin-center transition-transform duration-300 ease-out-quart",
                     isMobileMenuOpen
-                      ? "top-1/2 -translate-y-1/2 w-full -rotate-45"
-                      : "bottom-0 w-[85%]"
+                      ? "-translate-y-1/2 -rotate-45"
+                      : "translate-y-[4px] scale-x-[0.85]"
                   )}
                 />
               </span>

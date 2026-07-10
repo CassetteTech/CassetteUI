@@ -45,24 +45,24 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
   'data-testid': dataTestId,
 }) => {
   const [position, setPosition] = useState(initialPos);
-  const [, setIsPressed] = useState(false);
 
   const handleClick = () => {
     if (disabled) return;
-    
-    setIsPressed(true);
-    setPosition(0);
-    
-    setTimeout(() => {
-      setPosition(initialPos);
-      setIsPressed(false);
-    }, 125);
-    
     onClick();
   };
 
-  const handleMouseDown = () => {
+  const depress = () => {
     if (disabled) return;
+    setPosition(0);
+  };
+
+  const release = () => {
+    setPosition(initialPos);
+  };
+
+  const handlePointerDown = () => {
+    if (disabled) return;
+    depress();
     onMouseDown?.();
   };
 
@@ -74,11 +74,13 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
   return (
     <button
       onClick={handleClick}
-      onMouseDown={handleMouseDown}
+      onPointerDown={handlePointerDown}
+      onPointerUp={release}
+      onPointerLeave={release}
       disabled={disabled}
       data-testid={dataTestId}
       className={cn(
-        'relative cursor-pointer select-none transition-all duration-50 ease-in',
+        'relative cursor-pointer select-none',
         disabled && 'opacity-50 cursor-not-allowed',
         className
       )}
@@ -101,15 +103,14 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
       
       {/* Top layer (main button) */}
       <div
-        className="absolute transition-all duration-50 ease-in"
+        className="absolute bottom-0 right-0 transition-transform duration-150 ease-out"
         style={{
           height: height,
           width: width,
           backgroundColor: defaultTopColor,
           borderRadius: radius,
           border: `${topBorderWidth}px solid ${defaultTopBorderColor}`,
-          bottom: position,
-          right: position,
+          transform: `translate(${-position}px, ${-position}px)`,
         }}
       >
         <div className="h-full w-full flex items-center justify-center">

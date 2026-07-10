@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { EASE_OUT_QUART } from "@/lib/motion";
 import { milestones } from "../_data";
 
 const TAPE_COLORS = [
@@ -65,7 +66,7 @@ export function JourneyTimeline() {
               transition={{
                 duration: 0.4,
                 delay: index * 0.08,
-                ease: [0.23, 1, 0.32, 1],
+                ease: EASE_OUT_QUART,
               }}
               className="relative"
               style={{ transformOrigin: "center" }}

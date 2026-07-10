@@ -528,9 +528,9 @@ export function PostCommentsSheet({
     return (
       <motion.div
         key={comment.commentId}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.15, ease: 'easeOut' }}
         className={cn(depth > 0 && 'ml-6 sm:ml-10')}
       >
         {depth > 0 && (
@@ -595,33 +595,30 @@ export function PostCommentsSheet({
 
               {!isEditing && (
                 <div className="flex items-center gap-1 mt-2">
-                  <motion.button
+                  <button
                     type="button"
                     disabled={likePending}
                     onClick={() => void handleToggleCommentLike(comment)}
-                    whileTap={{ scale: 0.85 }}
                     className={cn(
-                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium transition-all duration-200',
+                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium transition-[color,background-color,transform] duration-200 active:scale-[0.95]',
                       comment.likedByCurrentUser
                         ? 'bg-primary/10 text-primary'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                     )}
                   >
-                    <AnimatePresence mode="wait">
-                      <motion.span
-                        key={comment.likedByCurrentUser ? 'liked' : 'not'}
-                        initial={{ scale: 0.5 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-                        className="flex items-center"
-                      >
-                        <Heart className={cn('size-3', comment.likedByCurrentUser ? 'fill-current' : 'fill-none')} />
-                      </motion.span>
-                    </AnimatePresence>
+                    <motion.span
+                      key={comment.likedByCurrentUser ? 'liked' : 'not'}
+                      initial={{ scale: 0.85 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', bounce: 0.15, duration: 0.25 }}
+                      className="flex items-center"
+                    >
+                      <Heart className={cn('size-3', comment.likedByCurrentUser ? 'fill-current' : 'fill-none')} />
+                    </motion.span>
                     {(comment.likeCount || 0) > 0 && (
                       <span>{Math.max(0, comment.likeCount || 0)}</span>
                     )}
-                  </motion.button>
+                  </button>
 
                   <button
                     type="button"
@@ -834,7 +831,7 @@ export function PostCommentsSheet({
           disabled={!composerCanSubmit || composerBusy}
           aria-label={composerSubmitLabel}
           className={cn(
-            'absolute bottom-1.5 right-1.5 flex size-8 items-center justify-center rounded-full transition-all',
+            'absolute bottom-1.5 right-1.5 flex size-8 items-center justify-center rounded-full transition-[background-color,transform]',
             'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95',
             'disabled:opacity-40 disabled:pointer-events-none',
           )}

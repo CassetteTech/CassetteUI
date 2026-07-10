@@ -6,6 +6,7 @@ import { Users } from "lucide-react";
 import { categoryDefs, categoryColors, getFilteredMembers } from "../_data";
 import type { TeamCategory } from "../_data";
 import { TeamCard } from "./TeamCard";
+import { EASE_OUT_QUART } from "@/lib/motion";
 
 interface TeamGridProps {
   onSelectMember: (name: string) => void;
@@ -55,7 +56,7 @@ export function TeamGrid({ onSelectMember }: TeamGridProps) {
                 onClick={() => setActiveCategory(category.id)}
                 className={`
                   px-4 py-2 font-teko text-base font-medium whitespace-nowrap
-                  border transition-all duration-150
+                  border transition-colors duration-150
                   ${
                     isActive
                       ? `${colors.activeBg} ${colors.activeBorder}`
@@ -84,7 +85,7 @@ export function TeamGrid({ onSelectMember }: TeamGridProps) {
         <div className="mb-12" />
 
         {/* Team Grid */}
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           <motion.div
             key={activeCategory}
             initial={{ opacity: 0, y: 16 }}
@@ -110,7 +111,7 @@ export function TeamGrid({ onSelectMember }: TeamGridProps) {
                   transition={{
                     duration: 0.4,
                     delay: index * 0.08,
-                    ease: [0.23, 1, 0.32, 1],
+                    ease: EASE_OUT_QUART,
                   }}
                 >
                   <TeamCard

@@ -6,6 +6,11 @@ import { captureClientEvent } from '@/lib/analytics/client';
 import { normalizePlatform, sanitizeDomain } from '@/lib/analytics/sanitize';
 import type { ElementTypeDimension } from '@/lib/analytics/events';
 import { buildPostPlatformConversionClickedProps } from '@/lib/analytics/post-platform-conversion';
+import {
+  DISPLAY_PLATFORM_DEFINITIONS,
+  getDisplayPlatformDefinition,
+  getPlatformDefinition,
+} from '@/lib/platforms';
 
 interface StreamingLinksProps {
   links: {
@@ -30,43 +35,18 @@ export interface StreamingService {
   borderColor: string;
 }
 
-export const streamingServices: Record<string, StreamingService> = {
-  spotify: {
-    name: 'Spotify',
-    icon: '/images/spotify_logo_colored.png',
-    color: 'hsl(var(--platform-spotify))',
-    bgColor: 'bg-platform-spotify/10',
-    borderColor: 'border-platform-spotify/40',
-  },
-  appleMusic: {
-    name: 'Apple Music',
-    icon: '/images/apple_music_logo_colored.png',
-    color: 'hsl(var(--platform-apple-music))',
-    bgColor: 'bg-platform-apple-music/10',
-    borderColor: 'border-platform-apple-music/40',
-  },
-  deezer: {
-    name: 'Deezer',
-    icon: '/images/deezer_logo_colored.png',
-    color: 'hsl(var(--platform-deezer))',
-    bgColor: 'bg-platform-deezer/10',
-    borderColor: 'border-platform-deezer/40',
-  },
-  tidal: {
-    name: 'Tidal',
-    icon: '/images/social_images/ic_tidal.png',
-    color: 'hsl(var(--platform-tidal))',
-    bgColor: 'bg-platform-tidal/10',
-    borderColor: 'border-platform-tidal/40',
-  },
-  youtubeMusic: {
-    name: 'YouTube Music',
-    icon: '/images/social_images/ic_yt_music.png',
-    color: 'hsl(var(--platform-youtube))',
-    bgColor: 'bg-platform-youtube/10',
-    borderColor: 'border-platform-youtube/40',
-  },
-};
+export const streamingServices: Record<string, StreamingService> = Object.fromEntries(
+  DISPLAY_PLATFORM_DEFINITIONS.map((platform) => [
+    platform.uiKey,
+    {
+      name: platform.displayName,
+      icon: platform.logoSrc,
+      color: platform.color,
+      bgColor: platform.bgColor,
+      borderColor: platform.borderColor,
+    },
+  ]),
+);
 
 export const StreamingLinks: React.FC<StreamingLinksProps> = ({
   links,
@@ -86,7 +66,8 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
     <div className={cn("w-full", className)}>
       <div className="grid gap-2.5">
         {availableLinks.map(([platform, url]) => {
-          const service = streamingServices[platform];
+          const displayPlatform = getDisplayPlatformDefinition(platform);
+          const service = displayPlatform ? streamingServices[displayPlatform.uiKey] : undefined;
           if (!service || !url) return null;
           return (
             <a
@@ -95,12 +76,7 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => {
-                const normalizedTarget =
-                  platform === 'spotify' || platform === 'deezer'
-                    ? platform
-                    : platform === 'appleMusic'
-                      ? 'apple'
-                      : 'unknown';
+                const normalizedTarget = getPlatformDefinition(platform)?.analyticsKey ?? 'unknown';
                 const normalizedSourcePlatform = normalizePlatform(sourcePlatform) ?? 'unknown';
                 const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
                 const conversionClickProps = buildPostPlatformConversionClickedProps({

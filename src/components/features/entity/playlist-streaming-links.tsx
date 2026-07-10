@@ -20,8 +20,14 @@ import { normalizePlatform, sanitizeDomain } from '@/lib/analytics/sanitize';
 import { buildPostPlatformConversionClickedProps } from '@/lib/analytics/post-platform-conversion';
 import type { AnalyticsBaseProps, PlatformDimension } from '@/lib/analytics/events';
 import { appLogger } from '@/lib/observability/logger';
+import {
+  PLAYLIST_CREATION_PLATFORM_UI_KEYS,
+  type PlatformUiKey,
+  getPlatformDefinition,
+  normalizePlatformUiKey,
+} from '@/lib/platforms';
 
-type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
+type PlatformKey = PlatformUiKey;
 
 interface PlaylistStreamingLinksProps {
   links: {
@@ -47,17 +53,8 @@ interface CreationStatus {
   actionLabel?: string;
 }
 
-const PLATFORMS: Array<PlatformKey> = ['spotify', 'appleMusic', 'deezer'];
+const PLATFORMS: ReadonlyArray<PlatformKey> = PLAYLIST_CREATION_PLATFORM_UI_KEYS;
 const PLAYLIST_CONVERSION_LIMIT = 200;
-
-const normalizePlatformKey = (platform?: string | null): PlatformKey | null => {
-  if (!platform) return null;
-  const lowered = platform.toLowerCase();
-  if (lowered === 'spotify') return 'spotify';
-  if (lowered === 'deezer') return 'deezer';
-  if (lowered === 'applemusic' || lowered === 'apple') return 'appleMusic';
-  return null;
-};
 
 export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   links,
@@ -79,7 +76,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
   const providedSourceUrl = sourceUrl?.trim();
   const detectedFromProvided = providedSourceUrl ? detectContentType(providedSourceUrl).platform : null;
-  const normalizedFromProp = normalizePlatformKey(sourcePlatform);
+  const normalizedFromProp = normalizePlatformUiKey(sourcePlatform);
   const fallbackSourceUrl =
     (normalizedFromProp ? links[normalizedFromProp] : undefined) ||
     links.spotify ||
@@ -90,19 +87,21 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   // Keep source platform detection resilient across mixed URL/platform inputs.
   const sourcePlatformKey =
     normalizedFromProp ||
-    normalizePlatformKey(detectedFromProvided) ||
-    normalizePlatformKey(detectedFromResolved) ||
+    normalizePlatformUiKey(detectedFromProvided) ||
+    normalizePlatformUiKey(detectedFromResolved) ||
     (resolvedSourceUrl
       ? (PLATFORMS.find((platform) => links[platform] === resolvedSourceUrl || links[platform]) as PlatformKey | undefined) || null
       : null);
 
   const buildPlaylistAnalyticsProps = React.useCallback((platform: PlatformKey): AnalyticsBaseProps => {
     const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
+    const targetDefinition = getPlatformDefinition(platform);
+    const sourceDefinition = getPlatformDefinition(sourcePlatformKey);
     const normalizedTargetPlatform: PlatformDimension = normalizePlatform(
-      platform === 'appleMusic' ? 'apple' : platform,
+      targetDefinition?.analyticsKey,
     ) ?? 'unknown';
     const normalizedSourcePlatform: PlatformDimension = normalizePlatform(
-      sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey,
+      sourceDefinition?.analyticsKey,
     ) ?? 'unknown';
 
     return {
@@ -203,7 +202,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
   const openCreatedPlaylist = React.useCallback((platform: PlatformKey, playlistUrl: string) => {
     const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
-    const normalizedTarget = platform === 'appleMusic' ? 'apple' : platform;
+    const normalizedTarget = getPlatformDefinition(platform)?.analyticsKey ?? platform;
     const normalizedOpenedTargetPlatform: PlatformDimension = normalizePlatform(normalizedTarget) ?? 'unknown';
     const openClickProps = buildPostPlatformConversionClickedProps({
       sourceContext: 'playlist_open_button',
@@ -233,7 +232,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
   const handleCreatePlaylist = React.useCallback(async (platform: PlatformKey) => {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
-    const normalizedTarget = platform === 'appleMusic' ? 'apple' : platform;
+    const normalizedTarget = getPlatformDefinition(platform)?.analyticsKey ?? platform;
     const analyticsProps = buildPlaylistAnalyticsProps(platform);
     const route = analyticsProps.route;
 
@@ -568,12 +567,13 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
               rel="noopener noreferrer"
               onClick={() => {
                 const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
+                const targetPlatform = getPlatformDefinition(platform)?.analyticsKey ?? platform;
                 const openClickProps = buildPostPlatformConversionClickedProps({
                   sourceContext: 'playlist_open_button',
                   route,
                   postId,
                   elementType: 'playlist',
-                  targetPlatform: platform === 'appleMusic' ? 'apple' : platform,
+                  targetPlatform,
                   sourcePlatform: sourcePlatformKey ?? undefined,
                   sourceDomain: url,
                   isAuthenticated,

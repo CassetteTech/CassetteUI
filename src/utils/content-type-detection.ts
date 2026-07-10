@@ -1,101 +1,108 @@
-import { ContentType } from '@/hooks/use-simulated-progress';
+import type { ContentType } from '../hooks/use-simulated-progress';
+import {
+  type PlatformAnalyticsKey,
+  getPlatformDefinition,
+  getPlatformDefinitionForHostname,
+} from '../lib/platforms';
 
 export interface ContentInfo {
   type: ContentType;
   estimatedCount: number;
-  platform: 'spotify' | 'apple' | 'deezer' | 'unknown';
+  platform: PlatformAnalyticsKey | 'unknown';
   id: string;
+}
+
+const CONTENT_TYPES = ['track', 'album', 'artist', 'playlist'] as const;
+
+function getUrl(raw: string): URL | null {
+  try {
+    return new URL(raw);
+  } catch {
+    return null;
+  }
+}
+
+function getPathSegments(url: URL): string[] {
+  return url.pathname.split('/').filter(Boolean);
+}
+
+function getSegmentAfter(segments: string[], marker: string, offset = 1): string {
+  const index = segments.findIndex((segment) => segment.toLowerCase() === marker);
+  return index >= 0 ? segments[index + offset] ?? '' : '';
+}
+
+function parseSpotify(url: URL): Pick<ContentInfo, 'type' | 'id'> {
+  const segments = getPathSegments(url);
+  const typeSegment = segments.find((segment) =>
+    CONTENT_TYPES.includes(segment.toLowerCase() as ContentType),
+  );
+  const type = typeSegment?.toLowerCase() as ContentType | undefined;
+
+  if (!type) {
+    return { type: 'track', id: '' };
+  }
+
+  return { type, id: getSegmentAfter(segments, type) };
+}
+
+function parseAppleMusic(url: URL): Pick<ContentInfo, 'type' | 'id'> {
+  const segments = getPathSegments(url);
+  const trackId = url.searchParams.get('i');
+  if (trackId) {
+    return { type: 'track', id: trackId };
+  }
+
+  if (segments.some((segment) => segment.toLowerCase() === 'song')) {
+    return { type: 'track', id: getSegmentAfter(segments, 'song', 2) };
+  }
+
+  if (segments.some((segment) => segment.toLowerCase() === 'album')) {
+    return { type: 'album', id: getSegmentAfter(segments, 'album', 2) };
+  }
+
+  if (segments.some((segment) => segment.toLowerCase() === 'artist')) {
+    return { type: 'artist', id: getSegmentAfter(segments, 'artist', 2) };
+  }
+
+  if (segments.some((segment) => segment.toLowerCase() === 'playlist')) {
+    return { type: 'playlist', id: getSegmentAfter(segments, 'playlist', 2) };
+  }
+
+  return { type: 'track', id: '' };
+}
+
+function parseDeezer(url: URL): Pick<ContentInfo, 'type' | 'id'> {
+  const segments = getPathSegments(url);
+  const typeSegment = segments.find((segment) =>
+    CONTENT_TYPES.includes(segment.toLowerCase() as ContentType),
+  );
+  const type = typeSegment?.toLowerCase() as ContentType | undefined;
+
+  if (!type) {
+    return { type: 'track', id: '' };
+  }
+
+  return { type, id: getSegmentAfter(segments, type) };
 }
 
 export const detectContentType = (url: string, metadata?: Record<string, unknown> | null): ContentInfo => {
   let type: ContentType = 'track';
   let estimatedCount = 1;
-  let platform: 'spotify' | 'apple' | 'deezer' | 'unknown' = 'unknown';
+  let platform: PlatformAnalyticsKey | 'unknown' = 'unknown';
   let id = '';
+  const parsedUrl = getUrl(url);
+  const platformDefinition = parsedUrl ? getPlatformDefinitionForHostname(parsedUrl.hostname) : null;
 
-  // Platform detection
-  if (/(?:open|play)\.spotify\.com/i.test(url)) {
-    platform = 'spotify';
-  } else if (/music\.apple\.com/i.test(url)) {
-    platform = 'apple';
-  } else if (/(?:www\.)?deezer\.com/i.test(url)) {
-    platform = 'deezer';
-  }
-
-  // Spotify URL parsing
-  if (platform === 'spotify') {
-    if (/\/track\/([a-zA-Z0-9]+)/i.test(url)) {
-      type = 'track';
-      const match = url.match(/\/track\/([a-zA-Z0-9]+)/i);
-      id = match?.[1] || '';
-    } else if (/\/album\/([a-zA-Z0-9]+)/i.test(url)) {
-      type = 'album';
-      const match = url.match(/\/album\/([a-zA-Z0-9]+)/i);
-      id = match?.[1] || '';
-    } else if (/\/artist\/([a-zA-Z0-9]+)/i.test(url)) {
-      type = 'artist';
-      const match = url.match(/\/artist\/([a-zA-Z0-9]+)/i);
-      id = match?.[1] || '';
-    } else if (/\/playlist\/([a-zA-Z0-9]+)/i.test(url)) {
-      type = 'playlist';
-      const match = url.match(/\/playlist\/([a-zA-Z0-9]+)/i);
-      id = match?.[1] || '';
-    }
-  }
-  
-  // Apple Music URL parsing
-  else if (platform === 'apple') {
-    // Track (song URL form): /song/name/id
-    if (/\/song\/[^\/]+\/\d+/i.test(url)) {
-      type = 'track';
-      const match = url.match(/\/song\/[^\/]+\/(\d+)/i);
-      id = match?.[1] || '';
-    }
-    // Track (album URL with ?i= form): /album/name/id?i=trackId
-    else if (/\/album\/.*\?i=\d+/i.test(url)) {
-      type = 'track';
-      const match = url.match(/[?&]i=(\d+)/i);
-      id = match?.[1] || '';
-    }
-    // Album: /album/name/id (without ?i=)
-    else if (/\/album\/[^\/]+\/\d+(?:\?|$)/i.test(url)) {
-      type = 'album';
-      const match = url.match(/\/album\/(?:[^\/]+\/)?(\d+)(?:\?|$)/i);
-      id = match?.[1] || '';
-    }
-    // Artist: /artist/name/id
-    else if (/\/artist\/[^\/]+\/[0-9]+/i.test(url)) {
-      type = 'artist';
-      const match = url.match(/\/artist\/[^\/]+\/([0-9]+)/i);
-      id = match?.[1] || '';
-    }
-    // Playlist: /playlist/name/pl.id
-    else if (/\/playlist\/[^\/]+\/(pl\.(?:u-)?[a-zA-Z0-9\-]+)/i.test(url)) {
-      type = 'playlist';
-      const match = url.match(/\/playlist\/[^\/]+\/(pl\.(?:u-)?[a-zA-Z0-9\-]+)/i);
-      id = match?.[1] || '';
-    }
-  }
-  
-  // Deezer URL parsing
-  else if (platform === 'deezer') {
-    if (/track\/(\d+)/i.test(url)) {
-      type = 'track';
-      const match = url.match(/track\/(\d+)/i);
-      id = match?.[1] || '';
-    } else if (/album\/(\d+)/i.test(url)) {
-      type = 'album';
-      const match = url.match(/album\/(\d+)/i);
-      id = match?.[1] || '';
-    } else if (/artist\/(\d+)/i.test(url)) {
-      type = 'artist';
-      const match = url.match(/artist\/(\d+)/i);
-      id = match?.[1] || '';
-    } else if (/playlist\/(\d+)/i.test(url)) {
-      type = 'playlist';
-      const match = url.match(/playlist\/(\d+)/i);
-      id = match?.[1] || '';
-    }
+  if (parsedUrl && platformDefinition) {
+    platform = platformDefinition.analyticsKey;
+    const parsed =
+      platformDefinition.analyticsKey === 'spotify'
+        ? parseSpotify(parsedUrl)
+        : platformDefinition.analyticsKey === 'apple'
+          ? parseAppleMusic(parsedUrl)
+          : parseDeezer(parsedUrl);
+    type = parsed.type;
+    id = parsed.id;
   }
 
   // Use metadata if available to override or supplement URL detection
@@ -165,14 +172,5 @@ export const getContentTypeEmoji = (type: ContentType): string => {
 };
 
 export const getPlatformDisplayName = (platform: string): string => {
-  switch (platform) {
-    case 'spotify':
-      return 'Spotify';
-    case 'apple':
-      return 'Apple Music';
-    case 'deezer':
-      return 'Deezer';
-    default:
-      return 'Music platform';
-  }
+  return getPlatformDefinition(platform)?.displayName ?? 'Music platform';
 };

@@ -1,0 +1,13 @@
+{
+  "contractVersion": 1,
+  "name": "convert-response.ready",
+  "method": "POST",
+  "path": "/api/v1/convert",
+  "body": {
+    "success": true,
+    "status": "ready",
+    "postId": "post_fixture_ready",
+    "jobId": "job_fixture_ready",
+    "correlationId": "11111111-1111-1111-1111-111111111111"
+  }
+}

@@ -6,10 +6,7 @@ import {
   PostComment,
   PaginatedPostCommentsResponse,
   CommentLikeResponse,
-  ConversionApiResponse,
   ConvertLifecycleResponse,
-  ElementType,
-  MediaListTrack,
   CreatePlaylistResponse,
   PlatformPreference,
   InternalUsersResponse,
@@ -47,6 +44,11 @@ import { getBrowserApiBaseUrl } from '@/lib/utils/url';
 import { CASSETTE_CORRELATION_HEADER, createCorrelationId, normalizeCorrelationId } from '@/lib/observability/correlation';
 import { getSourceDomain, hashSourceLink, normalizeRouteContext } from '@/lib/observability/source-link';
 import { appLogger } from '@/lib/observability/logger';
+import { getPlatformDefinition } from '@/lib/platforms';
+import {
+  createLifecycleConversionPlaceholder,
+  getLifecycleConversionFailureMessage,
+} from './conversion-lifecycle';
 
 // interface MusicConnection {
 //   id: string;
@@ -270,7 +272,7 @@ class ApiService {
       ? crypto.randomUUID()
       : `key-${Date.now()}-${Math.random()}`);
 
-    const response = await this.request<ConvertLifecycleResponse | ConversionApiResponse>('/api/v1/convert', {
+    const response = await this.request<ConvertLifecycleResponse>('/api/v1/convert', {
       method: 'POST',
       headers: { 'X-Idempotency-Key': key }, // server should honor this
       body: JSON.stringify({
@@ -283,207 +285,44 @@ class ApiService {
       timeoutMs: options?.anonymous ? 60000 : 120000,
     });
 
-    // New contract: convert returns a lifecycle envelope; poll jobs until ready.
-    if ('status' in response && (response.status === 'ready' || response.status === 'processing' || response.status === 'failed')) {
-      if (response.status === 'ready' && response.postId) {
-        return {
-          originalUrl: url,
-          convertedUrls: {},
-          metadata: {
-            type: (detected.type === 'track' ? ElementType.TRACK :
-                   detected.type === 'album' ? ElementType.ALBUM :
-                   detected.type === 'artist' ? ElementType.ARTIST :
-                   ElementType.PLAYLIST),
-            title: 'Loading...',
-            artist: '',
-            artwork: '',
-          },
-          description: options?.description || undefined,
-          postId: response.postId,
-          conversionJobId: response.jobId,
-          correlationId: response.correlationId ?? correlationId,
-        };
+    if (response.status === 'ready') {
+      if (!response.postId) {
+        throw new Error('Conversion completed without a post id');
       }
 
-      if (response.status === 'processing' && response.jobId) {
-        const resolvedPostId = await this.waitForConvertJob(response.jobId, response.retryAfterMs, options?.anonymous, response.correlationId ?? correlationId);
-        return {
-          originalUrl: url,
-          convertedUrls: {},
-          metadata: {
-            type: (detected.type === 'track' ? ElementType.TRACK :
-                   detected.type === 'album' ? ElementType.ALBUM :
-                   detected.type === 'artist' ? ElementType.ARTIST :
-                   ElementType.PLAYLIST),
-            title: 'Loading...',
-            artist: '',
-            artwork: '',
-          },
-          description: options?.description || undefined,
-          postId: resolvedPostId,
-          conversionJobId: response.jobId,
-          correlationId: response.correlationId ?? correlationId,
-        };
-      }
-
-      throw new Error(response.message || response.errorCode || 'Failed to convert music link');
+      return createLifecycleConversionPlaceholder({
+        originalUrl: url,
+        detectedType: detected.type,
+        description: options?.description,
+        postId: response.postId,
+        conversionJobId: response.jobId,
+        correlationId: response.correlationId ?? correlationId,
+      });
     }
 
-    // Backward-compat parsing for legacy payloads.
-    const legacyResponse = response as ConversionApiResponse;
-    if (legacyResponse.details || legacyResponse.platforms) {
-      // Determine content type with fallbacks if elementType is missing/ambiguous
-      const elementTypeFromResponse = legacyResponse.elementType?.toLowerCase();
-      let inferredElementType = elementTypeFromResponse;
-      if (!inferredElementType) {
-        // Try to infer from the source URL
-        try {
-          const urlInfo = detectContentType(url);
-          if (urlInfo?.type) {
-            inferredElementType = urlInfo.type;
-          }
-        } catch {}
-
-        const looksLikeAlbum = Boolean(legacyResponse.details?.trackCount) || Array.isArray((legacyResponse.details as { tracks?: unknown[] })?.tracks);
-        if (looksLikeAlbum) {
-          inferredElementType = 'album';
-        } else if (legacyResponse.platforms) {
-          const platformTypes = Object.values(legacyResponse.platforms)
-            .map(p => (p?.elementType || '').toLowerCase())
-            .filter(Boolean);
-          if (platformTypes.length > 0) {
-            // Use the most common platform-reported type
-            const counts = platformTypes.reduce<Record<string, number>>((acc, t) => {
-              acc[t] = (acc[t] || 0) + 1;
-              return acc;
-            }, {});
-            inferredElementType = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-          }
-        }
-        if (!inferredElementType) {
-          inferredElementType = 'track';
-        }
+    if (response.status === 'processing') {
+      if (!response.jobId) {
+        throw new Error('Conversion is processing without a job id');
       }
 
-      const resolvedPostId = (
-        legacyResponse.postId ||
-        (legacyResponse as unknown as { PostId?: string }).PostId ||
-        (legacyResponse as unknown as { redirectPostId?: string }).redirectPostId ||
-        (legacyResponse as unknown as { RedirectPostId?: string }).RedirectPostId ||
-        ''
+      const resolvedPostId = await this.waitForConvertJob(
+        response.jobId,
+        response.retryAfterMs,
+        options?.anonymous,
+        response.correlationId ?? correlationId,
       );
 
-      const transformedData: MusicLinkConversion = {
+      return createLifecycleConversionPlaceholder({
         originalUrl: url,
-        convertedUrls: {},
-        metadata: {
-          // Map the inferred element type to our enum
-          type: (inferredElementType === 'track' ? ElementType.TRACK :
-                 inferredElementType === 'album' ? ElementType.ALBUM :
-                 inferredElementType === 'artist' ? ElementType.ARTIST :
-                 ElementType.PLAYLIST),
-          title: legacyResponse.details?.title || 'Unknown',
-          artist: legacyResponse.details?.artist || '',
-          artwork: legacyResponse.details?.coverArtUrl || '',
-          album: legacyResponse.details?.album,
-          duration: legacyResponse.details?.duration
-        },
-        description: legacyResponse.description || legacyResponse.caption || undefined,
-        username: legacyResponse.username || undefined,
+        detectedType: detected.type,
+        description: options?.description,
         postId: resolvedPostId,
-        conversionJobId: legacyResponse.jobId,
-        correlationId: legacyResponse.correlationId ?? correlationId,
-        conversionSuccessCount: legacyResponse.conversionSuccessCount,
-      };
-
-      // Map album/playlist tracks when provided by the API
-      type ApiTrack = {
-        title?: string;
-        duration?: string;
-        trackNumber?: number;
-        artists?: string[];
-        previewUrl?: string;
-      };
-
-      const apiTracks = (legacyResponse.details as { tracks?: ApiTrack[] })?.tracks;
-      if (Array.isArray(apiTracks)) {
-        const mappedTracks: MediaListTrack[] = apiTracks.map((t) => ({
-          trackNumber: t.trackNumber,
-          title: t.title ?? 'Untitled',
-          duration: t.duration,
-          artists: Array.isArray(t.artists) ? t.artists : undefined,
-          previewUrl: t.previewUrl,
-        }));
-        transformedData.tracks = mappedTracks;
-      }
-
-      // Extract platform URLs and collect fallback artwork/preview
-      let fallbackArtwork = '';
-      let fallbackPreview = '';
-      if (legacyResponse.platforms) {
-        Object.entries(legacyResponse.platforms).forEach(([platform, data]) => {
-          const platformKey = platform.toLowerCase();
-          
-          // Handle platform URLs - use provided URL or construct from platformSpecificId
-          let platformUrl = data?.url;
-          
-          // If URL is empty but we have platformSpecificId, construct the URL
-          if (!platformUrl && data?.platformSpecificId) {
-            const elementType = data.elementType?.toLowerCase() || legacyResponse.elementType?.toLowerCase() || 'track';
-            
-            if (platformKey === 'spotify') {
-              platformUrl = `https://open.spotify.com/${elementType}/${data.platformSpecificId}`;
-            } else if (platformKey === 'deezer') {
-              platformUrl = `https://www.deezer.com/${elementType}/${data.platformSpecificId}`;
-            } else if (platformKey === 'applemusic' || platformKey === 'apple') {
-              // Apple Music URLs are more complex, use the provided URL if available
-              platformUrl = data.url;
-            }
-          }
-          
-          // Map platform names to our expected format
-          if (platformUrl) {
-            if (platformKey === 'spotify') {
-              transformedData.convertedUrls.spotify = platformUrl;
-            } else if (platformKey === 'applemusic' || platformKey === 'apple') {
-              transformedData.convertedUrls.appleMusic = platformUrl;
-            } else if (platformKey === 'deezer') {
-              transformedData.convertedUrls.deezer = platformUrl;
-            }
-          }
-
-          // Capture fallback artwork from the first available platform artwork
-          if (!fallbackArtwork && data?.artworkUrl) {
-            fallbackArtwork = data.artworkUrl;
-          }
-
-          // Capture preview url fallback
-          if (!fallbackPreview && data?.previewUrl && data.previewUrl.trim() !== '') {
-            fallbackPreview = data.previewUrl;
-          }
-        });
-        
-        // Extract preview URL from any available platform
-        if (fallbackPreview) {
-          transformedData.previewUrl = fallbackPreview;
-        }
-      }
-
-      // Also consider main details.previewUrl
-      if (!transformedData.previewUrl && legacyResponse.details?.previewUrl) {
-        transformedData.previewUrl = legacyResponse.details.previewUrl;
-      }
-
-      // Use fallback artwork if main artwork empty
-      if (!transformedData.metadata.artwork && fallbackArtwork) {
-        transformedData.metadata.artwork = fallbackArtwork;
-      }
-
-      return transformedData;
-    } else {
-      // If no data, throw an error
-      throw new Error((response as ConversionApiResponse).errorMessage || 'Failed to convert music link');
+        conversionJobId: response.jobId,
+        correlationId: response.correlationId ?? correlationId,
+      });
     }
+
+    throw new Error(getLifecycleConversionFailureMessage(response));
   }
 
   private async waitForConvertJob(jobId: string, initialRetryMs?: number, anonymous?: boolean, correlationId?: string): Promise<string> {
@@ -1157,13 +996,9 @@ class ApiService {
   async createPlaylist(playlistId: string, targetPlatform: string, postId?: string): Promise<CreatePlaylistResponse> {
     const correlationId = createCorrelationId();
     const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
-    const targetKey = normalize(targetPlatform);
-    const canonicalMap: Record<string, string> = {
-      spotify: 'spotify',
-      applemusic: 'applemusic',
-      deezer: 'deezer',
-    };
-    const canonicalTarget = canonicalMap[targetKey] || targetPlatform.toLowerCase();
+    const targetDefinition = getPlatformDefinition(targetPlatform);
+    const targetKey = normalize(targetDefinition?.preferenceKey ?? targetPlatform);
+    const canonicalTarget = targetDefinition?.key ?? targetPlatform.toLowerCase();
 
     // Skip connection check for Spotify if using Cassette's account
     const skipConnectionCheck = targetKey === 'spotify' && clientConfig.features.useCassetteSpotifyAccount;

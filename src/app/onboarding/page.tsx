@@ -329,10 +329,10 @@ export default function OnboardingPage() {
 
                   {/* Progress Line */}
                   <motion.div
-                    className="absolute left-4 top-4 h-0.5 bg-primary -z-10"
-                    initial={{ width: 0 }}
+                    className="absolute left-4 right-4 top-4 h-0.5 origin-left bg-primary -z-10"
+                    initial={{ scaleX: 0 }}
                     animate={{
-                      width: `calc(${(currentStep / (STEPS.length - 1)) * 100}% - 2rem)`,
+                      scaleX: currentStep / (STEPS.length - 1),
                     }}
                     transition={{ duration: 0.3 }}
                   />

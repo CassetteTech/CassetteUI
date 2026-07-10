@@ -153,7 +153,7 @@ export function AvatarStep({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`relative flex flex-col items-center py-8 rounded-xl border-2 border-dashed transition-all duration-200 ${
+        className={`relative flex flex-col items-center py-8 rounded-xl border-2 border-dashed transition-[color,background-color,border-color,transform] duration-200 ${
           isDragging
             ? 'border-primary bg-primary/5 scale-[1.02]'
             : 'border-muted-foreground/30 hover:border-primary/50'
@@ -193,7 +193,7 @@ export function AvatarStep({
           {/* Remove Button */}
           {avatarPreview && (
             <motion.button
-              initial={{ scale: 0 }}
+              initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               onClick={handleRemovePhoto}
               className="absolute -top-1 -right-1 w-7 h-7 bg-destructive rounded-full flex items-center justify-center text-white shadow-md hover:bg-destructive/90 transition-colors"

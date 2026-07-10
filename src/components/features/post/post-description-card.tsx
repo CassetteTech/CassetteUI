@@ -103,15 +103,14 @@ export function PostDescriptionCard({
             <div className="pt-2 sm:pt-3 flex items-center gap-2 sm:gap-2.5 flex-wrap">
               {hasLikeData && (
                 <>
-                  <motion.button
+                  <button
                     type="button"
                     onClick={onToggleLike}
                     disabled={!onToggleLike || isLikePending}
                     aria-label={likedByCurrentUser ? 'Unlike post' : 'Like post'}
                     aria-pressed={likedByCurrentUser}
-                    whileTap={{ scale: 0.9 }}
                     className={cn(
-                      'inline-flex items-center gap-1.5 sm:gap-2 rounded-full border px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs font-semibold transition-all duration-200',
+                      'inline-flex items-center gap-1.5 sm:gap-2 rounded-full border px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs font-semibold transition-[color,background-color,border-color,transform] duration-200 active:scale-[0.96]',
                       likedByCurrentUser
                         ? 'border-primary/40 bg-primary/10 text-primary shadow-sm shadow-primary/10'
                         : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:border-border',
@@ -133,20 +132,19 @@ export function PostDescriptionCard({
                       />
                     </motion.span>
                     <span>{formattedLikeCount}</span>
-                  </motion.button>
+                  </button>
                   {canRepost && (
-                    <motion.button
+                    <button
                       type="button"
                       onClick={onRepost}
                       disabled={!onRepost || isRepostPending}
-                      whileTap={{ scale: 0.9 }}
                       aria-label={
                         isRepostPending
                           ? (hasReposted ? 'Removing repost' : 'Reposting')
                           : (hasReposted ? 'Remove repost' : 'Repost post')
                       }
                       className={cn(
-                        'inline-flex items-center justify-center rounded-full border p-1.5 sm:p-2 text-xs font-medium transition-all duration-200',
+                        'inline-flex items-center justify-center rounded-full border p-1.5 sm:p-2 text-xs font-medium transition-[color,background-color,border-color,transform] duration-200 active:scale-[0.96]',
                         hasReposted
                           ? 'border-success/35 bg-success/15 text-success-text shadow-sm shadow-success/10'
                           : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:border-border',
@@ -154,7 +152,7 @@ export function PostDescriptionCard({
                       )}
                     >
                       <Repeat2 className="h-3.5 w-3.5" />
-                    </motion.button>
+                    </button>
                   )}
                 </>
               )}

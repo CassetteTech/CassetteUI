@@ -217,7 +217,7 @@ const AddMusicForm = ({
 
     {/* Search Results Container */}
     {isSearchActive && (
-      <div key="search-results" className="search-container w-full fixed top-[8.5rem] left-0 right-0 bottom-0 z-40 overflow-y-auto bg-background lg:static lg:z-auto lg:overflow-visible lg:bg-transparent animate-in fade-in slide-in-from-bottom-5 duration-500">
+      <div key="search-results" className="search-container w-full fixed top-[8.5rem] left-0 right-0 bottom-0 z-40 overflow-y-auto bg-background lg:static lg:z-auto lg:overflow-visible lg:bg-transparent animate-in fade-in slide-in-from-bottom-5 duration-200">
         <SearchResults
           results={displayData}
           query={debouncedSearchTerm}

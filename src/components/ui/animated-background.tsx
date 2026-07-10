@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import Image from 'next/image';
+import styles from './animated-background.module.css';
 
 interface FloatingElement {
   id: string;
@@ -10,11 +11,14 @@ interface FloatingElement {
   x: number;
   y: number;
   size: number;
-  speedX: number;
-  speedY: number;
   opacity: number;
   rotation: number;
-  rotationSpeed: number;
+  // CSS drift parameters (transform-only, compositor-driven)
+  driftX: number;
+  driftY: number;
+  driftRotate: number;
+  driftDuration: number;
+  driftDelay: number;
 }
 
 interface AnimatedBackgroundProps {
@@ -40,125 +44,46 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
   itemsCount,
   enableAnimation = true,
 }) => {
-  const [elements, setElements] = useState<FloatingElement[]>([]);
   const [isClient, setIsClient] = useState(false);
-  const [animationId, setAnimationId] = useState<number | null>(null);
 
-  // Responsive configuration
-  const getConfiguration = useCallback(() => {
-    if (typeof window === 'undefined') return { itemsCount: 20, maxSize: 60, minSize: 30, maxSpeed: 0.15, minSpeed: 0.05 };
-    
-    const isSmallScreen = window.innerWidth < 768;
-    const isLowPerformance = window.innerWidth < 1024;
-
-    return {
-      itemsCount: itemsCount || (isLowPerformance ? (isSmallScreen ? 15 : 20) : 25),
-      maxSize: isLowPerformance ? (isSmallScreen ? 50 : 65) : 80,
-      minSize: isLowPerformance ? (isSmallScreen ? 25 : 35) : 45,
-      maxSpeed: isLowPerformance ? (isSmallScreen ? 0.1 : 0.15) : 0.2,
-      minSpeed: isLowPerformance ? (isSmallScreen ? 0.03 : 0.05) : 0.08,
-    };
-  }, [itemsCount]);
-
-  // Generate random floating element
-  const createRandomElement = useCallback((id: string): FloatingElement => {
-    const config = getConfiguration();
-    const image = animationImages[Math.floor(Math.random() * animationImages.length)];
-    
-    return {
-      id,
-      image,
-      x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000),
-      y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 1000),
-      size: config.minSize + Math.random() * (config.maxSize - config.minSize),
-      speedX: (Math.random() - 0.5) * config.maxSpeed,
-      speedY: (Math.random() - 0.5) * config.maxSpeed,
-      opacity: 0.3 + Math.random() * 0.4, // 0.3 to 0.7
-      rotation: Math.random() * 360,
-      rotationSpeed: (Math.random() - 0.5) * 2, // -1 to 1 degrees per frame
-    };
-  }, [getConfiguration]);
-
-  // Initialize elements
+  // Mount flag: elements depend on window dimensions / Math.random, so they
+  // must be generated on the client only (avoids hydration mismatch).
   useEffect(() => {
     setIsClient(true);
-    const config = getConfiguration();
-    const initialElements = Array.from({ length: config.itemsCount }, (_, i) =>
-      createRandomElement(`element-${i}`)
-    );
-    setElements(initialElements);
-  }, [createRandomElement, getConfiguration]);
+  }, []);
 
-  // Animation loop
-  useEffect(() => {
-    if (!enableAnimation || !isClient) return;
+  // Generate the elements exactly once per mount. No per-frame React state:
+  // drift now runs as a pure CSS keyframe animation on the compositor.
+  const elements = useMemo<FloatingElement[]>(() => {
+    if (!isClient) return [];
 
-    const animate = () => {
-      setElements(prevElements =>
-        prevElements.map(element => {
-          let newX = element.x + element.speedX;
-          let newY = element.y + element.speedY;
-          let newRotation = element.rotation + element.rotationSpeed;
+    const width = typeof window !== 'undefined' ? window.innerWidth : 1000;
+    const height = typeof window !== 'undefined' ? window.innerHeight : 1000;
+    const isSmallScreen = width < 768;
+    const isLowPerformance = width < 1024;
 
-          // Wrap around screen edges
-          if (newX > window.innerWidth + element.size) newX = -element.size;
-          if (newX < -element.size) newX = window.innerWidth + element.size;
-          if (newY > window.innerHeight + element.size) newY = -element.size;
-          if (newY < -element.size) newY = window.innerHeight + element.size;
+    const count =
+      itemsCount || (isLowPerformance ? (isSmallScreen ? 15 : 20) : 25);
+    const maxSize = isLowPerformance ? (isSmallScreen ? 50 : 65) : 80;
+    const minSize = isLowPerformance ? (isSmallScreen ? 25 : 35) : 45;
 
-          // Keep rotation in bounds
-          if (newRotation > 360) newRotation -= 360;
-          if (newRotation < 0) newRotation += 360;
-
-          return {
-            ...element,
-            x: newX,
-            y: newY,
-            rotation: newRotation,
-          };
-        })
-      );
-
-      const id = requestAnimationFrame(animate);
-      setAnimationId(id);
-    };
-
-    const id = requestAnimationFrame(animate);
-    setAnimationId(id);
-
-    return () => {
-      if (id) cancelAnimationFrame(id);
-    };
-  }, [enableAnimation, isClient]);
-
-  // Cleanup animation on unmount
-  useEffect(() => {
-    return () => {
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-      }
-    };
-  }, [animationId]);
-
-  // Handle window resize
-  useEffect(() => {
-    if (!isClient) return;
-
-    const handleResize = () => {
-      const config = getConfiguration();
-      setElements(prevElements => {
-        // Adjust existing elements to new screen size
-        return prevElements.slice(0, config.itemsCount).map(element => ({
-          ...element,
-          x: Math.min(element.x, window.innerWidth),
-          y: Math.min(element.y, window.innerHeight),
-        }));
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isClient, getConfiguration]);
+    return Array.from({ length: count }, (_, i) => ({
+      id: `element-${i}`,
+      image: animationImages[Math.floor(Math.random() * animationImages.length)],
+      x: Math.random() * width,
+      y: Math.random() * height,
+      size: minSize + Math.random() * (maxSize - minSize),
+      opacity: 0.3 + Math.random() * 0.4, // 0.3 to 0.7
+      rotation: Math.random() * 360,
+      // Gentle transform-only drift, randomized per element.
+      driftX: (Math.random() - 0.5) * 120, // -60..60px
+      driftY: (Math.random() - 0.5) * 120, // -60..60px
+      driftRotate: (Math.random() - 0.5) * 40, // -20..20deg
+      driftDuration: 18 + Math.random() * 14, // 18..32s
+      driftDelay: Math.random() * -20, // negative → desynchronized start
+    }));
+    // Regenerate only across mounts / prop change, never per frame.
+  }, [isClient, itemsCount]);
 
   if (!isClient) {
     return null;
@@ -166,45 +91,40 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
 
   return (
     <div className={`fixed inset-0 pointer-events-none overflow-hidden ${className}`}>
-      <AnimatePresence>
-        {elements.map((element) => (
-          <motion.div
-            key={element.id}
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ 
-              opacity: element.opacity,
-              scale: 1,
-              x: element.x,
-              y: element.y,
-              rotate: element.rotation,
-            }}
-            exit={{ opacity: 0, scale: 0 }}
-            transition={{
-              opacity: { duration: 0.5 },
-              scale: { duration: 0.5 },
-              x: { duration: 0 },
-              y: { duration: 0 },
-              rotate: { duration: 0 },
-            }}
-            className="absolute"
-            style={{
+      {elements.map((element) => (
+        <div
+          key={element.id}
+          className={styles.element}
+          style={
+            {
+              left: element.x,
+              top: element.y,
               width: element.size,
               height: element.size,
-              willChange: 'transform',
-            }}
-          >
-            <Image
-              src={element.image}
-              alt=""
-              width={element.size}
-              height={element.size}
-              className="w-full h-full object-contain"
-              loading="lazy"
-              unoptimized // For better performance with small animated images
-            />
-          </motion.div>
-        ))}
-      </AnimatePresence>
+              '--target-opacity': element.opacity,
+              '--rotation': `${element.rotation}deg`,
+              '--drift-x': `${element.driftX}px`,
+              '--drift-y': `${element.driftY}px`,
+              '--drift-rotate': `${element.driftRotate}deg`,
+              '--drift-duration': `${element.driftDuration}s`,
+              '--drift-delay': `${element.driftDelay}s`,
+              // Allow callers/tests to opt out; drift keyframe still parked
+              // at frame 0 so the element renders in place.
+              animationPlayState: enableAnimation ? undefined : 'paused',
+            } as React.CSSProperties
+          }
+        >
+          <Image
+            src={element.image}
+            alt=""
+            width={element.size}
+            height={element.size}
+            className="w-full h-full object-contain"
+            loading="lazy"
+            unoptimized // For better performance with small animated images
+          />
+        </div>
+      ))}
     </div>
   );
 };

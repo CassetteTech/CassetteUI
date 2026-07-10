@@ -78,7 +78,7 @@ export default function SignInPage() {
               <Button
                 onClick={handleGoogleSignIn}
                 disabled={isSigningInWithProvider}
-                className="w-full h-11 rounded-none border-2 border-foreground bg-[hsl(var(--cassette-white))] dark:bg-background text-foreground font-bold text-sm shadow-flat-3 hover:-translate-y-0.5 hover:shadow-flat-5 transition-all"
+                className="w-full h-11 rounded-none border-2 border-foreground bg-[hsl(var(--cassette-white))] dark:bg-background text-foreground font-bold text-sm shadow-flat-3 hover:-translate-y-0.5 hover:shadow-flat-5 transition-[transform,box-shadow]"
               >
                 <GoogleGIcon className="mr-2 h-4 w-4" />
                 Continue with Google

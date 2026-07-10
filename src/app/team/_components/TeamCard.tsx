@@ -11,9 +11,14 @@ interface TeamCardProps {
   onClick: () => void;
 }
 
+/**
+ * Roster card. Flat at rest — the offset shadow only appears on hover. On
+ * hover-capable devices the portrait develops from mono to color; touch
+ * devices get full color from the start. The type tag is color-only mono
+ * text with a pixel square, not a filled chip.
+ */
 export function TeamCard({ member, onClick }: TeamCardProps) {
   const typeConfig = getTypeConfig(member.type);
-  const TypeIcon = typeConfig.icon;
   const socialLinks = [
     { href: member.social.github, icon: Github, label: "GitHub" },
     { href: member.social.linkedin, icon: Linkedin, label: "LinkedIn" },
@@ -25,14 +30,14 @@ export function TeamCard({ member, onClick }: TeamCardProps) {
   return (
     <button
       onClick={onClick}
-      className="group text-left w-full h-full bg-background border-2 border-foreground p-4 flex gap-3 sm:gap-4 items-stretch shadow-flat-4 dark:shadow-flat-white-4 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-flat-primary-6 transition-all duration-150 ease-linear focus-visible:outline-none focus-visible:shadow-flat-primary-6"
+      className="group text-left w-full h-full bg-card border-2 border-foreground p-4 flex gap-3 sm:gap-4 items-stretch hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-flat-4 dark:hover:shadow-flat-white-4 transition-[transform,box-shadow] duration-150 ease-out-quart focus-visible:outline-none focus-visible:shadow-flat-primary-6"
     >
       <div className="relative w-20 h-20 sm:w-24 sm:h-24 border-2 border-foreground shrink-0 bg-muted overflow-hidden">
         <Image
           src={member.image}
           alt={member.name}
           fill
-          className="object-cover"
+          className="object-cover [@media(hover:hover)]:grayscale group-hover:grayscale-0 group-focus-visible:grayscale-0 transition-[filter] duration-300"
           sizes="96px"
         />
       </div>
@@ -49,12 +54,11 @@ export function TeamCard({ member, onClick }: TeamCardProps) {
         <div className="mt-auto pt-3 flex items-center justify-between gap-2">
           <span
             className={cn(
-              "inline-flex items-center gap-1 px-1.5 py-0.5 border border-foreground/20 font-mono text-[9px] uppercase tracking-[0.15em] truncate",
-              typeConfig.iconBg,
+              "inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.15em] truncate",
               typeConfig.iconColor
             )}
           >
-            <TypeIcon size={10} strokeWidth={2.5} className="shrink-0" />
+            <span aria-hidden className="h-1.5 w-1.5 bg-current shrink-0" />
             <span className="truncate">{typeConfig.label}</span>
           </span>
           {socialLinks.length > 0 && (

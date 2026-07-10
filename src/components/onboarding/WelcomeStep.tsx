@@ -40,7 +40,7 @@ export function WelcomeStep({ onNext, displayName }: WelcomeStepProps) {
       >
         {/* Cassette Logo */}
         <motion.div
-          initial={{ scale: 0, rotate: -10 }}
+          initial={{ scale: 0.8, rotate: -10 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
           className="mx-auto"

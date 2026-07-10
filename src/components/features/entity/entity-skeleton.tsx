@@ -189,9 +189,9 @@ const ProgressOverlay: React.FC<{
             {/* Hairline progress bar on the card's bottom edge */}
             <div className="h-[3px] bg-muted/50">
               <motion.div
-                className="h-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.45)]"
-                initial={{ width: '6%' }}
-                animate={{ width: `${safePercent}%` }}
+                className="h-full w-full origin-left bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.45)]"
+                initial={{ scaleX: 0.06 }}
+                animate={{ scaleX: safePercent / 100 }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
               />
             </div>

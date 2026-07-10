@@ -50,9 +50,9 @@ export const ConversionSteps: React.FC<ConversionStepsProps> = ({
           {/* Connector track (behind the nodes) */}
           <div className="absolute left-4 right-4 top-4 h-[2px] bg-border/60 rounded-full" />
           <motion.div
-            className="absolute left-4 top-4 h-[2px] bg-primary rounded-full origin-left"
+            className="absolute left-4 right-4 top-4 h-[2px] bg-primary rounded-full origin-left"
             initial={false}
-            animate={{ width: `calc((100% - 2rem) * ${fillPercent / 100})` }}
+            animate={{ scaleX: fillPercent / 100 }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
           />
 
@@ -80,9 +80,9 @@ export const ConversionSteps: React.FC<ConversionStepsProps> = ({
           {/* Vertical connector track */}
           <div className="absolute left-[15px] top-2 bottom-2 w-[2px] bg-border/60 rounded-full" />
           <motion.div
-            className="absolute left-[15px] top-2 w-[2px] bg-primary rounded-full origin-top"
+            className="absolute left-[15px] top-2 bottom-2 w-[2px] bg-primary rounded-full origin-top"
             initial={false}
-            animate={{ height: `calc((100% - 1rem) * ${fillPercent / 100})` }}
+            animate={{ scaleY: fillPercent / 100 }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
           />
 

@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Share2, Music } from "lucide-react";
 import Image from "next/image";
+import { EASE_OUT_QUART } from "@/lib/motion";
 
 type TabType = 'playlists' | 'tracks' | 'artists' | 'albums';
 
@@ -70,7 +71,7 @@ const annotationLeft = {
   visible: (i: number) => ({
     opacity: 1,
     x: 0,
-    transition: { delay: 0.8 + i * 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] as const },
+    transition: { delay: 0.8 + i * 0.15, duration: 0.5, ease: EASE_OUT_QUART },
   }),
 };
 
@@ -80,7 +81,7 @@ const annotationRight = {
   visible: (i: number) => ({
     opacity: 1,
     x: 0,
-    transition: { delay: 0.8 + i * 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] as const },
+    transition: { delay: 0.8 + i * 0.15, duration: 0.5, ease: EASE_OUT_QUART },
   }),
 };
 
@@ -128,12 +129,9 @@ export function ProfileDemo({ annotations = true }: ProfileDemoProps) {
 
     return (
       <div className="space-y-1 p-3">
-        {items.map((item, idx) => (
-          <motion.div
+        {items.map((item) => (
+          <div
             key={item.id}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.04, duration: 0.3, ease: 'easeOut' }}
             className="flex items-center gap-2 p-2 rounded-none border-b border-border/40 hover:bg-muted/30 transition-colors"
           >
             <div className="w-10 h-10 rounded-sm bg-muted overflow-hidden flex-shrink-0 border border-border/50">
@@ -143,7 +141,7 @@ export function ProfileDemo({ annotations = true }: ProfileDemoProps) {
               <h4 className="font-medium text-xs truncate text-foreground">{item.line1}</h4>
               <p className="text-xs text-muted-foreground truncate">{item.line2}</p>
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
     );
@@ -214,7 +212,7 @@ export function ProfileDemo({ annotations = true }: ProfileDemoProps) {
                           <TabsTrigger
                             key={tab.key}
                             value={tab.key}
-                            className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-none px-1 sm:px-2 py-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-normal sm:tracking-wider transition-all duration-100 text-muted-foreground hover:text-foreground data-[state=active]:text-white font-teko"
+                            className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-none px-1 sm:px-2 py-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-normal sm:tracking-wider transition-colors duration-100 text-muted-foreground hover:text-foreground data-[state=active]:text-white font-teko"
                             style={{
                               backgroundColor: activeTab === tab.key ? 'hsl(var(--primary))' : undefined,
                               height: activeTab === tab.key ? '32px' : '28px',
@@ -230,7 +228,7 @@ export function ProfileDemo({ annotations = true }: ProfileDemoProps) {
 
                 {/* Content with tab transition */}
                 <div className="flex-1 overflow-y-auto overflow-x-hidden">
-                  <AnimatePresence mode="wait">
+                  <AnimatePresence>
                     <motion.div
                       key={activeTab}
                       variants={tabContentVariants}

@@ -184,9 +184,9 @@ const ConversionOverlay: React.FC<ConversionOverlayProps> = ({
         {!isDesktop && (
           <div className="w-3/4 mt-3 h-1.5 rounded-full bg-muted/50 overflow-hidden">
             <motion.div
-              className="h-full bg-primary rounded-full"
-              initial={{ width: '6%' }}
-              animate={{ width: `${progressPercent}%` }}
+              className="h-full w-full origin-left bg-primary rounded-full"
+              initial={{ scaleX: 0.06 }}
+              animate={{ scaleX: progressPercent / 100 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
             />
           </div>

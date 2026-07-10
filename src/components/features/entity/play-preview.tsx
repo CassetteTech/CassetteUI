@@ -190,8 +190,8 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
           <div className="flex-1 min-w-0">
             <div className="relative w-full h-1 bg-border/50 rounded-full overflow-hidden">
               <div
-                className="absolute left-0 top-0 h-full bg-primary/70 transition-all duration-100 ease-linear"
-                style={{ width: `${progressPercentage}%` }}
+                className="absolute left-0 top-0 h-full w-full origin-left bg-primary/70 transition-transform duration-100 ease-linear"
+                style={{ transform: `scaleX(${progressPercentage / 100})` }}
               />
             </div>
 
@@ -270,8 +270,8 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
 
           <div className="relative w-full h-1 bg-border/60 rounded-full overflow-hidden">
             <div
-              className="absolute left-0 top-0 h-full bg-primary/80 transition-all duration-100 ease-linear"
-              style={{ width: `${progressPercentage}%` }}
+              className="absolute left-0 top-0 h-full w-full origin-left bg-primary/80 transition-transform duration-100 ease-linear"
+              style={{ transform: `scaleX(${progressPercentage / 100})` }}
             />
           </div>
 

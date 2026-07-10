@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { AuthProvider } from './auth-provider';
 import { ThemeProvider } from './theme-provider';
 import { ReportIssueProvider } from './report-issue-provider';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { ChunkLoadRecovery } from '@/components/system/chunk-load-recovery';
 
 interface ProvidersProps {
@@ -41,9 +42,11 @@ export function Providers({ children }: ProvidersProps) {
       <ChunkLoadRecovery />
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <ReportIssueProvider>
-            {children}
-          </ReportIssueProvider>
+          <TooltipProvider delayDuration={600} skipDelayDuration={300}>
+            <ReportIssueProvider>
+              {children}
+            </ReportIssueProvider>
+          </TooltipProvider>
         </AuthProvider>
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>

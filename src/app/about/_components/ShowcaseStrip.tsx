@@ -2,125 +2,150 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { SectionHeader } from "@/components/features/marketing/section-header";
+import { EASE_OUT_QUART } from "@/lib/motion";
 import { showcaseLinks } from "../_data";
 
-const TAPE_COLORS = [
-  "bg-primary/70",
-  "bg-accentRoyal/60",
-  "bg-warning/70",
-  "bg-info/60",
-];
+const SOURCE_PLATFORMS = ["spotify", "apple_music", "deezer"] as const;
 
-// Deterministic pseudo-random from a seed string so SSR/CSR stay in sync.
-function hashRand(seed: string) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  return () => {
-    h = (h * 1664525 + 1013904223) | 0;
-    return (h >>> 0) / 0xffffffff;
-  };
-}
-
+/**
+ * Live smart-link demo. One flat diagram explains the whole product — any
+ * link in, one Cassette link out, opens in the listener's player — then the
+ * example rows just invite a tap; the conversion itself is the payoff.
+ */
 export function ShowcaseStrip() {
   return (
     <section className="py-16 md:py-20">
-      <div className="editorial-rule-thick mb-16 md:mb-20" />
+      <div className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+        <SectionHeader
+          kicker="Try It Now"
+          title="Smart Links, Live"
+          sub={
+            <>
+              Paste a link from any app. Share one that opens in all of them.
+            </>
+          }
+        />
 
+        <Link
+          href="/auth/signup"
+          className="hidden sm:inline-flex shrink-0 items-center gap-2 border-2 border-foreground px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.25em] text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors mb-1"
+        >
+          Start Free
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+
+      {/* How it works — flat diagram strip */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.5 }}
-        className="mb-12 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6"
+        className="mb-12 border-y-2 border-foreground/15 py-6 grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-x-6 gap-y-5"
       >
-        <div className="-rotate-[1.5deg] inline-block">
-          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">
-            Try It Now
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2.5">
+            Any link in
           </p>
-          <h2 className="font-teko text-5xl sm:text-6xl lg:text-7xl font-bold uppercase tracking-tight leading-none text-foreground">
-            Smart Links
-            <span
-              aria-hidden
-              className="ml-1 inline-block h-6 sm:h-8 lg:h-10 w-1.5 bg-primary align-baseline animate-pulse"
-            />
-          </h2>
-          <p className="font-roboto text-base text-muted-foreground italic mt-4 max-w-md">
-            Tap a track—we&apos;ll hand it off to your player.
-          </p>
+          <div className="flex items-center gap-2.5">
+            {SOURCE_PLATFORMS.map((svc) => (
+              <Image
+                key={svc}
+                src={`/images/${svc}_logo_colored.png`}
+                alt=""
+                width={24}
+                height={24}
+                quality={80}
+                className="h-6 w-6 object-contain"
+              />
+            ))}
+            <span className="font-mono text-[10px] text-muted-foreground">
+              …
+            </span>
+          </div>
         </div>
 
-        <Link
-          href="/auth/signup"
-          className="hidden sm:inline-flex shrink-0 rotate-[2deg] items-center gap-2 bg-background border-2 border-foreground px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.25em] text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors shadow-flat-3"
-        >
-          Start Free
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
+        <ArrowRight
+          aria-hidden
+          className="hidden sm:block h-4 w-4 text-muted-foreground"
+        />
+
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2.5">
+            One smart link out
+          </p>
+          <span className="inline-flex items-center gap-2 border-2 border-foreground bg-background px-3 py-1.5">
+            <Image
+              src="/images/cassette_logo.png"
+              alt=""
+              width={16}
+              height={16}
+              className="h-4 w-4 object-contain"
+            />
+            <span className="font-mono text-[11px] tracking-[0.05em] text-foreground">
+              cassette.tech/…
+            </span>
+          </span>
+        </div>
+
+        <ArrowRight
+          aria-hidden
+          className="hidden sm:block h-4 w-4 text-muted-foreground"
+        />
+
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2.5">
+            Opens everywhere
+          </p>
+          <p className="font-roboto text-sm italic text-foreground/80 leading-snug">
+            Every listener lands in their own player. No dead ends.
+          </p>
+        </div>
       </motion.div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-x-6 gap-y-12">
-        {showcaseLinks.map((link, index) => {
-          const rand = hashRand(link.title);
-          const rot = (rand() - 0.5) * 5;
-          const tapeColor = TAPE_COLORS[index % TAPE_COLORS.length];
-          const tapeSide = index % 2 === 0 ? "left" : "right";
-
-          return (
-            <motion.div
-              key={link.title}
-              initial={{ opacity: 0, y: 20, rotate: 0 }}
-              whileInView={{ opacity: 1, y: 0, rotate: rot }}
-              whileHover={{ rotate: 0, y: -4, scale: 1.02 }}
-              viewport={{ once: true, margin: "-5%" }}
-              transition={{
-                duration: 0.4,
-                delay: Math.min(index * 0.04, 0.2),
-                ease: [0.23, 1, 0.32, 1],
-              }}
-              className="relative"
-              style={{ transformOrigin: "center" }}
+      <ul className="border-y-2 border-foreground divide-y divide-foreground/25">
+        {showcaseLinks.map((link, index) => (
+          <motion.li
+            key={link.title}
+            initial={{ opacity: 0, x: -12 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{
+              duration: 0.35,
+              delay: Math.min(index * 0.05, 0.25),
+              ease: EASE_OUT_QUART,
+            }}
+          >
+            <Link
+              href={link.href}
+              className="group flex items-center gap-4 sm:gap-6 px-3 sm:px-4 py-4 sm:py-5 hover:bg-foreground hover:text-background transition-colors duration-150"
             >
-              <span
-                aria-hidden
-                className={cn(
-                  "absolute -top-2 z-10 h-5 w-16 rotate-[-6deg] opacity-80 border border-foreground/10",
-                  tapeColor,
-                  tapeSide === "left" ? "left-3" : "right-3"
-                )}
-              />
-
-              <Link
-                href={link.href}
-                className="group block bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-4 pb-5 shadow-flat-4 dark:shadow-flat-white-4 hover:shadow-flat-primary-6 dark:hover:shadow-flat-primary-6 transition-shadow"
-              >
-                <span className="inline-block font-mono text-[9px] uppercase tracking-[0.2em] bg-foreground text-background px-1.5 py-0.5 mb-3">
-                  {link.meta}
-                </span>
-
-                <h3 className="font-teko text-2xl sm:text-3xl uppercase leading-[0.95] tracking-tight line-clamp-2 group-hover:text-primary transition-colors">
+              <span className="min-w-0 flex-1">
+                <span className="block font-teko text-2xl sm:text-3xl uppercase leading-[0.95] tracking-tight truncate">
                   {link.title}
-                </h3>
+                </span>
+                <span className="block font-roboto text-xs italic text-muted-foreground group-hover:text-background/70 transition-colors mt-0.5">
+                  {link.artist} &middot; {link.kind}
+                </span>
+              </span>
 
-                <p className="mt-1 text-xs text-muted-foreground line-clamp-1 italic">
-                  {link.artist}
-                </p>
+              <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground group-hover:text-background/60 transition-colors whitespace-nowrap">
+                Convert &amp; play
+              </span>
 
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="h-px flex-1 bg-foreground/20" />
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                </div>
-              </Link>
-            </motion.div>
-          );
-        })}
-      </div>
+              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-background group-hover:translate-x-1 transition-[color,transform]" />
+            </Link>
+          </motion.li>
+        ))}
+      </ul>
 
       <div className="mt-10 sm:hidden text-center">
         <Link
           href="/auth/signup"
-          className="inline-flex items-center gap-2 bg-background border-2 border-foreground px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.25em] text-foreground shadow-flat-3"
+          className="inline-flex items-center gap-2 border-2 border-foreground px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.25em] text-foreground"
         >
           Start Free
           <ArrowRight className="h-3.5 w-3.5" />

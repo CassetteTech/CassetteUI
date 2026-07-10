@@ -243,7 +243,7 @@ function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
               alt={post.title}
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+              className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -378,7 +378,7 @@ function CreatorSticker({ user, index }: { user: ExploreUser; index: number }) {
   return (
     <Link
       href={`/profile/${user.username}`}
-      className="group shrink-0 snap-start w-[220px] bg-primary-foreground force-light-surface text-foreground border-2 border-foreground rounded-2xl px-4 py-3 shadow-flat-4 hover:shadow-flat-primary-6 transition-all"
+      className="group shrink-0 snap-start w-[220px] bg-primary-foreground force-light-surface text-foreground border-2 border-foreground rounded-2xl px-4 py-3 shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow"
       style={{ transform: `rotate(${rot}deg)` }}
     >
       <div className="flex items-center gap-3">

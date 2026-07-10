@@ -115,8 +115,8 @@ export const ConversionProgress: React.FC<ConversionProgressProps> = ({
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={progressPercent}
-              className="h-full bg-primary transition-[width] duration-300 ease-out"
-              style={{ width: `${progressPercent}%` }}
+              className="h-full w-full origin-left bg-primary transition-transform duration-300 ease-out"
+              style={{ transform: `scaleX(${progressPercent / 100})` }}
             />
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">

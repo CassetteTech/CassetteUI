@@ -92,7 +92,7 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
         href={href}
         className="group inline-flex items-center gap-1.5 font-roboto text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        <span className="inline-block w-0 group-hover:w-3 overflow-hidden transition-[width] duration-150 font-mono text-primary text-xs">
+        <span className="inline-block w-3 overflow-hidden scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-150 font-mono text-primary text-xs">
           →
         </span>
         <span>{children}</span>

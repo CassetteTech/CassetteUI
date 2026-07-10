@@ -91,7 +91,7 @@ export function CompletionStep({
       <div className="space-y-8">
         {/* Cassette Logo + Success */}
         <motion.div
-          initial={{ scale: 0 }}
+          initial={{ scale: 0.8 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
           className="flex justify-center"
@@ -112,7 +112,7 @@ export function CompletionStep({
               />
             </motion.div>
             <motion.div
-              initial={{ opacity: 0, scale: 0 }}
+              initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.7 }}
               className="absolute -bottom-1 -right-1 w-8 h-8 bg-success rounded-full flex items-center justify-center"
@@ -120,7 +120,7 @@ export function CompletionStep({
               <CheckCircle2 className="w-5 h-5 text-white" />
             </motion.div>
             <motion.div
-              initial={{ opacity: 0, scale: 0 }}
+              initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.9 }}
               className="absolute -top-2 -right-2"

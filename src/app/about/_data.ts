@@ -1,94 +1,9 @@
-import {
-  Stars,
-  Zap,
-  Radio,
-  Music2,
-  Link as LinkIcon,
-  UserSquare,
-} from "lucide-react";
+import { Stars, Zap, Radio, Music2, Link as LinkIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-
-// --- Section Color Config (mirrors team _data.ts TypeConfig pattern) ---
-
-export interface SectionColorConfig {
-  accentBar: string;
-  numberColor: string;
-  iconColor: string;
-  iconBg: string;
-}
-
-export const sectionColors: Record<string, SectionColorConfig> = {
-  hero: {
-    accentBar: "bg-primary",
-    numberColor: "text-primary/25",
-    iconColor: "text-primary",
-    iconBg: "bg-primary/10",
-  },
-  problem: {
-    accentBar: "bg-info",
-    numberColor: "text-info-text/25",
-    iconColor: "text-info-text",
-    iconBg: "bg-info/10",
-  },
-  support: {
-    accentBar: "bg-primary",
-    numberColor: "text-primary/25",
-    iconColor: "text-primary",
-    iconBg: "bg-primary/10",
-  },
-  showcase: {
-    accentBar: "bg-warning",
-    numberColor: "text-warning/25",
-    iconColor: "text-warning",
-    iconBg: "bg-warning/10",
-  },
-  vision: {
-    accentBar: "bg-info",
-    numberColor: "text-info-text/25",
-    iconColor: "text-info-text",
-    iconBg: "bg-info/10",
-  },
-  supporters: {
-    accentBar: "bg-warning",
-    numberColor: "text-warning/25",
-    iconColor: "text-warning",
-    iconBg: "bg-warning/10",
-  },
-};
-
-// --- Hero Preview Links ---
-
-export const heroPreviewLinks = [
-  {
-    title: "Stronger",
-    artist: "Kanye West",
-    href: "/?url=https://open.spotify.com/track/4fzsfWzRhPawzqhX8Qt9F3",
-    badge: "Spotify \u2192 Universal",
-  },
-  {
-    title: "Time",
-    artist: "Pink Floyd",
-    href: "/?url=https://music.apple.com/us/album/the-dark-side-of-the-moon/1065973699?i=1065973705",
-    badge: "Apple Music \u2192 Universal",
-  },
-  {
-    title: "Daft Punk is Playing at My House",
-    artist: "LCD Soundsystem",
-    href: "/?url=https://open.spotify.com/track/3jtvJtAA25a7d0BLOJ8Dqo",
-    badge: "Dance / Electronic",
-  },
-  {
-    title: "After Hours",
-    artist: "The Weeknd",
-    href: "/?url=https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj",
-    badge: "Full Album",
-  },
-];
 
 // --- Timeline Milestones ---
 
 export interface Milestone {
-  number: string;
   year: string;
   title: string;
   description: string;
@@ -101,11 +16,10 @@ export interface Milestone {
 
 export const milestones: Milestone[] = [
   {
-    number: "01",
-    year: "2021",
+    year: "2022",
     title: "The Spark",
     description:
-      "Co-founders met at American University, frustrated by the inability to share music across platforms. The idea for Cassette was born.",
+      "Frustrated by the inability to share music across platforms, the co-founders started sketching a fix. The idea for Cassette was born.",
     icon: Stars,
     accentBar: "bg-primary",
     borderTop: "border-t-primary",
@@ -113,8 +27,7 @@ export const milestones: Milestone[] = [
     numberColor: "text-primary/25",
   },
   {
-    number: "02",
-    year: "2022",
+    year: "2023",
     title: "Building the Foundation",
     description:
       "Pitched into American University\u2019s accelerator program. Built initial prototype and assembled our founding team of engineers and marketers.",
@@ -125,8 +38,7 @@ export const milestones: Milestone[] = [
     numberColor: "text-info-text/25",
   },
   {
-    number: "03",
-    year: "2023",
+    year: "2024",
     title: "Launch & Growth",
     description:
       "Successfully completed crowdfunding campaign. Launched platform publicly and began scaling to thousands of users.",
@@ -137,8 +49,7 @@ export const milestones: Milestone[] = [
     numberColor: "text-accentRoyal/25",
   },
   {
-    number: "04",
-    year: "2024\u20132025",
+    year: "2025",
     title: "Scaling Up",
     description:
       "Secured seed funding, scaled the REST API to support platform growth, established international partnerships, and continued innovation.",
@@ -148,85 +59,66 @@ export const milestones: Milestone[] = [
     iconColor: "text-warning",
     numberColor: "text-warning/25",
   },
-];
-
-// --- Feature Cards ---
-
-export interface FeatureCard {
-  number: string;
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  accentBar: string;
-  iconColor: string;
-  numberColor: string;
-}
-
-export const featureCards: FeatureCard[] = [
   {
-    number: "01",
+    year: "2026",
+    title: "The Platform",
+    description:
+      "Launched our flagship platform\u2014the one you\u2019re using right now\u2014giving listeners a better way to share music and build a home for their taste.",
     icon: LinkIcon,
-    title: "Universal Music Links",
-    description:
-      "Drop any URL\u2014Spotify, Apple, YouTube\u2014and get one elegant Cassette link that adapts to every listener.",
-    accentBar: "bg-info",
-    iconColor: "text-info-text",
-    numberColor: "text-info-text/25",
-  },
-  {
-    number: "02",
-    icon: UserSquare,
-    title: "Your Music Identity",
-    description:
-      "Your profile becomes a home for your taste\u2014playlists, recent finds, top artists\u2014beautifully organized in one place.",
-    accentBar: "bg-accentRoyal",
-    iconColor: "text-accentRoyal",
-    numberColor: "text-accentRoyal/25",
+    accentBar: "bg-primary",
+    borderTop: "border-t-primary",
+    iconColor: "text-primary",
+    numberColor: "text-primary/25",
   },
 ];
 
-// --- Showcase Links ---
+// --- Showcase Links (live smart-link demo rows) ---
 
-export const showcaseLinks = [
+export const showcaseLinks: {
+  title: string;
+  artist: string;
+  href: string;
+  kind: "Track" | "Album";
+}[] = [
   {
     title: "Stronger",
     artist: "Kanye West",
     href: "/?url=https://open.spotify.com/track/4fzsfWzRhPawzqhX8Qt9F3",
-    meta: "Spotify \u2192 Universal",
+    kind: "Track",
   },
   {
     title: "Time",
     artist: "Pink Floyd",
     href: "/?url=https://music.apple.com/us/album/the-dark-side-of-the-moon/1065973699?i=1065973705",
-    meta: "Apple \u2192 Universal",
+    kind: "Track",
   },
   {
     title: "Daft Punk is Playing at My House",
     artist: "LCD Soundsystem",
     href: "/?url=https://open.spotify.com/track/3jtvJtAA25a7d0BLOJ8Dqo",
-    meta: "Electronic",
+    kind: "Track",
   },
   {
     title: "After Hours",
     artist: "The Weeknd",
     href: "/?url=https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj",
-    meta: "Full Album",
+    kind: "Album",
   },
   {
     title: "Currents",
     artist: "Tame Impala",
     href: "/?url=https://open.spotify.com/album/79dL7FLiJFOO0EoehUHQBv",
-    meta: "Psychedelic",
+    kind: "Album",
   },
   {
     title: "Feels Like Summer",
     artist: "Childish Gambino",
     href: "/?url=https://open.spotify.com/track/5UH5s7VwbSkFExIl1oqNux",
-    meta: "Hip-Hop/R&B",
+    kind: "Track",
   },
 ];
 
-// --- Identity Tiles (used in Features section) ---
+// --- Identity Tiles (used in the Music Identity section) ---
 
 export const identityTiles = [
   { title: "Playlists", desc: "Summer Vibes, Chill Study" },
@@ -235,9 +127,10 @@ export const identityTiles = [
   { title: "Albums", desc: "After Hours, Currents" },
 ];
 
-// --- Hero Stats ---
+// --- Liner Notes (stat strip at the top of the content sheet) ---
 
-export const heroStats = [
+export const linerNotes = [
   { value: "\u221E", label: "Music Connections" },
   { value: "100%", label: "Free to Start" },
+  { value: "2022", label: "Founded" },
 ];

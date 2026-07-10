@@ -10,6 +10,7 @@ import {
 } from "framer-motion";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { useAuthState } from "@/hooks/use-auth";
+import heroHalftone from "@/assets/images/hero-halftone.webp";
 
 /**
  * Full-viewport halftone hero. Pinned via `sticky` so the content sheet in
@@ -41,10 +42,11 @@ export function PixelHero() {
         className="absolute inset-0"
       >
         <Image
-          src="/images/backgrounds/image.png"
+          src={heroHalftone}
           alt=""
           fill
           priority
+          placeholder="blur"
           sizes="100vw"
           className="object-cover"
         />
@@ -93,7 +95,10 @@ export function PixelHero() {
           .
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
+        {/* items-start stops the column layout stretching the quiet link
+            full-width (which centered it on mobile while it sat left on
+            desktop) — it now hugs the button's left edge at every size. */}
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
           <Link
             href={primaryCtaHref}
             className="inline-flex items-center justify-center gap-3 bg-primary border-2 border-foreground text-primary-foreground font-mono text-[12px] uppercase tracking-[0.25em] px-6 py-3 shadow-flat-4 hover:-translate-y-0.5 hover:shadow-flat-6 transition-[transform,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -103,7 +108,7 @@ export function PixelHero() {
           </Link>
           <Link
             href="/team"
-            className="inline-flex items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-[0.25em] text-foreground/80 hover:text-primary transition-colors px-2 py-3"
+            className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.25em] text-foreground/80 hover:text-primary transition-colors py-3 sm:px-2"
           >
             <span>Meet the Team</span>
             <ArrowRight size={14} />

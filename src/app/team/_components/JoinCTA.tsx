@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Mail } from "lucide-react";
 import Image from "next/image";
 import { DITHER_BAND_MASK_TOP } from "@/components/features/marketing/dither-edge";
+import heroHalftone from "@/assets/images/hero-halftone.webp";
 
 /**
  * Closing CTA — navy band bookended with the hero halftone (framed on the
@@ -21,7 +22,7 @@ export function JoinCTA() {
         {/* Bookend: same halftone as the hero, dimmed under the navy band */}
         <div className="absolute inset-0 opacity-[0.12] pointer-events-none select-none">
           <Image
-            src="/images/backgrounds/image.png"
+            src={heroHalftone}
             alt=""
             fill
             sizes="100vw"

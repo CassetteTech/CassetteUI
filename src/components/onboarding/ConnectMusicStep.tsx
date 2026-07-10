@@ -54,9 +54,9 @@ const MUSIC_SERVICES = [
     id: 'Deezer' as const,
     name: 'Deezer',
     iconSrc: '/images/deezer_logo_colored.png',
-    description: 'Add Deezer to your profile',
+    description: 'Connect to create playlists',
     bgColor: 'bg-platform-deezer',
-    requiresAuth: false,
+    requiresAuth: true,
   },
 ];
 
@@ -117,6 +117,7 @@ export function ConnectMusicStep({
     const params = new URLSearchParams(window.location.search);
     const spotifyConnected = params.get('spotify_connected');
     const appleMusicConnected = params.get('applemusic_connected');
+    const deezerConnected = params.get('deezer_connected');
 
     if (spotifyConnected === 'true') {
       setPlatformStates(prev => ({
@@ -135,6 +136,15 @@ export function ConnectMusicStep({
       toast.success('Apple Music connected!');
       window.history.replaceState({}, '', window.location.pathname);
     }
+
+    if (deezerConnected === 'true') {
+      setPlatformStates(prev => ({
+        ...prev,
+        Deezer: { ...prev.Deezer, isSelected: true, isAuthenticated: true },
+      }));
+      toast.success('Deezer connected!');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   const handleToggle = async (serviceId: ServiceId) => {
@@ -144,7 +154,7 @@ export function ConnectMusicStep({
     const currentState = platformStates[serviceId];
     const newIsSelected = !currentState.isSelected;
 
-    // If turning on and requires auth (Apple Music), trigger auth flow
+    // If turning on and requires auth, trigger the provider flow.
     if (newIsSelected && service.requiresAuth) {
       setPlatformStates(prev => ({
         ...prev,
@@ -153,6 +163,11 @@ export function ConnectMusicStep({
 
       try {
         const returnUrl = window.location.pathname;
+        if (serviceId === 'Deezer') {
+          await platformConnectService.connectDeezer(window.location.href);
+          return;
+        }
+
         const success = await platformConnectService.connectAppleMusic(returnUrl);
 
         if (success) {
@@ -196,7 +211,7 @@ export function ConnectMusicStep({
       return;
     }
 
-    // For Spotify/Deezer, just toggle the preference
+    // Spotify does not need user OAuth when Cassette's provider account is enabled.
     setPlatformStates(prev => ({
       ...prev,
       [serviceId]: { ...prev[serviceId], isLoading: true },

@@ -7,6 +7,7 @@ import {
   type SignupAttribution,
 } from '@/lib/auth/signup-attribution';
 import { getApiUrl } from '@/lib/utils/url';
+import { shouldUseSecureCookies } from '@/lib/server/cookie-security';
 
 export const SESSION_COOKIE_NAME = 'cassette_session';
 export const SIGNUP_ATTRIBUTION_COOKIE_NAME = SIGNUP_ATTRIBUTION_COOKIE_NAME_VALUE;
@@ -98,7 +99,7 @@ function buildCookieOptions(maxAgeSeconds?: number) {
     httpOnly: true,
     path: '/',
     sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production',
+    secure: shouldUseSecureCookies(),
     ...(typeof maxAgeSeconds === 'number' ? { maxAge: maxAgeSeconds } : {}),
   };
 }

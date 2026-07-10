@@ -43,8 +43,8 @@ const MUSIC_SERVICES = [
     name: 'Deezer',
     iconSrc: '/images/deezer_logo_colored.png',
     bgColor: 'bg-platform-deezer',
-    requiresAuth: false,
-    description: 'Share music from Deezer',
+    requiresAuth: true,
+    description: 'Connect to create playlists',
   },
 ];
 
@@ -170,6 +170,26 @@ export function MusicConnectionsFlow({
     }
   };
 
+  const handleDeezerAuthorization = async () => {
+    setPlatformStates(prev => ({
+      ...prev,
+      Deezer: { ...prev.Deezer, isLoading: true },
+    }));
+
+    try {
+      await platformConnectService.connectDeezer(window.location.href);
+    } catch (error) {
+      appLogger.error('music_connections_deezer_connect_failed', { error, platform: 'Deezer' });
+      setPlatformStates(prev => ({
+        ...prev,
+        Deezer: { ...prev.Deezer, isLoading: false },
+      }));
+      toast.error('Failed to connect Deezer', {
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    }
+  };
+
   const handleToggle = async (serviceId: ServiceId) => {
     const service = MUSIC_SERVICES.find(s => s.id === serviceId);
     if (!service) return;
@@ -177,13 +197,18 @@ export function MusicConnectionsFlow({
     const currentState = platformStates[serviceId];
     const newIsSelected = !currentState.isSelected;
 
-    // If turning on and requires auth (Apple Music), trigger auth flow
+    // If turning on and requires auth, trigger the provider flow.
     if (newIsSelected && service.requiresAuth) {
+      if (serviceId === 'Deezer') {
+        await handleDeezerAuthorization();
+        return;
+      }
+
       await handleAppleMusicAuthorization(true);
       return;
     }
 
-    // For Spotify/Deezer (or turning off Apple Music), just toggle the preference
+    // Spotify does not need user OAuth when Cassette's provider account is enabled.
     setPlatformStates(prev => ({
       ...prev,
       [serviceId]: { ...prev[serviceId], isLoading: true },
@@ -235,6 +260,8 @@ export function MusicConnectionsFlow({
   const hasUnselectedServices = selectedPlatforms.length < MUSIC_SERVICES.length;
   const appleMusicNeedsAuthorization =
     platformStates.AppleMusic.isSelected && !platformStates.AppleMusic.isAuthenticated;
+  const deezerNeedsAuthorization =
+    platformStates.Deezer.isSelected && !platformStates.Deezer.isAuthenticated;
 
   if (isLoading) {
     return (
@@ -319,6 +346,24 @@ export function MusicConnectionsFlow({
                 </div>
               </div>
             )}
+            {deezerNeedsAuthorization && (
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Deezer is on your profile, but it still needs authorization to create playlists.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => void handleDeezerAuthorization()}
+                    disabled={platformStates.Deezer.isLoading}
+                    className="sm:shrink-0"
+                  >
+                    {platformStates.Deezer.isLoading ? 'Authorizing...' : 'Authorize Deezer'}
+                  </Button>
+                </div>
+              </div>
+            )}
             {hasUnselectedServices && (
               <p className="text-sm text-muted-foreground">
                 Click &quot;Add More&quot; to add additional streaming services
@@ -358,7 +403,7 @@ export function MusicConnectionsFlow({
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {service.id === 'AppleMusic' && state.isSelected && !state.isAuthenticated
+                        {service.requiresAuth && state.isSelected && !state.isAuthenticated
                           ? 'Authorization required to create playlists'
                           : service.description}
                       </p>
@@ -369,12 +414,18 @@ export function MusicConnectionsFlow({
                       <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                     ) : (
                       <>
-                        {service.id === 'AppleMusic' && !state.isAuthenticated && (
+                        {service.requiresAuth && !state.isAuthenticated && (
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => void handleAppleMusicAuthorization(!state.isSelected)}
+                            onClick={() => {
+                              if (service.id === 'Deezer') {
+                                void handleDeezerAuthorization();
+                              } else {
+                                void handleAppleMusicAuthorization(!state.isSelected);
+                              }
+                            }}
                           >
                             {state.isSelected ? 'Authorize' : 'Add & Authorize'}
                           </Button>

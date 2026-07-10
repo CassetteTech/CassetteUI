@@ -162,16 +162,18 @@ export const platformConnectService = {
     }
   },
 
-  /**
-   * Initiate Deezer OAuth flow
-   * TODO: Implement when Deezer OAuth is available
-   */
+  /** Initiate Deezer OAuth flow. */
   async connectDeezer(returnUrl?: string): Promise<void> {
     if (returnUrl) {
       this.setReturnUrl('deezer', returnUrl);
     }
-    // Deezer OAuth not yet implemented
-    throw new Error('Deezer connection not yet implemented. Please connect via your profile settings.');
+
+    const data = await apiService.connectDeezer();
+    if (!data?.authUrl) {
+      throw new Error('No auth URL received from server');
+    }
+
+    window.location.href = data.authUrl;
   },
 
   /**

@@ -3,7 +3,9 @@
  * Uses sessionStorage to persist actions that need to resume after signin/OAuth.
  */
 
-export type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
+import type { PlatformUiKey } from '@/lib/platforms';
+
+export type PlatformKey = PlatformUiKey;
 
 export interface PendingPlaylistAction {
   type: 'create_playlist';

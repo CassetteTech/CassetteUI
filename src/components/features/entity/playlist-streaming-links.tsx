@@ -7,11 +7,12 @@ import { streamingServices } from './streaming-links';
 import { apiService, ApiError } from '@/services/api';
 import { detectContentType } from '@/utils/content-type-detection';
 import { CreatePlaylistResponse, FailedTrack } from '@/types';
-import { ArrowUpRight, ChevronDown, ChevronUp, ExternalLink, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, ChevronUp, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuthState } from '@/hooks/use-auth';
 import { pendingActionService } from '@/utils/pending-action';
 import { platformConnectService } from '@/services/platform-connect';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
+import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
 import { openInAppOrBrowser, isAppleMusicLibraryUrl } from '@/utils/deep-link';
 import { clientConfig } from '@/lib/config-client';
 import { captureClientEvent } from '@/lib/analytics/client';
@@ -19,8 +20,14 @@ import { normalizePlatform, sanitizeDomain } from '@/lib/analytics/sanitize';
 import { buildPostPlatformConversionClickedProps } from '@/lib/analytics/post-platform-conversion';
 import type { AnalyticsBaseProps, PlatformDimension } from '@/lib/analytics/events';
 import { appLogger } from '@/lib/observability/logger';
+import {
+  PLAYLIST_CREATION_PLATFORM_UI_KEYS,
+  type PlatformUiKey,
+  getPlatformDefinition,
+  normalizePlatformUiKey,
+} from '@/lib/platforms';
 
-type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
+type PlatformKey = PlatformUiKey;
 
 interface PlaylistStreamingLinksProps {
   links: {
@@ -46,17 +53,8 @@ interface CreationStatus {
   actionLabel?: string;
 }
 
-const PLATFORMS: Array<PlatformKey> = ['spotify', 'appleMusic'];
+const PLATFORMS: ReadonlyArray<PlatformKey> = PLAYLIST_CREATION_PLATFORM_UI_KEYS;
 const PLAYLIST_CONVERSION_LIMIT = 200;
-
-const normalizePlatformKey = (platform?: string | null): PlatformKey | null => {
-  if (!platform) return null;
-  const lowered = platform.toLowerCase();
-  if (lowered === 'spotify') return 'spotify';
-  if (lowered === 'deezer') return 'deezer';
-  if (lowered === 'applemusic' || lowered === 'apple') return 'appleMusic';
-  return null;
-};
 
 export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   links,
@@ -78,7 +76,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
   const providedSourceUrl = sourceUrl?.trim();
   const detectedFromProvided = providedSourceUrl ? detectContentType(providedSourceUrl).platform : null;
-  const normalizedFromProp = normalizePlatformKey(sourcePlatform);
+  const normalizedFromProp = normalizePlatformUiKey(sourcePlatform);
   const fallbackSourceUrl =
     (normalizedFromProp ? links[normalizedFromProp] : undefined) ||
     links.spotify ||
@@ -89,19 +87,21 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   // Keep source platform detection resilient across mixed URL/platform inputs.
   const sourcePlatformKey =
     normalizedFromProp ||
-    normalizePlatformKey(detectedFromProvided) ||
-    normalizePlatformKey(detectedFromResolved) ||
+    normalizePlatformUiKey(detectedFromProvided) ||
+    normalizePlatformUiKey(detectedFromResolved) ||
     (resolvedSourceUrl
       ? (PLATFORMS.find((platform) => links[platform] === resolvedSourceUrl || links[platform]) as PlatformKey | undefined) || null
       : null);
 
   const buildPlaylistAnalyticsProps = React.useCallback((platform: PlatformKey): AnalyticsBaseProps => {
     const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
+    const targetDefinition = getPlatformDefinition(platform);
+    const sourceDefinition = getPlatformDefinition(sourcePlatformKey);
     const normalizedTargetPlatform: PlatformDimension = normalizePlatform(
-      platform === 'appleMusic' ? 'apple' : platform,
+      targetDefinition?.analyticsKey,
     ) ?? 'unknown';
     const normalizedSourcePlatform: PlatformDimension = normalizePlatform(
-      sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey,
+      sourceDefinition?.analyticsKey,
     ) ?? 'unknown';
 
     return {
@@ -200,9 +200,39 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     }
   }, [createPlaylistOnPlatform, playlistId, setAppleMusicReconnectState]);
 
+  const openCreatedPlaylist = React.useCallback((platform: PlatformKey, playlistUrl: string) => {
+    const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
+    const normalizedTarget = getPlatformDefinition(platform)?.analyticsKey ?? platform;
+    const normalizedOpenedTargetPlatform: PlatformDimension = normalizePlatform(normalizedTarget) ?? 'unknown';
+    const openClickProps = buildPostPlatformConversionClickedProps({
+      sourceContext: 'playlist_open_button',
+      route,
+      postId,
+      elementType: 'playlist',
+      targetPlatform: normalizedTarget,
+      sourcePlatform: sourcePlatformKey ?? undefined,
+      sourceDomain: playlistUrl,
+      isAuthenticated,
+    });
+    if (openClickProps) {
+      void captureClientEvent('post_platform_conversion_clicked', openClickProps);
+    }
+    void captureClientEvent('playlist_opened_on_platform', {
+      route,
+      source_surface: 'post',
+      element_type: 'playlist',
+      music_element_id: playlistId,
+      post_id: postId,
+      target_platform: normalizedOpenedTargetPlatform,
+      source_domain: sanitizeDomain(playlistUrl),
+      is_authenticated: isAuthenticated,
+    });
+    openInAppOrBrowser(playlistUrl);
+  }, [isAuthenticated, playlistId, postId, sourcePlatformKey]);
+
   const handleCreatePlaylist = React.useCallback(async (platform: PlatformKey) => {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
-    const normalizedTarget = platform === 'appleMusic' ? 'apple' : platform;
+    const normalizedTarget = getPlatformDefinition(platform)?.analyticsKey ?? platform;
     const analyticsProps = buildPlaylistAnalyticsProps(platform);
     const route = analyticsProps.route;
 
@@ -279,12 +309,8 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
           await connectAppleMusicAndCreatePlaylist('Connect Apple Music');
           return;
         } else if (platform === 'deezer') {
-          setCreationStatus({
-            platform,
-            loading: false,
-            error: 'Please connect Deezer in your profile settings first.',
-          });
-          return;
+          await platformConnectService.connectDeezer(currentUrl);
+          return; // Will redirect to Deezer
         }
       }
 
@@ -293,6 +319,29 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     } catch (error) {
       if (error instanceof ApiError && error.requiresReauth && platform === 'appleMusic') {
         setAppleMusicReconnectState('Your Apple Music connection expired. Reconnect to continue.', 'Reconnect Apple Music');
+        return;
+      }
+
+      if (error instanceof ApiError && error.requiresReauth && platform === 'deezer') {
+        pendingActionService.save(
+          pendingActionService.createPlaylistAction('deezer', playlistId, currentUrl)
+        );
+        setCreationStatus({
+          platform: 'deezer',
+          loading: true,
+          loadingMessage: 'Reconnecting to Deezer...',
+        });
+        try {
+          await platformConnectService.connectDeezer(currentUrl);
+        } catch (reconnectError) {
+          setCreationStatus({
+            platform: 'deezer',
+            loading: false,
+            error: reconnectError instanceof Error
+              ? reconnectError.message
+              : 'Failed to reconnect Deezer.',
+          });
+        }
         return;
       }
 
@@ -371,15 +420,15 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     const serviceName = service?.name || creationStatus.platform;
 
     if (creationStatus.loading) {
+      // The beam on the active row carries the loading state; this line just
+      // narrates the stage (connecting vs creating) without a second spinner.
       return (
-        <div className="mt-4 p-4 rounded-xl bg-info/10 border border-info/20">
-          <div className="flex items-center gap-2 text-info-text">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm font-medium">
-              {creationStatus.loadingMessage || `Creating playlist on ${serviceName}...`}
-            </span>
-          </div>
-        </div>
+        <p
+          aria-live="polite"
+          className="mt-3 truncate px-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+        >
+          {creationStatus.loadingMessage || `Creating playlist on ${serviceName}...`}
+        </p>
       );
     }
 
@@ -415,7 +464,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     }
 
     if (creationStatus.result) {
-      const { success, playlist_url, tracks_added, tracks_failed, total_tracks, failed_tracks } = creationStatus.result;
+      const { success, tracks_added, tracks_failed, total_tracks, failed_tracks } = creationStatus.result;
 
       if (!success) {
         return (
@@ -430,102 +479,45 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
         );
       }
 
+      // The converted row itself is the open action now; this just confirms
+      // the outcome and surfaces any tracks that didn't make it over.
       return (
-        <div className="mt-4 p-4 rounded-xl bg-success/10 border border-success/20">
-          <div className="flex flex-col gap-3">
-            {/* Success message */}
-            <div className="flex items-center gap-2 text-success-text">
-              <CheckCircle className="w-4 h-4" />
-              <span className="text-sm font-medium">
-                Playlist created! {tracks_added}/{total_tracks} tracks added
-              </span>
-            </div>
+        <div className="mt-3 px-1">
+          <p
+            aria-live="polite"
+            className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-success-text"
+          >
+            <CheckCircle aria-hidden className="h-3.5 w-3.5 shrink-0" />
+            <span>Playlist created! {tracks_added}/{total_tracks} tracks added</span>
+          </p>
 
-            {/* Playlist link */}
-            {playlist_url && (
+          {tracks_failed > 0 && failed_tracks && failed_tracks.length > 0 && (
+            <div className="mt-2">
               <button
                 type="button"
-                onClick={() => {
-                  const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
-                  const normalizedOpenedTargetPlatform: PlatformDimension = normalizePlatform(
-                    creationStatus.platform === 'appleMusic' ? 'apple' : creationStatus.platform,
-                  ) ?? 'unknown';
-                  const openClickProps = buildPostPlatformConversionClickedProps({
-                    sourceContext: 'playlist_open_button',
-                    route,
-                    postId,
-                    elementType: 'playlist',
-                    targetPlatform: creationStatus.platform === 'appleMusic'
-                      ? 'apple'
-                      : creationStatus.platform,
-                    sourcePlatform: sourcePlatformKey ?? undefined,
-                    sourceDomain: playlist_url,
-                    isAuthenticated,
-                  });
-                  if (openClickProps) {
-                    void captureClientEvent('post_platform_conversion_clicked', openClickProps);
-                  }
-                  void captureClientEvent('playlist_opened_on_platform', {
-                    route,
-                    source_surface: 'post',
-                    element_type: 'playlist',
-                    music_element_id: playlistId,
-                    post_id: postId,
-                    target_platform: normalizedOpenedTargetPlatform,
-                    source_domain: sanitizeDomain(playlist_url),
-                    is_authenticated: isAuthenticated,
-                  });
-                  openInAppOrBrowser(playlist_url);
-                }}
-                className={cn(
-                  'inline-flex items-center gap-2 px-4 py-2 rounded-md',
-                  'bg-success hover:bg-success/90 text-success-foreground',
-                  'font-mono text-[11px] font-bold uppercase tracking-[0.2em]',
-                  'elev-1 transition-colors duration-150',
-                  'w-fit cursor-pointer'
-                )}
+                onClick={() => setShowFailedTracks(!showFailedTracks)}
+                className="flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-warning-text hover:underline"
               >
-                {service && (
-                  <Image src={service.icon} alt={serviceName} width={16} height={16} className="object-contain" />
-                )}
-                <span>
-                  {isAppleMusicLibraryUrl(playlist_url) ? 'View in Browser' : `Open in ${serviceName}`}
-                </span>
-                <ExternalLink className="w-3 h-3" />
+                {showFailedTracks ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                <span>{tracks_failed} track{tracks_failed !== 1 ? 's' : ''} couldn&apos;t be added</span>
               </button>
-            )}
 
-            {/* Failed tracks section */}
-            {tracks_failed > 0 && failed_tracks && failed_tracks.length > 0 && (
-              <div className="mt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowFailedTracks(!showFailedTracks)}
-                  className="flex items-center gap-1 text-sm text-warning-text hover:underline"
-                >
-                  {showFailedTracks ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  <span>{tracks_failed} track{tracks_failed !== 1 ? 's' : ''} couldn&apos;t be added</span>
-                </button>
-
-                {showFailedTracks && (
-                  <div className="mt-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
-                    <ul className="space-y-1 text-sm text-warning-text">
-                      {failed_tracks.map((track: FailedTrack, idx: number) => (
-                        <li key={idx} className="flex justify-between">
-                          <span className="truncate">
-                            {track.position}. {track.track_name || 'Unknown'} - {track.artist_name || 'Unknown'}
-                          </span>
-                          {track.error_reason && (
-                            <span className="text-xs opacity-70 ml-2">{track.error_reason}</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+              {showFailedTracks && (
+                <ul className="mt-2 space-y-1 border-l-2 border-warning/40 pl-3 text-sm text-warning-text">
+                  {failed_tracks.map((track: FailedTrack, idx: number) => (
+                    <li key={idx} className="flex justify-between">
+                      <span className="truncate">
+                        {track.position}. {track.track_name || 'Unknown'} - {track.artist_name || 'Unknown'}
+                      </span>
+                      {track.error_reason && (
+                        <span className="text-xs opacity-70 ml-2">{track.error_reason}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       );
     }
@@ -549,19 +541,22 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
           const service = streamingServices[platform];
           if (!service) return null;
 
-          const isLoading = creationStatus?.platform === platform && creationStatus.loading;
+          const anyLoading = !!creationStatus?.loading;
+          const isLoading = creationStatus?.platform === platform && anyLoading;
           const isCreated = creationStatus?.platform === platform && creationStatus.result?.success;
+          const createdUrl = isCreated ? creationStatus?.result?.playlist_url : undefined;
           const shouldShowConvertButton = isSourcePlatform || !url;
 
           const commonClasses = cn(
             'group relative flex w-full items-stretch overflow-hidden rounded-md',
             'border border-border bg-card text-foreground elev-1',
-            'transition-colors duration-150',
+            'transition-[color,background-color,border-color,opacity] duration-150',
             'hover:border-foreground/40 hover:bg-muted/40',
             'active:bg-muted/60',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-            isLoading && 'opacity-50 cursor-not-allowed',
-            isCreated && 'border-success',
+            // The beam highlights the converting row; the others step back.
+            anyLoading && !isLoading && 'opacity-40 pointer-events-none',
+            isCreated && 'border-success bg-success/5 hover:border-success hover:bg-success/10',
           );
 
           return !shouldShowConvertButton && url ? (
@@ -572,12 +567,13 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
               rel="noopener noreferrer"
               onClick={() => {
                 const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
+                const targetPlatform = getPlatformDefinition(platform)?.analyticsKey ?? platform;
                 const openClickProps = buildPostPlatformConversionClickedProps({
                   sourceContext: 'playlist_open_button',
                   route,
                   postId,
                   elementType: 'playlist',
-                  targetPlatform: platform === 'appleMusic' ? 'apple' : platform,
+                  targetPlatform,
                   sourcePlatform: sourcePlatformKey ?? undefined,
                   sourceDomain: url,
                   isAuthenticated,
@@ -603,34 +599,60 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
               </span>
             </a>
           ) : (
-            <button
-              key={platform}
-              type="button"
-              data-testid={`playlist-convert-${platform}`}
-              className={commonClasses}
-              disabled={isLoading}
-              onClick={() => handleCreatePlaylist(platform)}
-            >
-              <span aria-hidden className="w-1.5 shrink-0" style={{ background: service.color }} />
-              <span className="flex flex-1 items-center gap-2.5 px-3 py-2.5 sm:gap-3 sm:px-4">
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 shrink-0 animate-spin sm:h-5 sm:w-5" />
-                ) : (
+            <ConversionBeam key={platform} active={isLoading}>
+              <button
+                type="button"
+                data-testid={`playlist-convert-${platform}`}
+                className={commonClasses}
+                disabled={anyLoading}
+                aria-label={createdUrl
+                  ? (isAppleMusicLibraryUrl(createdUrl) ? 'View in Browser' : `Open in ${service.name}`)
+                  : undefined}
+                onClick={() => {
+                  if (createdUrl) {
+                    openCreatedPlaylist(platform, createdUrl);
+                  } else {
+                    void handleCreatePlaylist(platform);
+                  }
+                }}
+              >
+                <span aria-hidden className="w-1.5 shrink-0" style={{ background: service.color }} />
+                <span className="flex flex-1 items-center gap-2.5 px-3 py-2.5 sm:gap-3 sm:px-4">
                   <span className="relative h-4 w-4 shrink-0 sm:h-5 sm:w-5">
                     <Image src={service.icon} alt="" width={20} height={20} className="object-contain" />
                   </span>
-                )}
-                <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
-                  {isLoading ? 'Creating…' : service.name}
+                  <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
+                    {service.name}
+                  </span>
+                  {createdUrl ? (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        'ml-auto flex items-center gap-1 rounded-sm px-2.5 py-1',
+                        'bg-success text-success-foreground',
+                        'font-mono text-[9px] font-bold uppercase tracking-[0.2em]',
+                        'transition-colors duration-150 group-hover:bg-success/90',
+                      )}
+                    >
+                      {isAppleMusicLibraryUrl(createdUrl) ? 'View' : 'Open'}
+                      <ArrowUpRight className="h-3 w-3 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                    </span>
+                  ) : (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        'ml-auto font-mono text-[9px] uppercase tracking-[0.2em] transition-colors',
+                        isLoading
+                          ? 'animate-pulse text-primary'
+                          : 'text-muted-foreground group-hover:text-foreground',
+                      )}
+                    >
+                      {isLoading ? 'Converting…' : 'Convert'}
+                    </span>
+                  )}
                 </span>
-                <span
-                  aria-hidden
-                  className="ml-auto font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground transition-colors group-hover:text-foreground"
-                >
-                  Convert
-                </span>
-              </span>
-            </button>
+              </button>
+            </ConversionBeam>
           );
         })}
       </div>

@@ -5,6 +5,7 @@
 
 import { apiService } from './api';
 import { appLogger } from '@/lib/observability/logger';
+import type { PlatformUiKey } from '@/lib/platforms';
 
 interface MusicKitInstance {
   authorize: () => Promise<string>;
@@ -19,7 +20,7 @@ interface MusicKitWindow {
   };
 }
 
-export type PlatformKey = 'spotify' | 'appleMusic' | 'deezer';
+export type PlatformKey = PlatformUiKey;
 
 const RETURN_URL_PREFIX = 'cassette_platform_return_url_';
 const APPLE_AUTH_TIMEOUT_MS = 60_000;
@@ -162,16 +163,18 @@ export const platformConnectService = {
     }
   },
 
-  /**
-   * Initiate Deezer OAuth flow
-   * TODO: Implement when Deezer OAuth is available
-   */
+  /** Initiate Deezer OAuth flow. */
   async connectDeezer(returnUrl?: string): Promise<void> {
     if (returnUrl) {
       this.setReturnUrl('deezer', returnUrl);
     }
-    // Deezer OAuth not yet implemented
-    throw new Error('Deezer connection not yet implemented. Please connect via your profile settings.');
+
+    const data = await apiService.connectDeezer();
+    if (!data?.authUrl) {
+      throw new Error('No auth URL received from server');
+    }
+
+    window.location.href = data.authUrl;
   },
 
   /**

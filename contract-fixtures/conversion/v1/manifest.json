@@ -1,0 +1,13 @@
+{
+  "contractVersion": 1,
+  "name": "conversion-lifecycle-contract-fixtures",
+  "description": "Shared public conversion boundary examples for CassetteBridge and CassetteUI tests.",
+  "currentPlatforms": ["spotify", "applemusic", "deezer"],
+  "fixtures": [
+    "convert-request.spotify-track.authenticated.json",
+    "convert-response.ready.json",
+    "convert-response.processing.json",
+    "convert-response.failed.json",
+    "convert-job-response.ready.json"
+  ]
+}

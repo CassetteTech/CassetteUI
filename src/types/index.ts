@@ -268,50 +268,6 @@ export interface ConvertLifecycleResponse {
   correlationId?: string;
 }
 
-// Legacy API response type for music link conversion (kept for backward compatibility)
-export interface ConversionApiResponse {
-  success: boolean;
-  errorMessage?: string;
-  postId: string;
-  conversionSuccessCount?: number;
-  userId?: string | null;
-  username?: string | null;
-  elementType: string;
-  musicElementId: string;
-  details: {
-    title: string;
-    artist: string;
-    album?: string;
-    duration?: string;
-    isrcs?: string[];
-    artists?: Array<{ name: string; role: string; }>;
-    coverArtUrl: string;
-    genres?: string[];
-    previewUrl?: string;
-    releaseDate?: string | null;
-    trackCount?: number;
-    tracks?: unknown[];
-  };
-  platforms: {
-    [key: string]: {
-      platformName: string;
-      elementType: string;
-      name: string;
-      url: string;
-      platformSpecificId: string;
-      artworkUrl?: string;
-      isrc?: string | null;
-      artistName: string;
-      albumName?: string | null;
-      previewUrl?: string;
-    };
-  };
-  caption?: string;
-  description?: string;
-  correlationId?: string;
-  jobId?: string;
-}
-
 // API Response type for playlist creation (snake_case to match backend JSON)
 export interface CreatePlaylistResponse {
   success: boolean;

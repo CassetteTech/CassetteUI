@@ -14,12 +14,22 @@
   "include": [
     "src/utils/platform-normalization.ts",
     "src/utils/__tests__/platform-normalization.test.ts",
+    "src/utils/content-type-detection.ts",
+    "src/utils/music-link-input.ts",
+    "src/utils/__tests__/music-link-parsing.test.ts",
+    "src/lib/platforms.ts",
+    "src/lib/__tests__/platforms.test.ts",
+    "src/services/conversion-lifecycle.ts",
+    "src/services/__tests__/conversion-lifecycle.test.ts",
+    "src/services/__tests__/conversion-contract-fixtures.test.ts",
     "src/app/(sidebar)/internal/_components/explore-snapshot-utils.ts",
     "src/app/(sidebar)/internal/_components/__tests__/explore-snapshot-utils.test.ts",
     "src/lib/analytics/events.ts",
     "src/lib/analytics/sanitize.ts",
     "src/lib/attribution/attribution-links.ts",
     "src/lib/attribution/__tests__/attribution-links.test.ts",
+    "src/lib/server/cookie-security.ts",
+    "src/lib/server/__tests__/cookie-security.test.ts",
     "src/lib/observability/**/*.ts"
   ],
   "exclude": ["node_modules"]

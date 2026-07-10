@@ -33,6 +33,6 @@ test('platform definitions expose display metadata from one source', () => {
   assert.equal(getDisplayPlatformDefinition('youtube_music')?.displayName, 'YouTube Music');
 });
 
-test('playlist creation list stays intentionally narrower than active platforms', () => {
-  assert.deepEqual(PLAYLIST_CREATION_PLATFORM_UI_KEYS, ['spotify', 'appleMusic']);
+test('playlist creation list includes every currently supported target', () => {
+  assert.deepEqual(PLAYLIST_CREATION_PLATFORM_UI_KEYS, ['spotify', 'appleMusic', 'deezer']);
 });

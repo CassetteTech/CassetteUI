@@ -24,7 +24,15 @@ Run locally:
 npm run dev
 ```
 
-The default local URL is [http://localhost:3000](http://localhost:3000).
+Copy `.env.local.example` to `.env.local`. For browser OAuth testing, open the
+app at [http://local.cassette.tech:3000](http://local.cassette.tech:3000).
+Public DNS maps `local.cassette.tech` to `127.0.0.1`.
+
+Do not switch between `localhost:3000` and `local.cassette.tech:3000` during a
+signin or music-service authorization flow. Browser cookies and session storage
+are hostname-specific, and Deezer callbacks must remain under the
+`cassette.tech` application domain. The local Bridge continues to listen at
+`http://localhost:5001`.
 
 ## Verification
 

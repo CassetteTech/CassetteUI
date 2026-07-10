@@ -973,6 +973,19 @@ class ApiService {
     });
   }
 
+  async connectDeezer() {
+    return this.request<{ authUrl: string }>('/api/v1/music-services/deezer/init', {
+      method: 'POST',
+    });
+  }
+
+  async handleDeezerCallback(code: string, state: string) {
+    return this.request<{ success: boolean }>('/api/v1/music-services/deezer/exchange-code', {
+      method: 'POST',
+      body: JSON.stringify({ code, state }),
+    });
+  }
+
   async connectAppleMusic(userToken: string) {
     return this.request<{ success: boolean }>('/api/v1/music-services/apple-music/user-token', {
       method: 'POST',

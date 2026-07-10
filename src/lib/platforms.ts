@@ -93,9 +93,9 @@ export const ACTIVE_PLATFORM_DEFINITIONS = [
     borderColor: 'border-platform-deezer/40',
     solidBgColor: 'bg-platform-deezer',
     profileBadgeClassName: 'bg-platform-deezer/20 border-platform-deezer/50',
-    requiresAuthForPlaylistCreation: false,
-    connectionDescription: 'Share music from Deezer',
-    onboardingDescription: 'Add Deezer to your profile',
+    requiresAuthForPlaylistCreation: true,
+    connectionDescription: 'Connect to create playlists',
+    onboardingDescription: 'Connect to create playlists',
   },
 ] as const satisfies readonly PlatformDefinition[];
 
@@ -129,7 +129,7 @@ const DISPLAY_ONLY_PLATFORM_DEFINITIONS = [
 export const ACTIVE_PLATFORM_KEYS = ACTIVE_PLATFORM_DEFINITIONS.map((platform) => platform.key);
 export const ACTIVE_PLATFORM_UI_KEYS = ACTIVE_PLATFORM_DEFINITIONS.map((platform) => platform.uiKey);
 export const ACTIVE_PLATFORM_PREFERENCE_KEYS = ACTIVE_PLATFORM_DEFINITIONS.map((platform) => platform.preferenceKey);
-export const PLAYLIST_CREATION_PLATFORM_UI_KEYS = ['spotify', 'appleMusic'] as const satisfies readonly PlatformUiKey[];
+export const PLAYLIST_CREATION_PLATFORM_UI_KEYS = ['spotify', 'appleMusic', 'deezer'] as const satisfies readonly PlatformUiKey[];
 
 export const DISPLAY_PLATFORM_DEFINITIONS = [
   ...ACTIVE_PLATFORM_DEFINITIONS.map((platform) => ({

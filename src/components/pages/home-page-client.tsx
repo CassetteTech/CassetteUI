@@ -415,8 +415,12 @@ export default function HomePageClient() {
 
   // Pin the open sheet to the visual viewport: the iOS keyboard pans the
   // visual viewport, which would otherwise push the bar and the top of the
-  // results out of view the moment the input focuses.
-  const sheetRef = useSheetViewportPin(isTakeover);
+  // results out of view the moment the input focuses. Keyed to search (not
+  // the whole takeover): the keyboard is only up while searching, and the
+  // pin's scroll restore must run when search closes at conversion start —
+  // waiting until unmount would let router.push snapshot the home history
+  // entry at Safari's keyboard-era scroll offset, which is what Back restores.
+  const sheetRef = useSheetViewportPin(isSearchActive);
 
   return (
     <div className="min-h-screen relative">

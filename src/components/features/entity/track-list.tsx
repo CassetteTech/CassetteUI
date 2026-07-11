@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
 import { appLogger } from '@/lib/observability/logger';
@@ -48,7 +48,18 @@ export const TrackList: React.FC<TrackListProps> = ({
   const [isLoading, setIsLoading] = useState<number | null>(null);
   // Cache fetched preview URLs so we don't refetch
   const [fetchedPreviewUrls, setFetchedPreviewUrls] = useState<Record<number, string | null>>({});
+  const [unavailablePreviews, setUnavailablePreviews] = useState<Record<number, true>>({});
   const audioRefs = useRef<Record<number, HTMLAudioElement>>({});
+
+  useEffect(() => () => {
+    Object.values(audioRefs.current).forEach((audio) => {
+      audio.pause();
+      audio.onended = null;
+      audio.onerror = null;
+      audio.src = '';
+    });
+    audioRefs.current = {};
+  }, []);
 
   // Fetch preview URL from the appropriate music service based on source platform
   const fetchPreviewUrl = useCallback(async (track: TrackListItem): Promise<string | null> => {
@@ -91,6 +102,8 @@ export const TrackList: React.FC<TrackListProps> = ({
   }, [sourcePlatform]);
 
   const handleTogglePlay = async (index: number, track: TrackListItem) => {
+    if (unavailablePreviews[index]) return;
+
     try {
       // Stop any currently playing track
       if (playingIndex !== null && playingIndex !== index) {
@@ -131,6 +144,7 @@ export const TrackList: React.FC<TrackListProps> = ({
 
       if (!previewUrl) {
         appLogger.debug('track_preview_unavailable', { source_platform: sourcePlatform });
+        setUnavailablePreviews((current) => ({ ...current, [index]: true }));
         setIsLoading(null);
         return;
       }
@@ -139,9 +153,14 @@ export const TrackList: React.FC<TrackListProps> = ({
       if (!audioRefs.current[index]) {
         const newAudio = new Audio();
         audioRefs.current[index] = newAudio;
-        newAudio.addEventListener('ended', () => {
+        newAudio.onended = () => {
           setPlayingIndex(null);
-        });
+        };
+        newAudio.onerror = () => {
+          setUnavailablePreviews((current) => ({ ...current, [index]: true }));
+          setPlayingIndex(null);
+          setIsLoading(null);
+        };
       }
 
       const targetAudio = audioRefs.current[index];
@@ -151,6 +170,7 @@ export const TrackList: React.FC<TrackListProps> = ({
       setIsLoading(null);
     } catch (error) {
       appLogger.warn('track_preview_playback_failed', { error, source_platform: sourcePlatform });
+      setUnavailablePreviews((current) => ({ ...current, [index]: true }));
       setIsLoading(null);
       setPlayingIndex(null);
     }
@@ -199,6 +219,7 @@ export const TrackList: React.FC<TrackListProps> = ({
           {items.map((track, index) => {
             const isPlaying = playingIndex === index;
             const isLoadingTrack = isLoading === index;
+            const isPreviewUnavailable = Boolean(unavailablePreviews[index]);
             const displayArtist = track.artists?.join(', ') || albumArtist || '';
             const showIcon = isPlaying || isLoadingTrack;
 
@@ -214,47 +235,42 @@ export const TrackList: React.FC<TrackListProps> = ({
               >
                 {/* Track number / play button */}
                 <div className="relative flex items-center justify-end w-7 pr-1">
-                  {sourcePlatform?.toLowerCase() === 'spotify' ? (
-                    <span className={cn(
-                      'text-xs font-medium tabular-nums',
-                      isPlaying ? 'text-primary' : 'text-muted-foreground'
-                    )}>
-                      {track.trackNumber ?? index + 1}
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => handleTogglePlay(index, track)}
-                      className="relative flex items-center justify-center w-6 h-6 rounded-full transition-all duration-200 hover:bg-primary/15 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary/50 focus:outline-none"
-                      aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
-                    >
-                      {showIcon ? (
-                        isLoadingTrack ? (
-                          <Spinner size="xs" variant="muted" />
-                        ) : (
-                          <svg
-                            className="w-3.5 h-3.5 text-primary"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                          </svg>
-                        )
+                  <button
+                    onClick={() => handleTogglePlay(index, track)}
+                    disabled={isPreviewUnavailable}
+                    title={isPreviewUnavailable ? 'Preview unavailable' : undefined}
+                    className="relative flex size-6 items-center justify-center rounded-full transition-all duration-200 hover:bg-primary/15 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary/50 focus:outline-none disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                    aria-label={isPreviewUnavailable ? `Preview unavailable for ${track.title}` : isPlaying ? 'Pause preview' : 'Play preview'}
+                  >
+                    {isPreviewUnavailable ? (
+                      <span className="text-sm font-medium text-muted-foreground/60" aria-hidden="true">×</span>
+                    ) : showIcon ? (
+                      isLoadingTrack ? (
+                        <Spinner size="xs" variant="muted" />
                       ) : (
-                        <>
-                          <span className="text-xs text-muted-foreground font-medium tabular-nums transition-opacity duration-200 group-hover:opacity-0">
-                            {track.trackNumber ?? index + 1}
-                          </span>
-                          <svg
-                            className="absolute w-3.5 h-3.5 text-foreground opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        </>
-                      )}
-                    </button>
-                  )}
+                        <svg
+                          className="w-3.5 h-3.5 text-primary"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                        </svg>
+                      )
+                    ) : (
+                      <>
+                        <span className="text-xs text-muted-foreground font-medium tabular-nums transition-opacity duration-200 group-hover:opacity-0">
+                          {track.trackNumber ?? index + 1}
+                        </span>
+                        <svg
+                          className="absolute w-3.5 h-3.5 text-foreground opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 {/* Title/Artist */}
@@ -284,4 +300,3 @@ export const TrackList: React.FC<TrackListProps> = ({
     </div>
   );
 };
-

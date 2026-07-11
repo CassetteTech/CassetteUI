@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
+import { ArtworkImage } from '@/components/ui/artwork-image';
 import { captureClientEvent } from '@/lib/analytics/client';
 import type { ElementTypeDimension, PlatformDimension } from '@/lib/analytics/events';
 import { normalizePlatform } from '@/lib/analytics/sanitize';
@@ -35,7 +35,9 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [failedPreviewUrl, setFailedPreviewUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const isUnavailable = !!previewUrl && failedPreviewUrl === previewUrl;
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -71,7 +73,7 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
   const normalizedSourcePlatform = (normalizePlatform(sourcePlatform) ?? 'unknown') as PlatformDimension;
 
   const handleTogglePlay = async () => {
-    if (!previewUrl || !audioRef.current) return;
+    if (!previewUrl || !audioRef.current || isUnavailable) return;
 
     if (!isExpanded) {
       setIsExpanded(true);
@@ -99,6 +101,7 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
       appLogger.warn('preview_playback_failed', { error, route: '/post' });
       setIsLoading(false);
       setIsPlaying(false);
+      setFailedPreviewUrl(previewUrl);
       void captureClientEvent('preview_playback_failed', {
         route: typeof window !== 'undefined' ? window.location.pathname : '/post',
         source_surface: 'post',
@@ -127,6 +130,9 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
     appLogger.warn('preview_audio_error', { error, route: '/post' });
     setIsPlaying(false);
     setIsLoading(false);
+    if (previewUrl) {
+      setFailedPreviewUrl(previewUrl);
+    }
     void captureClientEvent('preview_playback_failed', {
       route: typeof window !== 'undefined' ? window.location.pathname : '/post',
       source_surface: 'post',
@@ -153,19 +159,24 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
         tabIndex={!isExpanded ? 0 : undefined}
       >
         <div className="relative flex-shrink-0">
-          <Image
-            src={artwork || '/images/cassette_logo.png'}
+          <ArtworkImage
+            src={artwork}
             alt={title}
             width={isExpanded ? 32 : 36}
             height={isExpanded ? 32 : 36}
             className="rounded-md object-cover opacity-90"
+            fallbackClassName={cn('rounded-md', isExpanded ? 'size-8' : 'size-9')}
+            fallbackIconClassName="size-4"
           />
           <button
             onClick={handleTogglePlay}
+            disabled={isUnavailable}
             className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-md transition-opacity hover:bg-black/40"
-            aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
+            aria-label={isUnavailable ? 'Preview unavailable' : isPlaying ? 'Pause preview' : 'Play preview'}
           >
-            {isLoading ? (
+            {isUnavailable ? (
+              <span className="text-sm font-bold text-white" aria-hidden="true">×</span>
+            ) : isLoading ? (
               <Spinner size={isExpanded ? 'xs' : 'sm'} variant="white" />
             ) : (
               <svg
@@ -188,17 +199,23 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
 
         {isExpanded && (
           <div className="flex-1 min-w-0">
-            <div className="relative w-full h-1 bg-border/50 rounded-full overflow-hidden">
-              <div
-                className="absolute left-0 top-0 h-full w-full origin-left bg-primary/70 transition-transform duration-100 ease-linear"
-                style={{ transform: `scaleX(${progressPercentage / 100})` }}
-              />
-            </div>
+            {isUnavailable ? (
+              <p className="text-xs text-muted-foreground">Preview unavailable</p>
+            ) : (
+              <>
+                <div className="relative w-full h-1 bg-border/50 rounded-full overflow-hidden">
+                  <div
+                    className="absolute left-0 top-0 h-full w-full origin-left bg-primary/70 transition-transform duration-100 ease-linear"
+                    style={{ transform: `scaleX(${progressPercentage / 100})` }}
+                  />
+                </div>
 
-            {duration > 0 && (
-              <div className="text-center text-xs text-muted-foreground/70 mt-1">
-                <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
-              </div>
+                {duration > 0 && (
+                  <div className="text-center text-xs text-muted-foreground/70 mt-1">
+                    <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -228,19 +245,24 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
       tabIndex={!isExpanded ? 0 : undefined}
     >
       <div className="relative flex-shrink-0">
-        <Image
-          src={artwork || '/images/cassette_logo.png'}
+        <ArtworkImage
+          src={artwork}
           alt={title}
-          width={isExpanded ? 48 : 48}
-          height={isExpanded ? 48 : 48}
+          width={48}
+          height={48}
           className="rounded-md object-cover opacity-90"
+          fallbackClassName="size-12 rounded-md"
+          fallbackIconClassName="size-5"
         />
         <button
           onClick={handleTogglePlay}
+          disabled={isUnavailable}
           className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-md transition-opacity hover:bg-black/50"
-          aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
+          aria-label={isUnavailable ? 'Preview unavailable' : isPlaying ? 'Pause preview' : 'Play preview'}
         >
-          {isLoading ? (
+          {isUnavailable ? (
+            <span className="text-lg font-bold text-white" aria-hidden="true">×</span>
+          ) : isLoading ? (
             <Spinner size={isExpanded ? 'sm' : 'md'} variant="white" />
           ) : (
             <svg
@@ -268,18 +290,24 @@ export const PlayPreview: React.FC<PlayPreviewProps> = ({
             <div className="text-xs text-muted-foreground/80 truncate">{artist}</div>
           </div>
 
-          <div className="relative w-full h-1 bg-border/60 rounded-full overflow-hidden">
-            <div
-              className="absolute left-0 top-0 h-full w-full origin-left bg-primary/80 transition-transform duration-100 ease-linear"
-              style={{ transform: `scaleX(${progressPercentage / 100})` }}
-            />
-          </div>
+          {isUnavailable ? (
+            <p className="text-xs text-muted-foreground">Preview unavailable</p>
+          ) : (
+            <>
+              <div className="relative w-full h-1 bg-border/60 rounded-full overflow-hidden">
+                <div
+                  className="absolute left-0 top-0 h-full w-full origin-left bg-primary/80 transition-transform duration-100 ease-linear"
+                  style={{ transform: `scaleX(${progressPercentage / 100})` }}
+                />
+              </div>
 
-          {duration > 0 && (
-            <div className="flex justify-between text-xs text-muted-foreground/80 mt-1">
-              <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(duration)}</span>
-            </div>
+              {duration > 0 && (
+                <div className="flex justify-between text-xs text-muted-foreground/80 mt-1">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

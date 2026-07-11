@@ -26,8 +26,10 @@ import {
   getPlatformDefinition,
   normalizePlatformUiKey,
 } from '@/lib/platforms';
+import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 type PlatformKey = PlatformUiKey;
+type RedirectPlatformKey = Extract<PlatformKey, 'spotify' | 'deezer'>;
 
 interface PlaylistStreamingLinksProps {
   links: {
@@ -128,6 +130,74 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     });
   }, []);
 
+  const connectRedirectPlatform = React.useCallback(async (
+    platform: RedirectPlatformKey,
+    reconnect = false,
+  ) => {
+    const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+    const serviceName = streamingServices[platform]?.name || platform;
+
+    pendingActionService.save(
+      pendingActionService.createPlaylistAction(platform, playlistId, currentUrl)
+    );
+    setCreationStatus({
+      platform,
+      loading: true,
+      loadingMessage: `${reconnect ? 'Reconnecting' : 'Connecting'} to ${serviceName}...`,
+    });
+
+    try {
+      if (platform === 'spotify') {
+        await platformConnectService.connectSpotify(currentUrl);
+      } else {
+        await platformConnectService.connectDeezer(currentUrl);
+      }
+    } catch (error) {
+      pendingActionService.clear();
+      platformConnectService.clearReturnUrl(platform);
+      setCreationStatus({
+        platform,
+        loading: false,
+        error: getUserFacingApiErrorMessage(
+          error,
+          `Failed to ${reconnect ? 'reconnect' : 'connect'} ${serviceName}. Please try again.`,
+        ),
+      });
+    }
+  }, [playlistId]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthError = params.get('error');
+    const match = /^(spotify|deezer)-(auth-denied|invalid-callback|callback-failed)$/.exec(
+      oauthError ?? '',
+    );
+    if (!match) {
+      return;
+    }
+
+    const platform = match[1] as RedirectPlatformKey;
+    const serviceName = streamingServices[platform]?.name || platform;
+    const wasDenied = match[2] === 'auth-denied';
+    setCreationStatus({
+      platform,
+      loading: false,
+      error: wasDenied
+        ? `${serviceName} connection was canceled. Try again to create this playlist.`
+        : `Could not connect ${serviceName}. Please try again.`,
+      requiresReconnect: true,
+      actionLabel: `Try ${serviceName} again`,
+    });
+
+    params.delete('error');
+    const query = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`,
+    );
+  }, []);
+
   const createPlaylistOnPlatform = React.useCallback(async (platform: PlatformKey) => {
     const serviceName = streamingServices[platform]?.name || platform;
     setCreationStatus({
@@ -163,10 +233,12 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     try {
       const success = await platformConnectService.connectAppleMusic(currentUrl);
       if (!success) {
+        pendingActionService.clear();
         setAppleMusicReconnectState('Failed to connect to Apple Music. Please try again.', actionLabel);
         return;
       }
     } catch (error) {
+      pendingActionService.clear();
       if (error instanceof ApiError && error.requiresReauth) {
         setAppleMusicReconnectState('Your Apple Music connection expired. Reconnect to continue.', 'Reconnect Apple Music');
         return;
@@ -175,11 +247,13 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       setCreationStatus({
         platform: 'appleMusic',
         loading: false,
-        error: error instanceof Error ? error.message : 'Failed to connect to Apple Music. Please try again.',
+        error: getUserFacingApiErrorMessage(error, 'Failed to connect to Apple Music. Please try again.'),
         requiresReconnect: true,
         actionLabel,
       });
       return;
+    } finally {
+      platformConnectService.clearReturnUrl('appleMusic');
     }
 
     pendingActionService.clear();
@@ -195,7 +269,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       setCreationStatus({
         platform: 'appleMusic',
         loading: false,
-        error: error instanceof Error ? error.message : 'Failed to create playlist',
+        error: getUserFacingApiErrorMessage(error, 'Failed to create playlist. Please try again.'),
       });
     }
   }, [createPlaylistOnPlatform, playlistId, setAppleMusicReconnectState]);
@@ -231,7 +305,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   }, [isAuthenticated, playlistId, postId, sourcePlatformKey]);
 
   const handleCreatePlaylist = React.useCallback(async (platform: PlatformKey) => {
-    const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
     const normalizedTarget = getPlatformDefinition(platform)?.analyticsKey ?? platform;
     const analyticsProps = buildPlaylistAnalyticsProps(platform);
     const route = analyticsProps.route;
@@ -296,51 +369,23 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
           connection_state: 'connection_required',
         });
 
-        // No connection - trigger OAuth flow
-        pendingActionService.save(
-          pendingActionService.createPlaylistAction(platform, playlistId, currentUrl)
-        );
-
-        if (platform === 'spotify') {
-          // Spotify uses redirect-based OAuth
-          await platformConnectService.connectSpotify(currentUrl);
-          return; // Will redirect to Spotify
-        } else if (platform === 'appleMusic') {
+        // No connection - trigger the platform's existing auth flow.
+        if (platform === 'appleMusic') {
           await connectAppleMusicAndCreatePlaylist('Connect Apple Music');
-          return;
-        } else if (platform === 'deezer') {
-          await platformConnectService.connectDeezer(currentUrl);
-          return; // Will redirect to Deezer
+        } else {
+          await connectRedirectPlatform(platform);
         }
+        return;
       }
 
       // Case 3: Has connection - create playlist directly
       await createPlaylistOnPlatform(platform);
     } catch (error) {
-      if (error instanceof ApiError && error.requiresReauth && platform === 'appleMusic') {
-        setAppleMusicReconnectState('Your Apple Music connection expired. Reconnect to continue.', 'Reconnect Apple Music');
-        return;
-      }
-
-      if (error instanceof ApiError && error.requiresReauth && platform === 'deezer') {
-        pendingActionService.save(
-          pendingActionService.createPlaylistAction('deezer', playlistId, currentUrl)
-        );
-        setCreationStatus({
-          platform: 'deezer',
-          loading: true,
-          loadingMessage: 'Reconnecting to Deezer...',
-        });
-        try {
-          await platformConnectService.connectDeezer(currentUrl);
-        } catch (reconnectError) {
-          setCreationStatus({
-            platform: 'deezer',
-            loading: false,
-            error: reconnectError instanceof Error
-              ? reconnectError.message
-              : 'Failed to reconnect Deezer.',
-          });
+      if (error instanceof ApiError && error.requiresReauth) {
+        if (platform === 'appleMusic') {
+          setAppleMusicReconnectState('Your Apple Music connection expired. Reconnect to continue.', 'Reconnect Apple Music');
+        } else {
+          await connectRedirectPlatform(platform, true);
         }
         return;
       }
@@ -348,15 +393,15 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       setCreationStatus({
         platform,
         loading: false,
-        error: error instanceof Error ? error.message : 'Failed to create playlist',
+        error: getUserFacingApiErrorMessage(error, 'Failed to create playlist. Please try again.'),
       });
     }
   }, [
     buildPlaylistAnalyticsProps,
     connectAppleMusicAndCreatePlaylist,
+    connectRedirectPlatform,
     createPlaylistOnPlatform,
     isAuthenticated,
-    playlistId,
     postId,
     resolvedSourceUrl,
     setAppleMusicReconnectState,
@@ -439,10 +484,18 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
             <AlertCircle className="w-4 h-4" />
             <span className="text-sm font-medium">{creationStatus.error}</span>
           </div>
-          {creationStatus.requiresReconnect && creationStatus.platform === 'appleMusic' && (
+          {creationStatus.requiresReconnect && (
             <button
               type="button"
-              onClick={() => void connectAppleMusicAndCreatePlaylist(creationStatus.actionLabel || 'Reconnect Apple Music')}
+              onClick={() => {
+                if (creationStatus.platform === 'appleMusic') {
+                  void connectAppleMusicAndCreatePlaylist(
+                    creationStatus.actionLabel || 'Reconnect Apple Music',
+                  );
+                } else {
+                  void connectRedirectPlatform(creationStatus.platform, true);
+                }
+              }}
               className={cn(
                 'mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-full',
                 'bg-foreground text-background hover:opacity-90',
@@ -450,13 +503,13 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
               )}
             >
               <Image
-                src={streamingServices.appleMusic.icon}
-                alt={streamingServices.appleMusic.name}
+                src={service.icon}
+                alt={serviceName}
                 width={16}
                 height={16}
                 className="object-contain"
               />
-              <span>{creationStatus.actionLabel || 'Reconnect Apple Music'}</span>
+              <span>{creationStatus.actionLabel || `Reconnect ${serviceName}`}</span>
             </button>
           )}
         </div>

@@ -23,6 +23,12 @@ const COMMON_NON_MUSIC_HOSTS = [
   'tiktok.com',
 ] as const;
 
+const DEEZER_REDIRECT_HOSTS = [
+  'deezer.page.link',
+  'dzr.page.link',
+  'link.deezer.com',
+] as const;
+
 function getParsedUrl(raw: string): URL | null {
   try {
     return new URL(raw);
@@ -35,6 +41,16 @@ function hostnameIncludes(hostname: string, domain: string): boolean {
   return hostname === domain || hostname.endsWith(`.${domain}`);
 }
 
+function isDeezerRedirectUrl(url: URL): boolean {
+  const hostname = url.hostname.toLowerCase();
+  const pathSegments = url.pathname.split('/').filter(Boolean);
+  return (
+    (url.protocol === 'http:' || url.protocol === 'https:') &&
+    DEEZER_REDIRECT_HOSTS.some((domain) => hostname === domain) &&
+    (hostname === 'link.deezer.com' ? pathSegments.length >= 2 : pathSegments.length >= 1)
+  );
+}
+
 export function normalizeMusicLinkInput(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return '';
@@ -45,12 +61,27 @@ export function normalizeMusicLinkInput(raw: string): string {
 }
 
 export function isSupportedMusicLink(raw: string): boolean {
-  const detected = detectContentType(normalizeMusicLinkInput(raw));
+  const normalized = normalizeMusicLinkInput(raw);
+  const parsedUrl = getParsedUrl(normalized);
+  if (!parsedUrl || (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:')) {
+    return false;
+  }
+  if (isDeezerRedirectUrl(parsedUrl)) {
+    return true;
+  }
+
+  const detected = detectContentType(normalized);
   return detected.platform !== 'unknown' && detected.id.length > 0;
 }
 
 export function getMusicSourceLabel(raw: string): 'Spotify' | 'Apple Music' | 'Deezer' | 'unknown' {
-  const displayName = getPlatformDisplayName(detectContentType(normalizeMusicLinkInput(raw)).platform);
+  const normalized = normalizeMusicLinkInput(raw);
+  const parsedUrl = getParsedUrl(normalized);
+  if (parsedUrl && isDeezerRedirectUrl(parsedUrl)) {
+    return 'Deezer';
+  }
+
+  const displayName = getPlatformDisplayName(detectContentType(normalized).platform);
   return displayName === 'Music platform'
     ? 'unknown'
     : (displayName as 'Spotify' | 'Apple Music' | 'Deezer');
@@ -69,8 +100,13 @@ export function validateMusicLink(raw: string): string | null {
     return null;
   }
 
-  if (!normalized.startsWith('http')) {
-    if (normalized.includes('.com') || normalized.includes('http') || normalized.includes('www')) {
+  if (!/^https?:\/\//i.test(normalized)) {
+    if (
+      /^[a-z][a-z\d+.-]*:\/\//i.test(normalized) ||
+      normalized.includes('.com') ||
+      normalized.toLowerCase().includes('http') ||
+      normalized.toLowerCase().includes('www')
+    ) {
       return 'Please enter a valid URL starting with http:// or https://';
     }
     return null;
@@ -81,6 +117,10 @@ export function validateMusicLink(raw: string): string | null {
     return normalized.includes('.com') || normalized.includes('http') || normalized.includes('www')
       ? 'Please enter a valid URL.'
       : null;
+  }
+
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    return 'Please enter a valid URL starting with http:// or https://';
   }
 
   const hostname = parsedUrl.hostname.toLowerCase();
@@ -95,6 +135,11 @@ export function validateMusicLink(raw: string): string | null {
 
   const platform = getPlatformDefinitionForHostname(hostname);
   if (platform) {
+    // Bridge resolves these redirect links before extracting the Deezer ID.
+    if (isDeezerRedirectUrl(parsedUrl)) {
+      return null;
+    }
+
     const detected = detectContentType(normalized);
     if (!detected.id) {
       return `Please paste a ${platform.displayName} track, album, artist, or playlist link.`;
@@ -110,7 +155,7 @@ export function validateMusicLink(raw: string): string | null {
     return `This doesn't look like a music link or that service isn't supported yet. Please paste a link from ${supportedServices}.`;
   }
 
-  return null;
+  return `This music service isn't supported yet. Please use a link from ${supportedServices}.`;
 }
 
 export function isPasteLikeInputEvent(

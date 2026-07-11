@@ -16,15 +16,34 @@ import { useSignInWithProvider } from '@/hooks/use-auth';
 import Image from 'next/image';
 import { GoogleGIcon } from '@/components/ui/google-g-icon';
 import { authRedirectService } from '@/utils/auth-redirect';
+import { pendingActionService } from '@/utils/pending-action';
 
 export default function SignInPage() {
   const searchParams = useSearchParams();
-  const { mutate: signInWithProvider, isPending: isSigningInWithProvider } = useSignInWithProvider();
+  const {
+    mutate: signInWithProvider,
+    isPending: isSigningInWithProvider,
+    error: providerSignInError,
+  } = useSignInWithProvider();
   const redirect = searchParams.get('redirect');
+  const oauthError = searchParams.get('error');
+  const signUpHref = redirect
+    ? `/auth/signup?redirect=${encodeURIComponent(redirect)}`
+    : '/auth/signup';
+  const authErrorMessage = providerSignInError
+    ? 'We could not start Google sign-in. Please try again.'
+    : oauthError === 'oauth-error'
+      ? 'Google sign-in was canceled or could not be completed. Please try again.'
+      : oauthError
+        ? 'We could not complete Google sign-in. Please try again.'
+        : null;
 
   useEffect(() => {
     authRedirectService.save(redirect);
-  }, [redirect]);
+    if (oauthError) {
+      pendingActionService.clear();
+    }
+  }, [oauthError, redirect]);
 
   const handleGoogleSignIn = () => {
     authRedirectService.save(redirect);
@@ -72,6 +91,16 @@ export default function SignInPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+
+            {authErrorMessage && (
+              <p
+                role="alert"
+                data-testid="auth-error-message"
+                className="mb-4 text-sm text-destructive"
+              >
+                {authErrorMessage}
+              </p>
+            )}
 
             {/* Google Sign In */}
             <div className="flex flex-col gap-4 mb-6">
@@ -176,7 +205,7 @@ export default function SignInPage() {
               <div className="text-center text-sm mt-4 font-roboto text-muted-foreground">
                 Don&apos;t have an account?{' '}
                 <Link
-                  href="/auth/signup"
+                  href={signUpHref}
                   className="font-mono text-[11px] uppercase tracking-[0.2em] text-foreground hover:text-primary transition-colors"
                 >
                   Sign Up →

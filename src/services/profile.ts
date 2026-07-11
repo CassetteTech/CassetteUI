@@ -840,16 +840,30 @@ export class ProfileService {
       });
 
       if (response.status !== 200) {
-        const result = await response.json().catch(() => null) as { message?: string } | null;
-        throw new Error(result?.message || 'Failed to update profile');
+        const result = await response.json().catch(() => null) as {
+          errorCode?: unknown;
+          error_code?: unknown;
+        } | null;
+        const rawErrorCode = result?.errorCode ?? result?.error_code;
+        const requestError = new Error(
+          response.status === 400 || response.status === 422
+            ? 'Check your profile details and try again.'
+            : 'Failed to update profile',
+        ) as Error & { status?: number; errorCode?: string };
+        requestError.status = response.status;
+        requestError.errorCode = typeof rawErrorCode === 'string' ? rawErrorCode : undefined;
+        throw requestError;
       }
 
-      const result = await response.json();
+      const result = await response.json() as { success?: boolean };
       if (!result.success) {
-        throw new Error(result.message || 'Failed to update profile');
+        throw new Error('Failed to save profile. Please try again.');
       }
     } catch (e) {
-      throw new Error(`Error updating profile: ${e}`);
+      if (e instanceof Error) {
+        throw e;
+      }
+      throw new Error('Failed to update profile');
     }
   }
 
@@ -867,13 +881,16 @@ export class ProfileService {
       });
 
       if (response.status === 200) {
-        const data = await response.json();
-        return data.available;
+        const data = await response.json() as { available?: unknown };
+        if (typeof data.available === 'boolean') {
+          return data.available;
+        }
       }
-      return false;
+
+      throw new Error('Username availability check failed');
     } catch (e) {
       appLogger.warn('username_availability_check_failed', { error: e });
-      return false;
+      throw e;
     }
   }
 }

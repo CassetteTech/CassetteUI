@@ -33,6 +33,7 @@ import {
   isPasteLikeInputEvent,
   validateMusicLink,
 } from '@/utils/music-link-input';
+import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 import { PLATFORM_LABELS, pickConvertingHeadline } from '@/components/features/conversion/conversion-copy';
 import { ConversionHeading } from '@/components/features/conversion/conversion-heading';
 import { ConversionStageLabel } from '@/components/features/conversion/conversion-stage-label';
@@ -199,11 +200,10 @@ export default function HomePageClient() {
       setConversionKey(null);
       setConvertingMeta(null);
       playErrorTone();
-      setUrlError(
-        error instanceof Error && error.message
-          ? error.message
-          : 'Something went wrong while converting your link. Please try again.',
-      );
+      setUrlError(getUserFacingApiErrorMessage(
+        error,
+        'Something went wrong while converting your link. Please try again.',
+      ));
     }
   }, [conversionKey, isAuthenticated, linkConversion, router]);
 

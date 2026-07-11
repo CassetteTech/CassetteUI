@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { ReportIssueModal } from '@/components/features/report-issue-modal';
 
@@ -55,10 +55,23 @@ export function ReportIssueProvider({ children }: { children: React.ReactNode })
     setOpen(false);
   }, []);
 
+  const modalContextKey = [
+    sourceContext,
+    sourceLink ?? '',
+    conversionData?.postId ?? '',
+    conversionData?.conversionJobId ?? '',
+    conversionData ? 'conversion' : 'generic',
+  ].join('|');
+  const contextValue = useMemo(
+    () => ({ openReportModal, closeReportModal }),
+    [closeReportModal, openReportModal],
+  );
+
   return (
-    <ReportIssueContext.Provider value={{ openReportModal, closeReportModal }}>
+    <ReportIssueContext.Provider value={contextValue}>
       {children}
       <ReportIssueModal
+        key={modalContextKey}
         open={open}
         onOpenChange={setOpen}
         sourceContext={sourceContext}

@@ -32,6 +32,7 @@ import {
   isPasteLikeInputEvent,
   validateMusicLink,
 } from '@/utils/music-link-input';
+import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 type SelectedItem = {
   id: string;
@@ -778,11 +779,10 @@ export default function AddMusicPage() {
       setConversionKey(null);
       setConvertingMeta(null);
       playErrorTone();
-      setErrorMessage(
-        error instanceof Error && error.message
-          ? error.message
-          : 'Something went wrong while converting your link. Please try again.',
-      );
+      setErrorMessage(getUserFacingApiErrorMessage(
+        error,
+        'Something went wrong while converting your link. Please try again.',
+      ));
     }
   }, [conversionKey, description, isValidMusicUrl, linkConversion, musicUrl, normalizeUrlInput, resolvedReturnRoute, router, selectedItem]);
 

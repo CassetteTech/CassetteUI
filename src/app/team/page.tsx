@@ -9,6 +9,7 @@ import { TeamGrid } from "./_components/TeamGrid";
 import { TeamMemberModal } from "./_components/TeamMemberModal";
 import { ValuesSection } from "./_components/ValuesSection";
 import { JoinCTA } from "./_components/JoinCTA";
+import { MarketingFooter } from "@/components/features/marketing/marketing-footer";
 import { teamMembers } from "./_data";
 
 const teamStats = [
@@ -54,6 +55,9 @@ export default function TeamPage() {
 
         {/* Closing CTA — navy band, bookended with the hero halftone */}
         <JoinCTA />
+
+        {/* Print-sheet footer — paper dithers up into the navy band */}
+        <MarketingFooter />
       </CurtainSheet>
 
       <TeamMemberModal

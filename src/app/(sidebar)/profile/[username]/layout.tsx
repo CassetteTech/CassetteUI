@@ -1,22 +1,57 @@
-'use client';
+import type { Metadata } from 'next';
+import { fetchProfileForMetadata } from '@/lib/server/fetch-profile';
+import ProfileLayoutClient from './layout-client';
 
-import { ProfileLayoutContext } from './layout-context';
-
-interface ProfileLayoutProps {
+type Props = {
   children: React.ReactNode;
+  params: Promise<{ username: string }>;
+};
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { username } = await params;
+
+  if (username === 'edit') {
+    return {
+      title: 'Edit Profile',
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const profile = await fetchProfileForMetadata(username);
+  if (!profile) {
+    const title = 'Profile Not Found — Cassette Music';
+    return {
+      title: { absolute: title },
+      description: 'This Cassette Music profile could not be found.',
+      openGraph: { title },
+      twitter: { title },
+    };
+  }
+
+  const displayName = profile.displayName || profile.username;
+  const title = `${displayName} (@${profile.username}) | Cassette Profile`;
+  const description = profile.bio || `Explore ${displayName}'s music profile and MusicLinks on Cassette.`;
+  const images = profile.avatarUrl ? [profile.avatarUrl] : [];
+
+  return {
+    title: { absolute: title },
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'profile',
+      siteName: 'Cassette Music',
+      images,
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+      images,
+    },
+  };
 }
 
-export default function ProfileLayout({ children }: ProfileLayoutProps) {
-  return (
-    <ProfileLayoutContext.Provider value={{ hasLayout: true }}>
-      {/* Desktop: wrap in flex container for proper height handling */}
-      <div className="hidden lg:flex lg:flex-col lg:h-screen lg:min-h-0 lg:overflow-hidden">
-        {children}
-      </div>
-      {/* Mobile: render children directly (pages handle mobile layout) */}
-      <div className="lg:hidden">
-        {children}
-      </div>
-    </ProfileLayoutContext.Provider>
-  );
+export default function ProfileLayout({ children }: Props) {
+  return <ProfileLayoutClient>{children}</ProfileLayoutClient>;
 }

@@ -1,8 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
+import type { Metadata } from "next";
 import { Markdown } from "@/components/markdown";
 
 export const dynamic = 'force-static';
+
+const title = "Terms of Service — Cassette Music";
+const description = "Terms governing your use of Cassette Music, MusicLinks, and public profiles.";
+
+export const metadata: Metadata = {
+  title: { absolute: title },
+  description,
+  openGraph: { title, description },
+  twitter: { title, description },
+};
 
 const termsMarkdownPath = path.join(process.cwd(), "src/content/terms.md");
 const termsMarkdown = fs.readFileSync(termsMarkdownPath, "utf8");

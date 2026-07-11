@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { SocialLinks } from '@/components/ui/social-links';
 
 const linkColumns: { label: string; links: { href: string; label: string }[] }[] = [
   {
@@ -52,6 +53,7 @@ export function Footer() {
             <p className="font-roboto text-sm text-muted-foreground mt-4 max-w-xs italic border-l-2 border-foreground/30 pl-3">
               Share music across every streaming platform. One link, no friction.
             </p>
+            <SocialLinks className="mt-6" />
           </div>
 
           {/* Link columns */}

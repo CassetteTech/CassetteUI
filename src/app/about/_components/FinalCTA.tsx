@@ -71,7 +71,7 @@ export function FinalCTA() {
               <ArrowRight size={16} />
             </Link>
             <Link
-              href="/profile/matttoppi"
+              href="/profile/matt"
               className="inline-flex items-center justify-center gap-3 border-2 border-[hsl(var(--section-wine-fg)/0.5)] font-mono text-[12px] uppercase tracking-[0.25em] px-6 py-3 opacity-90 hover:opacity-100 hover:border-[hsl(var(--section-wine-fg))] transition-[opacity,border-color]"
             >
               See An Example

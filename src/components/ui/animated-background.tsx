@@ -1,17 +1,16 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
 import Image from 'next/image';
 import styles from './animated-background.module.css';
 
 interface FloatingElement {
   id: string;
   image: string;
-  x: number;
-  y: number;
+  xPct: number;
+  yPct: number;
   size: number;
-  opacity: number;
+  opacitySeed: number;
   rotation: number;
   // CSS drift parameters (transform-only, compositor-driven)
   driftX: number;
@@ -19,6 +18,7 @@ interface FloatingElement {
   driftRotate: number;
   driftDuration: number;
   driftDelay: number;
+  enterDelay: number;
 }
 
 interface AnimatedBackgroundProps {
@@ -39,6 +39,13 @@ const animationImages = [
   '/images/animation_elements/zigzag_red_2.png',
 ];
 
+// Always generate the full desktop set. The CSS module hides the tail of the
+// list and scales sizes down on smaller viewports, so responsiveness never
+// depends on a window measurement taken at mount.
+const DESKTOP_COUNT = 25;
+const TABLET_COUNT = 20;
+const MOBILE_COUNT = 15;
+
 export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
   className = '',
   itemsCount,
@@ -46,41 +53,46 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
 }) => {
   const [isClient, setIsClient] = useState(false);
 
-  // Mount flag: elements depend on window dimensions / Math.random, so they
-  // must be generated on the client only (avoids hydration mismatch).
+  // Mount flag: elements depend on Math.random, so they must be generated on
+  // the client only (avoids hydration mismatch).
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   // Generate the elements exactly once per mount. No per-frame React state:
-  // drift now runs as a pure CSS keyframe animation on the compositor.
+  // drift runs as a pure CSS keyframe animation on the compositor.
   const elements = useMemo<FloatingElement[]>(() => {
     if (!isClient) return [];
 
-    const width = typeof window !== 'undefined' ? window.innerWidth : 1000;
-    const height = typeof window !== 'undefined' ? window.innerHeight : 1000;
-    const isSmallScreen = width < 768;
-    const isLowPerformance = width < 1024;
+    const count = itemsCount ?? DESKTOP_COUNT;
 
-    const count =
-      itemsCount || (isLowPerformance ? (isSmallScreen ? 15 : 20) : 25);
-    const maxSize = isLowPerformance ? (isSmallScreen ? 50 : 65) : 80;
-    const minSize = isLowPerformance ? (isSmallScreen ? 25 : 35) : 45;
+    // Jittered grid in viewport percentages: one element per shuffled cell
+    // keeps coverage even (no clumps, no bare patches), and %-based positions
+    // track the viewport through resizes without any pixel math.
+    const cols = Math.ceil(Math.sqrt(count * 1.6));
+    const rows = Math.ceil(count / cols);
+    const cells = Array.from({ length: cols * rows }, (_, i) => i);
+    for (let i = cells.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [cells[i], cells[j]] = [cells[j], cells[i]];
+    }
 
-    return Array.from({ length: count }, (_, i) => ({
+    return cells.slice(0, count).map((cell, i) => ({
       id: `element-${i}`,
       image: animationImages[Math.floor(Math.random() * animationImages.length)],
-      x: Math.random() * width,
-      y: Math.random() * height,
-      size: minSize + Math.random() * (maxSize - minSize),
-      opacity: 0.3 + Math.random() * 0.4, // 0.3 to 0.7
+      xPct: (((cell % cols) + 0.1 + Math.random() * 0.8) / cols) * 100,
+      yPct: ((Math.floor(cell / cols) + 0.1 + Math.random() * 0.8) / rows) * 100,
+      size: 45 + Math.random() * 35, // desktop px; CSS scales down per breakpoint
+      opacitySeed: Math.random(),
       rotation: Math.random() * 360,
-      // Gentle transform-only drift, randomized per element.
-      driftX: (Math.random() - 0.5) * 120, // -60..60px
-      driftY: (Math.random() - 0.5) * 120, // -60..60px
-      driftRotate: (Math.random() - 0.5) * 40, // -20..20deg
-      driftDuration: 18 + Math.random() * 14, // 18..32s
+      // Gentle transform-only drift, randomized per element. A minimum
+      // amplitude per axis keeps every element visibly in motion.
+      driftX: (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 60), // 30..90px either way
+      driftY: (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 60), // 30..90px either way
+      driftRotate: (Math.random() < 0.5 ? -1 : 1) * (15 + Math.random() * 30), // 15..45deg either way
+      driftDuration: 14 + Math.random() * 12, // 14..26s
       driftDelay: Math.random() * -20, // negative → desynchronized start
+      enterDelay: Math.random() * 0.4, // staggered fade-in
     }));
     // Regenerate only across mounts / prop change, never per frame.
   }, [isClient, itemsCount]);
@@ -90,95 +102,56 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
   }
 
   return (
-    <div className={`fixed inset-0 pointer-events-none overflow-hidden ${className}`}>
-      {elements.map((element) => (
-        <div
-          key={element.id}
-          className={styles.element}
-          style={
-            {
-              left: element.x,
-              top: element.y,
-              width: element.size,
-              height: element.size,
-              '--target-opacity': element.opacity,
-              '--rotation': `${element.rotation}deg`,
-              '--drift-x': `${element.driftX}px`,
-              '--drift-y': `${element.driftY}px`,
-              '--drift-rotate': `${element.driftRotate}deg`,
-              '--drift-duration': `${element.driftDuration}s`,
-              '--drift-delay': `${element.driftDelay}s`,
-              // Allow callers/tests to opt out; drift keyframe still parked
-              // at frame 0 so the element renders in place.
-              animationPlayState: enableAnimation ? undefined : 'paused',
-            } as React.CSSProperties
-          }
-        >
-          <Image
-            src={element.image}
-            alt=""
-            width={element.size}
-            height={element.size}
-            className="w-full h-full object-contain"
-            loading="lazy"
-            unoptimized // For better performance with small animated images
-          />
-        </div>
-      ))}
-    </div>
-  );
-};
-
-// Simplified version for better performance on lower-end devices
-export const SimpleAnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
-  className = '',
-}) => {
-  return (
-    <motion.div
-      className={`fixed inset-0 pointer-events-none ${className}`}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 1 }}
+    <div
+      aria-hidden="true"
+      className={`${styles.container} fixed inset-0 pointer-events-none overflow-hidden ${className}`}
     >
-      {/* Static background pattern for low-performance devices */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-10 left-10 w-16 h-16">
-          <Image
-            src="/images/animation_elements/circle_blue.png"
-            alt=""
-            width={64}
-            height={64}
-            className="w-full h-full object-contain"
-          />
-        </div>
-        <div className="absolute top-20 right-20 w-12 h-12">
-          <Image
-            src="/images/animation_elements/circle_red.png"
-            alt=""
-            width={48}
-            height={48}
-            className="w-full h-full object-contain"
-          />
-        </div>
-        <div className="absolute bottom-20 left-20 w-14 h-14">
-          <Image
-            src="/images/animation_elements/zigzag_red_1.png"
-            alt=""
-            width={56}
-            height={56}
-            className="w-full h-full object-contain"
-          />
-        </div>
-        <div className="absolute bottom-10 right-10 w-10 h-10">
-          <Image
-            src="/images/animation_elements/arrows_right.png"
-            alt=""
-            width={40}
-            height={40}
-            className="w-full h-full object-contain"
-          />
-        </div>
-      </div>
-    </motion.div>
+      {elements.map((element, i) => {
+        // With an explicit itemsCount the caller owns the count; otherwise
+        // the tail elements only appear on wider viewports.
+        const tierClass =
+          itemsCount !== undefined
+            ? ''
+            : i >= TABLET_COUNT
+              ? styles.desktopOnly
+              : i >= MOBILE_COUNT
+                ? styles.tabletUp
+                : '';
+        return (
+          <div
+            key={element.id}
+            className={`${styles.element} ${tierClass}`.trim()}
+            style={
+              {
+                left: `${element.xPct}%`,
+                top: `${element.yPct}%`,
+                '--size': `${element.size}px`,
+                '--opacity-seed': element.opacitySeed,
+                '--rotation': `${element.rotation}deg`,
+                '--drift-x': `${element.driftX}px`,
+                '--drift-y': `${element.driftY}px`,
+                '--drift-rotate': `${element.driftRotate}deg`,
+                '--drift-duration': `${element.driftDuration}s`,
+                '--drift-delay': `${element.driftDelay}s`,
+                '--enter-delay': `${element.enterDelay}s`,
+                // Allow callers/tests to opt out; drift keyframe still parked
+                // at frame 0 so the element renders in place.
+                animationPlayState: enableAnimation ? undefined : 'paused',
+              } as React.CSSProperties
+            }
+          >
+            <Image
+              src={element.image}
+              alt=""
+              width={Math.round(element.size)}
+              height={Math.round(element.size)}
+              className="w-full h-full object-contain"
+              loading="lazy"
+              unoptimized // For better performance with small animated images
+            />
+          </div>
+        );
+      })}
+    </div>
   );
 };

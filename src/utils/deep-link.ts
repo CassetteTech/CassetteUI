@@ -51,7 +51,52 @@ function isAppleMusicUrl(url: string): boolean {
 }
 
 /**
+ * Anchor click events from React or the DOM — only the fields we inspect.
+ */
+interface AnchorClickLike {
+  defaultPrevented: boolean;
+  metaKey: boolean;
+  ctrlKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+  button: number;
+  preventDefault(): void;
+}
+
+/**
+ * Click handler for streaming-platform anchors (`<a target="_blank">`).
+ *
+ * Intercepts a plain left-click only when the URL has a native app scheme
+ * (Spotify) and routes it through openInAppOrBrowser, so the app opens when
+ * installed and the web fallback lands in a new tab either way. Modified
+ * clicks (cmd/ctrl/shift/middle) and platforms without an app scheme keep
+ * the anchor's native new-tab behavior — Apple Music relies on Universal
+ * Links, so a plain new-tab open already hands off to the app.
+ */
+export function handleStreamingLinkClick(event: AnchorClickLike, url: string): void {
+  if (
+    event.defaultPrevented ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    event.button !== 0
+  ) {
+    return;
+  }
+
+  if (!getSpotifyAppUrl(url)) {
+    return;
+  }
+
+  event.preventDefault();
+  openInAppOrBrowser(url);
+}
+
+/**
  * Open URL in native app if available, otherwise fallback to browser.
+ * Never navigates the current tab: app attempts use URL schemes (which
+ * leave the page in place) and every web fallback opens in a new tab.
  *
  * - Spotify: Uses spotify: URL scheme with visibility-based fallback
  * - Apple Music library: Uses music:// URL scheme with fallback

@@ -95,7 +95,7 @@ export function NotificationMenu() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border/30 bg-background text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/30 bg-background text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           aria-label="Notifications"
         >
           <Inbox className="h-4 w-4" />
@@ -106,7 +106,7 @@ export function NotificationMenu() {
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[22rem]">
+      <DropdownMenuContent align="end" collisionPadding={12} className="w-[min(22rem,calc(100vw-1.5rem))]">
         <div className="flex items-center justify-between px-2 py-1.5">
           <DropdownMenuLabel className="p-0 font-atkinson font-bold">Notifications</DropdownMenuLabel>
           <button

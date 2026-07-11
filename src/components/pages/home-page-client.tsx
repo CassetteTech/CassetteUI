@@ -34,6 +34,8 @@ import {
   validateMusicLink,
 } from '@/utils/music-link-input';
 import { PLATFORM_LABELS, pickConvertingHeadline } from '@/components/features/conversion/conversion-copy';
+import { ConversionHeading } from '@/components/features/conversion/conversion-heading';
+import { ConversionStageLabel } from '@/components/features/conversion/conversion-stage-label';
 
 export default function HomePageClient() {
   const router = useRouter();
@@ -50,7 +52,6 @@ export default function HomePageClient() {
     headline: string;
   } | null>(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
-  const [searchBarOpacity, setSearchBarOpacity] = useState(1);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   
   // Animation states
@@ -205,33 +206,15 @@ export default function HomePageClient() {
     }
   }, [conversionKey, isAuthenticated, linkConversion, router]);
 
+  // Opening is just a state flip: the same input node stays mounted (so the
+  // iOS keyboard stays up) while its container becomes a full-screen sheet
+  // and framer's layout animation glides the bar into place. No scrollTo,
+  // no timers — the page underneath keeps its scroll position because the
+  // sheet is an overlay, not a reflow.
   const handleSearchFocus = () => {
-    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
-    if (isDesktop) {
-      // Desktop: search bar is always fixed in right column, no reposition needed
+    if (!isConverting) {
       setIsSearchActive(true);
-      return;
     }
-    // Mobile: fade out, reposition while invisible, then fade in
-    setSearchBarOpacity(0);
-    setTimeout(() => {
-      setIsSearchActive(true);
-      setSearchBarOpacity(1);
-      window.scrollTo(0, 0);
-    }, 120);
-  };
-
-  const handleSearchBlur = () => {
-    // Delay the blur to allow click events to fire
-    setTimeout(() => {
-      // Check if the new focus target is within the search results
-      const activeElement = document.activeElement as HTMLElement;
-      const isWithinSearch = activeElement?.closest('.search-container');
-      
-      if (!isWithinSearch && !musicUrl.trim()) {
-        setIsSearchActive(false);
-      }
-    }, 200);
   };
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -409,31 +392,35 @@ export default function HomePageClient() {
   }, [debouncedSearchTerm, searchResultsData, isAuthenticated]);
 
 
-  // Calculate animation classes
+  // Calculate animation classes. These only track the initial-load reveal —
+  // the search sheet is an opaque overlay, so the hero no longer needs to
+  // hide itself while search is open.
   const logoClasses = `transition-[opacity,transform] ${isInitialLoad ? 'duration-1100' : 'duration-300'} ease-out ${
-    logoVisible 
-      ? (isSearchActive ? 'opacity-0 transform -translate-y-8 lg:opacity-100 lg:transform-none' : 'opacity-100 transform translate-y-0')
-      : 'opacity-0 transform translate-y-16'
+    logoVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-16'
   }`;
 
   const taglineClasses = `transition-opacity duration-1000 ease-out ${
-    taglineVisible && !isSearchActive ? 'opacity-100' : 'opacity-0 lg:opacity-100'
+    taglineVisible ? 'opacity-100' : 'opacity-0'
   }`;
-
-  const searchBarClasses = isSearchActive
-    ? 'fixed top-16 left-0 right-0 z-40 bg-background pt-3 pb-2 shadow-sm lg:top-0 lg:bg-transparent lg:pt-0 lg:pb-0 lg:left-auto lg:shadow-none'
-    : '';
 
   const bottomContentClasses = `transition-opacity duration-1000 ease-out ${
-    bottomVisible && !isSearchActive ? 'opacity-100' : 'opacity-0 lg:opacity-100'
+    bottomVisible ? 'opacity-100' : 'opacity-0'
   }`;
+
+  // Mobile: search-open and converting both take over the viewport with the
+  // same fixed sheet, so the bar can glide between its hero, sheet-top, and
+  // centered-converting positions as one continuous element.
+  const isTakeover = isSearchActive || isConverting;
 
   return (
     <div className="min-h-screen relative">
       {/* Animated Background */}
       <AnimatedBackground className="fixed inset-0 z-0" />
       
-      <div className="relative z-10 min-h-screen">
+      {/* The search/converting sheet lives inside this wrapper, so during a
+          takeover the wrapper itself must rise above the fixed navbar (z-50)
+          — a child's z-index can't escape its ancestor's stacking context. */}
+      <div className={`relative min-h-screen ${isTakeover ? 'z-[60]' : 'z-10'}`}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-0 lg:max-w-none">
           
           {/* Top spacing */}
@@ -520,46 +507,73 @@ export default function HomePageClient() {
               </div>
             </div>
 
-            {/* Search Bar Section - Right Column */}
-            <motion.div
-              layout
-              initial={{ opacity: 0, y: 32 }}
-              animate={{ opacity: searchBarVisible ? searchBarOpacity : 0, y: searchBarVisible ? 0 : 32 }}
-              transition={{
-                layout: { type: 'spring', damping: 28, stiffness: 260 },
-                opacity: { duration: 0.12, ease: 'easeOut' },
-                y: { duration: 0.5, ease: 'easeOut' },
-              }}
-              className={`${searchBarClasses} w-full lg:fixed lg:top-0 lg:right-[max(calc((100vw-1600px)/2),0px)] lg:h-screen lg:w-[500px] lg:flex lg:flex-col lg:px-12 lg:z-10 lg:overflow-hidden ${
-                isConverting ? 'lg:justify-center lg:pt-0' : 'lg:pt-24'
+            {/* Search Bar Section - Right Column on desktop. On mobile the
+                same container becomes a full-screen sheet while searching or
+                converting, so the input node never re-parents (the keyboard
+                stays up) and the bar glides between positions as one element. */}
+            <div
+              data-search-region
+              className={`${
+                // z-[60] clears the fixed marketing navbar (z-50): search and
+                // converting are modal takeovers, so they cover it like any sheet
+                isTakeover ? 'fixed inset-0 z-[60] flex flex-col' : 'relative z-40 w-full'
+              } ${
+                isConverting ? 'justify-center px-6' : ''
+              } lg:fixed lg:inset-auto lg:top-0 lg:right-[max(calc((100vw-1600px)/2),0px)] lg:z-10 lg:h-screen lg:w-[500px] lg:flex lg:flex-col lg:px-12 lg:overflow-hidden ${
+                isConverting ? 'lg:pt-0' : 'lg:justify-start lg:pt-24'
               }`}
-              style={{overscrollBehavior: 'contain'}}
+              style={{ overscrollBehavior: 'contain' }}
             >
+              {/* Sheet backdrop — fades in under the gliding bar, replacing
+                  the old opacity-dip + scrollTo teleport and the separate
+                  conversion scrim. Fixed inside an untransformed ancestor,
+                  so it always covers the real viewport. */}
+              <AnimatePresence>
+                {isTakeover && (
+                  <motion.div
+                    key="search-sheet-backdrop"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className={`fixed inset-0 -z-10 lg:hidden ${
+                      isConverting ? 'bg-background/90 backdrop-blur-sm' : 'bg-background'
+                    }`}
+                  />
+                )}
+              </AnimatePresence>
+
+              {/* Bar row — the single layout element that glides between the
+                  hero, sheet-top, and centered-converting positions.
+                  layout="position" (translate only, no scale) on its own
+                  element: mixing `layout` with an `animate` transform on one
+                  node makes the two fight over the transform channel and can
+                  freeze the FLIP mid-flight. */}
               <motion.div
-                layout
-                transition={{ layout: { type: 'spring', damping: 26, stiffness: 220 } }}
+                layout="position"
+                transition={{ layout: { type: 'spring', damping: 28, stiffness: 260 } }}
                 className={`${
-                  isConverting
-                    ? 'fixed inset-0 z-50 flex flex-col justify-center px-6 lg:static lg:z-auto lg:block lg:px-0'
-                    : ''
-                } w-[85vw] mx-auto lg:w-full lg:mb-4 ${isSearchActive ? 'mb-2' : 'mb-6 sm:mb-8'}`}
+                  isTakeover
+                    ? `w-full ${isConverting ? '' : 'px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2'}`
+                    : 'w-[85vw] mx-auto mb-6 sm:mb-8'
+                } lg:w-full lg:mx-0 lg:px-0 lg:pt-0 lg:pb-0 lg:mb-4`}
+              >
+              <motion.div
+                initial={{ opacity: 0, y: 32 }}
+                animate={{ opacity: searchBarVisible ? 1 : 0, y: searchBarVisible ? 0 : 32 }}
+                transition={{
+                  opacity: { duration: 0.3, ease: 'easeOut' },
+                  y: { duration: 0.5, ease: 'easeOut' },
+                }}
               >
                 <AnimatePresence>
-                  {isConverting && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.35, ease: 'easeOut' }}
-                      className="mb-5 text-center"
-                    >
-                      <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-primary">
-                        {convertingMeta?.kicker ?? 'Converting'}
-                      </p>
-                      <p className="font-teko text-2xl sm:text-3xl font-bold uppercase tracking-wide text-foreground leading-none">
-                        {convertingMeta?.headline ?? 'Building your universal link'}
-                      </p>
-                    </motion.div>
+                  {isConverting && convertingMeta && (
+                    <ConversionHeading
+                      key="conversion-heading"
+                      kicker={convertingMeta.kicker}
+                      headline={convertingMeta.headline}
+                      className="mb-5"
+                    />
                   )}
                 </AnimatePresence>
                 <div className="relative">
@@ -570,62 +584,67 @@ export default function HomePageClient() {
                     hasError={!!urlError}
                     beamActive={isConverting}
                   >
-                    {isConverting ? (
-                      /* While the beam runs, the bar narrates: what's
-                         converting on top, the live Bridge stage below. */
-                      <div className="flex h-full w-full flex-col items-center justify-center px-4 sm:px-6">
-                        <span className="w-full truncate text-center text-sm sm:text-base font-semibold text-foreground">
-                          {convertingMeta?.title ?? convertingMeta?.fallbackLabel ?? 'Music link'}
-                        </span>
-                        <AnimatePresence mode="wait">
-                          <motion.span
-                            key={conversionStageLabel}
-                            initial={{ opacity: 0, y: 4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -4 }}
-                            transition={{ duration: 0.2, ease: 'easeOut' }}
-                            className="font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
-                            aria-live="polite"
-                          >
-                            {conversionStageLabel}
-                          </motion.span>
-                        </AnimatePresence>
-                      </div>
-                    ) : (
-                      <input
-                        ref={searchInputRef}
-                        data-testid="home-search-input"
-                        value={musicUrl}
-                        onChange={handleUrlChange}
-                        onFocus={handleSearchFocus}
-                        onBlur={handleSearchBlur}
-                        onPaste={handlePaste}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && musicUrl.trim()) {
-                            const validationError = validateMusicLink(musicUrl);
-                            setUrlError(validationError);
-                            if (validationError) {
+                    {/* Crossfade between the input and the converting
+                        narration instead of hard-swapping mid-flight */}
+                    <AnimatePresence mode="wait" initial={false}>
+                      {isConverting ? (
+                        <motion.div
+                          key="conversion-narration"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15, ease: 'easeOut' }}
+                          className="flex h-full w-full flex-col items-center justify-center px-4 sm:px-6"
+                        >
+                          <span className="w-full truncate text-center text-sm sm:text-base font-semibold text-foreground">
+                            {convertingMeta?.title ?? convertingMeta?.fallbackLabel ?? 'Music link'}
+                          </span>
+                          <ConversionStageLabel label={conversionStageLabel} />
+                        </motion.div>
+                      ) : (
+                        <motion.input
+                          key="search-input"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15, ease: 'easeOut' }}
+                          ref={searchInputRef}
+                          data-testid="home-search-input"
+                          value={musicUrl}
+                          onChange={handleUrlChange}
+                          onFocus={handleSearchFocus}
+                          onPaste={handlePaste}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              closeSearch();
                               return;
                             }
-                            // Check if it's a link
-                            if (musicUrl.includes('http')) {
-                              handleConvertLink(musicUrl.trim());
+                            if (e.key === 'Enter' && musicUrl.trim()) {
+                              const validationError = validateMusicLink(musicUrl);
+                              setUrlError(validationError);
+                              if (validationError) {
+                                return;
+                              }
+                              // Check if it's a link
+                              if (musicUrl.includes('http')) {
+                                handleConvertLink(musicUrl.trim());
+                              }
+                              // Otherwise, the search will happen via the debounced value
                             }
-                            // Otherwise, the search will happen via the debounced value
-                          }
-                        }}
-                        placeholder="Search or paste your music link here..."
-                        className="w-full h-full bg-transparent border-none outline-none text-center text-foreground placeholder:text-muted-foreground px-3 sm:px-4 md:px-6 text-base"
-                        style={{ fontSize: '16px', touchAction: 'manipulation' }}
-                      />
-                    )}
+                          }}
+                          placeholder="Search or paste your music link here..."
+                          className="w-full h-full bg-transparent border-none outline-none text-center text-foreground placeholder:text-muted-foreground px-3 sm:px-4 md:px-6 text-base"
+                          style={{ fontSize: '16px', touchAction: 'manipulation' }}
+                        />
+                      )}
+                    </AnimatePresence>
                   </UrlBar>
                   </ConversionBeam>
                   {urlError && (
                     <p className="text-destructive text-sm mt-2 text-center px-4 font-semibold">
                       {urlError}{' '}
-                      <button 
-                        onClick={() => setIsHelpModalOpen(true)} 
+                      <button
+                        onClick={() => setIsHelpModalOpen(true)}
                         className="underline hover:text-destructive/80 focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2 rounded"
                       >
                         Show me how.
@@ -634,10 +653,11 @@ export default function HomePageClient() {
                   )}
                 </div>
               </motion.div>
+              </motion.div>
 
               {/* Search Results Container - Desktop only in right column.
                   Removed from flow while converting so the bar can center. */}
-              <div className={`${isConverting ? 'lg:hidden' : 'lg:block'} hidden search-container transition-opacity duration-300 ease-out w-full opacity-100 flex-1 overflow-hidden pb-8`} style={{overscrollBehavior: 'contain'}}>
+              <div className={`${isConverting ? 'lg:hidden' : 'lg:block'} hidden search-container transition-opacity duration-300 ease-out w-full ${searchBarVisible ? 'opacity-100' : 'opacity-0'} flex-1 overflow-hidden pb-8`} style={{overscrollBehavior: 'contain'}}>
                 <SearchResults
                   results={displayData}
                   query={debouncedSearchTerm}
@@ -649,33 +669,18 @@ export default function HomePageClient() {
                   SkeletonComponent={Skeleton}
                 />
               </div>
-            </motion.div>
 
-            {/* Conversion takeover scrim - covers marketing content on mobile
-                while the centered bar + beam carry the loading state */}
-            <AnimatePresence>
-              {isConverting && (
-                <motion.div
-                  key="conversion-scrim"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="lg:hidden fixed inset-0 z-40 bg-background/90 backdrop-blur-sm"
-                />
-              )}
-            </AnimatePresence>
-
-            {/* Search Results Container - Mobile/Tablet positioning */}
-            <AnimatePresence>
+              {/* Search Results - Mobile sheet body. Fills the sheet below
+                  the bar; close is carried by the backdrop fade + bar glide
+                  (an exit animation here would reflow mid-close). */}
               {isSearchActive && !isConverting && (
                 <motion.div
                   key="mobile-search-results"
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 24 }}
-                  transition={{ type: 'spring', damping: 25, stiffness: 250, delay: 0.08 }}
-                  className="lg:hidden search-container fixed top-[8.5rem] left-0 right-0 bottom-0 z-40 overflow-y-auto bg-background"
+                  transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+                  className="lg:hidden search-container flex-1 min-h-0 overflow-y-auto pt-2 pb-4"
+                  style={{ overscrollBehavior: 'contain' }}
                 >
                   <SearchResults
                     results={displayData}
@@ -686,10 +691,11 @@ export default function HomePageClient() {
                     onSelectItem={handleSelectItem}
                     onClose={closeSearch}
                     SkeletonComponent={Skeleton}
+                    chrome="flat"
                   />
                 </motion.div>
               )}
-            </AnimatePresence>
+            </div>
 
             {/* Demo Section - Mobile only */}
             <div className={`${bottomContentClasses} w-full mt-12 sm:mt-20 pt-8 sm:pt-16 pb-24 sm:pb-32 lg:hidden`}>

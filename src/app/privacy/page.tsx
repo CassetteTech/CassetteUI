@@ -1,8 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
+import type { Metadata } from "next";
 import { Markdown } from "@/components/markdown";
 
 export const dynamic = 'force-static';
+
+const title = "Privacy Policy — Cassette Music";
+const description = "How Cassette Technologies collects, uses, and protects your information.";
+
+export const metadata: Metadata = {
+  title: { absolute: title },
+  description,
+  openGraph: { title, description },
+  twitter: { title, description },
+};
 
 const privacyMarkdownPath = path.join(process.cwd(), "src/content/privacy.md");
 const privacyMarkdown = fs.readFileSync(privacyMarkdownPath, "utf8");

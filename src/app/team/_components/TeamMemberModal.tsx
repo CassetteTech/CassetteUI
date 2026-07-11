@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Github, Linkedin, Link2, Twitter, Mail } from "lucide-react";
+import { CassetteTape, X, Github, Linkedin, Link2, Twitter, Mail } from "lucide-react";
 import Image from "next/image";
 import { teamMembers, getTypeConfig } from "../_data";
 import { EASE_OUT_QUART, EASE_IN_QUART } from "@/lib/motion";
@@ -68,6 +68,7 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
 
               const typeConfig = getTypeConfig(member.type);
               const socialLinks = [
+                { href: member.cassetteProfile, icon: CassetteTape, label: "Cassette Profile" },
                 { href: member.social.github, icon: Github, label: "GitHub" },
                 { href: member.social.linkedin, icon: Linkedin, label: "LinkedIn" },
                 { href: member.social.twitter, icon: Twitter, label: "Twitter" },

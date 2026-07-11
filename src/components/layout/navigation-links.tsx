@@ -3,7 +3,6 @@
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { AlertCircle, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   accountNavItems,
@@ -27,39 +26,50 @@ interface NavigationSectionProps {
   variant: 'primary' | 'account' | 'secondary';
   onLinkClick?: () => void;
   username?: string | null;
-  showSeparator?: boolean;
 }
 
+// Text-only editorial rows: Atkinson bold is the same voice as the desktop
+// navbar links; size and color carry the hierarchy, hairlines carry the grid.
 function getItemClassName(variant: NavigationSectionProps['variant'], isActive: boolean) {
   const base =
-    'group flex items-center gap-3 rounded-xl transition-colors duration-200 active:scale-[0.99]';
+    'flex w-full items-center justify-between gap-3 font-atkinson font-bold transition-colors duration-150';
 
   if (variant === 'primary') {
     return cn(
       base,
-      'px-4 py-3.5 text-[15px] font-semibold tracking-tight',
-      isActive
-        ? 'bg-primary text-primary-foreground shadow-sm'
-        : 'bg-muted/50 text-foreground hover:bg-muted'
+      'py-3 text-[17px]',
+      isActive ? 'text-primary' : 'text-foreground active:text-primary',
     );
   }
 
   if (variant === 'account') {
     return cn(
       base,
-      'px-3 py-2.5 text-sm font-medium',
-      isActive
-        ? 'bg-muted text-foreground'
-        : 'text-foreground hover:bg-muted/70'
+      'py-2.5 text-base',
+      isActive ? 'text-primary' : 'text-foreground active:text-primary',
     );
   }
 
   return cn(
     base,
-    'px-3 py-2.5 text-sm',
-    isActive
-      ? 'bg-muted/70 text-foreground'
-      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+    'py-2.5 text-[15px]',
+    isActive ? 'text-primary' : 'text-muted-foreground active:text-primary',
+  );
+}
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground/80">
+      {children}
+    </h3>
+  );
+}
+
+function ExternalMark() {
+  return (
+    <span aria-hidden="true" className="font-mono text-sm leading-none text-muted-foreground/60">
+      ↗
+    </span>
   );
 }
 
@@ -70,19 +80,17 @@ function NavigationSection({
   variant,
   onLinkClick,
   username,
-  showSeparator = false,
 }: NavigationSectionProps) {
   if (items.length === 0) return null;
 
   return (
-    <section
-      aria-label={title}
-      className={cn(showSeparator && 'border-t border-border/40 pt-5')}
-    >
-      <div className={cn(variant === 'primary' ? 'space-y-1.5' : 'space-y-0.5')}>
+    <section aria-label={title}>
+      <SectionHeading>{title}</SectionHeading>
+      <div className="divide-y divide-border/40">
         {items.map((item) => {
           const href = resolveNavHref(item, { username });
-          const itemClassName = getItemClassName(variant, isNavItemActive(item, pathname, { username }));
+          const isActive = isNavItemActive(item, pathname, { username });
+          const itemClassName = getItemClassName(variant, isActive);
 
           if (item.external) {
             return (
@@ -94,30 +102,14 @@ function NavigationSection({
                 onClick={onLinkClick}
                 className={itemClassName}
               >
-                <item.icon
-                  className={cn(
-                    'shrink-0 transition-transform duration-200 group-hover:scale-110',
-                    variant === 'primary' ? 'h-5 w-5' : 'h-4 w-4',
-                  )}
-                />
                 <span>{item.label}</span>
+                <ExternalMark />
               </a>
             );
           }
 
           return (
-            <Link
-              key={item.key}
-              href={href}
-              onClick={onLinkClick}
-              className={itemClassName}
-            >
-              <item.icon
-                className={cn(
-                  'shrink-0 transition-transform duration-200 group-hover:scale-110',
-                  variant === 'primary' ? 'h-5 w-5' : 'h-4 w-4',
-                )}
-              />
+            <Link key={item.key} href={href} onClick={onLinkClick} className={itemClassName}>
               <span>{item.label}</span>
             </Link>
           );
@@ -150,18 +142,46 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
   };
 
   return (
-    <nav className="flex flex-col gap-5 pb-2">
-      <NavigationSection
-        title="Primary"
-        items={primaryItems}
-        pathname={pathname}
-        variant="primary"
-        onLinkClick={onLinkClick}
-        username={user?.username}
-      />
+    <nav className="flex flex-col gap-5">
+      <div data-menu-reveal style={{ '--reveal-index': 2 } as React.CSSProperties}>
+        <NavigationSection
+          title="Browse"
+          items={primaryItems}
+          pathname={pathname}
+          variant="primary"
+          onLinkClick={onLinkClick}
+          username={user?.username}
+        />
+      </div>
+
+      {!user && (
+        <section
+          aria-label="Account"
+          data-menu-reveal
+          style={{ '--reveal-index': 3 } as React.CSSProperties}
+        >
+          <SectionHeading>Account</SectionHeading>
+          <div className="divide-y divide-border/40">
+            <Link
+              href="/auth/signin"
+              onClick={onLinkClick}
+              className={getItemClassName('account', false)}
+            >
+              <span>Sign In</span>
+            </Link>
+            <Link
+              href="/auth/signup"
+              onClick={onLinkClick}
+              className={getItemClassName('account', false)}
+            >
+              <span>Sign Up</span>
+            </Link>
+          </div>
+        </section>
+      )}
 
       {user && (
-        <section aria-label="Account" className="border-t border-border/40 pt-5">
+        <div data-menu-reveal style={{ '--reveal-index': 3 } as React.CSSProperties}>
           <NavigationSection
             title="Account"
             items={accountItems}
@@ -172,15 +192,14 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
           />
           <button
             onClick={handleSignOut}
-            className="group mt-0.5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors duration-200 hover:bg-muted/70 active:scale-[0.99]"
+            className={cn(getItemClassName('account', false), 'border-t border-border/40 text-left')}
           >
-            <LogOut className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
             <span>Sign Out</span>
           </button>
-        </section>
+        </div>
       )}
 
-      <section aria-label="Company and support" className="border-t border-border/40 pt-5">
+      <div data-menu-reveal style={{ '--reveal-index': 4 } as React.CSSProperties}>
         <NavigationSection
           title="Company & Support"
           items={companyItems}
@@ -194,12 +213,11 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
             openReportModal();
             onLinkClick?.();
           }}
-          className="group mt-0.5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors duration-200 hover:bg-muted/60 hover:text-foreground active:scale-[0.99]"
+          className={cn(getItemClassName('secondary', false), 'border-t border-border/40 text-left')}
         >
-          <AlertCircle className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
           <span>Report a Problem</span>
         </button>
-      </section>
+      </div>
     </nav>
   );
 }

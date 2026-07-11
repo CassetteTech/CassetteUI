@@ -20,7 +20,8 @@ import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/layout/theme-switcher';
 import { SidebarProfileCard, SidebarProfileCardSkeleton } from '@/components/features/profile/sidebar-profile-card';
 import { usePathname } from 'next/navigation';
-import { KOFI_SUPPORT_URL, KOFI_ICON_SRC } from '@/lib/ko-fi';
+import { KOFI_SUPPORT_URL } from '@/lib/ko-fi';
+import { KofiIcon } from '@/components/ui/kofi-icon';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { useUserBio } from '@/hooks/use-profile';
 import {
@@ -226,7 +227,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
             target="_blank"
             rel="noreferrer"
           >
-            <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="mr-2" />
+            <KofiIcon width={16} className="mr-2" />
             <span>Support Us</span>
           </a>
         </Button>
@@ -381,7 +382,7 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
             target="_blank"
             rel="noreferrer"
           >
-            <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="mr-2" />
+            <KofiIcon width={16} className="mr-2" />
             <span>Support Us</span>
           </a>
         </Button>

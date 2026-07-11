@@ -21,6 +21,13 @@ interface SearchResultsProps {
   onSelectItem: (url: string, title: string, type: string) => void;
   onClose: () => void;
   SkeletonComponent?: React.ComponentType<{ className?: string }>;
+  /**
+   * Card treatment. `retro` keeps the offset-shadow brutalist card for
+   * standalone placements; `flat` drops to a hairline border and defers
+   * scrolling to the parent — for the full-screen search sheet, where the
+   * bar above is already the focal element.
+   */
+  chrome?: 'retro' | 'flat';
 }
 
 export const SearchResults: React.FC<SearchResultsProps> = ({
@@ -32,6 +39,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   onSelectItem,
   onClose,
   SkeletonComponent,
+  chrome = 'retro',
 }) => {
   // Combine all results into a single array with intelligent ranking
   const allResults = React.useMemo(() => {
@@ -158,12 +166,24 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
       {/* Search Results Container with retro shadow effect */}
       <div className="relative">
         {/* Bottom shadow layer */}
-        <div className="absolute inset-0 translate-x-1 translate-y-1 bg-muted-foreground rounded-lg" />
+        {chrome === 'retro' && (
+          <div className="absolute inset-0 translate-x-1 translate-y-1 bg-muted-foreground rounded-lg" />
+        )}
 
         {/* Main container */}
-        <div className="relative bg-field text-card-foreground rounded-lg border-2 border-foreground">
+        <div
+          className={
+            chrome === 'retro'
+              ? 'relative bg-field text-card-foreground rounded-lg border-2 border-foreground'
+              : 'relative bg-field text-card-foreground rounded-lg border border-border'
+          }
+        >
           {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 border-b-2 border-foreground">
+          <div
+            className={`flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 ${
+              chrome === 'retro' ? 'border-b-2 border-foreground' : 'border-b border-border'
+            }`}
+          >
             <h3 className="text-sm sm:text-lg font-bold text-foreground font-atkinson">
               {showSearchResults ? 'Search Results' : 'Top Charts'}
             </h3>
@@ -188,8 +208,14 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             </button>
           </div>
 
-          {/* Results List */}
-          <div className="max-h-[calc(100vh-10rem)] lg:max-h-[calc(100vh-20rem)] overflow-y-auto">
+          {/* Results List — flat chrome defers scrolling to the parent sheet */}
+          <div
+            className={
+              chrome === 'retro'
+                ? 'max-h-[calc(100vh-10rem)] lg:max-h-[calc(100vh-20rem)] overflow-y-auto'
+                : undefined
+            }
+          >
             {allResults.map((item, index) => (
               <div
                 key={`${item.type}-${item.id}-${index}`}

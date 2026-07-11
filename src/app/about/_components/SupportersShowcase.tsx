@@ -1,9 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Image from "next/image";
 import { DitherEdge } from "@/components/features/marketing/dither-edge";
-import { KOFI_ICON_SRC } from "@/lib/ko-fi";
+import { KofiIcon } from "@/components/ui/kofi-icon";
 
 /**
  * Cream band carrying the Ko-fi embed after the dark statement band.
@@ -23,13 +22,7 @@ export function SupportersShowcase() {
           className="flex flex-col items-center"
         >
           <div className="flex items-center gap-3 mb-2">
-            <Image
-              src={KOFI_ICON_SRC}
-              alt="Ko-fi"
-              width={28}
-              height={28}
-              className="rounded-full"
-            />
+            <KofiIcon width={28} className="rounded-full" />
             <h3 className="font-teko text-3xl sm:text-4xl uppercase tracking-tight leading-none">
               Buy The Team A Coffee
             </h3>

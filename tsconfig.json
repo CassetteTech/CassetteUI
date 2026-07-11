@@ -34,10 +34,11 @@
     ".next-e2e/types/**/*.ts",
     ".next-latency-base/types/**/*.ts",
     ".next-latency-fix/types/**/*.ts",
+    ".next-preview-c/types/**/*.ts",
     ".next-preview/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts",
-    ".next-preview-c/types/**/*.ts"
+    ".next-preview-b/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

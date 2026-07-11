@@ -13,7 +13,7 @@ type TabType = 'playlists' | 'tracks' | 'artists' | 'albums';
 
 // Dummy data
 const dummyUserBio = {
-  username: "matttoppi",
+  username: "matt",
   displayName: "Matt Toppi",
   bio: "🎵 Music enthusiast | Playlist curator | Always discovering new sounds",
   avatarUrl: "/images/cassette_logo.png",

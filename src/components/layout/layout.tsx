@@ -40,9 +40,11 @@ useEffect(() => {
   const isProfileRoute = pathname?.startsWith('/profile');
   const isHomePage = pathname === '/';
   const isPostPage = pathname?.startsWith('/post');
+  // /about and /team render their own MarketingFooter inside the curtain sheet
+  const isStoryPage = pathname === '/about' || pathname === '/team';
 
   const showNavbar = !isAuthPage;
-  const showFooter = !isAuthPage && !isHomePage && !isPostPage && !isProfileRoute;
+  const showFooter = !isAuthPage && !isHomePage && !isPostPage && !isProfileRoute && !isStoryPage;
 
   if (isLoading && !isHomePage) {
     return <PageLoader />;

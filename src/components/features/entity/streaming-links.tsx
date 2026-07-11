@@ -11,6 +11,7 @@ import {
   getDisplayPlatformDefinition,
   getPlatformDefinition,
 } from '@/lib/platforms';
+import { handleStreamingLinkClick } from '@/utils/deep-link';
 
 interface StreamingLinksProps {
   links: {
@@ -75,7 +76,7 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => {
+              onClick={(event) => {
                 const normalizedTarget = getPlatformDefinition(platform)?.analyticsKey ?? 'unknown';
                 const normalizedSourcePlatform = normalizePlatform(sourcePlatform) ?? 'unknown';
                 const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
@@ -102,6 +103,7 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                   is_authenticated: isAuthenticated,
                   source_domain: sanitizeDomain(url),
                 });
+                handleStreamingLinkClick(event, url);
               }}
               className={cn(
                 "group relative flex items-stretch overflow-hidden rounded-md",

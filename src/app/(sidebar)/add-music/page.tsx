@@ -9,6 +9,7 @@ import { useTopCharts, useMusicSearch, useMusicLinkConversion } from '@/hooks/us
 import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useConversionStage } from '@/hooks/use-conversion-stage';
+import { useSheetViewportPin } from '@/hooks/use-sheet-viewport-pin';
 import { PLATFORM_LABELS, pickConvertingHeadline } from '@/components/features/conversion/conversion-copy';
 import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
 import { ConversionHeading } from '@/components/features/conversion/conversion-heading';
@@ -99,12 +100,19 @@ const AddMusicForm = ({
   isConverting: boolean;
   convertingMeta: ConvertingMeta | null;
   conversionStageLabel: string;
-}) => (
+}) => {
+  // Pin the open sheet to the visual viewport: the iOS keyboard pans the
+  // visual viewport, which would otherwise push the bar and the top of the
+  // results out of view the moment the input focuses.
+  const sheetRef = useSheetViewportPin(isSearchActive);
+
+  return (
   <>
     {/* Search/Input Section — on mobile this container becomes a full-screen
         sheet while searching, so the input node never re-parents (the iOS
         keyboard stays up) and the bar glides to the sheet top as one element */}
     <div
+      ref={sheetRef}
       data-search-region
       className={
         isSearchActive
@@ -303,6 +311,10 @@ const AddMusicForm = ({
           transition={{ type: 'spring', damping: 25, stiffness: 250 }}
           className="search-container w-full flex-1 min-h-0 overflow-y-auto pt-2 pb-4 lg:flex-none lg:overflow-visible lg:pt-0"
           style={{ overscrollBehavior: 'contain' }}
+          onPointerDown={(e) => {
+            // Tapping the empty area below the list dismisses, like a sheet scrim
+            if (e.target === e.currentTarget) closeSearch();
+          }}
         >
           <SearchResults
             results={displayData}
@@ -365,7 +377,8 @@ const AddMusicForm = ({
       </div>
     </motion.div>
   </>
-);
+  );
+};
 
 export default function AddMusicPage() {
   const router = useRouter();

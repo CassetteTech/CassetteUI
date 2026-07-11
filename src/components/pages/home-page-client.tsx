@@ -36,6 +36,7 @@ import {
 import { PLATFORM_LABELS, pickConvertingHeadline } from '@/components/features/conversion/conversion-copy';
 import { ConversionHeading } from '@/components/features/conversion/conversion-heading';
 import { ConversionStageLabel } from '@/components/features/conversion/conversion-stage-label';
+import { useSheetViewportPin } from '@/hooks/use-sheet-viewport-pin';
 
 export default function HomePageClient() {
   const router = useRouter();
@@ -412,6 +413,11 @@ export default function HomePageClient() {
   // centered-converting positions as one continuous element.
   const isTakeover = isSearchActive || isConverting;
 
+  // Pin the open sheet to the visual viewport: the iOS keyboard pans the
+  // visual viewport, which would otherwise push the bar and the top of the
+  // results out of view the moment the input focuses.
+  const sheetRef = useSheetViewportPin(isTakeover);
+
   return (
     <div className="min-h-screen relative">
       {/* Animated Background */}
@@ -512,6 +518,7 @@ export default function HomePageClient() {
                 converting, so the input node never re-parents (the keyboard
                 stays up) and the bar glides between positions as one element. */}
             <div
+              ref={sheetRef}
               data-search-region
               className={`${
                 // z-[60] clears the fixed marketing navbar (z-50): search and
@@ -681,6 +688,10 @@ export default function HomePageClient() {
                   transition={{ type: 'spring', damping: 25, stiffness: 250 }}
                   className="lg:hidden search-container flex-1 min-h-0 overflow-y-auto pt-2 pb-4"
                   style={{ overscrollBehavior: 'contain' }}
+                  onPointerDown={(e) => {
+                    // Tapping the empty area below the list dismisses, like a sheet scrim
+                    if (e.target === e.currentTarget) closeSearch();
+                  }}
                 >
                   <SearchResults
                     results={displayData}

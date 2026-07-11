@@ -47,14 +47,14 @@ export function ExampleProfileSection() {
           className="lg:col-span-7"
         >
           <Link
-            href="/profile/matttoppi"
+            href="/profile/matt"
             className="group block bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-6 sm:p-8 shadow-flat-6 dark:shadow-flat-white-6 hover:-translate-y-1 hover:shadow-flat-primary-8 dark:hover:shadow-flat-primary-8 transition-[transform,box-shadow] duration-150 ease-out-quart"
           >
             <div className="flex items-center gap-4 sm:gap-5">
               <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 border-2 border-foreground rounded-full overflow-hidden bg-muted">
                 <Image
                   src="/images/cassette_logo.png"
-                  alt="@matttoppi avatar"
+                  alt="@matt avatar"
                   fill
                   className="object-contain p-2"
                 />
@@ -67,7 +67,7 @@ export function ExampleProfileSection() {
                   Matt Toppi
                 </h3>
                 <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground mt-1">
-                  @matttoppi
+                  @matt
                 </p>
               </div>
               <ArrowRight className="hidden sm:block h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-[color,transform] shrink-0" />

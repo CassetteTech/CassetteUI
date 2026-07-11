@@ -16,6 +16,7 @@ export interface TeamMember {
   role: string;
   type: string | string[];
   image: string;
+  cassetteProfile?: string;
   icon: LucideIcon;
   fullBio: string;
   background: string;
@@ -49,6 +50,7 @@ export const teamMembers: TeamMember[] = [
     role: "Co-Founder & Lead Engineer",
     type: ["cofounder", "engineer"],
     image: "/images/team/matt-toppi.jpg",
+    cassetteProfile: "/profile/matt",
     icon: Code,
     fullBio: "Matt is a Co-Founder at Cassette Technologies and a Software Engineer at Aras Labs, the Advanced R&D division of Aras Corporation, a Product Lifecycle Management (PLM) software company. He is a software engineer specializing in AI, backend, and full-stack systems, with experience shipping production software across enterprise R&D and founder-led environments. He holds a Bachelor of Science in Computer Science from the University of New Hampshire. At Cassette, he serves as the technical lead, architecting and shipping the platform end to end.",
     background: "At his day job, Matt works in R&D for AI applications supporting ECAD and MCAD engineering workflows within the company's PLM platform, with emphasis on version-aware collaboration and multi-agent workflow support. His work was presented by the company CTO at ACE 2026 to representatives from 200+ companies, and he has also contributed to published AI research. This experience positions him well to bridge deep technical execution with early-stage product building. At Cassette Technologies, Matt architected and shipped a multi-service music platform across Next.js, .NET, PostgreSQL, and AWS Lambda, enabling cross-platform conversion of tracks, albums, artists, and playlists across major streaming services. He designed the core conversion pipeline and data model, owns the main .NET API and Next.js frontend, and has a proven track record of launching multi-tenant SaaS platforms serving paying customers.",
@@ -61,6 +63,7 @@ export const teamMembers: TeamMember[] = [
     role: "Co-Founder & Head of Finance",
     type: ["cofounder", "marketer"],
     image: "/images/team/brian-davies.jpg",
+    cassetteProfile: "/profile/brian",
     icon: Briefcase,
     fullBio: "Brian is a Co-Founder at Cassette Technologies and a Leveraged Finance Associate at Huntington National Bank. He is a startup founder and finance professional specializing in structuring and scaling early-stage ventures, with a focus on operational strategy and business development. He holds a Bachelor's degree in Finance from American University's Kogod School of Business with a specialization in entrepreneurship. At Cassette, he plays a central role in shaping and pitching the company's value proposition.",
     background: "At his day job, Brian works on the Leveraged Finance Execution Team, where he focuses on leveraged buyouts and other debt placements for private equity clients. In this role, he originates and executes new business, gaining exposure to private market deals and investment proposals for complex financial transactions. This experience positions him well for early-stage venture funding and operational scaling, bridging his finance expertise with his entrepreneurial ambitions. At Cassette Technologies, Brian has successfully pitched the business concept into American University's Veloric Center for Entrepreneurship, led a team through a successful crowdfunding campaign, and onboarded angel investors. He has established strategic relationships with professionals both domestically and internationally, while building an online brand with a community of nearly 100,000 members.",
@@ -72,6 +75,7 @@ export const teamMembers: TeamMember[] = [
     role: "Senior DevOps Engineer",
     type: "engineer",
     image: "/images/team/sage-duford.jpg",
+    cassetteProfile: "/profile/sageduford",
     icon: Code,
     fullBio: "Sage is a Senior DevOps Engineer at Cassette Technologies and also works as a Software Engineer at Liberty Mutual Insurance. He is a graduate of the Wentworth Institute of Technology with a bachelor's degree in Computer Science. Sage is passionate about coding and has a strong background in full-stack programming, with a particular expertise in back-end development.",
     background: "Graduate of the Wentworth Institute of Technology with a bachelor's degree in Computer Science. Currently works as a Software Engineer at Liberty Mutual Insurance while serving as Senior DevOps Engineer at Cassette Technologies.",
@@ -83,6 +87,7 @@ export const teamMembers: TeamMember[] = [
     role: "Social Media Manager",
     type: "marketer",
     image: "/images/team/vivyin.jpeg",
+    cassetteProfile: "/profile/vivyin",
     icon: TrendingUp,
     fullBio: "Vivian is the Social Media Manager at Cassette Technologies and also a content creator on Twitch. She works across Cassette's social channels to create engaging content and manage accounts across platforms. She is an undergraduate senior studying Business Administration with a Marketing specialization and a Communication minor at American University.",
     background: "Vivian has been an individual content creator for several years, cultivating her own social media followings through expert video editing, short-form content creation, and community involvement. She has experience managing social media accounts with large followings, creating memorable logos and other key visuals, and collaborating with similar creators.",
@@ -101,6 +106,7 @@ export const teamMembers: TeamMember[] = [
     role: "Marketing Advisor",
     type: "investor",
     image: "/images/team/massimo-lotruglio.jpg",
+    cassetteProfile: "/profile/massimo",
     icon: TrendingUp,
     fullBio: "Massimo is a Marketing Advisor to Cassette Technologies and a globally-minded professional who studied International Studies, Journalism, and French at American University. His academic background has fueled his passion for global engagement, problem-solving, and storytelling. At Cassette, he helped shape the company\u2019s brand identity and marketing voice.",
     background: "He led the creation of marketing materials, developed and wrote biweekly newsletters, and managed a team of interns. His strategic efforts in overseeing company engagement contributed to building a combined audience of over 60,000 users. Currently, as the Assistant Director of Admissions at American University, he continues to use his communication and relationship-building skills to guide prospective students.",
@@ -112,6 +118,7 @@ export const teamMembers: TeamMember[] = [
     role: "Software Engineer",
     type: "engineer",
     image: "/images/team/tobey-dimambro.jpg",
+    cassetteProfile: "/profile/tobey",
     icon: Code,
     fullBio: "Tobey is a Software Engineer at Cassette Technologies with a background in computer science and applied data work. He brings experience across software development, analytics, and backend-oriented problem solving, with a focus on building reliable systems and practical product functionality.",
     background: "He studied Computer Science at the University of New Hampshire, where he contributed to applied research projects including NextStep HealthTech Data Analysis. At Cassette, Tobey supports engineering efforts across the product platform and helps build the technical foundation behind the company\u2019s music-sharing tools.",

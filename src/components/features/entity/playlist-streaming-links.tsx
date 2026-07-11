@@ -13,7 +13,7 @@ import { pendingActionService } from '@/utils/pending-action';
 import { platformConnectService } from '@/services/platform-connect';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
 import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
-import { openInAppOrBrowser, isAppleMusicLibraryUrl } from '@/utils/deep-link';
+import { openInAppOrBrowser, isAppleMusicLibraryUrl, handleStreamingLinkClick } from '@/utils/deep-link';
 import { clientConfig } from '@/lib/config-client';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { normalizePlatform, sanitizeDomain } from '@/lib/analytics/sanitize';
@@ -565,7 +565,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => {
+              onClick={(event) => {
                 const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
                 const targetPlatform = getPlatformDefinition(platform)?.analyticsKey ?? platform;
                 const openClickProps = buildPostPlatformConversionClickedProps({
@@ -581,6 +581,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
                 if (openClickProps) {
                   void captureClientEvent('post_platform_conversion_clicked', openClickProps);
                 }
+                handleStreamingLinkClick(event, url);
               }}
               className={commonClasses}
             >

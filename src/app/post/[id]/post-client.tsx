@@ -17,6 +17,7 @@ import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
 import { PostShareMenu } from '@/components/features/post/post-share-menu';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { takePrefetchedPost } from '@/lib/post-prefetch';
+import { handleStreamingLinkClick } from '@/utils/deep-link';
 import { Button } from '@/components/ui/button';
 import { BackButton } from '@/components/ui/back-button';
 import {
@@ -35,7 +36,8 @@ import { ApiError, apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { AlertCircle, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
-import { openKoFiSupport, KOFI_ICON_SRC } from '@/lib/ko-fi';
+import { openKoFiSupport } from '@/lib/ko-fi';
+import { KofiIcon } from '@/components/ui/kofi-icon';
 import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
@@ -73,7 +75,7 @@ function SupportCTA({ className }: { className?: string }) {
         className="shrink-0 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors bg-primary text-primary-foreground"
         aria-label="Support Cassette on Ko-fi"
       >
-        <Image src={KOFI_ICON_SRC} alt="Ko-fi" width={16} height={16} className="rounded-full" />
+        <KofiIcon width={16} className="rounded-full" />
         <span>Tip us</span>
       </button>
     </div>
@@ -1173,7 +1175,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                                 href={resolvedSourceUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                onClick={() => {
+                                onClick={(event) => {
                                   void captureClientEvent('streaming_link_opened', {
                                     route: `/post/${postData?.postId || postId}`,
                                     source_surface: 'post',
@@ -1185,6 +1187,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                                     element_type: 'playlist',
                                     is_authenticated: isAuthenticated,
                                   });
+                                  handleStreamingLinkClick(event, resolvedSourceUrl);
                                 }}
                                 className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
                                 aria-label={`from ${sourceService.name}`}
@@ -1732,7 +1735,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                         href={resolvedSourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        onClick={() => {
+                        onClick={(event) => {
                           void captureClientEvent('streaming_link_opened', {
                             route: `/post/${postData?.postId || postId}`,
                             source_surface: 'post',
@@ -1744,6 +1747,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                             element_type: 'playlist',
                             is_authenticated: isAuthenticated,
                           });
+                          handleStreamingLinkClick(event, resolvedSourceUrl);
                         }}
                         className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 text-xs sm:text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
                         aria-label={`from ${sourceService.name}`}

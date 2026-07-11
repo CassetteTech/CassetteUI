@@ -11,6 +11,8 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { useConversionStage } from '@/hooks/use-conversion-stage';
 import { PLATFORM_LABELS, pickConvertingHeadline } from '@/components/features/conversion/conversion-copy';
 import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
+import { ConversionHeading } from '@/components/features/conversion/conversion-heading';
+import { ConversionStageLabel } from '@/components/features/conversion/conversion-stage-label';
 import { SearchResults } from '@/components/features/search-results';
 import { MusicSearchResult } from '@/types';
 import { PageLoader } from '@/components/ui/page-loader';
@@ -39,6 +41,15 @@ type SelectedItem = {
   coverArtUrl: string;
 };
 
+type ConvertingMeta = {
+  title?: string;
+  artist?: string;
+  artwork?: string;
+  kicker: string;
+  fallbackLabel: string;
+  headline: string;
+};
+
 // Add Music Form component extracted to prevent recreation on every render
 const AddMusicForm = ({
   isSearchActive,
@@ -48,7 +59,6 @@ const AddMusicForm = ({
   debouncedSearchTerm,
   handleUrlChange,
   handleSearchFocus,
-  handleSearchBlur,
   handlePaste,
   handleInputKeyDown,
   clearSelection,
@@ -62,8 +72,9 @@ const AddMusicForm = ({
   isSearchingMusic,
   handleSelectItem,
   closeSearch,
-  searchBarOpacity,
   isConverting,
+  convertingMeta,
+  conversionStageLabel,
 }: {
   isSearchActive: boolean;
   selectedItem: SelectedItem | null;
@@ -72,7 +83,6 @@ const AddMusicForm = ({
   debouncedSearchTerm: string;
   handleUrlChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSearchFocus: () => void;
-  handleSearchBlur: () => void;
   handlePaste: (e: React.ClipboardEvent<HTMLInputElement>) => void;
   handleInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   clearSelection: () => void;
@@ -86,98 +96,240 @@ const AddMusicForm = ({
   isSearchingMusic: boolean;
   handleSelectItem: (url: string, title: string, type: string) => void;
   closeSearch: () => void;
-  searchBarOpacity: number;
   isConverting: boolean;
+  convertingMeta: ConvertingMeta | null;
+  conversionStageLabel: string;
 }) => (
   <>
-    {/* Search/Input Section */}
-    <div className={isSearchActive ? "fixed top-16 left-0 right-0 z-40 bg-background px-4 pt-3 pb-2 shadow-sm lg:static lg:z-auto lg:bg-transparent lg:px-0 lg:pt-0 lg:pb-4 lg:shadow-none" : "mb-4 sm:mb-6 md:mb-8"} style={{ opacity: searchBarOpacity, transition: 'opacity 120ms ease-out' }}>
+    {/* Search/Input Section — on mobile this container becomes a full-screen
+        sheet while searching, so the input node never re-parents (the iOS
+        keyboard stays up) and the bar glides to the sheet top as one element */}
+    <div
+      data-search-region
+      className={
+        isSearchActive
+          ? 'fixed inset-0 z-[60] flex flex-col lg:static lg:z-auto lg:block'
+          : 'mb-4 sm:mb-6 md:mb-8'
+      }
+      style={{ overscrollBehavior: 'contain' }}
+    >
+      {/* Sheet backdrop — fades in under the gliding bar; fixed inside an
+          untransformed ancestor so it always covers the real viewport */}
+      <AnimatePresence>
+        {isSearchActive && (
+          <motion.div
+            key="search-sheet-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="fixed inset-0 -z-10 bg-background lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
       {!isSearchActive && (
-        <p className="text-center text-muted-foreground mb-6 text-sm sm:text-base lg:hidden">
+        <p className="text-center text-muted-foreground mb-6 text-sm sm:text-base lg:hidden animate-in fade-in duration-300">
           Search or paste a link below to add music to your profile
         </p>
       )}
 
-        <div className={isSearchActive ? "" : "mb-6"}>
-          {!isSearchActive && (
-            <label htmlFor="add-music-search-input" className="block font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
-              Music link or search
-            </label>
-          )}
-
-          {!selectedItem && !pastedLinkSource && (
-            <UrlBar variant="light" className="w-full">
-              <input
-                ref={searchInputRef}
-                id="add-music-search-input"
-                data-testid="add-music-input"
-                value={musicUrl}
-                onChange={handleUrlChange}
-                onFocus={handleSearchFocus}
-                onBlur={handleSearchBlur}
-                onPaste={handlePaste}
-                onKeyDown={handleInputKeyDown}
-                disabled={isConverting}
-                placeholder="Search or paste your music link here"
-                className="w-full h-full bg-transparent border-none outline-none text-center text-foreground placeholder:text-muted-foreground px-3 sm:px-4 md:px-6 text-sm sm:text-base disabled:opacity-70"
-                style={{ fontSize: '16px', touchAction: 'manipulation' }}
-              />
-            </UrlBar>
-          )}
-          
-          {/* Selected Item Display */}
-          {selectedItem && (
-            <div className="mt-4 p-4 rounded-lg border bg-card border-border elev-2">
-              <div className="flex items-center gap-3">
-                {selectedItem.coverArtUrl ? (
-                  <Image
-                    src={selectedItem.coverArtUrl}
-                    alt={selectedItem.title}
-                    width={48}
-                    height={48}
-                    className="rounded-md ring-1 ring-border/40"
-                  />
-                ) : (
-                  <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center">
-                    <Music2 className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-atkinson font-bold text-foreground truncate">{selectedItem.title}</p>
-                  {selectedItem.artist && <p className="text-muted-foreground text-sm truncate">{selectedItem.artist}</p>}
-                  <span className="mt-1 inline-block rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-primary">
-                    {selectedItem.type}
-                  </span>
-                </div>
-                <button onClick={clearSelection} disabled={isConverting} aria-label="Clear selection" className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:pointer-events-none disabled:opacity-40">
-                  <X className="w-5 h-5" aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Pasted Link Display */}
-          {pastedLinkSource && !selectedItem && (
-            <div className="mt-4 p-4 rounded-lg border bg-card border-border elev-2">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 shrink-0 bg-success/10 rounded-full flex items-center justify-center">
-                  <Music2 className="w-5 h-5 text-success-text" aria-hidden="true" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-atkinson font-bold text-foreground">{pastedLinkSource} link pasted</p>
-                  <p className="text-muted-foreground text-sm truncate font-mono">{musicUrl}</p>
-                </div>
-                <button onClick={clearSelection} disabled={isConverting} aria-label="Clear link" className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:pointer-events-none disabled:opacity-40">
-                  <X className="w-5 h-5" aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Description Field */}
+      {/* Bar row — the single layout element that glides between its in-flow
+          and sheet-top positions. layout="position" translates without
+          scale-correcting, so the bar's contents never squish mid-flight. */}
+      <motion.div
+        layout="position"
+        transition={{ layout: { type: 'spring', damping: 28, stiffness: 260 } }}
+        className={
+          isSearchActive
+            ? 'w-full px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 lg:px-0 lg:pt-0 lg:pb-4'
+            : 'mb-6'
+        }
+      >
         {!isSearchActive && (
-          <div className="mb-4 sm:mb-6 md:mb-8">
+          <label htmlFor="add-music-search-input" className="block font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2 animate-in fade-in duration-300">
+            Music link or search
+          </label>
+        )}
+
+        {/* Converting: kicker + headline narrate above the beamed card */}
+        <AnimatePresence>
+          {isConverting && convertingMeta && (
+            <ConversionHeading
+              key="conversion-heading"
+              kicker={convertingMeta.kicker}
+              headline={convertingMeta.headline}
+              className="mb-5"
+            />
+          )}
+        </AnimatePresence>
+
+        {/* The beam wraps whichever element holds the pending music — the
+            bar, a picked search result, or a pasted link card — so the
+            conversion lights up in place instead of jumping to an overlay.
+            It must wrap each element DIRECTLY: the package reads its first
+            child's computed corner radius (and clips to it), so an
+            intermediate wrapper div makes it clip at the wrong radius. */}
+        <AnimatePresence mode="wait" initial={false}>
+          {!selectedItem && !pastedLinkSource ? (
+            <motion.div
+              key="url-bar"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+            >
+              <ConversionBeam active={isConverting}>
+                <UrlBar variant="light" beamActive={isConverting} className="w-full">
+                  {isConverting ? (
+                    <div className="flex h-full w-full flex-col items-center justify-center px-4 sm:px-6">
+                      <span className="w-full truncate text-center text-sm sm:text-base font-semibold text-foreground">
+                        {convertingMeta?.title ?? convertingMeta?.fallbackLabel ?? 'Music link'}
+                      </span>
+                      <ConversionStageLabel label={conversionStageLabel} />
+                    </div>
+                  ) : (
+                    <input
+                      ref={searchInputRef}
+                      id="add-music-search-input"
+                      data-testid="add-music-input"
+                      value={musicUrl}
+                      onChange={handleUrlChange}
+                      onFocus={handleSearchFocus}
+                      onPaste={handlePaste}
+                      onKeyDown={handleInputKeyDown}
+                      placeholder="Search or paste your music link here"
+                      className="w-full h-full bg-transparent border-none outline-none text-center text-foreground placeholder:text-muted-foreground px-3 sm:px-4 md:px-6 text-sm sm:text-base"
+                      style={{ fontSize: '16px', touchAction: 'manipulation' }}
+                    />
+                  )}
+                </UrlBar>
+              </ConversionBeam>
+            </motion.div>
+          ) : selectedItem ? (
+              <motion.div
+                key="selected-item"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+              >
+                {/* Selected Item Display — swaps to beam-friendly chrome while
+                    converting, mirroring UrlBar's beamActive treatment */}
+                <ConversionBeam active={isConverting}>
+                <div className={`p-4 rounded-lg border bg-card transition-[border-color,box-shadow] duration-300 ${
+                  isConverting
+                    ? 'border-border/70 shadow-[0_2px_6px_rgba(0,0,0,0.05),0_4px_42px_rgba(0,0,0,0.06)]'
+                    : 'border-border elev-2'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    {selectedItem.coverArtUrl ? (
+                      <Image
+                        src={selectedItem.coverArtUrl}
+                        alt={selectedItem.title}
+                        width={48}
+                        height={48}
+                        className="rounded-md ring-1 ring-border/40"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center">
+                        <Music2 className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-atkinson font-bold text-foreground truncate">{selectedItem.title}</p>
+                      {selectedItem.artist && <p className="text-muted-foreground text-sm truncate">{selectedItem.artist}</p>}
+                      {isConverting ? (
+                        <ConversionStageLabel label={conversionStageLabel} className="mt-1 block" />
+                      ) : (
+                        <span className="mt-1 inline-block rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-primary">
+                          {selectedItem.type}
+                        </span>
+                      )}
+                    </div>
+                    <button onClick={clearSelection} disabled={isConverting} aria-label="Clear selection" className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:pointer-events-none disabled:opacity-40">
+                      <X className="w-5 h-5" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+                </ConversionBeam>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="pasted-link"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+              >
+                {/* Pasted Link Display */}
+                <ConversionBeam active={isConverting}>
+                <div className={`p-4 rounded-lg border bg-card transition-[border-color,box-shadow] duration-300 ${
+                  isConverting
+                    ? 'border-border/70 shadow-[0_2px_6px_rgba(0,0,0,0.05),0_4px_42px_rgba(0,0,0,0.06)]'
+                    : 'border-border elev-2'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 shrink-0 bg-success/10 rounded-full flex items-center justify-center">
+                      <Music2 className="w-5 h-5 text-success-text" aria-hidden="true" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-atkinson font-bold text-foreground">{pastedLinkSource} link pasted</p>
+                      {isConverting ? (
+                        <ConversionStageLabel label={conversionStageLabel} className="mt-1 block" />
+                      ) : (
+                        <p className="text-muted-foreground text-sm truncate font-mono">{musicUrl}</p>
+                      )}
+                    </div>
+                    <button onClick={clearSelection} disabled={isConverting} aria-label="Clear link" className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:pointer-events-none disabled:opacity-40">
+                      <X className="w-5 h-5" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+                </ConversionBeam>
+              </motion.div>
+            )}
+          </AnimatePresence>
+      </motion.div>
+
+      {/* Search Results — sheet body on mobile, inline block on desktop.
+          Close is carried by the backdrop fade + bar glide (an exit
+          animation here would reflow mid-close). */}
+      {isSearchActive && (
+        <motion.div
+          key="search-results"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+          className="search-container w-full flex-1 min-h-0 overflow-y-auto pt-2 pb-4 lg:flex-none lg:overflow-visible lg:pt-0"
+          style={{ overscrollBehavior: 'contain' }}
+        >
+          <SearchResults
+            results={displayData}
+            query={debouncedSearchTerm}
+            isLoading={isLoadingCharts}
+            isSearching={isSearchingMusic}
+            showSearchResults={musicUrl.length >= 2 && !musicUrl.includes('http')}
+            onSelectItem={handleSelectItem}
+            onClose={closeSearch}
+            chrome="flat"
+          />
+        </motion.div>
+      )}
+    </div>
+
+    {/* Description + submit collapse away while searching (the desktop
+        form/results swap) and dim while converting; both stay mounted so
+        the transitions are smooth instead of a hard unmount */}
+    <motion.div
+      initial={false}
+      animate={{ height: isSearchActive ? 0 : 'auto', opacity: isSearchActive ? 0 : 1 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className="overflow-hidden"
+    >
+      <div className={`transition-opacity duration-500 ${isConverting ? 'opacity-25 pointer-events-none select-none' : ''}`}>
+        {/* Description Field */}
+        <div className="mb-4 sm:mb-6 md:mb-8">
           <label htmlFor="add-music-description" className="block font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
             Description
           </label>
@@ -193,11 +345,9 @@ const AddMusicForm = ({
             spellCheck="false"
           />
         </div>
-        )}
 
         {/* Add to Profile Button */}
-        {!isSearchActive && (
-          <div className="text-center">
+        <div className="text-center">
           <button
             type="button"
             onClick={handleAddToProfile}
@@ -212,23 +362,8 @@ const AddMusicForm = ({
             <p className="mt-4 text-destructive font-atkinson text-sm">{errorMessage}</p>
           )}
         </div>
-        )}
       </div>
-
-    {/* Search Results Container */}
-    {isSearchActive && (
-      <div key="search-results" className="search-container w-full fixed top-[8.5rem] left-0 right-0 bottom-0 z-40 overflow-y-auto bg-background lg:static lg:z-auto lg:overflow-visible lg:bg-transparent animate-in fade-in slide-in-from-bottom-5 duration-200">
-        <SearchResults
-          results={displayData}
-          query={debouncedSearchTerm}
-          isLoading={isLoadingCharts}
-          isSearching={isSearchingMusic}
-          showSearchResults={musicUrl.length >= 2 && !musicUrl.includes('http')}
-          onSelectItem={handleSelectItem}
-          onClose={closeSearch}
-        />
-      </div>
-    )}
+    </motion.div>
   </>
 );
 
@@ -240,25 +375,17 @@ export default function AddMusicPage() {
   const [musicUrl, setMusicUrl] = useState(prefilledUrl);
   const [description, setDescription] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
-  const [searchBarOpacity, setSearchBarOpacity] = useState(1);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
   const [pastedLinkSource, setPastedLinkSource] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   // Idempotency key of the in-flight conversion; doubles as the "converting" flag.
   const [conversionKey, setConversionKey] = useState<string | null>(null);
-  // What's being converted, for the takeover overlay copy.
-  const [convertingMeta, setConvertingMeta] = useState<{
-    title?: string;
-    artist?: string;
-    artwork?: string;
-    kicker: string;
-    fallbackLabel: string;
-    headline: string;
-  } | null>(null);
+  // What's being converted, for the in-place beamed card copy.
+  const [convertingMeta, setConvertingMeta] = useState<ConvertingMeta | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const lastTrackedSearchRef = useRef<string>('');
-  const debouncedSearchTerm = useDebounce(musicUrl, 500); // 500ms debounce for search
+  const debouncedSearchTerm = useDebounce(musicUrl, 300); // matches the home page search feel
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
   const resolvedReturnRoute = user?.username ? `/profile/${user.username}` : null;
@@ -302,34 +429,32 @@ export default function AddMusicPage() {
     }
   }, [prefilledUrl]);
 
+  // Opening is just a state flip: the same input node stays mounted (so the
+  // iOS keyboard stays up) while its container becomes a full-screen sheet
+  // and framer's layout animation glides the bar into place. No scrollTo,
+  // no timers — the page underneath keeps its scroll position because the
+  // sheet is an overlay, not a reflow.
   const handleSearchFocus = () => {
-    if (!selectedItem && !pastedLinkSource) {
-      const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
-      if (isDesktop) {
-        setIsSearchActive(true);
-        return;
-      }
-      // Mobile: fade out, reposition while invisible, then fade in
-      setSearchBarOpacity(0);
-      setTimeout(() => {
-        setIsSearchActive(true);
-        setSearchBarOpacity(1);
-        window.scrollTo(0, 0);
-      }, 120);
+    if (!selectedItem && !pastedLinkSource && !isConverting) {
+      setIsSearchActive(true);
     }
   };
 
-  const handleSearchBlur = () => {
-    // Delay the blur to allow click events to fire
-    setTimeout(() => {
-      const activeElement = document.activeElement as HTMLElement;
-      const isWithinSearch = activeElement?.closest('.search-container');
-      
-      if (!isWithinSearch && !musicUrl.trim()) {
+  // Desktop swaps the form for results while searching; a click outside the
+  // search region swaps back. (On mobile the sheet covers the viewport, so
+  // this never fires — the sheet's close button handles it.)
+  useEffect(() => {
+    if (!isSearchActive) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && !target.closest('[data-search-region]')) {
         setIsSearchActive(false);
+        searchInputRef.current?.blur();
       }
-    }, 200);
-  };
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [isSearchActive]);
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -449,6 +574,11 @@ export default function AddMusicPage() {
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      closeSearch();
+      return;
+    }
+
     if (e.key !== 'Enter' || !musicUrl.trim()) {
       return;
     }
@@ -680,81 +810,6 @@ export default function AddMusicPage() {
 
   return (
     <>
-      {/* Conversion takeover: everything yields to a centered beamed card
-          narrating what's converting + the live Bridge stage. */}
-      <AnimatePresence>
-        {isConverting && (
-          <motion.div
-            key="add-music-converting"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm px-6"
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.35, ease: 'easeOut' }}
-              className="w-full max-w-xl text-center"
-            >
-              <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-primary">
-                {convertingMeta?.kicker ?? 'Converting'}
-              </p>
-              <p className="mb-6 font-teko text-2xl sm:text-3xl font-bold uppercase tracking-wide leading-none text-foreground">
-                {convertingMeta?.headline ?? 'Building your universal link'}
-              </p>
-              <ConversionBeam active borderRadius={12}>
-                <div className="rounded-xl border border-border/70 bg-card px-5 py-4 shadow-[0_2px_6px_rgba(0,0,0,0.05),0_4px_42px_rgba(0,0,0,0.06)]">
-                  <div className="flex items-center gap-4">
-                    {convertingMeta?.artwork ? (
-                      <Image
-                        src={convertingMeta.artwork}
-                        alt=""
-                        width={56}
-                        height={56}
-                        className="rounded-md ring-1 ring-border/40"
-                      />
-                    ) : (
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-primary/10">
-                        <Music2 className="h-6 w-6 text-primary" aria-hidden="true" />
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1 text-left">
-                      <p className="truncate font-atkinson font-bold text-foreground">
-                        {convertingMeta?.title ?? convertingMeta?.fallbackLabel ?? 'Music link'}
-                      </p>
-                      {convertingMeta?.artist && (
-                        <p className="truncate text-sm text-muted-foreground">{convertingMeta.artist}</p>
-                      )}
-                      <AnimatePresence mode="wait">
-                        <motion.p
-                          key={conversionStageLabel}
-                          initial={{ opacity: 0, y: 4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -4 }}
-                          transition={{ duration: 0.2, ease: 'easeOut' }}
-                          className="mt-1 font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
-                          aria-live="polite"
-                        >
-                          {conversionStageLabel}
-                        </motion.p>
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                </div>
-              </ConversionBeam>
-              {description.trim() && (
-                <p className="mx-auto mt-4 max-w-md text-sm italic text-muted-foreground line-clamp-2">
-                  &ldquo;{description.trim()}&rdquo;
-                </p>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Mobile Layout */}
       <div className="lg:hidden">
         <div className="min-h-screen relative bg-background">
@@ -769,39 +824,40 @@ export default function AddMusicPage() {
             }}
           />
 
-          <div className="relative z-10 min-h-screen">
+          {/* The search sheet lives inside this wrapper, so while it's open
+              the wrapper must rise above the fixed global navbar (z-50) — a
+              child's z-index can't escape its ancestor's stacking context. */}
+          <div className={`relative min-h-screen ${isSearchActive ? 'z-[60]' : 'z-10'}`}>
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
 
-              {/* Header - hide when search active */}
-              {!isSearchActive && (
+              {/* Header + profile stay mounted — the search sheet covers them
+                  on mobile, and they dim in place while a conversion runs */}
+              <div className={`transition-opacity duration-500 ${isConverting ? 'opacity-25 pointer-events-none select-none' : ''}`}>
                 <div className="flex items-center justify-between py-6">
                   <BackButton fallbackRoute="/" label="Back" />
                 </div>
-              )}
 
-              {/* Profile Section - hide when search active */}
-              {!isSearchActive && (
-              <div className="flex items-center justify-center gap-3 sm:gap-4 mb-4 sm:mb-6 md:mb-8">
-                {user?.profilePicture ? (
-                  <Image
-                    src={user.profilePicture}
-                    alt={user.username}
-                    width={60}
-                    height={60}
-                    className="rounded-full border-2 border-foreground/80"
-                  />
-                ) : (
-                  <div className="w-15 h-15 rounded-full bg-muted border-2 border-foreground/80 flex items-center justify-center">
-                    <span className="text-foreground text-2xl font-atkinson font-bold">
-                      {user?.username?.charAt(0)?.toUpperCase() || 'U'}
-                    </span>
-                  </div>
-                )}
-                <h1 className="font-teko text-4xl sm:text-5xl font-bold uppercase leading-none tracking-tight text-foreground">
-                  Add Music
-                </h1>
+                <div className="flex items-center justify-center gap-3 sm:gap-4 mb-4 sm:mb-6 md:mb-8">
+                  {user?.profilePicture ? (
+                    <Image
+                      src={user.profilePicture}
+                      alt={user.username}
+                      width={60}
+                      height={60}
+                      className="rounded-full border-2 border-foreground/80"
+                    />
+                  ) : (
+                    <div className="w-15 h-15 rounded-full bg-muted border-2 border-foreground/80 flex items-center justify-center">
+                      <span className="text-foreground text-2xl font-atkinson font-bold">
+                        {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+                      </span>
+                    </div>
+                  )}
+                  <h1 className="font-teko text-4xl sm:text-5xl font-bold uppercase leading-none tracking-tight text-foreground">
+                    Add Music
+                  </h1>
+                </div>
               </div>
-              )}
 
               {/* Main Content */}
               <div className="max-w-2xl mx-auto">
@@ -813,7 +869,6 @@ export default function AddMusicPage() {
                   debouncedSearchTerm={debouncedSearchTerm}
                   handleUrlChange={handleUrlChange}
                   handleSearchFocus={handleSearchFocus}
-                  handleSearchBlur={handleSearchBlur}
                   handlePaste={handlePaste}
                   handleInputKeyDown={handleInputKeyDown}
                   clearSelection={clearSelection}
@@ -827,8 +882,9 @@ export default function AddMusicPage() {
                   isSearchingMusic={isSearchingMusic}
                   handleSelectItem={handleSelectItem}
                   closeSearch={closeSearch}
-                  searchBarOpacity={searchBarOpacity}
                   isConverting={isConverting}
+                  convertingMeta={convertingMeta}
+                  conversionStageLabel={conversionStageLabel}
                 />
               </div>
             </div>
@@ -850,7 +906,7 @@ export default function AddMusicPage() {
         />
         <div className="flex-1 overflow-y-auto relative">
           {/* Header */}
-          <div className="text-center mb-8">
+          <div className={`text-center mb-8 transition-opacity duration-500 ${isConverting ? 'opacity-25 pointer-events-none select-none' : ''}`}>
             <h1 className="font-teko text-5xl font-bold uppercase leading-none tracking-tight text-foreground mb-2">Add Music</h1>
             <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Search or paste a link to add music to your profile</p>
           </div>
@@ -865,7 +921,6 @@ export default function AddMusicPage() {
               debouncedSearchTerm={debouncedSearchTerm}
               handleUrlChange={handleUrlChange}
               handleSearchFocus={handleSearchFocus}
-              handleSearchBlur={handleSearchBlur}
               handlePaste={handlePaste}
               handleInputKeyDown={handleInputKeyDown}
               clearSelection={clearSelection}
@@ -879,8 +934,9 @@ export default function AddMusicPage() {
               isSearchingMusic={isSearchingMusic}
               handleSelectItem={handleSelectItem}
               closeSearch={closeSearch}
-              searchBarOpacity={searchBarOpacity}
               isConverting={isConverting}
+              convertingMeta={convertingMeta}
+              conversionStageLabel={conversionStageLabel}
             />
           </div>
         </div>

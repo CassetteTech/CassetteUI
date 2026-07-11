@@ -5,6 +5,7 @@ import "./globals.css";
 import { Providers } from "@/providers/providers";
 import { Layout } from "@/components/layout/layout";
 import { Toaster } from "@/components/ui/sonner";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,7 +30,13 @@ const teko = Teko({
 });
 
 export const metadata: Metadata = {
-  title: "Cassette - Share Your Music",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_DOMAIN || "https://www.cassette.tech"
+  ),
+  title: {
+    default: "Cassette Music — Share Music Across Platforms",
+    template: "%s | Cassette Music",
+  },
   description: "Share your favorite music across all platforms. Connect with friends and discover new tunes.",
   keywords: ["music", "social", "spotify", "apple music", "deezer", "sharing"],
   authors: [{ name: "Cassette Team" }],
@@ -39,16 +46,26 @@ export const metadata: Metadata = {
     apple: [{ url: "/images/cassette_logo.png", type: "image/png" }],
   },
   openGraph: {
-    title: "Cassette - Share Your Music",
+    title: "Cassette Music — Share Music Across Platforms",
     description: "Share your favorite music across all platforms. Connect with friends and discover new tunes.",
     type: "website",
     locale: "en_US",
+    siteName: "Cassette Music",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Cassette - Share Your Music",
+    title: "Cassette Music — Share Music Across Platforms",
     description: "Share your favorite music across all platforms. Connect with friends and discover new tunes.",
   },
+};
+
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Cassette",
+  url: "https://www.cassette.tech",
+  logo: "https://www.cassette.tech/images/cassette_logo.png",
+  sameAs: SOCIAL_LINKS.map((link) => link.href),
 };
 
 export const viewport: Viewport = {
@@ -69,9 +86,13 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/icon?family=Material+Icons"
           rel="stylesheet"
         />
-        <Script 
-          src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" 
+        <Script
+          src="https://js-cdn.music.apple.com/musickit/v3/musickit.js"
           strategy="beforeInteractive"
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
       </head>
       <body className="font-sans antialiased bg-background text-foreground">

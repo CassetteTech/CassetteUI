@@ -6,10 +6,14 @@ import {
   type PublishedGitHubRelease,
 } from "@/lib/github-releases";
 
+const title = "Release Notes — Cassette Music";
+const description = "See what is new across Cassette Music, profiles, and MusicLinks.";
+
 export const metadata: Metadata = {
-  title: "Release Notes | Cassette",
-  description:
-    "Published release notes for Cassette, sourced from GitHub Releases.",
+  title: { absolute: title },
+  description,
+  openGraph: { title, description },
+  twitter: { title, description },
 };
 
 function formatDate(value: string): string {

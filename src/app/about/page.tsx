@@ -12,6 +12,7 @@ import { ExampleProfileSection } from "./_components/ExampleProfileSection";
 import { VisionSection } from "./_components/VisionSection";
 import { SupportersShowcase } from "./_components/SupportersShowcase";
 import { FinalCTA } from "./_components/FinalCTA";
+import { MarketingFooter } from "@/components/features/marketing/marketing-footer";
 import { linerNotes } from "./_data";
 
 /**
@@ -58,6 +59,9 @@ export default function AboutPage() {
 
         {/* Closing CTA — wine band, bookended with the hero halftone */}
         <FinalCTA />
+
+        {/* Print-sheet footer — paper dithers up into the wine band */}
+        <MarketingFooter />
       </CurtainSheet>
     </div>
   );

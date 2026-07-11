@@ -455,6 +455,21 @@
   }
 }
 
+/* Mobile menu: staggered section reveal, keyed off the panel's data-open flag.
+   Each [data-menu-reveal] sets --reveal-index; delay is derived, so reordering
+   sections never needs new CSS. Runs once per open (class match restarts it). */
+@keyframes mobile-menu-reveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #mobile-menu-panel[data-open='true'] [data-menu-reveal] {
+    animation: mobile-menu-reveal 360ms var(--ease-out-quart) both;
+    animation-delay: calc(50ms + 40ms * var(--reveal-index, 0));
+  }
+}
+
 /* ─── Reduced-motion guards (movement loops) ───────────────────────────────
    These are translate/scale/rotate loops — stop them entirely under reduce.
    Opacity-only pulses (Tailwind's animate-pulse) are left running.

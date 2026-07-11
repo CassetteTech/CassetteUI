@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Github, Linkedin, Link2, Mail, Twitter } from "lucide-react";
+import { CassetteTape, Github, Linkedin, Link2, Mail, Twitter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTypeConfig } from "../_data";
 import type { TeamMember } from "../_data";
@@ -20,6 +20,7 @@ interface TeamCardProps {
 export function TeamCard({ member, onClick }: TeamCardProps) {
   const typeConfig = getTypeConfig(member.type);
   const socialLinks = [
+    { href: member.cassetteProfile, icon: CassetteTape, label: "Cassette Profile", isCassetteProfile: true },
     { href: member.social.github, icon: Github, label: "GitHub" },
     { href: member.social.linkedin, icon: Linkedin, label: "LinkedIn" },
     { href: member.social.twitter, icon: Twitter, label: "Twitter" },
@@ -63,13 +64,16 @@ export function TeamCard({ member, onClick }: TeamCardProps) {
           </span>
           {socialLinks.length > 0 && (
             <div className="flex items-center gap-3 shrink-0">
-              {socialLinks.map(({ href, icon: Icon, label }) => (
+              {socialLinks.map(({ href, icon: Icon, label, isCassetteProfile }) => (
                 <a
                   key={label}
                   href={href}
                   onClick={(e) => e.stopPropagation()}
                   aria-label={label}
-                  className="text-muted-foreground hover:text-primary transition-colors"
+                  className={cn(
+                    "text-muted-foreground hover:text-primary transition-colors",
+                    isCassetteProfile && "border border-current p-1"
+                  )}
                 >
                   <Icon size={14} />
                 </a>

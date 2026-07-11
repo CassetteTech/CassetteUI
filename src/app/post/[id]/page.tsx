@@ -11,9 +11,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = await fetchPostForMetadata(id);
 
   if (!post) {
+    const title = 'MusicLink Not Found — Cassette Music';
     return {
-      title: 'Post Not Found - Cassette',
-      description: 'This post could not be found on Cassette.',
+      title: { absolute: title },
+      description: 'This MusicLink could not be found on Cassette Music.',
+      openGraph: { title },
+      twitter: { title },
     };
   }
 
@@ -30,13 +33,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   else if (elementType === 'artist') ogType = 'profile';
 
   return {
-    title: `${ogTitle} - Cassette`,
+    title: { absolute: `${ogTitle} | Cassette MusicLink` },
     description,
     openGraph: {
-      title: ogTitle,
+      title: `${ogTitle} | Cassette MusicLink`,
       description,
       type: ogType,
-      siteName: 'Cassette',
+      siteName: 'Cassette Music',
       images: artwork
         ? [
             {
@@ -50,7 +53,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: 'summary_large_image',
-      title: ogTitle,
+      title: `${ogTitle} | Cassette MusicLink`,
       description,
       images: artwork ? [artwork] : [],
     },

@@ -69,8 +69,9 @@ export function Navbar() {
                 alt="Cassette"
                 width={876}
                 height={224}
+                priority
                 unoptimized
-                className="h-8 w-auto"
+                className="h-7 w-auto sm:h-8"
               />
             </Link>
             
@@ -187,10 +188,10 @@ export function Navbar() {
               </>
             ) : (
               <>
-                {/* Auth buttons - visible on all screen sizes */}
+                {/* Sign In hides on the narrowest phones; the mobile menu keeps it reachable */}
                 <Link
                   href="/auth/signin"
-                  className="text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-2 sm:px-3 py-2"
+                  className="hidden min-[400px]:inline-block whitespace-nowrap text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-2 sm:px-3 py-2"
                 >
                   Sign In
                 </Link>
@@ -204,15 +205,14 @@ export function Navbar() {
               </>
             )}
 
-            {/* Mobile Hamburger Button */}
+            {/* Mobile Hamburger Button — quiet ghost chrome; selection told via muted, not primary */}
             <button
               type="button"
               className={cn(
-                "md:hidden relative inline-flex items-center justify-center w-10 h-10 rounded-xl border transition-colors duration-200",
+                "md:hidden relative inline-flex shrink-0 items-center justify-center w-10 h-10 rounded-lg text-foreground transition-colors duration-200",
+                "hover:bg-muted/70 active:scale-95",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                isMobileMenuOpen
-                  ? "bg-primary text-primary-foreground border-primary shadow-[0_4px_14px_-4px_hsl(var(--primary)/0.6)]"
-                  : "bg-muted/50 border-border/40 text-foreground hover:bg-muted hover:border-border/60 active:scale-95"
+                isMobileMenuOpen && "bg-muted"
               )}
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
@@ -222,24 +222,20 @@ export function Navbar() {
               <span className="relative block w-[18px] h-[14px]" aria-hidden="true">
                 <span
                   className={cn(
-                    "absolute left-0 top-1/2 w-full h-[2px] rounded-full bg-current origin-center transition-transform duration-300 ease-out-quart",
-                    isMobileMenuOpen
-                      ? "-translate-y-1/2 rotate-45"
-                      : "-translate-y-[6px]"
+                    "absolute left-0 top-0 w-full h-[2px] rounded-full bg-current transition-transform duration-300 ease-out-quart",
+                    isMobileMenuOpen && "translate-y-[6px] rotate-45"
                   )}
                 />
                 <span
                   className={cn(
-                    "absolute left-0 top-1/2 -translate-y-1/2 w-[70%] h-[2px] rounded-full bg-current origin-left transition-transform duration-200 ease-out-quart",
-                    isMobileMenuOpen ? "scale-x-0" : "scale-x-100"
+                    "absolute left-0 top-[6px] w-full h-[2px] rounded-full bg-current transition-[transform,opacity] duration-200 ease-out-quart",
+                    isMobileMenuOpen && "scale-x-0 opacity-0"
                   )}
                 />
                 <span
                   className={cn(
-                    "absolute left-0 top-1/2 w-full h-[2px] rounded-full bg-current origin-center transition-transform duration-300 ease-out-quart",
-                    isMobileMenuOpen
-                      ? "-translate-y-1/2 -rotate-45"
-                      : "translate-y-[4px] scale-x-[0.85]"
+                    "absolute left-0 top-[12px] w-full h-[2px] rounded-full bg-current transition-transform duration-300 ease-out-quart",
+                    isMobileMenuOpen && "-translate-y-[6px] -rotate-45"
                   )}
                 />
               </span>
@@ -255,7 +251,7 @@ export function Navbar() {
         tabIndex={-1}
         onClick={() => setIsMobileMenuOpen(false)}
         className={cn(
-          "md:hidden fixed inset-x-0 top-16 bottom-0 z-40 bg-foreground/40 transition-opacity duration-300",
+          "md:hidden fixed inset-x-0 top-16 bottom-0 z-40 bg-background/60 backdrop-blur-sm transition-opacity duration-280",
           isMobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       />
@@ -266,32 +262,36 @@ export function Navbar() {
         role="dialog"
         aria-modal="true"
         aria-label="Mobile navigation"
+        data-open={isMobileMenuOpen}
+        inert={!isMobileMenuOpen}
         className={cn(
-          "md:hidden absolute top-full left-3 right-3 z-50 origin-top",
-          "overflow-hidden rounded-2xl border border-border/60 bg-card elev-4",
+          "md:hidden absolute top-full inset-x-0 z-50 origin-top",
+          "overflow-hidden border-b border-border/60 bg-card elev-3",
           "transition-[opacity,transform] duration-300 ease-out-quart",
           isMobileMenuOpen
-            ? "opacity-100 translate-y-2 scale-100 pointer-events-auto"
-            : "opacity-0 -translate-y-1 scale-[0.98] pointer-events-none"
+            ? "opacity-100 translate-y-0 pointer-events-auto"
+            : "opacity-0 -translate-y-2 pointer-events-none"
         )}
       >
-        <div className="max-h-[calc(100vh-6rem)] overflow-y-auto px-4 pt-4 pb-5">
+        <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain px-4 pt-4 pb-8 sm:px-6">
           {/* Authenticated user summary */}
           {isAuthenticated && user && (
-            <div className="mb-5 flex items-center gap-3 rounded-xl bg-muted/60 px-3 py-2.5 ring-1 ring-border/40">
-              <div className="relative">
-                <Avatar className="h-11 w-11 ring-2 ring-primary ring-offset-2 ring-offset-card">
-                  <AvatarImage src={user.profilePicture} alt={`@${user.username}`} />
-                  <AvatarFallback className="bg-primary text-primary-foreground font-atkinson font-bold">
-                    {user.username?.charAt(0)?.toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
+            <div
+              className="mb-4 flex items-center gap-3 border-b border-border/40 pb-4"
+              data-menu-reveal
+              style={{ '--reveal-index': 1 } as React.CSSProperties}
+            >
+              <Avatar className="h-10 w-10 ring-2 ring-primary ring-offset-2 ring-offset-card">
+                <AvatarImage src={user.profilePicture} alt={`@${user.username}`} />
+                <AvatarFallback className="bg-primary text-primary-foreground font-atkinson font-bold">
+                  {user.username?.charAt(0)?.toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="truncate text-[15px] font-semibold leading-tight text-foreground">
+                <p className="truncate font-atkinson text-[15px] font-bold leading-tight text-foreground">
                   {user.displayName || user.username}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">@{user.username}</p>
+                <p className="truncate font-mono text-xs text-muted-foreground">@{user.username}</p>
               </div>
             </div>
           )}

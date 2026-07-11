@@ -18,7 +18,7 @@ const collectionItems: CollectionItemData[] = [
     album: "Freudian",
     duration: "3:29",
     description: "One of my favorite songs off of Daniel Caesar's magnum opus",
-    username: "matttoppi"
+    username: "matt"
   },
   {
     type: "Album",
@@ -27,7 +27,7 @@ const collectionItems: CollectionItemData[] = [
     songCount: 14,
     duration: "1h",
     description: "Tyler's latest masterpiece",
-    username: "matttoppi"
+    username: "matt"
   },
   {
     type: "Playlist",
@@ -35,7 +35,7 @@ const collectionItems: CollectionItemData[] = [
     songCount: 25,
     duration: "1h 30m",
     description: "My favorite summer vibes playlist",
-    username: "matttoppi"
+    username: "matt"
   }
 ];
 

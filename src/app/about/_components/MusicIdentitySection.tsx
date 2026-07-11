@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, ListMusic, Disc3, Music2, Mic2 } from "lucide-react";
-import { ProfileDemo } from "@/components/demo/profile-demo";
 import { SectionHeader } from "@/components/features/marketing/section-header";
 import { DitherEdge } from "@/components/features/marketing/dither-edge";
 import { EASE_OUT_QUART } from "@/lib/motion";
@@ -19,9 +18,10 @@ const tabs = [
 const services = ["spotify", "apple_music", "deezer"] as const;
 
 /**
- * Cream band introducing the profile — the interactive ProfileDemo and the
- * real-profile teaser card share one section: play with the demo, then tap
- * into the real thing.
+ * Cream band introducing the profile. The real-profile teaser card is the
+ * single focal element — one tap lands on a live profile, which is the
+ * interactive demo, with real data. (The mock ProfileDemo stays on the
+ * homepage; repeating it here spent a section re-showing it.)
  */
 export function MusicIdentitySection() {
   return (
@@ -29,34 +29,15 @@ export function MusicIdentitySection() {
       <DitherEdge color="hsl(var(--section-cream))" side="top" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-        <SectionHeader
-          kicker="The Profile"
-          title="Your Music Identity"
-          sub="One home for your taste that any listener can open, whatever they stream with. Try the demo, then tap into a real profile."
-          className="mb-14"
-        />
-
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
-          {/* Interactive demo — the toy */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="lg:col-span-5 max-w-md mx-auto w-full lg:max-w-none"
-          >
-            <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-5 shadow-flat-5">
-              <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">
-                Profile Preview
-              </p>
-              <ProfileDemo annotations={false} />
-              <p className="font-roboto text-xs text-muted-foreground text-center mt-3 italic">
-                Interactive demo — your music profile with smart linking.
-              </p>
-            </div>
-          </motion.div>
+          <div className="lg:col-span-5">
+            <SectionHeader
+              kicker="The Profile"
+              title="Your Music Identity"
+              sub="One home for your taste that any listener can open, whatever they stream with—this is what yours looks like once you move in."
+            />
+          </div>
 
-          {/* Real profile teaser — the payoff */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}

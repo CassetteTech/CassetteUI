@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { ActivityPost, AccountType } from '@/types';
@@ -19,9 +18,12 @@ import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { formatRelativeTime } from '@/lib/utils/format-date';
 import { Disc3, ListMusic, Lock, MoreHorizontal, Music, Pencil, Repeat2, Share, Trash2, User } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import type { TabType } from './profile-tabs';
+import { ArtworkImage } from '@/components/ui/artwork-image';
 
 interface ProfileActivityProps {
   posts: ActivityPost[];
+  activeTab: TabType;
   isLoading?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
@@ -31,8 +33,17 @@ interface ProfileActivityProps {
   currentUserId?: string;
 }
 
+const TAB_LABELS: Record<TabType, string> = {
+  playlists: 'playlists',
+  tracks: 'tracks',
+  artists: 'artists',
+  albums: 'albums',
+  liked: 'liked posts',
+};
+
 export function ProfileActivity({
   posts,
+  activeTab,
   isLoading = false,
   onLoadMore,
   hasMore = false,
@@ -52,13 +63,26 @@ export function ProfileActivity({
   }
 
   if (posts.length === 0) {
+    const label = TAB_LABELS[activeTab];
+    const title = `No ${label} yet`;
+    const description = isCurrentUser
+      ? activeTab === 'liked'
+        ? 'Posts you like will appear here.'
+        : `Add ${label} to start building your profile.`
+      : activeTab === 'liked'
+        ? `@${ownerUsername || 'this user'} has not liked any public posts yet.`
+        : `@${ownerUsername || 'this user'} has not shared any ${label} yet.`;
+
     return (
       <div className="lg:h-full">
         <div className="flex flex-col items-center justify-center p-4 sm:p-8 md:p-12 text-center h-full">
           <div className="w-full max-w-sm">
-            <p className="font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground border-t-2 border-dashed border-foreground/20 py-5">
-              — Nothing on this side yet —
-            </p>
+            <div className="border-t-2 border-dashed border-foreground/20 py-5">
+              <p className="font-mono text-xs font-bold uppercase tracking-[0.25em] text-foreground">
+                {title}
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -181,21 +205,17 @@ function ActivityPostItem({
           <div className="flex gap-3 sm:gap-4 items-start">
             {/* Artwork with overlaid type badge */}
             <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 relative">
-              {post.imageUrl ? (
-                <Image
-                  src={post.imageUrl}
-                  alt={post.title}
-                  width={128}
-                  height={128}
-                  className="w-full h-full rounded-md object-cover ring-1 ring-border/40"
-                  placeholder="blur"
-                  blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJoc2woMjQwLCA0LjglLCA4My45JSkiLz48L3N2Zz4="
-                />
-              ) : (
-                <div className="w-full h-full rounded-md bg-muted/60 ring-1 ring-border/40 flex items-center justify-center">
-                  <Music className="h-8 w-8 text-muted-foreground/50" aria-hidden="true" />
-                </div>
-              )}
+              <ArtworkImage
+                src={post.imageUrl}
+                alt={post.title}
+                width={128}
+                height={128}
+                className="w-full h-full rounded-md object-cover ring-1 ring-border/40"
+                fallbackClassName="rounded-md bg-muted/60 ring-1 ring-border/40"
+                fallbackIconClassName="size-8 text-muted-foreground/50"
+                placeholder="blur"
+                blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJoc2woMjQwLCA0LjglLCA4My45JSkiLz48L3N2Zz4="
+              />
               {/* Type chip overlaid on artwork — mono annotation voice */}
               <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-background/85 backdrop-blur-md font-mono text-[9px] uppercase tracking-[0.15em] text-foreground/80 ring-1 ring-border/50">
                 <TypeIcon className="h-2.5 w-2.5" aria-hidden="true" />

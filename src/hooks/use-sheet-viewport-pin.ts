@@ -9,9 +9,12 @@ import { useEffect, useRef } from 'react';
  * keyboard opens it pans the visual viewport instead, so a fixed-top sheet
  * (search bar + list header) can slide out of view the moment the input
  * focuses. While active, this translates the sheet by
- * `visualViewport.offsetTop` and clamps its height to
- * `visualViewport.height`, so the bar always hugs the visible top and the
- * list is never hidden behind the keyboard.
+ * `visualViewport.offsetTop` so the bar always hugs the visible top.
+ *
+ * The sheet's height is deliberately NOT clamped to the visual viewport:
+ * the iOS keyboard is translucent, and the sheet keeping its full-viewport
+ * footprint is what makes the results (rather than the page behind the
+ * sheet) show through under the keyboard.
  *
  * Safari's focus auto-scroll can also move the document underneath the
  * sheet, so the pre-open scroll position is captured and restored on close.
@@ -33,8 +36,6 @@ export function useSheetViewportPin(active: boolean) {
     const apply = () => {
       if (!vv) return;
       el.style.transform = `translateY(${vv.offsetTop}px)`;
-      el.style.height = `${vv.height}px`;
-      el.style.bottom = 'auto';
     };
 
     apply();
@@ -45,8 +46,6 @@ export function useSheetViewportPin(active: boolean) {
       vv?.removeEventListener('resize', apply);
       vv?.removeEventListener('scroll', apply);
       el.style.transform = '';
-      el.style.height = '';
-      el.style.bottom = '';
       window.scrollTo(0, savedScrollY);
     };
   }, [active]);

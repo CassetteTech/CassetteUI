@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -43,6 +43,7 @@ const reportTypeOptions: { value: ReportType; label: string; description: string
   { value: 'ui_bug', label: 'UI/App Bug', description: 'Something looks broken or is not working right' },
   { value: 'general_feedback', label: 'General Feedback', description: 'Other suggestions or comments' },
 ];
+const MAX_DESCRIPTION_LENGTH = 5000;
 
 export function ReportIssueModal({
   open,
@@ -59,20 +60,20 @@ export function ReportIssueModal({
     ? reportTypeOptions
     : reportTypeOptions.filter(opt => ['ui_bug', 'general_feedback'].includes(opt.value));
 
-  // Sync reportType when modal opens with different context
-  useEffect(() => {
-    if (open) {
-      setReportType(defaultReportType);
-    }
-  }, [open, defaultReportType]);
-
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async () => {
+    if (description.length > MAX_DESCRIPTION_LENGTH) {
+      setSubmitStatus('error');
+      setErrorMessage(`Description must be ${MAX_DESCRIPTION_LENGTH.toLocaleString()} characters or less.`);
+      return;
+    }
+
     setIsSubmitting(true);
+    setSubmitStatus('idle');
     setErrorMessage('');
 
     try {
@@ -99,15 +100,6 @@ export function ReportIssueModal({
 
       if (response.success) {
         setSubmitStatus('success');
-        setTimeout(() => {
-          onOpenChange(false);
-          // Reset state after modal closes
-          setTimeout(() => {
-            setSubmitStatus('idle');
-            setDescription('');
-            setReportType(defaultReportType);
-          }, 300);
-        }, 2000);
       } else {
         setSubmitStatus('error');
         setErrorMessage(response.message || 'Failed to submit report');
@@ -122,22 +114,26 @@ export function ReportIssueModal({
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (!isSubmitting) {
-      onOpenChange(newOpen);
-      if (!newOpen) {
-        // Reset on close
-        setTimeout(() => {
-          setSubmitStatus('idle');
-          setDescription('');
-          setErrorMessage('');
-        }, 300);
+    if (isSubmitting) return;
+
+    if (!newOpen) {
+      if (submitStatus === 'success') {
+        setDescription('');
+        setReportType(defaultReportType);
       }
+      setSubmitStatus('idle');
+      setErrorMessage('');
     }
+
+    onOpenChange(newOpen);
   };
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent side="right" className="w-full max-w-md overflow-y-auto">
+      <SheetContent
+        side="right"
+        className="w-screen max-w-full overflow-y-auto sm:w-full sm:max-w-md"
+      >
         <SheetHeader>
           <SheetTitle className="text-xl font-bold text-foreground">
             Report a Problem
@@ -156,6 +152,9 @@ export function ReportIssueModal({
             <p className="text-center text-muted-foreground text-sm">
               We&apos;ll review it and work on a fix.
             </p>
+            <Button onClick={() => handleOpenChange(false)} className="mt-2">
+              Done
+            </Button>
           </div>
         ) : (
           <>
@@ -168,6 +167,7 @@ export function ReportIssueModal({
                     <button
                       key={option.value}
                       type="button"
+                      aria-pressed={reportType === option.value}
                       onClick={() => setReportType(option.value)}
                       className={`text-left p-2.5 rounded-lg border transition-colors ${
                         reportType === option.value
@@ -184,14 +184,20 @@ export function ReportIssueModal({
 
               {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="description">
-                  Description <span className="text-muted-foreground font-normal">(optional)</span>
-                </Label>
+                <div className="flex items-baseline justify-between gap-3">
+                  <Label htmlFor="description">
+                    Description <span className="text-muted-foreground font-normal">(optional)</span>
+                  </Label>
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {description.length.toLocaleString()}/{MAX_DESCRIPTION_LENGTH.toLocaleString()}
+                  </span>
+                </div>
                 <Textarea
                   id="description"
                   placeholder="Any additional details that might help us investigate..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  maxLength={MAX_DESCRIPTION_LENGTH}
                   rows={3}
                   className="resize-none"
                 />
@@ -207,7 +213,10 @@ export function ReportIssueModal({
 
               {/* Error Message */}
               {errorMessage && (
-                <div className="flex items-center gap-2 text-sm text-destructive">
+                <div
+                  className="flex items-center gap-2 text-sm text-destructive"
+                  role="alert"
+                >
                   <AlertCircle className="h-4 w-4 flex-shrink-0" />
                   {errorMessage}
                 </div>

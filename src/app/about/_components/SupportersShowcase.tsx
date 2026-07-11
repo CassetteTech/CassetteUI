@@ -3,10 +3,12 @@
 import { motion } from "framer-motion";
 import { DitherEdge } from "@/components/features/marketing/dither-edge";
 import { KofiIcon } from "@/components/ui/kofi-icon";
+import { openKoFiSupport } from "@/lib/ko-fi";
 
 /**
- * Cream band carrying the Ko-fi embed after the dark statement band.
- * Kept light so it blends with the widget's background.
+ * Cream band carrying the Ko-fi embed after the dark statement band —
+ * the page's single support section (the old Fuel The Mission strip
+ * folded into it). Kept light so it blends with the widget's background.
  */
 export function SupportersShowcase() {
   return (
@@ -28,22 +30,34 @@ export function SupportersShowcase() {
             </h3>
           </div>
           <p className="font-roboto text-sm italic opacity-70 mb-8">
-            Fuel development — support goes directly to the team.
+            Indie team, indie budget — support goes directly to development.
           </p>
 
           {/* Ko-fi embed — constrained to form width and centered.
-             The container is shorter than the iframe; pt pushes the
-             form down so it sits visually centred, and overflow-hidden
-             clips the empty whitespace that falls below the fold. */}
-          <div className="w-full max-w-md h-[480px] sm:h-[540px] md:h-[620px] border-2 border-foreground overflow-hidden">
+             The iframe is taller than its own content and scrolling is
+             disabled, so the widget never scrolls internally; the container
+             is sized to show the full form and overflow-hidden clips the
+             empty whitespace that falls below it. */}
+          <div className="w-full max-w-md h-[620px] md:h-[640px] border-2 border-foreground overflow-hidden">
             <iframe
               id="kofiframe"
               src="https://ko-fi.com/cassettetech/?hidefeed=true&widget=true&embed=true&preview=true"
               title="Support Cassette on Ko-fi"
-              className="w-full h-[540px] sm:h-[600px] md:h-[712px] pt-6 sm:pt-8 md:pt-10"
+              scrolling="no"
+              className="w-full h-[760px] pt-6 sm:pt-8 md:pt-10"
               style={{ border: "none", background: "#f9f9f9" }}
             />
           </div>
+
+          {/* Full Ko-fi page, for anyone who'd rather not use the embed */}
+          <button
+            onClick={openKoFiSupport}
+            className="mt-8 inline-flex items-center justify-center gap-3 bg-background border-2 border-foreground text-foreground font-mono text-[11px] uppercase tracking-[0.25em] px-5 py-3 shadow-flat-4 hover:bg-primary hover:text-primary-foreground hover:border-primary hover:shadow-flat-primary-6 transition-[color,background-color,border-color,box-shadow] whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            aria-label="Support Cassette on Ko-fi"
+          >
+            <KofiIcon width={20} className="rounded-full" />
+            <span>Support Us</span>
+          </button>
         </motion.div>
       </div>
     </section>

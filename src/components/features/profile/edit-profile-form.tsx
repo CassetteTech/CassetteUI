@@ -15,23 +15,34 @@ import { DeleteAccountModal } from './delete-account-modal';
 import { AlertTriangle, Camera, Globe2, Lock } from 'lucide-react';
 import { AvatarCropDialog } from '@/components/shared/avatar-crop-dialog';
 import { appLogger } from '@/lib/observability/logger';
+import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SOURCE_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const MAX_UPLOAD_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_USERNAME_LENGTH = 30;
+const MAX_DISPLAY_NAME_LENGTH = 100;
+const MAX_BIO_LENGTH = 200;
 
 const editProfileSchema = z.object({
-  fullName: z.string().min(1, 'Full name is required'),
+  fullName: z
+    .string()
+    .trim()
+    .min(1, 'Full name is required')
+    .max(MAX_DISPLAY_NAME_LENGTH, `Full name must be ${MAX_DISPLAY_NAME_LENGTH} characters or less`),
   username: z
     .string()
+    .trim()
     .min(3, 'Username must be at least 3 characters long')
+    .max(MAX_USERNAME_LENGTH, `Username must be ${MAX_USERNAME_LENGTH} characters or less`)
     .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
-  bio: z.string().optional(),
+  bio: z.string().max(MAX_BIO_LENGTH, `Bio must be ${MAX_BIO_LENGTH} characters or less`).optional(),
   avatarUrl: z.string().optional(),
   likedPostsPrivacy: z.enum(['public', 'private']),
 });
 
 type EditProfileForm = z.infer<typeof editProfileSchema>;
+type UsernameAvailabilityStatus = 'idle' | 'checking' | 'available' | 'taken' | 'error';
 
 // Mono annotation label — the form's editorial voice; shared TextField keeps its
 // own label style for auth flows, so fields here pass `id` and label locally.
@@ -48,7 +59,7 @@ function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: React.R
 
 interface EditProfileFormProps {
   initialData?: UserBio;
-  onSuccess: () => void;
+  onSuccess: (username: string) => void;
   onCancel: () => void;
   footerContent?: React.ReactNode;
 }
@@ -60,8 +71,8 @@ export function EditProfileFormComponent({
   footerContent,
 }: EditProfileFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaveOnCooldown, setIsSaveOnCooldown] = useState(false);
-  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [usernameStatus, setUsernameStatus] = useState<UsernameAvailabilityStatus>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -92,6 +103,11 @@ export function EditProfileFormComponent({
   const activeAvatarUrl = avatarPreviewUrl || avatarUrl;
   const { invalidateBio } = useInvalidateProfileQueries();
   const normalizeUsername = (value: string) => value.trim().toLowerCase();
+  const usernameError = usernameStatus === 'taken'
+    ? 'Username already exists. Please choose a different one.'
+    : usernameStatus === 'error'
+      ? 'Could not check username availability. Try saving again.'
+      : null;
 
   useEffect(() => {
     return () => {
@@ -102,31 +118,43 @@ export function EditProfileFormComponent({
   }, [avatarPreviewUrl]);
 
   useEffect(() => {
-    const validateUsername = async (username: string) => {
-      if (normalizeUsername(username) === normalizeUsername(initialData?.username || '')) {
-        setUsernameError(null);
-        return true;
-      }
+    const normalizedUsername = normalizeUsername(watchedUsername || '');
+    const initialUsername = normalizeUsername(initialData?.username || '');
 
-      const isAvailable = await profileService.checkUsernameAvailability(
-        normalizeUsername(username),
-      );
-      if (!isAvailable) {
-        setUsernameError('Username already exists. Please choose a different one.');
-        return false;
-      }
-      
-      setUsernameError(null);
-      return true;
-    };
+    if (normalizedUsername === initialUsername) {
+      setUsernameStatus('idle');
+      return;
+    }
 
-    const timeoutId = setTimeout(() => {
-      if (watchedUsername && watchedUsername.length >= 3) {
-        validateUsername(watchedUsername);
+    if (
+      normalizedUsername.length < 3 ||
+      normalizedUsername.length > MAX_USERNAME_LENGTH ||
+      !/^[a-z0-9_]+$/.test(normalizedUsername)
+    ) {
+      setUsernameStatus('idle');
+      return;
+    }
+
+    let isCancelled = false;
+    setUsernameStatus('idle');
+    const timeoutId = setTimeout(async () => {
+      setUsernameStatus('checking');
+      try {
+        const isAvailable = await profileService.checkUsernameAvailability(normalizedUsername);
+        if (!isCancelled) {
+          setUsernameStatus(isAvailable ? 'available' : 'taken');
+        }
+      } catch {
+        if (!isCancelled) {
+          setUsernameStatus('error');
+        }
       }
     }, 500);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timeoutId);
+    };
   }, [watchedUsername, initialData?.username]);
 
   useEffect(() => {
@@ -138,7 +166,8 @@ export function EditProfileFormComponent({
       likedPostsPrivacy: initialData?.likedPostsPrivacy || initialData?.likedPostsVisibility || (initialData?.showLikedPosts === false ? 'private' : 'public'),
     });
     setAvatarError(null);
-    setUsernameError(null);
+    setUsernameStatus('idle');
+    setSaveError(null);
     setAvatarFile(null);
     setPendingAvatarFile(null);
     setAvatarPreviewUrl((current) => {
@@ -149,35 +178,28 @@ export function EditProfileFormComponent({
     });
   }, [initialData, reset]);
 
-  const startCooldown = () => {
-    setIsSaveOnCooldown(true);
-    setTimeout(() => setIsSaveOnCooldown(false), 3000);
-  };
-
   const onSubmit = async (data: EditProfileForm) => {
-    if (isSaveOnCooldown) return;
+    if (isLoading || usernameStatus === 'checking' || usernameStatus === 'taken') return;
     const normalizedUsername = normalizeUsername(data.username);
-
-    if (usernameError) {
-      startCooldown();
-      return;
-    }
-
-    // Check username availability one more time before submitting
-    if (normalizedUsername !== normalizeUsername(initialData?.username || '')) {
-      const isAvailable = await profileService.checkUsernameAvailability(
-        normalizedUsername,
-      );
-      if (!isAvailable) {
-        setUsernameError('Username already exists. Please choose a different one.');
-        startCooldown();
-        return;
-      }
-    }
-
     setIsLoading(true);
+    setSaveError(null);
 
     try {
+      // Availability can change after the debounced check, so verify once at submit.
+      if (normalizedUsername !== normalizeUsername(initialData?.username || '')) {
+        try {
+          const isAvailable = await profileService.checkUsernameAvailability(normalizedUsername);
+          if (!isAvailable) {
+            setUsernameStatus('taken');
+            return;
+          }
+        } catch {
+          setUsernameStatus('error');
+          setSaveError('Could not verify username availability. Check your connection and try again.');
+          return;
+        }
+      }
+
       await profileService.updateProfile({
         username: normalizedUsername,
         displayName: data.fullName,
@@ -196,10 +218,10 @@ export function EditProfileFormComponent({
       if (initialData?.id) invalidateBio(initialData.id);
       if (initialData?.username) invalidateBio(initialData.username);
 
-      onSuccess();
+      onSuccess(normalizedUsername);
     } catch (error) {
       appLogger.error('profile_update_failed', { error, route: '/profile/edit' });
-      startCooldown();
+      setSaveError(getUserFacingApiErrorMessage(error, 'Failed to save profile. Please try again.'));
     } finally {
       setIsLoading(false);
     }
@@ -249,8 +271,7 @@ export function EditProfileFormComponent({
 
   const handleAvatarCropApply = async (croppedFile: File) => {
     if (croppedFile.size > MAX_UPLOAD_FILE_SIZE) {
-      setAvatarError('Cropped avatar must be 5MB or less.');
-      return;
+      throw new Error('Cropped avatar must be 5MB or less.');
     }
 
     setPendingAvatarFile(null);
@@ -313,6 +334,7 @@ export function EditProfileFormComponent({
             <TextField
               id="profile-full-name"
               {...register('fullName')}
+              maxLength={MAX_DISPLAY_NAME_LENGTH}
               error={errors.fullName?.message}
               className="w-full bg-field text-foreground"
             />
@@ -323,23 +345,29 @@ export function EditProfileFormComponent({
             <TextField
               id="profile-username"
               {...register('username')}
+              maxLength={MAX_USERNAME_LENGTH}
               error={errors.username?.message || usernameError || undefined}
               className="w-full bg-field text-foreground"
             />
+            {(usernameStatus === 'checking' || usernameStatus === 'available') && (
+              <p className="mt-1 text-xs text-muted-foreground" aria-live="polite">
+                {usernameStatus === 'checking' ? 'Checking availability…' : 'Username is available.'}
+              </p>
+            )}
           </div>
 
           <div className="w-full">
             <div className="flex items-baseline justify-between">
               <FieldLabel htmlFor="profile-bio">Bio</FieldLabel>
               <span className="font-mono text-[10px] tracking-[0.15em] text-muted-foreground">
-                {bioValue.length}/200
+                {bioValue.length}/{MAX_BIO_LENGTH}
               </span>
             </div>
             <textarea
               id="profile-bio"
               {...register('bio')}
               rows={3}
-              maxLength={200}
+              maxLength={MAX_BIO_LENGTH}
               className="w-full rounded-md border border-border bg-field px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-none"
               placeholder="Tell us about yourself"
             />
@@ -378,22 +406,29 @@ export function EditProfileFormComponent({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 border-t border-border/70 pt-5">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 rounded-md border border-border bg-transparent px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isLoading || isSaveOnCooldown}
-            data-testid="profile-save"
-            className="flex-1 rounded-md bg-primary px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-primary-foreground elev-1 transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Saving…' : 'Save'}
-          </button>
+        <div className="flex flex-col gap-3 border-t border-border/70 pt-5">
+          {saveError && (
+            <p className="text-sm text-destructive" role="alert">
+              {saveError}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 rounded-md border border-border bg-transparent px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading || usernameStatus === 'checking' || usernameStatus === 'taken'}
+              data-testid="profile-save"
+              className="flex-1 rounded-md bg-primary px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-primary-foreground elev-1 transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Saving…' : 'Save'}
+            </button>
+          </div>
         </div>
 
         {footerContent}

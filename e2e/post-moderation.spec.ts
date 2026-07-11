@@ -14,14 +14,23 @@ test('lets a post owner edit and delete a post', async ({ page }) => {
 
   await page.getByPlaceholder('Add a description...').fill('Updated description from Playwright.');
   await page.locator('#post-privacy').selectOption('private');
-  await page.getByLabel('Allow comments').click();
+  const commentsSwitch = page.getByRole('switch', { name: 'Allow comments' });
+  await expect(commentsSwitch).toHaveAttribute('aria-checked', 'true');
+  await commentsSwitch.click();
+  await expect(commentsSwitch).toHaveAttribute('aria-checked', 'false');
   await page.getByTestId('edit-post-save').click();
 
-  await expect(page.getByText('Updated description from Playwright.')).toBeVisible();
+  await expect(
+    page.locator('main p:visible').filter({ hasText: 'Updated description from Playwright.' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: /Open comments/ }).click();
   await expect(page.getByPlaceholder('Comments are turned off')).toBeVisible();
+  await page.getByRole('button', { name: 'Close comments' }).last().click();
 
   await page.reload();
+  await page.getByRole('button', { name: /Open comments/ }).click();
   await expect(page.getByPlaceholder('Comments are turned off')).toBeVisible();
+  await page.getByRole('button', { name: 'Close comments' }).last().click();
 
   await page.getByTestId('post-actions-trigger').click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();
@@ -37,6 +46,6 @@ test('lets a post owner edit and delete a post', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/profile\/recordsmith(?:\?tab=playlists)?$/);
   const profileMain = page.getByRole('main').last();
-  await expect(profileMain).toContainText('No items to display');
+  await expect(profileMain).toContainText('No playlists yet');
   await expect(profileMain).not.toContainText('Paper Hearts');
 });

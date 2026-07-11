@@ -66,6 +66,7 @@ export interface FixturePost {
   title: string;
   artist?: string;
   description?: string;
+  artworkUrl?: string;
   ownerId?: string;
   ownerUsername?: string;
   privacy?: 'public' | 'private';
@@ -84,6 +85,16 @@ export interface FixturePost {
   trackCount?: number;
   releaseDate?: string | null;
   genres?: string[];
+  tracks?: Array<{
+    title: string;
+    trackNumber?: number;
+    duration?: string;
+    artists?: string[];
+    previewUrl?: string;
+    isrc?: string;
+    spotifyTrackId?: string;
+    appleMusicTrackId?: string;
+  }>;
 }
 
 export const FIXTURE_TIMESTAMP = '2026-04-03T15:00:00.000Z';

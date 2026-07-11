@@ -17,6 +17,15 @@ export default function GoogleCallbackPage() {
     let retryTimeout: number | undefined;
 
     const handleCallback = async () => {
+      const signInErrorPath = (errorCode: string) => {
+        const params = new URLSearchParams({ error: errorCode });
+        const redirect = authRedirectService.get();
+        if (redirect) {
+          params.set('redirect', redirect);
+        }
+        return `/auth/signin?${params.toString()}`;
+      };
+
       const redirectToDestination = (isOnboarded: boolean) => {
         if (cancelled) {
           return;
@@ -51,8 +60,8 @@ export default function GoogleCallbackPage() {
 
         if (error) {
           appLogger.error('google_callback_oauth_error', { error_code: error });
-          authRedirectService.clear();
-          router.push('/auth/signin?error=oauth-error');
+          pendingActionService.clear();
+          router.push(signInErrorPath('oauth-error'));
           return;
         }
 
@@ -77,15 +86,15 @@ export default function GoogleCallbackPage() {
               redirectToDestination(retryUser.isOnboarded);
             } else {
               appLogger.error('google_callback_session_missing_after_retry');
-              authRedirectService.clear();
-              router.push('/auth/signin?error=callback-failed');
+              pendingActionService.clear();
+              router.push(signInErrorPath('callback-failed'));
             }
           }, 1000);
         }
       } catch (error) {
         appLogger.error('google_callback_processing_failed', { error });
-        authRedirectService.clear();
-        router.push('/auth/signin?error=callback-error');
+        pendingActionService.clear();
+        router.push(signInErrorPath('callback-error'));
       }
     };
 

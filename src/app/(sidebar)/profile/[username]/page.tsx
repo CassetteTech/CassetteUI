@@ -78,7 +78,7 @@ export default function ProfilePage() {
   } = useUserActivity(userIdToFetch, {
     page: 1,
     elementType: TAB_ELEMENT_TYPE[activeTab],
-    enabled: !isLikedTab
+    enabled: !isLikedTab && Boolean(userBio)
   });
 
   const {
@@ -133,7 +133,7 @@ export default function ProfilePage() {
     // Probe only after the bio has settled: likedSectionVisible and
     // likedPostsUserId derive from it, and rerunning before then restarts the
     // chain with stale liked-tab inputs.
-    if (isLoadingBio) return;
+    if (isLoadingBio || !userBio) return;
 
     const tabOrder: Array<{ tab: TabType; elementType?: string }> = [
       { tab: 'playlists', elementType: 'Playlist' },
@@ -196,7 +196,7 @@ export default function ProfilePage() {
     return () => {
       isCancelled = true;
     };
-  }, [hasResolvedInitialTab, isLoadingBio, likedPostsUserId, likedSectionVisible, queryClient, searchParams, updateUrlForTab, userIdToFetch]);
+  }, [hasResolvedInitialTab, isLoadingBio, likedPostsUserId, likedSectionVisible, queryClient, searchParams, updateUrlForTab, userBio, userIdToFetch]);
 
   useEffect(() => {
     if (!likedSectionVisible && activeTab === 'liked') {
@@ -296,7 +296,7 @@ export default function ProfilePage() {
 
   // Compute loading states
   const showHeaderSkeleton = isLoadingBio && !userBio;
-  const showActivitySkeleton = isLoadingActivity && allActivityPosts.length === 0;
+  const showActivitySkeleton = (isLoadingBio || isLoadingActivity) && allActivityPosts.length === 0;
 
   // Keep privacy filtering on the selected tab payload
   const filteredPosts = allActivityPosts.filter(post => {
@@ -324,7 +324,8 @@ export default function ProfilePage() {
   }
 
   // Handle errors
-  const error = bioError?.message || (isLikedTabPrivateError ? undefined : activityError?.message);
+  const isProfileNotFound = bioError?.message === 'User not found';
+  const error = (isProfileNotFound ? undefined : bioError?.message) || (isLikedTabPrivateError ? undefined : activityError?.message);
   if (error) {
     return (
       <>
@@ -349,7 +350,7 @@ export default function ProfilePage() {
   }
 
   // Show "not found" only after loading completes and no userBio
-  if (!isLoadingBio && !userBio) {
+  if (isProfileNotFound || (!isLoadingBio && !userBio)) {
     return (
       <>
         <div className="bg-background lg:hidden">
@@ -413,6 +414,7 @@ export default function ProfilePage() {
             ) : (
               <ProfileActivity
                 posts={displayPosts}
+                activeTab={activeTab}
                 isLoading={isLoadingMore}
                 onLoadMore={loadMore}
                 hasMore={allActivityPosts.length < totalItems}
@@ -456,6 +458,7 @@ export default function ProfilePage() {
             ) : (
               <ProfileActivity
                 posts={displayPosts}
+                activeTab={activeTab}
                 isLoading={isLoadingMore}
                 onLoadMore={loadMore}
                 hasMore={allActivityPosts.length < totalItems}

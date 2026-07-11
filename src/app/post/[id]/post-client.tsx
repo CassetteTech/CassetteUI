@@ -93,6 +93,10 @@ interface PostClientPageProps {
   initialPost?: PostByIdResponse | null;
 }
 
+type PostLoadError = {
+  kind: 'unavailable' | 'session' | 'error';
+};
+
 type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
   previewUrl?: string;
   description?: string;
@@ -248,7 +252,8 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
   const { mutate: addToProfile, isPending: isAddingToProfile } = useAddMusicToProfile();
   const [addStatus, setAddStatus] = useState<'idle' | 'added' | 'error'>('idle');
   const [postData, setPostData] = useState<PostPageData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PostLoadError | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   // Animation states
   const [palette, setPalette] = useState<ColorPalette | null>(null);
@@ -627,7 +632,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
         if (error.apiStatus === 'failed') return false;
         if (error.apiStatus === 'processing') return true;
         const status = error.status || 0;
-        return [404, 408, 409, 425, 429, 500, 502, 503, 504].includes(status);
+        return [408, 409, 425, 429, 500, 502, 503, 504].includes(status);
       }
       if (error instanceof Error) {
         const message = error.message.toLowerCase();
@@ -903,7 +908,13 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
       } catch (e) {
         if (isCancelled) return;
         captureUiException(e, { route: '/post/[id]', operation: 'post_load' });
-        setError('Failed to load content');
+        if (e instanceof ApiError && (e.status === 403 || e.status === 404)) {
+          setError({ kind: 'unavailable' });
+        } else if (e instanceof ApiError && e.status === 401) {
+          setError({ kind: 'session' });
+        } else {
+          setError({ kind: 'error' });
+        }
       }
     };
 
@@ -911,7 +922,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
     return () => {
       isCancelled = true;
     };
-  }, [postId, user?.id, isAuthenticated, initialPost]);
+  }, [postId, user?.id, isAuthenticated, initialPost, loadAttempt]);
 
   useEffect(() => {
     if (isLoading || !postData) {
@@ -978,6 +989,9 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
   }
 
   if (error && !postData) {
+    const isUnavailable = error.kind === 'unavailable';
+    const needsSession = error.kind === 'session';
+
     return (
       <div className="min-h-screen relative">
         <AnimatedColorBackground palette={palette} />
@@ -988,11 +1002,36 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <HeadlineText className="mb-2">Unable to load content</HeadlineText>
+            <HeadlineText className="mb-2">
+              {isUnavailable
+                ? 'MusicLink unavailable'
+                : needsSession
+                  ? 'Sign in to continue'
+                  : 'Unable to load MusicLink'}
+            </HeadlineText>
             <BodyText className="text-text-secondary mb-6">
-              This content may have been removed or the link is invalid
+              {isUnavailable
+                ? 'This MusicLink may have been removed, made private, or you may not have access.'
+                : needsSession
+                  ? 'Your session has expired. Sign in again to view this MusicLink.'
+                  : 'Cassette could not load this MusicLink. Please try again.'}
             </BodyText>
-            <BackButton variant="button" buttonVariant="default" route={backRoute} fallbackRoute="/explore" className="h-10" />
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <BackButton variant="button" buttonVariant="outline" route={backRoute} fallbackRoute="/explore" className="h-10" />
+              {(needsSession || (isUnavailable && !isAuthenticated)) && (
+                <Button
+                  onClick={() => router.push(`/auth/signin?redirect=${encodeURIComponent(`/post/${postId}`)}`)}
+                  className="h-10"
+                >
+                  Sign in
+                </Button>
+              )}
+              {error.kind === 'error' && (
+                <Button onClick={() => setLoadAttempt((attempt) => attempt + 1)} className="h-10">
+                  Try again
+                </Button>
+              )}
+            </div>
           </MainContainer>
         </div>
       </div>
@@ -1314,6 +1353,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                             title: metadata.title,
                             artist: metadata.artist,
                             platforms: postData?.convertedUrls,
+                            postId: postData?.postId || postId,
                           },
                         })}
                         className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -1598,6 +1638,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                                 title: metadata.title,
                                 artist: metadata.artist,
                                 platforms: postData?.convertedUrls,
+                                postId: postData?.postId || postId,
                               },
                             })}
                             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -1935,6 +1976,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                       title: metadata.title,
                       artist: metadata.artist,
                       platforms: postData?.convertedUrls,
+                      postId: postData?.postId || postId,
                     },
                   })}
                   className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"

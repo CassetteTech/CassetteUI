@@ -62,9 +62,9 @@ export default function EditProfilePage() {
     loadUserData();
   }, [user, userIdentifier, router]);
 
-  const handleSuccess = () => {
+  const handleSuccess = (updatedUsername: string) => {
     // Navigate back to profile page
-    router.push(`/profile/${user?.username || userIdentifier}`);
+    router.push(`/profile/${updatedUsername}`);
   };
 
   const handleCancel = () => {

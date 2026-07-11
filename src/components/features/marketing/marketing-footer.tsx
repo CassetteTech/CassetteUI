@@ -83,7 +83,7 @@ export function MarketingFooter() {
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-[4.5rem] md:pt-[5rem]">
           <div className="grid grid-cols-1 md:grid-cols-4 border-t border-dashed border-[#2B2A24]/25 pt-8 md:pt-10">
             {/* Brand cell */}
-            <div className="flex flex-col items-center gap-4 px-6 pb-8 md:pb-10 text-center">
+            <div className="flex flex-col items-center gap-4 px-6 pb-6 md:pb-10 text-center">
               <Link href="/" className="inline-flex items-center gap-2">
                 <Image
                   src="/images/cassette_logo.png"
@@ -122,11 +122,15 @@ export function MarketingFooter() {
               </div>
             </div>
 
-            {/* Link columns between dashed fold lines */}
+            {/* Link columns between dashed fold lines. On mobile the three
+                sit side by side in one row (the stack read too long);
+                md:contents dissolves the wrapper so each column joins the
+                outer 4-col grid on desktop unchanged. */}
+            <div className="grid grid-cols-3 border-t border-dashed border-[#2B2A24]/25 md:contents">
             {LINK_COLUMNS.map((col) => (
               <div
                 key={col.label}
-                className="flex flex-col items-center gap-3 px-6 pt-8 pb-8 md:pt-0 md:pb-10 border-t md:border-t-0 md:border-l border-dashed border-[#2B2A24]/25 text-center"
+                className="flex flex-col items-center gap-2.5 md:gap-3 px-2 md:px-6 pt-6 md:pt-0 pb-6 md:pb-10 border-l first:border-l-0 md:first:border-l border-dashed border-[#2B2A24]/25 text-center"
               >
                 <p className="font-mono text-[10px] uppercase tracking-[0.3em] opacity-60 mb-1">
                   {col.label}
@@ -155,6 +159,7 @@ export function MarketingFooter() {
                 )}
               </div>
             ))}
+            </div>
           </div>
 
         </div>

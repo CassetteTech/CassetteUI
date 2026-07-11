@@ -135,7 +135,7 @@ test.describe('profile tabs', () => {
 
     await page.getByRole('button', { name: /Liked/ }).click();
     await expect(page).toHaveURL(/\/profile\/miagroove\?tab=liked$/);
-    await expect(page.getByRole('main').last()).toContainText('No items to display');
+    await expect(page.getByRole('main').last()).toContainText('No liked posts yet');
   });
 
   test('uses liked post owner badges instead of the profile owner badge', async ({ page }) => {
@@ -181,6 +181,59 @@ test.describe('profile tabs', () => {
     await page.goto('/profile/miagroove');
     await expect(page).toHaveURL(/\/profile\/miagroove\?tab=tracks$/);
     await expect(page.getByRole('main').last()).toContainText('Daybreak Signal');
+  });
+
+  test('shows owner-aware empty copy for each selected profile tab', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+    });
+
+    await page.goto('/profile/miagroove?tab=albums');
+    await expect(page.getByRole('main').last()).toContainText('No albums yet');
+    await expect(page.getByRole('main').last()).toContainText('Add albums to start building your profile.');
+
+    await page.goto('/profile/djaurora?tab=tracks');
+    await expect(page.getByRole('main').last()).toContainText('No tracks yet');
+    await expect(page.getByRole('main').last()).toContainText('@djaurora has not shared any tracks yet.');
+  });
+
+  test('renders the profile not-found state instead of a generic error', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+    });
+    const activityRequests: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/api/v1/profile/profile-that-does-not-exist/activity')) {
+        activityRequests.push(request.url());
+      }
+    });
+
+    await page.goto('/profile/profile-that-does-not-exist');
+
+    await expect(page.getByRole('heading', { name: 'User Not Found' }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Error' })).toHaveCount(0);
+    expect(activityRequests).toEqual([]);
+  });
+
+  test('replaces broken profile artwork with a stable fallback', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      posts: [
+        buildOwnedPost({
+          postId: 'member-broken-artwork',
+          musicElementId: 'track-broken-artwork',
+          elementType: 'Track',
+          title: 'Broken Artwork Track',
+          originalUrl: 'https://open.spotify.com/track/broken-artwork',
+          artworkUrl: '/images/does-not-exist.png',
+        }),
+      ],
+    });
+
+    await page.goto('/profile/miagroove?tab=tracks');
+
+    const artwork = page.getByRole('img', { name: 'Broken Artwork Track' });
+    await expect.poll(() => artwork.evaluate((element) => element.tagName)).toBe('DIV');
   });
 
   test('only shows desktop tab scrolling when the active tab needs it', async ({ page }) => {

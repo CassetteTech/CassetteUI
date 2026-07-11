@@ -47,6 +47,7 @@ export const useUserBio = (
     enabled: !!userIdentifier && enabled,
     staleTime,
     gcTime,
+    retry: (failureCount, error) => error.message !== 'User not found' && failureCount < 2,
   });
 };
 

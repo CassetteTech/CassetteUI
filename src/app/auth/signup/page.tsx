@@ -21,8 +21,15 @@ import { authRedirectService } from '@/utils/auth-redirect';
 export default function SignUpPage() {
   const searchParams = useSearchParams();
   const { isSuccess, data: signUpResult } = useSignUp();
-  const { mutate: signInWithProvider, isPending: isSigningInWithProvider } = useSignInWithProvider();
+  const {
+    mutate: signInWithProvider,
+    isPending: isSigningInWithProvider,
+    error: providerSignInError,
+  } = useSignInWithProvider();
   const redirect = searchParams.get('redirect');
+  const signInHref = redirect
+    ? `/auth/signin?redirect=${encodeURIComponent(redirect)}`
+    : '/auth/signin';
 
   useEffect(() => {
     authRedirectService.save(redirect);
@@ -73,7 +80,7 @@ export default function SignUpPage() {
               <CardContent className="flex flex-col gap-4">
                 <Button
                   className="w-full h-11 rounded-none border-2 border-foreground bg-[hsl(var(--cassette-white))] dark:bg-background text-foreground font-bold text-sm shadow-flat-3 hover:-translate-y-0.5 hover:shadow-flat-5 transition-[transform,box-shadow]"
-                  onClick={() => window.location.href = '/auth/signin'}
+                  onClick={() => window.location.href = signInHref}
                 >
                   Return to Sign In
                 </Button>
@@ -126,6 +133,12 @@ export default function SignUpPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+
+            {providerSignInError && (
+              <p role="alert" className="mb-4 text-sm text-destructive">
+                We could not start Google sign-in. Please try again.
+              </p>
+            )}
 
             {/* Google Sign In */}
             <div className="flex flex-col gap-4 mb-6">
@@ -294,7 +307,7 @@ export default function SignUpPage() {
               <div className="text-center text-sm mt-4 font-roboto text-muted-foreground">
                 Already have an account?{' '}
                 <Link
-                  href="/auth/signin"
+                  href={signInHref}
                   className="font-mono text-[11px] uppercase tracking-[0.2em] text-foreground hover:text-primary transition-colors"
                 >
                   Sign In →

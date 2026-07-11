@@ -27,6 +27,11 @@ export default function OAuthCallbackPage() {
 
         useAuthStore.getState().setUser(currentUser);
         window.history.replaceState(null, '', window.location.pathname);
+        if (!currentUser.isOnboarded) {
+          router.replace('/onboarding');
+          return;
+        }
+
         const pendingAction = pendingActionService.get();
         if (pendingAction?.returnUrl) {
           window.location.href = pendingAction.returnUrl;
@@ -43,7 +48,8 @@ export default function OAuthCallbackPage() {
       })
       .catch((err: Error) => {
         appLogger.error('auth_callback_session_failed', { error: err, route: '/auth/callback' });
-        setError(err.message);
+        pendingActionService.clear();
+        setError('We could not complete sign-in. Please try again.');
       });
   }, [router]);
 
@@ -52,7 +58,18 @@ export default function OAuthCallbackPage() {
       <div className="flex h-screen flex-col items-center justify-center gap-4">
         <h1 className="text-2xl font-bold text-destructive">Login Failed</h1>
         <p>{error}</p>
-        <button onClick={() => router.push('/auth/signin')} className="underline">
+        <button
+          type="button"
+          onClick={() => {
+            const params = new URLSearchParams({ error: 'callback-error' });
+            const redirect = authRedirectService.get();
+            if (redirect) {
+              params.set('redirect', redirect);
+            }
+            router.push(`/auth/signin?${params.toString()}`);
+          }}
+          className="underline"
+        >
           Back to Sign In
         </button>
       </div>

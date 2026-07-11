@@ -23,6 +23,9 @@ type MockCassetteOptions = {
   usernameAvailability?: Record<string, boolean>;
   musicConnectionsByUserId?: Record<string, string[]>;
   platformPreferencesByUserId?: Record<string, string[]>;
+  profileUpdateFailures?: number;
+  issueReportFailures?: number;
+  googleAuthInitFailures?: number;
 };
 
 type MockNotification = {
@@ -54,6 +57,9 @@ type MockState = {
   usernameAvailability: Record<string, boolean>;
   musicConnectionsByUserId: Map<string, string[]>;
   platformPreferencesByUserId: Map<string, string[]>;
+  profileUpdateFailuresRemaining: number;
+  issueReportFailuresRemaining: number;
+  googleAuthInitFailuresRemaining: number;
 };
 
 const DEFAULT_USERS = Object.values(fixtureUsers);
@@ -127,6 +133,7 @@ const toActivityItem = (post: FixturePost, state: MockState) => {
     likeCount: post.likeCount || 0,
     likedByCurrentUser: post.likedByCurrentUser || false,
     commentsEnabled: post.commentsEnabled ?? true,
+    imageUrl: post.artworkUrl,
     privacy: post.privacy || 'public',
     conversionSuccessCount: post.conversionSuccessCount || 0,
     accountType: owner?.accountType ?? null,
@@ -153,11 +160,12 @@ const toPostByIdResponse = (post: FixturePost) => ({
   details: {
     title: post.title,
     artist: post.artist || '',
-    coverArtUrl: '',
+    coverArtUrl: post.artworkUrl || '',
     genres: post.genres || [],
     releaseDate: post.releaseDate || null,
     trackCount: post.trackCount,
     artists: post.artist ? [{ name: post.artist, role: 'Primary' }] : [],
+    tracks: post.tracks || [],
   },
   metadata: {
     albumName: '',
@@ -321,6 +329,9 @@ const buildState = (options: MockCassetteOptions): MockState => {
     },
     musicConnectionsByUserId: new Map<string, string[]>(),
     platformPreferencesByUserId: new Map<string, string[]>(),
+    profileUpdateFailuresRemaining: options.profileUpdateFailures ?? 0,
+    issueReportFailuresRemaining: options.issueReportFailures ?? 0,
+    googleAuthInitFailuresRemaining: options.googleAuthInitFailures ?? 0,
   };
 
   for (const user of DEFAULT_USERS) {
@@ -405,6 +416,14 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
     }
 
     if (pathname === '/api/auth/google/init' && method === 'POST') {
+      if (state.googleAuthInitFailuresRemaining > 0) {
+        state.googleAuthInitFailuresRemaining -= 1;
+        return json(route, {
+          success: false,
+          message: 'Internal OAuth provider configuration details',
+        }, 503);
+      }
+
       if (state.googleAuthUser) {
         state.currentUser = ensureUser(state, state.googleAuthUser);
       }
@@ -440,6 +459,11 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
     }
 
     if (pathname === '/api/v1/profile' && method === 'PUT') {
+      if (state.profileUpdateFailuresRemaining > 0) {
+        state.profileUpdateFailuresRemaining -= 1;
+        return json(route, { success: false, message: 'S3 avatar upload failed: internal bucket details' }, 500);
+      }
+
       const body = request.postData();
       const currentUser = getCurrentUserOrThrow(state);
       const username = getMultipartField(body, 'Username') || getMultipartField(body, 'username');
@@ -462,6 +486,19 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       return json(route, {
         success: true,
         user: toSessionUser(getCurrentUserOrThrow(state)),
+      });
+    }
+
+    if (pathname === '/api/v1/issues' && method === 'POST') {
+      if (state.issueReportFailuresRemaining > 0) {
+        state.issueReportFailuresRemaining -= 1;
+        return json(route, { success: false, message: 'Issue report failed. Please try again.' }, 500);
+      }
+
+      return json(route, {
+        success: true,
+        message: 'Issue report submitted successfully',
+        issueId: 'issue-report-fixture',
       });
     }
 
@@ -789,6 +826,15 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       }
 
       if (method === 'GET') {
+        if (post.privacy === 'private' && post.ownerId !== state.currentUser?.id) {
+          return json(route, {
+            success: false,
+            status: 'failed',
+            errorCode: 'POST_NOT_FOUND',
+            message: 'Post not found',
+          }, 404);
+        }
+
         return json(route, toPostByIdResponse(post));
       }
 

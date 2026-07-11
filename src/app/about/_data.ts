@@ -78,13 +78,26 @@ export const showcaseLinks: {
   title: string;
   artist: string;
   href: string;
-  kind: "Track" | "Album";
+  kind: "Track" | "Album" | "Artist" | "Playlist";
 }[] = [
+  // Playlist conversion leads — it's the differentiator on top of smart links
+  {
+    title: "Today's Top Hits",
+    artist: "Spotify",
+    href: "/?url=https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M",
+    kind: "Playlist",
+  },
   {
     title: "Stronger",
     artist: "Kanye West",
     href: "/?url=https://open.spotify.com/track/4fzsfWzRhPawzqhX8Qt9F3",
     kind: "Track",
+  },
+  {
+    title: "Daft Punk",
+    artist: "Every album, every era",
+    href: "/?url=https://open.spotify.com/artist/4tZwfgrHOc3mvqYlEYSvVi",
+    kind: "Artist",
   },
   {
     title: "Time",
@@ -116,15 +129,6 @@ export const showcaseLinks: {
     href: "/?url=https://open.spotify.com/track/5UH5s7VwbSkFExIl1oqNux",
     kind: "Track",
   },
-];
-
-// --- Identity Tiles (used in the Music Identity section) ---
-
-export const identityTiles = [
-  { title: "Playlists", desc: "Summer Vibes, Chill Study" },
-  { title: "Top Artists", desc: "The Weeknd, Tame Impala" },
-  { title: "Recent Tracks", desc: "LCD Soundsystem, Flipturn" },
-  { title: "Albums", desc: "After Hours, Currents" },
 ];
 
 // --- Liner Notes (stat strip at the top of the content sheet) ---

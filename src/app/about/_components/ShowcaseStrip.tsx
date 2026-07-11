@@ -24,8 +24,8 @@ export function ShowcaseStrip() {
           title="Smart Links, Live"
           sub={
             <>
-              Paste a track, an album, or a full playlist from any app. Share
-              one link that opens in all of them.
+              Paste a link or search by name—tracks, albums, artists, and full
+              playlists. Share one link that opens in every app.
             </>
           }
         />
@@ -49,7 +49,7 @@ export function ShowcaseStrip() {
       >
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2.5">
-            Any link in
+            Any link in — or search
           </p>
           <div className="flex items-center gap-2.5">
             {SOURCE_PLATFORMS.map((svc) => (
@@ -64,7 +64,7 @@ export function ShowcaseStrip() {
               />
             ))}
             <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-              tracks · albums · playlists
+              tracks · albums · artists · playlists
             </span>
           </div>
         </div>

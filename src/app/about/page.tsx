@@ -8,7 +8,6 @@ import { ProblemSection } from "./_components/ProblemSection";
 import { JourneyTimeline } from "./_components/JourneyTimeline";
 import { MusicIdentitySection } from "./_components/MusicIdentitySection";
 import { ShowcaseStrip } from "./_components/ShowcaseStrip";
-import { ExampleProfileSection } from "./_components/ExampleProfileSection";
 import { VisionSection } from "./_components/VisionSection";
 import { SupportersShowcase } from "./_components/SupportersShowcase";
 import { FinalCTA } from "./_components/FinalCTA";
@@ -42,12 +41,10 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* The Profile — cream band with the interactive demo */}
+        {/* The Profile — cream band: interactive demo + a real profile card */}
         <MusicIdentitySection />
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Focal profile card — a real one in the wild */}
-          <ExampleProfileSection />
           {/* Spool-line timeline */}
           <JourneyTimeline />
         </div>

@@ -118,15 +118,6 @@ export const showcaseLinks: {
   },
 ];
 
-// --- Identity Tiles (used in the Music Identity section) ---
-
-export const identityTiles = [
-  { title: "Playlists", desc: "Summer Vibes, Chill Study" },
-  { title: "Top Artists", desc: "The Weeknd, Tame Impala" },
-  { title: "Recent Tracks", desc: "LCD Soundsystem, Flipturn" },
-  { title: "Albums", desc: "After Hours, Currents" },
-];
-
 // --- Liner Notes (stat strip at the top of the content sheet) ---
 
 export const linerNotes = [

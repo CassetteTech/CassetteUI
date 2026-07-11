@@ -47,8 +47,8 @@ export function ProblemSection() {
         >
           <p className="font-roboto text-sm sm:text-base leading-relaxed italic opacity-80">
             Music is universal. Platforms aren&apos;t. Cassette removes the
-            walls so your discoveries flow to everyone, everywhere—no friction,
-            no dead ends.
+            walls so your tracks, albums, and whole playlists flow to everyone,
+            everywhere—no friction, no dead ends.
           </p>
           <Link
             href="/team"

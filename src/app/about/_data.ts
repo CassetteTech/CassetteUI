@@ -78,8 +78,15 @@ export const showcaseLinks: {
   title: string;
   artist: string;
   href: string;
-  kind: "Track" | "Album";
+  kind: "Track" | "Album" | "Playlist";
 }[] = [
+  // Playlist conversion leads — it's the differentiator on top of smart links
+  {
+    title: "Today's Top Hits",
+    artist: "Spotify",
+    href: "/?url=https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M",
+    kind: "Playlist",
+  },
   {
     title: "Stronger",
     artist: "Kanye West",

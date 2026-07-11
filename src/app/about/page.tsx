@@ -3,7 +3,7 @@
 import { PixelHero } from "./_components/PixelHero";
 import { CurtainSheet } from "@/components/features/marketing/curtain-sheet";
 import { StatStrip } from "@/components/features/marketing/stat-strip";
-import { KofiSupportBand } from "@/components/features/marketing/kofi-support-band";
+import { DitherEdge } from "@/components/features/marketing/dither-edge";
 import { ProblemSection } from "./_components/ProblemSection";
 import { JourneyTimeline } from "./_components/JourneyTimeline";
 import { MusicIdentitySection } from "./_components/MusicIdentitySection";
@@ -34,21 +34,22 @@ export default function AboutPage() {
         {/* The Problem — charcoal statement band */}
         <ProblemSection />
 
+        {/* Live smart-link demo — the answer, straight after the problem */}
+        <div className="relative">
+          <DitherEdge color="hsl(var(--background))" side="top" />
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <ShowcaseStrip />
+          </div>
+        </div>
+
         {/* The Profile — cream band with the interactive demo */}
         <MusicIdentitySection />
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Focal profile card — a real one in the wild */}
           <ExampleProfileSection />
-          {/* Live smart-link demo */}
-          <ShowcaseStrip />
           {/* Spool-line timeline */}
           <JourneyTimeline />
-          {/* Support — quiet ruled strip */}
-          <KofiSupportBand
-            title="Fuel The Mission"
-            copy="Indie team, indie budget. If our story resonates, drop a Ko-fi."
-          />
         </div>
 
         {/* Vision — dark statement band */}

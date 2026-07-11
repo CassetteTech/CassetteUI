@@ -24,7 +24,8 @@ export function ShowcaseStrip() {
           title="Smart Links, Live"
           sub={
             <>
-              Paste a link from any app. Share one that opens in all of them.
+              Paste a track, an album, or a full playlist from any app. Share
+              one link that opens in all of them.
             </>
           }
         />
@@ -62,8 +63,8 @@ export function ShowcaseStrip() {
                 className="h-6 w-6 object-contain"
               />
             ))}
-            <span className="font-mono text-[10px] text-muted-foreground">
-              …
+            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+              tracks · albums · playlists
             </span>
           </div>
         </div>

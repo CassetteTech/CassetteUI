@@ -5,7 +5,17 @@ const distDir = process.env.NEXT_DIST_DIR ?? ".next";
 
 const nextConfig: NextConfig = {
   distDir,
+  turbopack: {
+    root: process.cwd(),
+  },
+  experimental: {
+    useTypeScriptCli: true,
+  },
+  typescript: {
+    tsconfigPath: "tsconfig.typecheck.json",
+  },
   images: {
+    qualities: [75, 80],
     remotePatterns: [
       {
         protocol: 'https',

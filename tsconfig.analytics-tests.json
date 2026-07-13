@@ -4,9 +4,9 @@
     "noEmit": false,
     "outDir": ".analytics-test-dist",
     "rootDir": "src/lib/analytics",
-    "module": "commonjs",
+    "module": "node16",
     "target": "es2020",
-    "moduleResolution": "node",
+    "moduleResolution": "node16",
     "incremental": false,
     "isolatedModules": false,
     "jsx": "react-jsx"

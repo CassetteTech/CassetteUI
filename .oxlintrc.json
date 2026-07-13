@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "eslint",
+    "typescript",
+    "unicorn",
+    "oxc",
+    "react",
+    "import",
+    "jsx-a11y",
+    "nextjs"
+  ],
+  "options": {
+    "typeAware": true
+  },
+  "ignorePatterns": [
+    ".analytics-test-dist/**",
+    ".next*/**",
+    ".unit-test-dist/**",
+    "build/**",
+    "next-env.d.ts",
+    "node_modules/**",
+    "out/**",
+    "playwright-report/**",
+    "test-results/**"
+  ],
+  "rules": {
+    "typescript/no-unused-expressions": "warn",
+    "typescript/no-unused-vars": "warn"
+  }
+}

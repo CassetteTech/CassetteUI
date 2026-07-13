@@ -4,7 +4,7 @@ CassetteUI is the Next.js frontend for Cassette. It owns the web user experience
 
 ## Architecture
 
-- Next.js 15 App Router lives under `src/app`.
+- Next.js 16 App Router lives under `src/app`.
 - Shared UI primitives live under `src/components/ui`; feature UI belongs under `src/components/features`, `src/components/pages`, or the closest route folder.
 - Client-side service wrappers live under `src/services`.
 - Server-only helpers live under `src/lib/server` or route handlers under `src/app/api`.
@@ -36,8 +36,11 @@ CassetteUI is the Next.js frontend for Cassette. It owns the web user experience
 - `npm run typecheck`
 - `npm run test:unit`
 - `npm run test:analytics` when analytics code changes.
+- `npm run lint`
 - `npm run build` for routing, server, or dependency changes.
 - `npm run test:e2e` or a targeted Playwright spec when user flows change.
 
 Use `PLAYWRIGHT_TEST=true` behavior and the existing `playwright.config.ts` server settings for E2E assumptions.
-Do not make `npm run lint` canonical until the Next 15 lint setup has been verified.
+Keep `typescript` as the TypeScript 7 package that compiler scripts and Next's
+experimental CLI checker resolve. Oxlint owns TypeScript-aware linting because
+typescript-eslint still depends on the removed JavaScript compiler API.

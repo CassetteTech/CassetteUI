@@ -6,7 +6,7 @@ import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
 import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
 import { PlayPreview } from '@/components/features/entity/play-preview';
-import { TrackList } from '@/components/features/entity/track-list';
+import { TrackList, formatTrackListStats } from '@/components/features/entity/track-list';
 import { PostAuthorHeader } from '@/components/features/post/post-author-header';
 import { PostEngagementBar } from '@/components/features/post/post-engagement-bar';
 import { PostCommentsSheet } from '@/components/features/post/post-comments-sheet';
@@ -1058,6 +1058,11 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
     : typeof postData?.trackCount === 'number'
       ? postData.trackCount
       : undefined;
+  const trackListStats = Array.isArray(postData?.tracks) && postData.tracks.length > 0
+    ? formatTrackListStats(postData.tracks)
+    : typeof playlistTrackCount === 'number' && playlistTrackCount > 0
+      ? `${playlistTrackCount} ${playlistTrackCount === 1 ? 'track' : 'tracks'}`
+      : null;
   const useSplitScrollLayout = isDesktop && (isAlbum || isPlaylist);
   const showSignupCTA = !isLoading && !isAuthenticated;
   const filteredGenres = (postData?.genres ?? []).filter(
@@ -1109,45 +1114,48 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
             <div className="pt-4 pb-6 px-3 shrink-0 max-w-7xl mx-auto w-full">
               <div className="flex items-center justify-between gap-3">
                 <BackButton route={backRoute} fallbackRoute="/explore" />
-                <PostShareMenu
-                  isTeamAccount={isTeamAccount}
-                  copyState={copyState}
-                  onPlainShare={handleShare}
-                  onTemplateCopy={handleAttributedCopy}
-                />
-                {/* More Menu */}
-                {isOwnPost && (
-                  <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Post actions"
-                        data-testid="post-actions-trigger"
-                        className="rounded-full"
-                      >
-                        <MoreVertical className="h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {isOwnPost && (
-                        <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                      )}
-                      {isOwnPost && (
-                        <DropdownMenuItem
-                          onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
-                          className="text-destructive focus:text-destructive"
+                {/* Action cluster: Share is always the rightmost page action,
+                    with the owner-only menu at the far edge beside it */}
+                <div className="flex items-center gap-1.5">
+                  <PostShareMenu
+                    isTeamAccount={isTeamAccount}
+                    copyState={copyState}
+                    onPlainShare={handleShare}
+                    onTemplateCopy={handleAttributedCopy}
+                  />
+                  {isOwnPost && (
+                    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Post actions"
+                          data-testid="post-actions-trigger"
+                          className="rounded-full"
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                          <MoreVertical className="h-5 w-5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {isOwnPost && (
+                          <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+                        {isOwnPost && (
+                          <DropdownMenuItem
+                            onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               </div>
             </div>
             {/* Content Row */}
@@ -1365,35 +1373,33 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                   )}
                 </div>
               </div>
-              {/* Right: scrollable pane */}
-              <div className="flex-[3] overflow-y-auto no-scrollbar pr-1 min-h-0">
-                <div className="pt-8 pb-12 max-w-2xl">
-                  <div className="space-y-8">
-                    {/* Track list for album/playlist */}
-                    {showTracks && (
-                      <div className="rounded-lg border border-border bg-card overflow-hidden elev-2">
-                        <div className="p-5 border-b border-border bg-muted/50 flex items-baseline justify-between gap-3">
-                          <h3 className="text-lg font-semibold text-foreground">
-                            {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
-                          </h3>
-                          {typeof playlistTrackCount === 'number' && playlistTrackCount > 0 && (
-                            <span className="text-sm text-muted-foreground tabular-nums">
-                              {playlistTrackCount} {playlistTrackCount === 1 ? 'track' : 'tracks'}
-                            </span>
-                          )}
-                        </div>
-                        <TrackList
-                          items={postData.tracks!}
-                          artwork={metadata.artwork}
-                          albumArtist={metadata.artist}
-                          variant={isAlbum ? 'album' : 'playlist'}
-                          scrollable={false}
-                          className="!border-0 !bg-transparent !shadow-none"
-                          sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                        />
+              {/* Right: track card scrolls internally so its header and edges stay put */}
+              <div className="flex-[3] min-h-0 pr-1">
+                <div className="h-full pt-8 pb-12 max-w-2xl flex flex-col min-h-0">
+                  {/* Track list for album/playlist */}
+                  {showTracks && (
+                    <div className="rounded-lg border border-border bg-card overflow-hidden elev-2 flex flex-col min-h-0">
+                      <div className="px-5 py-4 border-b border-border flex items-baseline justify-between gap-3 shrink-0">
+                        <h3 className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-foreground">
+                          Tracklist
+                        </h3>
+                        {trackListStats && (
+                          <span className="font-mono text-[10px] uppercase tracking-[0.15em] tabular-nums text-muted-foreground">
+                            {trackListStats}
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
+                      <TrackList
+                        items={postData.tracks!}
+                        artwork={metadata.artwork}
+                        albumArtist={metadata.artist}
+                        variant={isAlbum ? 'album' : 'playlist'}
+                        scrollFill
+                        className="flex-1 min-h-0 !border-0 !bg-transparent !shadow-none"
+                        sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1403,19 +1409,17 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
             <div className="pt-16">
               {/* Header Toolbar */}
               <div className="pt-4 pb-6 px-3 relative z-20 max-w-7xl mx-auto w-full">
-                <div className="grid grid-cols-3 items-center gap-3">
-                  <div className="justify-self-start">
-                    <BackButton route={backRoute} fallbackRoute="/explore" />
-                  </div>
-                  <PostShareMenu
-                    isTeamAccount={isTeamAccount}
-                    copyState={copyState}
-                    onPlainShare={handleShare}
-                    onTemplateCopy={handleAttributedCopy}
-                    className="justify-self-center"
-                  />
-                  {/* More Menu */}
-                  <div className="justify-self-end">
+                <div className="flex items-center justify-between gap-3">
+                  <BackButton route={backRoute} fallbackRoute="/explore" />
+                  {/* Action cluster: Share is always the rightmost page action,
+                      with the owner-only menu at the far edge beside it */}
+                  <div className="flex items-center gap-1.5">
+                    <PostShareMenu
+                      isTeamAccount={isTeamAccount}
+                      copyState={copyState}
+                      onPlainShare={handleShare}
+                      onTemplateCopy={handleAttributedCopy}
+                    />
                     {isOwnPost && (
                       <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                         <DropdownMenuTrigger asChild>
@@ -1657,21 +1661,25 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
         ) : (
           // Mobile Layout
           <div className="px-4 sm:px-6 md:px-8 pb-2 sm:pb-8 pt-16 max-w-lg mx-auto">
+            {/* First-viewport unit — identical for every post type: toolbar, type
+                label, artwork, info card. The artwork flexes to absorb device
+                height differences so this unit fits the screen (minus a small
+                peek of what follows); the tracklist and everything after it
+                live below the fold. */}
+            <section className="flex flex-col min-h-[calc(100svh-6.5rem)]">
             {/* Header Toolbar */}
-            <div className="pt-3 pb-4 sm:pt-4 sm:pb-6 max-w-7xl mx-auto w-full">
-              <div className="grid grid-cols-3 items-center gap-3">
-                <div className="justify-self-start">
-                  <BackButton route={backRoute} fallbackRoute="/explore" />
-                </div>
-                <PostShareMenu
-                  isTeamAccount={isTeamAccount}
-                  copyState={copyState}
-                  onPlainShare={handleShare}
-                  onTemplateCopy={handleAttributedCopy}
-                  className="justify-self-center"
-                />
-                {/* More Menu */}
-                <div className="justify-self-end">
+            <div className="pt-2.5 pb-2 sm:pt-4 sm:pb-4 w-full shrink-0">
+              <div className="flex items-center justify-between gap-3">
+                <BackButton route={backRoute} fallbackRoute="/explore" />
+                {/* Action cluster: Share is always the rightmost page action,
+                    with the owner-only menu at the far edge beside it */}
+                <div className="flex items-center gap-1.5">
+                  <PostShareMenu
+                    isTeamAccount={isTeamAccount}
+                    copyState={copyState}
+                    onPlainShare={handleShare}
+                    onTemplateCopy={handleAttributedCopy}
+                  />
                   {isOwnPost ? (
                     <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                       <DropdownMenuTrigger asChild>
@@ -1707,7 +1715,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                 </div>
               </div>
             </div>
-            <div className="text-center space-y-2 sm:space-y-6">
+            <div className="text-center flex flex-col flex-1 gap-1.5 sm:gap-6">
               {/* Element Type */}
               <div>
                 <span className="inline-block font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.3em] text-primary mb-2">
@@ -1727,18 +1735,21 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                 )}
               </div>
 
-              {/* Album Art Container */}
-              <div>
-                {/* Album Art — clean sleeve */}
-                <div className="relative inline-block">
-                  <div className="relative rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10">
+              {/* Album Art — flexes to absorb the leftover first-viewport height.
+                  The square is absolutely positioned: it claims no intrinsic
+                  height (only the wrapper's min-h counts in the fold math), and
+                  its h-full resolves against the wrapper's final size, which an
+                  in-flow child can't do under a min-h-only ancestor chain. */}
+              <div className="relative flex-1 min-h-[120px]">
+                <div className="absolute inset-0 m-auto h-full max-h-[min(340px,calc(100vw-2rem))] aspect-square">
+                  <div className="relative h-full w-full rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10">
                     <Image
                       src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
                       alt={metadata.title}
                       width={0}
                       height={0}
-                      sizes="(max-width: 640px) 260px, 340px"
-                      className="block rounded-sm object-cover w-[260px] h-[260px] sm:w-[340px] sm:h-[340px]"
+                      sizes="340px"
+                      className="block rounded-sm object-cover w-full h-full"
                       priority
                       onError={() => setImageError(true)}
                       unoptimized={!imageError && !!metadata.artwork}
@@ -1765,7 +1776,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
 
               {/* Track Information Card - Mobile */}
               <div className="p-3 sm:p-5 rounded-lg border border-border bg-card elev-2">
-                <div className="space-y-2.5 sm:space-y-4">
+                <div className="space-y-2 sm:space-y-4">
                   {/* Title (with source badge right-aligned for playlist) */}
                   <div className="relative flex justify-center items-center">
                     <HeadlineText className="text-2xl sm:text-3xl uppercase leading-[0.95] tracking-tight text-foreground text-center">
@@ -1888,48 +1899,51 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                       />
                     )}
                   </div>
-                  {/* Social: author header + engagement bar (moved inside card) */}
-                  {postData?.username && hasPostOwner && (
-                    <>
-                      <div className="border-t border-border/70" />
-                      <div className="flex flex-col gap-2 sm:gap-2.5 text-left relative z-20">
-                        <PostAuthorHeader
-                          username={postData.username}
-                          description={postData?.description || ''}
-                          createdAt={postData?.createdAt}
-                        />
-                        <PostEngagementBar
-                          likeCount={postData?.likeCount ?? 0}
-                          likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
-                          isLikePending={isLikePending}
-                          onToggleLike={handleToggleLike}
-                          canRepost={canRepost}
-                          hasReposted={hasReposted}
-                          isRepostPending={isRepostPending}
-                          onRepost={() => void handleRepost()}
-                          commentCount={commentCount}
-                          commentsEnabled={postData?.commentsEnabled ?? true}
-                          onOpenComments={handleOpenComments}
-                          canViewInsights={isOwnPost}
-                          onOpenInsights={handleOpenInsights}
-                          className="self-start"
-                        />
-                      </div>
-                    </>
-                  )}
                 </div>
               </div>
 
+              {/* Social: author header + engagement bar — part of the fold so
+                  attribution is visible without scrolling */}
+              {postData?.username && hasPostOwner && (
+                <div className="px-3 py-2.5 sm:p-4 rounded-lg border border-border bg-card elev-2 flex flex-col gap-1.5 sm:gap-2.5 text-left relative z-20">
+                  <PostAuthorHeader
+                    username={postData.username}
+                    description={postData?.description || ''}
+                    createdAt={postData?.createdAt}
+                  />
+                  <PostEngagementBar
+                    likeCount={postData?.likeCount ?? 0}
+                    likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                    isLikePending={isLikePending}
+                    onToggleLike={handleToggleLike}
+                    canRepost={canRepost}
+                    hasReposted={hasReposted}
+                    isRepostPending={isRepostPending}
+                    onRepost={() => void handleRepost()}
+                    commentCount={commentCount}
+                    commentsEnabled={postData?.commentsEnabled ?? true}
+                    onOpenComments={handleOpenComments}
+                    canViewInsights={isOwnPost}
+                    onOpenInsights={handleOpenInsights}
+                    className="self-start"
+                  />
+                </div>
+              )}
+            </div>
+            </section>
+
+            {/* Below the fold: tracklist and secondary actions */}
+            <div className="mt-2 sm:mt-6 text-center space-y-2 sm:space-y-6">
               {/* Track list for album/playlist - mobile */}
               {showTracks && (
                 <div className="border-2 border-foreground bg-card overflow-hidden shadow-flat-4">
-                  <div className="p-3 sm:p-4 border-b border-border bg-muted/50 flex items-baseline justify-center gap-2">
-                    <h3 className="text-sm sm:text-base font-semibold text-foreground text-center">
-                      {isPlaylist ? 'Playlist Tracks' : 'Album Tracks'}
+                  <div className="px-4 py-3 border-b border-border flex items-baseline justify-between gap-3">
+                    <h3 className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-foreground">
+                      Tracklist
                     </h3>
-                    {typeof playlistTrackCount === 'number' && playlistTrackCount > 0 && (
-                      <span className="text-xs sm:text-sm text-muted-foreground tabular-nums">
-                        · {playlistTrackCount}
+                    {trackListStats && (
+                      <span className="font-mono text-[10px] uppercase tracking-[0.15em] tabular-nums text-muted-foreground">
+                        {trackListStats}
                       </span>
                     )}
                   </div>
@@ -1939,7 +1953,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                     albumArtist={metadata.artist}
                     variant={isAlbum ? 'album' : 'playlist'}
                     compact
-                    scrollable={true}
+                    expandable
                     className="!border-0 !bg-transparent !shadow-none"
                     sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                   />

@@ -29,11 +29,11 @@ test.describe('post engagement', () => {
     await page.getByRole('button', { name: 'Unlike post' }).click();
     await expect(page.getByRole('button', { name: 'Like post' })).toContainText('12');
 
-    const repostButton = page.getByRole('button', { name: 'Repost post' });
+    const repostButton = page.getByRole('button', { name: 'Repost', exact: true });
     await repostButton.click();
     await expect(page.getByRole('button', { name: 'Remove repost' })).toBeVisible();
     await page.getByRole('button', { name: 'Remove repost' }).click();
-    await expect(page.getByRole('button', { name: 'Repost post' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Repost', exact: true })).toBeVisible();
   });
 
   test('does not poll the full notifications list on idle post pages and updates the badge after marking all read', async ({ page }) => {

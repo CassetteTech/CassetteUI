@@ -4,9 +4,9 @@
     "noEmit": false,
     "outDir": ".unit-test-dist",
     "rootDir": "src",
-    "module": "commonjs",
+    "module": "node16",
     "target": "es2020",
-    "moduleResolution": "node",
+    "moduleResolution": "node16",
     "incremental": false,
     "isolatedModules": false,
     "jsx": "react-jsx"

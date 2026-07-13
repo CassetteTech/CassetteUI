@@ -50,7 +50,7 @@ function buildCookieOptions(maxAgeSeconds?: number) {
   };
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const canonicalUrl = getCanonicalUrl(request);
   if (canonicalUrl) {
     return NextResponse.redirect(canonicalUrl, 308);

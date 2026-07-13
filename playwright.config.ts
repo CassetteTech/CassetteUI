@@ -7,7 +7,10 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Next's production server calls back into the local E2E proxy while
+  // rendering metadata. Serialize the suite so a cold server cannot exhaust
+  // itself before Playwright's browser-level fixtures handle the page.
+  workers: 1,
   reporter: [['list'], ['html', { open: 'never' }]],
   outputDir: 'test-results',
   use: {

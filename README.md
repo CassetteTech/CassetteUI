@@ -12,10 +12,13 @@ CassetteUI is the Next.js frontend for Cassette. It owns the web user experience
 
 ## Development
 
+Node.js 20.9 or newer is required.
+`npm ci` is the canonical and verified installation path; pnpm is not currently verified.
+
 Install dependencies:
 
 ```bash
-npm install
+npm ci
 ```
 
 Run locally:
@@ -42,11 +45,18 @@ Use the narrowest relevant command:
 npm run typecheck
 npm run test:unit
 npm run test:analytics
+npm run lint
 npm run build
 npm run test:e2e
 ```
 
-Run `npm run test:analytics` for analytics changes and targeted Playwright specs for user-flow changes. Do not treat `npm run lint` as canonical until the Next 15 lint setup is verified.
+TypeScript 7 is the project's only TypeScript compiler. The pinned Next.js 16
+canary uses its TypeScript CLI integration during production builds, while linting
+uses Oxlint's TypeScript Go engine instead of the legacy JavaScript compiler API.
+The targeted Sentry override opts its documented Next 16 peer into this explicit
+Next prerelease; do not replace it with a broad peer-dependency bypass.
+Run `npm run test:analytics` for analytics changes and targeted Playwright specs
+for user-flow changes.
 
 ## Architecture
 

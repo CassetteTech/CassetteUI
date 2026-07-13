@@ -141,7 +141,12 @@
 }
 
 @layer base {
-  :root {
+  /* .force-light re-scopes the full light token set onto a subtree so a
+     component renders its light-mode appearance regardless of theme
+     (e.g. the add-music/home search bar and its results panel, which stay
+     white-on-paper by design). Nested re-declaration beats the .dark html
+     override because custom properties inherit from the nearest setter. */
+  :root, .force-light {
     --background: 44 43% 92%; /* #F8F0DE */
     --foreground: 210 10% 14%; /* #1F2327 */
     --cassette-white: 44 100% 97%; /* #FFF8EC */

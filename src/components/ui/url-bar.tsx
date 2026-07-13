@@ -18,8 +18,9 @@ function UrlBar({ className, variant = "dark", hasError = false, beamActive = fa
     <div
       className={cn(
         "w-full h-12 sm:h-14 md:h-16 lg:h-20 rounded-lg sm:rounded-xl md:rounded-2xl border relative transition-[border-color,box-shadow] duration-300",
-        // bg-field is pure white in light mode and follows the dark card surface in dark mode.
-        "bg-field text-card-foreground",
+        // force-light pins the bar (and everything composed inside it) to the
+        // light token set, so bg-field stays pure white in dark mode too.
+        "force-light bg-field text-card-foreground",
         variant === "dark"
           ? "border-border"
           : "border-foreground",

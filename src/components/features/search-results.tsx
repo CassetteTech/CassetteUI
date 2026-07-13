@@ -161,7 +161,9 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   return (
     <div
       data-testid="search-results"
-      className="w-full max-w-4xl mx-auto px-3 sm:px-6 md:px-4 mb-4 sm:mb-8 animate-in fade-in duration-200"
+      // force-light: the results panel keeps its light-mode (white) surface in
+      // dark mode, matching the search bar it hangs from.
+      className="force-light w-full max-w-4xl mx-auto px-3 sm:px-6 md:px-4 mb-4 sm:mb-8 animate-in fade-in duration-200"
     >
       {/* Search Results Container with retro shadow effect */}
       <div className="relative">

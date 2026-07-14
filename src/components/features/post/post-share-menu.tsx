@@ -30,10 +30,10 @@ export const PostShareButton = forwardRef<HTMLButtonElement, PostShareButtonProp
     <motion.button
       ref={ref}
       {...rest}
-      className={`inline-flex h-9 min-w-[120px] items-center justify-center gap-2 overflow-hidden rounded-md border px-4 font-mono text-[10px] font-bold uppercase tracking-[0.2em] backdrop-blur-sm transition-colors ${
+      className={`inline-flex h-9 min-w-[120px] items-center justify-center gap-2 overflow-hidden rounded-none border-2 border-foreground px-4 font-mono text-[10px] font-bold uppercase tracking-[0.2em] transition-[color,background-color,box-shadow] duration-150 ${
         copyState === 'copied'
-          ? 'border-success/40 bg-success/10 text-success-text'
-          : 'border-primary/25 bg-primary/10 text-primary elev-1 hover:bg-primary/20 hover:border-primary/40'
+          ? 'bg-card text-success-text shadow-flat-2'
+          : 'bg-primary text-primary-foreground shadow-flat-3 hover:bg-primary/90 hover:shadow-flat-4'
       } ${className ?? ''}`}
       onClick={(event) => {
         onClick?.(event);

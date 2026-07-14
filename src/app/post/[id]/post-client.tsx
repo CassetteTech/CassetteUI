@@ -1667,19 +1667,21 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                 peek of what follows); the tracklist and everything after it
                 live below the fold. */}
             <section className="flex flex-col min-h-[calc(100svh-6.5rem)]">
-            {/* Header Toolbar */}
+            {/* Header Toolbar — 1fr/auto/1fr grid keeps Share centered on the
+                screen with Back at the left edge and the owner-only menu at
+                the right edge */}
             <div className="pt-2.5 pb-2 sm:pt-4 sm:pb-4 w-full shrink-0">
-              <div className="flex items-center justify-between gap-3">
-                <BackButton route={backRoute} fallbackRoute="/explore" />
-                {/* Action cluster: Share is always the rightmost page action,
-                    with the owner-only menu at the far edge beside it */}
-                <div className="flex items-center gap-1.5">
-                  <PostShareMenu
-                    isTeamAccount={isTeamAccount}
-                    copyState={copyState}
-                    onPlainShare={handleShare}
-                    onTemplateCopy={handleAttributedCopy}
-                  />
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                <div className="justify-self-start">
+                  <BackButton route={backRoute} fallbackRoute="/explore" />
+                </div>
+                <PostShareMenu
+                  isTeamAccount={isTeamAccount}
+                  copyState={copyState}
+                  onPlainShare={handleShare}
+                  onTemplateCopy={handleAttributedCopy}
+                />
+                <div className="justify-self-end">
                   {isOwnPost ? (
                     <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                       <DropdownMenuTrigger asChild>

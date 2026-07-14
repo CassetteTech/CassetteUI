@@ -165,8 +165,11 @@ export function MarketingFooter() {
         </div>
       </div>
 
-      {/* Reveal zone (md+) — the cassette rises here from the same sheet */}
-      <div aria-hidden className="hidden md:block h-[52vw] min-h-[13rem] max-h-[36rem]" />
+      {/* Reveal zone (md+) — the cassette rises here from the same sheet.
+          Sizing note: the engraving covers the whole footer, so this zone's
+          height sets the art's rendered scale until the viewport is wide
+          enough (~1500px) that width takes over and crops blank top paper. */}
+      <div aria-hidden className="hidden md:block h-[46vw] min-h-[13rem] max-h-[32rem]" />
 
       {/* Mobile: the whole engraving, uncropped. Its blank top paper tucks
           64px under the scrim fade (art ink starts ~39% down), and negative

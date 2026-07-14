@@ -73,6 +73,7 @@ for user-flow changes.
 - [Documentation Index](docs/README.md)
 - [Music API Setup](docs/music-api-setup.md)
 - [Music Conversion Test Flow](docs/music-conversion-test-flow.md)
+- [Release Email Ingestion](docs/release-email-ingestion.md)
 - [Signup URL Attribution Guide](docs/signup-attribution-guide.md)
 
 ## Release Notes
@@ -81,3 +82,4 @@ for user-flow changes.
 - Local development fetches fresh data on each request; deployed environments revalidate every 5 minutes.
 - `GITHUB_TOKEN` is optional and can be set for higher GitHub API limits or private repository access.
 - Run `npm run release:draft -- vX.Y.Z` from `CassetteUI` to create a draft GitHub release from `.github/release-draft-template.md`.
+- After publishing, use the manual release-email workflow described in [Release Email Ingestion](docs/release-email-ingestion.md) when a customer email should be queued.

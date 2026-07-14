@@ -21,6 +21,7 @@ interface FormData {
   username: string;
   displayName: string;
   avatarFile: File | null;
+  productUpdatesEnabled: boolean;
 }
 
 interface ConnectMusicStepProps {
@@ -30,6 +31,7 @@ interface ConnectMusicStepProps {
   onBack: () => void;
   isFirstStep: boolean;
   isLastStep: boolean;
+  submissionError?: string | null;
 }
 
 interface PlatformState {
@@ -61,6 +63,9 @@ export function ConnectMusicStep({
   onBack,
   onNext,
   isLastStep,
+  formData,
+  updateFormData,
+  submissionError,
 }: ConnectMusicStepProps) {
   const [platformStates, setPlatformStates] = useState<Record<ServiceId, PlatformState>>(createEmptyPlatformStates);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
@@ -347,6 +352,30 @@ export function ConnectMusicStep({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <Card className="p-4">
+        <div className="flex items-start justify-between gap-4">
+          <label
+            htmlFor="onboarding-product-updates-email"
+            className="text-sm leading-5 text-foreground"
+          >
+            Email me occasional Cassette product updates and release announcements. I can unsubscribe at any time.
+          </label>
+          <Switch
+            id="onboarding-product-updates-email"
+            checked={formData.productUpdatesEnabled}
+            onCheckedChange={(checked) => updateFormData({ productUpdatesEnabled: checked })}
+            aria-label="Email me Cassette product updates and release announcements"
+            data-testid="onboarding-product-updates-email"
+          />
+        </div>
+      </Card>
+
+      {submissionError && (
+        <p className="text-sm text-destructive" role="alert" data-testid="onboarding-submit-error">
+          {submissionError}
+        </p>
+      )}
 
       {/* Navigation */}
       <div className="flex justify-between pt-4">

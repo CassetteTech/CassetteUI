@@ -20,6 +20,8 @@ import { captureClientEvent } from '@/lib/analytics/client';
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
 import { authRedirectService } from '@/utils/auth-redirect';
 import { appLogger } from '@/lib/observability/logger';
+import { emailPreferencesService } from '@/services/email-preferences';
+import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 // Step definitions (excluding welcome and completion which are special)
 const STEPS = [
@@ -39,10 +41,12 @@ export default function OnboardingPage() {
   const [phase, setPhase] = useState<OnboardingPhase>('welcome');
   const [currentStep, setCurrentStep] = useState(0);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     username: '',
     displayName: '',
     avatarFile: null as File | null,
+    productUpdatesEnabled: false,
   });
 
   const consumeOnboardingDestination = useCallback(() => {
@@ -137,8 +141,14 @@ export default function OnboardingPage() {
 
   const handleFinish = useCallback(async () => {
     setPhase('submitting');
+    setSubmissionError(null);
 
     try {
+      await emailPreferencesService.updateProductUpdates(
+        formData.productUpdatesEnabled,
+        'onboarding',
+      );
+
       // Create FormData for file upload
       const form = new FormData();
       const normalizedUsername = formData.username.trim().toLowerCase();
@@ -216,7 +226,11 @@ export default function OnboardingPage() {
       }
     } catch (error) {
       appLogger.error('onboarding_completion_failed', { error, route: '/onboarding' });
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage = getUserFacingApiErrorMessage(
+        error,
+        'Failed to complete setup. Please try again.',
+      );
+      setSubmissionError(errorMessage);
       toast.error('Failed to complete setup', {
         description: errorMessage,
       });
@@ -274,7 +288,7 @@ export default function OnboardingPage() {
       case 'avatar':
         return <AvatarStep {...commonProps} avatarPreview={avatarPreview} />;
       case 'music':
-        return <ConnectMusicStep {...commonProps} />;
+        return <ConnectMusicStep {...commonProps} submissionError={submissionError} />;
       default:
         return null;
     }

@@ -31,6 +31,7 @@ const ALLOWED_KEYS = new Set<keyof AnalyticsBaseProps>([
   'role',
   'plan',
   'post_id',
+  'paid_promotion_campaign_id',
   'music_element_id',
   'status',
   'success',
@@ -170,6 +171,17 @@ export function sanitizeAnalyticsProps(input: Partial<AnalyticsBaseProps>): Part
     if (key === 'route_context') {
       const route = sanitizeRoute(rawValue);
       if (route) sanitized.route_context = route;
+      continue;
+    }
+
+    if (key === 'paid_promotion_campaign_id') {
+      if (
+        typeof rawValue === 'string' &&
+        rawValue.length <= 40 &&
+        /^pmc_[0-9A-Za-z]+$/.test(rawValue)
+      ) {
+        sanitized.paid_promotion_campaign_id = rawValue;
+      }
       continue;
     }
 

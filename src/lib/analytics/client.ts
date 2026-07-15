@@ -275,6 +275,7 @@ export function surfaceFromRoute(route?: string | null): SourceSurface {
   const path = route.split('?')[0];
   if (path === '/') return 'home';
   if (path.startsWith('/add-music')) return 'add_music';
+  if (path.startsWith('/promote')) return 'paid_promotion';
   if (path.startsWith('/post')) return 'post';
   if (path.startsWith('/profile')) return 'profile';
   if (path.startsWith('/onboarding')) return 'onboarding';

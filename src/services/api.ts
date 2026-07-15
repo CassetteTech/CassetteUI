@@ -36,6 +36,10 @@ import {
   NotificationListResponse,
   NotificationUnreadCountResponse,
   PostInsightsResponse,
+  CreatePaidPromotionCampaignRequest,
+  PaidPromotionCampaign,
+  PaidPromotionCheckoutSessionResponse,
+  PaidPromotionRateCardsResponse,
 } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent, surfaceFromRoute } from '@/lib/analytics/client';
@@ -372,6 +376,38 @@ class ApiService {
     } catch {
       return null;
     }
+  }
+
+  async getPaidPromotionRateCards(): Promise<PaidPromotionRateCardsResponse> {
+    return this.request<PaidPromotionRateCardsResponse>('/api/v1/paid-promotions/rate-cards');
+  }
+
+  async createPaidPromotionCampaign(
+    data: CreatePaidPromotionCampaignRequest
+  ): Promise<PaidPromotionCampaign> {
+    return this.request<PaidPromotionCampaign>('/api/v1/paid-promotions/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getPaidPromotionCampaign(
+    campaignId: string,
+    options?: { signal?: AbortSignal }
+  ): Promise<PaidPromotionCampaign> {
+    return this.request<PaidPromotionCampaign>(
+      `/api/v1/paid-promotions/campaigns/${encodeURIComponent(campaignId)}`,
+      { signal: options?.signal }
+    );
+  }
+
+  async createPaidPromotionCheckoutSession(
+    campaignId: string
+  ): Promise<PaidPromotionCheckoutSessionResponse> {
+    return this.request<PaidPromotionCheckoutSessionResponse>(
+      `/api/v1/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/checkout-session`,
+      { method: 'POST' }
+    );
   }
 
   // Profile endpoints

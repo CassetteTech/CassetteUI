@@ -268,6 +268,103 @@ export interface ConvertLifecycleResponse {
   correlationId?: string;
 }
 
+export type PaidPromotionPromoterKind =
+  | 'artist'
+  | 'manager'
+  | 'label'
+  | 'agency'
+  | 'other';
+
+export type PaidPromotionAttestedRelationship =
+  | 'self_artist'
+  | 'manager'
+  | 'label'
+  | 'agency'
+  | 'other';
+
+export type PaidPromotionCampaignStatus =
+  | 'draft'
+  | 'pending_payment'
+  | 'in_review'
+  | 'scheduled'
+  | 'fulfilling'
+  | 'delivered'
+  | 'completed'
+  | 'expired'
+  | 'canceled'
+  | 'rejected'
+  | 'refunded_closed'
+  | 'on_hold';
+
+export type PaidPromotionPaymentStatus =
+  | 'created'
+  | 'pending'
+  | 'processing'
+  | 'paid'
+  | 'expired'
+  | 'failed'
+  | 'refund_pending'
+  | 'partially_refunded'
+  | 'refunded'
+  | 'disputed'
+  | 'charged_back';
+
+export interface PaidPromotionRateCard {
+  id: string;
+  packageKey: string;
+  version: number;
+  displayName: string;
+  description: string;
+  amountMinor: number;
+  currency: string;
+}
+
+export interface PaidPromotionAttestation {
+  version: string;
+  text: string;
+}
+
+export interface PaidPromotionRateCardsResponse {
+  rateCards: PaidPromotionRateCard[];
+  attestation: PaidPromotionAttestation;
+}
+
+export interface CreatePaidPromotionCampaignRequest {
+  trackId: string;
+  submittedUrl: string;
+  rateCardId: string;
+  brief: string;
+  requestedWindowStart?: string;
+  requestedWindowEnd?: string;
+  promoterKind: PaidPromotionPromoterKind;
+  orgName?: string;
+  website?: string;
+  attestationAccepted: boolean;
+  attestedRelationship: PaidPromotionAttestedRelationship;
+}
+
+export interface PaidPromotionCampaign {
+  id: string;
+  trackId: string;
+  sourcePlatform: 'spotify' | 'applemusic' | 'deezer';
+  rateCardId: string;
+  amountMinor: number;
+  currency: string;
+  status: PaidPromotionCampaignStatus;
+  paymentStatus: PaidPromotionPaymentStatus | null;
+  requestedWindowStart: string | null;
+  requestedWindowEnd: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export interface PaidPromotionCheckoutSessionResponse {
+  campaignId: string;
+  paymentId: string;
+  checkoutUrl: string;
+  paymentStatus: PaidPromotionPaymentStatus;
+}
+
 // API Response type for playlist creation (snake_case to match backend JSON)
 export interface CreatePlaylistResponse {
   success: boolean;

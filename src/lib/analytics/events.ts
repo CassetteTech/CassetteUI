@@ -3,6 +3,7 @@ export type PlatformDimension = 'spotify' | 'apple' | 'deezer' | 'unknown';
 export type SourceSurface =
   | 'home'
   | 'add_music'
+  | 'paid_promotion'
   | 'post'
   | 'post_direct'
   | 'profile'
@@ -69,6 +70,10 @@ export type AnalyticsEventName =
   | 'search_submitted'
   | 'search_result_selected'
   | 'conversion_entry_started'
+  | 'paid_promotion_intake_started'
+  | 'paid_promotion_campaign_submitted'
+  | 'paid_promotion_checkout_started'
+  | 'paid_promotion_checkout_returned'
   | 'issue_report_submitted'
   | 'issue_reported'
   | 'issue_report_failed';
@@ -85,6 +90,7 @@ export type AnalyticsBaseProps = {
   role?: string;
   plan?: string;
   post_id?: string;
+  paid_promotion_campaign_id?: string;
   music_element_id?: string;
   status?: 'submitted' | 'succeeded' | 'failed';
   success?: boolean;

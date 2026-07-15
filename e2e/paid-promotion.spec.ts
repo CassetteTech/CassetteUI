@@ -14,7 +14,15 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
     currentUser: fixtureUsers.member,
     paidPromotionPollSequence: [
       { status: 'pending_payment', paymentStatus: 'pending' },
-      { status: 'in_review', paymentStatus: 'paid' },
+      {
+        status: 'in_review',
+        paymentStatus: 'paid',
+        discountAmountMinor: 5000,
+        taxAmountMinor: 1500,
+        finalTotalMinor: 21500,
+        amountRefundedMinor: 0,
+        refundableRemainderMinor: 21500,
+      },
     ],
   });
 
@@ -45,8 +53,13 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
     request.method() === 'POST' &&
     new URL(request.url()).pathname === '/api/v1/paid-promotions/campaigns',
   );
+  const checkoutRequestPromise = page.waitForRequest((request) =>
+    request.method() === 'POST' &&
+    new URL(request.url()).pathname.endsWith('/checkout-session'),
+  );
   await page.getByTestId('paid-promotion-submit').click();
   const campaignRequest = await campaignRequestPromise;
+  const checkoutRequest = await checkoutRequestPromise;
   const campaignPayload = campaignRequest.postDataJSON() as Record<string, unknown>;
 
   expect(campaignPayload.trackId).toBe(fixtureConvertTemplates.paidPromotionTrack.musicElementId);
@@ -55,6 +68,11 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
   expect(campaignPayload).not.toHaveProperty('amountMinor');
   expect(campaignPayload).not.toHaveProperty('currency');
   expect(campaignPayload).not.toHaveProperty('attestationVersion');
+  expect(campaignPayload).not.toHaveProperty('price');
+  expect(campaignPayload).not.toHaveProperty('couponId');
+  expect(campaignPayload).not.toHaveProperty('promotionCodeId');
+  expect(campaignPayload).not.toHaveProperty('finalTotalMinor');
+  expect(checkoutRequest.postData()).toBeNull();
 
   await expect(page).toHaveURL(
     new RegExp(`/promote/${fixturePaidPromotionCampaign.id}/return\\?session_id=`),
@@ -62,6 +80,12 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
   await expect(page.getByRole('heading', { name: 'Waiting for payment confirmation' }))
     .toBeVisible();
   await expect(page.getByRole('heading', { name: 'Payment received' })).toBeVisible();
+  await expect(page.getByText('Discount', { exact: true }).locator('..'))
+    .toContainText('USD 50.00');
+  await expect(page.getByText('Tax', { exact: true }).locator('..'))
+    .toContainText('USD 15.00');
+  await expect(page.getByText('Final total', { exact: true }).locator('..'))
+    .toContainText('USD 215.00');
 });
 
 test('redirects anonymous paid-promotion intake visitors through the existing auth return flow', async ({
@@ -95,6 +119,47 @@ for (const expected of [
     await expect(page.getByRole('heading', { name: expected.heading })).toBeVisible();
   });
 }
+
+test('shows a zero-total campaign as paid and visibly non-refundable', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    paidPromotionCampaign: {
+      ...fixturePaidPromotionCampaign,
+      status: 'in_review',
+      paymentStatus: 'paid',
+      discountAmountMinor: fixturePaidPromotionCampaign.amountMinor,
+      taxAmountMinor: 0,
+      finalTotalMinor: 0,
+      amountRefundedMinor: 0,
+      refundableRemainderMinor: 0,
+    },
+  });
+
+  await page.goto(`/promote/${fixturePaidPromotionCampaign.id}/return`);
+
+  await expect(page.getByRole('heading', { name: 'Payment received' })).toBeVisible();
+  await expect(page.getByText('This zero-total campaign has no refundable charge.')).toBeVisible();
+  await expect(page.getByText('Final total', { exact: true }).locator('..')).toContainText('USD 0.00');
+});
+
+test('fails visibly when a paid campaign has unknown checkout totals', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    paidPromotionCampaign: {
+      ...fixturePaidPromotionCampaign,
+      status: 'in_review',
+      paymentStatus: 'paid',
+    },
+  });
+
+  await page.goto(`/promote/${fixturePaidPromotionCampaign.id}/return`);
+
+  await expect(page.getByRole('heading', { name: 'Payment status unavailable' })).toBeVisible();
+  await expect(page.getByRole('alert').filter({
+    hasText: 'Final checkout totals are unavailable',
+  })).toBeVisible();
+  await expect(page.getByText('Final total', { exact: true }).locator('..')).toContainText('Unavailable');
+});
 
 test('keeps paid-promotion intake within a narrow mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 667 });

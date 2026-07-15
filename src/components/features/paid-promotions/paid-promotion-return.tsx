@@ -21,6 +21,7 @@ import { captureClientEvent } from '@/lib/analytics/client';
 import { apiService } from '@/services/api';
 import {
   getPaidPromotionReturnState,
+  hasKnownPaidPromotionCheckoutTotals,
   isPaidPromotionCampaignId,
   type PaidPromotionReturnState,
 } from '@/services/paid-promotion-lifecycle';
@@ -118,6 +119,9 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
 
   const state = campaign ? getPaidPromotionReturnState(campaign) : null;
   const presentation = state ? RETURN_STATE_PRESENTATIONS[state] : null;
+  const hasKnownCheckoutTotals = campaign
+    ? hasKnownPaidPromotionCheckoutTotals(campaign)
+    : false;
 
   const reopenCheckout = async () => {
     if (!campaign || isOpeningCheckout) return;
@@ -218,6 +222,48 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
                   <p className="mt-1 break-all font-mono text-xs text-foreground">{campaign.id}</p>
                 </div>
 
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border border-border p-4 text-sm">
+                  <MoneyRow
+                    label="Quote / subtotal"
+                    value={formatMoney(campaign.amountMinor, campaign.currency)}
+                  />
+                  <MoneyRow
+                    label="Discount"
+                    value={formatCheckoutMoney(campaign.discountAmountMinor, campaign.currency)}
+                  />
+                  <MoneyRow
+                    label="Tax"
+                    value={formatCheckoutMoney(campaign.taxAmountMinor, campaign.currency)}
+                  />
+                  <MoneyRow
+                    label="Final total"
+                    value={formatCheckoutMoney(campaign.finalTotalMinor, campaign.currency)}
+                  />
+                  <MoneyRow
+                    label="Refunded amount"
+                    value={formatCheckoutMoney(campaign.amountRefundedMinor, campaign.currency)}
+                  />
+                  <MoneyRow
+                    label="Refundable remainder"
+                    value={formatCheckoutMoney(campaign.refundableRemainderMinor, campaign.currency)}
+                  />
+                </dl>
+
+                {!hasKnownCheckoutTotals && (
+                  <p
+                    role={campaign.paymentStatus === 'paid' ? 'alert' : 'status'}
+                    className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+                  >
+                    Final checkout totals are unavailable. Cassette is not treating the quote as the amount charged.
+                  </p>
+                )}
+
+                {campaign.finalTotalMinor === 0 && (
+                  <p className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    This zero-total campaign has no refundable charge.
+                  </p>
+                )}
+
                 {(state === 'pending' || state === 'failed' || state === 'expired') && (
                   <div className="space-y-3">
                     <Button
@@ -255,6 +301,23 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
           </CardContent>
         </Card>
       </section>
+    </div>
+  );
+}
+
+function formatMoney(amountMinor: number, currency: string): string {
+  return `${currency.toUpperCase()} ${(amountMinor / 100).toFixed(2)}`;
+}
+
+function formatCheckoutMoney(amountMinor: number | null, currency: string): string {
+  return amountMinor === null ? 'Unavailable' : formatMoney(amountMinor, currency);
+}
+
+function MoneyRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-1 font-medium text-foreground">{value}</dd>
     </div>
   );
 }

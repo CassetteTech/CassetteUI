@@ -35,7 +35,11 @@ function campaignDetail(): Record<string, unknown> {
       id: 'pmp_TestPayment1',
       amountMinor: 25000,
       currency: 'USD',
+      discountAmountMinor: 5000,
+      taxAmountMinor: 1500,
+      finalTotalMinor: 21500,
       amountRefundedMinor: 0,
+      refundableRemainderMinor: 21500,
       status: 'paid',
       statusChangedAtUtc: timestamp,
       paidAtUtc: timestamp,
@@ -110,6 +114,42 @@ void test('rejects incomplete quote pairs and unsafe evidence URLs', () => {
   );
 });
 
+void test('validates coordinated checkout totals and preserves explicit unknown totals', () => {
+  const discounted = parseInternalPaidPromotionCampaignDetail(campaignDetail());
+  assert.equal(discounted.payment?.finalTotalMinor, 21500);
+  assert.equal(discounted.payment?.refundableRemainderMinor, 21500);
+
+  const inconsistent = campaignDetail();
+  inconsistent.payment = {
+    ...(inconsistent.payment as Record<string, unknown>),
+    finalTotalMinor: 22000,
+  };
+  assert.throws(
+    () => parseInternalPaidPromotionCampaignDetail(inconsistent),
+    /campaign\.payment\.finalTotalMinor/,
+  );
+
+  const partial = campaignDetail();
+  partial.payment = {
+    ...(partial.payment as Record<string, unknown>),
+    taxAmountMinor: null,
+  };
+  assert.throws(
+    () => parseInternalPaidPromotionCampaignDetail(partial),
+    /campaign\.payment\.checkoutTotals/,
+  );
+
+  const unknown = campaignDetail();
+  unknown.payment = {
+    ...(unknown.payment as Record<string, unknown>),
+    discountAmountMinor: null,
+    taxAmountMinor: null,
+    finalTotalMinor: null,
+    refundableRemainderMinor: null,
+  };
+  assert.equal(parseInternalPaidPromotionCampaignDetail(unknown).payment?.finalTotalMinor, null);
+});
+
 void test('validates queue states before rendering them', () => {
   const summary = {
     id: 'pmc_TestCampaign1',
@@ -138,13 +178,16 @@ void test('accepts only refund_pending initiation truth without changing refunde
     campaignId: 'pmc_TestCampaign1',
     paymentId: 'pmp_TestPayment1',
     paymentStatus: 'refund_pending',
+    finalTotalMinor: 21500,
     amountRefundedMinor: 0,
+    refundableRemainderMinor: 21500,
     updatedAtUtc: timestamp,
   };
 
   const parsed = parseInternalPaidPromotionRefund(response);
   assert.equal(parsed.paymentStatus, 'refund_pending');
   assert.equal(parsed.amountRefundedMinor, 0);
+  assert.equal(parsed.refundableRemainderMinor, 21500);
   assert.throws(
     () => parseInternalPaidPromotionRefund({ ...response, paymentStatus: 'partially_refunded' }),
     /refund\.paymentStatus/,
@@ -152,5 +195,9 @@ void test('accepts only refund_pending initiation truth without changing refunde
   assert.throws(
     () => parseInternalPaidPromotionRefund({ ...response, paymentStatus: 'refunded' }),
     /refund\.paymentStatus/,
+  );
+  assert.throws(
+    () => parseInternalPaidPromotionRefund({ ...response, refundableRemainderMinor: 20000 }),
+    /refund\.refundableRemainderMinor/,
   );
 });

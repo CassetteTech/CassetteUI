@@ -3,6 +3,10 @@ import { Field, Panel, StatusPill } from '@/app/(sidebar)/internal/_components/k
 import type { InternalPaidPromotionCampaignDetail } from '@/types';
 import { formatDate, formatMoney, formatState, statusTone } from './paid-promotion-utils';
 
+function formatCheckoutMoney(amountMinor: number | null, currency: string): string {
+  return amountMinor === null ? 'Unavailable' : formatMoney(amountMinor, currency);
+}
+
 export function CampaignOverview({ campaign }: { campaign: InternalPaidPromotionCampaignDetail }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
@@ -45,7 +49,7 @@ export function CampaignOverview({ campaign }: { campaign: InternalPaidPromotion
 
       <Panel title="Quote" bodyClassName="divide-y divide-border px-4 py-2">
         <Field label="Pricing mode">{formatState(campaign.pricingMode)}</Field>
-        <Field label="Current quote">{formatMoney(campaign.amountMinor, campaign.currency)}</Field>
+        <Field label="Quote / subtotal">{formatMoney(campaign.amountMinor, campaign.currency)}</Field>
         <Field label="Rate source">{campaign.rateCardId ?? 'Immutable snapshot'}</Field>
         <Field label="Audit snapshots">{campaign.pricingSnapshots.length}</Field>
       </Panel>
@@ -59,14 +63,37 @@ export function CampaignOverview({ campaign }: { campaign: InternalPaidPromotion
                 label={formatState(campaign.payment.status)}
               />
             </Field>
-            <Field label="Paid amount">
+            <Field label="Quote / subtotal">
               {formatMoney(campaign.payment.amountMinor, campaign.payment.currency)}
             </Field>
-            <Field label="Refunded by webhook">
+            <Field label="Discount">
+              {formatCheckoutMoney(campaign.payment.discountAmountMinor, campaign.payment.currency)}
+            </Field>
+            <Field label="Tax">
+              {formatCheckoutMoney(campaign.payment.taxAmountMinor, campaign.payment.currency)}
+            </Field>
+            <Field label="Final total">
+              {formatCheckoutMoney(campaign.payment.finalTotalMinor, campaign.payment.currency)}
+            </Field>
+            <Field label="Refunded amount">
               {formatMoney(campaign.payment.amountRefundedMinor, campaign.payment.currency)}
+            </Field>
+            <Field label="Refundable remainder">
+              {formatCheckoutMoney(campaign.payment.refundableRemainderMinor, campaign.payment.currency)}
             </Field>
             <Field label="Paid at">{formatDate(campaign.payment.paidAtUtc)}</Field>
             <Field label="Updated">{formatDate(campaign.payment.updatedAtUtc)}</Field>
+            {campaign.payment.finalTotalMinor === null && (
+              <p role="alert" className="py-2 text-xs text-destructive">
+                Checkout totals are unavailable. The quote is not being treated as the charged amount,
+                and this payment cannot be refunded from this console.
+              </p>
+            )}
+            {campaign.payment.finalTotalMinor === 0 && (
+              <p className="py-2 text-xs text-muted-foreground">
+                This zero-total campaign has no refundable charge.
+              </p>
+            )}
             {campaign.payment.status === 'refund_pending' && (
               <p className="py-2 text-xs text-[hsl(var(--warning-text))]">
                 Refund initiation is pending. Refunded totals and closure remain webhook-owned.

@@ -37,6 +37,11 @@ type MockCassetteOptions = {
   paidPromotionPollSequence?: Array<{
     status: string;
     paymentStatus: string | null;
+    discountAmountMinor?: number | null;
+    taxAmountMinor?: number | null;
+    finalTotalMinor?: number | null;
+    amountRefundedMinor?: number | null;
+    refundableRemainderMinor?: number | null;
   }>;
   paidPromotionCheckoutUrl?: string;
   internalPaidPromotionCampaign?: FixtureInternalPaidPromotionCampaign;
@@ -80,6 +85,11 @@ type MockState = {
   paidPromotionPollSequence: Array<{
     status: string;
     paymentStatus: string | null;
+    discountAmountMinor?: number | null;
+    taxAmountMinor?: number | null;
+    finalTotalMinor?: number | null;
+    amountRefundedMinor?: number | null;
+    refundableRemainderMinor?: number | null;
   }>;
   paidPromotionCheckoutUrl?: string;
   internalPaidPromotionCampaign: FixtureInternalPaidPromotionCampaign;
@@ -758,7 +768,8 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         if (state.internalPaidPromotionRefundRaceStatus) {
           campaign.payment.status = state.internalPaidPromotionRefundRaceStatus;
           if (state.internalPaidPromotionRefundRaceStatus === 'refunded') {
-            campaign.payment.amountRefundedMinor = campaign.payment.amountMinor;
+            campaign.payment.amountRefundedMinor = campaign.payment.finalTotalMinor ?? 0;
+            campaign.payment.refundableRemainderMinor = 0;
           }
           return json(route, {
             message: 'The paid-promotion payment changed while the refund was being initiated.',
@@ -770,7 +781,9 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
           campaignId: campaign.id,
           paymentId: campaign.payment.id,
           paymentStatus: 'refund_pending',
+          finalTotalMinor: campaign.payment.finalTotalMinor,
           amountRefundedMinor: campaign.payment.amountRefundedMinor,
+          refundableRemainderMinor: campaign.payment.refundableRemainderMinor,
           updatedAtUtc: campaign.payment.updatedAtUtc,
         });
       }

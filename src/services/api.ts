@@ -60,6 +60,7 @@ import {
   createLifecycleConversionPlaceholder,
   getLifecycleConversionFailureMessage,
 } from './conversion-lifecycle';
+import { parsePaidPromotionCampaign } from './paid-promotion-lifecycle';
 
 // interface MusicConnection {
 //   id: string;
@@ -392,20 +393,22 @@ class ApiService {
   async createPaidPromotionCampaign(
     data: CreatePaidPromotionCampaignRequest
   ): Promise<PaidPromotionCampaign> {
-    return this.request<PaidPromotionCampaign>('/api/v1/paid-promotions/campaigns', {
+    const response = await this.request<unknown>('/api/v1/paid-promotions/campaigns', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    return parsePaidPromotionCampaign(response);
   }
 
   async getPaidPromotionCampaign(
     campaignId: string,
     options?: { signal?: AbortSignal }
   ): Promise<PaidPromotionCampaign> {
-    return this.request<PaidPromotionCampaign>(
+    const response = await this.request<unknown>(
       `/api/v1/paid-promotions/campaigns/${encodeURIComponent(campaignId)}`,
       { signal: options?.signal }
     );
+    return parsePaidPromotionCampaign(response);
   }
 
   async createPaidPromotionCheckoutSession(

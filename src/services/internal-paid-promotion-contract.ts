@@ -161,14 +161,37 @@ function parseTrack(value: unknown, path: string): InternalPaidPromotionTrack {
 function parsePayment(value: unknown, path: string): InternalPaidPromotionPayment {
   const item = record(value, path);
   const amountMinor = integer(item.amountMinor, `${path}.amountMinor`);
+  const discountAmountMinor = nullableInteger(item.discountAmountMinor, `${path}.discountAmountMinor`);
+  const taxAmountMinor = nullableInteger(item.taxAmountMinor, `${path}.taxAmountMinor`);
+  const finalTotalMinor = nullableInteger(item.finalTotalMinor, `${path}.finalTotalMinor`);
   const amountRefundedMinor = integer(item.amountRefundedMinor, `${path}.amountRefundedMinor`);
-  if (amountRefundedMinor > amountMinor) invalid(`${path}.amountRefundedMinor`);
+  const refundableRemainderMinor = nullableInteger(
+    item.refundableRemainderMinor,
+    `${path}.refundableRemainderMinor`,
+  );
+  const totals = [discountAmountMinor, taxAmountMinor, finalTotalMinor, refundableRemainderMinor];
+  const knownCount = totals.filter((total) => total !== null).length;
+  if (knownCount !== 0 && knownCount !== totals.length) invalid(`${path}.checkoutTotals`);
+  if (knownCount === totals.length) {
+    if (discountAmountMinor! > amountMinor) invalid(`${path}.discountAmountMinor`);
+    if (finalTotalMinor !== amountMinor - discountAmountMinor! + taxAmountMinor!) {
+      invalid(`${path}.finalTotalMinor`);
+    }
+    if (amountRefundedMinor > finalTotalMinor! ||
+        refundableRemainderMinor !== finalTotalMinor! - amountRefundedMinor) {
+      invalid(`${path}.refundableRemainderMinor`);
+    }
+  }
 
   return {
     id: string(item.id, `${path}.id`),
     amountMinor,
     currency: string(item.currency, `${path}.currency`),
+    discountAmountMinor,
+    taxAmountMinor,
+    finalTotalMinor,
     amountRefundedMinor,
+    refundableRemainderMinor,
     status: member(item.status, PAID_PROMOTION_PAYMENT_STATUSES, `${path}.status`),
     statusChangedAtUtc: dateString(item.statusChangedAtUtc, `${path}.statusChangedAtUtc`),
     paidAtUtc: nullableDateString(item.paidAtUtc, `${path}.paidAtUtc`),
@@ -317,11 +340,25 @@ export function parseInternalPaidPromotionRefund(
   const item = record(value, 'refund');
   const paymentStatus = member(item.paymentStatus, PAID_PROMOTION_PAYMENT_STATUSES, 'refund.paymentStatus');
   if (paymentStatus !== 'refund_pending') invalid('refund.paymentStatus');
+  const finalTotalMinor = nullableInteger(item.finalTotalMinor, 'refund.finalTotalMinor');
+  const amountRefundedMinor = integer(item.amountRefundedMinor, 'refund.amountRefundedMinor');
+  const refundableRemainderMinor = nullableInteger(
+    item.refundableRemainderMinor,
+    'refund.refundableRemainderMinor',
+  );
+  if ((finalTotalMinor === null) !== (refundableRemainderMinor === null)) invalid('refund.checkoutTotals');
+  if (finalTotalMinor !== null &&
+      (amountRefundedMinor > finalTotalMinor ||
+       refundableRemainderMinor !== finalTotalMinor - amountRefundedMinor)) {
+    invalid('refund.refundableRemainderMinor');
+  }
   return {
     campaignId: string(item.campaignId, 'refund.campaignId'),
     paymentId: string(item.paymentId, 'refund.paymentId'),
     paymentStatus,
-    amountRefundedMinor: integer(item.amountRefundedMinor, 'refund.amountRefundedMinor'),
+    finalTotalMinor,
+    amountRefundedMinor,
+    refundableRemainderMinor,
     updatedAtUtc: dateString(item.updatedAtUtc, 'refund.updatedAtUtc'),
   };
 }

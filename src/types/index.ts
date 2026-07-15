@@ -352,6 +352,11 @@ export interface PaidPromotionCampaign {
   currency: string;
   status: PaidPromotionCampaignStatus;
   paymentStatus: PaidPromotionPaymentStatus | null;
+  discountAmountMinor: number | null;
+  taxAmountMinor: number | null;
+  finalTotalMinor: number | null;
+  amountRefundedMinor: number | null;
+  refundableRemainderMinor: number | null;
   requestedWindowStart: string | null;
   requestedWindowEnd: string | null;
   createdAtUtc: string;
@@ -418,7 +423,11 @@ export interface InternalPaidPromotionPayment {
   id: string;
   amountMinor: number;
   currency: string;
+  discountAmountMinor: number | null;
+  taxAmountMinor: number | null;
+  finalTotalMinor: number | null;
   amountRefundedMinor: number;
+  refundableRemainderMinor: number | null;
   status: PaidPromotionPaymentStatus;
   statusChangedAtUtc: string;
   paidAtUtc: string | null;
@@ -493,7 +502,9 @@ export interface InternalPaidPromotionRefundResponse {
   campaignId: string;
   paymentId: string;
   paymentStatus: PaidPromotionPaymentStatus;
+  finalTotalMinor: number | null;
   amountRefundedMinor: number;
+  refundableRemainderMinor: number | null;
   updatedAtUtc: string;
 }
 

@@ -116,6 +116,11 @@ export interface FixturePaidPromotionCampaign {
   currency: string;
   status: string;
   paymentStatus: string | null;
+  discountAmountMinor: number | null;
+  taxAmountMinor: number | null;
+  finalTotalMinor: number | null;
+  amountRefundedMinor: number | null;
+  refundableRemainderMinor: number | null;
   requestedWindowStart: string | null;
   requestedWindowEnd: string | null;
   createdAtUtc: string;
@@ -170,7 +175,11 @@ export interface FixtureInternalPaidPromotionCampaign {
     id: string;
     amountMinor: number;
     currency: string;
+    discountAmountMinor: number | null;
+    taxAmountMinor: number | null;
+    finalTotalMinor: number | null;
     amountRefundedMinor: number;
+    refundableRemainderMinor: number | null;
     status: string;
     statusChangedAtUtc: string;
     paidAtUtc: string | null;
@@ -408,6 +417,11 @@ export const fixturePaidPromotionCampaign: FixturePaidPromotionCampaign = {
   currency: fixturePaidPromotionRateCards[0].currency,
   status: 'pending_payment',
   paymentStatus: 'pending',
+  discountAmountMinor: null,
+  taxAmountMinor: null,
+  finalTotalMinor: null,
+  amountRefundedMinor: 0,
+  refundableRemainderMinor: null,
   requestedWindowStart: null,
   requestedWindowEnd: null,
   createdAtUtc: FIXTURE_TIMESTAMP,
@@ -439,7 +453,11 @@ export const fixtureInternalPaidPromotionCampaign: FixtureInternalPaidPromotionC
     id: 'pmp_FixturePayment01',
     amountMinor: fixturePaidPromotionRateCards[0].amountMinor,
     currency: fixturePaidPromotionRateCards[0].currency,
+    discountAmountMinor: 5000,
+    taxAmountMinor: 1500,
+    finalTotalMinor: 21500,
     amountRefundedMinor: 0,
+    refundableRemainderMinor: 21500,
     status: 'paid',
     statusChangedAtUtc: FIXTURE_TIMESTAMP,
     paidAtUtc: FIXTURE_TIMESTAMP,

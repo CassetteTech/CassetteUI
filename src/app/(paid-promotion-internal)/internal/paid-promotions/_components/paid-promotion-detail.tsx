@@ -62,7 +62,8 @@ function nextLifecycleAction(campaign: InternalPaidPromotionCampaignDetail): Lif
 
 function canRefund(campaign: InternalPaidPromotionCampaignDetail): boolean {
   if (!campaign.payment || !['paid', 'partially_refunded'].includes(campaign.payment.status)) return false;
-  if (campaign.payment.amountRefundedMinor >= campaign.payment.amountMinor) return false;
+  if (campaign.payment.refundableRemainderMinor === null ||
+      campaign.payment.refundableRemainderMinor <= 0) return false;
   return ['in_review', 'scheduled', 'fulfilling', 'delivered', 'completed', 'rejected'].includes(campaign.status);
 }
 
@@ -184,8 +185,8 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
       setError('Refund amount must be a positive whole number of minor currency units.');
       return;
     }
-    if (amountMinor !== undefined && amountMinor > remainingRefundMinor) {
-      setError(`Refund amount cannot exceed the remaining ${remainingRefundMinor} minor units.`);
+    if (amountMinor !== undefined && amountMinor > refundableRemainderMinor) {
+      setError(`Refund amount cannot exceed the server-returned remainder of ${refundableRemainderMinor} minor units.`);
       return;
     }
     void runMutation(
@@ -244,9 +245,7 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
     ['in_review', 'scheduled', 'fulfilling', 'delivered'].includes(campaign.status);
   const canManualQuote = campaign.status === 'pending_payment' &&
     (!campaign.payment || ['expired', 'failed'].includes(campaign.payment.status));
-  const remainingRefundMinor = campaign.payment
-    ? campaign.payment.amountMinor - campaign.payment.amountRefundedMinor
-    : 0;
+  const refundableRemainderMinor = campaign.payment?.refundableRemainderMinor ?? 0;
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
@@ -410,9 +409,9 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
             type="number"
             inputMode="numeric"
             min={1}
-            max={remainingRefundMinor}
+            max={refundableRemainderMinor}
             step={1}
-            placeholder={`Up to ${remainingRefundMinor}`}
+            placeholder={`Up to ${refundableRemainderMinor}`}
             value={refundAmount}
             onChange={(event) => setRefundAmount(event.target.value)}
           />

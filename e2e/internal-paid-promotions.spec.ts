@@ -34,6 +34,16 @@ test('renders the team queue once, filters it, and shows complete campaign detai
   await expect(page.getByText('Focus on the release story and live arrangement.')).toBeVisible();
   await expect(page.getByText('Self Artist', { exact: true })).toBeVisible();
   await expect(page.getByText('Paid', { exact: true })).toBeVisible();
+  await expect(page.getByText('Quote / subtotal', { exact: true }).last().locator('..'))
+    .toContainText('USD 250.00');
+  await expect(page.getByText('Discount', { exact: true }).locator('..'))
+    .toContainText('USD 50.00');
+  await expect(page.getByText('Tax', { exact: true }).locator('..'))
+    .toContainText('USD 15.00');
+  await expect(page.getByText('Final total', { exact: true }).locator('..'))
+    .toContainText('USD 215.00');
+  await expect(page.getByText('Refundable remainder', { exact: true }).locator('..'))
+    .toContainText('USD 215.00');
   await expect(page.getByText('Instagram', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Stuck Pending', { exact: true })).toBeVisible();
 });
@@ -160,9 +170,96 @@ test('reloads webhook-owned truth when refund initiation loses a race', async ({
     hasText: 'changed while the refund was being initiated',
   })).toBeVisible();
   await expect(page.getByText('Refunded', { exact: true })).toBeVisible();
-  await expect(page.getByText('Refunded by webhook').locator('..')
-    .getByText('USD 250.00', { exact: true })).toBeVisible();
+  await expect(page.getByText('Refunded amount').locator('..')
+    .getByText('USD 215.00', { exact: true })).toBeVisible();
   await expect(page.getByText('Refund Pending', { exact: true })).toHaveCount(0);
+});
+
+test('validates partial refunds against only the server-returned remainder', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.team,
+    internalPaidPromotionCampaign: {
+      ...fixtureInternalPaidPromotionCampaign,
+      payment: {
+        ...fixtureInternalPaidPromotionCampaign.payment!,
+        amountRefundedMinor: 17500,
+        refundableRemainderMinor: 4000,
+        status: 'partially_refunded',
+      },
+    },
+  });
+  await page.goto('/internal/paid-promotions/' + fixturePaidPromotionCampaign.id);
+
+  await page.getByRole('button', { name: 'Initiate refund' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Initiate refund' });
+  await dialog.getByLabel('Amount in minor units (optional)').fill('4001');
+  await dialog.getByRole('button', { name: 'Initiate refund' }).click();
+  await expect(dialog.getByRole('alert')).toContainText('server-returned remainder of 4000 minor units');
+
+  await dialog.getByLabel('Amount in minor units (optional)').fill('4000');
+  const refundRequest = page.waitForRequest((request) =>
+    request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/refund'),
+  );
+  await dialog.getByRole('button', { name: 'Initiate refund' }).click();
+  expect((await refundRequest).postDataJSON()).toEqual({ amountMinor: 4000 });
+});
+
+test('shows zero-total and unknown checkout totals as non-refundable', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.team,
+    internalPaidPromotionCampaign: {
+      ...fixtureInternalPaidPromotionCampaign,
+      payment: {
+        ...fixtureInternalPaidPromotionCampaign.payment!,
+        discountAmountMinor: fixtureInternalPaidPromotionCampaign.payment!.amountMinor,
+        taxAmountMinor: 0,
+        finalTotalMinor: 0,
+        amountRefundedMinor: 0,
+        refundableRemainderMinor: 0,
+      },
+    },
+  });
+  await page.goto('/internal/paid-promotions/' + fixturePaidPromotionCampaign.id);
+
+  await expect(page.getByText('This zero-total campaign has no refundable charge.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Initiate refund' })).toBeDisabled();
+
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.team,
+    internalPaidPromotionCampaign: {
+      ...fixtureInternalPaidPromotionCampaign,
+      payment: {
+        ...fixtureInternalPaidPromotionCampaign.payment!,
+        discountAmountMinor: null,
+        taxAmountMinor: null,
+        finalTotalMinor: null,
+        refundableRemainderMinor: null,
+      },
+    },
+  });
+  await page.reload();
+
+  await expect(page.getByRole('alert').filter({ hasText: 'Checkout totals are unavailable' }))
+    .toBeVisible();
+  await expect(page.getByRole('button', { name: 'Initiate refund' })).toBeDisabled();
+});
+
+test('rejects arithmetically inconsistent checkout totals visibly', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.team,
+    internalPaidPromotionCampaign: {
+      ...fixtureInternalPaidPromotionCampaign,
+      payment: {
+        ...fixtureInternalPaidPromotionCampaign.payment!,
+        finalTotalMinor: 22000,
+      },
+    },
+  });
+  await page.goto('/internal/paid-promotions/' + fixturePaidPromotionCampaign.id);
+
+  await expect(page.getByRole('alert').filter({
+    hasText: 'Campaign detail could not be shown.',
+  })).toContainText('Invalid paid-promotion server response: campaign.payment.finalTotalMinor');
 });
 
 test('verifies exceptions against server detail before resolving them', async ({ page }) => {

@@ -2,9 +2,15 @@ import type { Page, Route } from '@playwright/test';
 import {
   FIXTURE_TIMESTAMP,
   FixturePost,
+  FixtureInternalPaidPromotionCampaign,
+  FixturePaidPromotionCampaign,
+  FixturePaidPromotionRateCard,
   FixtureSearchResults,
   FixtureUser,
   fixtureConvertTemplates,
+  fixtureInternalPaidPromotionCampaign,
+  fixturePaidPromotionCampaign,
+  fixturePaidPromotionRateCards,
   fixtureSearchResultsByQuery,
   fixtureTopCharts,
   fixtureUsernameAvailability,
@@ -26,6 +32,15 @@ type MockCassetteOptions = {
   profileUpdateFailures?: number;
   issueReportFailures?: number;
   googleAuthInitFailures?: number;
+  paidPromotionRateCards?: FixturePaidPromotionRateCard[];
+  paidPromotionCampaign?: FixturePaidPromotionCampaign;
+  paidPromotionPollSequence?: Array<{
+    status: string;
+    paymentStatus: string | null;
+  }>;
+  paidPromotionCheckoutUrl?: string;
+  internalPaidPromotionCampaign?: FixtureInternalPaidPromotionCampaign;
+  internalPaidPromotionRefundRaceStatus?: 'refunded' | 'disputed' | 'charged_back';
 };
 
 type MockNotification = {
@@ -60,6 +75,15 @@ type MockState = {
   profileUpdateFailuresRemaining: number;
   issueReportFailuresRemaining: number;
   googleAuthInitFailuresRemaining: number;
+  paidPromotionRateCards: FixturePaidPromotionRateCard[];
+  paidPromotionCampaignsById: Map<string, FixturePaidPromotionCampaign>;
+  paidPromotionPollSequence: Array<{
+    status: string;
+    paymentStatus: string | null;
+  }>;
+  paidPromotionCheckoutUrl?: string;
+  internalPaidPromotionCampaign: FixtureInternalPaidPromotionCampaign;
+  internalPaidPromotionRefundRaceStatus?: 'refunded' | 'disputed' | 'charged_back';
 };
 
 const DEFAULT_USERS = Object.values(fixtureUsers);
@@ -332,6 +356,14 @@ const buildState = (options: MockCassetteOptions): MockState => {
     profileUpdateFailuresRemaining: options.profileUpdateFailures ?? 0,
     issueReportFailuresRemaining: options.issueReportFailures ?? 0,
     googleAuthInitFailuresRemaining: options.googleAuthInitFailures ?? 0,
+    paidPromotionRateCards: clone(options.paidPromotionRateCards || fixturePaidPromotionRateCards),
+    paidPromotionCampaignsById: new Map<string, FixturePaidPromotionCampaign>(),
+    paidPromotionPollSequence: clone(options.paidPromotionPollSequence || []),
+    paidPromotionCheckoutUrl: options.paidPromotionCheckoutUrl,
+    internalPaidPromotionCampaign: clone(
+      options.internalPaidPromotionCampaign || fixtureInternalPaidPromotionCampaign,
+    ),
+    internalPaidPromotionRefundRaceStatus: options.internalPaidPromotionRefundRaceStatus,
   };
 
   for (const user of DEFAULT_USERS) {
@@ -367,6 +399,13 @@ const buildState = (options: MockCassetteOptions): MockState => {
     state.platformPreferencesByUserId.set(userId, clone(platforms).map(normalizeServiceName));
   }
 
+  if (options.paidPromotionCampaign) {
+    state.paidPromotionCampaignsById.set(
+      options.paidPromotionCampaign.id,
+      clone(options.paidPromotionCampaign),
+    );
+  }
+
   return state;
 };
 
@@ -383,6 +422,30 @@ const text = (route: Route, body: string, status = 200) =>
     contentType: 'text/plain',
     body,
   });
+
+const toInternalPaidPromotionSummary = (campaign: FixtureInternalPaidPromotionCampaign) => ({
+  id: campaign.id,
+  trackId: campaign.track.id,
+  trackTitle: campaign.track.title,
+  sourcePlatform: campaign.sourcePlatform,
+  pricingMode: campaign.pricingMode,
+  amountMinor: campaign.amountMinor,
+  currency: campaign.currency,
+  status: campaign.status,
+  paymentStatus: campaign.payment?.status ?? null,
+  openExceptionCount: campaign.exceptions.filter((exception) => exception.status === 'open').length,
+  createdAtUtc: campaign.createdAtUtc,
+  updatedAtUtc: campaign.updatedAtUtc,
+});
+
+const toInternalPaidPromotionAction = (campaign: FixtureInternalPaidPromotionCampaign) => ({
+  campaignId: campaign.id,
+  status: campaign.status,
+  paymentStatus: campaign.payment?.status ?? null,
+  amountMinor: campaign.amountMinor,
+  currency: campaign.currency,
+  updatedAtUtc: campaign.updatedAtUtc,
+});
 
 export async function mockCassetteApp(page: Page, options: MockCassetteOptions = {}) {
   const state = buildState(options);
@@ -601,6 +664,288 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         status: 'ready',
         postId: createdPost.postId,
       });
+    }
+
+    if (pathname === '/api/v1/internal/paid-promotions/campaigns' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      const campaign = state.internalPaidPromotionCampaign;
+      const hasOpenExceptions = campaign.exceptions.some((exception) => exception.status === 'open');
+      const status = url.searchParams.get('status');
+      const paymentStatus = url.searchParams.get('paymentStatus');
+      const exceptionFilter = url.searchParams.get('hasOpenExceptions');
+      const matches = (!status || campaign.status === status)
+        && (!paymentStatus || campaign.payment?.status === paymentStatus)
+        && (exceptionFilter === null || hasOpenExceptions === (exceptionFilter === 'true'));
+      return json(route, matches ? [toInternalPaidPromotionSummary(campaign)] : []);
+    }
+
+    if (pathname === '/api/v1/internal/paid-promotions/exceptions' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      const status = url.searchParams.get('status');
+      const kind = url.searchParams.get('kind');
+      const exceptions = state.internalPaidPromotionCampaign.exceptions.filter((exception) =>
+        (!status || exception.status === status) && (!kind || exception.kind === kind)
+      );
+      return json(route, exceptions);
+    }
+
+    const internalPaidPromotionExceptionMatch = pathname.match(
+      /^\/api\/v1\/internal\/paid-promotions\/exceptions\/([^/]+)(\/resolve)?$/,
+    );
+    if (internalPaidPromotionExceptionMatch) {
+      getCurrentUserOrThrow(state);
+      const exceptionId = decodeURIComponent(internalPaidPromotionExceptionMatch[1]);
+      const exception = state.internalPaidPromotionCampaign.exceptions.find(
+        (candidate) => candidate.id === exceptionId,
+      );
+      if (!exception) {
+        return json(route, { message: 'Paid-promotion exception not found.' }, 404);
+      }
+      if (!internalPaidPromotionExceptionMatch[2] && method === 'GET') {
+        return json(route, exception);
+      }
+      if (internalPaidPromotionExceptionMatch[2] && method === 'POST') {
+        exception.status = 'resolved';
+        exception.resolvedAtUtc = FIXTURE_TIMESTAMP;
+        return json(route, exception);
+      }
+    }
+
+    const internalPaidPromotionActionMatch = pathname.match(
+      /^\/api\/v1\/internal\/paid-promotions\/campaigns\/([^/]+)\/(quote|approve|reject|fulfillment|refund)$/,
+    );
+    if (internalPaidPromotionActionMatch && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      const campaignId = decodeURIComponent(internalPaidPromotionActionMatch[1]);
+      const action = internalPaidPromotionActionMatch[2];
+      const campaign = state.internalPaidPromotionCampaign;
+      if (campaign.id !== campaignId) {
+        return json(route, { message: 'Paid-promotion campaign not found.' }, 404);
+      }
+
+      if (action === 'quote') {
+        const payload = request.postDataJSON() as Record<string, unknown>;
+        const rateCard = state.paidPromotionRateCards.find(
+          (candidate) => candidate.id === payload.rateCardId,
+        );
+        if (!rateCard || 'amountMinor' in payload || 'currency' in payload) {
+          return json(route, { message: 'A valid server rate-card ID is required.' }, 400);
+        }
+        campaign.pricingMode = 'manual_quote';
+        campaign.rateCardId = null;
+        campaign.amountMinor = rateCard.amountMinor;
+        campaign.currency = rateCard.currency;
+        campaign.pricingSnapshots.push({
+          id: 'pmq_FixtureSnapshot01',
+          sourceRateCardId: rateCard.id,
+          amountMinor: rateCard.amountMinor,
+          currency: rateCard.currency,
+          createdAtUtc: FIXTURE_TIMESTAMP,
+        });
+        return json(route, toInternalPaidPromotionAction(campaign));
+      }
+
+      if (action === 'approve') campaign.status = 'scheduled';
+      if (action === 'reject') campaign.status = 'rejected';
+      if (action === 'fulfillment') {
+        const payload = request.postDataJSON() as { status?: string };
+        campaign.status = payload.status || campaign.status;
+      }
+      if (action === 'refund') {
+        if (!campaign.payment) {
+          return json(route, { message: 'Paid-promotion payment not found.' }, 409);
+        }
+        if (state.internalPaidPromotionRefundRaceStatus) {
+          campaign.payment.status = state.internalPaidPromotionRefundRaceStatus;
+          if (state.internalPaidPromotionRefundRaceStatus === 'refunded') {
+            campaign.payment.amountRefundedMinor = campaign.payment.amountMinor;
+          }
+          return json(route, {
+            message: 'The paid-promotion payment changed while the refund was being initiated.',
+          }, 409);
+        }
+        campaign.payment.status = 'refund_pending';
+        campaign.payment.statusChangedAtUtc = FIXTURE_TIMESTAMP;
+        return json(route, {
+          campaignId: campaign.id,
+          paymentId: campaign.payment.id,
+          paymentStatus: 'refund_pending',
+          amountRefundedMinor: campaign.payment.amountRefundedMinor,
+          updatedAtUtc: campaign.payment.updatedAtUtc,
+        });
+      }
+      campaign.statusChangedAtUtc = FIXTURE_TIMESTAMP;
+      return json(route, toInternalPaidPromotionAction(campaign));
+    }
+
+    const internalPaidPromotionDeliverableItemMatch = pathname.match(
+      /^\/api\/v1\/internal\/paid-promotions\/campaigns\/([^/]+)\/deliverables\/([^/]+)$/,
+    );
+    if (internalPaidPromotionDeliverableItemMatch && (method === 'PUT' || method === 'DELETE')) {
+      getCurrentUserOrThrow(state);
+      const campaignId = decodeURIComponent(internalPaidPromotionDeliverableItemMatch[1]);
+      const deliverableId = decodeURIComponent(internalPaidPromotionDeliverableItemMatch[2]);
+      const campaign = state.internalPaidPromotionCampaign;
+      const deliverable = campaign.deliverables.find((candidate) => candidate.id === deliverableId);
+      if (campaign.id !== campaignId || !deliverable) {
+        return json(route, { message: 'Paid-promotion deliverable not found.' }, 404);
+      }
+      if (method === 'DELETE') {
+        deliverable.status = 'removed';
+        deliverable.updatedAtUtc = FIXTURE_TIMESTAMP;
+        return json(route, deliverable);
+      }
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      deliverable.channel = String(payload.channel);
+      deliverable.status = String(payload.status);
+      deliverable.plannedAtUtc = typeof payload.plannedAtUtc === 'string' ? payload.plannedAtUtc : null;
+      deliverable.publishedAtUtc = typeof payload.publishedAtUtc === 'string' ? payload.publishedAtUtc : null;
+      deliverable.evidenceUrl = typeof payload.evidenceUrl === 'string' ? payload.evidenceUrl : null;
+      deliverable.notes = typeof payload.notes === 'string' ? payload.notes : null;
+      deliverable.updatedAtUtc = FIXTURE_TIMESTAMP;
+      return json(route, deliverable);
+    }
+
+    const internalPaidPromotionDeliverablesMatch = pathname.match(
+      /^\/api\/v1\/internal\/paid-promotions\/campaigns\/([^/]+)\/deliverables$/,
+    );
+    if (internalPaidPromotionDeliverablesMatch) {
+      getCurrentUserOrThrow(state);
+      const campaignId = decodeURIComponent(internalPaidPromotionDeliverablesMatch[1]);
+      const campaign = state.internalPaidPromotionCampaign;
+      if (campaign.id !== campaignId) {
+        return json(route, { message: 'Paid-promotion campaign not found.' }, 404);
+      }
+      if (method === 'GET') return json(route, campaign.deliverables);
+      if (method === 'POST') {
+        const payload = request.postDataJSON() as Record<string, unknown>;
+        const deliverable = {
+          id: 'pmd_FixtureDeliverable02',
+          campaignId,
+          channel: String(payload.channel),
+          plannedAtUtc: typeof payload.plannedAtUtc === 'string' ? payload.plannedAtUtc : null,
+          publishedAtUtc: typeof payload.publishedAtUtc === 'string' ? payload.publishedAtUtc : null,
+          evidenceUrl: typeof payload.evidenceUrl === 'string' ? payload.evidenceUrl : null,
+          status: String(payload.status),
+          notes: typeof payload.notes === 'string' ? payload.notes : null,
+          createdAtUtc: FIXTURE_TIMESTAMP,
+          updatedAtUtc: FIXTURE_TIMESTAMP,
+        };
+        campaign.deliverables.push(deliverable);
+        return json(route, deliverable, 201);
+      }
+    }
+
+    const internalPaidPromotionCampaignMatch = pathname.match(
+      /^\/api\/v1\/internal\/paid-promotions\/campaigns\/([^/]+)$/,
+    );
+    if (internalPaidPromotionCampaignMatch && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      const campaignId = decodeURIComponent(internalPaidPromotionCampaignMatch[1]);
+      if (state.internalPaidPromotionCampaign.id !== campaignId) {
+        return json(route, { message: 'Paid-promotion campaign not found.' }, 404);
+      }
+      return json(route, state.internalPaidPromotionCampaign);
+    }
+
+    if (pathname === '/api/v1/paid-promotions/rate-cards' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      return json(route, {
+        rateCards: state.paidPromotionRateCards,
+        attestation: {
+          version: 'paid-promotion-authority-v1',
+          text: 'I attest that I am authorized to request paid promotion for this track and that the information I provided is accurate.',
+        },
+      });
+    }
+
+    if (pathname === '/api/v1/paid-promotions/campaigns' && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      const payload = request.postDataJSON() as {
+        trackId: string;
+        submittedUrl: string;
+        rateCardId: string;
+      };
+      const rateCard = state.paidPromotionRateCards.find((candidate) => candidate.id === payload.rateCardId);
+      if (!rateCard) {
+        return json(route, {
+          errorCode: 'paid_promotion_rate_card_unavailable',
+          message: 'The selected paid-promotion rate card is unavailable.',
+        }, 400);
+      }
+
+      const sourcePlatform = payload.submittedUrl.includes('music.apple.com')
+        ? 'applemusic'
+        : payload.submittedUrl.includes('deezer.com')
+          ? 'deezer'
+          : 'spotify';
+      const campaign: FixturePaidPromotionCampaign = {
+        ...clone(fixturePaidPromotionCampaign),
+        trackId: payload.trackId,
+        sourcePlatform,
+        rateCardId: rateCard.id,
+        amountMinor: rateCard.amountMinor,
+        currency: rateCard.currency,
+        paymentStatus: null,
+      };
+      state.paidPromotionCampaignsById.set(campaign.id, campaign);
+      return json(route, campaign, 201);
+    }
+
+    const paidPromotionCheckoutMatch = pathname.match(
+      /^\/api\/v1\/paid-promotions\/campaigns\/([^/]+)\/checkout-session$/,
+    );
+    if (paidPromotionCheckoutMatch && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      const campaignId = decodeURIComponent(paidPromotionCheckoutMatch[1]);
+      const campaign = state.paidPromotionCampaignsById.get(campaignId);
+      if (!campaign) {
+        return json(route, {
+          errorCode: 'paid_promotion_campaign_not_found',
+          message: 'Paid-promotion campaign not found.',
+        }, 404);
+      }
+
+      state.paidPromotionCampaignsById.set(campaignId, {
+        ...campaign,
+        paymentStatus: 'pending',
+      });
+      return json(route, {
+        campaignId,
+        paymentId: 'pmp_FixturePayment01',
+        checkoutUrl:
+          state.paidPromotionCheckoutUrl ||
+          `/promote/${encodeURIComponent(campaignId)}/return?session_id=cs_fixture_return_value`,
+        paymentStatus: 'pending',
+      });
+    }
+
+    const paidPromotionCampaignMatch = pathname.match(
+      /^\/api\/v1\/paid-promotions\/campaigns\/([^/]+)$/,
+    );
+    if (paidPromotionCampaignMatch && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      const campaignId = decodeURIComponent(paidPromotionCampaignMatch[1]);
+      const campaign = state.paidPromotionCampaignsById.get(campaignId);
+      if (!campaign) {
+        return json(route, {
+          errorCode: 'paid_promotion_campaign_not_found',
+          message: 'Paid-promotion campaign not found.',
+        }, 404);
+      }
+
+      const nextStatus = state.paidPromotionPollSequence.shift();
+      if (!nextStatus) {
+        return json(route, campaign);
+      }
+
+      const nextCampaign = {
+        ...campaign,
+        ...nextStatus,
+        updatedAtUtc: FIXTURE_TIMESTAMP,
+      };
+      state.paidPromotionCampaignsById.set(campaignId, nextCampaign);
+      return json(route, nextCampaign);
     }
 
     if (pathname === '/api/v1/music-services/preferences') {

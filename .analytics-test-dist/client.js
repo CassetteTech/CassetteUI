@@ -213,6 +213,8 @@ function surfaceFromRoute(route) {
         return 'home';
     if (path.startsWith('/add-music'))
         return 'add_music';
+    if (path.startsWith('/promote'))
+        return 'paid_promotion';
     if (path.startsWith('/post'))
         return 'post';
     if (path.startsWith('/profile'))

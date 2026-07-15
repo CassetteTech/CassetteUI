@@ -5,6 +5,7 @@ exports.isCassetteInternalAccount = isCassetteInternalAccount;
 exports.isDevSuppressed = isDevSuppressed;
 exports.shouldSuppressClientCapture = shouldSuppressClientCapture;
 const INTERNAL_ROUTE_PREFIXES = [
+    '/internal',
     '/debug',
     '/demo',
     '/music-auth-demo',

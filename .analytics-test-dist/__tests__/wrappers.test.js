@@ -7,6 +7,18 @@ const node_test_1 = __importDefault(require("node:test"));
 const strict_1 = __importDefault(require("node:assert/strict"));
 const client_1 = require("../client");
 const internal_suppression_1 = require("../internal-suppression");
+(0, node_test_1.default)('maps paid-promotion routes to their sanitized analytics surface', () => {
+    strict_1.default.equal((0, client_1.surfaceFromRoute)('/promote'), 'paid_promotion');
+    strict_1.default.equal((0, client_1.surfaceFromRoute)('/promote/pmc_0123AbCd/return?session_id=secret'), 'paid_promotion');
+});
+(0, node_test_1.default)('suppresses every internal paid-promotion console route', () => {
+    strict_1.default.equal((0, internal_suppression_1.isInternalOrDemoRoute)('/internal/paid-promotions'), true);
+    strict_1.default.equal((0, internal_suppression_1.isInternalOrDemoRoute)('/internal/paid-promotions/pmc_0123AbCd?tab=payment'), true);
+    strict_1.default.equal((0, internal_suppression_1.shouldSuppressClientCapture)({
+        route: '/internal/paid-promotions/pmc_0123AbCd',
+        allowInDev: true,
+    }), true);
+});
 function createMemoryStorage() {
     const store = new Map();
     return {

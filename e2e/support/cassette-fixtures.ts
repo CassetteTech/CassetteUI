@@ -97,6 +97,98 @@ export interface FixturePost {
   }>;
 }
 
+export interface FixturePaidPromotionRateCard {
+  id: string;
+  packageKey: string;
+  version: number;
+  displayName: string;
+  description: string;
+  amountMinor: number;
+  currency: string;
+}
+
+export interface FixturePaidPromotionCampaign {
+  id: string;
+  trackId: string;
+  sourcePlatform: 'spotify' | 'applemusic' | 'deezer';
+  rateCardId: string;
+  amountMinor: number;
+  currency: string;
+  status: string;
+  paymentStatus: string | null;
+  requestedWindowStart: string | null;
+  requestedWindowEnd: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export interface FixtureInternalPaidPromotionDeliverable {
+  id: string;
+  campaignId: string;
+  channel: string;
+  plannedAtUtc: string | null;
+  publishedAtUtc: string | null;
+  evidenceUrl: string | null;
+  status: string;
+  notes: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export interface FixtureInternalPaidPromotionException {
+  id: string;
+  kind: string;
+  paymentId: string | null;
+  campaignId: string | null;
+  status: string;
+  createdAtUtc: string;
+  resolvedAtUtc: string | null;
+}
+
+export interface FixtureInternalPaidPromotionCampaign {
+  id: string;
+  track: {
+    id: string;
+    title: string;
+    coverArtUrl: string | null;
+    artists: string[];
+  };
+  sourcePlatform: string;
+  brief: string;
+  pricingMode: string;
+  rateCardId: string | null;
+  amountMinor: number | null;
+  currency: string | null;
+  status: string;
+  statusChangedAtUtc: string;
+  requestedWindowStart: string | null;
+  requestedWindowEnd: string | null;
+  attestedAtUtc: string | null;
+  attestationVersion: string | null;
+  attestedRelationship: string | null;
+  payment: {
+    id: string;
+    amountMinor: number;
+    currency: string;
+    amountRefundedMinor: number;
+    status: string;
+    statusChangedAtUtc: string;
+    paidAtUtc: string | null;
+    updatedAtUtc: string;
+  } | null;
+  pricingSnapshots: Array<{
+    id: string;
+    sourceRateCardId: string;
+    amountMinor: number;
+    currency: string;
+    createdAtUtc: string;
+  }>;
+  deliverables: FixtureInternalPaidPromotionDeliverable[];
+  exceptions: FixtureInternalPaidPromotionException[];
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
 export const FIXTURE_TIMESTAMP = '2026-04-03T15:00:00.000Z';
 
 export const fixtureUsers = {
@@ -154,6 +246,15 @@ export const fixtureUsers = {
     isOnboarded: true,
     bio: 'Albums worth keeping close.',
     likedPostsPrivacy: 'public',
+  },
+  team: {
+    id: 'user-cassette-team',
+    email: 'team@cassette.test',
+    username: 'cassetteteam',
+    displayName: 'Cassette Team',
+    isOnboarded: true,
+    likedPostsPrivacy: 'private',
+    accountType: 'CassetteTeam',
   },
 } satisfies Record<string, FixtureUser>;
 
@@ -266,7 +367,113 @@ export const fixtureConvertTemplates = {
       appleMusic: 'https://music.apple.com/us/song/blue-monday/404040',
     },
   },
+  paidPromotionTrack: {
+    postId: 'post-paid-promotion-track',
+    musicElementId: 't_PromoTrack01',
+    elementType: 'Track',
+    title: 'Signal Fire',
+    artist: 'Mia Groove',
+    createdAt: FIXTURE_TIMESTAMP,
+    likeCount: 0,
+    likedByCurrentUser: false,
+    repostedByCurrentUser: false,
+    commentsEnabled: true,
+    conversionSuccessCount: 0,
+    originalUrl: 'https://open.spotify.com/track/paid-promotion-track-1',
+    convertedUrls: {
+      spotify: 'https://open.spotify.com/track/paid-promotion-track-1',
+      appleMusic: 'https://music.apple.com/us/song/signal-fire/505050',
+    },
+  },
 } satisfies Record<string, FixturePost>;
+
+export const fixturePaidPromotionRateCards: FixturePaidPromotionRateCard[] = [
+  {
+    id: 'prc_LocalLaunch1',
+    packageKey: 'launch',
+    version: 1,
+    displayName: 'Launch package',
+    description: 'A focused paid-placement package for one canonical track.',
+    amountMinor: 25000,
+    currency: 'USD',
+  },
+];
+
+export const fixturePaidPromotionCampaign: FixturePaidPromotionCampaign = {
+  id: 'pmc_FixtureCampaign01',
+  trackId: fixtureConvertTemplates.paidPromotionTrack.musicElementId,
+  sourcePlatform: 'spotify',
+  rateCardId: fixturePaidPromotionRateCards[0].id,
+  amountMinor: fixturePaidPromotionRateCards[0].amountMinor,
+  currency: fixturePaidPromotionRateCards[0].currency,
+  status: 'pending_payment',
+  paymentStatus: 'pending',
+  requestedWindowStart: null,
+  requestedWindowEnd: null,
+  createdAtUtc: FIXTURE_TIMESTAMP,
+  updatedAtUtc: FIXTURE_TIMESTAMP,
+};
+
+export const fixtureInternalPaidPromotionCampaign: FixtureInternalPaidPromotionCampaign = {
+  id: fixturePaidPromotionCampaign.id,
+  track: {
+    id: fixtureConvertTemplates.paidPromotionTrack.musicElementId,
+    title: fixtureConvertTemplates.paidPromotionTrack.title,
+    coverArtUrl: null,
+    artists: [fixtureConvertTemplates.paidPromotionTrack.artist],
+  },
+  sourcePlatform: 'spotify',
+  brief: 'Focus on the release story and live arrangement.',
+  pricingMode: 'rate_card',
+  rateCardId: fixturePaidPromotionRateCards[0].id,
+  amountMinor: fixturePaidPromotionRateCards[0].amountMinor,
+  currency: fixturePaidPromotionRateCards[0].currency,
+  status: 'in_review',
+  statusChangedAtUtc: FIXTURE_TIMESTAMP,
+  requestedWindowStart: null,
+  requestedWindowEnd: null,
+  attestedAtUtc: FIXTURE_TIMESTAMP,
+  attestationVersion: 'paid-promotion-authority-v1',
+  attestedRelationship: 'self_artist',
+  payment: {
+    id: 'pmp_FixturePayment01',
+    amountMinor: fixturePaidPromotionRateCards[0].amountMinor,
+    currency: fixturePaidPromotionRateCards[0].currency,
+    amountRefundedMinor: 0,
+    status: 'paid',
+    statusChangedAtUtc: FIXTURE_TIMESTAMP,
+    paidAtUtc: FIXTURE_TIMESTAMP,
+    updatedAtUtc: FIXTURE_TIMESTAMP,
+  },
+  pricingSnapshots: [],
+  deliverables: [
+    {
+      id: 'pmd_FixtureDeliverable01',
+      campaignId: fixturePaidPromotionCampaign.id,
+      channel: 'instagram',
+      plannedAtUtc: FIXTURE_TIMESTAMP,
+      publishedAtUtc: null,
+      evidenceUrl: null,
+      status: 'planned',
+      notes: 'Prepare the launch placement.',
+      createdAtUtc: FIXTURE_TIMESTAMP,
+      updatedAtUtc: FIXTURE_TIMESTAMP,
+    },
+  ],
+  exceptions: [
+    {
+      id: 'pmx_FixtureException01',
+      kind: 'stuck_pending',
+      paymentId: 'pmp_FixturePayment01',
+      campaignId: fixturePaidPromotionCampaign.id,
+      status: 'open',
+      createdAtUtc: FIXTURE_TIMESTAMP,
+      resolvedAtUtc: null,
+    },
+  ],
+  createdAtUtc: FIXTURE_TIMESTAMP,
+  updatedAtUtc: FIXTURE_TIMESTAMP,
+};
 
 export const fixtureTopCharts: FixtureSearchResults = {
   tracks: [

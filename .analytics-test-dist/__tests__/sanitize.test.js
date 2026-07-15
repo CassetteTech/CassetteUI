@@ -16,6 +16,7 @@ const sanitize_1 = require("../sanitize");
         is_repost: false,
         element_type: 'track',
         post_id: 'post-123',
+        paid_promotion_campaign_id: 'pmc_0123AbCd',
         source_domain: 'https://open.spotify.com/track/abc?si=secret',
         signup_source: 'friend',
         signup_medium: 'dm',
@@ -40,6 +41,9 @@ const sanitize_1 = require("../sanitize");
         lambda_request_id: 'lambda-request-1',
         source_link_hash: 'a'.repeat(64),
         source_link: 'https://open.spotify.com/track/secret',
+        amount_minor: 25000,
+        checkout_url: 'https://checkout.stripe.test/secret',
+        brief: 'private campaign details',
         description: 'should-not-pass',
         query_text: 'secret search',
         made_up: 'nope',
@@ -52,6 +56,7 @@ const sanitize_1 = require("../sanitize");
     strict_1.default.equal(result.is_repost, false);
     strict_1.default.equal(result.element_type, 'track');
     strict_1.default.equal(result.post_id, 'post-123');
+    strict_1.default.equal(result.paid_promotion_campaign_id, 'pmc_0123AbCd');
     strict_1.default.equal(result.source_domain, 'open.spotify.com');
     strict_1.default.equal(result.signup_source, 'friend');
     strict_1.default.equal(result.signup_medium, 'dm');
@@ -76,7 +81,20 @@ const sanitize_1 = require("../sanitize");
     strict_1.default.equal(result.lambda_request_id, 'lambda-request-1');
     strict_1.default.equal(result.source_link_hash, 'a'.repeat(64));
     strict_1.default.equal(result.source_link, undefined);
+    strict_1.default.equal(result.amount_minor, undefined);
+    strict_1.default.equal(result.checkout_url, undefined);
+    strict_1.default.equal(result.brief, undefined);
     strict_1.default.equal(result.description, undefined);
     strict_1.default.equal(result.query_text, undefined);
     strict_1.default.equal(result.made_up, undefined);
+});
+(0, node_test_1.default)('sanitizeAnalyticsProps keeps only opaque bounded paid-promotion campaign ids', () => {
+    strict_1.default.equal((0, sanitize_1.sanitizeAnalyticsProps)({ paid_promotion_campaign_id: 'pmc_0123AbCd' })
+        .paid_promotion_campaign_id, 'pmc_0123AbCd');
+    strict_1.default.equal((0, sanitize_1.sanitizeAnalyticsProps)({ paid_promotion_campaign_id: 'campaign-123' })
+        .paid_promotion_campaign_id, undefined);
+    strict_1.default.equal((0, sanitize_1.sanitizeAnalyticsProps)({ paid_promotion_campaign_id: 'pmc_bad/value' })
+        .paid_promotion_campaign_id, undefined);
+    strict_1.default.equal((0, sanitize_1.sanitizeAnalyticsProps)({ paid_promotion_campaign_id: `pmc_${'a'.repeat(37)}` })
+        .paid_promotion_campaign_id, undefined);
 });

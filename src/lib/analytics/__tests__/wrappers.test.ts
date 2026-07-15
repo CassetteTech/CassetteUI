@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { captureClientEvent, identifyClientUser, resetAnalyticsContextForTests, trackBrowserPageview } from '../client';
+import { captureClientEvent, identifyClientUser, resetAnalyticsContextForTests, surfaceFromRoute, trackBrowserPageview } from '../client';
 import { shouldSuppressClientCapture, isCassetteInternalAccount, isInternalOrDemoRoute } from '../internal-suppression';
 
 type MemoryStorage = {
@@ -9,6 +9,20 @@ type MemoryStorage = {
   removeItem(key: string): void;
   clear(): void;
 };
+
+test('maps paid-promotion routes to their sanitized analytics surface', () => {
+  assert.equal(surfaceFromRoute('/promote'), 'paid_promotion');
+  assert.equal(surfaceFromRoute('/promote/pmc_0123AbCd/return?session_id=secret'), 'paid_promotion');
+});
+
+test('suppresses every internal paid-promotion console route', () => {
+  assert.equal(isInternalOrDemoRoute('/internal/paid-promotions'), true);
+  assert.equal(isInternalOrDemoRoute('/internal/paid-promotions/pmc_0123AbCd?tab=payment'), true);
+  assert.equal(shouldSuppressClientCapture({
+    route: '/internal/paid-promotions/pmc_0123AbCd',
+    allowInDev: true,
+  }), true);
+});
 
 function createMemoryStorage(): MemoryStorage {
   const store = new Map<string, string>();

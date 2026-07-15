@@ -1,4 +1,4 @@
-import { Users, AlertCircle, Link2, AlertTriangle, Layers, type LucideIcon } from 'lucide-react';
+import { Users, AlertCircle, Link2, AlertTriangle, Layers, Megaphone, type LucideIcon } from 'lucide-react';
 
 export type ConsoleDomain = 'eng' | 'growth';
 
@@ -75,6 +75,13 @@ export const CONSOLE_NAV: ConsoleNavSection[] = [
         href: '/internal/attribution',
         icon: Link2,
         blurb: 'Signup sources, campaign reporting, and link templates.',
+      },
+      {
+        key: 'paid-promotions',
+        label: 'Paid Promotions',
+        href: '/internal/paid-promotions',
+        icon: Megaphone,
+        blurb: 'Review, fulfill, and resolve paid-promotion campaigns.',
       },
     ],
   },

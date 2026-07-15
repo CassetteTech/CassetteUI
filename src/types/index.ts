@@ -347,7 +347,7 @@ export interface PaidPromotionCampaign {
   id: string;
   trackId: string;
   sourcePlatform: 'spotify' | 'applemusic' | 'deezer';
-  rateCardId: string;
+  rateCardId: string | null;
   amountMinor: number;
   currency: string;
   status: PaidPromotionCampaignStatus;
@@ -363,6 +363,147 @@ export interface PaidPromotionCheckoutSessionResponse {
   paymentId: string;
   checkoutUrl: string;
   paymentStatus: PaidPromotionPaymentStatus;
+}
+
+export type PaidPromotionPricingMode = 'rate_card' | 'manual_quote';
+
+export type PaidPromotionDeliverableChannel =
+  | 'instagram'
+  | 'tiktok'
+  | 'x'
+  | 'reddit'
+  | 'other';
+
+export type PaidPromotionDeliverableStatus =
+  | 'planned'
+  | 'scheduled'
+  | 'published'
+  | 'verified'
+  | 'failed'
+  | 'removed';
+
+export type PaidPromotionExceptionKind =
+  | 'webhook_error'
+  | 'reconciliation_mismatch'
+  | 'refund_failed'
+  | 'dispute_opened'
+  | 'stuck_pending'
+  | 'orphan_session';
+
+export type PaidPromotionExceptionStatus = 'open' | 'resolved';
+
+export interface InternalPaidPromotionCampaignSummary {
+  id: string;
+  trackId: string;
+  trackTitle: string;
+  sourcePlatform: 'spotify' | 'applemusic' | 'deezer';
+  pricingMode: PaidPromotionPricingMode;
+  amountMinor: number | null;
+  currency: string | null;
+  status: PaidPromotionCampaignStatus;
+  paymentStatus: PaidPromotionPaymentStatus | null;
+  openExceptionCount: number;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export interface InternalPaidPromotionTrack {
+  id: string;
+  title: string;
+  coverArtUrl: string | null;
+  artists: string[];
+}
+
+export interface InternalPaidPromotionPayment {
+  id: string;
+  amountMinor: number;
+  currency: string;
+  amountRefundedMinor: number;
+  status: PaidPromotionPaymentStatus;
+  statusChangedAtUtc: string;
+  paidAtUtc: string | null;
+  updatedAtUtc: string;
+}
+
+export interface InternalPaidPromotionDeliverable {
+  id: string;
+  campaignId: string;
+  channel: PaidPromotionDeliverableChannel;
+  plannedAtUtc: string | null;
+  publishedAtUtc: string | null;
+  evidenceUrl: string | null;
+  status: PaidPromotionDeliverableStatus;
+  notes: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export interface InternalPaidPromotionException {
+  id: string;
+  kind: PaidPromotionExceptionKind;
+  paymentId: string | null;
+  campaignId: string | null;
+  status: PaidPromotionExceptionStatus;
+  createdAtUtc: string;
+  resolvedAtUtc: string | null;
+}
+
+export interface InternalPaidPromotionPricingSnapshot {
+  id: string;
+  sourceRateCardId: string;
+  amountMinor: number;
+  currency: string;
+  createdAtUtc: string;
+}
+
+export interface InternalPaidPromotionCampaignDetail {
+  id: string;
+  track: InternalPaidPromotionTrack;
+  sourcePlatform: 'spotify' | 'applemusic' | 'deezer';
+  brief: string;
+  pricingMode: PaidPromotionPricingMode;
+  rateCardId: string | null;
+  amountMinor: number | null;
+  currency: string | null;
+  status: PaidPromotionCampaignStatus;
+  statusChangedAtUtc: string;
+  requestedWindowStart: string | null;
+  requestedWindowEnd: string | null;
+  attestedAtUtc: string | null;
+  attestationVersion: string | null;
+  attestedRelationship: PaidPromotionAttestedRelationship | null;
+  payment: InternalPaidPromotionPayment | null;
+  pricingSnapshots: InternalPaidPromotionPricingSnapshot[];
+  deliverables: InternalPaidPromotionDeliverable[];
+  exceptions: InternalPaidPromotionException[];
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export interface InternalPaidPromotionActionResponse {
+  campaignId: string;
+  status: PaidPromotionCampaignStatus;
+  paymentStatus: PaidPromotionPaymentStatus | null;
+  amountMinor: number | null;
+  currency: string | null;
+  updatedAtUtc: string;
+}
+
+export interface InternalPaidPromotionRefundResponse {
+  campaignId: string;
+  paymentId: string;
+  paymentStatus: PaidPromotionPaymentStatus;
+  amountRefundedMinor: number;
+  updatedAtUtc: string;
+}
+
+export interface InternalPaidPromotionDeliverableInput {
+  channel: PaidPromotionDeliverableChannel;
+  plannedAtUtc?: string;
+  publishedAtUtc?: string;
+  evidenceUrl?: string;
+  status: PaidPromotionDeliverableStatus;
+  notes?: string;
 }
 
 // API Response type for playlist creation (snake_case to match backend JSON)

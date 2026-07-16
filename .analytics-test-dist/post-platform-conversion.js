@@ -29,5 +29,6 @@ function buildPostPlatformConversionClickedProps(input) {
         source_domain: (0, sanitize_1.sanitizeDomain)(input.sourceDomain),
         is_authenticated: input.isAuthenticated,
         source_context: input.sourceContext,
+        paid_promotion_campaign_id: input.paidPromotionCampaignId ?? undefined,
     };
 }

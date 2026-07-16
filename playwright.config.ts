@@ -40,6 +40,8 @@ export default defineConfig({
       NEXT_PUBLIC_APP_DOMAIN: baseURL,
       NEXT_PUBLIC_API_URL_LOCAL: baseURL,
       NEXT_PUBLIC_ENABLE_LAMBDA_WARMUP: 'false',
+      NEXT_PUBLIC_POSTHOG_KEY: 'phc_e2e_test',
+      NEXT_PUBLIC_POSTHOG_CAPTURE_HOST: '/api/e2e-ingest',
     },
   },
 });

@@ -22,7 +22,10 @@ export function InternalNavRail() {
   return (
     <>
       {/* Desktop: vertical grouped rail */}
-      <nav className="hidden lg:flex lg:w-56 lg:shrink-0 lg:flex-col lg:gap-5 lg:border-r lg:border-border lg:px-3 lg:py-5">
+      <nav
+        aria-label="Internal console"
+        className="hidden lg:flex lg:w-56 lg:shrink-0 lg:flex-col lg:gap-5 lg:border-r lg:border-border lg:px-3 lg:py-5"
+      >
         <Link href="/internal" className="px-2">
           <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
             Console
@@ -58,7 +61,7 @@ export function InternalNavRail() {
       </nav>
 
       {/* Mobile: wrapping grouped pills (no horizontal scroll) */}
-      <div className="border-b border-border lg:hidden">
+      <nav aria-label="Internal console" className="border-b border-border lg:hidden">
         <div className="flex flex-wrap items-center gap-1.5 px-4 py-2.5">
           {CONSOLE_NAV.map((section) => (
             <div key={section.label} className={cn(section.domainClass, 'flex flex-wrap items-center gap-1.5')}>
@@ -84,7 +87,7 @@ export function InternalNavRail() {
             </div>
           ))}
         </div>
-      </div>
+      </nav>
     </>
   );
 }

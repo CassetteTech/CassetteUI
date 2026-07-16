@@ -26,6 +26,7 @@ interface StreamingLinksProps {
   elementType?: ElementTypeDimension;
   sourcePlatform?: string;
   isAuthenticated?: boolean;
+  paidPromotionCampaignId?: string | null;
 }
 
 export interface StreamingService {
@@ -56,6 +57,7 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
   elementType,
   sourcePlatform,
   isAuthenticated,
+  paidPromotionCampaignId,
 }) => {
   const availableLinks = Object.entries(links).filter(([, url]) => url);
   
@@ -89,6 +91,7 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                   sourcePlatform,
                   sourceDomain: url,
                   isAuthenticated,
+                  paidPromotionCampaignId,
                 });
                 if (conversionClickProps) {
                   void captureClientEvent('post_platform_conversion_clicked', conversionClickProps);
@@ -102,6 +105,7 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                   element_type: elementType,
                   is_authenticated: isAuthenticated,
                   source_domain: sanitizeDomain(url),
+                  paid_promotion_campaign_id: paidPromotionCampaignId ?? undefined,
                 });
                 handleStreamingLinkClick(event, url);
               }}

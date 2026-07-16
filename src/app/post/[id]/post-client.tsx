@@ -103,6 +103,7 @@ type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
   isRepost?: boolean;
   originalPostId?: string | null;
   redirectPostId?: string;
+  paidPromotionCampaignId?: string | null;
   repostedByCurrentUser?: boolean;
   username?: string;
   userId?: string | null;
@@ -650,25 +651,25 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
         // Inline conversion surfaces stash the finished post before
         // navigating here (see lib/post-prefetch) — consume it instead of
         // re-fetching so post-conversion arrivals never see the skeleton.
-        let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null =
-          takePrefetchedPost(postId);
+        const prefetchedResponse = takePrefetchedPost(postId);
+        let trustedResponse: Awaited<ReturnType<typeof apiService.fetchPostById>> | null = null;
 
         // The server render already fetched this post for metadata; reuse it
         // so profile/shared-link arrivals skip the client fetch entirely. The
         // server payload is unauthenticated, so signed-in viewers reconcile
         // like/repost state in the background after first paint.
         let reconcileViewerState = false;
-        if (!response && initialPost?.success) {
-          response = initialPost;
+        if (initialPost?.success) {
+          trustedResponse = initialPost;
           reconcileViewerState = isAuthenticated;
         }
 
-        while (!response && Date.now() - startedAt < maxWaitMs) {
+        while (!trustedResponse && Date.now() - startedAt < maxWaitMs) {
           if (isCancelled) return;
           try {
             const candidate = await apiService.fetchPostById(postId);
             if (candidate?.success) {
-              response = candidate;
+              trustedResponse = candidate;
               break;
             }
 
@@ -687,9 +688,26 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
           }
         }
 
-        if (!response) {
+        if (!trustedResponse) {
           throw new Error('Post is still finalizing. Please try again in a moment.');
         }
+
+        const cachedIdentityMatches = Boolean(
+          prefetchedResponse?.success &&
+          prefetchedResponse.postId === trustedResponse.postId &&
+          prefetchedResponse.musicElementId === trustedResponse.musicElementId &&
+          prefetchedResponse.elementType === trustedResponse.elementType,
+        );
+        const response: PostByIdResponse = cachedIdentityMatches && prefetchedResponse
+          ? {
+              ...prefetchedResponse,
+              postId: trustedResponse.postId,
+              redirectPostId: trustedResponse.redirectPostId,
+              originalPostId: trustedResponse.originalPostId,
+              isRepost: trustedResponse.isRepost,
+              paidPromotionCampaignId: trustedResponse.paidPromotionCampaignId ?? null,
+            }
+          : trustedResponse;
 
         const applyResponse = (payload: PostByIdResponse) => {
           const response = payload;
@@ -727,6 +745,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
             isRepost: Boolean(response.isRepost),
             originalPostId: response.originalPostId ?? null,
             redirectPostId: response.redirectPostId || response.postId || postId,
+            paidPromotionCampaignId: response.paidPromotionCampaignId ?? null,
             repostedByCurrentUser: Boolean(
               (response as unknown as Record<string, unknown>).repostedByCurrentUser === true ||
               (response as unknown as Record<string, unknown>).RepostedByCurrentUser === true ||
@@ -956,6 +975,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
       user_id: user?.id,
       is_authenticated: isAuthenticated,
       is_creator_view: isCreatorView,
+      paid_promotion_campaign_id: postData.paidPromotionCampaignId ?? undefined,
     });
   }, [isLoading, isAuthenticated, postData, postId, user?.id]);
 
@@ -1233,6 +1253,8 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                                     post_id: postData?.postId || postId,
                                     element_type: 'playlist',
                                     is_authenticated: isAuthenticated,
+                                    paid_promotion_campaign_id:
+                                      postData?.paidPromotionCampaignId ?? undefined,
                                   });
                                   handleStreamingLinkClick(event, resolvedSourceUrl);
                                 }}
@@ -1285,6 +1307,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                               playlistTrackCount={playlistTrackCount}
                               sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
                               sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                              paidPromotionCampaignId={postData?.paidPromotionCampaignId}
                             />
                           ) : (
                             <StreamingLinks
@@ -1293,6 +1316,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                               elementType={metadata.type}
                               sourcePlatform={analyticsSourcePlatform}
                               isAuthenticated={isAuthenticated}
+                              paidPromotionCampaignId={postData?.paidPromotionCampaignId}
                               className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                             />
                           )}
@@ -1572,6 +1596,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                                   playlistTrackCount={playlistTrackCount}
                                   sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
                                   sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                                  paidPromotionCampaignId={postData?.paidPromotionCampaignId}
                                 />
                               ) : (
                                 <StreamingLinks
@@ -1580,6 +1605,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                                   elementType={metadata.type}
                                   sourcePlatform={analyticsSourcePlatform}
                                   isAuthenticated={isAuthenticated}
+                                  paidPromotionCampaignId={postData?.paidPromotionCampaignId}
                                   className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                                 />
                               )}
@@ -1800,6 +1826,8 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                             post_id: postData?.postId || postId,
                             element_type: 'playlist',
                             is_authenticated: isAuthenticated,
+                            paid_promotion_campaign_id:
+                              postData?.paidPromotionCampaignId ?? undefined,
                           });
                           handleStreamingLinkClick(event, resolvedSourceUrl);
                         }}
@@ -1889,6 +1917,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                         playlistTrackCount={playlistTrackCount}
                         sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
                         sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                        paidPromotionCampaignId={postData?.paidPromotionCampaignId}
                       />
                     ) : (
                       <StreamingLinks
@@ -1897,6 +1926,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
                         elementType={metadata.type}
                         sourcePlatform={analyticsSourcePlatform}
                         isAuthenticated={isAuthenticated}
+                        paidPromotionCampaignId={postData?.paidPromotionCampaignId}
                         className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                       />
                     )}

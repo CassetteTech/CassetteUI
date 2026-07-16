@@ -40,6 +40,13 @@ import {
   PaidPromotionCampaign,
   PaidPromotionCheckoutSessionResponse,
   PaidPromotionRateCardsResponse,
+  InternalPaidPromotionCampaignSummary,
+  InternalPaidPromotionCampaignDetail,
+  InternalPaidPromotionActionResponse,
+  InternalPaidPromotionDeliverable,
+  InternalPaidPromotionDeliverableInput,
+  InternalPaidPromotionException,
+  InternalPaidPromotionRefundResponse,
 } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent, surfaceFromRoute } from '@/lib/analytics/client';
@@ -53,6 +60,10 @@ import {
   createLifecycleConversionPlaceholder,
   getLifecycleConversionFailureMessage,
 } from './conversion-lifecycle';
+import {
+  parsePaidPromotionCampaign,
+  parsePaidPromotionCampaigns,
+} from './paid-promotion-lifecycle';
 
 // interface MusicConnection {
 //   id: string;
@@ -385,20 +396,27 @@ class ApiService {
   async createPaidPromotionCampaign(
     data: CreatePaidPromotionCampaignRequest
   ): Promise<PaidPromotionCampaign> {
-    return this.request<PaidPromotionCampaign>('/api/v1/paid-promotions/campaigns', {
+    const response = await this.request<unknown>('/api/v1/paid-promotions/campaigns', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    return parsePaidPromotionCampaign(response);
   }
 
   async getPaidPromotionCampaign(
     campaignId: string,
     options?: { signal?: AbortSignal }
   ): Promise<PaidPromotionCampaign> {
-    return this.request<PaidPromotionCampaign>(
+    const response = await this.request<unknown>(
       `/api/v1/paid-promotions/campaigns/${encodeURIComponent(campaignId)}`,
       { signal: options?.signal }
     );
+    return parsePaidPromotionCampaign(response);
+  }
+
+  async getPaidPromotionCampaigns(): Promise<PaidPromotionCampaign[]> {
+    const response = await this.request<unknown>('/api/v1/paid-promotions/campaigns');
+    return parsePaidPromotionCampaigns(response);
   }
 
   async createPaidPromotionCheckoutSession(
@@ -407,6 +425,184 @@ class ApiService {
     return this.request<PaidPromotionCheckoutSessionResponse>(
       `/api/v1/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/checkout-session`,
       { method: 'POST' }
+    );
+  }
+
+  async getPaidPromotionSubjects(): Promise<unknown> {
+    return this.request<unknown>('/api/v1/paid-promotions/subjects');
+  }
+
+  async getInternalPaidPromotionSubjects(): Promise<unknown> {
+    return this.request<unknown>('/api/v1/internal/paid-promotions/subjects', {
+      timeoutMs: 20000,
+    });
+  }
+
+  async getInternalPaidPromotionCampaigns(params: {
+    status?: string;
+    paymentStatus?: string;
+    hasOpenExceptions?: boolean;
+  } = {}): Promise<InternalPaidPromotionCampaignSummary[]> {
+    const query = new URLSearchParams();
+    if (params.status) query.set('status', params.status);
+    if (params.paymentStatus) query.set('paymentStatus', params.paymentStatus);
+    if (params.hasOpenExceptions != null) {
+      query.set('hasOpenExceptions', String(params.hasOpenExceptions));
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request<InternalPaidPromotionCampaignSummary[]>(
+      `/api/v1/internal/paid-promotions/campaigns${suffix}`,
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async getInternalPaidPromotionCampaign(
+    campaignId: string,
+    options?: { signal?: AbortSignal }
+  ): Promise<InternalPaidPromotionCampaignDetail> {
+    return this.request<InternalPaidPromotionCampaignDetail>(
+      `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}`,
+      { timeoutMs: 20000, signal: options?.signal }
+    );
+  }
+
+  async quoteInternalPaidPromotion(
+    campaignId: string,
+    rateCardId: string
+  ): Promise<InternalPaidPromotionActionResponse> {
+    return this.request<InternalPaidPromotionActionResponse>(
+      `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/quote`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ rateCardId }),
+        timeoutMs: 20000,
+      }
+    );
+  }
+
+  async approveInternalPaidPromotion(
+    campaignId: string
+  ): Promise<InternalPaidPromotionActionResponse> {
+    return this.request<InternalPaidPromotionActionResponse>(
+      `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/approve`,
+      { method: 'POST', timeoutMs: 20000 }
+    );
+  }
+
+  async rejectInternalPaidPromotion(
+    campaignId: string
+  ): Promise<InternalPaidPromotionActionResponse> {
+    return this.request<InternalPaidPromotionActionResponse>(
+      `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/reject`,
+      { method: 'POST', timeoutMs: 20000 }
+    );
+  }
+
+  async transitionInternalPaidPromotion(
+    campaignId: string,
+    status: string
+  ): Promise<InternalPaidPromotionActionResponse> {
+    return this.request<InternalPaidPromotionActionResponse>(
+      `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/fulfillment`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ status }),
+        timeoutMs: 20000,
+      }
+    );
+  }
+
+  async getInternalPaidPromotionDeliverables(
+    campaignId: string
+  ): Promise<InternalPaidPromotionDeliverable[]> {
+    return this.request<InternalPaidPromotionDeliverable[]>(
+      `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/deliverables`,
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async createInternalPaidPromotionDeliverable(
+    campaignId: string,
+    input: InternalPaidPromotionDeliverableInput
+  ): Promise<InternalPaidPromotionDeliverable> {
+    return this.request<InternalPaidPromotionDeliverable>(
+      `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/deliverables`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+        timeoutMs: 20000,
+      }
+    );
+  }
+
+  async updateInternalPaidPromotionDeliverable(
+    campaignId: string,
+    deliverableId: string,
+    input: InternalPaidPromotionDeliverableInput
+  ): Promise<InternalPaidPromotionDeliverable> {
+    return this.request<InternalPaidPromotionDeliverable>(
+      `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/deliverables/${encodeURIComponent(deliverableId)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(input),
+        timeoutMs: 20000,
+      }
+    );
+  }
+
+  async removeInternalPaidPromotionDeliverable(
+    campaignId: string,
+    deliverableId: string
+  ): Promise<InternalPaidPromotionDeliverable> {
+    return this.request<InternalPaidPromotionDeliverable>(
+      `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/deliverables/${encodeURIComponent(deliverableId)}`,
+      { method: 'DELETE', timeoutMs: 20000 }
+    );
+  }
+
+  async initiateInternalPaidPromotionRefund(
+    campaignId: string,
+    amountMinor?: number
+  ): Promise<InternalPaidPromotionRefundResponse> {
+    return this.request<InternalPaidPromotionRefundResponse>(
+      `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/refund`,
+      {
+        method: 'POST',
+        body: JSON.stringify(amountMinor == null ? {} : { amountMinor }),
+        timeoutMs: 20000,
+      }
+    );
+  }
+
+  async getInternalPaidPromotionExceptions(params: {
+    status?: string;
+    kind?: string;
+  } = {}): Promise<InternalPaidPromotionException[]> {
+    const query = new URLSearchParams();
+    if (params.status) query.set('status', params.status);
+    if (params.kind) query.set('kind', params.kind);
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request<InternalPaidPromotionException[]>(
+      `/api/v1/internal/paid-promotions/exceptions${suffix}`,
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async getInternalPaidPromotionException(
+    exceptionId: string
+  ): Promise<InternalPaidPromotionException> {
+    return this.request<InternalPaidPromotionException>(
+      `/api/v1/internal/paid-promotions/exceptions/${encodeURIComponent(exceptionId)}`,
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async resolveInternalPaidPromotionException(
+    exceptionId: string
+  ): Promise<InternalPaidPromotionException> {
+    return this.request<InternalPaidPromotionException>(
+      `/api/v1/internal/paid-promotions/exceptions/${encodeURIComponent(exceptionId)}/resolve`,
+      { method: 'POST', timeoutMs: 20000 }
     );
   }
 

@@ -14,7 +14,8 @@ const KEY_PREFIX = 'cassette:prefetched-post:';
 
 export function savePrefetchedPost(postId: string, post: PostByIdResponse): void {
   try {
-    sessionStorage.setItem(KEY_PREFIX + postId, JSON.stringify(post));
+    const { paidPromotionCampaignId: _serverOwnedAttribution, ...cacheablePost } = post;
+    sessionStorage.setItem(KEY_PREFIX + postId, JSON.stringify(cacheablePost));
   } catch {
     // Storage full/unavailable — the post page falls back to fetching.
   }
@@ -27,7 +28,10 @@ export function takePrefetchedPost(postId: string): PostByIdResponse | null {
     if (!raw) return null;
     sessionStorage.removeItem(KEY_PREFIX + postId);
     const parsed = JSON.parse(raw) as PostByIdResponse;
-    return parsed?.success ? parsed : null;
+    if (!parsed?.success) return null;
+
+    const { paidPromotionCampaignId: _untrustedAttribution, ...cachedPost } = parsed;
+    return cachedPost as PostByIdResponse;
   } catch {
     return null;
   }

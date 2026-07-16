@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = __importDefault(require("node:test"));
 const strict_1 = __importDefault(require("node:assert/strict"));
 const post_platform_conversion_1 = require("../post-platform-conversion");
+const sanitize_1 = require("../sanitize");
 (0, node_test_1.default)('buildPostPlatformConversionClickedProps builds non-playlist destination open payload', () => {
     const payload = (0, post_platform_conversion_1.buildPostPlatformConversionClickedProps)({
         sourceContext: 'destination_open_button',
@@ -67,4 +68,26 @@ const post_platform_conversion_1 = require("../post-platform-conversion");
         targetPlatform: 'spotify',
     });
     strict_1.default.equal(payload, null);
+});
+(0, node_test_1.default)('paid-promotion attribution stays optional and is validated by the analytics sanitizer', () => {
+    const paidPayload = (0, post_platform_conversion_1.buildPostPlatformConversionClickedProps)({
+        sourceContext: 'destination_open_button',
+        route: '/post/paid',
+        postId: 'p_PaidDeliverable01',
+        paidPromotionCampaignId: 'pmc_0123AbCd',
+    });
+    const ordinaryPayload = (0, post_platform_conversion_1.buildPostPlatformConversionClickedProps)({
+        sourceContext: 'destination_open_button',
+        route: '/post/ordinary',
+        postId: 'p_OrdinaryPost01',
+    });
+    const invalidPayload = (0, post_platform_conversion_1.buildPostPlatformConversionClickedProps)({
+        sourceContext: 'destination_open_button',
+        route: '/post/invalid',
+        postId: 'p_InvalidAttribution01',
+        paidPromotionCampaignId: 'campaign-from-route',
+    });
+    strict_1.default.equal(paidPayload?.paid_promotion_campaign_id, 'pmc_0123AbCd');
+    strict_1.default.equal(ordinaryPayload?.paid_promotion_campaign_id, undefined);
+    strict_1.default.equal((0, sanitize_1.sanitizeAnalyticsProps)(invalidPayload ?? {}).paid_promotion_campaign_id, undefined);
 });

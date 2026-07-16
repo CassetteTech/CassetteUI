@@ -123,7 +123,7 @@ export function PaidPromotionIntake() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.replace('/auth/signin?redirect=/promote');
+      router.replace('/auth/signin?redirect=/promote/new');
     }
   }, [authLoading, isAuthenticated, router]);
 
@@ -132,7 +132,7 @@ export function PaidPromotionIntake() {
 
     intakeTrackedRef.current = true;
     void captureClientEvent('paid_promotion_intake_started', {
-      route: '/promote',
+      route: '/promote/new',
       source_surface: 'paid_promotion',
       is_authenticated: true,
     });
@@ -283,7 +283,7 @@ export function PaidPromotionIntake() {
         campaignId = campaign.id;
         setCreatedCampaignId(campaign.id);
         void captureClientEvent('paid_promotion_campaign_submitted', {
-          route: '/promote',
+          route: '/promote/new',
           source_surface: 'paid_promotion',
           paid_promotion_campaign_id: campaign.id,
           is_authenticated: true,
@@ -292,7 +292,7 @@ export function PaidPromotionIntake() {
 
       const checkout = await apiService.createPaidPromotionCheckoutSession(campaignId);
       void captureClientEvent('paid_promotion_checkout_started', {
-        route: '/promote',
+        route: '/promote/new',
         source_surface: 'paid_promotion',
         paid_promotion_campaign_id: campaignId,
         is_authenticated: true,
@@ -334,7 +334,7 @@ export function PaidPromotionIntake() {
         aria-labelledby="paid-promotion-intake-heading"
         className="relative mx-auto w-full max-w-4xl"
       >
-        <BackButton label="Back" className="mb-6" />
+        <BackButton route="/promote" label="Promotion home" className="mb-6" />
 
         <header className="mb-8 max-w-2xl">
           <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-foreground">

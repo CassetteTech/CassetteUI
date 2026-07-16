@@ -287,7 +287,7 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
 
                 {state === 'paid' && (
                   <Button asChild variant="brutalist-outline" className="w-full">
-                    <Link href="/">Back to Cassette</Link>
+                    <Link href="/promote">View your campaigns</Link>
                   </Button>
                 )}
 

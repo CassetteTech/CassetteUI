@@ -18,6 +18,7 @@ type BuildPostPlatformConversionPropsInput = {
   sourcePlatform?: string;
   sourceDomain?: string;
   isAuthenticated?: boolean;
+  paidPromotionCampaignId?: string | null;
 };
 
 export function isPostPlatformConversionContext(value: string): value is PostPlatformConversionContext {
@@ -45,5 +46,6 @@ export function buildPostPlatformConversionClickedProps(
     source_domain: sanitizeDomain(input.sourceDomain),
     is_authenticated: input.isAuthenticated,
     source_context: input.sourceContext,
+    paid_promotion_campaign_id: input.paidPromotionCampaignId ?? undefined,
   };
 }

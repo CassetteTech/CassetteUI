@@ -61,6 +61,7 @@ export interface FixtureUser {
 
 export interface FixturePost {
   postId: string;
+  paidPromotionCampaignId?: string | null;
   musicElementId: string;
   elementType: 'Track' | 'Album' | 'Artist' | 'Playlist';
   title: string;

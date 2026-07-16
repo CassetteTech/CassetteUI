@@ -19,6 +19,7 @@ import {
 } from './cassette-fixtures';
 
 type MockCassetteOptions = {
+  analyticsCaptures?: Array<Record<string, unknown>>;
   currentUser?: FixtureUser | null;
   googleAuthUser?: FixtureUser | null;
   users?: FixtureUser[];
@@ -35,6 +36,10 @@ type MockCassetteOptions = {
   googleAuthInitFailures?: number;
   paidPromotionRateCards?: FixturePaidPromotionRateCard[];
   paidPromotionCampaign?: FixturePaidPromotionCampaign;
+  paidPromotionCampaigns?: FixturePaidPromotionCampaign[];
+  paidPromotionCampaignsResponse?: unknown;
+  paidPromotionCampaignsStatus?: number;
+  paidPromotionCampaignsDelayMs?: number;
   paidPromotionPollSequence?: Array<{
     status: string;
     paymentStatus: string | null;
@@ -49,6 +54,7 @@ type MockCassetteOptions = {
   internalPaidPromotionRefundRaceStatus?: 'refunded' | 'disputed' | 'charged_back';
   paidPromotionSubjects?: unknown;
   paidPromotionSubjectsStatus?: number;
+  paidPromotionSubjectsDelayMs?: number;
   internalPaidPromotionSubjects?: unknown;
   internalPaidPromotionSubjectsStatus?: number;
   internalPaidPromotionSubjectsDelayMs?: number;
@@ -88,6 +94,9 @@ type MockState = {
   googleAuthInitFailuresRemaining: number;
   paidPromotionRateCards: FixturePaidPromotionRateCard[];
   paidPromotionCampaignsById: Map<string, FixturePaidPromotionCampaign>;
+  paidPromotionCampaignsResponse?: unknown;
+  paidPromotionCampaignsStatus: number;
+  paidPromotionCampaignsDelayMs: number;
   paidPromotionPollSequence: Array<{
     status: string;
     paymentStatus: string | null;
@@ -102,6 +111,7 @@ type MockState = {
   internalPaidPromotionRefundRaceStatus?: 'refunded' | 'disputed' | 'charged_back';
   paidPromotionSubjects: unknown;
   paidPromotionSubjectsStatus: number;
+  paidPromotionSubjectsDelayMs: number;
   internalPaidPromotionSubjects: unknown;
   internalPaidPromotionSubjectsStatus: number;
   internalPaidPromotionSubjectsDelayMs: number;
@@ -189,6 +199,7 @@ const toPostByIdResponse = (post: FixturePost) => ({
   success: true,
   postId: post.postId,
   redirectPostId: post.postId,
+  paidPromotionCampaignId: post.paidPromotionCampaignId ?? null,
   repostedByCurrentUser: post.repostedByCurrentUser || false,
   elementType: post.elementType,
   musicElementId: post.musicElementId,
@@ -379,6 +390,11 @@ const buildState = (options: MockCassetteOptions): MockState => {
     googleAuthInitFailuresRemaining: options.googleAuthInitFailures ?? 0,
     paidPromotionRateCards: clone(options.paidPromotionRateCards || fixturePaidPromotionRateCards),
     paidPromotionCampaignsById: new Map<string, FixturePaidPromotionCampaign>(),
+    paidPromotionCampaignsResponse: options.paidPromotionCampaignsResponse === undefined
+      ? undefined
+      : clone(options.paidPromotionCampaignsResponse),
+    paidPromotionCampaignsStatus: options.paidPromotionCampaignsStatus ?? 200,
+    paidPromotionCampaignsDelayMs: options.paidPromotionCampaignsDelayMs ?? 0,
     paidPromotionPollSequence: clone(options.paidPromotionPollSequence || []),
     paidPromotionCheckoutUrl: options.paidPromotionCheckoutUrl,
     internalPaidPromotionCampaign: clone(
@@ -391,6 +407,7 @@ const buildState = (options: MockCassetteOptions): MockState => {
         : options.paidPromotionSubjects,
     ),
     paidPromotionSubjectsStatus: options.paidPromotionSubjectsStatus ?? 200,
+    paidPromotionSubjectsDelayMs: options.paidPromotionSubjectsDelayMs ?? 0,
     internalPaidPromotionSubjects: clone(
       options.internalPaidPromotionSubjects === undefined
         ? fixturePaidPromotionSubjects
@@ -439,6 +456,9 @@ const buildState = (options: MockCassetteOptions): MockState => {
       clone(options.paidPromotionCampaign),
     );
   }
+  for (const campaign of options.paidPromotionCampaigns || []) {
+    state.paidPromotionCampaignsById.set(campaign.id, clone(campaign));
+  }
 
   return state;
 };
@@ -486,13 +506,39 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
 
+  await page.route(
+    /^https:\/\/fonts\.googleapis\.com\/icon\?family=Material\+Icons$/,
+    async (route) => route.fulfill({
+      status: 200,
+      contentType: 'text/css',
+      body: '/* External icon fonts are disabled in local E2E fixtures. */',
+    }),
+  );
+  await page.route(
+    /^https:\/\/js-cdn\.music\.apple\.com\/musickit\/v3\/musickit\.js$/,
+    async (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      body: '/* MusicKit-dependent E2E tests install their own deterministic stub. */',
+    }),
+  );
+
   await page.route('**/api/**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const pathname = url.pathname;
     const method = request.method();
 
-    if (pathname === '/api/ingest/capture') {
+    if (
+      pathname === '/api/e2e-ingest/capture' ||
+      pathname === '/api/e2e-ingest/capture/' ||
+      pathname === '/api/ingest/capture' ||
+      pathname === '/api/ingest/capture/'
+    ) {
+      const body = request.postDataJSON();
+      if (body && typeof body === 'object' && !Array.isArray(body)) {
+        options.analyticsCaptures?.push(body as Record<string, unknown>);
+      }
       return route.fulfill({ status: 204, body: '' });
     }
 
@@ -907,12 +953,33 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
 
     if (pathname === '/api/v1/paid-promotions/subjects' && method === 'GET') {
       getCurrentUserOrThrow(state);
+      if (state.paidPromotionSubjectsDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, state.paidPromotionSubjectsDelayMs));
+      }
       if (state.paidPromotionSubjectsStatus !== 200) {
         return json(route, {
           message: 'Paid-promotion subjects are unavailable to this caller.',
         }, state.paidPromotionSubjectsStatus);
       }
       return json(route, state.paidPromotionSubjects);
+    }
+
+    if (pathname === '/api/v1/paid-promotions/campaigns' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      if (state.paidPromotionCampaignsDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, state.paidPromotionCampaignsDelayMs));
+      }
+      if (state.paidPromotionCampaignsStatus !== 200) {
+        return json(route, {
+          message: 'Paid-promotion campaigns are unavailable to this caller.',
+        }, state.paidPromotionCampaignsStatus);
+      }
+      return json(
+        route,
+        state.paidPromotionCampaignsResponse === undefined
+          ? Array.from(state.paidPromotionCampaignsById.values())
+          : state.paidPromotionCampaignsResponse,
+      );
     }
 
     if (pathname === '/api/v1/paid-promotions/rate-cards' && method === 'GET') {

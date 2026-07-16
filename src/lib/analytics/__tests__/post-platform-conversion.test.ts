@@ -4,6 +4,7 @@ import {
   buildPostPlatformConversionClickedProps,
   isPostPlatformConversionContext,
 } from '../post-platform-conversion';
+import { sanitizeAnalyticsProps } from '../sanitize';
 
 test('buildPostPlatformConversionClickedProps builds non-playlist destination open payload', () => {
   const payload = buildPostPlatformConversionClickedProps({
@@ -74,4 +75,31 @@ test('source attribution context is excluded from post platform conversion event
   });
 
   assert.equal(payload, null);
+});
+
+test('paid-promotion attribution stays optional and is validated by the analytics sanitizer', () => {
+  const paidPayload = buildPostPlatformConversionClickedProps({
+    sourceContext: 'destination_open_button',
+    route: '/post/paid',
+    postId: 'p_PaidDeliverable01',
+    paidPromotionCampaignId: 'pmc_0123AbCd',
+  });
+  const ordinaryPayload = buildPostPlatformConversionClickedProps({
+    sourceContext: 'destination_open_button',
+    route: '/post/ordinary',
+    postId: 'p_OrdinaryPost01',
+  });
+  const invalidPayload = buildPostPlatformConversionClickedProps({
+    sourceContext: 'destination_open_button',
+    route: '/post/invalid',
+    postId: 'p_InvalidAttribution01',
+    paidPromotionCampaignId: 'campaign-from-route',
+  });
+
+  assert.equal(paidPayload?.paid_promotion_campaign_id, 'pmc_0123AbCd');
+  assert.equal(ordinaryPayload?.paid_promotion_campaign_id, undefined);
+  assert.equal(
+    sanitizeAnalyticsProps(invalidPayload ?? {}).paid_promotion_campaign_id,
+    undefined,
+  );
 });

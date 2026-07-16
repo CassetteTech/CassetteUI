@@ -43,6 +43,7 @@ interface PlaylistStreamingLinksProps {
   playlistTrackCount?: number;
   sourceUrl?: string;
   sourcePlatform?: string;
+  paidPromotionCampaignId?: string | null;
 }
 
 interface CreationStatus {
@@ -66,6 +67,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   playlistTrackCount,
   sourceUrl,
   sourcePlatform,
+  paidPromotionCampaignId,
 }) => {
   const { isAuthenticated } = useAuthState();
   const [creationStatus, setCreationStatus] = useState<CreationStatus | null>(null);
@@ -287,6 +289,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       sourcePlatform: sourcePlatformKey ?? undefined,
       sourceDomain: playlistUrl,
       isAuthenticated,
+      paidPromotionCampaignId,
     });
     if (openClickProps) {
       void captureClientEvent('post_platform_conversion_clicked', openClickProps);
@@ -302,7 +305,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       is_authenticated: isAuthenticated,
     });
     openInAppOrBrowser(playlistUrl);
-  }, [isAuthenticated, playlistId, postId, sourcePlatformKey]);
+  }, [isAuthenticated, paidPromotionCampaignId, playlistId, postId, sourcePlatformKey]);
 
   const handleCreatePlaylist = React.useCallback(async (platform: PlatformKey) => {
     const normalizedTarget = getPlatformDefinition(platform)?.analyticsKey ?? platform;
@@ -318,6 +321,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       sourcePlatform: sourcePlatformKey ?? undefined,
       sourceDomain: resolvedSourceUrl || undefined,
       isAuthenticated,
+      paidPromotionCampaignId,
     });
     if (convertClickProps) {
       void captureClientEvent('post_platform_conversion_clicked', convertClickProps);
@@ -402,6 +406,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     connectRedirectPlatform,
     createPlaylistOnPlatform,
     isAuthenticated,
+    paidPromotionCampaignId,
     postId,
     resolvedSourceUrl,
     setAppleMusicReconnectState,
@@ -630,6 +635,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
                   sourcePlatform: sourcePlatformKey ?? undefined,
                   sourceDomain: url,
                   isAuthenticated,
+                  paidPromotionCampaignId,
                 });
                 if (openClickProps) {
                   void captureClientEvent('post_platform_conversion_clicked', openClickProps);

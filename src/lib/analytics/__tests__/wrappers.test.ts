@@ -378,6 +378,78 @@ test('captureClientEvent preserves post viewer relationship flags', { concurrenc
   process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
 });
 
+test('fan-action events keep only sanitizer-validated paid-promotion attribution', { concurrency: false }, async () => {
+  const previousKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  const previousDevFlag = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV;
+  process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_test_key';
+  process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = 'true';
+  resetAnalyticsContextForTests();
+
+  const mocks = setupBrowserMocks('/post/p_PaidDeliverable01');
+  const fanActionEvents = [
+    'post_viewed',
+    'streaming_link_opened',
+    'post_platform_conversion_clicked',
+  ] as const;
+
+  for (const event of fanActionEvents) {
+    await captureClientEvent(event, {
+      route: '/post/p_PaidDeliverable01',
+      source_surface: 'post',
+      post_id: 'p_PaidDeliverable01',
+      paid_promotion_campaign_id: 'pmc_0123AbCd',
+    });
+    await captureClientEvent(event, {
+      route: '/post/p_OrdinaryPost01',
+      source_surface: 'post',
+      post_id: 'p_OrdinaryPost01',
+    });
+  }
+
+  await captureClientEvent('post_viewed', {
+    route: '/post/p_InvalidAttribution01',
+    source_surface: 'post',
+    post_id: 'p_InvalidAttribution01',
+    paid_promotion_campaign_id: 'campaign-from-route',
+  });
+
+  const captured = await collectCapturedPayloads(mocks.fetchPayloads, mocks.beaconPayloads);
+  for (const event of fanActionEvents) {
+    const matching = captured.filter((payload) => payload.event === event);
+    const paid = matching.find((payload) =>
+      (payload.properties as Record<string, unknown> | undefined)?.post_id ===
+      'p_PaidDeliverable01'
+    );
+    const ordinary = matching.find((payload) =>
+      (payload.properties as Record<string, unknown> | undefined)?.post_id ===
+      'p_OrdinaryPost01'
+    );
+
+    assert.equal(
+      (paid?.properties as Record<string, unknown> | undefined)?.paid_promotion_campaign_id,
+      'pmc_0123AbCd',
+    );
+    assert.equal(
+      (ordinary?.properties as Record<string, unknown> | undefined)?.paid_promotion_campaign_id,
+      undefined,
+    );
+  }
+
+  const invalid = captured.find((payload) =>
+    payload.event === 'post_viewed' &&
+    (payload.properties as Record<string, unknown> | undefined)?.post_id ===
+      'p_InvalidAttribution01'
+  );
+  assert.equal(
+    (invalid?.properties as Record<string, unknown> | undefined)?.paid_promotion_campaign_id,
+    undefined,
+  );
+
+  mocks.restore();
+  process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
+  process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
+});
+
 test('trackBrowserPageview stores safe Reddit attribution for later events', { concurrency: false }, async () => {
   const previousKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   const previousDevFlag = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV;

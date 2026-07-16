@@ -555,6 +555,7 @@ export interface PostByIdResponse {
   success: boolean;
   postId: string;
   redirectPostId?: string;
+  paidPromotionCampaignId?: string | null;
   isRepost?: boolean;
   originalPostId?: string | null;
   repostedByCurrentUser?: boolean;

@@ -5,6 +5,7 @@ import type { PaidPromotionCampaign, PaidPromotionPaymentStatus } from '../../ty
 import {
   getPaidPromotionReturnState,
   parsePaidPromotionCampaign,
+  parsePaidPromotionCampaigns,
   isPaidPromotionCampaignId,
   shouldPollPaidPromotionCampaign,
 } from '../paid-promotion-lifecycle';
@@ -12,7 +13,7 @@ import {
 function campaign(paymentStatus: PaidPromotionPaymentStatus | null): PaidPromotionCampaign {
   return {
     id: 'pmc_TestCampaign1',
-    trackId: 't_TestTrack001',
+    trackId: 't_123456789ABC',
     sourcePlatform: 'spotify',
     rateCardId: 'prc_TestCard1',
     amountMinor: 25000,
@@ -112,4 +113,32 @@ void test('accepts coordinated unknown totals and a legitimate zero-total checko
     refundableRemainderMinor: 0,
   };
   assert.equal(getPaidPromotionReturnState(parsePaidPromotionCampaign(zeroTotal)), 'paid');
+});
+
+void test('strictly parses the owner campaign collection', () => {
+  const paidCampaign = {
+    ...campaign('paid'),
+    id: 'pmc_TestCampaign2',
+  };
+  assert.deepEqual(
+    parsePaidPromotionCampaigns([campaign('pending'), paidCampaign]).map((item) => item.id),
+    ['pmc_TestCampaign1', 'pmc_TestCampaign2'],
+  );
+  assert.deepEqual(parsePaidPromotionCampaigns([]), []);
+  assert.throws(
+    () => parsePaidPromotionCampaigns({ campaigns: [] }),
+    /paid-promotion server response: campaigns/,
+  );
+  assert.throws(
+    () => parsePaidPromotionCampaigns([{ ...campaign('paid'), status: 'mystery' }]),
+    /campaigns\[0\]\.status/,
+  );
+  assert.throws(
+    () => parsePaidPromotionCampaigns([{ ...campaign('paid'), trackId: 'track-from-route' }]),
+    /campaigns\[0\]\.trackId/,
+  );
+  assert.throws(
+    () => parsePaidPromotionCampaigns([campaign('pending'), campaign('paid')]),
+    /campaigns\[1\]\.id/,
+  );
 });

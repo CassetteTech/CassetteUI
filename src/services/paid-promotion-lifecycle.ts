@@ -34,6 +34,7 @@ const PAYMENT_STATUSES = [
 ] as const satisfies readonly PaidPromotionPaymentStatus[];
 
 const SOURCE_PLATFORMS = ['spotify', 'applemusic', 'deezer'] as const;
+const TRACK_ID_PATTERN = /^t_[1-9A-HJ-NP-Za-km-z]{12}$/;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -117,10 +118,14 @@ function parseCheckoutTotals(item: JsonRecord, amountMinor: number) {
 export function parsePaidPromotionCampaign(value: unknown): PaidPromotionCampaign {
   const item = record(value, 'campaign');
   const amountMinor = integer(item.amountMinor, 'campaign.amountMinor');
+  const id = string(item.id, 'campaign.id');
+  if (!isPaidPromotionCampaignId(id)) invalid('campaign.id');
+  const trackId = string(item.trackId, 'campaign.trackId');
+  if (!TRACK_ID_PATTERN.test(trackId)) invalid('campaign.trackId');
 
   return {
-    id: string(item.id, 'campaign.id'),
-    trackId: string(item.trackId, 'campaign.trackId'),
+    id,
+    trackId,
     sourcePlatform: member(item.sourcePlatform, SOURCE_PLATFORMS, 'campaign.sourcePlatform'),
     rateCardId: nullableString(item.rateCardId, 'campaign.rateCardId'),
     amountMinor,
@@ -135,6 +140,26 @@ export function parsePaidPromotionCampaign(value: unknown): PaidPromotionCampaig
     createdAtUtc: dateString(item.createdAtUtc, 'campaign.createdAtUtc'),
     updatedAtUtc: dateString(item.updatedAtUtc, 'campaign.updatedAtUtc'),
   };
+}
+
+export function parsePaidPromotionCampaigns(value: unknown): PaidPromotionCampaign[] {
+  if (!Array.isArray(value)) invalid('campaigns');
+  const ids = new Set<string>();
+  return value.map((campaign, index) => {
+    try {
+      const parsed = parsePaidPromotionCampaign(campaign);
+      if (ids.has(parsed.id)) invalid(`campaigns[${index}].id`);
+      ids.add(parsed.id);
+      return parsed;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(
+          error.message.replace('campaign.', `campaigns[${index}].`),
+        );
+      }
+      invalid(`campaigns[${index}]`);
+    }
+  });
 }
 
 export function hasKnownPaidPromotionCheckoutTotals(campaign: PaidPromotionCampaign): boolean {
@@ -154,7 +179,7 @@ export type PaidPromotionReturnState =
   | 'unavailable';
 
 export function isPaidPromotionCampaignId(value: string): boolean {
-  return /^pmc_[0-9A-Za-z]+$/.test(value);
+  return value.length <= 40 && /^pmc_[0-9A-Za-z]+$/.test(value);
 }
 
 export function getPaidPromotionReturnState(

@@ -11,6 +11,7 @@ import {
   fixtureInternalPaidPromotionCampaign,
   fixturePaidPromotionCampaign,
   fixturePaidPromotionRateCards,
+  fixturePaidPromotionSubjects,
   fixtureSearchResultsByQuery,
   fixtureTopCharts,
   fixtureUsernameAvailability,
@@ -46,6 +47,11 @@ type MockCassetteOptions = {
   paidPromotionCheckoutUrl?: string;
   internalPaidPromotionCampaign?: FixtureInternalPaidPromotionCampaign;
   internalPaidPromotionRefundRaceStatus?: 'refunded' | 'disputed' | 'charged_back';
+  paidPromotionSubjects?: unknown;
+  paidPromotionSubjectsStatus?: number;
+  internalPaidPromotionSubjects?: unknown;
+  internalPaidPromotionSubjectsStatus?: number;
+  internalPaidPromotionSubjectsDelayMs?: number;
 };
 
 type MockNotification = {
@@ -94,6 +100,11 @@ type MockState = {
   paidPromotionCheckoutUrl?: string;
   internalPaidPromotionCampaign: FixtureInternalPaidPromotionCampaign;
   internalPaidPromotionRefundRaceStatus?: 'refunded' | 'disputed' | 'charged_back';
+  paidPromotionSubjects: unknown;
+  paidPromotionSubjectsStatus: number;
+  internalPaidPromotionSubjects: unknown;
+  internalPaidPromotionSubjectsStatus: number;
+  internalPaidPromotionSubjectsDelayMs: number;
 };
 
 const DEFAULT_USERS = Object.values(fixtureUsers);
@@ -374,6 +385,19 @@ const buildState = (options: MockCassetteOptions): MockState => {
       options.internalPaidPromotionCampaign || fixtureInternalPaidPromotionCampaign,
     ),
     internalPaidPromotionRefundRaceStatus: options.internalPaidPromotionRefundRaceStatus,
+    paidPromotionSubjects: clone(
+      options.paidPromotionSubjects === undefined
+        ? fixturePaidPromotionSubjects
+        : options.paidPromotionSubjects,
+    ),
+    paidPromotionSubjectsStatus: options.paidPromotionSubjectsStatus ?? 200,
+    internalPaidPromotionSubjects: clone(
+      options.internalPaidPromotionSubjects === undefined
+        ? fixturePaidPromotionSubjects
+        : options.internalPaidPromotionSubjects,
+    ),
+    internalPaidPromotionSubjectsStatus: options.internalPaidPromotionSubjectsStatus ?? 200,
+    internalPaidPromotionSubjectsDelayMs: options.internalPaidPromotionSubjectsDelayMs ?? 0,
   };
 
   for (const user of DEFAULT_USERS) {
@@ -676,6 +700,24 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       });
     }
 
+    if (pathname === '/api/v1/internal/paid-promotions/subjects' && method === 'GET') {
+      const currentUser = getCurrentUserOrThrow(state);
+      if (currentUser.accountType !== 'CassetteTeam' && currentUser.accountType !== 2) {
+        return json(route, {
+          message: 'Cassette team access is required.',
+        }, 403);
+      }
+      if (state.internalPaidPromotionSubjectsDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, state.internalPaidPromotionSubjectsDelayMs));
+      }
+      if (state.internalPaidPromotionSubjectsStatus !== 200) {
+        return json(route, {
+          message: 'Paid-promotion subjects are unavailable to this caller.',
+        }, state.internalPaidPromotionSubjectsStatus);
+      }
+      return json(route, state.internalPaidPromotionSubjects);
+    }
+
     if (pathname === '/api/v1/internal/paid-promotions/campaigns' && method === 'GET') {
       getCurrentUserOrThrow(state);
       const campaign = state.internalPaidPromotionCampaign;
@@ -809,6 +851,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         return json(route, deliverable);
       }
       const payload = request.postDataJSON() as Record<string, unknown>;
+      deliverable.postId = typeof payload.postId === 'string' ? payload.postId : null;
       deliverable.channel = String(payload.channel);
       deliverable.status = String(payload.status);
       deliverable.plannedAtUtc = typeof payload.plannedAtUtc === 'string' ? payload.plannedAtUtc : null;
@@ -835,6 +878,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         const deliverable = {
           id: 'pmd_FixtureDeliverable02',
           campaignId,
+          postId: typeof payload.postId === 'string' ? payload.postId : null,
           channel: String(payload.channel),
           plannedAtUtc: typeof payload.plannedAtUtc === 'string' ? payload.plannedAtUtc : null,
           publishedAtUtc: typeof payload.publishedAtUtc === 'string' ? payload.publishedAtUtc : null,
@@ -859,6 +903,16 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         return json(route, { message: 'Paid-promotion campaign not found.' }, 404);
       }
       return json(route, state.internalPaidPromotionCampaign);
+    }
+
+    if (pathname === '/api/v1/paid-promotions/subjects' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      if (state.paidPromotionSubjectsStatus !== 200) {
+        return json(route, {
+          message: 'Paid-promotion subjects are unavailable to this caller.',
+        }, state.paidPromotionSubjectsStatus);
+      }
+      return json(route, state.paidPromotionSubjects);
     }
 
     if (pathname === '/api/v1/paid-promotions/rate-cards' && method === 'GET') {

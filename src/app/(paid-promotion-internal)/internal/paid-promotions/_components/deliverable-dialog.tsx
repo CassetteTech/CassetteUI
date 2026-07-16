@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   internalPaidPromotionsService,
+  isPaidPromotionDeliverablePostId,
   PAID_PROMOTION_DELIVERABLE_CHANNELS,
 } from '@/services/internal-paid-promotions';
 import type {
@@ -66,6 +67,7 @@ export function DeliverableDialog({
 }: DeliverableDialogProps) {
   const [channel, setChannel] = useState('instagram');
   const [status, setStatus] = useState<PaidPromotionDeliverableStatus>('planned');
+  const [postId, setPostId] = useState('');
   const [plannedAt, setPlannedAt] = useState('');
   const [publishedAt, setPublishedAt] = useState('');
   const [evidenceUrl, setEvidenceUrl] = useState('');
@@ -77,6 +79,7 @@ export function DeliverableDialog({
     if (!open) return;
     setChannel(deliverable?.channel ?? 'instagram');
     setStatus(deliverable?.status === 'removed' ? 'planned' : deliverable?.status ?? 'planned');
+    setPostId(deliverable?.postId ?? '');
     setPlannedAt(toLocalDateTime(deliverable?.plannedAtUtc ?? null));
     setPublishedAt(toLocalDateTime(deliverable?.publishedAtUtc ?? null));
     setEvidenceUrl(deliverable?.evidenceUrl ?? '');
@@ -95,12 +98,18 @@ export function DeliverableDialog({
     setFormError(null);
 
     const trimmedEvidenceUrl = evidenceUrl.trim();
+    const trimmedPostId = postId.trim();
+    if (trimmedPostId && !isPaidPromotionDeliverablePostId(trimmedPostId)) {
+      setFormError('Post ID must use the canonical Cassette post format.');
+      return;
+    }
     if ((status === 'published' || status === 'verified') && (!publishedAt || !trimmedEvidenceUrl)) {
       setFormError('Published and verified deliverables require a publication time and evidence URL.');
       return;
     }
 
     const input: InternalPaidPromotionDeliverableInput = {
+      postId: trimmedPostId || null,
       channel: channel as InternalPaidPromotionDeliverableInput['channel'],
       status,
       plannedAtUtc: toUtcDateTime(plannedAt),
@@ -191,6 +200,24 @@ export function DeliverableDialog({
                 onChange={(event) => setPublishedAt(event.target.value)}
               />
             </div>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="deliverable-post-id">Canonical post ID</Label>
+            <Input
+              id="deliverable-post-id"
+              aria-describedby="deliverable-post-id-description"
+              autoComplete="off"
+              maxLength={31}
+              pattern="p_[0-9]{14}_[0-9a-z]{14}"
+              placeholder="p_YYYYMMDDHHmmss_…"
+              spellCheck={false}
+              value={postId}
+              onChange={(event) => setPostId(event.target.value)}
+            />
+            <p id="deliverable-post-id-description" className="text-xs text-muted-foreground">
+              Optional. Bridge verifies that this is the canonical track post for the campaign subject.
+            </p>
           </div>
 
           <div className="grid gap-1.5">

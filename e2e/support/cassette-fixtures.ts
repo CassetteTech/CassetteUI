@@ -130,6 +130,7 @@ export interface FixturePaidPromotionCampaign {
 export interface FixtureInternalPaidPromotionDeliverable {
   id: string;
   campaignId: string;
+  postId: string | null;
   channel: string;
   plannedAtUtc: string | null;
   publishedAtUtc: string | null;
@@ -196,6 +197,17 @@ export interface FixtureInternalPaidPromotionCampaign {
   exceptions: FixtureInternalPaidPromotionException[];
   createdAtUtc: string;
   updatedAtUtc: string;
+}
+
+export interface FixturePaidPromotionSubject {
+  trackId: string;
+  trackTitle: string;
+  coverArtUrl: string | null;
+  artists: string[];
+  campaignCount: number;
+  campaignStatusCounts: Record<string, number>;
+  firstCampaignAtUtc: string;
+  latestCampaignAtUtc: string;
 }
 
 export const FIXTURE_TIMESTAMP = '2026-04-03T15:00:00.000Z';
@@ -378,7 +390,7 @@ export const fixtureConvertTemplates = {
   },
   paidPromotionTrack: {
     postId: 'post-paid-promotion-track',
-    musicElementId: 't_PromoTrack01',
+    musicElementId: 't_123456789ABC',
     elementType: 'Track',
     title: 'Signal Fire',
     artist: 'Mia Groove',
@@ -468,6 +480,7 @@ export const fixtureInternalPaidPromotionCampaign: FixtureInternalPaidPromotionC
     {
       id: 'pmd_FixtureDeliverable01',
       campaignId: fixturePaidPromotionCampaign.id,
+      postId: null,
       channel: 'instagram',
       plannedAtUtc: FIXTURE_TIMESTAMP,
       publishedAtUtc: null,
@@ -492,6 +505,22 @@ export const fixtureInternalPaidPromotionCampaign: FixtureInternalPaidPromotionC
   createdAtUtc: FIXTURE_TIMESTAMP,
   updatedAtUtc: FIXTURE_TIMESTAMP,
 };
+
+export const fixturePaidPromotionSubjects: FixturePaidPromotionSubject[] = [
+  {
+    trackId: fixtureConvertTemplates.paidPromotionTrack.musicElementId,
+    trackTitle: fixtureConvertTemplates.paidPromotionTrack.title,
+    coverArtUrl: null,
+    artists: [fixtureConvertTemplates.paidPromotionTrack.artist],
+    campaignCount: 2,
+    campaignStatusCounts: {
+      in_review: 1,
+      completed: 1,
+    },
+    firstCampaignAtUtc: FIXTURE_TIMESTAMP,
+    latestCampaignAtUtc: FIXTURE_TIMESTAMP,
+  },
+];
 
 export const fixtureTopCharts: FixtureSearchResults = {
   tracks: [

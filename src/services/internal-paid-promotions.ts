@@ -24,6 +24,7 @@ export {
   parseInternalPaidPromotionDeliverable,
   parseInternalPaidPromotionException,
   parseInternalPaidPromotionRefund,
+  isPaidPromotionDeliverablePostId,
 } from './internal-paid-promotion-contract';
 
 class InternalPaidPromotionsService {

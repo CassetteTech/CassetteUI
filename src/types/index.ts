@@ -370,6 +370,17 @@ export interface PaidPromotionCheckoutSessionResponse {
   paymentStatus: PaidPromotionPaymentStatus;
 }
 
+export interface PaidPromotionSubject {
+  trackId: string;
+  trackTitle: string;
+  coverArtUrl: string | null;
+  artists: string[];
+  campaignCount: number;
+  campaignStatusCounts: Partial<Record<PaidPromotionCampaignStatus, number>>;
+  firstCampaignAtUtc: string;
+  latestCampaignAtUtc: string;
+}
+
 export type PaidPromotionPricingMode = 'rate_card' | 'manual_quote';
 
 export type PaidPromotionDeliverableChannel =
@@ -437,6 +448,7 @@ export interface InternalPaidPromotionPayment {
 export interface InternalPaidPromotionDeliverable {
   id: string;
   campaignId: string;
+  postId: string | null;
   channel: PaidPromotionDeliverableChannel;
   plannedAtUtc: string | null;
   publishedAtUtc: string | null;
@@ -509,6 +521,7 @@ export interface InternalPaidPromotionRefundResponse {
 }
 
 export interface InternalPaidPromotionDeliverableInput {
+  postId?: string | null;
   channel: PaidPromotionDeliverableChannel;
   plannedAtUtc?: string;
   publishedAtUtc?: string;

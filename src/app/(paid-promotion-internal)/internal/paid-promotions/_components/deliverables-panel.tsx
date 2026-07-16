@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -50,6 +51,7 @@ export function DeliverablesPanel({
                 <TableRow>
                   <TableHead>Channel</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Post</TableHead>
                   <TableHead>Planned</TableHead>
                   <TableHead>Published</TableHead>
                   <TableHead>Evidence</TableHead>
@@ -65,6 +67,16 @@ export function DeliverablesPanel({
                       <TableCell className="font-medium">{formatState(deliverable.channel)}</TableCell>
                       <TableCell>
                         <StatusPill tone={statusTone(deliverable.status)} label={formatState(deliverable.status)} />
+                      </TableCell>
+                      <TableCell className="max-w-48">
+                        {deliverable.postId ? (
+                          <Link
+                            href={`/post/${encodeURIComponent(deliverable.postId)}`}
+                            className="block truncate rounded-sm font-mono text-[10px] text-domain underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            {deliverable.postId}
+                          </Link>
+                        ) : '—'}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{formatDate(deliverable.plannedAtUtc)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{formatDate(deliverable.publishedAtUtc)}</TableCell>
@@ -124,6 +136,19 @@ export function DeliverablesPanel({
                   <dl className="grid grid-cols-2 gap-2 text-xs">
                     <div><dt className="text-muted-foreground">Planned</dt><dd>{formatDate(deliverable.plannedAtUtc)}</dd></div>
                     <div><dt className="text-muted-foreground">Published</dt><dd>{formatDate(deliverable.publishedAtUtc)}</dd></div>
+                    <div className="col-span-2">
+                      <dt className="text-muted-foreground">Canonical post</dt>
+                      <dd className="break-all font-mono text-[10px]">
+                        {deliverable.postId ? (
+                          <Link
+                            href={`/post/${encodeURIComponent(deliverable.postId)}`}
+                            className="rounded-sm text-domain underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            {deliverable.postId}
+                          </Link>
+                        ) : 'Not linked'}
+                      </dd>
+                    </div>
                   </dl>
                   {deliverable.notes && <p className="break-words text-xs">{deliverable.notes}</p>}
                   <div className="flex flex-wrap gap-2">

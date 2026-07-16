@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   parseInternalPaidPromotionCampaignDetail,
   parseInternalPaidPromotionCampaignSummary,
+  parseInternalPaidPromotionDeliverable,
   parseInternalPaidPromotionRefund,
 } from '../internal-paid-promotion-contract';
 
@@ -99,6 +100,7 @@ void test('rejects incomplete quote pairs and unsafe evidence URLs', () => {
   unsafeEvidence.deliverables = [{
     id: 'pmd_TestDeliverable1',
     campaignId: 'pmc_TestCampaign1',
+    postId: null,
     channel: 'instagram',
     plannedAtUtc: null,
     publishedAtUtc: null,
@@ -111,6 +113,29 @@ void test('rejects incomplete quote pairs and unsafe evidence URLs', () => {
   assert.throws(
     () => parseInternalPaidPromotionCampaignDetail(unsafeEvidence),
     /evidenceUrl/,
+  );
+});
+
+void test('parses, preserves, and rejects malformed deliverable post ids', () => {
+  const deliverable = {
+    id: 'pmd_TestDeliverable1',
+    campaignId: 'pmc_TestCampaign1',
+    postId: 'p_20260715120000_abcdefghijklmn',
+    channel: 'instagram',
+    plannedAtUtc: null,
+    publishedAtUtc: null,
+    evidenceUrl: null,
+    status: 'planned',
+    notes: null,
+    createdAtUtc: timestamp,
+    updatedAtUtc: timestamp,
+  };
+
+  assert.equal(parseInternalPaidPromotionDeliverable(deliverable).postId, deliverable.postId);
+  assert.equal(parseInternalPaidPromotionDeliverable({ ...deliverable, postId: null }).postId, null);
+  assert.throws(
+    () => parseInternalPaidPromotionDeliverable({ ...deliverable, postId: 'post-from-client-state' }),
+    /deliverable\.postId/,
   );
 });
 

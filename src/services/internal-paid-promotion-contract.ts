@@ -108,6 +108,16 @@ function nullableString(value: unknown, path: string): string | null {
   return value === null ? null : string(value, path);
 }
 
+export function isPaidPromotionDeliverablePostId(value: string): boolean {
+  return /^p_\d{14}_[0-9a-z]{14}$/.test(value);
+}
+
+function nullablePostId(value: unknown, path: string): string | null {
+  const result = nullableString(value, path);
+  if (result !== null && !isPaidPromotionDeliverablePostId(result)) invalid(path);
+  return result;
+}
+
 function nullableHttpUrl(value: unknown, path: string): string | null {
   const result = nullableString(value, path);
   if (result === null) return null;
@@ -207,6 +217,7 @@ export function parseInternalPaidPromotionDeliverable(
   return {
     id: string(item.id, `${path}.id`),
     campaignId: string(item.campaignId, `${path}.campaignId`),
+    postId: nullablePostId(item.postId, `${path}.postId`),
     channel: member(item.channel, PAID_PROMOTION_DELIVERABLE_CHANNELS, `${path}.channel`),
     plannedAtUtc: nullableDateString(item.plannedAtUtc, `${path}.plannedAtUtc`),
     publishedAtUtc: nullableDateString(item.publishedAtUtc, `${path}.publishedAtUtc`),

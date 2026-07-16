@@ -420,6 +420,16 @@ class ApiService {
     );
   }
 
+  async getPaidPromotionSubjects(): Promise<unknown> {
+    return this.request<unknown>('/api/v1/paid-promotions/subjects');
+  }
+
+  async getInternalPaidPromotionSubjects(): Promise<unknown> {
+    return this.request<unknown>('/api/v1/internal/paid-promotions/subjects', {
+      timeoutMs: 20000,
+    });
+  }
+
   async getInternalPaidPromotionCampaigns(params: {
     status?: string;
     paymentStatus?: string;

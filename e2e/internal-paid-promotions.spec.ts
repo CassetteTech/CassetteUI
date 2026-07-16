@@ -3,6 +3,7 @@ import {
   fixtureInternalPaidPromotionCampaign,
   fixturePaidPromotionCampaign,
   fixturePaidPromotionRateCards,
+  fixturePaidPromotionSubjects,
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
@@ -111,20 +112,42 @@ test('runs approval and fulfillment transitions through refreshed server truth',
 test('supports rejection and deliverable CRUD without bypassing server refresh', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: fixtureUsers.team });
   await page.goto('/internal/paid-promotions/' + fixturePaidPromotionCampaign.id);
+  const canonicalPostId = 'p_20260715120000_abcdefghijklmn';
 
   await page.getByRole('button', { name: 'Add' }).click();
   let dialog = page.getByRole('dialog', { name: 'Add deliverable' });
   await dialog.getByLabel('Deliverable channel').selectOption('tiktok');
+  await dialog.getByLabel('Canonical post ID').fill(canonicalPostId);
   await dialog.getByLabel('Internal notes').fill('Fixture TikTok placement');
+  const createRequest = page.waitForRequest((request) =>
+    request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/deliverables'),
+  );
   await dialog.getByRole('button', { name: 'Save deliverable' }).click();
+  expect((await createRequest).postDataJSON()).toMatchObject({ postId: canonicalPostId });
   await expect(page.getByText('Fixture TikTok placement', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: canonicalPostId })).toBeVisible();
 
   await page.getByRole('button', { name: 'Edit Tiktok deliverable' }).click();
   dialog = page.getByRole('dialog', { name: 'Edit deliverable' });
+  await expect(dialog.getByLabel('Canonical post ID')).toHaveValue(canonicalPostId);
   await dialog.getByLabel('Deliverable status').selectOption('scheduled');
   await dialog.getByLabel('Internal notes').fill('Scheduled TikTok placement');
+  const preserveRequest = page.waitForRequest((request) =>
+    request.method() === 'PUT' && new URL(request.url()).pathname.includes('/deliverables/'),
+  );
   await dialog.getByRole('button', { name: 'Save deliverable' }).click();
+  expect((await preserveRequest).postDataJSON()).toMatchObject({ postId: canonicalPostId });
   await expect(page.getByText('Scheduled TikTok placement', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Edit Tiktok deliverable' }).click();
+  dialog = page.getByRole('dialog', { name: 'Edit deliverable' });
+  await dialog.getByLabel('Canonical post ID').fill('');
+  const clearRequest = page.waitForRequest((request) =>
+    request.method() === 'PUT' && new URL(request.url()).pathname.includes('/deliverables/'),
+  );
+  await dialog.getByRole('button', { name: 'Save deliverable' }).click();
+  expect((await clearRequest).postDataJSON()).toMatchObject({ postId: null });
+  await expect(page.getByRole('link', { name: canonicalPostId })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Remove Tiktok deliverable' }).click();
   await page.getByRole('dialog', { name: 'Remove deliverable' })
@@ -134,6 +157,77 @@ test('supports rejection and deliverable CRUD without bypassing server refresh',
   await page.getByRole('button', { name: 'Reject' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Reject campaign' }).click();
   await expect(page.getByText('Rejected', { exact: true }).first()).toBeVisible();
+});
+
+test('shows the team subject catalog once through the paid-promotion shell', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.team });
+
+  await page.goto('/internal/paid-promotions');
+  await page.getByRole('link', { name: 'Subjects' }).click();
+
+  await expect(page).toHaveURL('/internal/paid-promotions/subjects');
+  await expect(page.getByRole('heading', { name: 'Subjects', level: 1 })).toHaveCount(1);
+  const subjectTable = page.getByRole('table', { name: 'Paid-promotion canonical subject catalog' });
+  await expect(subjectTable).toBeVisible();
+  await expect(page.getByRole('cell', { name: /Signal Fire/ })).toBeVisible();
+  await expect(subjectTable.getByText('In Review · 1', { exact: true })).toBeVisible();
+  await expect(subjectTable.getByText('Completed · 1', { exact: true })).toBeVisible();
+  await expect(page.getByText('Focus on the release story and live arrangement.')).toHaveCount(0);
+  await expect(page.getByText('pmp_FixturePayment01')).toHaveCount(0);
+});
+
+test('shows subject loading, empty, authorization-error, and unknown states visibly', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.team,
+    internalPaidPromotionSubjectsDelayMs: 250,
+  });
+  await page.goto('/internal/paid-promotions/subjects');
+  await expect(page.getByText('Loading paid-promotion subjects…')).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Paid-promotion canonical subject catalog' })).toBeVisible();
+
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.team,
+    internalPaidPromotionSubjects: [],
+  });
+  await page.reload();
+  await expect(page.getByText('No promoted subjects', { exact: true })).toBeVisible();
+
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.team,
+    internalPaidPromotionSubjectsStatus: 403,
+  });
+  await page.reload();
+  await expect(page.getByRole('alert').filter({
+    hasText: 'Paid-promotion subjects could not be shown.',
+  })).toBeVisible();
+
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.team,
+    internalPaidPromotionSubjects: [{
+      ...fixturePaidPromotionSubjects[0],
+      campaignStatusCounts: { future_state: 2 },
+    }],
+  });
+  await page.reload();
+  await expect(page.getByRole('alert').filter({
+    hasText: 'Invalid paid-promotion subject response: subjects[0].campaignStatusCounts.future_state.',
+  })).toBeVisible();
+});
+
+test('keeps the subject catalog usable at a narrow mobile viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  await mockCassetteApp(page, { currentUser: fixtureUsers.team });
+
+  await page.goto('/internal/paid-promotions/subjects');
+  await expect(page.getByRole('list', { name: 'Paid-promotion canonical subject catalog' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Subjects', level: 1 })).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => {
+    const documentWidth = Math.max(
+      document.documentElement.scrollWidth,
+      document.body.scrollWidth,
+    );
+    return documentWidth - window.innerWidth;
+  })).toBeLessThanOrEqual(1);
 });
 
 test('shows only refund pending and leaves refunded totals unchanged', async ({ page }) => {

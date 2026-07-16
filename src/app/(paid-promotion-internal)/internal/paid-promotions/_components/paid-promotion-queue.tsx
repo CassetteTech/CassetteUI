@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, LibraryBig, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -115,10 +115,18 @@ export function PaidPromotionQueue() {
         title="Paid Promotions"
         count={loading ? undefined : campaigns.length}
         actions={(
-          <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => void load()}>
-            <RefreshCw aria-hidden="true" />
-            Refresh
-          </Button>
+          <>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/internal/paid-promotions/subjects">
+                <LibraryBig aria-hidden="true" />
+                Subjects
+              </Link>
+            </Button>
+            <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => void load()}>
+              <RefreshCw aria-hidden="true" />
+              Refresh
+            </Button>
+          </>
         )}
       />
 

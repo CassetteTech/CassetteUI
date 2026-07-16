@@ -62,40 +62,33 @@ void test('accepts the complete internal paid-promotion detail contract', () => 
   assert.equal(parsed.attestedRelationship, 'self_artist');
 });
 
-void test('fails visibly on unknown or missing campaign and payment states', () => {
+void test('tolerates unknown campaign and payment states so the console keeps rendering', () => {
+  // Additive Bridge enum values must never brick the surface ops would use to
+  // investigate them; unknown strings pass through to the UI.
   const unknownCampaign = campaignDetail();
   unknownCampaign.status = 'future_state';
-  assert.throws(
-    () => parseInternalPaidPromotionCampaignDetail(unknownCampaign),
-    /campaign\.status/,
-  );
-
-  const missingCampaign = campaignDetail();
-  delete missingCampaign.status;
-  assert.throws(
-    () => parseInternalPaidPromotionCampaignDetail(missingCampaign),
-    /campaign\.status/,
-  );
+  assert.equal(parseInternalPaidPromotionCampaignDetail(unknownCampaign).status, 'future_state');
 
   const unknownPayment = campaignDetail();
   unknownPayment.payment = {
     ...(unknownPayment.payment as Record<string, unknown>),
     status: 'provider_future_state',
   };
+  assert.equal(
+    parseInternalPaidPromotionCampaignDetail(unknownPayment).payment?.status,
+    'provider_future_state',
+  );
+
+  // A missing required field is still a boundary failure.
+  const missingCampaign = campaignDetail();
+  delete missingCampaign.status;
   assert.throws(
-    () => parseInternalPaidPromotionCampaignDetail(unknownPayment),
-    /campaign\.payment\.status/,
+    () => parseInternalPaidPromotionCampaignDetail(missingCampaign),
+    /campaign\.status/,
   );
 });
 
-void test('rejects incomplete quote pairs and unsafe evidence URLs', () => {
-  const incompleteQuote = campaignDetail();
-  incompleteQuote.currency = null;
-  assert.throws(
-    () => parseInternalPaidPromotionCampaignDetail(incompleteQuote),
-    /campaign\.quote/,
-  );
-
+void test('rejects unsafe evidence URLs at the boundary', () => {
   const unsafeEvidence = campaignDetail();
   unsafeEvidence.deliverables = [{
     id: 'pmd_TestDeliverable1',
@@ -116,7 +109,7 @@ void test('rejects incomplete quote pairs and unsafe evidence URLs', () => {
   );
 });
 
-void test('parses, preserves, and rejects malformed deliverable post ids', () => {
+void test('passes deliverable post ids through without format gating', () => {
   const deliverable = {
     id: 'pmd_TestDeliverable1',
     campaignId: 'pmc_TestCampaign1',
@@ -133,35 +126,23 @@ void test('parses, preserves, and rejects malformed deliverable post ids', () =>
 
   assert.equal(parseInternalPaidPromotionDeliverable(deliverable).postId, deliverable.postId);
   assert.equal(parseInternalPaidPromotionDeliverable({ ...deliverable, postId: null }).postId, null);
-  assert.throws(
-    () => parseInternalPaidPromotionDeliverable({ ...deliverable, postId: 'post-from-client-state' }),
-    /deliverable\.postId/,
-  );
 });
 
-void test('validates coordinated checkout totals and preserves explicit unknown totals', () => {
+void test('preserves server totals without re-auditing checkout arithmetic', () => {
   const discounted = parseInternalPaidPromotionCampaignDetail(campaignDetail());
   assert.equal(discounted.payment?.finalTotalMinor, 21500);
   assert.equal(discounted.payment?.refundableRemainderMinor, 21500);
 
+  // Totals that don't satisfy the checkout formula still parse; that
+  // invariant is reconciliation/Sentinel's job.
   const inconsistent = campaignDetail();
   inconsistent.payment = {
     ...(inconsistent.payment as Record<string, unknown>),
     finalTotalMinor: 22000,
   };
-  assert.throws(
-    () => parseInternalPaidPromotionCampaignDetail(inconsistent),
-    /campaign\.payment\.finalTotalMinor/,
-  );
-
-  const partial = campaignDetail();
-  partial.payment = {
-    ...(partial.payment as Record<string, unknown>),
-    taxAmountMinor: null,
-  };
-  assert.throws(
-    () => parseInternalPaidPromotionCampaignDetail(partial),
-    /campaign\.payment\.checkoutTotals/,
+  assert.equal(
+    parseInternalPaidPromotionCampaignDetail(inconsistent).payment?.finalTotalMinor,
+    22000,
   );
 
   const unknown = campaignDetail();
@@ -173,9 +154,20 @@ void test('validates coordinated checkout totals and preserves explicit unknown 
     refundableRemainderMinor: null,
   };
   assert.equal(parseInternalPaidPromotionCampaignDetail(unknown).payment?.finalTotalMinor, null);
+
+  // Wrong primitive types on money fields remain boundary failures.
+  const wrongType = campaignDetail();
+  wrongType.payment = {
+    ...(wrongType.payment as Record<string, unknown>),
+    amountMinor: '25000',
+  };
+  assert.throws(
+    () => parseInternalPaidPromotionCampaignDetail(wrongType),
+    /campaign\.payment\.amountMinor/,
+  );
 });
 
-void test('validates queue states before rendering them', () => {
+void test('parses queue summaries and tolerates unknown states', () => {
   const summary = {
     id: 'pmc_TestCampaign1',
     trackId: 't_TestTrack001',
@@ -192,13 +184,17 @@ void test('validates queue states before rendering them', () => {
   };
 
   assert.equal(parseInternalPaidPromotionCampaignSummary(summary).status, 'in_review');
+  assert.equal(
+    parseInternalPaidPromotionCampaignSummary({ ...summary, status: 'unknown' }).status,
+    'unknown',
+  );
   assert.throws(
-    () => parseInternalPaidPromotionCampaignSummary({ ...summary, status: 'unknown' }),
-    /campaign\.status/,
+    () => parseInternalPaidPromotionCampaignSummary({ ...summary, trackTitle: undefined }),
+    /campaign\.trackTitle/,
   );
 });
 
-void test('accepts only refund_pending initiation truth without changing refunded totals', () => {
+void test('parses refund responses without gating the reported status', () => {
   const response = {
     campaignId: 'pmc_TestCampaign1',
     paymentId: 'pmp_TestPayment1',
@@ -213,16 +209,14 @@ void test('accepts only refund_pending initiation truth without changing refunde
   assert.equal(parsed.paymentStatus, 'refund_pending');
   assert.equal(parsed.amountRefundedMinor, 0);
   assert.equal(parsed.refundableRemainderMinor, 21500);
-  assert.throws(
-    () => parseInternalPaidPromotionRefund({ ...response, paymentStatus: 'partially_refunded' }),
-    /refund\.paymentStatus/,
+
+  // A refund that already settled reports its real status instead of failing.
+  assert.equal(
+    parseInternalPaidPromotionRefund({ ...response, paymentStatus: 'refunded' }).paymentStatus,
+    'refunded',
   );
   assert.throws(
-    () => parseInternalPaidPromotionRefund({ ...response, paymentStatus: 'refunded' }),
-    /refund\.paymentStatus/,
-  );
-  assert.throws(
-    () => parseInternalPaidPromotionRefund({ ...response, refundableRemainderMinor: 20000 }),
-    /refund\.refundableRemainderMinor/,
+    () => parseInternalPaidPromotionRefund({ ...response, amountRefundedMinor: null }),
+    /refund\.amountRefundedMinor/,
   );
 });

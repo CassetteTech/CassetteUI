@@ -34,30 +34,21 @@ void test('parses the shared owner and team subject contract', () => {
   assert.deepEqual(parsePaidPromotionSubjects([subject()]), [parsed]);
 });
 
-void test('rejects unknown status rollups and inconsistent campaign counts', () => {
-  const unknownStatus = subject();
-  unknownStatus.campaignStatusCounts = { future_state: 3 };
-  assert.throws(
-    () => parsePaidPromotionSubject(unknownStatus),
-    /campaignStatusCounts\.future_state/,
-  );
-
-  const inconsistentCount = subject();
-  inconsistentCount.campaignCount = 4;
-  assert.throws(
-    () => parsePaidPromotionSubject(inconsistentCount),
-    /campaignStatusCounts/,
-  );
+void test('tolerates additive backend changes in rollups', () => {
+  // New status keys and rollups that don't sum to campaignCount pass through;
+  // auditing rollup arithmetic is a server-side job.
+  const evolved = subject();
+  evolved.campaignStatusCounts = { in_review: 1, future_state: 5 };
+  evolved.campaignCount = 4;
+  const parsed = parsePaidPromotionSubject(evolved);
+  assert.equal(parsed.campaignCount, 4);
+  assert.deepEqual(parsed.campaignStatusCounts, { in_review: 1, future_state: 5 });
 });
 
-void test('rejects malformed canonical track and artwork data', () => {
+void test('rejects malformed rendered fields at the boundary', () => {
   assert.throws(
-    () => parsePaidPromotionSubject({ ...subject(), trackId: 'track-from-route-state' }),
-    /trackId/,
-  );
-  assert.throws(
-    () => parsePaidPromotionSubject({ ...subject(), trackId: 't_000000000000' }),
-    /trackId/,
+    () => parsePaidPromotionSubject({ ...subject(), trackTitle: 42 }),
+    /trackTitle/,
   );
   assert.throws(
     () => parsePaidPromotionSubject({ ...subject(), coverArtUrl: 'javascript:alert(1)' }),
@@ -67,19 +58,8 @@ void test('rejects malformed canonical track and artwork data', () => {
     () => parsePaidPromotionSubject({ ...subject(), artists: [''] }),
     /artists\[0\]/,
   );
-});
-
-void test('rejects unsafe counts and inverted campaign windows', () => {
   assert.throws(
     () => parsePaidPromotionSubject({ ...subject(), campaignCount: Number.MAX_SAFE_INTEGER + 1 }),
     /campaignCount/,
-  );
-  assert.throws(
-    () => parsePaidPromotionSubject({
-      ...subject(),
-      firstCampaignAtUtc: latestCampaignAtUtc,
-      latestCampaignAtUtc: firstCampaignAtUtc,
-    }),
-    /campaignWindow/,
   );
 });

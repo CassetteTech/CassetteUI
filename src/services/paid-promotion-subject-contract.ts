@@ -3,22 +3,12 @@ import type {
   PaidPromotionSubject,
 } from '@/types';
 
-const CAMPAIGN_STATUSES = [
-  'draft',
-  'pending_payment',
-  'in_review',
-  'scheduled',
-  'fulfilling',
-  'delivered',
-  'completed',
-  'expired',
-  'canceled',
-  'rejected',
-  'refunded_closed',
-  'on_hold',
-] as const satisfies readonly PaidPromotionCampaignStatus[];
-
-const CAMPAIGN_STATUS_SET = new Set<string>(CAMPAIGN_STATUSES);
+/**
+ * Boundary mapping for the promoter subjects catalog. Verifies only the shape
+ * the UI renders; unknown status keys and additive fields pass through so
+ * backend changes never brick the promote pages. Rollup arithmetic is audited
+ * server-side, not here.
+ */
 
 type JsonRecord = Record<string, unknown>;
 
@@ -37,9 +27,10 @@ function string(value: unknown, path: string): string {
 }
 
 function nullableHttpUrl(value: unknown, path: string): string | null {
-  if (value === null) return null;
+  if (value === null || value === undefined) return null;
   const result = string(value, path);
 
+  // Rendered into an image src; refuse non-http(s) schemes at the boundary.
   try {
     const url = new URL(result);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') invalid(path);
@@ -50,35 +41,22 @@ function nullableHttpUrl(value: unknown, path: string): string | null {
   return result;
 }
 
-function positiveInteger(value: unknown, path: string): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) invalid(path);
+function integer(value: unknown, path: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) invalid(path);
   return value;
-}
-
-function dateString(value: unknown, path: string): string {
-  const result = string(value, path);
-  if (Number.isNaN(Date.parse(result))) invalid(path);
-  return result;
 }
 
 function parseStatusCounts(
   value: unknown,
-  campaignCount: number,
   path: string,
 ): Partial<Record<PaidPromotionCampaignStatus, number>> {
   const item = record(value, path);
   const result: Partial<Record<PaidPromotionCampaignStatus, number>> = {};
-  let total = 0;
 
   for (const [status, countValue] of Object.entries(item)) {
-    if (!CAMPAIGN_STATUS_SET.has(status)) invalid(`${path}.${status}`);
-    const count = positiveInteger(countValue, `${path}.${status}`);
-    result[status as PaidPromotionCampaignStatus] = count;
-    total += count;
-    if (!Number.isSafeInteger(total)) invalid(path);
+    result[status as PaidPromotionCampaignStatus] = integer(countValue, `${path}.${status}`);
   }
 
-  if (total !== campaignCount) invalid(path);
   return result;
 }
 
@@ -87,33 +65,24 @@ export function parsePaidPromotionSubject(
   path = 'subject',
 ): PaidPromotionSubject {
   const item = record(value, path);
-  const trackId = string(item.trackId, `${path}.trackId`);
-  if (!/^t_[1-9A-HJ-NP-Za-km-z]{12}$/.test(trackId)) invalid(`${path}.trackId`);
 
   if (!Array.isArray(item.artists)) invalid(`${path}.artists`);
   const artists = item.artists.map((artist, index) =>
     string(artist, `${path}.artists[${index}]`)
   );
-  const campaignCount = positiveInteger(item.campaignCount, `${path}.campaignCount`);
-  const firstCampaignAtUtc = dateString(item.firstCampaignAtUtc, `${path}.firstCampaignAtUtc`);
-  const latestCampaignAtUtc = dateString(item.latestCampaignAtUtc, `${path}.latestCampaignAtUtc`);
-  if (Date.parse(firstCampaignAtUtc) > Date.parse(latestCampaignAtUtc)) {
-    invalid(`${path}.campaignWindow`);
-  }
 
   return {
-    trackId,
+    trackId: string(item.trackId, `${path}.trackId`),
     trackTitle: string(item.trackTitle, `${path}.trackTitle`),
     coverArtUrl: nullableHttpUrl(item.coverArtUrl, `${path}.coverArtUrl`),
     artists,
-    campaignCount,
+    campaignCount: integer(item.campaignCount, `${path}.campaignCount`),
     campaignStatusCounts: parseStatusCounts(
       item.campaignStatusCounts,
-      campaignCount,
       `${path}.campaignStatusCounts`,
     ),
-    firstCampaignAtUtc,
-    latestCampaignAtUtc,
+    firstCampaignAtUtc: string(item.firstCampaignAtUtc, `${path}.firstCampaignAtUtc`),
+    latestCampaignAtUtc: string(item.latestCampaignAtUtc, `${path}.latestCampaignAtUtc`),
   };
 }
 

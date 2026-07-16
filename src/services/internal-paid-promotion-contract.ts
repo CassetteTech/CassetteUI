@@ -8,15 +8,22 @@ import type {
   InternalPaidPromotionPricingSnapshot,
   InternalPaidPromotionRefundResponse,
   InternalPaidPromotionTrack,
-  PaidPromotionAttestedRelationship,
   PaidPromotionCampaignStatus,
   PaidPromotionDeliverableChannel,
   PaidPromotionDeliverableStatus,
-  PaidPromotionExceptionKind,
-  PaidPromotionExceptionStatus,
   PaidPromotionPaymentStatus,
-  PaidPromotionPricingMode,
 } from '@/types';
+
+/**
+ * Boundary mapping for the internal paid-promotions console. Verifies the
+ * shape the console renders and passes everything else through: unknown enum
+ * values are tolerated so an additive Bridge change never bricks the surface
+ * ops would use to investigate it. Money arithmetic and cross-record
+ * invariants are audited server-side (reconciliation/Sentinel), not here.
+ *
+ * The exported status/channel arrays drive filter dropdowns and form selects;
+ * they are deliberately not used as parse gates.
+ */
 
 export const PAID_PROMOTION_CAMPAIGN_STATUSES = [
   'draft',
@@ -64,25 +71,6 @@ export const PAID_PROMOTION_DELIVERABLE_STATUSES = [
   'removed',
 ] as const satisfies readonly PaidPromotionDeliverableStatus[];
 
-const SOURCE_PLATFORMS = ['spotify', 'applemusic', 'deezer'] as const;
-const PRICING_MODES = ['rate_card', 'manual_quote'] as const satisfies readonly PaidPromotionPricingMode[];
-const RELATIONSHIPS = [
-  'self_artist',
-  'manager',
-  'label',
-  'agency',
-  'other',
-] as const satisfies readonly PaidPromotionAttestedRelationship[];
-const EXCEPTION_KINDS = [
-  'webhook_error',
-  'reconciliation_mismatch',
-  'refund_failed',
-  'dispute_opened',
-  'stuck_pending',
-  'orphan_session',
-] as const satisfies readonly PaidPromotionExceptionKind[];
-const EXCEPTION_STATUSES = ['open', 'resolved'] as const satisfies readonly PaidPromotionExceptionStatus[];
-
 type JsonRecord = Record<string, unknown>;
 
 function invalid(path: string): never {
@@ -105,23 +93,18 @@ function string(value: unknown, path: string, allowEmpty = false): string {
 }
 
 function nullableString(value: unknown, path: string): string | null {
-  return value === null ? null : string(value, path);
+  return value === null || value === undefined ? null : string(value, path);
 }
 
 export function isPaidPromotionDeliverablePostId(value: string): boolean {
   return /^p_\d{14}_[0-9a-z]{14}$/.test(value);
 }
 
-function nullablePostId(value: unknown, path: string): string | null {
-  const result = nullableString(value, path);
-  if (result !== null && !isPaidPromotionDeliverablePostId(result)) invalid(path);
-  return result;
-}
-
 function nullableHttpUrl(value: unknown, path: string): string | null {
   const result = nullableString(value, path);
   if (result === null) return null;
 
+  // Rendered as link/image targets; refuse non-http(s) schemes at the boundary.
   try {
     const url = new URL(result);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') invalid(path);
@@ -131,29 +114,13 @@ function nullableHttpUrl(value: unknown, path: string): string | null {
   return result;
 }
 
-function dateString(value: unknown, path: string): string {
-  const result = string(value, path);
-  if (Number.isNaN(Date.parse(result))) invalid(path);
-  return result;
-}
-
-function nullableDateString(value: unknown, path: string): string | null {
-  return value === null ? null : dateString(value, path);
-}
-
 function integer(value: unknown, path: string): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) invalid(path);
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) invalid(path);
   return value;
 }
 
 function nullableInteger(value: unknown, path: string): number | null {
-  return value === null ? null : integer(value, path);
-}
-
-function member<const T extends readonly string[]>(value: unknown, allowed: T, path: string): T[number] {
-  const result = string(value, path);
-  if (!allowed.includes(result)) invalid(path);
-  return result as T[number];
+  return value === null || value === undefined ? null : integer(value, path);
 }
 
 function parseTrack(value: unknown, path: string): InternalPaidPromotionTrack {
@@ -170,42 +137,22 @@ function parseTrack(value: unknown, path: string): InternalPaidPromotionTrack {
 
 function parsePayment(value: unknown, path: string): InternalPaidPromotionPayment {
   const item = record(value, path);
-  const amountMinor = integer(item.amountMinor, `${path}.amountMinor`);
-  const discountAmountMinor = nullableInteger(item.discountAmountMinor, `${path}.discountAmountMinor`);
-  const taxAmountMinor = nullableInteger(item.taxAmountMinor, `${path}.taxAmountMinor`);
-  const finalTotalMinor = nullableInteger(item.finalTotalMinor, `${path}.finalTotalMinor`);
-  const amountRefundedMinor = integer(item.amountRefundedMinor, `${path}.amountRefundedMinor`);
-  const refundableRemainderMinor = nullableInteger(
-    item.refundableRemainderMinor,
-    `${path}.refundableRemainderMinor`,
-  );
-  const totals = [discountAmountMinor, taxAmountMinor, finalTotalMinor, refundableRemainderMinor];
-  const knownCount = totals.filter((total) => total !== null).length;
-  if (knownCount !== 0 && knownCount !== totals.length) invalid(`${path}.checkoutTotals`);
-  if (knownCount === totals.length) {
-    if (discountAmountMinor! > amountMinor) invalid(`${path}.discountAmountMinor`);
-    if (finalTotalMinor !== amountMinor - discountAmountMinor! + taxAmountMinor!) {
-      invalid(`${path}.finalTotalMinor`);
-    }
-    if (amountRefundedMinor > finalTotalMinor! ||
-        refundableRemainderMinor !== finalTotalMinor! - amountRefundedMinor) {
-      invalid(`${path}.refundableRemainderMinor`);
-    }
-  }
-
   return {
     id: string(item.id, `${path}.id`),
-    amountMinor,
+    amountMinor: integer(item.amountMinor, `${path}.amountMinor`),
     currency: string(item.currency, `${path}.currency`),
-    discountAmountMinor,
-    taxAmountMinor,
-    finalTotalMinor,
-    amountRefundedMinor,
-    refundableRemainderMinor,
-    status: member(item.status, PAID_PROMOTION_PAYMENT_STATUSES, `${path}.status`),
-    statusChangedAtUtc: dateString(item.statusChangedAtUtc, `${path}.statusChangedAtUtc`),
-    paidAtUtc: nullableDateString(item.paidAtUtc, `${path}.paidAtUtc`),
-    updatedAtUtc: dateString(item.updatedAtUtc, `${path}.updatedAtUtc`),
+    discountAmountMinor: nullableInteger(item.discountAmountMinor, `${path}.discountAmountMinor`),
+    taxAmountMinor: nullableInteger(item.taxAmountMinor, `${path}.taxAmountMinor`),
+    finalTotalMinor: nullableInteger(item.finalTotalMinor, `${path}.finalTotalMinor`),
+    amountRefundedMinor: integer(item.amountRefundedMinor, `${path}.amountRefundedMinor`),
+    refundableRemainderMinor: nullableInteger(
+      item.refundableRemainderMinor,
+      `${path}.refundableRemainderMinor`,
+    ),
+    status: string(item.status, `${path}.status`) as PaidPromotionPaymentStatus,
+    statusChangedAtUtc: string(item.statusChangedAtUtc, `${path}.statusChangedAtUtc`),
+    paidAtUtc: nullableString(item.paidAtUtc, `${path}.paidAtUtc`),
+    updatedAtUtc: string(item.updatedAtUtc, `${path}.updatedAtUtc`),
   };
 }
 
@@ -217,15 +164,17 @@ export function parseInternalPaidPromotionDeliverable(
   return {
     id: string(item.id, `${path}.id`),
     campaignId: string(item.campaignId, `${path}.campaignId`),
-    postId: nullablePostId(item.postId, `${path}.postId`),
-    channel: member(item.channel, PAID_PROMOTION_DELIVERABLE_CHANNELS, `${path}.channel`),
-    plannedAtUtc: nullableDateString(item.plannedAtUtc, `${path}.plannedAtUtc`),
-    publishedAtUtc: nullableDateString(item.publishedAtUtc, `${path}.publishedAtUtc`),
+    postId: nullableString(item.postId, `${path}.postId`),
+    channel: string(item.channel, `${path}.channel`) as PaidPromotionDeliverableChannel,
+    plannedAtUtc: nullableString(item.plannedAtUtc, `${path}.plannedAtUtc`),
+    publishedAtUtc: nullableString(item.publishedAtUtc, `${path}.publishedAtUtc`),
     evidenceUrl: nullableHttpUrl(item.evidenceUrl, `${path}.evidenceUrl`),
-    status: member(item.status, PAID_PROMOTION_DELIVERABLE_STATUSES, `${path}.status`),
-    notes: item.notes === null ? null : string(item.notes, `${path}.notes`, true),
-    createdAtUtc: dateString(item.createdAtUtc, `${path}.createdAtUtc`),
-    updatedAtUtc: dateString(item.updatedAtUtc, `${path}.updatedAtUtc`),
+    status: string(item.status, `${path}.status`) as PaidPromotionDeliverableStatus,
+    notes: item.notes === null || item.notes === undefined
+      ? null
+      : string(item.notes, `${path}.notes`, true),
+    createdAtUtc: string(item.createdAtUtc, `${path}.createdAtUtc`),
+    updatedAtUtc: string(item.updatedAtUtc, `${path}.updatedAtUtc`),
   };
 }
 
@@ -236,12 +185,12 @@ export function parseInternalPaidPromotionException(
   const item = record(value, path);
   return {
     id: string(item.id, `${path}.id`),
-    kind: member(item.kind, EXCEPTION_KINDS, `${path}.kind`),
+    kind: string(item.kind, `${path}.kind`) as InternalPaidPromotionException['kind'],
     paymentId: nullableString(item.paymentId, `${path}.paymentId`),
     campaignId: nullableString(item.campaignId, `${path}.campaignId`),
-    status: member(item.status, EXCEPTION_STATUSES, `${path}.status`),
-    createdAtUtc: dateString(item.createdAtUtc, `${path}.createdAtUtc`),
-    resolvedAtUtc: nullableDateString(item.resolvedAtUtc, `${path}.resolvedAtUtc`),
+    status: string(item.status, `${path}.status`) as InternalPaidPromotionException['status'],
+    createdAtUtc: string(item.createdAtUtc, `${path}.createdAtUtc`),
+    resolvedAtUtc: nullableString(item.resolvedAtUtc, `${path}.resolvedAtUtc`),
   };
 }
 
@@ -252,12 +201,8 @@ function parseSnapshot(value: unknown, path: string): InternalPaidPromotionPrici
     sourceRateCardId: string(item.sourceRateCardId, `${path}.sourceRateCardId`),
     amountMinor: integer(item.amountMinor, `${path}.amountMinor`),
     currency: string(item.currency, `${path}.currency`),
-    createdAtUtc: dateString(item.createdAtUtc, `${path}.createdAtUtc`),
+    createdAtUtc: string(item.createdAtUtc, `${path}.createdAtUtc`),
   };
-}
-
-function validateQuotePair(amountMinor: number | null, currency: string | null, path: string) {
-  if ((amountMinor === null) !== (currency === null)) invalid(path);
 }
 
 export function parseInternalPaidPromotionCampaignSummary(
@@ -265,25 +210,29 @@ export function parseInternalPaidPromotionCampaignSummary(
   path = 'campaign'
 ): InternalPaidPromotionCampaignSummary {
   const item = record(value, path);
-  const amountMinor = nullableInteger(item.amountMinor, `${path}.amountMinor`);
-  const currency = nullableString(item.currency, `${path}.currency`);
-  validateQuotePair(amountMinor, currency, `${path}.quote`);
 
   return {
     id: string(item.id, `${path}.id`),
     trackId: string(item.trackId, `${path}.trackId`),
     trackTitle: string(item.trackTitle, `${path}.trackTitle`),
-    sourcePlatform: member(item.sourcePlatform, SOURCE_PLATFORMS, `${path}.sourcePlatform`),
-    pricingMode: member(item.pricingMode, PRICING_MODES, `${path}.pricingMode`),
-    amountMinor,
-    currency,
-    status: member(item.status, PAID_PROMOTION_CAMPAIGN_STATUSES, `${path}.status`),
-    paymentStatus: item.paymentStatus === null
-      ? null
-      : member(item.paymentStatus, PAID_PROMOTION_PAYMENT_STATUSES, `${path}.paymentStatus`),
+    sourcePlatform: string(
+      item.sourcePlatform,
+      `${path}.sourcePlatform`,
+    ) as InternalPaidPromotionCampaignSummary['sourcePlatform'],
+    pricingMode: string(
+      item.pricingMode,
+      `${path}.pricingMode`,
+    ) as InternalPaidPromotionCampaignSummary['pricingMode'],
+    amountMinor: nullableInteger(item.amountMinor, `${path}.amountMinor`),
+    currency: nullableString(item.currency, `${path}.currency`),
+    status: string(item.status, `${path}.status`) as PaidPromotionCampaignStatus,
+    paymentStatus: nullableString(
+      item.paymentStatus,
+      `${path}.paymentStatus`,
+    ) as PaidPromotionPaymentStatus | null,
     openExceptionCount: integer(item.openExceptionCount, `${path}.openExceptionCount`),
-    createdAtUtc: dateString(item.createdAtUtc, `${path}.createdAtUtc`),
-    updatedAtUtc: dateString(item.updatedAtUtc, `${path}.updatedAtUtc`),
+    createdAtUtc: string(item.createdAtUtc, `${path}.createdAtUtc`),
+    updatedAtUtc: string(item.updatedAtUtc, `${path}.updatedAtUtc`),
   };
 }
 
@@ -291,29 +240,35 @@ export function parseInternalPaidPromotionCampaignDetail(
   value: unknown
 ): InternalPaidPromotionCampaignDetail {
   const item = record(value, 'campaign');
-  const amountMinor = nullableInteger(item.amountMinor, 'campaign.amountMinor');
-  const currency = nullableString(item.currency, 'campaign.currency');
-  validateQuotePair(amountMinor, currency, 'campaign.quote');
 
   return {
     id: string(item.id, 'campaign.id'),
     track: parseTrack(item.track, 'campaign.track'),
-    sourcePlatform: member(item.sourcePlatform, SOURCE_PLATFORMS, 'campaign.sourcePlatform'),
+    sourcePlatform: string(
+      item.sourcePlatform,
+      'campaign.sourcePlatform',
+    ) as InternalPaidPromotionCampaignDetail['sourcePlatform'],
     brief: string(item.brief, 'campaign.brief', true),
-    pricingMode: member(item.pricingMode, PRICING_MODES, 'campaign.pricingMode'),
+    pricingMode: string(
+      item.pricingMode,
+      'campaign.pricingMode',
+    ) as InternalPaidPromotionCampaignDetail['pricingMode'],
     rateCardId: nullableString(item.rateCardId, 'campaign.rateCardId'),
-    amountMinor,
-    currency,
-    status: member(item.status, PAID_PROMOTION_CAMPAIGN_STATUSES, 'campaign.status'),
-    statusChangedAtUtc: dateString(item.statusChangedAtUtc, 'campaign.statusChangedAtUtc'),
-    requestedWindowStart: nullableDateString(item.requestedWindowStart, 'campaign.requestedWindowStart'),
-    requestedWindowEnd: nullableDateString(item.requestedWindowEnd, 'campaign.requestedWindowEnd'),
-    attestedAtUtc: nullableDateString(item.attestedAtUtc, 'campaign.attestedAtUtc'),
+    amountMinor: nullableInteger(item.amountMinor, 'campaign.amountMinor'),
+    currency: nullableString(item.currency, 'campaign.currency'),
+    status: string(item.status, 'campaign.status') as PaidPromotionCampaignStatus,
+    statusChangedAtUtc: string(item.statusChangedAtUtc, 'campaign.statusChangedAtUtc'),
+    requestedWindowStart: nullableString(item.requestedWindowStart, 'campaign.requestedWindowStart'),
+    requestedWindowEnd: nullableString(item.requestedWindowEnd, 'campaign.requestedWindowEnd'),
+    attestedAtUtc: nullableString(item.attestedAtUtc, 'campaign.attestedAtUtc'),
     attestationVersion: nullableString(item.attestationVersion, 'campaign.attestationVersion'),
-    attestedRelationship: item.attestedRelationship === null
+    attestedRelationship: nullableString(
+      item.attestedRelationship,
+      'campaign.attestedRelationship',
+    ) as InternalPaidPromotionCampaignDetail['attestedRelationship'],
+    payment: item.payment === null || item.payment === undefined
       ? null
-      : member(item.attestedRelationship, RELATIONSHIPS, 'campaign.attestedRelationship'),
-    payment: item.payment === null ? null : parsePayment(item.payment, 'campaign.payment'),
+      : parsePayment(item.payment, 'campaign.payment'),
     pricingSnapshots: parseInternalPaidPromotionArray(item.pricingSnapshots, 'campaign.pricingSnapshots').map((snapshot, index) =>
       parseSnapshot(snapshot, `campaign.pricingSnapshots[${index}]`)
     ),
@@ -323,25 +278,23 @@ export function parseInternalPaidPromotionCampaignDetail(
     exceptions: parseInternalPaidPromotionArray(item.exceptions, 'campaign.exceptions').map((exception, index) =>
       parseInternalPaidPromotionException(exception, `campaign.exceptions[${index}]`)
     ),
-    createdAtUtc: dateString(item.createdAtUtc, 'campaign.createdAtUtc'),
-    updatedAtUtc: dateString(item.updatedAtUtc, 'campaign.updatedAtUtc'),
+    createdAtUtc: string(item.createdAtUtc, 'campaign.createdAtUtc'),
+    updatedAtUtc: string(item.updatedAtUtc, 'campaign.updatedAtUtc'),
   };
 }
 
 export function parseInternalPaidPromotionAction(value: unknown): InternalPaidPromotionActionResponse {
   const item = record(value, 'action');
-  const amountMinor = nullableInteger(item.amountMinor, 'action.amountMinor');
-  const currency = nullableString(item.currency, 'action.currency');
-  validateQuotePair(amountMinor, currency, 'action.quote');
   return {
     campaignId: string(item.campaignId, 'action.campaignId'),
-    status: member(item.status, PAID_PROMOTION_CAMPAIGN_STATUSES, 'action.status'),
-    paymentStatus: item.paymentStatus === null
-      ? null
-      : member(item.paymentStatus, PAID_PROMOTION_PAYMENT_STATUSES, 'action.paymentStatus'),
-    amountMinor,
-    currency,
-    updatedAtUtc: dateString(item.updatedAtUtc, 'action.updatedAtUtc'),
+    status: string(item.status, 'action.status') as PaidPromotionCampaignStatus,
+    paymentStatus: nullableString(
+      item.paymentStatus,
+      'action.paymentStatus',
+    ) as PaidPromotionPaymentStatus | null,
+    amountMinor: nullableInteger(item.amountMinor, 'action.amountMinor'),
+    currency: nullableString(item.currency, 'action.currency'),
+    updatedAtUtc: string(item.updatedAtUtc, 'action.updatedAtUtc'),
   };
 }
 
@@ -349,27 +302,16 @@ export function parseInternalPaidPromotionRefund(
   value: unknown
 ): InternalPaidPromotionRefundResponse {
   const item = record(value, 'refund');
-  const paymentStatus = member(item.paymentStatus, PAID_PROMOTION_PAYMENT_STATUSES, 'refund.paymentStatus');
-  if (paymentStatus !== 'refund_pending') invalid('refund.paymentStatus');
-  const finalTotalMinor = nullableInteger(item.finalTotalMinor, 'refund.finalTotalMinor');
-  const amountRefundedMinor = integer(item.amountRefundedMinor, 'refund.amountRefundedMinor');
-  const refundableRemainderMinor = nullableInteger(
-    item.refundableRemainderMinor,
-    'refund.refundableRemainderMinor',
-  );
-  if ((finalTotalMinor === null) !== (refundableRemainderMinor === null)) invalid('refund.checkoutTotals');
-  if (finalTotalMinor !== null &&
-      (amountRefundedMinor > finalTotalMinor ||
-       refundableRemainderMinor !== finalTotalMinor - amountRefundedMinor)) {
-    invalid('refund.refundableRemainderMinor');
-  }
   return {
     campaignId: string(item.campaignId, 'refund.campaignId'),
     paymentId: string(item.paymentId, 'refund.paymentId'),
-    paymentStatus,
-    finalTotalMinor,
-    amountRefundedMinor,
-    refundableRemainderMinor,
-    updatedAtUtc: dateString(item.updatedAtUtc, 'refund.updatedAtUtc'),
+    paymentStatus: string(item.paymentStatus, 'refund.paymentStatus') as PaidPromotionPaymentStatus,
+    finalTotalMinor: nullableInteger(item.finalTotalMinor, 'refund.finalTotalMinor'),
+    amountRefundedMinor: integer(item.amountRefundedMinor, 'refund.amountRefundedMinor'),
+    refundableRemainderMinor: nullableInteger(
+      item.refundableRemainderMinor,
+      'refund.refundableRemainderMinor',
+    ),
+    updatedAtUtc: string(item.updatedAtUtc, 'refund.updatedAtUtc'),
   };
 }

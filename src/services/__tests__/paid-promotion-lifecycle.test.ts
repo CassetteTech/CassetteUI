@@ -41,12 +41,22 @@ void test('maps persisted payment statuses to return-page states', () => {
   assert.equal(getPaidPromotionReturnState(campaign('expired')), 'expired');
 });
 
-void test('does not infer payment truth from a campaign status or unknown payment state', () => {
-  const missingPayment = campaign(null);
-  missingPayment.status = 'in_review';
+void test('maps a campaign with no payment attempt to not_started', () => {
+  assert.equal(getPaidPromotionReturnState(campaign(null)), 'not_started');
+});
 
-  assert.equal(getPaidPromotionReturnState(missingPayment), 'unavailable');
-  assert.equal(getPaidPromotionReturnState(campaign('refunded')), 'unavailable');
+void test('maps the refund family to refunded, not an error state', () => {
+  assert.equal(getPaidPromotionReturnState(campaign('refund_pending')), 'refunded');
+  assert.equal(getPaidPromotionReturnState(campaign('partially_refunded')), 'refunded');
+  assert.equal(getPaidPromotionReturnState(campaign('refunded')), 'refunded');
+  assert.equal(getPaidPromotionReturnState(campaign('disputed')), 'refunded');
+  assert.equal(getPaidPromotionReturnState(campaign('charged_back')), 'refunded');
+});
+
+void test('does not infer payment truth from unknown states or unknown totals', () => {
+  const unknownStatus = campaign('paid');
+  unknownStatus.paymentStatus = 'mystery_future_status' as PaidPromotionPaymentStatus;
+  assert.equal(getPaidPromotionReturnState(unknownStatus), 'unavailable');
 
   const unknownTotals = campaign('paid');
   unknownTotals.discountAmountMinor = null;
@@ -61,6 +71,7 @@ void test('polls only non-terminal payment states', () => {
   assert.equal(shouldPollPaidPromotionCampaign(campaign('processing')), true);
   assert.equal(shouldPollPaidPromotionCampaign(campaign('paid')), false);
   assert.equal(shouldPollPaidPromotionCampaign(campaign('failed')), false);
+  assert.equal(shouldPollPaidPromotionCampaign(campaign(null)), false);
 });
 
 void test('accepts only opaque paid-promotion campaign ids', () => {
@@ -70,7 +81,7 @@ void test('accepts only opaque paid-promotion campaign ids', () => {
   assert.equal(isPaidPromotionCampaignId('pmc_abc/return'), false);
 });
 
-void test('validates discount, tax, final total, and refundable remainder as server truth', () => {
+void test('verifies the rendered shape but does not re-audit server arithmetic', () => {
   const response = {
     ...campaign('paid'),
     discountAmountMinor: 5000,
@@ -79,43 +90,44 @@ void test('validates discount, tax, final total, and refundable remainder as ser
     amountRefundedMinor: 3500,
     refundableRemainderMinor: 18000,
   };
-
   assert.equal(parsePaidPromotionCampaign(response).finalTotalMinor, 21500);
+
+  // Server totals pass through even when they don't satisfy the checkout
+  // formula; auditing that invariant is Bridge/Sentinel's job.
+  assert.equal(
+    parsePaidPromotionCampaign({ ...response, finalTotalMinor: 25000 }).finalTotalMinor,
+    25000,
+  );
+
+  // Wrong primitive types on money fields are still boundary failures.
   assert.throws(
-    () => parsePaidPromotionCampaign({ ...response, finalTotalMinor: 25000 }),
+    () => parsePaidPromotionCampaign({ ...response, amountMinor: '25000' }),
+    /campaign\.amountMinor/,
+  );
+  assert.throws(
+    () => parsePaidPromotionCampaign({ ...response, finalTotalMinor: 1.5 }),
     /campaign\.finalTotalMinor/,
   );
-  assert.throws(
-    () => parsePaidPromotionCampaign({ ...response, refundableRemainderMinor: 17000 }),
-    /campaign\.refundableRemainderMinor/,
-  );
-  const missingTax = { ...response } as Record<string, unknown>;
-  delete missingTax.taxAmountMinor;
-  assert.throws(() => parsePaidPromotionCampaign(missingTax), /campaign\.taxAmountMinor/);
 });
 
-void test('accepts coordinated unknown totals and a legitimate zero-total checkout', () => {
-  const unknown = {
+void test('tolerates additive backend changes', () => {
+  const withUnknownStatus = {
     ...campaign('pending'),
-    discountAmountMinor: null,
-    taxAmountMinor: null,
-    finalTotalMinor: null,
-    refundableRemainderMinor: null,
+    status: 'brand_new_status',
+    extraField: 'ignored',
   };
-  assert.equal(parsePaidPromotionCampaign(unknown).finalTotalMinor, null);
+  assert.equal(parsePaidPromotionCampaign(withUnknownStatus).status, 'brand_new_status');
 
-  const zeroTotal = {
-    ...campaign('paid'),
-    discountAmountMinor: 25000,
-    taxAmountMinor: 0,
-    finalTotalMinor: 0,
-    amountRefundedMinor: 0,
-    refundableRemainderMinor: 0,
-  };
-  assert.equal(getPaidPromotionReturnState(parsePaidPromotionCampaign(zeroTotal)), 'paid');
+  // Missing nullable fields degrade to null instead of throwing.
+  const sparse = { ...campaign('pending') } as Record<string, unknown>;
+  delete sparse.taxAmountMinor;
+  delete sparse.rateCardId;
+  const parsed = parsePaidPromotionCampaign(sparse);
+  assert.equal(parsed.taxAmountMinor, null);
+  assert.equal(parsed.rateCardId, null);
 });
 
-void test('strictly parses the owner campaign collection', () => {
+void test('parses the owner campaign collection with indexed errors', () => {
   const paidCampaign = {
     ...campaign('paid'),
     id: 'pmc_TestCampaign2',
@@ -130,15 +142,7 @@ void test('strictly parses the owner campaign collection', () => {
     /paid-promotion server response: campaigns/,
   );
   assert.throws(
-    () => parsePaidPromotionCampaigns([{ ...campaign('paid'), status: 'mystery' }]),
-    /campaigns\[0\]\.status/,
-  );
-  assert.throws(
-    () => parsePaidPromotionCampaigns([{ ...campaign('paid'), trackId: 'track-from-route' }]),
-    /campaigns\[0\]\.trackId/,
-  );
-  assert.throws(
-    () => parsePaidPromotionCampaigns([campaign('pending'), campaign('paid')]),
-    /campaigns\[1\]\.id/,
+    () => parsePaidPromotionCampaigns([{ ...campaign('paid'), amountMinor: null }]),
+    /campaigns\[0\]\.amountMinor/,
   );
 });

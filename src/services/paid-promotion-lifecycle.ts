@@ -4,37 +4,14 @@ import type {
   PaidPromotionPaymentStatus,
 } from '@/types';
 
-const CAMPAIGN_STATUSES = [
-  'draft',
-  'pending_payment',
-  'in_review',
-  'scheduled',
-  'fulfilling',
-  'delivered',
-  'completed',
-  'expired',
-  'canceled',
-  'rejected',
-  'refunded_closed',
-  'on_hold',
-] as const satisfies readonly PaidPromotionCampaignStatus[];
-
-const PAYMENT_STATUSES = [
-  'created',
-  'pending',
-  'processing',
-  'paid',
-  'expired',
-  'failed',
-  'refund_pending',
-  'partially_refunded',
-  'refunded',
-  'disputed',
-  'charged_back',
-] as const satisfies readonly PaidPromotionPaymentStatus[];
-
-const SOURCE_PLATFORMS = ['spotify', 'applemusic', 'deezer'] as const;
-const TRACK_ID_PATTERN = /^t_[1-9A-HJ-NP-Za-km-z]{12}$/;
+/**
+ * Boundary mapping for promoter-facing paid-promotion responses. Verifies the
+ * shape the UI actually renders (objects exist, money fields are integers,
+ * required strings present) and passes everything else through. Unknown status
+ * strings are tolerated so additive Bridge changes never brick the promoter
+ * surfaces; cross-field invariants (checkout-totals arithmetic, rollups) are
+ * Bridge/Sentinel's job, not the client's.
+ */
 
 type JsonRecord = Record<string, unknown>;
 
@@ -53,109 +30,59 @@ function string(value: unknown, path: string): string {
 }
 
 function nullableString(value: unknown, path: string): string | null {
-  return value === null ? null : string(value, path);
+  return value === null || value === undefined ? null : string(value, path);
 }
 
 function integer(value: unknown, path: string): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) invalid(path);
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) invalid(path);
   return value;
 }
 
 function nullableInteger(value: unknown, path: string): number | null {
-  return value === null ? null : integer(value, path);
-}
-
-function dateString(value: unknown, path: string): string {
-  const result = string(value, path);
-  if (Number.isNaN(Date.parse(result))) invalid(path);
-  return result;
-}
-
-function nullableDateString(value: unknown, path: string): string | null {
-  return value === null ? null : dateString(value, path);
-}
-
-function member<const T extends readonly string[]>(value: unknown, allowed: T, path: string): T[number] {
-  const result = string(value, path);
-  if (!allowed.includes(result)) invalid(path);
-  return result as T[number];
-}
-
-function parseCheckoutTotals(item: JsonRecord, amountMinor: number) {
-  const discountAmountMinor = nullableInteger(item.discountAmountMinor, 'campaign.discountAmountMinor');
-  const taxAmountMinor = nullableInteger(item.taxAmountMinor, 'campaign.taxAmountMinor');
-  const finalTotalMinor = nullableInteger(item.finalTotalMinor, 'campaign.finalTotalMinor');
-  const amountRefundedMinor = nullableInteger(item.amountRefundedMinor, 'campaign.amountRefundedMinor');
-  const refundableRemainderMinor = nullableInteger(
-    item.refundableRemainderMinor,
-    'campaign.refundableRemainderMinor',
-  );
-  const totals = [discountAmountMinor, taxAmountMinor, finalTotalMinor, refundableRemainderMinor];
-  const knownCount = totals.filter((value) => value !== null).length;
-
-  if (knownCount !== 0 && knownCount !== totals.length) invalid('campaign.checkoutTotals');
-  if (knownCount === totals.length) {
-    if (amountRefundedMinor === null) invalid('campaign.amountRefundedMinor');
-    if (discountAmountMinor! > amountMinor) invalid('campaign.discountAmountMinor');
-    if (finalTotalMinor !== amountMinor - discountAmountMinor! + taxAmountMinor!) {
-      invalid('campaign.finalTotalMinor');
-    }
-    if (amountRefundedMinor > finalTotalMinor ||
-        refundableRemainderMinor !== finalTotalMinor - amountRefundedMinor) {
-      invalid('campaign.refundableRemainderMinor');
-    }
-  }
-
-  return {
-    discountAmountMinor,
-    taxAmountMinor,
-    finalTotalMinor,
-    amountRefundedMinor,
-    refundableRemainderMinor,
-  };
+  return value === null || value === undefined ? null : integer(value, path);
 }
 
 export function parsePaidPromotionCampaign(value: unknown): PaidPromotionCampaign {
   const item = record(value, 'campaign');
-  const amountMinor = integer(item.amountMinor, 'campaign.amountMinor');
-  const id = string(item.id, 'campaign.id');
-  if (!isPaidPromotionCampaignId(id)) invalid('campaign.id');
-  const trackId = string(item.trackId, 'campaign.trackId');
-  if (!TRACK_ID_PATTERN.test(trackId)) invalid('campaign.trackId');
 
   return {
-    id,
-    trackId,
-    sourcePlatform: member(item.sourcePlatform, SOURCE_PLATFORMS, 'campaign.sourcePlatform'),
+    id: string(item.id, 'campaign.id'),
+    trackId: string(item.trackId, 'campaign.trackId'),
+    sourcePlatform: string(
+      item.sourcePlatform,
+      'campaign.sourcePlatform',
+    ) as PaidPromotionCampaign['sourcePlatform'],
     rateCardId: nullableString(item.rateCardId, 'campaign.rateCardId'),
-    amountMinor,
+    amountMinor: integer(item.amountMinor, 'campaign.amountMinor'),
     currency: string(item.currency, 'campaign.currency'),
-    status: member(item.status, CAMPAIGN_STATUSES, 'campaign.status'),
-    paymentStatus: item.paymentStatus === null
-      ? null
-      : member(item.paymentStatus, PAYMENT_STATUSES, 'campaign.paymentStatus'),
-    ...parseCheckoutTotals(item, amountMinor),
-    requestedWindowStart: nullableDateString(item.requestedWindowStart, 'campaign.requestedWindowStart'),
-    requestedWindowEnd: nullableDateString(item.requestedWindowEnd, 'campaign.requestedWindowEnd'),
-    createdAtUtc: dateString(item.createdAtUtc, 'campaign.createdAtUtc'),
-    updatedAtUtc: dateString(item.updatedAtUtc, 'campaign.updatedAtUtc'),
+    status: string(item.status, 'campaign.status') as PaidPromotionCampaignStatus,
+    paymentStatus: nullableString(
+      item.paymentStatus,
+      'campaign.paymentStatus',
+    ) as PaidPromotionPaymentStatus | null,
+    discountAmountMinor: nullableInteger(item.discountAmountMinor, 'campaign.discountAmountMinor'),
+    taxAmountMinor: nullableInteger(item.taxAmountMinor, 'campaign.taxAmountMinor'),
+    finalTotalMinor: nullableInteger(item.finalTotalMinor, 'campaign.finalTotalMinor'),
+    amountRefundedMinor: nullableInteger(item.amountRefundedMinor, 'campaign.amountRefundedMinor'),
+    refundableRemainderMinor: nullableInteger(
+      item.refundableRemainderMinor,
+      'campaign.refundableRemainderMinor',
+    ),
+    requestedWindowStart: nullableString(item.requestedWindowStart, 'campaign.requestedWindowStart'),
+    requestedWindowEnd: nullableString(item.requestedWindowEnd, 'campaign.requestedWindowEnd'),
+    createdAtUtc: string(item.createdAtUtc, 'campaign.createdAtUtc'),
+    updatedAtUtc: string(item.updatedAtUtc, 'campaign.updatedAtUtc'),
   };
 }
 
 export function parsePaidPromotionCampaigns(value: unknown): PaidPromotionCampaign[] {
   if (!Array.isArray(value)) invalid('campaigns');
-  const ids = new Set<string>();
   return value.map((campaign, index) => {
     try {
-      const parsed = parsePaidPromotionCampaign(campaign);
-      if (ids.has(parsed.id)) invalid(`campaigns[${index}].id`);
-      ids.add(parsed.id);
-      return parsed;
+      return parsePaidPromotionCampaign(campaign);
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(
-          error.message.replace('campaign.', `campaigns[${index}].`),
-        );
+        throw new Error(error.message.replace('campaign.', `campaigns[${index}].`));
       }
       invalid(`campaigns[${index}]`);
     }
@@ -171,11 +98,13 @@ export function hasKnownPaidPromotionCheckoutTotals(campaign: PaidPromotionCampa
 }
 
 export type PaidPromotionReturnState =
+  | 'not_started'
   | 'pending'
   | 'processing'
   | 'paid'
   | 'failed'
   | 'expired'
+  | 'refunded'
   | 'unavailable';
 
 export function isPaidPromotionCampaignId(value: string): boolean {
@@ -185,6 +114,12 @@ export function isPaidPromotionCampaignId(value: string): boolean {
 export function getPaidPromotionReturnState(
   campaign: PaidPromotionCampaign
 ): PaidPromotionReturnState {
+  // A campaign with no payment attempt yet is a normal starting point, not an
+  // error: the promoter home links here before checkout has ever been opened.
+  if (campaign.paymentStatus === null) {
+    return 'not_started';
+  }
+
   switch (campaign.paymentStatus) {
     case 'created':
     case 'pending':
@@ -197,7 +132,15 @@ export function getPaidPromotionReturnState(
       return 'failed';
     case 'expired':
       return 'expired';
+    case 'refund_pending':
+    case 'partially_refunded':
+    case 'refunded':
+    case 'disputed':
+    case 'charged_back':
+      return 'refunded';
     default:
+      // Unknown statuses (e.g. a newer Bridge deploy) degrade to a refresh
+      // prompt instead of throwing during parse.
       return 'unavailable';
   }
 }

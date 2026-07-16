@@ -36,6 +36,21 @@ export function usePaidPromotionCampaign(
     let cancelled = false;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
     let activeController: AbortController | null = null;
+    // A single transient failure must not end the watch on the one page whose
+    // job is to keep watching; only surface an error once retries are exhausted
+    // (compare use-conversion-stage's miss cap).
+    let consecutiveFailures = 0;
+    const MAX_CONSECUTIVE_FAILURES = 6;
+    const startedAt = Date.now();
+
+    // Webhook confirmation usually lands within seconds; keep the first polls
+    // tight, then relax so a stuck payment doesn't hold 1 rps indefinitely.
+    const nextDelayMs = () => {
+      const elapsedMs = Date.now() - startedAt;
+      if (elapsedMs < 30_000) return intervalMs;
+      if (elapsedMs < 300_000) return intervalMs * 3;
+      return intervalMs * 10;
+    };
 
     setCampaign(null);
     setIsLoading(true);
@@ -50,15 +65,22 @@ export function usePaidPromotionCampaign(
         });
         if (cancelled) return;
 
+        consecutiveFailures = 0;
         setCampaign(nextCampaign);
         setError(null);
         setIsLoading(false);
 
         if (shouldPollPaidPromotionCampaign(nextCampaign)) {
-          pollTimer = setTimeout(poll, intervalMs);
+          pollTimer = setTimeout(poll, nextDelayMs());
         }
       } catch (caught) {
         if (cancelled) return;
+
+        consecutiveFailures += 1;
+        if (consecutiveFailures < MAX_CONSECUTIVE_FAILURES) {
+          pollTimer = setTimeout(poll, nextDelayMs());
+          return;
+        }
 
         setError(caught instanceof Error ? caught : new Error('Unable to load paid-promotion status.'));
         setIsLoading(false);

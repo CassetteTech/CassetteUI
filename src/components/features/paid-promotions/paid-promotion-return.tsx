@@ -10,6 +10,7 @@ import {
   ExternalLink,
   RefreshCw,
   TimerOff,
+  Undo2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,6 +36,13 @@ type ReturnStatePresentation = {
 };
 
 const RETURN_STATE_PRESENTATIONS: Record<PaidPromotionReturnState, ReturnStatePresentation> = {
+  not_started: {
+    title: 'Checkout not started',
+    description:
+      'This campaign has no payment attempt yet. Start secure checkout to pay for your paid promotion.',
+    icon: Clock3,
+    iconClassName: 'text-info-text',
+  },
   pending: {
     title: 'Waiting for payment confirmation',
     description:
@@ -68,6 +76,13 @@ const RETURN_STATE_PRESENTATIONS: Record<PaidPromotionReturnState, ReturnStatePr
     description:
       'Stripe reported that this Checkout Session expired. Your campaign is still saved, and you can start a new checkout attempt.',
     icon: TimerOff,
+    iconClassName: 'text-warning-text',
+  },
+  refunded: {
+    title: 'Payment refunded or reversed',
+    description:
+      'Stripe reported a refund, dispute, or reversal on this campaign’s payment. The amounts below reflect the latest webhook-confirmed state.',
+    icon: Undo2,
     iconClassName: 'text-warning-text',
   },
   unavailable: {
@@ -264,7 +279,7 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
                   </p>
                 )}
 
-                {(state === 'pending' || state === 'failed' || state === 'expired') && (
+                {(state === 'not_started' || state === 'pending' || state === 'failed' || state === 'expired') && (
                   <div className="space-y-3">
                     <Button
                       type="button"
@@ -275,7 +290,11 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
                       className="w-full bg-foreground text-background hover:bg-foreground/90"
                     >
                       {isOpeningCheckout ? <Spinner size="sm" /> : <ExternalLink />}
-                      {state === 'pending' ? 'Return to secure checkout' : 'Try checkout again'}
+                      {state === 'not_started'
+                        ? 'Start secure checkout'
+                        : state === 'pending'
+                          ? 'Return to secure checkout'
+                          : 'Try checkout again'}
                     </Button>
                     {checkoutError && (
                       <p role="alert" className="text-center text-sm text-destructive">
@@ -285,7 +304,7 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
                   </div>
                 )}
 
-                {state === 'paid' && (
+                {(state === 'paid' || state === 'refunded') && (
                   <Button asChild variant="brutalist-outline" className="w-full">
                     <Link href="/promote">View your campaigns</Link>
                   </Button>

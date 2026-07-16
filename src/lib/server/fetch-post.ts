@@ -13,7 +13,7 @@ export const fetchPostForMetadata = cache(async function fetchPostForMetadata(po
 
   try {
     const response = await fetch(`${apiUrl}/api/v1/social/posts/${postId}`, {
-      cache: 'no-store',
+      next: { revalidate: 300 },
       // Metadata is best-effort: never let a slow Bridge lookup block page delivery.
       signal: AbortSignal.timeout(2000),
     });

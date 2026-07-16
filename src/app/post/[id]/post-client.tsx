@@ -651,25 +651,27 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
         // Inline conversion surfaces stash the finished post before
         // navigating here (see lib/post-prefetch) — consume it instead of
         // re-fetching so post-conversion arrivals never see the skeleton.
-        const prefetchedResponse = takePrefetchedPost(postId);
-        let trustedResponse: Awaited<ReturnType<typeof apiService.fetchPostById>> | null = null;
+        // The stash strips server-owned attribution on save and take, so a
+        // prefetched payload simply resolves paidPromotionCampaignId to null.
+        let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null =
+          takePrefetchedPost(postId);
 
         // The server render already fetched this post for metadata; reuse it
         // so profile/shared-link arrivals skip the client fetch entirely. The
         // server payload is unauthenticated, so signed-in viewers reconcile
         // like/repost state in the background after first paint.
         let reconcileViewerState = false;
-        if (initialPost?.success) {
-          trustedResponse = initialPost;
+        if (!response && initialPost?.success) {
+          response = initialPost;
           reconcileViewerState = isAuthenticated;
         }
 
-        while (!trustedResponse && Date.now() - startedAt < maxWaitMs) {
+        while (!response && Date.now() - startedAt < maxWaitMs) {
           if (isCancelled) return;
           try {
             const candidate = await apiService.fetchPostById(postId);
             if (candidate?.success) {
-              trustedResponse = candidate;
+              response = candidate;
               break;
             }
 
@@ -688,26 +690,9 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
           }
         }
 
-        if (!trustedResponse) {
+        if (!response) {
           throw new Error('Post is still finalizing. Please try again in a moment.');
         }
-
-        const cachedIdentityMatches = Boolean(
-          prefetchedResponse?.success &&
-          prefetchedResponse.postId === trustedResponse.postId &&
-          prefetchedResponse.musicElementId === trustedResponse.musicElementId &&
-          prefetchedResponse.elementType === trustedResponse.elementType,
-        );
-        const response: PostByIdResponse = cachedIdentityMatches && prefetchedResponse
-          ? {
-              ...prefetchedResponse,
-              postId: trustedResponse.postId,
-              redirectPostId: trustedResponse.redirectPostId,
-              originalPostId: trustedResponse.originalPostId,
-              isRepost: trustedResponse.isRepost,
-              paidPromotionCampaignId: trustedResponse.paidPromotionCampaignId ?? null,
-            }
-          : trustedResponse;
 
         const applyResponse = (payload: PostByIdResponse) => {
           const response = payload;

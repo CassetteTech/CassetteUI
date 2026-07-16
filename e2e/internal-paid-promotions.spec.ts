@@ -201,6 +201,8 @@ test('shows subject loading, empty, authorization-error, and unknown states visi
     hasText: 'Paid-promotion subjects could not be shown.',
   })).toBeVisible();
 
+  // An additive backend rollup key must not brick the catalog: the row still
+  // renders and the unknown status is simply not displayed.
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.team,
     internalPaidPromotionSubjects: [{
@@ -209,9 +211,11 @@ test('shows subject loading, empty, authorization-error, and unknown states visi
     }],
   });
   await page.reload();
+  await expect(page.getByRole('table', { name: 'Paid-promotion canonical subject catalog' })).toBeVisible();
+  await expect(page.getByText(fixturePaidPromotionSubjects[0].trackTitle).first()).toBeVisible();
   await expect(page.getByRole('alert').filter({
-    hasText: 'Invalid paid-promotion subject response: subjects[0].campaignStatusCounts.future_state.',
-  })).toBeVisible();
+    hasText: 'Paid-promotion subjects could not be shown.',
+  })).toHaveCount(0);
 });
 
 test('keeps the subject catalog usable at a narrow mobile viewport', async ({ page }) => {
@@ -338,7 +342,9 @@ test('shows zero-total and unknown checkout totals as non-refundable', async ({ 
   await expect(page.getByRole('button', { name: 'Initiate refund' })).toBeDisabled();
 });
 
-test('rejects arithmetically inconsistent checkout totals visibly', async ({ page }) => {
+test('renders server checkout totals without re-auditing their arithmetic', async ({ page }) => {
+  // Bridge/Sentinel own the totals invariant; the console must keep rendering
+  // whatever the server persisted so ops can actually investigate it.
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.team,
     internalPaidPromotionCampaign: {
@@ -351,9 +357,10 @@ test('rejects arithmetically inconsistent checkout totals visibly', async ({ pag
   });
   await page.goto('/internal/paid-promotions/' + fixturePaidPromotionCampaign.id);
 
+  await expect(page.getByText('Final total', { exact: true }).locator('..')).toContainText('USD 220.00');
   await expect(page.getByRole('alert').filter({
     hasText: 'Campaign detail could not be shown.',
-  })).toContainText('Invalid paid-promotion server response: campaign.payment.finalTotalMinor');
+  })).toHaveCount(0);
 });
 
 test('verifies exceptions against server detail before resolving them', async ({ page }) => {
@@ -372,7 +379,7 @@ test('verifies exceptions against server detail before resolving them', async ({
   await expect(page.getByRole('button', { name: 'Verify resolution' })).toHaveCount(0);
 });
 
-test('fails visibly for an unknown server state', async ({ page }) => {
+test('keeps rendering for an unknown server state', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.team,
     internalPaidPromotionCampaign: {
@@ -382,9 +389,10 @@ test('fails visibly for an unknown server state', async ({ page }) => {
   });
   await page.goto('/internal/paid-promotions/' + fixturePaidPromotionCampaign.id);
 
+  await expect(page.getByText('Future State').first()).toBeVisible();
   await expect(page.getByRole('alert').filter({
     hasText: 'Campaign detail could not be shown.',
-  })).toContainText('Invalid paid-promotion server response: campaign.status');
+  })).toHaveCount(0);
 });
 
 test('keeps non-team users out of the internal console', async ({ page }) => {

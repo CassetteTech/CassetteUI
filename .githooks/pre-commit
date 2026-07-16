@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+stripe_key_pattern='[sr]k_(test|live)_[[:alnum:]_]{16,}'
+
+if git diff --cached --no-ext-diff --unified=0 --diff-filter=ACMR \
+    | grep -E '^\+' \
+    | grep -vE '^\+\+\+' \
+    | grep -Eq "$stripe_key_pattern"; then
+    echo "Commit blocked: a staged Stripe API key appears to be present." >&2
+    exit 1
+fi

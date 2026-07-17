@@ -54,8 +54,6 @@ type MockEmailPreference = {
   consentedAtUtc: string | null;
   lastChangedSource: string | null;
   updatedAtUtc: string | null;
-  syncStatus: string;
-  sendEligible: boolean;
 };
 
 type MockState = {
@@ -396,8 +394,6 @@ const buildState = (options: MockCassetteOptions): MockState => {
       consentedAtUtc: enabled ? FIXTURE_TIMESTAMP : null,
       lastChangedSource: 'settings',
       updatedAtUtc: FIXTURE_TIMESTAMP,
-      syncStatus: 'synced',
-      sendEligible: enabled,
     });
   }
   // Default enrollment (CAS-386): signup and backfill give every user an
@@ -412,8 +408,6 @@ const buildState = (options: MockCassetteOptions): MockState => {
         consentedAtUtc: null,
         lastChangedSource: 'account_default',
         updatedAtUtc: FIXTURE_TIMESTAMP,
-        syncStatus: 'synced',
-        sendEligible: true,
       });
     }
   }
@@ -522,8 +516,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         consentedAtUtc: null,
         lastChangedSource: null,
         updatedAtUtc: null,
-        syncStatus: 'not_configured',
-        sendEligible: false,
       };
       return json(route, { product_updates: preference });
     }
@@ -554,8 +546,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         consentedAtUtc: payload.enabled ? FIXTURE_TIMESTAMP : previous?.consentedAtUtc || null,
         lastChangedSource: payload.source,
         updatedAtUtc: FIXTURE_TIMESTAMP,
-        syncStatus: 'pending',
-        sendEligible: false,
       };
       state.emailPreferencesByUserId.set(currentUser.id, preference);
       return json(route, { product_updates: preference });

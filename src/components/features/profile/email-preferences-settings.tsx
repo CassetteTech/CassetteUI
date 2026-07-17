@@ -30,9 +30,6 @@ export interface EmailPreferencesSettingsModel {
 
 const EmailPreferencesSettingsContext = createContext<EmailPreferencesSettingsModel | null>(null);
 
-// The Bridge response also carries syncStatus/sendEligible (SES projection
-// state). That is deliberately not surfaced here: the user-meaningful fact is
-// that their preference is saved in Bridge, which alone gates sending.
 function useEmailPreferencesSettings(activeUserId: string | null): EmailPreferencesSettingsModel {
   const [enabled, setEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);

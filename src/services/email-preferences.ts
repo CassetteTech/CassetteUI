@@ -9,8 +9,6 @@ export interface ProductUpdatesEmailPreference {
   consentedAtUtc: string | null;
   lastChangedSource: string | null;
   updatedAtUtc: string | null;
-  syncStatus: string;
-  sendEligible: boolean;
 }
 
 export interface EmailPreferencesResponse {
@@ -48,9 +46,7 @@ function parseResponse(value: unknown): EmailPreferencesResponse {
     !isNullableString(productUpdates.consentTextVersion) ||
     !isNullableString(productUpdates.consentedAtUtc) ||
     !isNullableString(productUpdates.lastChangedSource) ||
-    !isNullableString(productUpdates.updatedAtUtc) ||
-    typeof productUpdates.syncStatus !== 'string' ||
-    typeof productUpdates.sendEligible !== 'boolean'
+    !isNullableString(productUpdates.updatedAtUtc)
   ) {
     throw new EmailPreferenceRequestError(502);
   }
@@ -63,8 +59,6 @@ function parseResponse(value: unknown): EmailPreferencesResponse {
       consentedAtUtc: productUpdates.consentedAtUtc,
       lastChangedSource: productUpdates.lastChangedSource,
       updatedAtUtc: productUpdates.updatedAtUtc,
-      syncStatus: productUpdates.syncStatus,
-      sendEligible: productUpdates.sendEligible,
     },
   };
 }

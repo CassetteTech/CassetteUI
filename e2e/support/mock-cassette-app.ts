@@ -23,6 +23,9 @@ type MockCassetteOptions = {
   usernameAvailability?: Record<string, boolean>;
   musicConnectionsByUserId?: Record<string, string[]>;
   platformPreferencesByUserId?: Record<string, string[]>;
+  emailPreferencesByUserId?: Record<string, boolean>;
+  defaultEnrolledUserIds?: string[];
+  emailPreferenceUpdateFailures?: number;
   profileUpdateFailures?: number;
   issueReportFailures?: number;
   googleAuthInitFailures?: number;
@@ -44,6 +47,17 @@ type MockNotification = {
   message?: string;
 };
 
+type MockEmailPreference = {
+  enabled: boolean;
+  consentSource: string | null;
+  consentTextVersion: string | null;
+  consentedAtUtc: string | null;
+  lastChangedSource: string | null;
+  updatedAtUtc: string | null;
+  syncStatus: string;
+  sendEligible: boolean;
+};
+
 type MockState = {
   currentUser: FixtureUser | null;
   googleAuthUser: FixtureUser | null;
@@ -57,6 +71,10 @@ type MockState = {
   usernameAvailability: Record<string, boolean>;
   musicConnectionsByUserId: Map<string, string[]>;
   platformPreferencesByUserId: Map<string, string[]>;
+  emailPreferencesByUserId: Map<string, MockEmailPreference>;
+  emailPreferenceGetCount: number;
+  emailPreferenceUpdateAttempts: Array<{ enabled: boolean; source: string }>;
+  emailPreferenceUpdateFailuresRemaining: number;
   profileUpdateFailuresRemaining: number;
   issueReportFailuresRemaining: number;
   googleAuthInitFailuresRemaining: number;
@@ -329,6 +347,10 @@ const buildState = (options: MockCassetteOptions): MockState => {
     },
     musicConnectionsByUserId: new Map<string, string[]>(),
     platformPreferencesByUserId: new Map<string, string[]>(),
+    emailPreferencesByUserId: new Map<string, MockEmailPreference>(),
+    emailPreferenceGetCount: 0,
+    emailPreferenceUpdateAttempts: [],
+    emailPreferenceUpdateFailuresRemaining: options.emailPreferenceUpdateFailures ?? 0,
     profileUpdateFailuresRemaining: options.profileUpdateFailures ?? 0,
     issueReportFailuresRemaining: options.issueReportFailures ?? 0,
     googleAuthInitFailuresRemaining: options.googleAuthInitFailures ?? 0,
@@ -365,6 +387,35 @@ const buildState = (options: MockCassetteOptions): MockState => {
   }
   for (const [userId, platforms] of Object.entries(options.platformPreferencesByUserId || {})) {
     state.platformPreferencesByUserId.set(userId, clone(platforms).map(normalizeServiceName));
+  }
+  for (const [userId, enabled] of Object.entries(options.emailPreferencesByUserId || {})) {
+    state.emailPreferencesByUserId.set(userId, {
+      enabled,
+      consentSource: enabled ? 'settings' : null,
+      consentTextVersion: enabled ? 'product_updates_v1' : null,
+      consentedAtUtc: enabled ? FIXTURE_TIMESTAMP : null,
+      lastChangedSource: 'settings',
+      updatedAtUtc: FIXTURE_TIMESTAMP,
+      syncStatus: 'synced',
+      sendEligible: enabled,
+    });
+  }
+  // Default enrollment (CAS-386): signup and backfill give every user an
+  // enabled row with lastChangedSource 'account_default' and no affirmative
+  // consent. Seed those rows here; a genuinely missing row stays fail-closed.
+  for (const userId of options.defaultEnrolledUserIds || []) {
+    if (!state.emailPreferencesByUserId.has(userId)) {
+      state.emailPreferencesByUserId.set(userId, {
+        enabled: true,
+        consentSource: null,
+        consentTextVersion: null,
+        consentedAtUtc: null,
+        lastChangedSource: 'account_default',
+        updatedAtUtc: FIXTURE_TIMESTAMP,
+        syncStatus: 'synced',
+        sendEligible: true,
+      });
+    }
   }
 
   return state;
@@ -456,6 +507,58 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
     if (pathname.startsWith('/api/v1/user/check-username/')) {
       const username = normalizeUsername(pathname.split('/').pop() || '');
       return json(route, { available: state.usernameAvailability[username] ?? true });
+    }
+
+    if (pathname === '/api/v1/email/preferences' && method === 'GET') {
+      const currentUser = getCurrentUserOrThrow(state);
+      state.emailPreferenceGetCount += 1;
+      // Fail-closed, matching Bridge: a user with no stored preference row is
+      // not enabled and never send-eligible. Default-on is modeled by seeding
+      // default-enrolled rows via defaultEnrolledUserIds, not by this fallback.
+      const preference = state.emailPreferencesByUserId.get(currentUser.id) || {
+        enabled: false,
+        consentSource: null,
+        consentTextVersion: null,
+        consentedAtUtc: null,
+        lastChangedSource: null,
+        updatedAtUtc: null,
+        syncStatus: 'not_configured',
+        sendEligible: false,
+      };
+      return json(route, { product_updates: preference });
+    }
+
+    if (pathname === '/api/v1/email/preferences/product_updates' && method === 'PUT') {
+      const currentUser = getCurrentUserOrThrow(state);
+      const payload = request.postDataJSON() as { enabled?: unknown; source?: unknown };
+      if (typeof payload.enabled !== 'boolean' || payload.source !== 'settings') {
+        return json(route, { message: 'Invalid email preference request' }, 400);
+      }
+
+      state.emailPreferenceUpdateAttempts.push({
+        enabled: payload.enabled,
+        source: payload.source,
+      });
+      if (state.emailPreferenceUpdateFailuresRemaining > 0) {
+        state.emailPreferenceUpdateFailuresRemaining -= 1;
+        return json(route, { message: 'Internal email provider configuration details' }, 503);
+      }
+
+      const previous = state.emailPreferencesByUserId.get(currentUser.id);
+      const preference: MockEmailPreference = {
+        enabled: payload.enabled,
+        consentSource: payload.enabled ? payload.source : previous?.consentSource || null,
+        consentTextVersion: payload.enabled
+          ? 'product_updates_v1'
+          : previous?.consentTextVersion || null,
+        consentedAtUtc: payload.enabled ? FIXTURE_TIMESTAMP : previous?.consentedAtUtc || null,
+        lastChangedSource: payload.source,
+        updatedAtUtc: FIXTURE_TIMESTAMP,
+        syncStatus: 'pending',
+        sendEligible: false,
+      };
+      state.emailPreferencesByUserId.set(currentUser.id, preference);
+      return json(route, { product_updates: preference });
     }
 
     if (pathname === '/api/v1/profile' && method === 'PUT') {

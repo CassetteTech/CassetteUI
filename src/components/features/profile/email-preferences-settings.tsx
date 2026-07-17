@@ -24,35 +24,21 @@ export interface EmailPreferencesSettingsModel {
   saveState: SaveState;
   error: string | null;
   hasSaveRetry: boolean;
-  syncMessage: string | null;
   onCheckedChange: (checked: boolean) => void;
   onRetry: () => void;
 }
 
 const EmailPreferencesSettingsContext = createContext<EmailPreferencesSettingsModel | null>(null);
 
-function getSyncMessage(enabled: boolean, syncStatus: string | null, sendEligible: boolean) {
-  if (!enabled || syncStatus === null) return null;
-  if (syncStatus === 'pending') return 'Email provider sync is pending.';
-  if (syncStatus === 'failed' || syncStatus === 'dead') {
-    return 'Your preference is saved, but email provider sync needs attention.';
-  }
-  if (syncStatus === 'not_configured') return 'Email provider sync has not started.';
-  if (syncStatus === 'synced' && !sendEligible) {
-    return 'Your preference is saved. Product update delivery is currently paused.';
-  }
-  if (syncStatus !== 'synced') return 'Email provider sync status is unavailable.';
-  return null;
-}
-
+// The Bridge response also carries syncStatus/sendEligible (SES projection
+// state). That is deliberately not surfaced here: the user-meaningful fact is
+// that their preference is saved in Bridge, which alone gates sending.
 function useEmailPreferencesSettings(activeUserId: string | null): EmailPreferencesSettingsModel {
   const [enabled, setEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [retryValue, setRetryValue] = useState<boolean | null>(null);
-  const [syncStatus, setSyncStatus] = useState<string | null>(null);
-  const [sendEligible, setSendEligible] = useState(false);
 
   const loadPreference = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
@@ -61,8 +47,6 @@ function useEmailPreferencesSettings(activeUserId: string | null): EmailPreferen
     try {
       const response = await emailPreferencesService.get(signal);
       setEnabled(response.product_updates.enabled);
-      setSyncStatus(response.product_updates.syncStatus);
-      setSendEligible(response.product_updates.sendEligible);
     } catch (loadError) {
       if (signal?.aborted) return;
       setError(getUserFacingApiErrorMessage(
@@ -99,8 +83,6 @@ function useEmailPreferencesSettings(activeUserId: string | null): EmailPreferen
         'settings',
       );
       setEnabled(response.product_updates.enabled);
-      setSyncStatus(response.product_updates.syncStatus);
-      setSendEligible(response.product_updates.sendEligible);
       setSaveState('saved');
     } catch (saveError) {
       setEnabled(previousEnabled);
@@ -113,15 +95,12 @@ function useEmailPreferencesSettings(activeUserId: string | null): EmailPreferen
     }
   };
 
-  const syncMessage = getSyncMessage(enabled, syncStatus, sendEligible);
-
   return {
     enabled,
     isLoading,
     saveState,
     error,
     hasSaveRetry: retryValue !== null,
-    syncMessage,
     onCheckedChange: (checked) => void savePreference(checked),
     onRetry: () => {
       if (retryValue === null) {
@@ -168,8 +147,11 @@ export function EmailPreferencesSettings() {
             Product updates and releases
           </h2>
           <label htmlFor={controlId} className="mt-1 block text-xs text-muted-foreground">
-            Email me occasional Cassette product updates and release announcements. I can unsubscribe at any time.
+            Cassette sends occasional product and release update emails to your account address by default. Turn this off any time to stop them.
           </label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Turning this off does not affect account, security, or service emails.
+          </p>
         </div>
         <Switch
           id={controlId}
@@ -180,7 +162,7 @@ export function EmailPreferencesSettings() {
             model.saveState === 'saving' ||
             model.error !== null && !model.hasSaveRetry
           }
-          aria-label="Email me Cassette product updates and release announcements"
+          aria-label="Receive Cassette product and release update emails"
           data-testid="settings-product-updates-email"
         />
       </div>
@@ -192,12 +174,9 @@ export function EmailPreferencesSettings() {
       )}
       {!model.isLoading && model.saveState !== 'idle' && (
         <p className="mt-2 text-xs text-muted-foreground" aria-live="polite" data-testid="email-preference-save-status">
-          {model.saveState === 'saving' ? 'Saving…' : 'Saved.'}
-        </p>
-      )}
-      {!model.isLoading && model.syncMessage && (
-        <p className="mt-2 text-xs text-muted-foreground" data-testid="email-preference-sync-status">
-          {model.syncMessage}
+          {model.saveState === 'saving'
+            ? 'Saving…'
+            : 'Saved. This can take a few minutes to take effect.'}
         </p>
       )}
       {model.error && (

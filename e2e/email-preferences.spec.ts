@@ -1,58 +1,63 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { fixtureUsers } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
-async function advanceToEmailConsent(page: Page) {
+test('onboarding contains no product-updates email control and makes no preference requests', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.newcomer,
+  });
+
   await page.goto('/onboarding');
   await page.getByTestId('onboarding-start').click();
+
   await page.getByTestId('onboarding-username').fill('freshhandle');
   await expect(page.getByTestId('onboarding-handle-next')).toBeEnabled();
+  await expect(page.getByTestId('settings-product-updates-email')).toHaveCount(0);
+  await expect(page.getByTestId('onboarding-product-updates-email')).toHaveCount(0);
   await page.getByTestId('onboarding-handle-next').click();
+
+  await expect(page.getByTestId('onboarding-avatar-next')).toBeVisible();
+  await expect(page.getByTestId('settings-product-updates-email')).toHaveCount(0);
+  await expect(page.getByTestId('onboarding-product-updates-email')).toHaveCount(0);
   await page.getByTestId('onboarding-avatar-next').click();
-  await expect(page.getByTestId('onboarding-product-updates-email')).toBeVisible();
-}
 
-test('keeps product update email off by default during onboarding', async ({ page }) => {
-  const { state } = await mockCassetteApp(page, {
-    currentUser: fixtureUsers.newcomer,
-  });
-
-  await advanceToEmailConsent(page);
-  await expect(page.getByTestId('onboarding-product-updates-email')).toHaveAttribute(
-    'data-state',
-    'unchecked',
-  );
+  await expect(page.getByTestId('onboarding-finish-setup')).toBeVisible();
+  await expect(page.getByTestId('settings-product-updates-email')).toHaveCount(0);
+  await expect(page.getByTestId('onboarding-product-updates-email')).toHaveCount(0);
+  await expect(
+    page.getByRole('switch', { name: /product|release|email/i }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('checkbox', { name: /product|release|email/i }),
+  ).toHaveCount(0);
   await page.getByTestId('onboarding-finish-setup').click();
 
   await expect.poll(() => state.currentUser?.isOnboarded).toBe(true);
-  expect(state.emailPreferenceUpdateAttempts).toEqual([
-    { enabled: false, source: 'onboarding' },
-  ]);
-  expect(state.emailPreferencesByUserId.get(fixtureUsers.newcomer.id)?.enabled).toBe(false);
+  expect(state.emailPreferenceGetCount).toBe(0);
+  expect(state.emailPreferenceUpdateAttempts).toEqual([]);
 });
 
-test('records affirmative product update consent before onboarding completes', async ({ page }) => {
-  const { state } = await mockCassetteApp(page, {
-    currentUser: fixtureUsers.newcomer,
-  });
-
-  await advanceToEmailConsent(page);
-  await page.getByTestId('onboarding-product-updates-email').click();
-  await page.getByTestId('onboarding-finish-setup').click();
-
-  await expect.poll(() => state.currentUser?.isOnboarded).toBe(true);
-  expect(state.emailPreferenceUpdateAttempts).toEqual([
-    { enabled: true, source: 'onboarding' },
-  ]);
-  expect(state.emailPreferencesByUserId.get(fixtureUsers.newcomer.id)?.enabled).toBe(true);
-});
-
-test('lets account settings opt out of product update email', async ({ page }) => {
+test('shows product update email as on by default in account settings', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
-    emailPreferencesByUserId: {
-      [fixtureUsers.member.id]: true,
-    },
+    // Default enrollment happens in Bridge (signup/backfill): the account
+    // arrives with an enabled account_default row, not a missing row.
+    defaultEnrolledUserIds: [fixtureUsers.member.id],
+  });
+
+  await page.goto('/profile/miagroove/edit');
+  const preferenceSwitch = page.locator(
+    '[data-testid="settings-product-updates-email"]:visible',
+  );
+  await expect(preferenceSwitch).toHaveAttribute('data-state', 'checked');
+  expect(state.emailPreferenceGetCount).toBe(1);
+  expect(state.emailPreferenceUpdateAttempts).toEqual([]);
+});
+
+test('lets account settings opt out of product update email and persists across reload', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    defaultEnrolledUserIds: [fixtureUsers.member.id],
   });
 
   await page.goto('/profile/miagroove/edit');
@@ -65,7 +70,7 @@ test('lets account settings opt out of product update email', async ({ page }) =
   await preferenceSwitch.click();
 
   await expect(page.locator('[data-testid="email-preference-save-status"]:visible')).toHaveText(
-    'Saved.',
+    'Saved. This can take a few minutes to take effect.',
   );
   await expect(preferenceSwitch).toHaveAttribute('data-state', 'unchecked');
   expect(state.emailPreferenceUpdateAttempts).toEqual([
@@ -80,68 +85,21 @@ test('lets account settings opt out of product update email', async ({ page }) =
     'unchecked',
   );
   expect(state.emailPreferenceGetCount).toBe(loadRequestCount);
-});
 
-test('keeps failed onboarding consent visible and retryable', async ({ page }) => {
-  const { state } = await mockCassetteApp(page, {
-    currentUser: fixtureUsers.newcomer,
-    emailPreferenceUpdateFailures: 1,
-  });
-
-  await advanceToEmailConsent(page);
-  const preferenceSwitch = page.getByTestId('onboarding-product-updates-email');
-  await preferenceSwitch.click();
-  await page.getByTestId('onboarding-finish-setup').click();
-
-  await expect(page.getByTestId('onboarding-submit-error')).toContainText(
-    'Cassette is temporarily unavailable. Please try again.',
+  await page.reload();
+  await expect(page.locator('[data-testid="settings-product-updates-email"]:visible')).toHaveAttribute(
+    'data-state',
+    'unchecked',
   );
-  await expect(preferenceSwitch).toHaveAttribute('data-state', 'checked');
-  expect(state.currentUser?.isOnboarded).toBe(false);
-  expect(state.emailPreferenceUpdateAttempts).toEqual([
-    { enabled: true, source: 'onboarding' },
-  ]);
-
-  await page.getByTestId('onboarding-finish-setup').click();
-
-  await expect.poll(() => state.currentUser?.isOnboarded).toBe(true);
-  expect(state.emailPreferenceUpdateAttempts).toEqual([
-    { enabled: true, source: 'onboarding' },
-    { enabled: true, source: 'onboarding' },
-  ]);
-  expect(state.emailPreferencesByUserId.get(fixtureUsers.newcomer.id)?.enabled).toBe(true);
+  expect(state.emailPreferenceGetCount).toBeGreaterThan(loadRequestCount);
 });
 
-test('persists a later opt-out after profile completion initially fails', async ({ page }) => {
-  const { state } = await mockCassetteApp(page, {
-    currentUser: fixtureUsers.newcomer,
-    profileUpdateFailures: 1,
-  });
-
-  await advanceToEmailConsent(page);
-  const preferenceSwitch = page.getByTestId('onboarding-product-updates-email');
-  await preferenceSwitch.click();
-  await page.getByTestId('onboarding-finish-setup').click();
-
-  await expect(page.getByTestId('onboarding-submit-error')).toBeVisible();
-  expect(state.currentUser?.isOnboarded).toBe(false);
-  expect(state.emailPreferencesByUserId.get(fixtureUsers.newcomer.id)?.enabled).toBe(true);
-
-  await preferenceSwitch.click();
-  await page.getByTestId('onboarding-finish-setup').click();
-
-  await expect.poll(() => state.currentUser?.isOnboarded).toBe(true);
-  expect(state.emailPreferenceUpdateAttempts).toEqual([
-    { enabled: true, source: 'onboarding' },
-    { enabled: false, source: 'onboarding' },
-  ]);
-  expect(state.emailPreferencesByUserId.get(fixtureUsers.newcomer.id)?.enabled).toBe(false);
-});
-
-test('reverts a failed settings change and retries the intended preference', async ({ page }) => {
+test('lets a previously opted-out account re-enable product update email', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
-    emailPreferenceUpdateFailures: 1,
+    emailPreferencesByUserId: {
+      [fixtureUsers.member.id]: false,
+    },
   });
 
   await page.goto('/profile/miagroove/edit');
@@ -151,25 +109,49 @@ test('reverts a failed settings change and retries the intended preference', asy
   await expect(preferenceSwitch).toHaveAttribute('data-state', 'unchecked');
   await preferenceSwitch.click();
 
+  await expect(page.locator('[data-testid="email-preference-save-status"]:visible')).toHaveText(
+    'Saved. This can take a few minutes to take effect.',
+  );
+  await expect(preferenceSwitch).toHaveAttribute('data-state', 'checked');
+  expect(state.emailPreferenceUpdateAttempts).toEqual([
+    { enabled: true, source: 'settings' },
+  ]);
+  expect(state.emailPreferencesByUserId.get(fixtureUsers.member.id)?.enabled).toBe(true);
+});
+
+test('reverts a failed settings opt-out and retries the intended preference', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    defaultEnrolledUserIds: [fixtureUsers.member.id],
+    emailPreferenceUpdateFailures: 1,
+  });
+
+  await page.goto('/profile/miagroove/edit');
+  const preferenceSwitch = page.locator(
+    '[data-testid="settings-product-updates-email"]:visible',
+  );
+  await expect(preferenceSwitch).toHaveAttribute('data-state', 'checked');
+  await preferenceSwitch.click();
+
   const error = page.locator('[role="alert"]:visible').filter({
     hasText: 'Cassette is temporarily unavailable. Please try again.',
   });
   await expect(error).toContainText('Your previous setting is still in place.');
-  await expect(preferenceSwitch).toHaveAttribute('data-state', 'unchecked');
-  expect(state.emailPreferencesByUserId.has(fixtureUsers.member.id)).toBe(false);
+  await expect(preferenceSwitch).toHaveAttribute('data-state', 'checked');
+  const untouched = state.emailPreferencesByUserId.get(fixtureUsers.member.id);
+  expect(untouched?.enabled).toBe(true);
+  expect(untouched?.lastChangedSource).toBe('account_default');
+  expect(untouched?.consentedAtUtc).toBeNull();
 
   await error.getByRole('button', { name: 'Retry' }).click();
 
   await expect(page.locator('[data-testid="email-preference-save-status"]:visible')).toHaveText(
-    'Saved.',
+    'Saved. This can take a few minutes to take effect.',
   );
-  await expect(preferenceSwitch).toHaveAttribute('data-state', 'checked');
-  await expect(page.locator('[data-testid="email-preference-sync-status"]:visible')).toContainText(
-    'Email provider sync is pending.',
-  );
+  await expect(preferenceSwitch).toHaveAttribute('data-state', 'unchecked');
   expect(state.emailPreferenceUpdateAttempts).toEqual([
-    { enabled: true, source: 'settings' },
-    { enabled: true, source: 'settings' },
+    { enabled: false, source: 'settings' },
+    { enabled: false, source: 'settings' },
   ]);
-  expect(state.emailPreferencesByUserId.get(fixtureUsers.member.id)?.enabled).toBe(true);
+  expect(state.emailPreferencesByUserId.get(fixtureUsers.member.id)?.enabled).toBe(false);
 });

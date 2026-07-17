@@ -31,6 +31,17 @@ CassetteUI is the Next.js frontend for Cassette. It owns the web user experience
 - Do not import `supabaseAdmin`, tokens, cookies, OAuth codes, or server config into client paths.
 - In Playwright, remember `/api/v1/[...path]` intentionally returns 503 while `PLAYWRIGHT_TEST=true`; use fixtures.
 
+## Linear Coordination
+
+- Use the shared `cassette-linear` skill for work that maps to `Cassette Eng`.
+- Resolve the existing `CAS-###` issue before editing, keep its state accurate, and update it at handoff even when work remains open.
+- Give actionable issues created by agents an effort estimate using Cassette's Fibonacci `1, 2, 3, 5, 8` scale and split work larger than `8`.
+- Preserve only material decisions, blockers, cross-repo contracts, rollout concerns, and meaningful verification in ticket notes; do not post an activity diary.
+- Create or update milestones only for meaningful multi-issue delivery gates, with the relevant issues assigned.
+- Apply routine authorized ticket and project maintenance automatically, including project state and health changes. Only Linear's named **Project Update** activity item requires separate approval before publication; keep its draft concise and company-readable, with only decision-relevant technical detail.
+- Set issue state automatically from its acceptance contract. Use `In Review` while a required gate remains and `Done` only after every required gate is satisfied.
+- Mark work `Done` only after its actual acceptance and required verification, merge, deployment, or rollout. Never put secrets or sensitive data in Linear.
+
 ## Verification
 
 - `npm run typecheck`

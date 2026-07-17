@@ -1,6 +1,6 @@
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
 
-export type EmailPreferenceSource = 'onboarding' | 'settings';
+export type EmailPreferenceSource = 'settings';
 
 export interface ProductUpdatesEmailPreference {
   enabled: boolean;

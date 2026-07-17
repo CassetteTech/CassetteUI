@@ -24,6 +24,7 @@ type MockCassetteOptions = {
   musicConnectionsByUserId?: Record<string, string[]>;
   platformPreferencesByUserId?: Record<string, string[]>;
   emailPreferencesByUserId?: Record<string, boolean>;
+  defaultEnrolledUserIds?: string[];
   emailPreferenceUpdateFailures?: number;
   profileUpdateFailures?: number;
   issueReportFailures?: number;
@@ -399,6 +400,23 @@ const buildState = (options: MockCassetteOptions): MockState => {
       sendEligible: enabled,
     });
   }
+  // Default enrollment (CAS-386): signup and backfill give every user an
+  // enabled row with lastChangedSource 'account_default' and no affirmative
+  // consent. Seed those rows here; a genuinely missing row stays fail-closed.
+  for (const userId of options.defaultEnrolledUserIds || []) {
+    if (!state.emailPreferencesByUserId.has(userId)) {
+      state.emailPreferencesByUserId.set(userId, {
+        enabled: true,
+        consentSource: null,
+        consentTextVersion: null,
+        consentedAtUtc: null,
+        lastChangedSource: 'account_default',
+        updatedAtUtc: FIXTURE_TIMESTAMP,
+        syncStatus: 'synced',
+        sendEligible: true,
+      });
+    }
+  }
 
   return state;
 };
@@ -494,6 +512,9 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
     if (pathname === '/api/v1/email/preferences' && method === 'GET') {
       const currentUser = getCurrentUserOrThrow(state);
       state.emailPreferenceGetCount += 1;
+      // Fail-closed, matching Bridge: a user with no stored preference row is
+      // not enabled and never send-eligible. Default-on is modeled by seeding
+      // default-enrolled rows via defaultEnrolledUserIds, not by this fallback.
       const preference = state.emailPreferencesByUserId.get(currentUser.id) || {
         enabled: false,
         consentSource: null,
@@ -510,10 +531,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
     if (pathname === '/api/v1/email/preferences/product_updates' && method === 'PUT') {
       const currentUser = getCurrentUserOrThrow(state);
       const payload = request.postDataJSON() as { enabled?: unknown; source?: unknown };
-      if (
-        typeof payload.enabled !== 'boolean' ||
-        (payload.source !== 'onboarding' && payload.source !== 'settings')
-      ) {
+      if (typeof payload.enabled !== 'boolean' || payload.source !== 'settings') {
         return json(route, { message: 'Invalid email preference request' }, 400);
       }
 

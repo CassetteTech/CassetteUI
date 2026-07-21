@@ -14,6 +14,7 @@ import {
   InternalAccountTypeAuditEntry,
   InternalIssuesResponse,
   InternalIssueDetail,
+  InternalConversionQualityTrendResponse,
   InternalSentinelFindingsResponse,
   InternalSentinelAuditRunsResponse,
   InternalSentinelInvariantRegistryResponse,
@@ -481,6 +482,27 @@ class ApiService {
     return this.request<InternalIssueDetail>(`/api/v1/internal/issues/${issueId}`, {
       timeoutMs: 20000,
     });
+  }
+
+  async getInternalConversionQualityTrends(params: {
+    days?: number;
+    sourcePlatform?: string;
+    targetPlatform?: string;
+    method?: string;
+    scorerVersion?: string;
+    configurationVersion?: string;
+  } = {}): Promise<InternalConversionQualityTrendResponse> {
+    const query = new URLSearchParams();
+    query.set('days', String(params.days ?? 30));
+    if (params.sourcePlatform) query.set('sourcePlatform', params.sourcePlatform);
+    if (params.targetPlatform) query.set('targetPlatform', params.targetPlatform);
+    if (params.method) query.set('method', params.method);
+    if (params.scorerVersion) query.set('scorerVersion', params.scorerVersion);
+    if (params.configurationVersion) query.set('configurationVersion', params.configurationVersion);
+    return this.request<InternalConversionQualityTrendResponse>(
+      `/api/v1/internal/conversion-quality/trends?${query.toString()}`,
+      { timeoutMs: 30000 }
+    );
   }
 
   async getInternalSentinelFindings(params: {

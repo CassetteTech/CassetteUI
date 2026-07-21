@@ -635,6 +635,101 @@ export interface InternalIssueMatchQualityContext {
   decisions: InternalTargetMatchDecision[];
 }
 
+export interface InternalConversionQualityRate {
+  numerator?: number | null;
+  denominator?: number | null;
+  value?: number | null;
+  wilsonLow95?: number | null;
+  wilsonHigh95?: number | null;
+}
+
+export interface InternalConversionQualityMetrics {
+  qualityOpportunities: number;
+  accepted: number;
+  qualityRejections: number;
+  operationalFailures: number;
+  adjudicatedOpportunities: number;
+  adjudicatedExpectedMatches: number;
+  adjudicatedExpectedMisses: number;
+  reasonCounts: Record<string, number>;
+  acceptedMethodCounts: Record<string, number>;
+  targetMatchAcceptanceRate: InternalConversionQualityRate;
+  noMatchRate: InternalConversionQualityRate;
+  noCandidateRate: InternalConversionQualityRate;
+  lowConfidenceRejectionRate: InternalConversionQualityRate;
+  ambiguousMatchRate: InternalConversionQualityRate;
+  policyRejectionRate: InternalConversionQualityRate;
+  operationalFailureRate: InternalConversionQualityRate;
+  successfulTargetMatchRate: InternalConversionQualityRate;
+  decisionAccuracy: InternalConversionQualityRate;
+  wrongMatchRate: InternalConversionQualityRate;
+  falsePositiveAcceptanceRate: InternalConversionQualityRate;
+  expectedMatchMissRate: InternalConversionQualityRate;
+}
+
+export interface InternalConversionQualityTrendPoint {
+  date: string;
+  unlabeled: InternalConversionQualityMetrics;
+  adjudicated: InternalConversionQualityMetrics;
+}
+
+export interface InternalConversionQualityVersionCohort {
+  scorerVersion: string;
+  policyVersion: string;
+  configurationVersion: string;
+  unlabeled: InternalConversionQualityMetrics;
+  adjudicated: InternalConversionQualityMetrics;
+}
+
+export interface InternalConversionQualityDimension {
+  dimension: string;
+  key: string;
+  unlabeled: InternalConversionQualityMetrics;
+  adjudicated: InternalConversionQualityMetrics;
+}
+
+export interface InternalConversionQualityOfflineBaseline {
+  cohort: string;
+  datasetVersion: string;
+  datasetDigestSha256: string;
+  policyVersion: string;
+  configurationVersion: string;
+  scorerVersion: string;
+  cases: number;
+  passed: number;
+  failed: number;
+  successfulTargetMatchRate: InternalConversionQualityRate;
+  decisionAccuracy: InternalConversionQualityRate;
+  targetMatchAcceptanceRate: InternalConversionQualityRate;
+  wrongMatchRate: InternalConversionQualityRate;
+}
+
+export interface InternalConversionQualityTrendResponse {
+  generatedAtUtc: string;
+  windowStartUtc: string;
+  windowEndUtc: string;
+  days: number;
+  metricContract: string;
+  sourceRowsTruncated: boolean;
+  adjudicationRowsTruncated: boolean;
+  parsedEventCount: number;
+  deduplicatedDecisionCount: number;
+  filters: {
+    sourcePlatform?: string | null;
+    targetPlatform?: string | null;
+    method?: string | null;
+    scorerVersion?: string | null;
+    configurationVersion?: string | null;
+  };
+  productionUnlabeled: InternalConversionQualityMetrics;
+  productionAdjudicated: InternalConversionQualityMetrics;
+  daily: InternalConversionQualityTrendPoint[];
+  versionCohorts: InternalConversionQualityVersionCohort[];
+  dimensions: InternalConversionQualityDimension[];
+  offlineBaseline: InternalConversionQualityOfflineBaseline;
+  caveats: string[];
+}
+
 export interface InternalTargetMatchDecision {
   decisionId: string;
   platform: string;

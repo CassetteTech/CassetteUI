@@ -1,4 +1,4 @@
-import { Users, AlertCircle, Link2, AlertTriangle, Layers, type LucideIcon } from 'lucide-react';
+import { Users, AlertCircle, Link2, AlertTriangle, Layers, ChartNoAxesCombined, type LucideIcon } from 'lucide-react';
 
 export type ConsoleDomain = 'eng' | 'growth';
 
@@ -46,6 +46,13 @@ export const CONSOLE_NAV: ConsoleNavSection[] = [
         href: '/internal/snapshots',
         icon: Layers,
         blurb: 'Recommendation snapshots and ranked-item inspection.',
+      },
+      {
+        key: 'conversion-quality',
+        label: 'Conversion Quality',
+        href: '/internal/conversion-quality',
+        icon: ChartNoAxesCombined,
+        blurb: 'Versioned match decisions, adjudicated accuracy, and fixture baselines.',
       },
       {
         key: 'issues',

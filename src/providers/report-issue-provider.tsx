@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { ReportIssueModal } from '@/components/features/report-issue-modal';
+import type { FailedTrack } from '@/types';
 
 interface ConversionData {
   elementType?: string;
@@ -14,6 +15,7 @@ interface ConversionData {
   correlationId?: string;
   sourcePlatform?: string;
   targetPlatform?: string;
+  failedTracks?: FailedTrack[];
 }
 
 interface OpenReportModalOptions {

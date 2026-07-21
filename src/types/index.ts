@@ -286,6 +286,15 @@ export interface FailedTrack {
   track_name?: string;
   artist_name?: string;
   error_reason?: string;
+  reason_code?: string;
+  attempted_methods?: string[];
+  had_target_platform_id?: boolean;
+  attempted_isrc_count?: number;
+  target_platform?: string;
+  territory?: string | null;
+  decision_policy_version?: string;
+  confidence?: number | null;
+  ambiguous?: boolean;
 }
 
 // API Response type for fetchPostById
@@ -596,6 +605,77 @@ export interface InternalIssuesResponse {
 export interface InternalIssueDetail extends InternalIssueSummary {
   payload: string;
   matchReviewCandidate?: InternalMatchReviewCandidate | null;
+  matchQualityContext?: InternalIssueMatchQualityContext | null;
+  failedTracks: InternalIssueFailedTrack[];
+}
+
+export interface InternalIssueFailedTrack {
+  position: number;
+  trackName?: string | null;
+  artistName?: string | null;
+  errorReason?: string | null;
+  reasonCode?: string | null;
+  attemptedMethods: string[];
+  hadTargetPlatformId: boolean;
+  attemptedIsrcCount: number;
+  targetPlatform?: string | null;
+  territory?: string | null;
+  decisionPolicyVersion?: string | null;
+  confidence?: number | null;
+  ambiguous: boolean;
+}
+
+export interface InternalIssueMatchQualityContext {
+  outboxId: string;
+  payloadSchemaVersion: number;
+  conversionJobId: string;
+  sourcePlatform?: string | null;
+  sourceEntityType?: string | null;
+  recordedAtUtc: string;
+  decisions: InternalTargetMatchDecision[];
+}
+
+export interface InternalTargetMatchDecision {
+  decisionId: string;
+  platform: string;
+  outcome: string;
+  reasonCode?: string | null;
+  method?: string | null;
+  territory?: string | null;
+  score?: number | null;
+  threshold?: number | null;
+  runnerUpScore?: number | null;
+  runnerUpMargin?: number | null;
+  confidence?: number | null;
+  confidenceBand?: string | null;
+  candidateCount: number;
+  candidateSetTruncated: boolean;
+  scorerVersion?: string | null;
+  decisionPolicyVersion?: string | null;
+  decisionConfigurationVersion?: string | null;
+  correctionId?: string | null;
+  correctionVersion?: number | null;
+  selectedCandidate?: InternalTargetMatchCandidate | null;
+  runnerUpCandidate?: InternalTargetMatchCandidate | null;
+}
+
+export interface InternalTargetMatchCandidate {
+  providerTrackId: string;
+  title?: string | null;
+  artistNames: string[];
+  albumName?: string | null;
+  durationMs?: number | null;
+  score?: number | null;
+  components: InternalTargetMatchScoreComponent[];
+  disqualifiers: string[];
+}
+
+export interface InternalTargetMatchScoreComponent {
+  name: string;
+  awardedScore: number;
+  availableWeight: number;
+  outcome: string;
+  disqualifiers: string[];
 }
 
 export interface InternalMatchReviewCandidate {

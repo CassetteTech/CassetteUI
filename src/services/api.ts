@@ -1093,6 +1093,21 @@ class ApiService {
       artist?: string;
       sourceIdentity?: { platform: string; providerId: string };
       targetCandidates?: Array<{ platform: string; providerId: string }>;
+      failedTracks?: Array<{
+        position: number;
+        trackName?: string;
+        artistName?: string;
+        errorReason?: string;
+        reasonCode?: string;
+        attemptedMethods?: string[];
+        hadTargetPlatformId?: boolean;
+        attemptedIsrcCount?: number;
+        targetPlatform?: string;
+        territory?: string | null;
+        decisionPolicyVersion?: string;
+        confidence?: number | null;
+        ambiguous?: boolean;
+      }>;
     };
     context?: Record<string, unknown>;
   }): Promise<{ success: boolean; message?: string; issueId?: string; correlationId?: string }> {

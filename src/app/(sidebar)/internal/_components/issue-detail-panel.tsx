@@ -5,7 +5,7 @@ import { ExternalLink, Copy, Inbox, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import type { InternalIssueDetail } from '@/types';
+import type { InternalIssueDetail, InternalTargetMatchCandidate } from '@/types';
 import { Panel, Field } from './kit';
 import { formatDate } from './internal-utils';
 
@@ -44,6 +44,36 @@ function ExtLink({ href }: { href: string }) {
 
 function Mono({ children }: { children: React.ReactNode }) {
   return <span className="break-all font-mono text-[11px]">{children}</span>;
+}
+
+function CandidateDetails({ label, candidate }: { label: string; candidate: InternalTargetMatchCandidate }) {
+  const metadata = [
+    candidate.title,
+    candidate.artistNames.length > 0 ? candidate.artistNames.join(', ') : undefined,
+    candidate.albumName,
+    candidate.durationMs !== null && candidate.durationMs !== undefined ? `${candidate.durationMs} ms` : undefined,
+  ].filter(Boolean);
+
+  return (
+    <div className="py-1">
+      <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <Mono>{candidate.providerTrackId}</Mono>
+      {metadata.length > 0 && <p className="text-[11px] leading-relaxed text-foreground">{metadata.join(' · ')}</p>}
+      {candidate.components.length > 0 && (
+        <div className="mt-1 space-y-0.5 border-l border-border pl-2">
+          {candidate.components.map(component => (
+            <p key={component.name} className="font-mono text-[10px] text-muted-foreground">
+              {component.name}: {component.awardedScore}/{component.availableWeight} · {component.outcome}
+              {component.disqualifiers.length > 0 ? ` · ${component.disqualifiers.join(', ')}` : ''}
+            </p>
+          ))}
+        </div>
+      )}
+      {candidate.disqualifiers.length > 0 && (
+        <p className="font-mono text-[10px] text-destructive">{candidate.disqualifiers.join(', ')}</p>
+      )}
+    </div>
+  );
 }
 
 export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
@@ -134,6 +164,83 @@ export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
           {review.disposition && <Field label="Disposition"><Mono>{review.disposition}</Mono></Field>}
           {review.correctionId && <Field label="Correction"><Mono>{review.correctionId}</Mono></Field>}
           {review.regressionCaseId && <Field label="Regression"><Mono>{review.regressionCaseId}</Mono></Field>}
+        </div>
+      )}
+
+      {issue.matchQualityContext && (
+        <div className="border-t border-border bg-muted/10 px-3 py-2">
+          <div className="mb-1.5 flex items-baseline justify-between gap-2">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground">Match quality</p>
+            <Mono>outbox v{issue.matchQualityContext.payloadSchemaVersion}</Mono>
+          </div>
+          {issue.matchQualityContext.decisions.map(decision => (
+            <div key={decision.decisionId} className="border-t border-border/70 py-1.5 first:border-t-0">
+              <Field label="Target"><Mono>{decision.platform}</Mono></Field>
+              <Field label="Outcome">
+                <Mono>{decision.outcome}{decision.reasonCode ? ` · ${decision.reasonCode}` : ''}</Mono>
+              </Field>
+              {decision.method && <Field label="Method"><Mono>{decision.method}</Mono></Field>}
+              {decision.territory && <Field label="Territory"><Mono>{decision.territory}</Mono></Field>}
+              {decision.confidenceBand && (
+                <Field label="Confidence">
+                  <Mono>{decision.confidenceBand}{decision.confidence !== null && decision.confidence !== undefined ? ` · ${decision.confidence}` : ''}</Mono>
+                </Field>
+              )}
+              {decision.score !== null && decision.score !== undefined && (
+                <Field label="Score">
+                  <Mono>
+                    {decision.score}
+                    {decision.threshold !== null && decision.threshold !== undefined ? ` / threshold ${decision.threshold}` : ''}
+                    {decision.runnerUpMargin !== null && decision.runnerUpMargin !== undefined ? ` · margin ${decision.runnerUpMargin}` : ''}
+                  </Mono>
+                </Field>
+              )}
+              {(decision.scorerVersion || decision.decisionPolicyVersion) && (
+                <Field label="Versions">
+                  <Mono>{[decision.scorerVersion, decision.decisionPolicyVersion, decision.decisionConfigurationVersion].filter(Boolean).join(' · ')}</Mono>
+                </Field>
+              )}
+              <Field label="Candidates">
+                <Mono>{decision.candidateCount}{decision.candidateSetTruncated ? '+' : ''}</Mono>
+              </Field>
+              {decision.correctionId && (
+                <Field label="Applied correction">
+                  <Mono>{decision.correctionId}{decision.correctionVersion ? ` v${decision.correctionVersion}` : ''}</Mono>
+                </Field>
+              )}
+              {decision.selectedCandidate && <CandidateDetails label="Selected candidate" candidate={decision.selectedCandidate} />}
+              {decision.runnerUpCandidate && <CandidateDetails label="Runner-up candidate" candidate={decision.runnerUpCandidate} />}
+              <Field label="Decision"><Mono>{decision.decisionId}</Mono></Field>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(issue.failedTracks?.length ?? 0) > 0 && (
+        <div className="border-t border-border bg-muted/10 px-3 py-2">
+          <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground">Playlist failed tracks</p>
+          {issue.failedTracks.map((track, index) => (
+            <div key={`${track.position}:${track.targetPlatform ?? 'unknown'}:${index}`} className="border-t border-border/70 py-1.5 first:border-t-0">
+              <Field label="Track">
+                {track.position}. {track.trackName || 'Unknown'}{track.artistName ? ` · ${track.artistName}` : ''}
+              </Field>
+              <Field label="Failure"><Mono>{track.reasonCode || track.errorReason || 'unknown'}</Mono></Field>
+              {track.attemptedMethods.length > 0 && (
+                <Field label="Attempted"><Mono>{track.attemptedMethods.join(' · ')}</Mono></Field>
+              )}
+              {track.targetPlatform && <Field label="Target"><Mono>{track.targetPlatform}</Mono></Field>}
+              {track.territory && <Field label="Territory"><Mono>{track.territory}</Mono></Field>}
+              <Field label="Identifiers">
+                <Mono>target id {track.hadTargetPlatformId ? 'present' : 'absent'} · {track.attemptedIsrcCount} ISRC attempt{track.attemptedIsrcCount === 1 ? '' : 's'}</Mono>
+              </Field>
+              {track.decisionPolicyVersion && <Field label="Policy"><Mono>{track.decisionPolicyVersion}</Mono></Field>}
+              {(track.confidence !== null && track.confidence !== undefined) || track.ambiguous ? (
+                <Field label="Decision">
+                  <Mono>{track.confidence !== null && track.confidence !== undefined ? `confidence ${track.confidence}` : 'unscored'}{track.ambiguous ? ' · ambiguous' : ''}</Mono>
+                </Field>
+              ) : null}
+            </div>
+          ))}
         </div>
       )}
 

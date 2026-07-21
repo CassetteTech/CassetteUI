@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { apiService } from '@/services/api';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { appLogger } from '@/lib/observability/logger';
+import { extractMatchReviewProviderIdentity } from '@/lib/platforms';
 
 type ReportType = 'conversion_issue' | 'ui_bug' | 'general_feedback' | 'missing_track' | 'wrong_match';
 
@@ -77,6 +78,16 @@ export function ReportIssueModal({
     setErrorMessage('');
 
     try {
+      const sourceIdentity = extractMatchReviewProviderIdentity(sourceLink);
+      const targetCandidates = Object.values(conversionData?.platforms ?? {})
+        .filter((value): value is string => typeof value === 'string')
+        .map(extractMatchReviewProviderIdentity)
+        .filter(candidate => candidate !== undefined)
+        .filter(candidate =>
+          sourceIdentity === undefined ||
+          candidate.platform !== sourceIdentity.platform ||
+          candidate.providerId !== sourceIdentity.providerId,
+        );
       const response = await apiService.reportIssue({
         reportType,
         sourceContext,
@@ -85,6 +96,13 @@ export function ReportIssueModal({
         conversionJobId: conversionData?.conversionJobId,
         routeContext: typeof window !== 'undefined' ? window.location.pathname : undefined,
         description: description.trim() || undefined,
+        matchContext: {
+          elementType: conversionData?.elementType,
+          title: conversionData?.title,
+          artist: conversionData?.artist,
+          sourceIdentity,
+          targetCandidates,
+        },
         context: {
           elementType: conversionData?.elementType,
           postId: conversionData?.postId,

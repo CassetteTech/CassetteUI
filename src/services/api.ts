@@ -1087,6 +1087,13 @@ class ApiService {
     sourceDomain?: string;
     routeContext?: string;
     description?: string;
+    matchContext?: {
+      elementType?: string;
+      title?: string;
+      artist?: string;
+      sourceIdentity?: { platform: string; providerId: string };
+      targetCandidates?: Array<{ platform: string; providerId: string }>;
+    };
     context?: Record<string, unknown>;
   }): Promise<{ success: boolean; message?: string; issueId?: string; correlationId?: string }> {
     const correlationId = normalizeCorrelationId(data.correlationId) ?? createCorrelationId();
@@ -1119,6 +1126,7 @@ class ApiService {
       sourceLinkHash,
       sourceDomain,
       description: data.description,
+      matchContext: data.matchContext,
       context: data.context,
     };
 

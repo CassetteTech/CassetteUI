@@ -595,6 +595,30 @@ export interface InternalIssuesResponse {
 
 export interface InternalIssueDetail extends InternalIssueSummary {
   payload: string;
+  matchReviewCandidate?: InternalMatchReviewCandidate | null;
+}
+
+export interface InternalMatchReviewCandidate {
+  id: string;
+  reportedProblemType: string;
+  status: string;
+  elementType?: string | null;
+  title?: string | null;
+  artist?: string | null;
+  sourcePlatform?: string | null;
+  sourceProviderId?: string | null;
+  targetCandidatesJson: string;
+  disposition?: string | null;
+  expectedTargetPlatform?: string | null;
+  expectedTargetProviderId?: string | null;
+  expectedMiss?: boolean | null;
+  reviewerUserId?: string | null;
+  reviewedAtUtc?: string | null;
+  reviewNotes?: string | null;
+  correctionId?: string | null;
+  regressionCaseId?: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
 }
 
 export interface InternalSentinelFinding {

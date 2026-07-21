@@ -20,6 +20,11 @@ interface ParsedPayload {
   [k: string]: unknown;
 }
 
+interface ReviewTargetCandidate {
+  platform: string;
+  providerId: string;
+}
+
 const REPORT_LABELS: Record<string, string> = {
   conversion_issue: 'Conversion Problem',
   missing_track: 'Missing Track/Album',
@@ -81,6 +86,22 @@ export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
   }
 
   const ctx = parsed?.context;
+  const review = issue.matchReviewCandidate;
+  let reviewTargets: ReviewTargetCandidate[] = [];
+  if (review?.targetCandidatesJson) {
+    try {
+      const value = JSON.parse(review.targetCandidatesJson) as unknown;
+      if (Array.isArray(value)) {
+        reviewTargets = value.filter((candidate): candidate is ReviewTargetCandidate =>
+          typeof candidate === 'object' && candidate !== null &&
+          typeof (candidate as ReviewTargetCandidate).platform === 'string' &&
+          typeof (candidate as ReviewTargetCandidate).providerId === 'string',
+        );
+      }
+    } catch {
+      reviewTargets = [];
+    }
+  }
 
   return (
     <Panel title="Issue">
@@ -94,6 +115,25 @@ export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
       {parsed?.description && (
         <div className="border-t border-border bg-muted/30 px-3 py-2">
           <p className="text-xs leading-relaxed text-foreground">{parsed.description}</p>
+        </div>
+      )}
+
+      {review && (
+        <div className="border-t border-border bg-muted/20 px-3 py-1.5">
+          <Field label="Review status"><Mono>{review.status}</Mono></Field>
+          {review.title && <Field label="Reported title">{review.title}</Field>}
+          {review.artist && <Field label="Reported artist">{review.artist}</Field>}
+          {review.sourcePlatform && review.sourceProviderId && (
+            <Field label="Source identity"><Mono>{review.sourcePlatform}:{review.sourceProviderId}</Mono></Field>
+          )}
+          {reviewTargets.map(candidate => (
+            <Field key={`${candidate.platform}:${candidate.providerId}`} label="Candidate">
+              <Mono>{candidate.platform}:{candidate.providerId}</Mono>
+            </Field>
+          ))}
+          {review.disposition && <Field label="Disposition"><Mono>{review.disposition}</Mono></Field>}
+          {review.correctionId && <Field label="Correction"><Mono>{review.correctionId}</Mono></Field>}
+          {review.regressionCaseId && <Field label="Regression"><Mono>{review.regressionCaseId}</Mono></Field>}
         </div>
       )}
 

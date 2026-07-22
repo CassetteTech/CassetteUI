@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   buildBackendUrl,
-  buildForwardHeaders,
   createProxyResponse,
-  readRequestBody,
+  forwardApiRequest,
 } from '@/lib/server/auth-proxy';
 
 type RouteContext = {
@@ -33,15 +32,7 @@ async function handleRequest(request: NextRequest, context: RouteContext) {
 
   const backendUrl = buildBackendUrl(`/api/v1/${path.join('/')}`, request.nextUrl.search);
 
-  const backendResponse = await fetch(
-    backendUrl,
-    {
-      method: request.method,
-      headers: buildForwardHeaders(request),
-      body: await readRequestBody(request),
-      cache: 'no-store',
-    }
-  );
+  const backendResponse = await forwardApiRequest(request, backendUrl);
 
   return createProxyResponse(backendResponse);
 }

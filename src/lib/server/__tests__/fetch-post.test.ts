@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { PostByIdResponse } from '../../../types';
+import type { PublicPostPageMetadata } from '../../../types';
 import { fetchPostForMetadata } from '../fetch-post';
-
-type MetadataRequestInit = RequestInit & {
-  next?: { revalidate?: number };
-};
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -15,13 +11,13 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function makePost(postId: string): PostByIdResponse {
+function makePost(postId: string): PublicPostPageMetadata {
   return {
-    success: true,
-    postId,
+    title: postId,
+    description: `Listen to ${postId} on Cassette`,
+    imageUrl: `https://images.test/${postId}.jpg`,
+    canonicalUrl: `https://www.cassette.tech/post/${postId}`,
     elementType: 'track',
-    musicElementId: `music-${postId}`,
-    details: { title: postId },
   };
 }
 
@@ -69,7 +65,7 @@ test('coalesces simultaneous metadata requests for the same post ID', async () =
     const second = fetchPostForMetadata('same-id');
 
     assert.strictEqual(first, second);
-    assert.deepEqual(calls, ['https://bridge.test/api/v1/social/posts/same-id']);
+    assert.deepEqual(calls, ['https://bridge.test/api/v1/social/posts/same-id/page-metadata']);
 
     upstream.resolve(postResponse('same-id'));
     assert.deepEqual(await Promise.all([first, second]), [makePost('same-id'), makePost('same-id')]);
@@ -86,15 +82,15 @@ test('keeps simultaneous metadata requests for different post IDs independent', 
   await withMockedFetch(async (input) => {
     const url = requestUrl(input);
     calls.push(url);
-    const postId = url.split('/').at(-1);
+    const postId = url.split('/').at(-2);
     return upstreamById.get(postId || '')!.promise;
   }, async () => {
     const first = fetchPostForMetadata('first-id');
     const second = fetchPostForMetadata('second-id');
 
     assert.deepEqual(calls, [
-      'https://bridge.test/api/v1/social/posts/first-id',
-      'https://bridge.test/api/v1/social/posts/second-id',
+      'https://bridge.test/api/v1/social/posts/first-id/page-metadata',
+      'https://bridge.test/api/v1/social/posts/second-id/page-metadata',
     ]);
 
     upstreamById.get('second-id')!.resolve(postResponse('second-id'));
@@ -153,16 +149,55 @@ test('removes cancelled metadata requests so the post can be retried', async () 
   }
 });
 
-test('preserves the Next fetch revalidation window', async () => {
-  const calls: Array<{ init?: MetadataRequestInit; url: string }> = [];
+test('does not persist metadata across post privacy changes', async () => {
+  const calls: Array<{ init?: RequestInit; url: string }> = [];
 
   await withMockedFetch(async (input, init) => {
-    calls.push({ init: init as MetadataRequestInit, url: requestUrl(input) });
+    calls.push({ init, url: requestUrl(input) });
     return postResponse('revalidation-id');
   }, async () => {
     assert.deepEqual(await fetchPostForMetadata('revalidation-id'), makePost('revalidation-id'));
     assert.equal(calls.length, 1);
-    assert.deepEqual(calls[0].init?.next, { revalidate: 300 });
+    assert.equal(calls[0].init?.cache, 'no-store');
     assert.ok(calls[0].init?.signal instanceof AbortSignal);
+  });
+});
+
+test('crawler burst coalesces repeated post IDs with bounded latency', async (t) => {
+  const postIds = ['burst-one', 'burst-two', 'burst-three'];
+  const upstreamById = new Map(postIds.map((postId) => [postId, deferred<Response>()]));
+  const upstreamFetchCounts = new Map<string, number>();
+
+  await withMockedFetch(async (input) => {
+    const postId = requestUrl(input).split('/').at(-2) || '';
+    upstreamFetchCounts.set(postId, (upstreamFetchCounts.get(postId) ?? 0) + 1);
+    return upstreamById.get(postId)!.promise;
+  }, async () => {
+    const startedAt = performance.now();
+    const requests = Array.from({ length: 30 }, (_, index) =>
+      fetchPostForMetadata(postIds[index % postIds.length]));
+
+    assert.deepEqual(
+      Object.fromEntries(upstreamFetchCounts),
+      Object.fromEntries(postIds.map((postId) => [postId, 1])),
+    );
+
+    for (const postId of postIds) {
+      upstreamById.get(postId)!.resolve(postResponse(postId));
+    }
+
+    const responses = await Promise.all(requests);
+    const latencyMs = performance.now() - startedAt;
+    const report = {
+      requestCount: requests.length,
+      responseStatuses: responses.map((response) => response ? 200 : 404),
+      latencyMs: Math.round(latencyMs),
+      upstreamFetchCounts: Object.fromEntries(upstreamFetchCounts),
+    };
+    t.diagnostic(JSON.stringify(report));
+
+    assert.equal(responses.length, 30);
+    assert.ok(responses.every(Boolean));
+    assert.ok(latencyMs < 1_000, `crawler burst exceeded 1000ms: ${JSON.stringify(report)}`);
   });
 });

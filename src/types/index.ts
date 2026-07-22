@@ -344,6 +344,14 @@ export interface PostByIdResponse {
   originalLink?: string;
 }
 
+export interface PublicPostPageMetadata {
+  title: string;
+  description: string;
+  imageUrl?: string | null;
+  canonicalUrl: string;
+  elementType: string;
+}
+
 // API Response type for fetchPostViewerState — viewer-specific state only,
 // used to reconcile a server-rendered post without refetching the full payload.
 export interface PostViewerStateResponse {

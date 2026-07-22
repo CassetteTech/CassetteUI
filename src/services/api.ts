@@ -121,10 +121,19 @@ class ApiService {
     const { skipAuth, timeoutMs = 60000, signal: externalSignal, correlationId, ...requestOptions } = options;
     const headers = skipAuth ? { 'Content-Type': 'application/json' } : await this.getAuthHeaders();
     const timeoutController = new AbortController();
-    const timeoutHandle = setTimeout(() => timeoutController.abort(), timeoutMs);
+    let timeoutTriggered = false;
+    const timeoutHandle = setTimeout(() => {
+      timeoutTriggered = true;
+      timeoutController.abort();
+    }, timeoutMs);
+    const abortFromCaller = () => timeoutController.abort(externalSignal?.reason);
 
     if (externalSignal) {
-      externalSignal.addEventListener('abort', () => timeoutController.abort(), { once: true });
+      if (externalSignal.aborted) {
+        abortFromCaller();
+      } else {
+        externalSignal.addEventListener('abort', abortFromCaller, { once: true });
+      }
     }
 
     try {
@@ -217,6 +226,14 @@ class ApiService {
       }
       return data;
     } catch (error) {
+      const aborted = error instanceof DOMException
+        ? error.name === 'AbortError'
+        : error instanceof Error && error.name === 'AbortError';
+      if (aborted && externalSignal?.aborted && !timeoutTriggered) {
+        appLogger.debug('api_request_cancelled', { route: endpoint, correlationId });
+        throw error;
+      }
+
       if (error instanceof ApiError) {
         appLogger.error('api_request_failed', {
           route: endpoint,
@@ -231,9 +248,6 @@ class ApiService {
           errorName: error instanceof Error ? error.name : typeof error,
         });
       }
-      const aborted = error instanceof DOMException
-        ? error.name === 'AbortError'
-        : error instanceof Error && error.name === 'AbortError';
       if (aborted) {
         throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s: ${endpoint}`);
       }
@@ -243,6 +257,7 @@ class ApiService {
       throw error;
     } finally {
       clearTimeout(timeoutHandle);
+      externalSignal?.removeEventListener('abort', abortFromCaller);
     }
   }
 

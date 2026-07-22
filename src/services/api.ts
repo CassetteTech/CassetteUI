@@ -45,6 +45,7 @@ import { CASSETTE_CORRELATION_HEADER, createCorrelationId, normalizeCorrelationI
 import { getSourceDomain, hashSourceLink, normalizeRouteContext } from '@/lib/observability/source-link';
 import { appLogger } from '@/lib/observability/logger';
 import { getPlatformDefinition } from '@/lib/platforms';
+import { getApiConnectionErrorMessage } from '@/utils/api-connection-error';
 import {
   createLifecycleConversionPlaceholder,
   getLifecycleConversionFailureMessage,
@@ -237,7 +238,7 @@ class ApiService {
         throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s: ${endpoint}`);
       }
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error(`Cannot connect to API at ${url}. Is your local server running on port 5000?`);
+        throw new Error(getApiConnectionErrorMessage(url));
       }
       throw error;
     } finally {

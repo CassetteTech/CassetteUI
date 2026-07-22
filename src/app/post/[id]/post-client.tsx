@@ -47,6 +47,7 @@ import { playCopyConfirm, playErrorTone, playLikePop } from '@/lib/sounds';
 import { useQueryClient } from '@tanstack/react-query';
 import { appLogger } from '@/lib/observability/logger';
 import { captureUiException } from '@/lib/observability/error-reporting';
+import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 
 function JoinCassetteCTA({ onClick, className }: { onClick: () => void; className?: string }) {
   return (
@@ -396,17 +397,15 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
                      ('ontouchstart' in window && window.innerWidth < 1024);
 
-    if (navigator.share && isMobile) {
+    if (canShareWebContent() && isMobile) {
       try {
-        await navigator.share({
+        await shareWebContent({
           title: shareTitle,
           text: shareText,
           url: shareUrl,
         });
       } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          appLogger.warn('post_share_failed', { error: err, route: '/post/[id]' });
-        }
+        appLogger.warn('post_share_failed', { error: err, route: '/post/[id]' });
       }
     } else {
       // Desktop: copy to clipboard

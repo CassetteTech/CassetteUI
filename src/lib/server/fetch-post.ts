@@ -1,14 +1,17 @@
 import { cache } from 'react';
-import { PostByIdResponse } from '@/types';
-import { getApiUrl } from '@/lib/utils/url';
-import { appLogger } from '@/lib/observability/logger';
+import type { PostByIdResponse } from '../../types';
+import { appLogger } from '../observability/logger';
+import { getApiUrl } from '../utils/url';
+
+const inFlightPostMetadataRequests = new Map<string, Promise<PostByIdResponse | null>>();
 
 /**
  * Server-side fetch utility for post data.
- * Used by generateMetadata and the page component; `cache()` dedupes the two
- * callers into a single Bridge request per navigation.
+ * Used by generateMetadata and the page component. `cache()` dedupes within a
+ * render, while the in-flight map also coalesces concurrent SSR requests for
+ * the same post until the shared Bridge request settles.
  */
-export const fetchPostForMetadata = cache(async function fetchPostForMetadata(postId: string): Promise<PostByIdResponse | null> {
+async function requestPostForMetadata(postId: string): Promise<PostByIdResponse | null> {
   const apiUrl = getApiUrl();
 
   try {
@@ -29,6 +32,25 @@ export const fetchPostForMetadata = cache(async function fetchPostForMetadata(po
     appLogger.warn('metadata_post_fetch_failed', { error, post_id: postId });
     return null;
   }
+}
+
+export const fetchPostForMetadata = cache(function fetchPostForMetadata(
+  postId: string,
+): Promise<PostByIdResponse | null> {
+  const inFlightRequest = inFlightPostMetadataRequests.get(postId);
+  if (inFlightRequest) return inFlightRequest;
+
+  const request = requestPostForMetadata(postId);
+  inFlightPostMetadataRequests.set(postId, request);
+
+  const removeRequest = () => {
+    if (inFlightPostMetadataRequests.get(postId) === request) {
+      inFlightPostMetadataRequests.delete(postId);
+    }
+  };
+  void request.then(removeRequest, removeRequest);
+
+  return request;
 });
 
 /**

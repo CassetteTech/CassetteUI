@@ -58,7 +58,7 @@ function Stepper({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'flex h-6 w-6 items-center justify-center rounded border border-border text-muted-foreground transition-colors',
+        'flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors',
         'hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent'
       )}
       {...rest}

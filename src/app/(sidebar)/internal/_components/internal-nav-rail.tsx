@@ -44,11 +44,11 @@ export function InternalNavRail() {
                   className={cn(
                     'flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors',
                     active
-                      ? 'bg-domain/10 font-medium text-domain'
+                      ? 'bg-card font-medium text-foreground shadow-sm'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   )}
                 >
-                  <item.icon className="h-4 w-4 shrink-0" />
+                  <item.icon className={cn('h-4 w-4 shrink-0', active && 'text-domain')} />
                   <span className="truncate">{item.label}</span>
                 </Link>
               );
@@ -72,11 +72,11 @@ export function InternalNavRail() {
                     className={cn(
                       'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors',
                       active
-                        ? 'bg-domain/10 font-medium text-domain'
+                        ? 'bg-card font-medium text-foreground shadow-sm'
                         : 'text-muted-foreground hover:bg-muted'
                     )}
                   >
-                    <item.icon className="h-3.5 w-3.5 shrink-0" />
+                    <item.icon className={cn('h-3.5 w-3.5 shrink-0', active && 'text-domain')} />
                     <span className="whitespace-nowrap">{item.label}</span>
                   </Link>
                 );

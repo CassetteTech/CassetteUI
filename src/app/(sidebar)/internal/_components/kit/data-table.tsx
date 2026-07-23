@@ -78,12 +78,12 @@ export function DataTable<T>({
       {/* Desktop table */}
       <table className="hidden w-full border-collapse lg:table">
         <thead>
-          <tr className="border-b border-border">
+          <tr className="border-b border-border bg-muted/40">
             {columns.map((col) => (
               <th
                 key={col.key}
                 className={cn(
-                  'px-3 py-2 font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground',
+                  'px-3 py-1.5 font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground',
                   col.align === 'right' ? 'text-right' : 'text-left',
                   col.className
                 )}
@@ -101,9 +101,20 @@ export function DataTable<T>({
               <tr
                 key={key}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          onRowClick(row);
+                        }
+                      }
+                    : undefined
+                }
                 className={cn(
                   'border-b border-border/60 transition-colors',
-                  onRowClick && 'cursor-pointer',
+                  onRowClick && 'cursor-pointer focus-visible:bg-muted/50 focus-visible:outline-none',
                   selected
                     ? 'bg-domain/[0.07] text-foreground'
                     : onRowClick && 'hover:bg-muted/50'
@@ -136,10 +147,22 @@ export function DataTable<T>({
           return (
             <div
               key={key}
+              role={onRowClick ? 'button' : undefined}
+              tabIndex={onRowClick ? 0 : undefined}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
+              onKeyDown={
+                onRowClick
+                  ? (event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onRowClick(row);
+                      }
+                    }
+                  : undefined
+              }
               className={cn(
                 'px-3 py-2.5',
-                onRowClick && 'cursor-pointer',
+                onRowClick && 'cursor-pointer focus-visible:bg-muted/40 focus-visible:outline-none',
                 selected ? 'bg-domain/[0.07]' : onRowClick && 'hover:bg-muted/40'
               )}
             >

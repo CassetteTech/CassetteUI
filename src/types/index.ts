@@ -583,13 +583,10 @@ export interface InternalIssueSummary {
   userEmail?: string | null;
   reportType: string;
   sourceContext: string;
-  pageUrl?: string | null;
-  sourceLink?: string | null;
   correlationId?: string | null;
   conversionJobId?: string | null;
   sourceLinkHash?: string | null;
   sourceDomain?: string | null;
-  routeContext?: string | null;
   createdAt: string;
 }
 
@@ -602,7 +599,145 @@ export interface InternalIssuesResponse {
 }
 
 export interface InternalIssueDetail extends InternalIssueSummary {
-  payload: string;
+  operationalContext: InternalIssueOperationalContext;
+}
+
+export interface InternalConversionJobLambdaInvocation {
+  operation: string;
+  platform: string;
+  elementType?: string | null;
+  status: string;
+  completedAtUtc: string;
+  durationMs: number;
+  httpStatus?: number | null;
+  lambdaRequestId?: string | null;
+  correlationId?: string | null;
+  errorCategory?: string | null;
+}
+
+export interface InternalConversionJobIssueReport {
+  id: string;
+  reportType: string;
+  sourceContext: string;
+  createdAt: string;
+}
+
+export interface InternalConversionJobOperationsItem {
+  jobId: string;
+  correlationId?: string | null;
+  userId?: string | null;
+  status: string;
+  stage?: string | null;
+  sourceDomain?: string | null;
+  sourceLinkHash?: string | null;
+  sourcePlatform?: string | null;
+  targetPlatforms: string[];
+  elementType?: string | null;
+  durationMs?: number | null;
+  persistMs?: number | null;
+  firstReadMs?: number | null;
+  errorCode?: string | null;
+  errorCategory?: string | null;
+  retryAfterMs?: number | null;
+  postId?: string | null;
+  canonicalTrackId?: string | null;
+  canonicalAlbumId?: string | null;
+  canonicalArtistId?: string | null;
+  canonicalPlaylistId?: string | null;
+  convertStartedAtUtc: string;
+  convertCompletedAtUtc?: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+  lambdaInvocations: InternalConversionJobLambdaInvocation[];
+  issueReports: InternalConversionJobIssueReport[];
+}
+
+export interface InternalConversionJobsOperationsResponse {
+  items: InternalConversionJobOperationsItem[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface InternalLambdaHealthPlatform {
+  platform: string;
+  status: string;
+  lastWarmupStatus?: string | null;
+  lastWarmupAtUtc?: string | null;
+  lastSuccessfulWarmupAtUtc?: string | null;
+  lastWarmupDurationMs?: number | null;
+  recentWarmupCount: number;
+  recentFailureCount: number;
+  recentFailureRate: number;
+  recentLatencyP50Ms?: number | null;
+  recentLatencyP95Ms?: number | null;
+  mostRecentErrorCategory?: string | null;
+  mostRecentLambdaRequestId?: string | null;
+  mostRecentCorrelationId?: string | null;
+  lastHttpStatus?: number | null;
+}
+
+export interface InternalLambdaHealthOperationsResponse {
+  generatedAtUtc: string;
+  platforms: InternalLambdaHealthPlatform[];
+}
+
+export interface InternalOperationalAlert {
+  ruleId: string;
+  family: string;
+  name: string;
+  status: string;
+  severity: string;
+  owner: string;
+  dataSource: string;
+  windowMinutes: number;
+  threshold: string;
+  observedValue?: number | null;
+  observedCount: number;
+  sampleSize: number;
+  message: string;
+  firstRunbook?: string | null;
+  dimensions: Record<string, string>;
+}
+
+export interface InternalOperationalAlertsResponse {
+  generatedAtUtc: string;
+  windowMinutes: number;
+  items: InternalOperationalAlert[];
+  activeCount: number;
+  insufficientDataCount: number;
+}
+
+export interface InternalIssueLifecycleEvent {
+  operation: string;
+  status: string;
+  occurredAtUtc: string;
+  durationMs?: number | null;
+  platform?: string | null;
+  elementType?: string | null;
+  errorCategory?: string | null;
+  lambdaRequestId?: string | null;
+}
+
+export interface InternalIssueSanitizedClientContext {
+  sourceContext: string;
+  routeContext?: string | null;
+  sourceDomain?: string | null;
+  sourceLinkHash?: string | null;
+  description?: string | null;
+  elementType?: string | null;
+  screenSize?: string | null;
+  userTimezone?: string | null;
+  hasPayload: boolean;
+  redactedPayloadKeyCount: number;
+  payloadKeys: string[];
+}
+
+export interface InternalIssueOperationalContext {
+  conversionJob?: InternalConversionJobOperationsItem | null;
+  recentLifecycleEvents: InternalIssueLifecycleEvent[];
+  sanitizedClientContext: InternalIssueSanitizedClientContext;
 }
 
 export interface InternalSentinelFinding {

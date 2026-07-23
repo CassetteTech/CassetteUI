@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useDebounce } from '@/hooks/use-debounce';
 import { apiService } from '@/services/api';
@@ -9,7 +10,7 @@ import {
   InternalIssueSummary,
   InternalIssuesResponse,
 } from '@/types';
-import { SectionHeader } from './kit';
+import { SectionHeader } from './kit/primitives';
 import { PAGE_SIZE } from './internal-utils';
 import { IssuesTab } from './issues-tab';
 
@@ -20,6 +21,8 @@ import { IssuesTab } from './issues-tab';
  * "fetch when viewing" behaviour.
  */
 export function IssuesContainer() {
+  const searchParams = useSearchParams();
+  const requestedIssueId = searchParams.get('issue') ?? '';
   const [issueSearch, setIssueSearch] = useState('');
   const [issueReportTypeFilter, setIssueReportTypeFilter] = useState('');
   const [issueSourceContextFilter, setIssueSourceContextFilter] = useState('');
@@ -51,7 +54,7 @@ export function IssuesContainer() {
     }
   }, [debouncedIssueSearch, issueReportTypeFilter, issueSourceContextFilter, issuesPage]);
 
-  const loadIssueDetail = async (issueId: string) => {
+  const loadIssueDetail = useCallback(async (issueId: string) => {
     setSelectedIssueLoading(true);
     try {
       const detail = await apiService.getInternalIssueById(issueId);
@@ -61,11 +64,20 @@ export function IssuesContainer() {
     } finally {
       setSelectedIssueLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => { void loadIssues(); }, [loadIssues]);
+  useEffect(() => {
+    if (!requestedIssueId) return;
+    void loadIssueDetail(requestedIssueId);
+  }, [loadIssueDetail, requestedIssueId]);
 
-  const handleSelectIssue = (summary: InternalIssueSummary) => { void loadIssueDetail(summary.id); };
+  const handleSelectIssue = (summary: InternalIssueSummary) => {
+    void loadIssueDetail(summary.id);
+    const url = new URL(window.location.href);
+    url.searchParams.set('issue', summary.id);
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+  };
 
   const handleIssueSearchChange = (value: string) => { setIssueSearch(value); setIssuesPage(1); };
   const handleIssueReportTypeFilterChange = (value: string) => { setIssueReportTypeFilter(value); setIssuesPage(1); };

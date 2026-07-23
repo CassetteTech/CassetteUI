@@ -1,23 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { ExternalLink, Copy, Inbox, ChevronDown } from 'lucide-react';
-import { toast } from 'sonner';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import Link from 'next/link';
+import { Copy, Inbox } from 'lucide-react';
 import type { InternalIssueDetail } from '@/types';
-import { Panel, Field } from './kit';
-import { formatDate } from './internal-utils';
+import { Field, Mono, Panel, StatusPill } from './kit/primitives';
+import { copyToClipboard, formatDate, formatDuration, statusTone } from './internal-utils';
 
 interface IssueDetailPanelProps {
   issue: InternalIssueDetail | null;
   isLoading: boolean;
-}
-
-interface ParsedPayload {
-  description?: string;
-  context?: { elementType?: string; title?: string; artist?: string; platforms?: Record<string, unknown>; userTimezone?: string; screenSize?: string; [k: string]: unknown };
-  [k: string]: unknown;
 }
 
 const REPORT_LABELS: Record<string, string> = {
@@ -28,37 +19,7 @@ const REPORT_LABELS: Record<string, string> = {
   general_feedback: 'General Feedback',
 };
 
-function ExtLink({ href }: { href: string }) {
-  return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-domain hover:underline">
-      <span className="max-w-[180px] truncate">{href}</span>
-      <ExternalLink className="h-3 w-3 shrink-0" />
-    </a>
-  );
-}
-
-function Mono({ children }: { children: React.ReactNode }) {
-  return <span className="break-all font-mono text-[11px]">{children}</span>;
-}
-
 export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
-  const [showRaw, setShowRaw] = useState(false);
-
-  const { parsed, formattedJson } = useMemo(() => {
-    if (!issue?.payload) return { parsed: null, formattedJson: null };
-    try {
-      const obj = JSON.parse(issue.payload) as ParsedPayload;
-      return { parsed: obj, formattedJson: JSON.stringify(obj, null, 2) };
-    } catch {
-      return { parsed: null, formattedJson: issue.payload };
-    }
-  }, [issue?.payload]);
-
-  const copy = async (text: string, label: string) => {
-    try { await navigator.clipboard.writeText(text); toast.success(`${label} copied`); }
-    catch { toast.error('Failed to copy'); }
-  };
-
   if (isLoading) {
     return (
       <Panel title="Issue">
@@ -80,7 +41,8 @@ export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
     );
   }
 
-  const ctx = parsed?.context;
+  const operational = issue.operationalContext;
+  const clientContext = operational.sanitizedClientContext;
 
   return (
     <Panel title="Issue">
@@ -91,9 +53,9 @@ export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
         </p>
       </div>
 
-      {parsed?.description && (
+      {clientContext.description && (
         <div className="border-t border-border bg-muted/30 px-3 py-2">
-          <p className="text-xs leading-relaxed text-foreground">{parsed.description}</p>
+          <p className="text-xs leading-relaxed text-foreground">{clientContext.description}</p>
         </div>
       )}
 
@@ -101,43 +63,66 @@ export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
         <Field label="ID">
           <span className="inline-flex items-center gap-1">
             <Mono>{issue.id}</Mono>
-            <button type="button" onClick={() => void copy(issue.id, 'ID')} className="text-muted-foreground hover:text-foreground"><Copy className="h-3 w-3" /></button>
+            <button type="button" onClick={() => void copyToClipboard(issue.id, 'ID')} className="text-muted-foreground hover:text-foreground"><Copy className="h-3 w-3" /></button>
           </span>
         </Field>
-        {ctx?.title && <Field label="Title">{ctx.title}</Field>}
-        {ctx?.artist && <Field label="Artist">{ctx.artist}</Field>}
-        {ctx?.elementType && <Field label="Element"><Mono>{ctx.elementType}</Mono></Field>}
-        {issue.pageUrl && <Field label="Page"><ExtLink href={issue.pageUrl} /></Field>}
-        {issue.sourceLink && <Field label="Source"><ExtLink href={issue.sourceLink} /></Field>}
-        {issue.routeContext && <Field label="Route"><Mono>{issue.routeContext}</Mono></Field>}
+        {clientContext.elementType && <Field label="Element"><Mono>{clientContext.elementType}</Mono></Field>}
+        {clientContext.routeContext && <Field label="Route"><Mono>{clientContext.routeContext}</Mono></Field>}
         {issue.correlationId && <Field label="Correlation"><Mono>{issue.correlationId}</Mono></Field>}
-        {issue.conversionJobId && <Field label="Job"><Mono>{issue.conversionJobId}</Mono></Field>}
-        {issue.sourceDomain && <Field label="Domain">{issue.sourceDomain}</Field>}
-        {(ctx?.screenSize || ctx?.userTimezone) && (
-          <Field label="Env">{[ctx?.screenSize, ctx?.userTimezone].filter(Boolean).join(' · ')}</Field>
+        {clientContext.sourceDomain && <Field label="Domain">{clientContext.sourceDomain}</Field>}
+        {clientContext.sourceLinkHash && <Field label="Source hash"><Mono>{clientContext.sourceLinkHash}</Mono></Field>}
+        {(clientContext.screenSize || clientContext.userTimezone) && (
+          <Field label="Env">{[clientContext.screenSize, clientContext.userTimezone].filter(Boolean).join(' · ')}</Field>
         )}
       </div>
 
-      {formattedJson && (
+      {operational.conversionJob && (
         <div className="border-t border-border">
-          <Collapsible open={showRaw} onOpenChange={setShowRaw}>
-            <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
-              Raw payload
-              <ChevronDown className={`h-3 w-3 transition-transform ${showRaw ? 'rotate-180' : ''}`} />
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="relative">
-                <button type="button" onClick={() => void copy(formattedJson, 'Payload')} className="absolute right-2 top-2 z-10 text-muted-foreground hover:text-foreground">
-                  <Copy className="h-3 w-3" />
-                </button>
-                <ScrollArea className="max-h-[260px]">
-                  <pre className="whitespace-pre-wrap break-all bg-muted/30 px-3 py-2 pr-8 font-mono text-[11px] leading-relaxed">{formattedJson}</pre>
-                </ScrollArea>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
+          <div className="px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Linked conversion job</div>
+          <div className="px-3 pb-2">
+            <div className="flex items-center justify-between gap-2">
+              <Link href={`/internal/sentinel?view=runtime&job=${encodeURIComponent(operational.conversionJob.jobId)}`} className="break-all font-mono text-[11px] text-domain hover:underline">
+                {operational.conversionJob.jobId}
+              </Link>
+              <StatusPill tone={statusTone(operational.conversionJob.status)} label={operational.conversionJob.status} />
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {[operational.conversionJob.stage, formatDuration(operational.conversionJob.durationMs), formatDate(operational.conversionJob.createdAtUtc)].filter(Boolean).join(' · ')}
+            </p>
+          </div>
         </div>
       )}
+
+      <div className="border-t border-border">
+        <div className="px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          Lifecycle · {operational.recentLifecycleEvents.length}
+        </div>
+        {operational.recentLifecycleEvents.length === 0 ? (
+          <p className="px-3 pb-3 text-xs text-muted-foreground">No retained lifecycle events.</p>
+        ) : (
+          <div className="divide-y divide-border">
+            {operational.recentLifecycleEvents.map((event) => (
+              <div key={`${event.operation}-${event.occurredAtUtc}-${event.lambdaRequestId ?? ''}`} className="space-y-1 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-foreground">{event.operation}</span>
+                  <StatusPill tone={statusTone(event.status)} label={event.status} />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {[event.platform, event.elementType, formatDuration(event.durationMs), formatDate(event.occurredAtUtc)].filter(Boolean).join(' · ')}
+                </p>
+                {event.errorCategory && <p className="text-[11px] text-destructive">{event.errorCategory}</p>}
+                {event.lambdaRequestId && <Mono>{event.lambdaRequestId}</Mono>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-border px-3 py-1.5">
+        <Field label="Client context">{clientContext.sourceContext}</Field>
+        <Field label="Payload keys">{clientContext.payloadKeys.length ? clientContext.payloadKeys.join(', ') : 'None retained'}</Field>
+        {clientContext.redactedPayloadKeyCount > 0 && <Field label="Redacted keys">{clientContext.redactedPayloadKeyCount}</Field>}
+      </div>
     </Panel>
   );
 }

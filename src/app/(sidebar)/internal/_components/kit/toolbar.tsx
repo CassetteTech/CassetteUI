@@ -37,6 +37,7 @@ export function Toolbar({
           {search && (
             <button
               type="button"
+              aria-label="Clear search"
               onClick={() => onSearchChange('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
@@ -71,7 +72,7 @@ export function SegmentedControl<T extends string>({
       {label && (
         <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
       )}
-      <div className="inline-flex items-center rounded-md border border-border bg-background p-0.5">
+      <div className="inline-flex items-center rounded-lg bg-muted p-0.5">
         {options.map((opt) => {
           const active = opt.value === value;
           return (
@@ -80,8 +81,10 @@ export function SegmentedControl<T extends string>({
               type="button"
               onClick={() => onChange(opt.value)}
               className={cn(
-                'rounded px-2 py-0.5 text-[11px] font-medium transition-colors',
-                active ? 'bg-domain/10 text-domain' : 'text-muted-foreground hover:text-foreground'
+                'rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
+                active
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
               {opt.label}

@@ -29,6 +29,7 @@ type MockCassetteOptions = {
   profileUpdateFailures?: number;
   issueReportFailures?: number;
   googleAuthInitFailures?: number;
+  accountDeleteFailures?: number;
 };
 
 type MockNotification = {
@@ -76,6 +77,7 @@ type MockState = {
   profileUpdateFailuresRemaining: number;
   issueReportFailuresRemaining: number;
   googleAuthInitFailuresRemaining: number;
+  accountDeleteFailuresRemaining: number;
 };
 
 const DEFAULT_USERS = Object.values(fixtureUsers);
@@ -352,6 +354,7 @@ const buildState = (options: MockCassetteOptions): MockState => {
     profileUpdateFailuresRemaining: options.profileUpdateFailures ?? 0,
     issueReportFailuresRemaining: options.issueReportFailures ?? 0,
     googleAuthInitFailuresRemaining: options.googleAuthInitFailures ?? 0,
+    accountDeleteFailuresRemaining: options.accountDeleteFailures ?? 0,
   };
 
   for (const user of DEFAULT_USERS) {
@@ -458,6 +461,23 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         success: true,
         user: toSessionUser(getCurrentUserOrThrow(state)),
       });
+    }
+
+    // Both of these clear the session so a follow-up /session call reflects the
+    // teardown — otherwise a reload would appear to restore a signed-out user.
+    if (pathname === '/api/auth/signout' && method === 'POST') {
+      state.currentUser = null;
+      return json(route, { success: true });
+    }
+
+    if (pathname === '/api/auth/account' && method === 'DELETE') {
+      if (state.accountDeleteFailuresRemaining > 0) {
+        state.accountDeleteFailuresRemaining -= 1;
+        return json(route, { success: false, message: 'Could not delete account' }, 500);
+      }
+
+      state.currentUser = null;
+      return json(route, { success: true });
     }
 
     if (pathname === '/api/auth/google/init' && method === 'POST') {

@@ -47,6 +47,7 @@ import { playCopyConfirm, playErrorTone, playLikePop } from '@/lib/sounds';
 import { useQueryClient } from '@tanstack/react-query';
 import { appLogger } from '@/lib/observability/logger';
 import { captureUiException } from '@/lib/observability/error-reporting';
+import { ApiConnectionError } from '@/utils/api-connection-error';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 
 function JoinCassetteCTA({ onClick, className }: { onClick: () => void; className?: string }) {
@@ -621,6 +622,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     const defaultRetryMs = 400;
 
     const shouldRetryFetchPost = (error: unknown) => {
+      if (error instanceof ApiConnectionError) return true;
       if (error instanceof ApiError) {
         if (error.apiStatus === 'failed') return false;
         if (error.apiStatus === 'processing') return true;
@@ -669,6 +671,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
             await sleep(Math.max(100, retryAfterMs));
           }
         }
+
+        if (isCancelled) return;
 
         if (!response) {
           throw new Error('Post is still finalizing. Please try again in a moment.');

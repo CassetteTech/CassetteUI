@@ -20,9 +20,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const profile = await fetchProfileForMetadata(username);
   if (!profile) {
     const title = 'Profile Not Found — Cassette Music';
+    // 200 + noindex, not notFound(): the bio fetch also returns null on a
+    // Bridge timeout, and the page renders its own profile-shaped not-found
+    // state. noindex keeps unresolvable usernames out of the index without
+    // swapping that state for a generic 404.
     return {
       title: { absolute: title },
       description: 'This Cassette Music profile could not be found.',
+      robots: { index: false, follow: false },
       openGraph: { title },
       twitter: { title },
     };

@@ -6,6 +6,7 @@ const description = "Meet the independent team building universal music links an
 export const metadata: Metadata = {
   title: { absolute: title },
   description,
+  alternates: { canonical: '/about' },
   openGraph: { title, description },
   twitter: { title, description },
 };

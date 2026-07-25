@@ -8,3 +8,13 @@ export function getApiConnectionErrorMessage(
 
   return 'Cannot connect to Cassette. Please try again.';
 }
+
+export class ApiConnectionError extends Error {
+  constructor(
+    url: string,
+    isDevelopment = process.env.NODE_ENV === 'development',
+  ) {
+    super(getApiConnectionErrorMessage(url, isDevelopment));
+    this.name = 'ApiConnectionError';
+  }
+}

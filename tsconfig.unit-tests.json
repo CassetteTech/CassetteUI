@@ -29,6 +29,8 @@
     "src/utils/__tests__/web-share.test.ts",
     "src/lib/platforms.ts",
     "src/lib/__tests__/platforms.test.ts",
+    "src/lib/seo.ts",
+    "src/lib/__tests__/seo.test.ts",
     "src/services/conversion-lifecycle.ts",
     "src/services/__tests__/conversion-lifecycle.test.ts",
     "src/services/__tests__/conversion-contract-fixtures.test.ts",

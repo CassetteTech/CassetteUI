@@ -11,6 +11,7 @@ const description = "Terms governing your use of Cassette Music, MusicLinks, and
 export const metadata: Metadata = {
   title: { absolute: title },
   description,
+  alternates: { canonical: '/terms' },
   openGraph: { title, description },
   twitter: { title, description },
 };

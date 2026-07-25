@@ -6,6 +6,7 @@ const description = "Meet the people building Cassette Music and universal Music
 export const metadata: Metadata = {
   title: { absolute: title },
   description,
+  alternates: { canonical: '/team' },
   openGraph: { title, description },
   twitter: { title, description },
 };

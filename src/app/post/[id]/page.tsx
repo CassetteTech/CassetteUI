@@ -12,9 +12,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!post) {
     const title = 'MusicLink Not Found — Cassette Music';
+    // 200 + noindex, not notFound(). The public metadata endpoint returns 404
+    // for private posts as well as missing ones, and returns null on a Bridge
+    // timeout, so a hard 404 would lock owners out of their own private posts
+    // and 404 valid posts during a hiccup. noindex is what keeps these URLs
+    // out of the index; the client still renders the real state for whoever
+    // is signed in.
     return {
       title: { absolute: title },
       description: 'This MusicLink could not be found on Cassette Music.',
+      robots: { index: false, follow: false },
       openGraph: { title },
       twitter: { title },
     };

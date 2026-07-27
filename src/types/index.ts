@@ -351,6 +351,8 @@ export interface PaidPromotionCampaign {
   amountMinor: number;
   currency: string;
   status: PaidPromotionCampaignStatus;
+  rejectionReason: string | null;
+  holdKind: string | null;
   paymentStatus: PaidPromotionPaymentStatus | null;
   discountAmountMinor: number | null;
   taxAmountMinor: number | null;

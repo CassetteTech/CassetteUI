@@ -53,8 +53,10 @@ class InternalPaidPromotionsService {
     return parseInternalPaidPromotionAction(await apiService.approveInternalPaidPromotion(campaignId));
   }
 
-  async reject(campaignId: string) {
-    return parseInternalPaidPromotionAction(await apiService.rejectInternalPaidPromotion(campaignId));
+  async reject(campaignId: string, reason?: string) {
+    return parseInternalPaidPromotionAction(
+      await apiService.rejectInternalPaidPromotion(campaignId, reason),
+    );
   }
 
   async transition(campaignId: string, status: 'fulfilling' | 'delivered' | 'completed') {

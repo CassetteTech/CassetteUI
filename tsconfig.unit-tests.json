@@ -30,6 +30,8 @@
     "src/services/__tests__/conversion-contract-fixtures.test.ts",
     "src/services/paid-promotion-lifecycle.ts",
     "src/services/__tests__/paid-promotion-lifecycle.test.ts",
+    "src/services/paid-promotion-status-presentation.ts",
+    "src/services/__tests__/paid-promotion-status-presentation.test.ts",
     "src/services/internal-paid-promotion-contract.ts",
     "src/services/__tests__/internal-paid-promotions.test.ts",
     "src/services/paid-promotion-subject-contract.ts",

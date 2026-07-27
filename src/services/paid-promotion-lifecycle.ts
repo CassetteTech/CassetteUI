@@ -56,6 +56,8 @@ export function parsePaidPromotionCampaign(value: unknown): PaidPromotionCampaig
     amountMinor: integer(item.amountMinor, 'campaign.amountMinor'),
     currency: string(item.currency, 'campaign.currency'),
     status: string(item.status, 'campaign.status') as PaidPromotionCampaignStatus,
+    rejectionReason: nullableString(item.rejectionReason, 'campaign.rejectionReason'),
+    holdKind: nullableString(item.holdKind, 'campaign.holdKind'),
     paymentStatus: nullableString(
       item.paymentStatus,
       'campaign.paymentStatus',
@@ -105,6 +107,7 @@ export type PaidPromotionReturnState =
   | 'failed'
   | 'expired'
   | 'refunded'
+  | 'disputed'
   | 'unavailable';
 
 export function isPaidPromotionCampaignId(value: string): boolean {
@@ -135,9 +138,12 @@ export function getPaidPromotionReturnState(
     case 'refund_pending':
     case 'partially_refunded':
     case 'refunded':
+      return 'refunded';
     case 'disputed':
     case 'charged_back':
-      return 'refunded';
+      // A dispute in progress is not the same customer situation as a clean
+      // refund: money movement is contested, not returned.
+      return 'disputed';
     default:
       // Unknown statuses (e.g. a newer Bridge deploy) degrade to a refresh
       // prompt instead of throwing during parse.

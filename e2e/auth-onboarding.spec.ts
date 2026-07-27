@@ -11,6 +11,36 @@ const AVATAR_FILE = {
   ),
 };
 
+test('runs the trimmed promote-intent onboarding and returns to the campaign intake', async ({
+  page,
+}) => {
+  await mockCassetteApp(page, {
+    googleAuthUser: fixtureUsers.newcomer,
+  });
+
+  await page.goto('/promote/new');
+  await expect(page).toHaveURL('/auth/signin?redirect=/promote/new');
+  await expect(
+    page.getByText('Sign in to manage your campaign, payment, and receipts.'),
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  await expect(page).toHaveURL('/onboarding');
+  await expect(
+    page.getByText('Set up your account so you can manage your campaign, payment, and receipts.'),
+  ).toBeVisible();
+
+  await page.getByTestId('onboarding-start').click();
+  // The trimmed flow has no multi-step chrome and only the handle step.
+  await expect(page.getByText(/Step 1 of/)).toHaveCount(0);
+  await page.getByTestId('onboarding-username').fill('promobuyer');
+  await expect(page.getByTestId('onboarding-handle-next')).toBeEnabled();
+  await page.getByTestId('onboarding-handle-next').click();
+
+  await expect(page).toHaveURL('/promote/new');
+  await expect(page.getByTestId('paid-promotion-track-input')).toBeVisible();
+});
+
 test('resumes add-music after a gated visitor completes onboarding', async ({ page }) => {
   await mockCassetteApp(page, {
     googleAuthUser: fixtureUsers.newcomer,

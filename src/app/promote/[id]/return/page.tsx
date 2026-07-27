@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { PaidPromotionReturn } from '@/components/features/paid-promotions/paid-promotion-return';
 
 interface PaidPromotionReturnPageProps {
@@ -6,5 +7,10 @@ interface PaidPromotionReturnPageProps {
 
 export default async function PaidPromotionReturnPage({ params }: PaidPromotionReturnPageProps) {
   const { id } = await params;
-  return <PaidPromotionReturn campaignId={id} />;
+  // Suspense boundary required for useSearchParams (cancel-return marker).
+  return (
+    <Suspense fallback={null}>
+      <PaidPromotionReturn campaignId={id} />
+    </Suspense>
+  );
 }

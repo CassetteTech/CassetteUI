@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, CheckCircle2, Music2, RotateCcw, ShieldCheck } from 'lucide-react';
@@ -20,6 +21,7 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { UrlBar } from '@/components/ui/url-bar';
+import { PaidPromotionSupportContact } from '@/components/features/paid-promotions/paid-promotion-support';
 import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
 import { ConversionHeading } from '@/components/features/conversion/conversion-heading';
 import { ConversionStageLabel } from '@/components/features/conversion/conversion-stage-label';
@@ -116,6 +118,7 @@ export function PaidPromotionIntake() {
   const [attestationAccepted, setAttestationAccepted] = useState(false);
 
   const [createdCampaignId, setCreatedCampaignId] = useState<string | null>(null);
+  const [isReviewingOrder, setIsReviewingOrder] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -246,6 +249,7 @@ export function PaidPromotionIntake() {
     if (resolvedTrack && value !== resolvedTrack.submittedUrl) {
       setResolvedTrack(null);
       setCreatedCampaignId(null);
+      setIsReviewingOrder(false);
     }
     setErrorMessage('');
   };
@@ -259,6 +263,12 @@ export function PaidPromotionIntake() {
     attestationAccepted &&
     attestation
   );
+
+  const selectedRateCard = rateCards.find((rateCard) => rateCard.id === selectedRateCardId) ?? null;
+  const promoterKindLabel = PROMOTER_KINDS.find((option) => option.value === promoterKind)?.label;
+  const relationshipLabel = RELATIONSHIPS.find(
+    (option) => option.value === attestedRelationship,
+  )?.label;
 
   const handleCampaignCheckout = async () => {
     if (!resolvedTrack || !canSubmit || isSubmitting) return;
@@ -504,7 +514,10 @@ export function PaidPromotionIntake() {
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-destructive">No paid-promotion packages are currently available.</p>
+                <div className="space-y-3">
+                  <p className="text-sm text-destructive">No paid-promotion packages are currently available.</p>
+                  <PaidPromotionSupportContact className="justify-start" />
+                </div>
               )}
             </CardContent>
           </Card>
@@ -632,7 +645,7 @@ export function PaidPromotionIntake() {
 
               <div className="rounded-lg border border-info/30 bg-info/5 p-4 text-sm leading-6 text-foreground">
                 <ShieldCheck className="mr-2 inline size-4 text-info-text" aria-hidden />
-                Pricing is server-owned. Card details stay on Stripe&apos;s hosted checkout page, and payment status changes only after Stripe webhook confirmation.
+                Prices come from Cassette&apos;s rate card. Card details stay on Stripe&apos;s hosted checkout page, and payment status updates once Stripe confirms the outcome to Cassette.
               </div>
 
               {errorMessage && (
@@ -660,17 +673,127 @@ export function PaidPromotionIntake() {
                 <Button
                   type="button"
                   variant="brutalist"
-                  onClick={() => void handleCampaignCheckout()}
-                  disabled={!canSubmit || isSubmitting}
+                  onClick={() => setIsReviewingOrder(true)}
+                  disabled={!canSubmit || isReviewingOrder}
                   data-testid="paid-promotion-submit"
                   className="w-full bg-foreground text-background hover:bg-foreground/90 sm:w-auto"
                 >
-                  {isSubmitting ? <Spinner size="sm" /> : <ArrowRight />}
-                  Continue to secure checkout
+                  <ArrowRight />
+                  Review your order
                 </Button>
               )}
             </CardContent>
           </Card>
+
+          {isReviewingOrder && !createdCampaignId && resolvedTrack && selectedRateCard && (
+            <Card
+              data-testid="paid-promotion-review-panel"
+              className="border-2 border-foreground shadow-flat-4"
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-atkinson text-xl">
+                  <span className="font-mono text-xs text-foreground">04</span>
+                  Review and confirm
+                </CardTitle>
+                <CardDescription>
+                  Check your order before the secure Stripe checkout. Nothing is charged yet.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3 rounded-lg border border-border p-3">
+                  {resolvedTrack.artwork ? (
+                    <Image
+                      src={resolvedTrack.artwork}
+                      alt=""
+                      width={48}
+                      height={48}
+                      className="size-12 rounded-md border border-border object-cover"
+                    />
+                  ) : (
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted">
+                      <Music2 className="size-5 text-muted-foreground" aria-hidden />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate font-atkinson font-bold text-foreground">
+                      {resolvedTrack.title}
+                    </p>
+                    {resolvedTrack.artist && (
+                      <p className="truncate text-sm text-muted-foreground">{resolvedTrack.artist}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border p-4">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="font-atkinson font-bold text-foreground">
+                      {selectedRateCard.displayName}
+                    </p>
+                    <p
+                      data-testid="paid-promotion-review-total"
+                      className="font-mono text-sm font-bold text-foreground"
+                    >
+                      {formatRateCardAmount(selectedRateCard)}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                    {selectedRateCard.description}
+                  </p>
+                  <p className="mt-3 border-t border-border pt-3 text-xs leading-5 text-muted-foreground">
+                    Any tax or promo-code discount is calculated on the Stripe checkout page, where
+                    the final total is shown before you pay.
+                  </p>
+                </div>
+
+                {attestation && (
+                  <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-6">
+                    <p className="text-foreground">You confirmed: {attestation.text}</p>
+                    {promoterKindLabel && relationshipLabel && (
+                      <p className="mt-1 text-muted-foreground">
+                        Acting as {promoterKindLabel} · {relationshipLabel}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-sm text-muted-foreground">
+                  By continuing you agree to the{' '}
+                  <Link href="/terms" className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+                    Terms of Service
+                  </Link>{' '}
+                  and the{' '}
+                  <Link href="/promote#refund-policy" className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+                    refund policy
+                  </Link>
+                  .
+                </p>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setIsReviewingOrder(false)}
+                    disabled={isSubmitting}
+                  >
+                    Back to edit
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="brutalist"
+                    onClick={() => void handleCampaignCheckout()}
+                    disabled={!canSubmit || isSubmitting}
+                    data-testid="paid-promotion-confirm-checkout"
+                    className="bg-foreground text-background hover:bg-foreground/90"
+                  >
+                    {isSubmitting ? <Spinner size="sm" /> : <ArrowRight />}
+                    Confirm and continue to secure checkout
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <PaidPromotionSupportContact />
         </div>
       </section>
     </div>

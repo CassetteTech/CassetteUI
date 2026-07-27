@@ -116,6 +116,8 @@ export interface FixturePaidPromotionCampaign {
   amountMinor: number;
   currency: string;
   status: string;
+  rejectionReason?: string | null;
+  holdKind?: string | null;
   paymentStatus: string | null;
   discountAmountMinor: number | null;
   taxAmountMinor: number | null;

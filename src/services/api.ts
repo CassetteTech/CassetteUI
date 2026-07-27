@@ -490,11 +490,16 @@ class ApiService {
   }
 
   async rejectInternalPaidPromotion(
-    campaignId: string
+    campaignId: string,
+    reason?: string
   ): Promise<InternalPaidPromotionActionResponse> {
     return this.request<InternalPaidPromotionActionResponse>(
       `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/reject`,
-      { method: 'POST', timeoutMs: 20000 }
+      {
+        method: 'POST',
+        ...(reason ? { body: JSON.stringify({ reason }) } : {}),
+        timeoutMs: 20000,
+      }
     );
   }
 

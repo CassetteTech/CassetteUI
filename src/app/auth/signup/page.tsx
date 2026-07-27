@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import { MailCheck } from 'lucide-react';
 import { useSignUp, useSignInWithProvider } from '@/hooks/use-auth';
 import Image from 'next/image';
 import { GoogleGIcon } from '@/components/ui/google-g-icon';
-import { authRedirectService } from '@/utils/auth-redirect';
+import { authRedirectService, isPromoteIntentRedirect } from '@/utils/auth-redirect';
 
 export default function SignUpPage() {
   const searchParams = useSearchParams();
@@ -31,8 +31,15 @@ export default function SignUpPage() {
     ? `/auth/signin?redirect=${encodeURIComponent(redirect)}`
     : '/auth/signin';
 
+  // The ?redirect param covers the direct funnel; the stored fallback covers
+  // resumed flows (e.g. an email-verification tab with no params), applied
+  // after mount so server and first client render agree.
+  const [storedPromoteIntent, setStoredPromoteIntent] = useState(false);
+  const isPromoteIntent = isPromoteIntentRedirect(redirect) || storedPromoteIntent;
+
   useEffect(() => {
     authRedirectService.save(redirect);
+    setStoredPromoteIntent(isPromoteIntentRedirect(authRedirectService.get()));
   }, [redirect]);
 
   const handleGoogleSignIn = () => {
@@ -129,7 +136,9 @@ export default function SignUpPage() {
                 Create your account
               </CardTitle>
               <CardDescription className="font-roboto italic mt-2">
-                Share your favorite music with the world.
+                {isPromoteIntent
+                  ? 'Create your Cassette account to manage your campaign, payment, and receipts.'
+                  : 'Share your favorite music with the world.'}
               </CardDescription>
             </CardHeader>
             <CardContent>

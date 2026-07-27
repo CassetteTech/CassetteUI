@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { AnimatedBackground } from '@/components/ui/animated-background';
 import { useSignInWithProvider } from '@/hooks/use-auth';
 import Image from 'next/image';
 import { GoogleGIcon } from '@/components/ui/google-g-icon';
-import { authRedirectService } from '@/utils/auth-redirect';
+import { authRedirectService, isPromoteIntentRedirect } from '@/utils/auth-redirect';
 import { pendingActionService } from '@/utils/pending-action';
 
 export default function SignInPage() {
@@ -38,8 +38,15 @@ export default function SignInPage() {
         ? 'We could not complete Google sign-in. Please try again.'
         : null;
 
+  // The ?redirect param covers the direct funnel; the stored fallback covers
+  // resumed flows (e.g. an email-verification tab with no params), applied
+  // after mount so server and first client render agree.
+  const [storedPromoteIntent, setStoredPromoteIntent] = useState(false);
+  const isPromoteIntent = isPromoteIntentRedirect(redirect) || storedPromoteIntent;
+
   useEffect(() => {
     authRedirectService.save(redirect);
+    setStoredPromoteIntent(isPromoteIntentRedirect(authRedirectService.get()));
     if (oauthError) {
       pendingActionService.clear();
     }
@@ -87,7 +94,9 @@ export default function SignInPage() {
                 Welcome back!
               </CardTitle>
               <CardDescription className="font-roboto italic mt-2">
-                Pick up where you left off.
+                {isPromoteIntent
+                  ? 'Sign in to manage your campaign, payment, and receipts.'
+                  : 'Pick up where you left off.'}
               </CardDescription>
             </CardHeader>
             <CardContent>

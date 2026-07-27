@@ -18,7 +18,7 @@ import { authService } from '@/services/auth';
 import { pendingActionService } from '@/utils/pending-action';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
-import { authRedirectService } from '@/utils/auth-redirect';
+import { authRedirectService, isPromoteIntentRedirect } from '@/utils/auth-redirect';
 import { appLogger } from '@/lib/observability/logger';
 
 // Step definitions (excluding welcome and completion which are special)
@@ -27,6 +27,11 @@ const STEPS = [
   { id: 'avatar', title: 'Profile Picture', subtitle: 'Add a photo' },
   { id: 'music', title: 'Connect Music', subtitle: 'Link your services' },
 ];
+
+// Promote-intent signups (auth redirect aimed at /promote*) only need the
+// required handle step; avatar and music-connect are fan steps that read as
+// drop-off friction in the middle of a purchase.
+const PROMOTE_STEPS = [STEPS[0]];
 
 type OnboardingPhase = 'welcome' | 'steps' | 'submitting' | 'complete';
 
@@ -38,6 +43,14 @@ export default function OnboardingPage() {
 
   const [phase, setPhase] = useState<OnboardingPhase>('welcome');
   const [currentStep, setCurrentStep] = useState(0);
+  // Resolved once on mount; the stored redirect is only consumed later, on
+  // completion. The page renders a loader during SSR/auth resolution, so the
+  // client-only read cannot cause a visible hydration mismatch.
+  const [isPromoteIntent] = useState(
+    () => typeof window !== 'undefined' && isPromoteIntentRedirect(authRedirectService.get()),
+  );
+  const steps = isPromoteIntent ? PROMOTE_STEPS : STEPS;
+  const onboardingVariant = isPromoteIntent ? 'promote' : 'default';
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     username: '',
@@ -103,6 +116,7 @@ export default function OnboardingPage() {
     void captureClientEvent('onboarding_started', {
       route: '/onboarding',
       source_surface: 'onboarding',
+      onboarding_variant: onboardingVariant,
       user_id: user?.id,
       is_authenticated: true,
     });
@@ -110,18 +124,19 @@ export default function OnboardingPage() {
   };
 
   const handleNext = () => {
-    const currentStepId = STEPS[currentStep]?.id;
+    const currentStepId = steps[currentStep]?.id;
     if (phase === 'steps' && (currentStepId === 'handle' || currentStepId === 'avatar' || currentStepId === 'music')) {
       void captureClientEvent('onboarding_step_completed', {
         route: '/onboarding',
         source_surface: 'onboarding',
         step: currentStepId,
+        onboarding_variant: onboardingVariant,
         user_id: user?.id,
         is_authenticated: true,
       });
     }
 
-    if (currentStep < STEPS.length - 1) {
+    if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
       // Last step - submit
@@ -265,10 +280,10 @@ export default function OnboardingPage() {
       onNext: handleNext,
       onBack: handleBack,
       isFirstStep: currentStep === 0,
-      isLastStep: currentStep === STEPS.length - 1,
+      isLastStep: currentStep === steps.length - 1,
     };
 
-    switch (STEPS[currentStep].id) {
+    switch (steps[currentStep].id) {
       case 'handle':
         return <ChooseHandleStep {...commonProps} />;
       case 'avatar':
@@ -296,6 +311,7 @@ export default function OnboardingPage() {
               <WelcomeStep
                 onNext={handleStartOnboarding}
                 displayName={user?.displayName}
+                variant={onboardingVariant}
               />
             </motion.div>
           )}
@@ -320,7 +336,8 @@ export default function OnboardingPage() {
                 />
               </div>
 
-              {/* Improved Stepper */}
+              {/* Improved Stepper — pointless for the single-step promote-intent flow */}
+              {steps.length > 1 && (
               <div className="mb-8">
                 {/* Step Indicators */}
                 <div className="flex items-center justify-between relative">
@@ -332,12 +349,12 @@ export default function OnboardingPage() {
                     className="absolute left-4 right-4 top-4 h-0.5 origin-left bg-primary -z-10"
                     initial={{ scaleX: 0 }}
                     animate={{
-                      scaleX: currentStep / (STEPS.length - 1),
+                      scaleX: currentStep / (steps.length - 1),
                     }}
                     transition={{ duration: 0.3 }}
                   />
 
-                  {STEPS.map((step, index) => {
+                  {steps.map((step, index) => {
                     const isCompleted = index < currentStep;
                     const isCurrent = index === currentStep;
 
@@ -376,20 +393,21 @@ export default function OnboardingPage() {
                 {/* Current Step Info (mobile) */}
                 <div className="mt-4 text-center sm:hidden">
                   <p className="text-sm text-muted-foreground">
-                    Step {currentStep + 1} of {STEPS.length}
+                    Step {currentStep + 1} of {steps.length}
                   </p>
                 </div>
               </div>
+              )}
 
               {/* Step Title */}
               <motion.div
-                key={STEPS[currentStep].id}
+                key={steps[currentStep].id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="text-center mb-6"
               >
                 <h1 className="text-2xl font-bold text-foreground font-teko tracking-wide">
-                  {STEPS[currentStep].title}
+                  {steps[currentStep].title}
                 </h1>
               </motion.div>
 

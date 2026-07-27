@@ -38,13 +38,13 @@ test('renders the signed-in promoter home from owner-scoped campaign and subject
   await expect(page.getByRole('heading', { name: 'Promotion home' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Your campaigns' })).toBeVisible();
   await expect(page.getByText('Signal Fire').first()).toBeVisible();
-  await expect(page.getByText('Pending Payment')).toBeVisible();
+  await expect(page.getByText('Awaiting payment')).toBeVisible();
   const subjectCatalog = page.locator(
     'section[aria-labelledby="promoted-subjects-heading"]',
   );
   await expect(subjectCatalog.getByText('Signal Fire')).toBeVisible();
   await expect(subjectCatalog.getByText('2 campaigns')).toBeVisible();
-  await expect(subjectCatalog.getByText('In Review · 1')).toBeVisible();
+  await expect(subjectCatalog.getByText('In review · 1')).toBeVisible();
   await expect(subjectCatalog.getByText('Completed · 1')).toBeVisible();
   await expect(page.getByTestId('paid-promotion-new-campaign')).toHaveAttribute(
     'href',
@@ -60,24 +60,18 @@ test('renders the signed-in promoter home from owner-scoped campaign and subject
   await expect(page.getByRole('heading', { name: 'Waiting for payment confirmation' })).toBeVisible();
 });
 
-test('shows promoter-home loading and empty states without inferring data', async ({ page }) => {
+test('keeps signed-in users without campaigns on the landing continue state', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     paidPromotionCampaigns: [],
     paidPromotionSubjects: [],
-    paidPromotionCampaignsDelayMs: 400,
-    paidPromotionSubjectsDelayMs: 400,
   });
 
   await page.goto('/promote');
-  await expect(page.getByText('Loading your campaigns…')).toBeVisible();
-  await expect(page.getByText('Loading promoted tracks…')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'No campaigns yet' })).toBeVisible();
-  await expect(page.getByText('No promoted tracks yet')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Start your first campaign' })).toHaveAttribute(
-    'href',
-    '/promote/new',
-  );
+  await expect(page.getByTestId('promote-landing')).toBeVisible();
+  await expect(page.getByTestId('promote-landing-cta')).toHaveAttribute('href', '/promote/new');
+  await expect(page.getByTestId('promote-landing-cta')).toContainText('Continue');
+  await expect(page.getByRole('heading', { name: 'Promotion home' })).toHaveCount(0);
 });
 
 test('fails visibly for promoter-home request errors', async ({
@@ -124,14 +118,39 @@ test('fails visibly for malformed promoter-home server collections', async ({ pa
   )).toHaveCount(2);
 });
 
-test('redirects anonymous promoter-home visitors through the existing auth return flow', async ({
+test('renders the full public landing for signed-out visitors with no auth redirect', async ({
   page,
 }) => {
   await mockCassetteApp(page);
 
   await page.goto('/promote');
 
-  await expect(page).toHaveURL('/auth/signin?redirect=/promote');
+  await expect(page).toHaveURL('/promote');
+  await expect(page).toHaveTitle(/Promote Your Music/);
+  await expect(page.getByTestId('promote-landing')).toBeVisible();
+  await expect(page.getByText('Cassette itself is the promoter.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Packages' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No guaranteed outcomes' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Refunds/ })).toBeVisible();
+  await expect(page.getByTestId('promote-landing-cta')).toHaveAttribute('href', '/promote/new');
+  await expect(page.getByTestId('paid-promotion-support-contact')).toBeVisible();
+});
+
+test('routes the landing CTA through sign-in and back to the campaign intake', async ({
+  page,
+}) => {
+  await mockCassetteApp(page, {
+    googleAuthUser: fixtureUsers.member,
+  });
+
+  await page.goto('/promote');
+  await page.getByTestId('promote-landing-cta').click();
+
+  await expect(page).toHaveURL('/auth/signin?redirect=/promote/new');
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
+
+  await expect(page).toHaveURL('/promote/new');
+  await expect(page.getByTestId('paid-promotion-track-input')).toBeVisible();
 });
 
 test('creates a server-priced paid-promotion campaign and trusts webhook-backed polling after return', async ({
@@ -176,6 +195,21 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
   await page.getByRole('option', { name: 'I am the artist', exact: true }).click();
   await page.getByTestId('paid-promotion-attestation').check();
 
+  // The review step gates checkout: the amount to be charged and policy
+  // links must be shown before any campaign/checkout request fires.
+  await page.getByTestId('paid-promotion-submit').click();
+  const reviewPanel = page.getByTestId('paid-promotion-review-panel');
+  await expect(reviewPanel).toBeVisible();
+  await expect(page.getByTestId('paid-promotion-review-total')).toContainText('$250.00');
+  await expect(reviewPanel.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute(
+    'href',
+    '/terms',
+  );
+  await expect(reviewPanel.getByRole('link', { name: 'refund policy' })).toHaveAttribute(
+    'href',
+    '/promote#refund-policy',
+  );
+
   const campaignRequestPromise = page.waitForRequest((request) =>
     request.method() === 'POST' &&
     new URL(request.url()).pathname === '/api/v1/paid-promotions/campaigns',
@@ -184,7 +218,7 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
     request.method() === 'POST' &&
     new URL(request.url()).pathname.endsWith('/checkout-session'),
   );
-  await page.getByTestId('paid-promotion-submit').click();
+  await page.getByTestId('paid-promotion-confirm-checkout').click();
   const campaignRequest = await campaignRequestPromise;
   const checkoutRequest = await checkoutRequestPromise;
   const campaignPayload = campaignRequest.postDataJSON() as Record<string, unknown>;
@@ -244,8 +278,79 @@ for (const expected of [
     );
 
     await expect(page.getByRole('heading', { name: expected.heading })).toBeVisible();
+    // Every return state keeps an escape hatch and a support contact.
+    await expect(page.getByRole('button', { name: 'Promotion home', exact: true })).toBeVisible();
+    await expect(page.getByTestId('paid-promotion-support-contact')).toBeVisible();
   });
 }
+
+test('shows the abandoned-checkout panel on the cancel URL, never pending payment', async ({
+  page,
+}) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    paidPromotionCampaign: {
+      ...fixturePaidPromotionCampaign,
+      paymentStatus: 'pending',
+    },
+  });
+
+  await page.goto(`/promote/${fixturePaidPromotionCampaign.id}/return?checkout=canceled`);
+
+  await expect(page.getByRole('heading', { name: 'Checkout not completed' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Waiting for payment confirmation' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Return to secure checkout' })).toBeVisible();
+});
+
+test('shows the rejection reason and refund expectation for a rejected campaign', async ({
+  page,
+}) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    paidPromotionCampaign: {
+      ...fixturePaidPromotionCampaign,
+      status: 'rejected',
+      rejectionReason: 'Track rights could not be verified.',
+      paymentStatus: 'refund_pending',
+      discountAmountMinor: 0,
+      taxAmountMinor: 0,
+      finalTotalMinor: fixturePaidPromotionCampaign.amountMinor,
+      amountRefundedMinor: 0,
+      refundableRemainderMinor: fixturePaidPromotionCampaign.amountMinor,
+    },
+  });
+
+  await page.goto(`/promote/${fixturePaidPromotionCampaign.id}/return`);
+
+  const campaignStatus = page.getByTestId('paid-promotion-campaign-status');
+  await expect(campaignStatus).toContainText('Not approved');
+  await expect(campaignStatus).toContainText('Reviewer note: Track rights could not be verified.');
+  await expect(campaignStatus).toContainText('refunded in full');
+});
+
+test('explains a dispute hold distinctly from a clean refund', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    paidPromotionCampaign: {
+      ...fixturePaidPromotionCampaign,
+      status: 'on_hold',
+      holdKind: 'payment_dispute',
+      paymentStatus: 'disputed',
+      discountAmountMinor: 0,
+      taxAmountMinor: 0,
+      finalTotalMinor: fixturePaidPromotionCampaign.amountMinor,
+      amountRefundedMinor: 0,
+      refundableRemainderMinor: fixturePaidPromotionCampaign.amountMinor,
+    },
+  });
+
+  await page.goto(`/promote/${fixturePaidPromotionCampaign.id}/return`);
+
+  await expect(page.getByRole('heading', { name: 'Payment disputed' })).toBeVisible();
+  const campaignStatus = page.getByTestId('paid-promotion-campaign-status');
+  await expect(campaignStatus).toContainText('On hold — payment dispute');
+  await expect(campaignStatus).toContainText('card issuer');
+});
 
 test('shows a zero-total campaign as paid and visibly non-refundable', async ({ page }) => {
   await mockCassetteApp(page, {
@@ -294,6 +399,21 @@ test('keeps paid-promotion intake within a narrow mobile viewport', async ({ pag
 
   await page.goto('/promote/new');
   await expect(page.getByTestId('paid-promotion-track-input')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => {
+    const documentWidth = Math.max(
+      document.documentElement.scrollWidth,
+      document.body.scrollWidth,
+    );
+    return documentWidth - window.innerWidth;
+  })).toBeLessThanOrEqual(1);
+});
+
+test('keeps the public landing within a narrow mobile viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  await mockCassetteApp(page);
+
+  await page.goto('/promote');
+  await expect(page.getByTestId('promote-landing')).toBeVisible();
   await expect.poll(() => page.evaluate(() => {
     const documentWidth = Math.max(
       document.documentElement.scrollWidth,

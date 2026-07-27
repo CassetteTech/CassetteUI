@@ -23,6 +23,9 @@ export default function HomePage() {
       </Suspense>
       <footer className="border-t border-border/40 px-4 py-4">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-center gap-3 text-sm text-muted-foreground sm:flex-row sm:gap-6">
+          <Link href="/promote" className="hover:text-foreground">
+            Promote Your Music
+          </Link>
           <Link href="https://www.cassette.tech/privacy" className="hover:text-foreground">
             Privacy Policy
           </Link>

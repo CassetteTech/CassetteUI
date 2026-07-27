@@ -126,6 +126,13 @@ export function Navbar() {
             >
               Explore
             </Link>
+
+            <Link
+              href="/promote"
+              className="hidden md:inline-flex items-center text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted"
+            >
+              Promote
+            </Link>
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4">

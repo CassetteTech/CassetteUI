@@ -2,15 +2,16 @@
 
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import { Sparkles, Users, Share2 } from 'lucide-react';
+import { BadgeCheck, Megaphone, Receipt, Sparkles, Users, Share2 } from 'lucide-react';
 import Image from 'next/image';
 
 interface WelcomeStepProps {
   onNext: () => void;
   displayName?: string;
+  variant?: 'default' | 'promote';
 }
 
-const features = [
+const defaultFeatures = [
   {
     icon: Share2,
     title: 'Share Music Easily',
@@ -28,7 +29,30 @@ const features = [
   },
 ];
 
-export function WelcomeStep({ onNext, displayName }: WelcomeStepProps) {
+// Promote-intent signups are mid-purchase; frame the account as campaign
+// infrastructure rather than a social-app enrollment.
+const promoteFeatures = [
+  {
+    icon: Megaphone,
+    title: 'Run Your Campaign',
+    description: 'Follow review and delivery status in one place',
+  },
+  {
+    icon: Receipt,
+    title: 'Payments & Receipts',
+    description: 'Stripe-hosted checkout, records kept on your account',
+  },
+  {
+    icon: BadgeCheck,
+    title: 'One Quick Step',
+    description: 'Pick a handle and you are back to your campaign',
+  },
+];
+
+export function WelcomeStep({ onNext, displayName, variant = 'default' }: WelcomeStepProps) {
+  const isPromote = variant === 'promote';
+  const features = isPromote ? promoteFeatures : defaultFeatures;
+
   return (
     <div className="space-y-8">
       {/* Hero Section */}
@@ -86,7 +110,9 @@ export function WelcomeStep({ onNext, displayName }: WelcomeStepProps) {
           transition={{ delay: 0.5 }}
           className="text-muted-foreground max-w-sm mx-auto"
         >
-          Let&apos;s set up your profile so you can start sharing and discovering music with others.
+          {isPromote
+            ? 'Set up your account so you can manage your campaign, payment, and receipts.'
+            : "Let's set up your profile so you can start sharing and discovering music with others."}
         </motion.p>
       </motion.div>
 

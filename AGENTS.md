@@ -37,6 +37,7 @@ CassetteUI is the Next.js frontend for Cassette. It owns the web user experience
 - Resolve the existing `CAS-###` issue before editing, keep its state accurate, and update it at handoff even when work remains open.
 - Give actionable issues created by agents an effort estimate using Cassette's Fibonacci `1, 2, 3, 5, 8` scale and split work larger than `8`.
 - Preserve only material decisions, blockers, cross-repo contracts, rollout concerns, and meaningful verification in ticket notes; do not post an activity diary.
+- Do not put Linear issue identifiers or URLs in source files, including comments, docstrings, identifiers, test names, fixtures, configuration, logs, or user-visible text. Describe the behavior and rationale in code; keep ticket linkage in Linear, branches, commits, pull requests, and handoff notes.
 - Create or update milestones only for meaningful multi-issue delivery gates, with the relevant issues assigned.
 - Update project state, health, and the project update when a milestone, blocker, rollout, or delivery confidence materially changes.
 - Default locally complete, verified work to `In Review`. When `Done` is also plausible, ask the user at handoff and leave the issue in review unless they confirm.

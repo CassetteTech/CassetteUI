@@ -240,3 +240,19 @@ Recommended pattern:
 Example:
 
 `/signup?src=instagram&utm_medium=paid-social&utm_campaign=spring-drop-2026`
+
+## Paid-promotion sent links (`/promote`)
+
+The primary acquisition motion for paid promotion is Cassette sending a prospect the `/promote` link directly (text, email, DM). Attribution works the same way there: the middleware captures supported parameters on any page, including `/promote`, into the same first-touch cookie.
+
+Convention for sent links:
+
+`https://www.cassette.tech/promote?src=<outreach-tag>`
+
+- Use one `src` tag per outreach effort so replies can be traced to the send, e.g. `src=outreach-labels-jul26`, `src=outreach-dm-wave-2`.
+- `src` beats `utm_source`, and the 30-day first-touch cookie rules above apply unchanged.
+- Add `utm_medium`/`utm_campaign` only if the send is part of a larger tracked campaign.
+
+Example:
+
+`https://www.cassette.tech/promote?src=outreach-labels-jul26&utm_medium=email&utm_campaign=paid-promo-pilot`

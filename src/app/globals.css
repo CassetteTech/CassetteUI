@@ -475,6 +475,74 @@
   }
 }
 
+/* ─── Paid-promotion tape-deck hero ────────────────────────────────────────
+   Three loops drive the /promote hero: the spectrum bars, the spotlight
+   sweep that crosses them, and the two cassette reels. Everything animates
+   transform only, so the whole hero stays on the compositor. Each element
+   carries its resting frame as a plain (unanimated) transform, so under
+   `prefers-reduced-motion: reduce` the hero renders as a composed static
+   still — a lit spectrum with the spotlight parked mid-field — rather than
+   collapsing to nothing. */
+@keyframes promote-eq {
+  from { transform: scaleY(var(--eq-low)); }
+  to   { transform: scaleY(var(--eq-high)); }
+}
+
+/* The beam window is 25% of the field wide, so it clears the field between
+   translateX(-100%) and translateX(400%) of its own width. Its contents are
+   400% wide and counter-travel at exactly a quarter of the window's offset,
+   which pins the lit bars on top of the resting bars underneath — only the
+   illumination moves, never the waveform. */
+@keyframes promote-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(400%); }
+}
+
+@keyframes promote-sweep-inner {
+  from { transform: translateX(25%); }
+  to   { transform: translateX(-100%); }
+}
+
+@keyframes promote-reel {
+  to { transform: rotate(360deg); }
+}
+
+.promote-eq-bar {
+  transform: scaleY(var(--eq-rest));
+}
+
+.promote-sweep {
+  transform: translateX(160%);
+}
+
+.promote-sweep-inner {
+  transform: translateX(-40%);
+}
+
+.promote-reel {
+  /* SVG groups rotate about their own box, not the viewBox origin. */
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .promote-eq-bar {
+    animation: promote-eq var(--eq-duration) var(--ease-out-quart) var(--eq-delay) infinite alternate;
+  }
+
+  .promote-sweep {
+    animation: promote-sweep 14s linear infinite;
+  }
+
+  .promote-sweep-inner {
+    animation: promote-sweep-inner 14s linear infinite;
+  }
+
+  .promote-reel {
+    animation: promote-reel var(--reel-duration) linear infinite;
+  }
+}
+
 /* ─── Reduced-motion guards (movement loops) ───────────────────────────────
    These are translate/scale/rotate loops — stop them entirely under reduce.
    Opacity-only pulses (Tailwind's animate-pulse) are left running.

@@ -131,6 +131,7 @@ export type AnalyticsBaseProps = {
   platform_count?: number;
   result_count?: number;
   step?: 'handle' | 'avatar' | 'music';
+  onboarding_variant?: 'default' | 'promote';
   service?: 'spotify' | 'apple' | 'deezer' | 'unknown';
   account_type?: 'Regular' | 'Verified' | 'CassetteTeam' | string;
   internal_actor?: boolean;

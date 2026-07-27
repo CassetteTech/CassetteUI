@@ -5,6 +5,7 @@ import {
   Heart,
   Home,
   Info,
+  Megaphone,
   Music,
   Shield,
   User,
@@ -33,11 +34,13 @@ export const primaryNavItems: NavigationItemDefinition[] = [
   { key: 'home', label: 'Home', icon: Home, href: '/' },
   { key: 'explore', label: 'Explore', icon: Compass, href: '/explore' },
   { key: 'add-music', label: 'Add Music', icon: Music, href: '/add-music', authRequired: true },
+  { key: 'promote', label: 'Promote', icon: Megaphone, href: '/promote' },
 ];
 
 export const accountNavItems: NavigationItemDefinition[] = [
   { key: 'profile', label: 'Profile', icon: User, href: '/profile', authRequired: true },
   { key: 'edit-profile', label: 'Edit Profile', icon: Edit, href: '/profile/edit', authRequired: true },
+  { key: 'campaigns', label: 'Your Campaigns', icon: Megaphone, href: '/promote', authRequired: true },
   { key: 'internal', label: 'Internal', icon: Shield, href: '/internal', authRequired: true, internalOnly: true },
 ];
 

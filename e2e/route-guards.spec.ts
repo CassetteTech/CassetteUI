@@ -46,6 +46,23 @@ test.describe('route guards and auth redirects', () => {
     await expect(page).toHaveURL('/auth/signin?redirect=/internal');
   });
 
+  test('carries a saved auth redirect into a sign-in finished in another tab', async ({
+    page,
+    context,
+  }) => {
+    await mockCassetteApp(page);
+    // Tab A saves the redirect (e.g. before an email-verification detour).
+    await page.goto('/auth/signup?redirect=/promote/new');
+
+    // Tab B: fresh tab, same origin storage, no ?redirect param.
+    const secondTab = await context.newPage();
+    await mockCassetteApp(secondTab, { googleAuthUser: fixtureUsers.member });
+    await secondTab.goto('/auth/signin');
+    await secondTab.getByRole('button', { name: 'Continue with Google' }).click();
+
+    await expect(secondTab).toHaveURL('/promote/new');
+  });
+
   test('sends onboarded Google callback users to their profile when no redirect is stored', async ({
     page,
   }) => {

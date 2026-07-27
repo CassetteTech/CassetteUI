@@ -19,6 +19,8 @@ function campaign(paymentStatus: PaidPromotionPaymentStatus | null): PaidPromoti
     amountMinor: 25000,
     currency: 'USD',
     status: paymentStatus === 'paid' ? 'in_review' : 'pending_payment',
+    rejectionReason: null,
+    holdKind: null,
     paymentStatus,
     discountAmountMinor: 0,
     taxAmountMinor: 0,
@@ -49,8 +51,11 @@ void test('maps the refund family to refunded, not an error state', () => {
   assert.equal(getPaidPromotionReturnState(campaign('refund_pending')), 'refunded');
   assert.equal(getPaidPromotionReturnState(campaign('partially_refunded')), 'refunded');
   assert.equal(getPaidPromotionReturnState(campaign('refunded')), 'refunded');
-  assert.equal(getPaidPromotionReturnState(campaign('disputed')), 'refunded');
-  assert.equal(getPaidPromotionReturnState(campaign('charged_back')), 'refunded');
+});
+
+void test('keeps disputes distinct from clean refunds', () => {
+  assert.equal(getPaidPromotionReturnState(campaign('disputed')), 'disputed');
+  assert.equal(getPaidPromotionReturnState(campaign('charged_back')), 'disputed');
 });
 
 void test('does not infer payment truth from unknown states or unknown totals', () => {
@@ -122,9 +127,23 @@ void test('tolerates additive backend changes', () => {
   const sparse = { ...campaign('pending') } as Record<string, unknown>;
   delete sparse.taxAmountMinor;
   delete sparse.rateCardId;
+  delete sparse.rejectionReason;
+  delete sparse.holdKind;
   const parsed = parsePaidPromotionCampaign(sparse);
   assert.equal(parsed.taxAmountMinor, null);
   assert.equal(parsed.rateCardId, null);
+  assert.equal(parsed.rejectionReason, null);
+  assert.equal(parsed.holdKind, null);
+});
+
+void test('passes rejection reason and hold kind through the boundary', () => {
+  const parsed = parsePaidPromotionCampaign({
+    ...campaign('paid'),
+    rejectionReason: 'Track rights could not be verified.',
+    holdKind: 'payment_dispute',
+  });
+  assert.equal(parsed.rejectionReason, 'Track rights could not be verified.');
+  assert.equal(parsed.holdKind, 'payment_dispute');
 });
 
 void test('parses the owner campaign collection with indexed errors', () => {

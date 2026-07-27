@@ -74,6 +74,7 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
   const [announcement, setAnnouncement] = useState('');
   const [busy, setBusy] = useState(false);
   const [lifecycleAction, setLifecycleAction] = useState<LifecycleAction | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [rateCardId, setRateCardId] = useState('');
   const [refundOpen, setRefundOpen] = useState(false);
@@ -138,6 +139,7 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
       await mutation();
       setAnnouncement(message);
       setLifecycleAction(null);
+      setRejectReason('');
       setQuoteOpen(false);
       setRefundOpen(false);
       setRemovingDeliverable(null);
@@ -157,7 +159,7 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
     const mutation = lifecycleAction === 'approve'
       ? () => internalPaidPromotionsService.approve(campaignId)
       : lifecycleAction === 'reject'
-        ? () => internalPaidPromotionsService.reject(campaignId)
+        ? () => internalPaidPromotionsService.reject(campaignId, rejectReason.trim() || undefined)
         : () => internalPaidPromotionsService.transition(campaignId, lifecycleAction);
     void runMutation(`${LIFECYCLE_COPY[lifecycleAction].confirm} confirmed by the server.`, mutation);
   };
@@ -358,7 +360,12 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
       {lifecycleAction && (
         <ActionDialog
           open
-          onOpenChange={(open) => !open && setLifecycleAction(null)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setLifecycleAction(null);
+              setRejectReason('');
+            }
+          }}
           title={LIFECYCLE_COPY[lifecycleAction].title}
           description={LIFECYCLE_COPY[lifecycleAction].description}
           confirmLabel={LIFECYCLE_COPY[lifecycleAction].confirm}
@@ -366,6 +373,19 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
           busy={busy}
           onConfirm={submitLifecycle}
         >
+          {lifecycleAction === 'reject' && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="reject-reason">Customer-facing reason (optional)</Label>
+              <Input
+                id="reject-reason"
+                maxLength={500}
+                autoComplete="off"
+                value={rejectReason}
+                onChange={(event) => setRejectReason(event.target.value)}
+                placeholder="Shown to the customer with their refund notice"
+              />
+            </div>
+          )}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </ActionDialog>
       )}

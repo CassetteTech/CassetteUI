@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildUiSentryContext, scrubSentryEvent } from '../error-reporting';
+import {
+  buildUiSentryContext,
+  isExpectedProxyDisconnect,
+  prepareServerSentryEvent,
+  scrubSentryEvent,
+} from '../error-reporting';
 import { ERROR_CATEGORIES } from '../fields';
 
 test('buildUiSentryContext normalizes safe request context', () => {
@@ -113,4 +118,37 @@ test('scrubSentryEvent redacts nested event payloads without reshaping the event
     },
   ]);
   assert.equal((event as Record<string, unknown>).service, undefined);
+});
+
+test('drops only expected API proxy disconnect events', () => {
+  const expectedDisconnect = {
+    transaction: 'POST /api/v1/[...path]',
+    exception: {
+      values: [
+        {
+          type: 'ResponseAborted',
+          mechanism: { type: 'auto.function.nextjs.on_request_error' },
+        },
+      ],
+    },
+  };
+
+  assert.equal(isExpectedProxyDisconnect(expectedDisconnect), true);
+  assert.equal(prepareServerSentryEvent(expectedDisconnect), null);
+
+  assert.equal(isExpectedProxyDisconnect({
+    ...expectedDisconnect,
+    transaction: 'POST /api/auth/login',
+  }), false);
+  assert.equal(isExpectedProxyDisconnect({
+    ...expectedDisconnect,
+    exception: {
+      values: [
+        {
+          type: 'ResponseAborted',
+          mechanism: { type: 'generic' },
+        },
+      ],
+    },
+  }), false);
 });

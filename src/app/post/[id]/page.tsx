@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { fetchPostForMetadata, generateOgTitle, generateOgDescription, extractArtworkUrl } from '@/lib/server/fetch-post';
+import { fetchPostForMetadata } from '@/lib/server/fetch-post';
 import PostClientPage from './post-client';
 
 type Props = {
@@ -12,17 +12,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!post) {
     const title = 'MusicLink Not Found — Cassette Music';
+    // 200 + noindex, not notFound(). The public metadata endpoint returns 404
+    // for private posts as well as missing ones, and returns null on a Bridge
+    // timeout, so a hard 404 would lock owners out of their own private posts
+    // and 404 valid posts during a hiccup. noindex is what keeps these URLs
+    // out of the index; the client still renders the real state for whoever
+    // is signed in.
     return {
       title: { absolute: title },
       description: 'This MusicLink could not be found on Cassette Music.',
+      robots: { index: false, follow: false },
       openGraph: { title },
       twitter: { title },
     };
   }
 
-  const ogTitle = generateOgTitle(post);
-  const description = generateOgDescription(post);
-  const artwork = extractArtworkUrl(post);
+  const ogTitle = post.title;
+  const description = post.description;
+  const artwork = post.imageUrl;
 
   // Determine og:type based on element type
   const elementType = post.elementType?.toLowerCase();
@@ -35,11 +42,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: { absolute: `${ogTitle} | Cassette MusicLink` },
     description,
+    alternates: { canonical: post.canonicalUrl },
     openGraph: {
       title: `${ogTitle} | Cassette MusicLink`,
       description,
       type: ogType,
       siteName: 'Cassette Music',
+      url: post.canonicalUrl,
       images: artwork
         ? [
             {
@@ -62,8 +71,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PostPage({ params }: Props) {
   const { id } = await params;
-  // Shares the generateMetadata fetch via cache() — no extra Bridge call.
-  // Null (miss/timeout) just means the client falls back to fetching itself.
-  const initialPost = await fetchPostForMetadata(id);
-  return <PostClientPage postId={id} initialPost={initialPost} />;
+  // Shares the generateMetadata fetch via cache() and gives the initial RSC
+  // render safe public text without loading the full post graph.
+  const initialMetadata = await fetchPostForMetadata(id);
+  return <PostClientPage postId={id} initialMetadata={initialMetadata} />;
 }

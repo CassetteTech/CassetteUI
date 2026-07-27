@@ -13,6 +13,7 @@
     "lint": "oxlint --type-aware",
     "test:e2e": "playwright test",
     "test:unit": "rm -rf .unit-test-dist && tsc -p tsconfig.unit-tests.json && node --test $(find .unit-test-dist -name '*.test.js' -print)",
+    "test:crawler-burst": "rm -rf .unit-test-dist && tsc -p tsconfig.unit-tests.json && node --test --test-name-pattern='crawler burst|API proxy aborts' .unit-test-dist/lib/server/__tests__/fetch-post.test.js .unit-test-dist/lib/server/__tests__/proxy-fetch.test.js",
     "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
     "test:analytics": "rm -rf .analytics-test-dist && tsc -p tsconfig.analytics-tests.json && node --test $(find .analytics-test-dist -name '*.test.js' -print)",
     "release:draft": "bash scripts/release-draft.sh",

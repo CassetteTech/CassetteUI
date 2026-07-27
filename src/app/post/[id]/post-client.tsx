@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTemplate, PostByIdResponse } from '@/types';
+import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTemplate, PostByIdResponse, PublicPostPageMetadata } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
 import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
@@ -47,6 +47,8 @@ import { playCopyConfirm, playErrorTone, playLikePop } from '@/lib/sounds';
 import { useQueryClient } from '@tanstack/react-query';
 import { appLogger } from '@/lib/observability/logger';
 import { captureUiException } from '@/lib/observability/error-reporting';
+import { ApiConnectionError } from '@/utils/api-connection-error';
+import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 
 function JoinCassetteCTA({ onClick, className }: { onClick: () => void; className?: string }) {
   return (
@@ -84,13 +86,7 @@ function SupportCTA({ className }: { className?: string }) {
 
 interface PostClientPageProps {
   postId: string;
-  /**
-   * Post payload fetched server-side during the RSC render (shared with
-   * generateMetadata). Lets the page render without a client fetch; viewer-
-   * specific fields (liked/reposted) are reconciled in the background since
-   * the server fetch is unauthenticated.
-   */
-  initialPost?: PostByIdResponse | null;
+  initialMetadata?: PublicPostPageMetadata | null;
 }
 
 type PostLoadError = {
@@ -243,7 +239,7 @@ const unmarkPostAsReposted = (userId: string | undefined, targetPostId: string |
   }
 };
 
-export default function PostClientPage({ postId, initialPost }: PostClientPageProps) {
+export default function PostClientPage({ postId, initialMetadata }: PostClientPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -396,17 +392,15 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
                      ('ontouchstart' in window && window.innerWidth < 1024);
 
-    if (navigator.share && isMobile) {
+    if (canShareWebContent() && isMobile) {
       try {
-        await navigator.share({
+        await shareWebContent({
           title: shareTitle,
           text: shareText,
           url: shareUrl,
         });
       } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          appLogger.warn('post_share_failed', { error: err, route: '/post/[id]' });
-        }
+        appLogger.warn('post_share_failed', { error: err, route: '/post/[id]' });
       }
     } else {
       // Desktop: copy to clipboard
@@ -628,6 +622,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
     const defaultRetryMs = 400;
 
     const shouldRetryFetchPost = (error: unknown) => {
+      if (error instanceof ApiConnectionError) return true;
       if (error instanceof ApiError) {
         if (error.apiStatus === 'failed') return false;
         if (error.apiStatus === 'processing') return true;
@@ -653,16 +648,6 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
         let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null =
           takePrefetchedPost(postId);
 
-        // The server render already fetched this post for metadata; reuse it
-        // so profile/shared-link arrivals skip the client fetch entirely. The
-        // server payload is unauthenticated, so signed-in viewers reconcile
-        // like/repost state in the background after first paint.
-        let reconcileViewerState = false;
-        if (!response && initialPost?.success) {
-          response = initialPost;
-          reconcileViewerState = isAuthenticated;
-        }
-
         while (!response && Date.now() - startedAt < maxWaitMs) {
           if (isCancelled) return;
           try {
@@ -686,6 +671,8 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
             await sleep(Math.max(100, retryAfterMs));
           }
         }
+
+        if (isCancelled) return;
 
         if (!response) {
           throw new Error('Post is still finalizing. Please try again in a moment.');
@@ -884,27 +871,6 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
 
         applyResponse(response);
 
-        if (reconcileViewerState) {
-          try {
-            // The server payload only goes stale on viewer-specific fields, so
-            // ask for just those instead of re-running the full post query.
-            const viewerState = await apiService.fetchPostViewerState(postId);
-            if (!isCancelled && viewerState?.success) {
-              setPostData((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      likeCount: typeof viewerState.likeCount === 'number' ? viewerState.likeCount : prev.likeCount,
-                      likedByCurrentUser: Boolean(viewerState.likedByCurrentUser),
-                    }
-                  : prev
-              );
-            }
-          } catch {
-            // Best-effort — the post content is already rendered; only
-            // viewer-specific like state could be stale.
-          }
-        }
       } catch (e) {
         if (isCancelled) return;
         captureUiException(e, { route: '/post/[id]', operation: 'post_load' });
@@ -922,7 +888,7 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
     return () => {
       isCancelled = true;
     };
-  }, [postId, user?.id, isAuthenticated, initialPost, loadAttempt]);
+  }, [postId, user?.id, isAuthenticated, loadAttempt]);
 
   useEffect(() => {
     if (isLoading || !postData) {
@@ -985,7 +951,16 @@ export default function PostClientPage({ postId, initialPost }: PostClientPagePr
 
   // Show skeleton while loading
   if (!postData && !error) {
-    return <EntitySkeleton isDesktop={isDesktop} />;
+    return (
+      <>
+        {initialMetadata && (
+          <span className="sr-only">
+            {initialMetadata.title}. {initialMetadata.description}
+          </span>
+        )}
+        <EntitySkeleton isDesktop={isDesktop} />
+      </>
+    );
   }
 
   if (error && !postData) {

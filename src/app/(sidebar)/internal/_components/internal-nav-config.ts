@@ -38,7 +38,7 @@ export const CONSOLE_NAV: ConsoleNavSection[] = [
         label: 'Sentinel',
         href: '/internal/sentinel',
         icon: AlertTriangle,
-        blurb: 'Data-quality invariants, findings, and audit runs.',
+        blurb: 'Runtime health, conversion jobs, findings, and audit runs.',
       },
       {
         key: 'snapshots',

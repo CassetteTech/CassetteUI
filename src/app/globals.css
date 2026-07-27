@@ -322,6 +322,58 @@
     --input: var(--cassette-white);
   }
 
+  /* ─── Console surface ────────────────────────────────────────────────────
+     The /internal back office re-tokens the warm brand paper to a cool
+     neutral: telemetry and tables read on quiet gray, not tan-on-tan, while
+     brand red, domain accents, and status tones stay untouched. Scoped via
+     body:has() so portalled sheets, dialogs, selects, and toasts inherit the
+     console surface too (portals mount on <body>, outside the layout tree). */
+  body:has(.console-surface) {
+    --background: 220 14% 97%; /* #F5F6F8 */
+    --foreground: 220 12% 12%; /* #1B1E23 */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 220 12% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 12% 12%;
+    --secondary: 220 13% 91%; /* #E4E7EB */
+    --secondary-foreground: 220 12% 12%;
+    --muted: 220 13% 93%; /* #EAECEF */
+    --muted-foreground: 220 8% 42%; /* #62676F */
+    --accent: 220 13% 93%;
+    --accent-foreground: 220 12% 12%;
+    --border: 220 12% 87%; /* #D9DCE1 */
+    --input: 220 12% 87%;
+    --field: 0 0% 100%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 12% 12%;
+    --sidebar-accent: 220 13% 93%;
+    --sidebar-accent-foreground: 220 12% 12%;
+    --sidebar-border: 220 12% 87%;
+  }
+
+  .dark body:has(.console-surface) {
+    --background: 220 10% 8%; /* #121417 */
+    --foreground: 220 10% 92%; /* #E8EAED */
+    --card: 220 9% 11%; /* #191C20 */
+    --card-foreground: 220 10% 92%;
+    --popover: 220 9% 11%;
+    --popover-foreground: 220 10% 92%;
+    --secondary: 220 9% 17%; /* #262A2F */
+    --secondary-foreground: 220 10% 92%;
+    --muted: 220 9% 15%; /* #22262B */
+    --muted-foreground: 220 6% 60%; /* #93979D */
+    --accent: 220 9% 15%;
+    --accent-foreground: 220 10% 92%;
+    --border: 220 8% 19%; /* #2C3036 */
+    --input: 220 9% 15%;
+    --field: 220 9% 11%;
+    --sidebar-background: 220 9% 11%;
+    --sidebar-foreground: 220 10% 92%;
+    --sidebar-accent: 220 9% 15%;
+    --sidebar-accent-foreground: 220 10% 92%;
+    --sidebar-border: 220 8% 19%;
+  }
+
   /* ─── Console domain scopes ──────────────────────────────────────────────
      Wrap a section in .domain-eng or .domain-growth to recolor every console
      primitive that reads --domain. Engineering reads cool/telemetry; Growth

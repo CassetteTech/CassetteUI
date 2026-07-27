@@ -8,8 +8,8 @@ export default function InternalOverviewPage() {
   return (
     <div className="max-w-3xl space-y-5">
       <header>
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Internal Ops</p>
-        <h1 className="mt-0.5 text-base font-semibold text-foreground">Console</h1>
+        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Internal Ops</p>
+        <h1 className="mt-0.5 text-lg font-semibold leading-tight tracking-tight text-foreground">Console</h1>
       </header>
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -19,7 +19,7 @@ export default function InternalOverviewPage() {
               <span className="signal-dot text-domain" aria-hidden />
               <h2 className="font-mono text-[11px] uppercase tracking-wider text-domain">{section.label}</h2>
             </div>
-            <ul className="divide-y divide-border rounded-lg border border-border bg-card">
+            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
               {section.items.map((item) => (
                 <li key={item.key}>
                   <Link

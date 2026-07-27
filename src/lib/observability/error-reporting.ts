@@ -140,7 +140,37 @@ type ScrubbableSentryEvent = {
   message?: unknown;
   exception?: unknown;
   breadcrumbs?: unknown;
+  transaction?: unknown;
 };
+
+export function isExpectedProxyDisconnect(event: ScrubbableSentryEvent): boolean {
+  if (event.transaction !== 'POST /api/v1/[...path]') {
+    return false;
+  }
+
+  if (!event.exception || typeof event.exception !== 'object') {
+    return false;
+  }
+
+  const values = (event.exception as { values?: unknown }).values;
+  if (!Array.isArray(values)) {
+    return false;
+  }
+
+  return values.some((value) => {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    const exception = value as {
+      type?: unknown;
+      mechanism?: { type?: unknown };
+    };
+
+    return exception.type === 'ResponseAborted'
+      && exception.mechanism?.type === 'auto.function.nextjs.on_request_error';
+  });
+}
 
 function scrubLogObject(value: unknown): unknown {
   if (!value || typeof value !== 'object') {
@@ -189,4 +219,8 @@ export function scrubSentryEvent<T extends ScrubbableSentryEvent>(event: T): T {
     exception: scrubException(event.exception),
     breadcrumbs: scrubBreadcrumbs(event.breadcrumbs),
   };
+}
+
+export function prepareServerSentryEvent<T extends ScrubbableSentryEvent>(event: T): T | null {
+  return isExpectedProxyDisconnect(event) ? null : scrubSentryEvent(event);
 }

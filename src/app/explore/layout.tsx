@@ -6,6 +6,7 @@ const description = "Discover public mixes, MusicLinks, and the creators sharing
 export const metadata: Metadata = {
   title: { absolute: title },
   description,
+  alternates: { canonical: '/explore' },
   openGraph: { title, description },
   twitter: { title, description },
 };

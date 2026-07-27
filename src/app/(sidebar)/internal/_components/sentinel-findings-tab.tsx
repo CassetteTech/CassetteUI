@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Copy, Database, GitMerge, ListChecks, RefreshCw, RotateCcw } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Copy, Database, GitMerge, ListChecks, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiService } from '@/services/api';
 import type {
@@ -43,7 +44,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDebounce } from '@/hooks/use-debounce';
-import { PAGE_SIZE, formatDate } from './internal-utils';
+import { PAGE_SIZE, copyToClipboard, formatDate } from './internal-utils';
 import {
   SectionHeader,
   Panel,
@@ -55,14 +56,25 @@ import {
   SegmentedControl,
   Pagination,
   Field,
+  ErrorBanner,
+  RefreshButton,
+  CopyId,
+  IdField,
   type Column,
   type Tone,
 } from './kit';
+import { SentinelRuntimePanel } from './sentinel-runtime-panel';
 
 const ALL_FILTER = 'all';
 const COORDINATOR_PAGE_SIZE = 100;
 
-type SubView = 'findings' | 'runs' | 'invariants';
+type SubView = 'runtime' | 'findings' | 'runs' | 'invariants';
+
+const SUB_VIEWS: readonly SubView[] = ['runtime', 'findings', 'runs', 'invariants'];
+
+function isSubView(value: string | null): value is SubView {
+  return value != null && (SUB_VIEWS as readonly string[]).includes(value);
+}
 
 /* Findings are machine-only: active or resolved, decided exclusively by
    Sentinel scans. Humans get an indirect lever (Rescan) and a human layer
@@ -93,6 +105,7 @@ function RecurrenceBadge({ count }: { count: number }) {
 }
 
 const SUB_VIEW_OPTIONS: ReadonlyArray<{ value: SubView; label: string }> = [
+  { value: 'runtime', label: 'Runtime' },
   { value: 'findings', label: 'Findings' },
   { value: 'runs', label: 'Runs' },
   { value: 'invariants', label: 'Invariants' },
@@ -247,15 +260,6 @@ function HeatLegend() {
       ))}
     </div>
   );
-}
-
-async function copyToClipboard(value: string, label: string) {
-  try {
-    await navigator.clipboard.writeText(value);
-    toast.success(`${label} copied`);
-  } catch {
-    toast.error('Failed to copy');
-  }
 }
 
 function formatPromptFields(entries: Array<[string, string]>): string {
@@ -558,35 +562,21 @@ function CopyFindingPromptButton({
   );
 }
 
-/* Copyable identifier chip — the canonical way IDs surface in the detail sheet.
-   IDs are long and noisy in a table row, so they live here where there's room
-   to show them in full and one click puts them on the clipboard. */
-function CopyId({ value, label }: { value: string; label: string }) {
-  return (
-    <button
-      type="button"
-      onClick={() => void copyToClipboard(value, label)}
-      title={`Copy ${label}`}
-      className="group inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 font-mono text-[10px] tabular-nums text-muted-foreground transition hover:border-domain/50 hover:text-foreground"
-    >
-      <span className="truncate">{value}</span>
-      <Copy className="h-3 w-3 shrink-0 opacity-50 transition group-hover:opacity-100" />
-    </button>
-  );
-}
-
-/* Stacked label + copyable id, for long ids that won't sit on a Field's right edge. */
-function IdField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="space-y-1.5">
-      <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-      <CopyId value={value} label={label} />
-    </div>
-  );
-}
-
 export function SentinelFindingsTab() {
-  const [activeView, setActiveView] = useState<SubView>('findings');
+  const searchParams = useSearchParams();
+  const paramView = searchParams.get('view');
+  const [activeView, setActiveView] = useState<SubView>(isSubView(paramView) ? paramView : 'findings');
+
+  /* View selection is mirrored into `?view=` (replaceState, no navigation) so
+     Sentinel views are deep-linkable; `?job=` only applies to the runtime view
+     and is dropped when leaving it. */
+  const changeView = (view: SubView) => {
+    setActiveView(view);
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', view);
+    if (view !== 'runtime') url.searchParams.delete('job');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+  };
 
   return (
     <div className="space-y-4">
@@ -596,30 +586,16 @@ export function SentinelFindingsTab() {
         actions={
           <SegmentedControl<SubView>
             value={activeView}
-            onChange={setActiveView}
+            onChange={changeView}
             options={SUB_VIEW_OPTIONS}
           />
         }
       />
+      {activeView === 'runtime' && <SentinelRuntimePanel />}
       {activeView === 'findings' && <SentinelFindingsPanel />}
       {activeView === 'runs' && <SentinelRunsPanel />}
       {activeView === 'invariants' && <SentinelInvariantRegistryPanel />}
     </div>
-  );
-}
-
-function RefreshButton({ loading, onClick }: { loading: boolean; onClick: () => void }) {
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-7 w-7"
-      disabled={loading}
-      onClick={onClick}
-      title="Refresh"
-    >
-      <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-    </Button>
   );
 }
 
@@ -988,17 +964,6 @@ function InvariantNoteFields({ note }: { note: InternalSentinelInvariantNote }) 
           {note.updatedBy} · {formatDate(note.updatedAtUtc)}
         </span>
       </Field>
-    </div>
-  );
-}
-
-function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="flex items-center justify-between gap-3 border-b border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-      <span>{message}</span>
-      <button type="button" className="underline underline-offset-2" onClick={onRetry}>
-        Retry
-      </button>
     </div>
   );
 }

@@ -13,6 +13,12 @@ CassetteUI is the Next.js frontend for Cassette. It owns the web user experience
 - Analytics code lives under `src/lib/analytics`, `scripts/posthog`, and related tests.
 - E2E mocks live under `e2e/support`; extend shared mocks before adding isolated route stubs.
 
+## Branch & Deploy
+
+- `main` is the default branch and staging trunk: PRs land here; AWS Amplify builds `main` on the staging app.
+- `prod` is a merge-only production pointer: Amplify builds it on the production app, which serves cassette.tech. Promote by merging `main` → `prod`. Never commit work directly to `prod`.
+- The old `production` branch is retired (CAS-406, 2026-07-21) and pending deletion; do not branch from or target it.
+
 ## Design System
 
 - Check `src/app/globals.css` and `tailwind.config.js` before changing colors or tokens.

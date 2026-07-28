@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 
 import type { PaidPromotionCampaign, PaidPromotionPaymentStatus } from '../../types';
 import {
+  computePaidPromotionPricing,
+  formatPaidPromotionMinorAmount,
   getPaidPromotionReturnState,
   parsePaidPromotionCampaign,
   parsePaidPromotionCampaigns,
@@ -13,11 +15,15 @@ import {
 function campaign(paymentStatus: PaidPromotionPaymentStatus | null): PaidPromotionCampaign {
   return {
     id: 'pmc_TestCampaign1',
-    trackId: 't_123456789ABC',
+    elementId: 't_123456789ABC',
+    elementType: 'track',
     sourcePlatform: 'spotify',
     rateCardId: 'prc_TestCard1',
     amountMinor: 25000,
     currency: 'USD',
+    weeks: 1,
+    weeklyAmountMinor: 25000,
+    durationDiscountBps: null,
     status: paymentStatus === 'paid' ? 'in_review' : 'pending_payment',
     rejectionReason: null,
     holdKind: null,
@@ -164,4 +170,72 @@ void test('parses the owner campaign collection with indexed errors', () => {
     () => parsePaidPromotionCampaigns([{ ...campaign('paid'), amountMinor: null }]),
     /campaigns\[0\]\.amountMinor/,
   );
+});
+
+void test('carries the weekly pricing snapshot through the boundary', () => {
+  const parsed = parsePaidPromotionCampaign({
+    ...campaign('paid'),
+    elementId: 'a_123456789ABC',
+    elementType: 'album',
+    weeks: 4,
+    weeklyAmountMinor: 2500,
+    durationDiscountBps: 1000,
+  });
+  assert.equal(parsed.elementId, 'a_123456789ABC');
+  assert.equal(parsed.elementType, 'album');
+  assert.equal(parsed.weeks, 4);
+  assert.equal(parsed.weeklyAmountMinor, 2500);
+  assert.equal(parsed.durationDiscountBps, 1000);
+
+  // Weeks and the weekly rate are required from pending_payment onward; a
+  // missing one is a boundary failure, not a silent zero.
+  assert.throws(
+    () => parsePaidPromotionCampaign({ ...campaign('paid'), weeks: null }),
+    /campaign\.weeks/,
+  );
+});
+
+void test('mirrors the server duration-discount math for display', () => {
+  const card = { amountMinor: 2500, discountMinWeeks: 4, discountBps: 1000 };
+
+  // Below the threshold there is no discount at all.
+  assert.deepEqual(computePaidPromotionPricing(card, 3), {
+    grossMinor: 7500,
+    discountMinor: 0,
+    totalMinor: 7500,
+  });
+
+  // At and above it, the discount rounds up so the shown total never exceeds
+  // what the Bridge charges.
+  assert.deepEqual(computePaidPromotionPricing(card, 4), {
+    grossMinor: 10000,
+    discountMinor: 1000,
+    totalMinor: 9000,
+  });
+  assert.equal(
+    computePaidPromotionPricing({ amountMinor: 333, discountMinWeeks: 2, discountBps: 1000 }, 2)
+      .discountMinor,
+    67,
+  );
+
+  // A package with no discount configured never discounts.
+  assert.equal(
+    computePaidPromotionPricing({ amountMinor: 2500, discountMinWeeks: null, discountBps: null }, 8)
+      .totalMinor,
+    20000,
+  );
+});
+
+void test("renders minor amounts using the currency's own minor-unit size", () => {
+  // A two-minor-unit currency: 2500 minor units is 25 major units.
+  assert.match(formatPaidPromotionMinorAmount(2500, 'USD'), /25[.,]00/);
+  // A zero-minor-unit currency is not divided by 100.
+  assert.match(formatPaidPromotionMinorAmount(2500, 'JPY'), /2.?500/);
+});
+
+void test('degrades instead of throwing when the currency cannot be resolved', () => {
+  // These amounts render inline all over the intake, so throwing on a currency
+  // the runtime does not know would blank the page instead of one price.
+  assert.equal(formatPaidPromotionMinorAmount(2500, 'US'), 'US 25.00');
+  assert.equal(formatPaidPromotionMinorAmount(2500, 'usdollar'), 'USDOLLAR 25.00');
 });

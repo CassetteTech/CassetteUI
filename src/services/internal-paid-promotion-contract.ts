@@ -2,12 +2,13 @@ import type {
   InternalPaidPromotionActionResponse,
   InternalPaidPromotionCampaignDetail,
   InternalPaidPromotionCampaignSummary,
+  InternalPaidPromotionCustomer,
   InternalPaidPromotionDeliverable,
   InternalPaidPromotionException,
   InternalPaidPromotionPayment,
   InternalPaidPromotionPricingSnapshot,
   InternalPaidPromotionRefundResponse,
-  InternalPaidPromotionTrack,
+  InternalPaidPromotionSubject,
   PaidPromotionCampaignStatus,
   PaidPromotionDeliverableChannel,
   PaidPromotionDeliverableStatus,
@@ -123,15 +124,43 @@ function nullableInteger(value: unknown, path: string): number | null {
   return value === null || value === undefined ? null : integer(value, path);
 }
 
-function parseTrack(value: unknown, path: string): InternalPaidPromotionTrack {
+function parseSubject(value: unknown, path: string): InternalPaidPromotionSubject {
   const item = record(value, path);
   return {
     id: string(item.id, `${path}.id`),
+    elementType: string(
+      item.elementType,
+      `${path}.elementType`,
+    ) as InternalPaidPromotionSubject['elementType'],
     title: string(item.title, `${path}.title`),
     coverArtUrl: nullableHttpUrl(item.coverArtUrl, `${path}.coverArtUrl`),
-    artists: parseInternalPaidPromotionArray(item.artists, `${path}.artists`).map((artist, index) =>
-      string(artist, `${path}.artists[${index}]`)
-    ),
+    // Empty for artist and playlist subjects by design.
+    subtitleNames: parseInternalPaidPromotionArray(
+      item.subtitleNames,
+      `${path}.subtitleNames`,
+    ).map((name, index) => string(name, `${path}.subtitleNames[${index}]`)),
+  };
+}
+
+/**
+ * Absent when the buyer's account has been deleted; the campaign and its
+ * financial record survive that, so a missing customer is a real state rather
+ * than a malformed response.
+ */
+function parseCustomer(value: unknown, path: string): InternalPaidPromotionCustomer | null {
+  if (value === null || value === undefined) return null;
+  const item = record(value, path);
+  return {
+    userId: string(item.userId, `${path}.userId`),
+    username: string(item.username, `${path}.username`),
+    displayName: nullableString(item.displayName, `${path}.displayName`),
+    email: string(item.email, `${path}.email`),
+    promoterKind: nullableString(
+      item.promoterKind,
+      `${path}.promoterKind`,
+    ) as InternalPaidPromotionCustomer['promoterKind'],
+    orgName: nullableString(item.orgName, `${path}.orgName`),
+    website: nullableString(item.website, `${path}.website`),
   };
 }
 
@@ -213,8 +242,14 @@ export function parseInternalPaidPromotionCampaignSummary(
 
   return {
     id: string(item.id, `${path}.id`),
-    trackId: string(item.trackId, `${path}.trackId`),
-    trackTitle: string(item.trackTitle, `${path}.trackTitle`),
+    customer: parseCustomer(item.customer, `${path}.customer`),
+    elementId: string(item.elementId, `${path}.elementId`),
+    elementType: string(
+      item.elementType,
+      `${path}.elementType`,
+    ) as InternalPaidPromotionCampaignSummary['elementType'],
+    title: string(item.title, `${path}.title`),
+    coverArtUrl: nullableHttpUrl(item.coverArtUrl, `${path}.coverArtUrl`),
     sourcePlatform: string(
       item.sourcePlatform,
       `${path}.sourcePlatform`,
@@ -243,7 +278,8 @@ export function parseInternalPaidPromotionCampaignDetail(
 
   return {
     id: string(item.id, 'campaign.id'),
-    track: parseTrack(item.track, 'campaign.track'),
+    subject: parseSubject(item.subject, 'campaign.subject'),
+    customer: parseCustomer(item.customer, 'campaign.customer'),
     sourcePlatform: string(
       item.sourcePlatform,
       'campaign.sourcePlatform',
@@ -256,6 +292,18 @@ export function parseInternalPaidPromotionCampaignDetail(
     rateCardId: nullableString(item.rateCardId, 'campaign.rateCardId'),
     amountMinor: nullableInteger(item.amountMinor, 'campaign.amountMinor'),
     currency: nullableString(item.currency, 'campaign.currency'),
+    weeks: nullableInteger(item.weeks, 'campaign.weeks'),
+    weeklyAmountMinor: nullableInteger(item.weeklyAmountMinor, 'campaign.weeklyAmountMinor'),
+    durationDiscountBps: nullableInteger(item.durationDiscountBps, 'campaign.durationDiscountBps'),
+    weeklyDeliverableMinimum: nullableInteger(
+      item.weeklyDeliverableMinimum,
+      'campaign.weeklyDeliverableMinimum',
+    ),
+    weeksDelivered: nullableInteger(item.weeksDelivered, 'campaign.weeksDelivered'),
+    policyRefundableMinor: nullableInteger(
+      item.policyRefundableMinor,
+      'campaign.policyRefundableMinor',
+    ),
     status: string(item.status, 'campaign.status') as PaidPromotionCampaignStatus,
     statusChangedAtUtc: string(item.statusChangedAtUtc, 'campaign.statusChangedAtUtc'),
     requestedWindowStart: nullableString(item.requestedWindowStart, 'campaign.requestedWindowStart'),

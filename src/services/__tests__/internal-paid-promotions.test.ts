@@ -13,11 +13,12 @@ const timestamp = '2026-07-15T12:00:00Z';
 function campaignDetail(): Record<string, unknown> {
   return {
     id: 'pmc_TestCampaign1',
-    track: {
+    subject: {
       id: 't_TestTrack001',
+      elementType: 'track',
       title: 'Signal Fire',
       coverArtUrl: null,
-      artists: ['Mia Groove'],
+      subtitleNames: ['Mia Groove'],
     },
     sourcePlatform: 'spotify',
     brief: 'Internal campaign brief.',
@@ -25,6 +26,12 @@ function campaignDetail(): Record<string, unknown> {
     rateCardId: 'prc_TestCard1',
     amountMinor: 25000,
     currency: 'USD',
+    weeks: 4,
+    weeklyAmountMinor: 6250,
+    durationDiscountBps: null,
+    weeklyDeliverableMinimum: 2,
+    weeksDelivered: 1,
+    policyRefundableMinor: 18750,
     status: 'in_review',
     statusChangedAtUtc: timestamp,
     requestedWindowStart: null,
@@ -170,8 +177,9 @@ void test('preserves server totals without re-auditing checkout arithmetic', () 
 void test('parses queue summaries and tolerates unknown states', () => {
   const summary = {
     id: 'pmc_TestCampaign1',
-    trackId: 't_TestTrack001',
-    trackTitle: 'Signal Fire',
+    elementId: 'a_TestAlbum001',
+    elementType: 'album',
+    title: 'Signal Fire (Deluxe)',
     sourcePlatform: 'spotify',
     pricingMode: 'manual_quote',
     amountMinor: 25000,
@@ -189,8 +197,8 @@ void test('parses queue summaries and tolerates unknown states', () => {
     'unknown',
   );
   assert.throws(
-    () => parseInternalPaidPromotionCampaignSummary({ ...summary, trackTitle: undefined }),
-    /campaign\.trackTitle/,
+    () => parseInternalPaidPromotionCampaignSummary({ ...summary, title: undefined }),
+    /campaign\.title/,
   );
 });
 
@@ -218,5 +226,33 @@ void test('parses refund responses without gating the reported status', () => {
   assert.throws(
     () => parseInternalPaidPromotionRefund({ ...response, amountRefundedMinor: null }),
     /refund\.amountRefundedMinor/,
+  );
+});
+
+void test('carries the effort-week refund numbers as advisory nullables', () => {
+  const parsed = parseInternalPaidPromotionCampaignDetail(campaignDetail());
+  assert.equal(parsed.subject.elementType, 'track');
+  assert.equal(parsed.weeks, 4);
+  assert.equal(parsed.weeklyDeliverableMinimum, 2);
+  assert.equal(parsed.weeksDelivered, 1);
+  assert.equal(parsed.policyRefundableMinor, 18750);
+
+  // A campaign priced before the weekly columns existed still renders; the
+  // console shows "unavailable" rather than inventing a policy number.
+  const unpriced = { ...campaignDetail() } as Record<string, unknown>;
+  delete unpriced.weeks;
+  delete unpriced.weeksDelivered;
+  delete unpriced.policyRefundableMinor;
+  const parsedUnpriced = parseInternalPaidPromotionCampaignDetail(unpriced);
+  assert.equal(parsedUnpriced.weeks, null);
+  assert.equal(parsedUnpriced.weeksDelivered, null);
+  assert.equal(parsedUnpriced.policyRefundableMinor, null);
+
+  // A subject with no secondary names is valid; a missing list is not.
+  const missing = campaignDetail() as Record<string, unknown>;
+  missing.subject = { id: 'r_TestArtist01', elementType: 'artist', title: 'Mia Groove', coverArtUrl: null };
+  assert.throws(
+    () => parseInternalPaidPromotionCampaignDetail(missing),
+    /campaign\.subject\.subtitleNames/,
   );
 });

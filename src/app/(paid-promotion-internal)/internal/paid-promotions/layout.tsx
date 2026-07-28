@@ -3,6 +3,7 @@ import { AppSidebar } from '@/components/layout/app-sidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { InternalAccessGate } from '@/app/(sidebar)/internal/_components/internal-access-gate';
 import { InternalNavRail } from '@/app/(sidebar)/internal/_components/internal-nav-rail';
+import { PaidPromotionTabs } from './_components/paid-promotion-tabs';
 
 export default function PaidPromotionsInternalLayout({ children }: { children: ReactNode }) {
   return (
@@ -19,6 +20,9 @@ export default function PaidPromotionsInternalLayout({ children }: { children: R
               aria-label="Paid promotions operations"
               className="min-w-0 flex-1 overflow-y-auto px-4 py-4 md:px-6 lg:px-8 lg:py-6"
             >
+              <div className="mx-auto max-w-7xl">
+                <PaidPromotionTabs />
+              </div>
               {children}
             </section>
           </div>

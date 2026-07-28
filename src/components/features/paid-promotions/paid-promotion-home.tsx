@@ -17,6 +17,7 @@ import { useAuthState } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { apiService } from '@/services/api';
 import {
+  getPaidPromotionElementTypeLabel,
   getPaidPromotionPaymentStatusLabel,
   getPaidPromotionStatusLabel,
   getPaidPromotionStatusPresentation,
@@ -54,7 +55,6 @@ const CAMPAIGN_GROUPS = [
     key: 'with-cassette',
     title: 'With Cassette',
     caption: 'Reviewed, scheduled, or being delivered by us right now.',
-    statuses: ['in_review', 'scheduled', 'fulfilling', 'on_hold'],
   },
   {
     key: 'closed',
@@ -113,6 +113,7 @@ function CampaignCard({
   return (
     <li className={cn(featured && 'xl:col-span-2')}>
       <article
+        data-testid={`paid-promotion-campaign-card-${campaign.id}`}
         className={cn(
           'flex h-full min-w-0 flex-col bg-card',
           featured
@@ -158,7 +159,7 @@ function CampaignCard({
           >
             <ArtworkImage
               src={subject?.coverArtUrl}
-              alt={subject ? `Artwork for ${subject.trackTitle}` : 'Track artwork unavailable'}
+              alt={subject ? `Artwork for ${subject.title}` : 'Artwork unavailable'}
               fill
               sizes="(min-width: 640px) 144px, 96px"
               className="object-cover"
@@ -166,20 +167,29 @@ function CampaignCard({
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col">
+            {/* The campaign carries its own element type, so the badge is
+                correct even when the subject rollup is missing. */}
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              {getPaidPromotionElementTypeLabel(campaign.elementType)}
+            </p>
             <h3
               className={cn(
                 'truncate font-atkinson font-bold tracking-tight text-foreground',
                 featured ? 'text-2xl' : 'text-lg',
               )}
             >
-              {subject?.trackTitle ?? 'Track details unavailable'}
+              {subject?.title ?? 'Subject details unavailable'}
             </h3>
-            <p className="truncate text-sm text-muted-foreground">
-              {subject?.artists.length ? subject.artists.join(', ') : 'Artist unavailable'}
-            </p>
+            {/* Artists are a track/album line; artist and playlist subjects
+                are their own name and get no second line. */}
+            {subject && subject.subtitleNames.length > 0 && (
+              <p className="truncate text-sm text-muted-foreground">
+                {subject.subtitleNames.join(', ')}
+              </p>
+            )}
             {!subject && (
               <p className="mt-1 break-all font-mono text-[10px] text-muted-foreground">
-                {campaign.trackId}
+                {campaign.elementId}
               </p>
             )}
 
@@ -212,7 +222,7 @@ function CampaignCard({
               >
                 <Link
                   href={`/promote/${encodeURIComponent(campaign.id)}/return`}
-                  aria-label={`View campaign ${campaign.id} for ${subject?.trackTitle ?? campaign.trackId}`}
+                  aria-label={`View campaign ${campaign.id} for ${subject?.title ?? campaign.elementId}`}
                   data-testid={`paid-promotion-campaign-link-${campaign.id}`}
                 >
                   View campaign <ArrowRight aria-hidden="true" />
@@ -232,17 +242,22 @@ function SubjectCard({ subject }: { subject: PaidPromotionSubject }) {
       <div className="relative size-14 shrink-0 overflow-hidden border border-border">
         <ArtworkImage
           src={subject.coverArtUrl}
-          alt={`Artwork for ${subject.trackTitle}`}
+          alt={`Artwork for ${subject.title}`}
           fill
           sizes="56px"
           className="object-cover"
         />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-atkinson font-bold text-foreground">{subject.trackTitle}</p>
-        <p className="truncate text-sm text-muted-foreground">
-          {subject.artists.length > 0 ? subject.artists.join(', ') : 'Artist unavailable'}
+        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          {getPaidPromotionElementTypeLabel(subject.elementType)}
         </p>
+        <p className="truncate font-atkinson font-bold text-foreground">{subject.title}</p>
+        {subject.subtitleNames.length > 0 && (
+          <p className="truncate text-sm text-muted-foreground">
+            {subject.subtitleNames.join(', ')}
+          </p>
+        )}
         <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-foreground">
           {subject.campaignCount.toLocaleString()}{' '}
           {subject.campaignCount === 1 ? 'campaign' : 'campaigns'}
@@ -274,7 +289,7 @@ function ResourceFailure({
   return (
     <div role="alert" className="border-l-2 border-destructive bg-destructive/10 p-4">
       <p className="font-atkinson font-bold text-destructive">
-        {kind === 'campaigns' ? 'Campaigns could not be shown.' : 'Promoted tracks could not be shown.'}
+        {kind === 'campaigns' ? 'Campaigns could not be shown.' : 'Promoted music could not be shown.'}
       </p>
       <p className="mt-1 text-sm text-destructive">{message}</p>
       <Button type="button" variant="brutalist-outline" className="mt-4" onClick={onRetry}>
@@ -311,7 +326,7 @@ export function PaidPromotionHome() {
     const currentRequest = ++requestId.current;
     setCampaigns({ phase: 'loading' });
     setSubjects({ phase: 'loading' });
-    setAnnouncement('Loading your paid-promotion campaigns and promoted tracks.');
+    setAnnouncement('Loading your paid-promotion campaigns and promoted music.');
 
     const [campaignResult, subjectResult] = await Promise.allSettled([
       apiService.getPaidPromotionCampaigns(),
@@ -329,7 +344,7 @@ export function PaidPromotionHome() {
       ? { phase: 'ready', data: subjectResult.value }
       : resourceFailure(
           subjectResult.reason,
-          'We could not load your promoted tracks. Please try again.',
+          'We could not load your promoted music. Please try again.',
         );
 
     setCampaigns(nextCampaigns);
@@ -337,7 +352,7 @@ export function PaidPromotionHome() {
     setHasLoadedCampaigns(true);
     setAnnouncement(
       campaignResult.status === 'fulfilled' && subjectResult.status === 'fulfilled'
-        ? `${campaignResult.value.length} campaigns and ${subjectResult.value.length} promoted tracks loaded.`
+        ? `${campaignResult.value.length} campaigns and ${subjectResult.value.length} promoted subjects loaded.`
         : 'Some paid-promotion information could not be loaded.',
     );
   }, []);
@@ -350,9 +365,9 @@ export function PaidPromotionHome() {
     };
   }, [authLoading, isAuthenticated, load]);
 
-  const subjectsByTrackId = useMemo(() => {
+  const subjectsByElementId = useMemo(() => {
     if (subjects.phase !== 'ready') return new Map<string, PaidPromotionSubject>();
-    return new Map(subjects.data.map((subject) => [subject.trackId, subject]));
+    return new Map(subjects.data.map((subject) => [subject.elementId, subject]));
   }, [subjects]);
 
   // Server order is preserved inside each group; only the grouping reorders.
@@ -395,7 +410,7 @@ export function PaidPromotionHome() {
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-6 opacity-85">
               {totalCampaigns === null
-                ? 'Your campaigns and the tracks you have promoted.'
+                ? 'Your campaigns and the music you have promoted.'
                 : `${totalCampaigns} ${totalCampaigns === 1 ? 'campaign' : 'campaigns'} on your account, showing each one's latest server-confirmed status.`}
             </p>
           </div>
@@ -461,7 +476,7 @@ export function PaidPromotionHome() {
                         <CampaignCard
                           key={campaign.id}
                           campaign={campaign}
-                          subject={subjectsByTrackId.get(campaign.trackId)}
+                          subject={subjectsByElementId.get(campaign.elementId)}
                           // Only the single most urgent campaign gets the focal
                           // treatment; a page of focal cards has no hierarchy.
                           featured={groupIndex === 0 && index === 0}
@@ -481,35 +496,35 @@ export function PaidPromotionHome() {
               id="promoted-subjects-heading"
               className="font-atkinson text-xl font-bold tracking-tight text-foreground"
             >
-              Previously promoted tracks
+              Previously promoted music
             </h2>
             <p className="text-sm text-muted-foreground">
-              Canonical tracks from your owner-scoped catalog.
+              Canonical records from your owner-scoped catalog.
             </p>
           </div>
 
           <div className="mt-5">
             {subjects.phase === 'loading' ? (
-              <LoadingPanel label="Loading promoted tracks…" />
+              <LoadingPanel label="Loading promoted music…" />
             ) : subjects.phase === 'error' || subjects.phase === 'unknown' ? (
               <ResourceFailure kind="subjects" message={subjects.message} onRetry={() => void load()} />
             ) : subjects.data.length === 0 ? (
               <div className="flex items-center gap-3 border border-dashed border-border p-5">
                 <Music2 className="size-6 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div>
-                  <p className="font-atkinson font-bold text-foreground">No promoted tracks yet</p>
+                  <p className="font-atkinson font-bold text-foreground">Nothing promoted yet</p>
                   <p className="mt-0.5 text-sm text-muted-foreground">
-                    Tracks appear here after you create a paid-promotion campaign.
+                    Music you promote appears here after you create a paid-promotion campaign.
                   </p>
                 </div>
               </div>
             ) : (
               <ul
-                aria-label="Your previously promoted canonical tracks"
+                aria-label="Your previously promoted canonical records"
                 className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
                 {subjects.data.map((subject) => (
-                  <SubjectCard key={subject.trackId} subject={subject} />
+                  <SubjectCard key={subject.elementId} subject={subject} />
                 ))}
               </ul>
             )}

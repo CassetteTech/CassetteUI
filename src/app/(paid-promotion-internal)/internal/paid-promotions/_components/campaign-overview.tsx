@@ -1,4 +1,3 @@
-import { ArtworkImage } from '@/components/ui/artwork-image';
 import { Field, Panel, StatusPill } from '@/app/(sidebar)/internal/_components/kit';
 import type { InternalPaidPromotionCampaignDetail } from '@/types';
 import { formatDate, formatMoney, formatState, statusTone } from './paid-promotion-utils';
@@ -10,29 +9,6 @@ function formatCheckoutMoney(amountMinor: number | null, currency: string): stri
 export function CampaignOverview({ campaign }: { campaign: InternalPaidPromotionCampaignDetail }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
-      <Panel title="Canonical track" bodyClassName="p-4">
-        <div className="flex items-center gap-4">
-          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md border border-border">
-            <ArtworkImage
-              src={campaign.track.coverArtUrl}
-              alt={`Artwork for ${campaign.track.title}`}
-              fill
-              sizes="80px"
-              className="object-cover"
-            />
-          </div>
-          <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold text-foreground">{campaign.track.title}</h2>
-            <p className="truncate text-sm text-muted-foreground">
-              {campaign.track.artists.length > 0 ? campaign.track.artists.join(', ') : 'Unknown artist'}
-            </p>
-            <p className="mt-2 font-mono text-[10px] text-muted-foreground">
-              {campaign.track.id} · {formatState(campaign.sourcePlatform)}
-            </p>
-          </div>
-        </div>
-      </Panel>
-
       <Panel title="Lifecycle" bodyClassName="divide-y divide-border px-4 py-2">
         <Field label="Campaign">
           <StatusPill tone={statusTone(campaign.status)} label={formatState(campaign.status)} />
@@ -50,6 +26,22 @@ export function CampaignOverview({ campaign }: { campaign: InternalPaidPromotion
       <Panel title="Quote" bodyClassName="divide-y divide-border px-4 py-2">
         <Field label="Pricing mode">{formatState(campaign.pricingMode)}</Field>
         <Field label="Quote / subtotal">{formatMoney(campaign.amountMinor, campaign.currency)}</Field>
+        <Field label="Term">
+          {campaign.weeks === null
+            ? 'Not priced yet'
+            : `${campaign.weeks} ${campaign.weeks === 1 ? 'week' : 'weeks'}`}
+        </Field>
+        <Field label="Weekly rate">
+          {formatMoney(campaign.weeklyAmountMinor, campaign.currency)}
+        </Field>
+        <Field label="Duration discount">
+          {campaign.durationDiscountBps === null
+            ? 'None applied'
+            : `${campaign.durationDiscountBps / 100}%`}
+        </Field>
+        <Field label="Weekly deliverable minimum">
+          {campaign.weeklyDeliverableMinimum ?? 'Unavailable'}
+        </Field>
         <Field label="Rate source">{campaign.rateCardId ?? 'Immutable snapshot'}</Field>
         <Field label="Audit snapshots">{campaign.pricingSnapshots.length}</Field>
       </Panel>
@@ -111,12 +103,6 @@ export function CampaignOverview({ campaign }: { campaign: InternalPaidPromotion
         </Field>
         <Field label="Version">{campaign.attestationVersion ?? 'Missing'}</Field>
         <Field label="Attested">{formatDate(campaign.attestedAtUtc)}</Field>
-      </Panel>
-
-      <Panel title="Brief" bodyClassName="p-4">
-        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
-          {campaign.brief || 'No brief supplied.'}
-        </p>
       </Panel>
 
       {campaign.pricingSnapshots.length > 0 && (

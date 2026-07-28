@@ -139,3 +139,16 @@ const PAYMENT_STATUS_LABELS: Record<string, string> = {
 export function getPaidPromotionPaymentStatusLabel(status: string): string {
   return PAYMENT_STATUS_LABELS[status] ?? 'Status unavailable';
 }
+
+const ELEMENT_TYPE_LABELS: Record<string, string> = {
+  track: 'Track',
+  album: 'Album',
+  artist: 'Artist',
+  playlist: 'Playlist',
+};
+
+// A campaign subject always has a type, so an unrecognized one (a newer Bridge
+// deploy) still gets a badge rather than an empty slot.
+export function getPaidPromotionElementTypeLabel(elementType: string): string {
+  return ELEMENT_TYPE_LABELS[elementType] ?? 'Subject';
+}

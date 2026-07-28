@@ -36,15 +36,17 @@ test('renders the team queue once, filters it, and shows complete campaign detai
   await expect(page.getByText('Self Artist', { exact: true })).toBeVisible();
   await expect(page.getByText('Paid', { exact: true })).toBeVisible();
   await expect(page.getByText('Quote / subtotal', { exact: true }).last().locator('..'))
-    .toContainText('USD 250.00');
-  await expect(page.getByText('Discount', { exact: true }).locator('..'))
-    .toContainText('USD 50.00');
-  await expect(page.getByText('Tax', { exact: true }).locator('..'))
-    .toContainText('USD 15.00');
+    .toContainText('USD 90.00');
+  // Weekly pricing is part of the quote the team reviews.
+  await expect(page.getByText('Term', { exact: true }).locator('..')).toContainText('4 weeks');
+  await expect(page.getByText('Weekly rate', { exact: true }).locator('..'))
+    .toContainText('USD 25.00');
+  await expect(page.getByText('Duration discount', { exact: true }).locator('..'))
+    .toContainText('10%');
   await expect(page.getByText('Final total', { exact: true }).locator('..'))
-    .toContainText('USD 215.00');
+    .toContainText('USD 90.00');
   await expect(page.getByText('Refundable remainder', { exact: true }).locator('..'))
-    .toContainText('USD 215.00');
+    .toContainText('USD 90.00');
   await expect(page.getByText('Instagram', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Stuck Pending', { exact: true })).toBeVisible();
 });
@@ -75,6 +77,37 @@ test('manual quote submits only a server rate-card id', async ({ page }) => {
   expect(payload).not.toHaveProperty('currency');
   await expect(page.getByText('Manual Quote', { exact: true })).toBeVisible();
   await expect(page.getByText('pmq_FixtureSnapshot01', { exact: true })).toBeVisible();
+});
+
+test('reviews and refunds an album campaign the same way as a track', async ({ page }) => {
+  const albumCampaign = {
+    ...fixtureInternalPaidPromotionCampaign,
+    subject: {
+      id: 'a_123456789ABC',
+      elementType: 'album' as const,
+      title: 'Signal Fire (Deluxe)',
+      coverArtUrl: null,
+      subtitleNames: ['Mia Groove'],
+    },
+  };
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.team,
+    internalPaidPromotionCampaign: albumCampaign,
+  });
+
+  await page.goto('/internal/paid-promotions');
+  await expect(page.getByRole('cell', { name: /Signal Fire \(Deluxe\)/ })).toContainText('Album');
+
+  await page.getByRole('link', { name: fixturePaidPromotionCampaign.id, exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Signal Fire (Deluxe)', level: 1 })).toHaveCount(1);
+  await expect(page.getByText('Requested by').first()).toBeVisible();
+  await expect(page.getByText('a_123456789ABC', { exact: false })).toBeVisible();
+
+  // Every operator action stays available for a non-track subject.
+  await expect(page.getByRole('button', { name: 'Approve' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Reject' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Initiate refund' }).click();
+  await expect(page.getByTestId('paid-promotion-refund-policy')).toContainText('1 of 4');
 });
 
 test('runs approval and fulfillment transitions through refreshed server truth', async ({ page }) => {
@@ -163,15 +196,18 @@ test('shows the team subject catalog once through the paid-promotion shell', asy
   await mockCassetteApp(page, { currentUser: fixtureUsers.team });
 
   await page.goto('/internal/paid-promotions');
-  await page.getByRole('link', { name: 'Subjects' }).click();
+  await page.getByRole('link', { name: 'By release' }).click();
 
   await expect(page).toHaveURL('/internal/paid-promotions/subjects');
   await expect(page.getByRole('heading', { name: 'Subjects', level: 1 })).toHaveCount(1);
   const subjectTable = page.getByRole('table', { name: 'Paid-promotion canonical subject catalog' });
   await expect(subjectTable).toBeVisible();
-  await expect(page.getByRole('cell', { name: /Signal Fire/ })).toBeVisible();
+  await expect(page.getByRole('cell', { name: /Artwork for Signal Fire Track/ })).toBeVisible();
+  // Every catalog row carries its own element type, artist subjects included.
+  await expect(subjectTable.getByText('Album', { exact: true })).toBeVisible();
+  await expect(subjectTable.getByText('Artist', { exact: true })).toBeVisible();
   await expect(subjectTable.getByText('In Review · 1', { exact: true })).toBeVisible();
-  await expect(subjectTable.getByText('Completed · 1', { exact: true })).toBeVisible();
+  await expect(subjectTable.getByText('Completed · 1', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Focus on the release story and live arrangement.')).toHaveCount(0);
   await expect(page.getByText('pmp_FixturePayment01')).toHaveCount(0);
 });
@@ -212,7 +248,7 @@ test('shows subject loading, empty, authorization-error, and unknown states visi
   });
   await page.reload();
   await expect(page.getByRole('table', { name: 'Paid-promotion canonical subject catalog' })).toBeVisible();
-  await expect(page.getByText(fixturePaidPromotionSubjects[0].trackTitle).first()).toBeVisible();
+  await expect(page.getByText(fixturePaidPromotionSubjects[0].title).first()).toBeVisible();
   await expect(page.getByRole('alert').filter({
     hasText: 'Paid-promotion subjects could not be shown.',
   })).toHaveCount(0);
@@ -239,6 +275,15 @@ test('shows only refund pending and leaves refunded totals unchanged', async ({ 
   await page.goto('/internal/paid-promotions/' + fixturePaidPromotionCampaign.id);
 
   await page.getByRole('button', { name: 'Initiate refund' }).click();
+
+  // The policy numbers are shown beside the server's hard cap, and the amount
+  // field stays empty — the person issuing the refund decides.
+  const refundPolicy = page.getByTestId('paid-promotion-refund-policy');
+  await expect(refundPolicy).toContainText('1 of 4');
+  await expect(refundPolicy).toContainText('6750 minor units');
+  await expect(refundPolicy).toContainText('9000 minor units');
+  await expect(page.getByLabel('Amount in minor units (optional)')).toHaveValue('');
+
   const refundRequest = page.waitForRequest((request) =>
     request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/refund'),
   );
@@ -248,7 +293,8 @@ test('shows only refund pending and leaves refunded totals unchanged', async ({ 
 
   expect(request.postDataJSON()).toEqual({});
   await expect(page.getByText('Refund Pending', { exact: true })).toBeVisible();
-  await expect(page.getByText('USD 0.00', { exact: true })).toBeVisible();
+  await expect(page.getByText('Refunded amount', { exact: true }).locator('..'))
+    .toContainText('USD 0.00');
   await expect(page.getByText('Partially Refunded', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Refunded', { exact: true })).toHaveCount(0);
 });
@@ -269,7 +315,7 @@ test('reloads webhook-owned truth when refund initiation loses a race', async ({
   })).toBeVisible();
   await expect(page.getByText('Refunded', { exact: true })).toBeVisible();
   await expect(page.getByText('Refunded amount').locator('..')
-    .getByText('USD 215.00', { exact: true })).toBeVisible();
+    .getByText('USD 90.00', { exact: true })).toBeVisible();
   await expect(page.getByText('Refund Pending', { exact: true })).toHaveCount(0);
 });
 

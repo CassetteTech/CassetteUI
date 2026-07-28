@@ -101,20 +101,31 @@ export interface FixturePost {
 export interface FixturePaidPromotionRateCard {
   id: string;
   packageKey: string;
+  subjectType: 'track' | 'album' | 'artist' | 'playlist';
   version: number;
   displayName: string;
   description: string;
+  // Price per week; the campaign total is weekly × weeks less any discount.
   amountMinor: number;
   currency: string;
+  minWeeks: number;
+  maxWeeks: number;
+  weeklyDeliverableMinimum: number;
+  discountMinWeeks: number | null;
+  discountBps: number | null;
 }
 
 export interface FixturePaidPromotionCampaign {
   id: string;
-  trackId: string;
+  elementId: string;
+  elementType: 'track' | 'album' | 'artist' | 'playlist';
   sourcePlatform: 'spotify' | 'applemusic' | 'deezer';
   rateCardId: string;
   amountMinor: number;
   currency: string;
+  weeks: number;
+  weeklyAmountMinor: number;
+  durationDiscountBps: number | null;
   status: string;
   rejectionReason?: string | null;
   holdKind?: string | null;
@@ -154,13 +165,25 @@ export interface FixtureInternalPaidPromotionException {
   resolvedAtUtc: string | null;
 }
 
+export interface FixtureInternalPaidPromotionCustomer {
+  userId: string;
+  username: string;
+  displayName: string | null;
+  email: string;
+  promoterKind: string | null;
+  orgName: string | null;
+  website: string | null;
+}
+
 export interface FixtureInternalPaidPromotionCampaign {
   id: string;
-  track: {
+  customer: FixtureInternalPaidPromotionCustomer | null;
+  subject: {
     id: string;
+    elementType: 'track' | 'album' | 'artist' | 'playlist';
     title: string;
     coverArtUrl: string | null;
-    artists: string[];
+    subtitleNames: string[];
   };
   sourcePlatform: string;
   brief: string;
@@ -168,6 +191,12 @@ export interface FixtureInternalPaidPromotionCampaign {
   rateCardId: string | null;
   amountMinor: number | null;
   currency: string | null;
+  weeks: number | null;
+  weeklyAmountMinor: number | null;
+  durationDiscountBps: number | null;
+  weeklyDeliverableMinimum: number | null;
+  weeksDelivered: number | null;
+  policyRefundableMinor: number | null;
   status: string;
   statusChangedAtUtc: string;
   requestedWindowStart: string | null;
@@ -203,10 +232,11 @@ export interface FixtureInternalPaidPromotionCampaign {
 }
 
 export interface FixturePaidPromotionSubject {
-  trackId: string;
-  trackTitle: string;
+  elementId: string;
+  elementType: 'track' | 'album' | 'artist' | 'playlist';
+  title: string;
   coverArtUrl: string | null;
-  artists: string[];
+  subtitleNames: string[];
   campaignCount: number;
   campaignStatusCounts: Record<string, number>;
   firstCampaignAtUtc: string;
@@ -409,27 +439,87 @@ export const fixtureConvertTemplates = {
       appleMusic: 'https://music.apple.com/us/song/signal-fire/505050',
     },
   },
+  paidPromotionAlbum: {
+    postId: 'post-paid-promotion-album',
+    musicElementId: 'a_123456789ABC',
+    elementType: 'Album',
+    title: 'Signal Fire (Deluxe)',
+    artist: 'Mia Groove',
+    createdAt: FIXTURE_TIMESTAMP,
+    likeCount: 0,
+    likedByCurrentUser: false,
+    repostedByCurrentUser: false,
+    commentsEnabled: true,
+    conversionSuccessCount: 0,
+    originalUrl: 'https://open.spotify.com/album/paid-promotion-album-1',
+    convertedUrls: {
+      spotify: 'https://open.spotify.com/album/paid-promotion-album-1',
+    },
+  },
+  // Artists and playlists resolve to canonical records but have no rate card
+  // at launch; the intake must say so rather than fail.
+  paidPromotionArtist: {
+    postId: 'post-paid-promotion-artist',
+    musicElementId: 'r_123456789ABC',
+    elementType: 'Artist',
+    title: 'Mia Groove',
+    createdAt: FIXTURE_TIMESTAMP,
+    likeCount: 0,
+    likedByCurrentUser: false,
+    repostedByCurrentUser: false,
+    commentsEnabled: true,
+    conversionSuccessCount: 0,
+    originalUrl: 'https://open.spotify.com/artist/paid-promotion-artist-1',
+    convertedUrls: {
+      spotify: 'https://open.spotify.com/artist/paid-promotion-artist-1',
+    },
+  },
 } satisfies Record<string, FixturePost>;
 
 export const fixturePaidPromotionRateCards: FixturePaidPromotionRateCard[] = [
   {
     id: 'prc_LocalLaunch1',
     packageKey: 'launch',
+    subjectType: 'track',
     version: 1,
     displayName: 'Launch package',
-    description: 'A focused paid-placement package for one canonical track.',
-    amountMinor: 25000,
+    description: 'We post it on our Instagram story.',
+    amountMinor: 2500,
     currency: 'USD',
+    minWeeks: 1,
+    maxWeeks: 8,
+    weeklyDeliverableMinimum: 1,
+    discountMinWeeks: 4,
+    discountBps: 1000,
+  },
+  {
+    id: 'prc_LocalLaunchAlbum1',
+    packageKey: 'launch',
+    subjectType: 'album',
+    version: 1,
+    displayName: 'Launch package',
+    description: 'We post it on our Instagram story.',
+    amountMinor: 2500,
+    currency: 'USD',
+    minWeeks: 1,
+    maxWeeks: 8,
+    weeklyDeliverableMinimum: 1,
+    discountMinWeeks: 4,
+    discountBps: 1000,
   },
 ];
 
 export const fixturePaidPromotionCampaign: FixturePaidPromotionCampaign = {
   id: 'pmc_FixtureCampaign01',
-  trackId: fixtureConvertTemplates.paidPromotionTrack.musicElementId,
+  elementId: fixtureConvertTemplates.paidPromotionTrack.musicElementId,
+  elementType: 'track',
   sourcePlatform: 'spotify',
   rateCardId: fixturePaidPromotionRateCards[0].id,
   amountMinor: fixturePaidPromotionRateCards[0].amountMinor,
   currency: fixturePaidPromotionRateCards[0].currency,
+  weeks: 1,
+  weeklyAmountMinor: fixturePaidPromotionRateCards[0].amountMinor,
+  durationDiscountBps: null,
   status: 'pending_payment',
   paymentStatus: 'pending',
   discountAmountMinor: null,
@@ -443,20 +533,60 @@ export const fixturePaidPromotionCampaign: FixturePaidPromotionCampaign = {
   updatedAtUtc: FIXTURE_TIMESTAMP,
 };
 
+// A second campaign of another element type, so the type-generic promoter
+// surfaces are exercised against more than tracks.
+export const fixturePaidPromotionAlbumCampaign: FixturePaidPromotionCampaign = {
+  ...fixturePaidPromotionCampaign,
+  id: 'pmc_FixtureCampaign02',
+  elementId: fixtureConvertTemplates.paidPromotionAlbum.musicElementId,
+  elementType: 'album',
+  rateCardId: fixturePaidPromotionRateCards[1].id,
+  amountMinor: 9000,
+  weeks: 4,
+  weeklyAmountMinor: fixturePaidPromotionRateCards[1].amountMinor,
+  durationDiscountBps: 1000,
+  status: 'fulfilling',
+  paymentStatus: 'paid',
+  discountAmountMinor: 0,
+  taxAmountMinor: 0,
+  finalTotalMinor: 9000,
+  amountRefundedMinor: 0,
+  refundableRemainderMinor: 9000,
+};
+
+export const fixtureInternalPaidPromotionCustomer: FixtureInternalPaidPromotionCustomer = {
+  userId: 'user-member-1',
+  username: fixtureUsers.member.username,
+  displayName: fixtureUsers.member.displayName,
+  email: fixtureUsers.member.email,
+  promoterKind: 'artist',
+  orgName: 'Groove Collective',
+  website: 'https://example.com/mia',
+};
+
 export const fixtureInternalPaidPromotionCampaign: FixtureInternalPaidPromotionCampaign = {
   id: fixturePaidPromotionCampaign.id,
-  track: {
+  customer: fixtureInternalPaidPromotionCustomer,
+  subject: {
     id: fixtureConvertTemplates.paidPromotionTrack.musicElementId,
+    elementType: 'track',
     title: fixtureConvertTemplates.paidPromotionTrack.title,
     coverArtUrl: null,
-    artists: [fixtureConvertTemplates.paidPromotionTrack.artist],
+    subtitleNames: [fixtureConvertTemplates.paidPromotionTrack.artist],
   },
   sourcePlatform: 'spotify',
   brief: 'Focus on the release story and live arrangement.',
   pricingMode: 'rate_card',
   rateCardId: fixturePaidPromotionRateCards[0].id,
-  amountMinor: fixturePaidPromotionRateCards[0].amountMinor,
+  // A four-week campaign at the discounted weekly rate: 4 × $25 less 10%.
+  amountMinor: 9000,
   currency: fixturePaidPromotionRateCards[0].currency,
+  weeks: 4,
+  weeklyAmountMinor: fixturePaidPromotionRateCards[0].amountMinor,
+  durationDiscountBps: 1000,
+  weeklyDeliverableMinimum: 1,
+  weeksDelivered: 1,
+  policyRefundableMinor: 6750,
   status: 'in_review',
   statusChangedAtUtc: FIXTURE_TIMESTAMP,
   requestedWindowStart: null,
@@ -466,13 +596,13 @@ export const fixtureInternalPaidPromotionCampaign: FixtureInternalPaidPromotionC
   attestedRelationship: 'self_artist',
   payment: {
     id: 'pmp_FixturePayment01',
-    amountMinor: fixturePaidPromotionRateCards[0].amountMinor,
+    amountMinor: 9000,
     currency: fixturePaidPromotionRateCards[0].currency,
-    discountAmountMinor: 5000,
-    taxAmountMinor: 1500,
-    finalTotalMinor: 21500,
+    discountAmountMinor: 0,
+    taxAmountMinor: 0,
+    finalTotalMinor: 9000,
     amountRefundedMinor: 0,
-    refundableRemainderMinor: 21500,
+    refundableRemainderMinor: 9000,
     status: 'paid',
     statusChangedAtUtc: FIXTURE_TIMESTAMP,
     paidAtUtc: FIXTURE_TIMESTAMP,
@@ -511,13 +641,42 @@ export const fixtureInternalPaidPromotionCampaign: FixtureInternalPaidPromotionC
 
 export const fixturePaidPromotionSubjects: FixturePaidPromotionSubject[] = [
   {
-    trackId: fixtureConvertTemplates.paidPromotionTrack.musicElementId,
-    trackTitle: fixtureConvertTemplates.paidPromotionTrack.title,
+    elementId: fixtureConvertTemplates.paidPromotionTrack.musicElementId,
+    elementType: 'track',
+    title: fixtureConvertTemplates.paidPromotionTrack.title,
     coverArtUrl: null,
-    artists: [fixtureConvertTemplates.paidPromotionTrack.artist],
+    subtitleNames: [fixtureConvertTemplates.paidPromotionTrack.artist],
     campaignCount: 2,
     campaignStatusCounts: {
       in_review: 1,
+      completed: 1,
+    },
+    firstCampaignAtUtc: FIXTURE_TIMESTAMP,
+    latestCampaignAtUtc: FIXTURE_TIMESTAMP,
+  },
+  {
+    elementId: fixtureConvertTemplates.paidPromotionAlbum.musicElementId,
+    elementType: 'album',
+    title: fixtureConvertTemplates.paidPromotionAlbum.title,
+    coverArtUrl: null,
+    subtitleNames: [fixtureConvertTemplates.paidPromotionAlbum.artist],
+    campaignCount: 1,
+    campaignStatusCounts: {
+      fulfilling: 1,
+    },
+    firstCampaignAtUtc: FIXTURE_TIMESTAMP,
+    latestCampaignAtUtc: FIXTURE_TIMESTAMP,
+  },
+  // An artist subject carries no secondary names — the type-generic renderers
+  // must not fall back to "artist unavailable" for it.
+  {
+    elementId: fixtureConvertTemplates.paidPromotionArtist.musicElementId,
+    elementType: 'artist',
+    title: fixtureConvertTemplates.paidPromotionArtist.title,
+    coverArtUrl: null,
+    subtitleNames: [],
+    campaignCount: 1,
+    campaignStatusCounts: {
       completed: 1,
     },
     firstCampaignAtUtc: FIXTURE_TIMESTAMP,
@@ -557,6 +716,26 @@ export const fixtureSearchResultsByQuery: Record<string, FixtureSearchResults> =
     artists: [],
     playlists: [],
   },
+};
+
+// Search entry whose result resolves to a canonical, promotable subject, so
+// the paid-promotion intake's search path can be exercised end to end. The
+// `blue monday` entry above resolves to a non-canonical element id and is not
+// usable for that flow.
+fixtureSearchResultsByQuery['signal fire'] = {
+  tracks: [
+    {
+      id: 'search-track-paid-promotion',
+      title: fixtureConvertTemplates.paidPromotionTrack.title,
+      artist: fixtureConvertTemplates.paidPromotionTrack.artist,
+      externalUrls: {
+        spotify: fixtureConvertTemplates.paidPromotionTrack.originalUrl,
+      },
+    },
+  ],
+  albums: [],
+  artists: [],
+  playlists: [],
 };
 
 export const fixtureUsernameAvailability: Record<string, boolean> = {

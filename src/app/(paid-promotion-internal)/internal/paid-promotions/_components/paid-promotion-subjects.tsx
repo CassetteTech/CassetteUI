@@ -19,6 +19,7 @@ import { Panel, SectionHeader, StatusPill } from '@/app/(sidebar)/internal/_comp
 import {
   PAID_PROMOTION_CAMPAIGN_STATUSES,
 } from '@/services/internal-paid-promotions';
+import { getPaidPromotionElementTypeLabel } from '@/services/paid-promotion-status-presentation';
 import { paidPromotionSubjectsService } from '@/services/paid-promotion-subjects';
 import type { PaidPromotionSubject } from '@/types';
 import { errorMessage, formatDate, formatState, statusTone } from './paid-promotion-utils';
@@ -41,19 +42,25 @@ function SubjectIdentity({ subject, compact = false }: {
       <div className={`relative shrink-0 overflow-hidden rounded-md border border-border ${sizeClassName}`}>
         <ArtworkImage
           src={subject.coverArtUrl}
-          alt={`Artwork for ${subject.trackTitle}`}
+          alt={`Artwork for ${subject.title}`}
           fill
           sizes={compact ? '48px' : '56px'}
           className="object-cover"
         />
       </div>
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-foreground">{subject.trackTitle}</p>
-        <p className="truncate text-xs text-muted-foreground">
-          {subject.artists.length > 0 ? subject.artists.join(', ') : 'Unknown artist'}
+        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          {getPaidPromotionElementTypeLabel(subject.elementType)}
         </p>
+        <p className="truncate text-sm font-medium text-foreground">{subject.title}</p>
+        {/* Artists exist for tracks and albums only. */}
+        {subject.subtitleNames.length > 0 && (
+          <p className="truncate text-xs text-muted-foreground">
+            {subject.subtitleNames.join(', ')}
+          </p>
+        )}
         <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
-          {subject.trackId}
+          {subject.elementId}
         </p>
       </div>
     </div>
@@ -134,7 +141,7 @@ export function PaidPromotionSubjects() {
         {announcement}
       </output>
 
-      <Panel title="Canonical tracks" className="overflow-hidden" bodyClassName="min-h-28">
+      <Panel title="Canonical subjects" className="overflow-hidden" bodyClassName="min-h-28">
         {loading ? (
           <output className="block p-6 text-sm text-muted-foreground">
             Loading paid-promotion subjects…
@@ -151,7 +158,7 @@ export function PaidPromotionSubjects() {
           <EmptyState
             icon={Music2}
             title="No promoted subjects"
-            description="No canonical tracks have a paid-promotion campaign yet."
+            description="No canonical records have a paid-promotion campaign yet."
           />
         ) : (
           <>
@@ -160,7 +167,7 @@ export function PaidPromotionSubjects() {
                 <TableCaption className="sr-only">Paid-promotion canonical subject catalog</TableCaption>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Canonical track</TableHead>
+                    <TableHead>Canonical subject</TableHead>
                     <TableHead>Campaigns</TableHead>
                     <TableHead>Status rollup</TableHead>
                     <TableHead>First campaign</TableHead>
@@ -169,7 +176,7 @@ export function PaidPromotionSubjects() {
                 </TableHeader>
                 <TableBody>
                   {subjects.map((subject) => (
-                    <TableRow key={subject.trackId}>
+                    <TableRow key={subject.elementId}>
                       <TableCell className="max-w-80 whitespace-normal">
                         <SubjectIdentity subject={subject} />
                       </TableCell>
@@ -193,7 +200,7 @@ export function PaidPromotionSubjects() {
 
             <ul className="divide-y divide-border md:hidden" aria-label="Paid-promotion canonical subject catalog">
               {subjects.map((subject) => (
-                <li key={subject.trackId} className="space-y-3 p-3">
+                <li key={subject.elementId} className="space-y-3 p-3">
                   <SubjectIdentity subject={subject} compact />
                   <dl className="grid grid-cols-2 gap-2 text-xs">
                     <div>
@@ -209,7 +216,7 @@ export function PaidPromotionSubjects() {
                       <dd>{formatDate(subject.latestCampaignAtUtc)}</dd>
                     </div>
                   </dl>
-                  <div aria-label={`Campaign status rollup for ${subject.trackTitle}`}>
+                  <div aria-label={`Campaign status rollup for ${subject.title}`}>
                     <StatusRollup subject={subject} />
                   </div>
                 </li>

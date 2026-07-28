@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, LibraryBig, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -18,19 +18,50 @@ import {
   SectionHeader,
   StatusPill,
 } from '@/app/(sidebar)/internal/_components/kit';
+import { getPaidPromotionElementTypeLabel } from '@/services/paid-promotion-status-presentation';
 import {
   internalPaidPromotionsService,
   PAID_PROMOTION_CAMPAIGN_STATUSES,
   PAID_PROMOTION_PAYMENT_STATUSES,
 } from '@/services/internal-paid-promotions';
+import { ArtworkImage } from '@/components/ui/artwork-image';
 import type {
   InternalPaidPromotionCampaignSummary,
+  InternalPaidPromotionCustomer,
   InternalPaidPromotionException,
 } from '@/types';
 import { ActionDialog } from './action-dialog';
 import { errorMessage, formatDate, formatMoney, formatState, statusTone } from './paid-promotion-utils';
 
 type ExceptionFilter = 'all' | 'open' | 'none';
+
+/**
+ * Who booked the campaign. A deleted account still has campaigns and payments,
+ * so this states that plainly rather than rendering an empty cell that reads
+ * like a loading bug.
+ */
+function CustomerCell({ customer }: { customer: InternalPaidPromotionCustomer | null }) {
+  if (!customer) {
+    return <span className="text-xs italic text-muted-foreground">Account deleted</span>;
+  }
+
+  return (
+    <div className="min-w-0">
+      <Link
+        href={`/profile/${encodeURIComponent(customer.username)}`}
+        className="block truncate rounded-sm text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {customer.displayName?.trim() || customer.username}
+      </Link>
+      <a
+        href={`mailto:${customer.email}`}
+        className="block truncate rounded-sm font-mono text-[10px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {customer.email}
+      </a>
+    </div>
+  );
+}
 
 const selectClassName =
   'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50';
@@ -116,12 +147,6 @@ export function PaidPromotionQueue() {
         count={loading ? undefined : campaigns.length}
         actions={(
           <>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/internal/paid-promotions/subjects">
-                <LibraryBig aria-hidden="true" />
-                Subjects
-              </Link>
-            </Button>
             <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => void load()}>
               <RefreshCw aria-hidden="true" />
               Refresh
@@ -200,34 +225,68 @@ export function PaidPromotionQueue() {
                 <TableCaption className="sr-only">Paid-promotion campaign queue</TableCaption>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Track</TableHead>
-                    <TableHead>Campaign</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Requested by</TableHead>
                     <TableHead>Quote</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Campaign</TableHead>
                     <TableHead>Payment</TableHead>
-                    <TableHead>Exceptions</TableHead>
                     <TableHead className="text-right">Updated</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {campaigns.map((campaign) => (
                     <TableRow key={campaign.id}>
-                      <TableCell className="max-w-64 whitespace-normal font-medium">
-                        {campaign.trackTitle}
-                        <span className="block font-mono text-[10px] text-muted-foreground">
-                          {formatState(campaign.sourcePlatform)}
-                        </span>
+                      <TableCell className="max-w-72 whitespace-normal">
+                        <div className="flex items-start gap-3">
+                          <div className="relative size-10 shrink-0 overflow-hidden rounded border border-border">
+                            <ArtworkImage
+                              src={campaign.coverArtUrl}
+                              alt=""
+                              fill
+                              sizes="40px"
+                              className="object-cover"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <Link
+                              href={`/internal/paid-promotions/${encodeURIComponent(campaign.id)}`}
+                              className="rounded-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              {campaign.title}
+                            </Link>
+                            <span className="block font-mono text-[10px] text-muted-foreground">
+                              {getPaidPromotionElementTypeLabel(campaign.elementType)} ·{' '}
+                              {formatState(campaign.sourcePlatform)} ·{' '}
+                              {/* The id stays its own link: ops navigate by id
+                                  from incident notes and exception rows. */}
+                              <Link
+                                href={`/internal/paid-promotions/${encodeURIComponent(campaign.id)}`}
+                                className="rounded-sm underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              >
+                                {campaign.id}
+                              </Link>
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-56 whitespace-normal">
+                        <CustomerCell customer={campaign.customer} />
+                      </TableCell>
+                      <TableCell className="tabular-nums">
+                        {formatMoney(campaign.amountMinor, campaign.currency)}
                       </TableCell>
                       <TableCell>
-                        <Button asChild variant="link" className="h-auto p-0 font-mono text-xs">
-                          <Link href={`/internal/paid-promotions/${encodeURIComponent(campaign.id)}`}>
-                            {campaign.id}
-                          </Link>
-                        </Button>
-                      </TableCell>
-                      <TableCell>{formatMoney(campaign.amountMinor, campaign.currency)}</TableCell>
-                      <TableCell>
-                        <StatusPill tone={statusTone(campaign.status)} label={formatState(campaign.status)} />
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <StatusPill tone={statusTone(campaign.status)} label={formatState(campaign.status)} />
+                          {/* A bare count reads as data; ops need the row to
+                              announce that it needs attention. */}
+                          {campaign.openExceptionCount > 0 && (
+                            <StatusPill
+                              tone="warning"
+                              label={`${campaign.openExceptionCount} open`}
+                            />
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {campaign.paymentStatus ? (
@@ -239,7 +298,6 @@ export function PaidPromotionQueue() {
                           <span className="text-xs text-muted-foreground">None</span>
                         )}
                       </TableCell>
-                      <TableCell className="tabular-nums">{campaign.openExceptionCount}</TableCell>
                       <TableCell className="text-right text-xs text-muted-foreground">
                         {formatDate(campaign.updatedAtUtc)}
                       </TableCell>
@@ -253,16 +311,37 @@ export function PaidPromotionQueue() {
               {campaigns.map((campaign) => (
                 <li key={campaign.id} className="space-y-2 p-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{campaign.trackTitle}</p>
-                      <p className="font-mono text-[10px] text-muted-foreground">{campaign.id}</p>
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="relative size-10 shrink-0 overflow-hidden rounded border border-border">
+                        <ArtworkImage
+                          src={campaign.coverArtUrl}
+                          alt=""
+                          fill
+                          sizes="40px"
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{campaign.title}</p>
+                        <p className="font-mono text-[10px] text-muted-foreground">
+                          {getPaidPromotionElementTypeLabel(campaign.elementType)} · {campaign.id}
+                        </p>
+                      </div>
                     </div>
-                    <StatusPill tone={statusTone(campaign.status)} label={formatState(campaign.status)} />
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <StatusPill tone={statusTone(campaign.status)} label={formatState(campaign.status)} />
+                      {campaign.openExceptionCount > 0 && (
+                        <StatusPill tone="warning" label={`${campaign.openExceptionCount} open`} />
+                      )}
+                    </div>
                   </div>
                   <dl className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="col-span-2">
+                      <dt className="text-muted-foreground">Requested by</dt>
+                      <dd><CustomerCell customer={campaign.customer} /></dd>
+                    </div>
                     <div><dt className="text-muted-foreground">Quote</dt><dd>{formatMoney(campaign.amountMinor, campaign.currency)}</dd></div>
                     <div><dt className="text-muted-foreground">Payment</dt><dd>{campaign.paymentStatus ? formatState(campaign.paymentStatus) : 'None'}</dd></div>
-                    <div><dt className="text-muted-foreground">Exceptions</dt><dd>{campaign.openExceptionCount}</dd></div>
                     <div><dt className="text-muted-foreground">Updated</dt><dd>{formatDate(campaign.updatedAtUtc)}</dd></div>
                   </dl>
                   <Button asChild variant="outline" size="sm" className="w-full">

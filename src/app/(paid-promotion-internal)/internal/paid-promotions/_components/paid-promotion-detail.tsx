@@ -15,6 +15,7 @@ import type {
 } from '@/types';
 import { ActionDialog } from './action-dialog';
 import { CampaignOverview } from './campaign-overview';
+import { CampaignSummary } from './campaign-summary';
 import { DeliverableDialog } from './deliverable-dialog';
 import { DeliverablesPanel } from './deliverables-panel';
 import { ExceptionsPanel } from './exceptions-panel';
@@ -257,7 +258,7 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
 
       <SectionHeader
         section="Paid Promotions"
-        title={campaign.track.title}
+        title={campaign.subject.title}
         actions={(
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void load(true)}>
             <RefreshCw aria-hidden="true" /> Refresh
@@ -328,7 +329,7 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
         </div>
       )}
 
-      <CampaignOverview campaign={campaign} />
+      <CampaignSummary campaign={campaign} />
 
       <DeliverablesPanel
         deliverables={campaign.deliverables}
@@ -356,6 +357,24 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
           setResolvingException(exception);
         }}
       />
+
+      {/* The full record sits below the work. It stays expanded — these values
+          are what you cite in an incident or a refund decision, so hiding them
+          behind a disclosure would cost a click every time they matter. */}
+      <section aria-labelledby="campaign-record-heading" className="space-y-4 pt-2">
+        <div className="border-t border-border pt-5">
+          <h2
+            id="campaign-record-heading"
+            className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+          >
+            Campaign record
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Lifecycle, quote, payment, and audit values as persisted.
+          </p>
+        </div>
+        <CampaignOverview campaign={campaign} />
+      </section>
 
       {lifecycleAction && (
         <ActionDialog
@@ -422,6 +441,35 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
         busy={busy}
         onConfirm={submitRefund}
       >
+        {/* The policy number is shown, never pre-filled: it is what the
+            published-deliverable count says is owed, while the remainder is
+            the hard cap the Bridge enforces. The person issuing the refund
+            decides which applies. */}
+        <dl
+          data-testid="paid-promotion-refund-policy"
+          className="grid gap-1.5 rounded-md border border-border p-3 text-xs"
+        >
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">Weeks delivered</dt>
+            <dd className="tabular-nums">
+              {campaign.weeksDelivered === null || campaign.weeks === null
+                ? 'Unavailable'
+                : `${campaign.weeksDelivered} of ${campaign.weeks}`}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">Policy suggestion</dt>
+            <dd className="tabular-nums">
+              {campaign.policyRefundableMinor === null
+                ? 'Unavailable'
+                : `${campaign.policyRefundableMinor} minor units`}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">Server remainder cap</dt>
+            <dd className="tabular-nums">{refundableRemainderMinor} minor units</dd>
+          </div>
+        </dl>
         <div className="grid gap-1.5">
           <Label htmlFor="refund-amount">Amount in minor units (optional)</Label>
           <Input

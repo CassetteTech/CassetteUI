@@ -2,6 +2,7 @@ import type {
   PaidPromotionCampaign,
   PaidPromotionCampaignStatus,
   PaidPromotionPaymentStatus,
+  PaidPromotionRateCard,
 } from '@/types';
 
 /**
@@ -47,7 +48,11 @@ export function parsePaidPromotionCampaign(value: unknown): PaidPromotionCampaig
 
   return {
     id: string(item.id, 'campaign.id'),
-    trackId: string(item.trackId, 'campaign.trackId'),
+    elementId: string(item.elementId, 'campaign.elementId'),
+    elementType: string(
+      item.elementType,
+      'campaign.elementType',
+    ) as PaidPromotionCampaign['elementType'],
     sourcePlatform: string(
       item.sourcePlatform,
       'campaign.sourcePlatform',
@@ -55,6 +60,9 @@ export function parsePaidPromotionCampaign(value: unknown): PaidPromotionCampaig
     rateCardId: nullableString(item.rateCardId, 'campaign.rateCardId'),
     amountMinor: integer(item.amountMinor, 'campaign.amountMinor'),
     currency: string(item.currency, 'campaign.currency'),
+    weeks: integer(item.weeks, 'campaign.weeks'),
+    weeklyAmountMinor: integer(item.weeklyAmountMinor, 'campaign.weeklyAmountMinor'),
+    durationDiscountBps: nullableInteger(item.durationDiscountBps, 'campaign.durationDiscountBps'),
     status: string(item.status, 'campaign.status') as PaidPromotionCampaignStatus,
     rejectionReason: nullableString(item.rejectionReason, 'campaign.rejectionReason'),
     holdKind: nullableString(item.holdKind, 'campaign.holdKind'),
@@ -97,6 +105,51 @@ export function hasKnownPaidPromotionCheckoutTotals(campaign: PaidPromotionCampa
     campaign.finalTotalMinor !== null &&
     campaign.amountRefundedMinor !== null &&
     campaign.refundableRemainderMinor !== null;
+}
+
+/**
+ * Display-only mirror of the Bridge's weekly pricing, so the buyer sees the
+ * amount before leaving for checkout. The charged amount is always recomputed
+ * server-side from the rate card and the chosen weeks; none of this is sent.
+ * The discount rounds up like the server's, so a quoted total never reads high.
+ */
+export function computePaidPromotionPricing(
+  rateCard: Pick<PaidPromotionRateCard, 'amountMinor' | 'discountMinWeeks' | 'discountBps'>,
+  weeks: number,
+): { grossMinor: number; discountMinor: number; totalMinor: number } {
+  const grossMinor = rateCard.amountMinor * weeks;
+  const discountApplies =
+    rateCard.discountMinWeeks !== null &&
+    rateCard.discountBps !== null &&
+    weeks >= rateCard.discountMinWeeks;
+  const discountMinor = discountApplies
+    ? Math.ceil((grossMinor * (rateCard.discountBps ?? 0)) / 10_000)
+    : 0;
+
+  return { grossMinor, discountMinor, totalMinor: grossMinor - discountMinor };
+}
+
+/**
+ * Renders a server-owned minor-unit amount using the platform's own currency
+ * data, which knows how many minor units each code actually has (JPY has none,
+ * USD has two). A code the runtime cannot resolve degrades to the raw code plus
+ * a two-decimal amount rather than throwing: these amounts are rendered inline
+ * across the intake, so a throw here blanks the whole page instead of one price.
+ */
+export function formatPaidPromotionMinorAmount(amountMinor: number, currency: string): string {
+  const code = currency.trim().toUpperCase();
+
+  try {
+    const formatter = new Intl.NumberFormat(undefined, { style: 'currency', currency: code });
+    const fractionDigits = formatter.resolvedOptions().maximumFractionDigits;
+    if (fractionDigits !== undefined) {
+      return formatter.format(amountMinor / 10 ** fractionDigits);
+    }
+  } catch {
+    // Unresolvable currency code — fall through to the plain rendering.
+  }
+
+  return `${code} ${(amountMinor / 100).toFixed(2)}`;
 }
 
 export type PaidPromotionReturnState =

@@ -38,7 +38,7 @@ test('runs the trimmed promote-intent onboarding and returns to the campaign int
   await page.getByTestId('onboarding-handle-next').click();
 
   await expect(page).toHaveURL('/promote/new');
-  await expect(page.getByTestId('paid-promotion-track-input')).toBeVisible();
+  await expect(page.getByTestId('paid-promotion-subject-input')).toBeVisible();
 });
 
 test('resumes add-music after a gated visitor completes onboarding', async ({ page }) => {

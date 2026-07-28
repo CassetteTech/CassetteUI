@@ -309,14 +309,26 @@ export type PaidPromotionPaymentStatus =
   | 'disputed'
   | 'charged_back';
 
+// Canonical element types a paid-promotion campaign can be bought for. The
+// server derives this from the element-id prefix (t_/a_/r_/l_).
+export type PaidPromotionElementType = 'track' | 'album' | 'artist' | 'playlist';
+
 export interface PaidPromotionRateCard {
   id: string;
   packageKey: string;
+  subjectType: PaidPromotionElementType;
   version: number;
   displayName: string;
   description: string;
+  // Price per week. The charged total is weekly × chosen weeks less any
+  // duration discount, always computed server-side.
   amountMinor: number;
   currency: string;
+  minWeeks: number;
+  maxWeeks: number;
+  weeklyDeliverableMinimum: number;
+  discountMinWeeks: number | null;
+  discountBps: number | null;
 }
 
 export interface PaidPromotionAttestation {
@@ -330,9 +342,10 @@ export interface PaidPromotionRateCardsResponse {
 }
 
 export interface CreatePaidPromotionCampaignRequest {
-  trackId: string;
+  elementId: string;
   submittedUrl: string;
   rateCardId: string;
+  weeks: number;
   brief: string;
   requestedWindowStart?: string;
   requestedWindowEnd?: string;
@@ -345,11 +358,15 @@ export interface CreatePaidPromotionCampaignRequest {
 
 export interface PaidPromotionCampaign {
   id: string;
-  trackId: string;
+  elementId: string;
+  elementType: PaidPromotionElementType;
   sourcePlatform: 'spotify' | 'applemusic' | 'deezer';
   rateCardId: string | null;
   amountMinor: number;
   currency: string;
+  weeks: number;
+  weeklyAmountMinor: number;
+  durationDiscountBps: number | null;
   status: PaidPromotionCampaignStatus;
   rejectionReason: string | null;
   holdKind: string | null;
@@ -373,10 +390,13 @@ export interface PaidPromotionCheckoutSessionResponse {
 }
 
 export interface PaidPromotionSubject {
-  trackId: string;
-  trackTitle: string;
+  elementId: string;
+  elementType: PaidPromotionElementType;
+  title: string;
   coverArtUrl: string | null;
-  artists: string[];
+  // Secondary display line: artist names for tracks and albums, empty for
+  // artists and playlists.
+  subtitleNames: string[];
   campaignCount: number;
   campaignStatusCounts: Partial<Record<PaidPromotionCampaignStatus, number>>;
   firstCampaignAtUtc: string;
@@ -410,10 +430,28 @@ export type PaidPromotionExceptionKind =
 
 export type PaidPromotionExceptionStatus = 'open' | 'resolved';
 
+/**
+ * Who booked the campaign. Null when the account has been deleted — financial
+ * records outlive accounts, so the console renders the campaign either way.
+ * Promoter-profile fields are populated on campaign detail only.
+ */
+export interface InternalPaidPromotionCustomer {
+  userId: string;
+  username: string;
+  displayName: string | null;
+  email: string;
+  promoterKind: PaidPromotionPromoterKind | null;
+  orgName: string | null;
+  website: string | null;
+}
+
 export interface InternalPaidPromotionCampaignSummary {
   id: string;
-  trackId: string;
-  trackTitle: string;
+  customer: InternalPaidPromotionCustomer | null;
+  elementId: string;
+  elementType: PaidPromotionElementType;
+  title: string;
+  coverArtUrl: string | null;
   sourcePlatform: 'spotify' | 'applemusic' | 'deezer';
   pricingMode: PaidPromotionPricingMode;
   amountMinor: number | null;
@@ -425,11 +463,12 @@ export interface InternalPaidPromotionCampaignSummary {
   updatedAtUtc: string;
 }
 
-export interface InternalPaidPromotionTrack {
+export interface InternalPaidPromotionSubject {
   id: string;
+  elementType: PaidPromotionElementType;
   title: string;
   coverArtUrl: string | null;
-  artists: string[];
+  subtitleNames: string[];
 }
 
 export interface InternalPaidPromotionPayment {
@@ -481,13 +520,25 @@ export interface InternalPaidPromotionPricingSnapshot {
 
 export interface InternalPaidPromotionCampaignDetail {
   id: string;
-  track: InternalPaidPromotionTrack;
+  subject: InternalPaidPromotionSubject;
+  customer: InternalPaidPromotionCustomer | null;
   sourcePlatform: 'spotify' | 'applemusic' | 'deezer';
   brief: string;
   pricingMode: PaidPromotionPricingMode;
   rateCardId: string | null;
   amountMinor: number | null;
   currency: string | null;
+  weeks: number | null;
+  weeklyAmountMinor: number | null;
+  durationDiscountBps: number | null;
+  weeklyDeliverableMinimum: number | null;
+
+  // Effort-week refund accounting: weeks delivered from published deliverables
+  // against the package's weekly minimum, and the prorated policy suggestion
+  // for the undelivered weeks. Advisory — refunds stay human-issued and
+  // server-bounded by the payment's real remainder.
+  weeksDelivered: number | null;
+  policyRefundableMinor: number | null;
   status: PaidPromotionCampaignStatus;
   statusChangedAtUtc: string;
   requestedWindowStart: string | null;

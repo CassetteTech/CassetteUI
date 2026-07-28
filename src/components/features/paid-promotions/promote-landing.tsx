@@ -13,44 +13,46 @@ import {
 // language, and legal disclosure text are pending product/legal sign-off.
 // Server rate cards remain the only source of real checkout pricing.
 //
-// `soon: true` marks a deliverable that is not live yet. Cassette's own
-// Instagram is the only delivery channel at launch; Explore boosts, curator
-// playlists, and in-playlist suggestions ship later. Flip a line's `soon`
-// flag when its channel goes live — nothing else on the page needs editing.
+// Availability is per package, never per line: a package either ships whole or
+// is not sold. Boost is everything Cassette can deliver today; Spotlight and
+// Headline are shown to say where this is going, priced nowhere and buyable
+// nowhere until their deliverables actually exist.
+//
+// Sold for tracks and albums. Artist and playlist campaigns resolve but have
+// no rate card yet; when they do, they become server rate-card rows.
 const DRAFT_PACKAGES = [
   {
     name: 'Boost',
-    draftPrice: '$49',
-    summary: 'A first push for a new release.',
-    window: 'Runs about a week once your track clears review.',
+    available: true,
+    draftWeeklyPrice: '$25',
+    minWeeks: 1,
+    maxWeeks: 8,
+    soldFor: 'Tracks and albums',
+    discount: '10% off when you buy 4 weeks or more',
+    summary: 'Your music on Cassette’s Instagram, every week you buy.',
     deliverables: [
-      { text: 'A feed post on Cassette’s Instagram, built around your track' },
-      { text: 'Story placements across the campaign window' },
-      { text: 'A boost in the Cassette Explore feed', soon: true },
+      'At least one story placement on Cassette’s Instagram every paid week',
+      'Better odds of surfacing in the Cassette Explore feed',
+      'Continuous management of the campaign — creative, timing, and channel choice',
     ],
   },
   {
     name: 'Spotlight',
-    draftPrice: '$149',
-    summary: 'Boost, plus a Reel and a longer run.',
-    window: 'Runs one to two weeks once your track clears review.',
+    available: false,
+    summary: 'Boost, plus original video and placement inside the app.',
+    inherits: 'Everything in Boost, plus',
     deliverables: [
-      { text: 'Everything in Boost' },
-      { text: 'A Reel cut around your track' },
-      { text: 'Repeat placements across the campaign window' },
-      { text: 'Considered for Cassette curator playlists', soon: true },
+      'A Reel cut around what you’re promoting',
+      'Your music suggested to listeners on Cassette alongside what it fits',
     ],
   },
   {
     name: 'Headline',
-    draftPrice: '$349',
-    summary: 'The loudest we get for a single track.',
-    window: 'Scheduled with you; typically runs two weeks.',
+    available: false,
+    summary: 'Spotlight, plus a route into curator playlists.',
+    inherits: 'Everything in Spotlight, plus',
     deliverables: [
-      { text: 'Everything in Spotlight' },
-      { text: 'A pinned feature across the whole campaign' },
-      { text: 'A delivery recap linking every post we ran' },
-      { text: 'Suggested into Cassette playlists your track fits', soon: true },
+      'Your music put in front of Cassette curators to add to their own playlists',
     ],
   },
 ] as const;
@@ -59,22 +61,22 @@ const HOW_IT_WORKS = [
   {
     step: '01',
     title: 'Paste the link',
-    body: 'Drop a Spotify, Apple Music, or Deezer URL. Cassette resolves it to the canonical track record it will promote, so you and we are looking at the same song.',
+    body: 'Drop a Spotify, Apple Music, or Deezer URL for a track or an album. Cassette resolves it to the canonical record it will promote, so you and we are looking at the same music.',
   },
   {
     step: '02',
-    title: 'Pick a package',
-    body: 'Choose what you want run, tell us about the release, and confirm you are authorized to promote the track.',
+    title: 'Pick your run length',
+    body: 'Choose how many weeks the campaign runs, tell us about the release, and confirm you are authorized to promote it. Longer runs cost less per week.',
   },
   {
     step: '03',
     title: 'Pay through Stripe',
-    body: 'Checkout is hosted by Stripe. Prices come from Cassette’s server-owned rate card, and your card details never touch Cassette.',
+    body: 'Checkout is hosted by Stripe and charged once, upfront. Prices come from Cassette’s server-owned rate card, and your card details never touch Cassette.',
   },
   {
     step: '04',
     title: 'Someone listens',
-    body: 'A person at Cassette plays your track and decides whether we can get behind it. You always get an answer — and if we pass, you get the reason and a full refund.',
+    body: 'A person at Cassette plays your music and decides whether we can get behind it. You always get an answer — and if we pass, you get the reason and a full refund.',
   },
   {
     step: '05',
@@ -95,7 +97,7 @@ const NOT_THIS = [
   },
   {
     label: 'No paying for silence',
-    body: 'Every campaign gets a human answer. If we pass on your track, we say why and refund you in full.',
+    body: 'Every campaign gets a human answer. If we pass on your music, we say why and refund you in full.',
   },
 ] as const;
 
@@ -114,12 +116,13 @@ export function PromoteLanding({ signedIn = false }: { signedIn?: boolean }) {
         <div className="max-w-2xl lg:max-w-xl xl:max-w-2xl">
           <Eyebrow>Direct paid promotion</Eyebrow>
           <h1 className="mt-5 font-atkinson text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-            We put your track on. Ourselves.
+            We put your music on. Ourselves.
           </h1>
           <p className="mt-5 text-base leading-7 opacity-90 sm:text-lg sm:leading-8">
-            Cassette itself is the promoter. You buy a campaign, a real person listens to the track
-            and decides, and if we can get behind it we run it on Cassette&apos;s own Instagram. If
-            we pass, you hear why and you are refunded in full. No middlemen.
+            Cassette itself is the promoter. You buy a campaign by the week, a real person listens
+            to your track or album and decides, and if we can get behind it we run it on
+            Cassette&apos;s own Instagram. If we pass, you hear why and you are refunded in full. No
+            middlemen.
           </p>
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-7">
             <Link
@@ -178,10 +181,10 @@ export function PromoteLanding({ signedIn = false }: { signedIn?: boolean }) {
             <div className="space-y-4 text-base leading-7 text-muted-foreground md:pt-12">
               <p>
                 Every campaign is played and judged by a person at Cassette before anything runs.
-                Not a queue, not a form, not a bot deciding whether your track is worth a slot.
+                Not a queue, not a form, not a bot deciding whether your music is worth a slot.
               </p>
               <p className="text-foreground">
-                You always get an answer. If we can get behind the track, we run it. If we cannot,
+                You always get an answer. If we can get behind it, we run it. If we cannot,
                 we tell you why and refund you in full — you are never left paying for silence.
               </p>
             </div>
@@ -228,65 +231,118 @@ export function PromoteLanding({ signedIn = false }: { signedIn?: boolean }) {
             <DraftBadge />
           </div>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Shown for orientation while pricing is finalized. Final packages, prices, and taxes are
-            confirmed inside checkout, and every price comes from Cassette&apos;s server-owned rate
-            card — never from this page.
+            Shown for orientation while pricing is finalized. Final prices and taxes are confirmed
+            inside checkout, and every price comes from Cassette&apos;s server-owned rate card —
+            never from this page.
           </p>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Greyed lines are channels we are still building. They are not live and are not part of
-            what you pay for today — Instagram is what runs right now.
+            Only Boost is buyable. Spotlight and Headline are what we are building next — they have
+            no price, and nothing in them is part of what you pay for today.
           </p>
 
-          <ul className="mt-8 grid gap-5 md:grid-cols-3">
+          <ul className="mt-8 grid items-start gap-5 md:grid-cols-3">
             {DRAFT_PACKAGES.map((pkg) => (
               <li key={pkg.name} className="flex">
-                <article className="flex w-full flex-col border-2 border-foreground bg-card shadow-flat-4">
-                  <header className="flex items-baseline justify-between gap-2 border-b-2 border-foreground bg-foreground px-4 py-2.5 text-background">
+                <article
+                  data-testid={`promote-package-${pkg.name.toLowerCase()}`}
+                  className={
+                    pkg.available
+                      ? 'flex w-full flex-col border-2 border-foreground bg-card shadow-flat-4'
+                      : 'flex w-full flex-col border border-dashed border-border bg-transparent'
+                  }
+                >
+                  <header
+                    className={
+                      pkg.available
+                        ? 'flex items-baseline justify-between gap-2 border-b-2 border-foreground bg-foreground px-4 py-2.5 text-background'
+                        : 'flex items-baseline justify-between gap-2 border-b border-dashed border-border px-4 py-2.5 text-muted-foreground'
+                    }
+                  >
                     <h3 className="font-mono text-xs font-bold uppercase tracking-[0.22em]">
                       {pkg.name}
                     </h3>
                     <p className="font-mono text-xs uppercase tracking-[0.18em] opacity-70">
-                      Draft
+                      {pkg.available ? 'Draft' : 'Not live yet'}
                     </p>
                   </header>
 
                   <div className="flex flex-1 flex-col px-4 py-5">
-                    <p className="font-atkinson text-4xl font-bold leading-none tracking-tight text-foreground">
-                      {pkg.draftPrice}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-foreground">{pkg.summary}</p>
+                    {pkg.available ? (
+                      <>
+                        <p className="flex items-baseline gap-2">
+                          <span className="font-atkinson text-4xl font-bold leading-none tracking-tight text-foreground">
+                            {pkg.draftWeeklyPrice}
+                          </span>
+                          <span className="font-mono text-sm text-muted-foreground">/ week</span>
+                        </p>
+                        <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.16em] text-foreground">
+                          {pkg.minWeeks}–{pkg.maxWeeks} weeks · {pkg.soldFor}
+                        </p>
+                        <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.16em] text-primary">
+                          {pkg.discount}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="font-atkinson text-2xl font-bold leading-none tracking-tight text-muted-foreground">
+                        Not sold yet
+                      </p>
+                    )}
 
-                    <ul className="mt-5 space-y-2.5 border-t border-border pt-5">
-                      {pkg.deliverables.map((deliverable) => {
-                        const soon = 'soon' in deliverable && deliverable.soon;
-                        return (
-                          <li
-                            key={deliverable.text}
-                            className={`flex gap-2.5 text-sm leading-6 ${
-                              soon ? 'text-muted-foreground/70' : 'text-foreground'
+                    <p
+                      className={`mt-3 text-sm leading-6 ${
+                        pkg.available ? 'text-foreground' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {pkg.summary}
+                    </p>
+
+                    <ul
+                      className={`mt-5 space-y-2.5 pt-5 ${
+                        pkg.available ? 'border-t border-border' : 'border-t border-dashed border-border'
+                      }`}
+                    >
+                      {!pkg.available && (
+                        <li className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                          {pkg.inherits}
+                        </li>
+                      )}
+                      {pkg.deliverables.map((deliverable) => (
+                        <li
+                          key={deliverable}
+                          className={`flex gap-2.5 text-sm leading-6 ${
+                            pkg.available ? 'text-foreground' : 'text-muted-foreground'
+                          }`}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={`mt-[0.55rem] size-1.5 shrink-0 ${
+                              pkg.available ? 'bg-primary' : 'bg-muted-foreground/50'
                             }`}
-                          >
-                            <span
-                              aria-hidden="true"
-                              className={`mt-[0.55rem] size-1.5 shrink-0 ${
-                                soon ? 'bg-muted-foreground/50' : 'bg-primary'
-                              }`}
-                            />
-                            <span>
-                              {deliverable.text}
-                              {soon && (
-                                <span className="mt-1 block font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                                  ◦ Not live yet
-                                </span>
-                              )}
-                            </span>
-                          </li>
-                        );
-                      })}
+                          />
+                          <span>{deliverable}</span>
+                        </li>
+                      ))}
                     </ul>
 
-                    <p className="mt-auto pt-5 font-mono text-[11px] leading-5 text-muted-foreground">
-                      {pkg.window}
+                    <p
+                      className={`mt-auto pt-5 font-mono text-[11px] leading-5 text-muted-foreground ${
+                        pkg.available ? '' : 'border-t border-dashed border-border mt-5'
+                      }`}
+                    >
+                      {pkg.available ? (
+                        <>
+                          Charged once, upfront. What a paid week buys is spelled out under{' '}
+                          <a
+                            href="#refund-policy"
+                            className="text-foreground underline underline-offset-4 hover:text-primary"
+                          >
+                            refunds
+                          </a>
+                          .
+                        </>
+                      ) : (
+                        'Not available to buy. No date promised.'
+                      )}
                     </p>
                   </div>
                 </article>
@@ -314,14 +370,16 @@ export function PromoteLanding({ signedIn = false }: { signedIn?: boolean }) {
               — never outcomes. We do not promise or sell streams, saves, followers, chart
               positions, or placements on Spotify, Apple Music, Deezer, or any other third-party
               platform, and we never will. Anyone who does is selling you numbers, not an audience.
-              Results vary by track and by audience.
+              Results vary by release and by audience.
             </p>
           </div>
         </div>
         <DitherEdge color="hsl(var(--section-dark))" side="bottom" />
       </section>
 
-      {/* Refunds — supporting policy, deliberately quiet chrome. */}
+      {/* What a week buys, then refunds — the two halves of the same promise:
+          a week is refundable only because it is countable. Supporting policy,
+          deliberately quiet chrome. */}
       {/* Linked from checkout as /promote#refund-policy — scroll margin keeps
           the heading clear of the sticky navbar. */}
       <section
@@ -330,18 +388,36 @@ export function PromoteLanding({ signedIn = false }: { signedIn?: boolean }) {
         className="scroll-mt-24 pt-16 sm:pt-20"
       >
         <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-10">
-          <div className="border-l-2 border-foreground pl-5 sm:pl-6">
-            <h3
-              id="promote-refunds-heading"
-              className="flex flex-wrap items-center gap-2 font-atkinson text-2xl font-bold tracking-tight text-foreground"
-            >
-              Refunds <DraftBadge />
-            </h3>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Every campaign is reviewed by Cassette before delivery. If we reject your campaign, you
-              are refunded in full. If we cannot deliver what your package promised, we refund the
-              undelivered portion. Final refund-policy language is confirmed at checkout.
-            </p>
+          <div className="space-y-8 border-l-2 border-foreground pl-5 sm:pl-6">
+            <div>
+              <h3
+                id="promote-refunds-heading"
+                className="flex flex-wrap items-center gap-2 font-atkinson text-2xl font-bold tracking-tight text-foreground"
+              >
+                What a paid week buys <DraftBadge />
+              </h3>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Each paid week buys at least one story placement on Cassette&apos;s active channels
+                — Instagram today — published and recorded, plus continuous management of your
+                campaign: creative, timing, and which channel it runs on, at Cassette&apos;s
+                editorial discretion. Placements are spread across your campaign&apos;s run. They
+                are not tied to fixed days or a fixed schedule, and we never promise streams,
+                saves, followers, or placement by anyone but us.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-atkinson text-2xl font-bold tracking-tight text-foreground">
+                Refunds
+              </h3>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Every campaign is reviewed by Cassette before delivery. If we reject your campaign,
+                you are refunded in full. If your campaign stops early, every week we did not
+                deliver is refunded in full — a week counts as delivered only once its placements
+                are published, so a half-finished week refunds as an undelivered one. Final
+                refund-policy language is confirmed at checkout.
+              </p>
+            </div>
           </div>
         </div>
       </section>

@@ -3,7 +3,7 @@ import { PaidPromotionHome } from '@/components/features/paid-promotions/paid-pr
 
 const title = 'Promote Your Music — Cassette';
 const description =
-  'Cassette promotes your track itself, on Cassette’s own Instagram. A real person listens to every submission — if we pass, you get the reason and a full refund. Priced up front, no bot networks, no guaranteed-streams schemes.';
+  'Cassette promotes your track or album itself, on Cassette’s own Instagram. A real person listens to every submission — if we pass, you get the reason and a full refund. Priced by the week up front, no bot networks, no guaranteed-streams schemes.';
 
 export const metadata: Metadata = {
   title: { absolute: title },

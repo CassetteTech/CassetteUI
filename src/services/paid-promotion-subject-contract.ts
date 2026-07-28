@@ -66,16 +66,20 @@ export function parsePaidPromotionSubject(
 ): PaidPromotionSubject {
   const item = record(value, path);
 
-  if (!Array.isArray(item.artists)) invalid(`${path}.artists`);
-  const artists = item.artists.map((artist, index) =>
-    string(artist, `${path}.artists[${index}]`)
+  if (!Array.isArray(item.subtitleNames)) invalid(`${path}.subtitleNames`);
+  const subtitleNames = item.subtitleNames.map((name, index) =>
+    string(name, `${path}.subtitleNames[${index}]`)
   );
 
   return {
-    trackId: string(item.trackId, `${path}.trackId`),
-    trackTitle: string(item.trackTitle, `${path}.trackTitle`),
+    elementId: string(item.elementId, `${path}.elementId`),
+    elementType: string(
+      item.elementType,
+      `${path}.elementType`,
+    ) as PaidPromotionSubject['elementType'],
+    title: string(item.title, `${path}.title`),
     coverArtUrl: nullableHttpUrl(item.coverArtUrl, `${path}.coverArtUrl`),
-    artists,
+    subtitleNames,
     campaignCount: integer(item.campaignCount, `${path}.campaignCount`),
     campaignStatusCounts: parseStatusCounts(
       item.campaignStatusCounts,

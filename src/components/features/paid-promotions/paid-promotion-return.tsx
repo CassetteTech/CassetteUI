@@ -23,6 +23,7 @@ import { usePaidPromotionCampaign } from '@/hooks/use-paid-promotion-campaign';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { apiService } from '@/services/api';
 import {
+  formatPaidPromotionMinorAmount as formatMoney,
   getPaidPromotionReturnState,
   hasKnownPaidPromotionCheckoutTotals,
   isPaidPromotionCampaignId,
@@ -300,6 +301,13 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
                 </div>
 
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border border-border p-4 text-sm">
+                  <div data-testid="paid-promotion-campaign-weeks">
+                    <dt className="text-xs text-muted-foreground">Run length</dt>
+                    <dd className="mt-1 font-medium text-foreground">
+                      {campaign.weeks} {campaign.weeks === 1 ? 'week' : 'weeks'} ·{' '}
+                      {formatMoney(campaign.weeklyAmountMinor, campaign.currency)}/week
+                    </dd>
+                  </div>
                   <MoneyRow
                     label="Quote / subtotal"
                     value={formatMoney(campaign.amountMinor, campaign.currency)}
@@ -386,10 +394,6 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
       </section>
     </div>
   );
-}
-
-function formatMoney(amountMinor: number, currency: string): string {
-  return `${currency.toUpperCase()} ${(amountMinor / 100).toFixed(2)}`;
 }
 
 function formatCheckoutMoney(amountMinor: number | null, currency: string): string {

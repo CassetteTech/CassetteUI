@@ -18,6 +18,18 @@ import {
   fixtureUsers,
 } from './cassette-fixtures';
 
+// Mirrors the Bridge's element-id prefix mapping (t_/a_/r_/l_).
+const elementTypeForFixtureId = (
+  elementId: string,
+): FixturePaidPromotionCampaign['elementType'] => {
+  switch (elementId.slice(0, 2)) {
+    case 'a_': return 'album';
+    case 'r_': return 'artist';
+    case 'l_': return 'playlist';
+    default: return 'track';
+  }
+};
+
 type MockCassetteOptions = {
   analyticsCaptures?: Array<Record<string, unknown>>;
   currentUser?: FixtureUser | null;
@@ -479,8 +491,11 @@ const text = (route: Route, body: string, status = 200) =>
 
 const toInternalPaidPromotionSummary = (campaign: FixtureInternalPaidPromotionCampaign) => ({
   id: campaign.id,
-  trackId: campaign.track.id,
-  trackTitle: campaign.track.title,
+  customer: campaign.customer,
+  elementId: campaign.subject.id,
+  elementType: campaign.subject.elementType,
+  title: campaign.subject.title,
+  coverArtUrl: campaign.subject.coverArtUrl,
   sourcePlatform: campaign.sourcePlatform,
   pricingMode: campaign.pricingMode,
   amountMinor: campaign.amountMinor,
@@ -996,9 +1011,10 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
     if (pathname === '/api/v1/paid-promotions/campaigns' && method === 'POST') {
       getCurrentUserOrThrow(state);
       const payload = request.postDataJSON() as {
-        trackId: string;
+        elementId: string;
         submittedUrl: string;
         rateCardId: string;
+        weeks: number;
       };
       const rateCard = state.paidPromotionRateCards.find((candidate) => candidate.id === payload.rateCardId);
       if (!rateCard) {
@@ -1007,19 +1023,39 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
           message: 'The selected paid-promotion rate card is unavailable.',
         }, 400);
       }
+      if (payload.weeks < rateCard.minWeeks || payload.weeks > rateCard.maxWeeks) {
+        return json(route, {
+          errorCode: 'paid_promotion_invalid_request',
+          message: `Weeks must be between ${rateCard.minWeeks} and ${rateCard.maxWeeks} for this package.`,
+        }, 400);
+      }
 
       const sourcePlatform = payload.submittedUrl.includes('music.apple.com')
         ? 'applemusic'
         : payload.submittedUrl.includes('deezer.com')
           ? 'deezer'
           : 'spotify';
+      // Price is server-owned: weekly rate × weeks, less the duration discount
+      // when the chosen run qualifies (discount rounds in the buyer's favor).
+      const grossMinor = rateCard.amountMinor * payload.weeks;
+      const discountApplies =
+        rateCard.discountMinWeeks !== null &&
+        rateCard.discountBps !== null &&
+        payload.weeks >= rateCard.discountMinWeeks;
+      const discountMinor = discountApplies
+        ? Math.ceil((grossMinor * (rateCard.discountBps ?? 0)) / 10_000)
+        : 0;
       const campaign: FixturePaidPromotionCampaign = {
         ...clone(fixturePaidPromotionCampaign),
-        trackId: payload.trackId,
+        elementId: payload.elementId,
+        elementType: elementTypeForFixtureId(payload.elementId),
         sourcePlatform,
         rateCardId: rateCard.id,
-        amountMinor: rateCard.amountMinor,
+        amountMinor: grossMinor - discountMinor,
         currency: rateCard.currency,
+        weeks: payload.weeks,
+        weeklyAmountMinor: rateCard.amountMinor,
+        durationDiscountBps: discountApplies ? rateCard.discountBps : null,
         paymentStatus: null,
       };
       state.paidPromotionCampaignsById.set(campaign.id, campaign);

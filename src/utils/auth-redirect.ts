@@ -48,12 +48,7 @@ export const normalizeAuthRedirect = (value: string | null | undefined) => {
 // fan-only steps, without any account-type or schema difference.
 export const isPromoteIntentRedirect = (value: string | null | undefined) => {
   const normalized = normalizeAuthRedirect(value);
-  if (!normalized) return false;
-  return (
-    normalized === '/promote' ||
-    normalized.startsWith('/promote/') ||
-    normalized.startsWith('/promote?')
-  );
+  return normalized != null && /^\/promote($|[/?])/.test(normalized);
 };
 
 function readStoredRedirect(): string | null {

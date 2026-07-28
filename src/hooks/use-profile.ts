@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { profileService } from '@/services/profile';
-import { UserBio, PaginatedActivityResponse, PaginatedExploreUsersResponse } from '@/types';
+import { UserBio, PaginatedActivityResponse, PaginatedExploreUsersResponse, ExploreCurator } from '@/types';
 
 /**
  * Query keys for profile-related queries.
@@ -18,6 +18,7 @@ export const profileQueryKeys = {
     ['explore-activity', page, pageSize] as const,
   exploreUsers: (page?: number, pageSize?: number, q?: string) =>
     ['explore-users', page, pageSize, q ?? ''] as const,
+  exploreCurators: () => ['explore-curators'] as const,
 };
 
 /**
@@ -155,6 +156,15 @@ export const useExploreActivity = (options: ExploreQueryOptions = {}) => {
     refetchOnMount: 'always',
     staleTime: 1000 * 60 * 2,
     gcTime: 1000 * 60 * 5,
+  });
+};
+
+export const useExploreCurators = () => {
+  return useQuery<ExploreCurator[], Error>({
+    queryKey: profileQueryKeys.exploreCurators(),
+    queryFn: () => profileService.fetchExploreCurators(),
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
   });
 };
 

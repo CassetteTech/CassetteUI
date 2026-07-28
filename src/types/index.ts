@@ -85,6 +85,18 @@ export interface ExploreUser {
   latestExplorePostAt?: string;
 }
 
+export interface ExploreCurator {
+  userId: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  bio?: string;
+  accountType?: AccountType | number | string;
+  publicPostCount: number;
+  latestPostAt?: string;
+  recentArtworkUrls: string[];
+}
+
 export interface PaginatedExploreUsersResponse {
   users: ExploreUser[];
   page: number;

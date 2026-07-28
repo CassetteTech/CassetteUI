@@ -1,5 +1,6 @@
 import {
   ActivityPost,
+  ExploreCurator,
   ExploreUser,
   PaginatedActivityResponse,
   PaginatedExploreUsersResponse,
@@ -718,6 +719,32 @@ export class ProfileService {
     } catch (e) {
       throw e;
     }
+  }
+
+  async fetchExploreCurators(): Promise<ExploreCurator[]> {
+    const url = this.buildApiUrl('/api/v1/social/explore/curators');
+
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.status !== 200) {
+      appLogger.warn('explore_curators_fetch_failed', { status: response.status });
+      throw new Error('Failed to load explore curators');
+    }
+
+    const json = (await response.json()) as {
+      curators?: ExploreCurator[];
+      Curators?: ExploreCurator[];
+    };
+    return (json.curators ?? json.Curators ?? []).map((curator) => ({
+      ...curator,
+      recentArtworkUrls: curator.recentArtworkUrls ?? [],
+    }));
   }
 
   async fetchUserLikedPosts(

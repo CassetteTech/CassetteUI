@@ -11,7 +11,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BackButton } from '@/components/ui/back-button';
 import { Loader2, Search, X, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ActivityPost, ExploreUser } from '@/types';
+import { formatRelativeTime } from '@/lib/utils/format-date';
+import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
+import { useExploreCurators } from '@/hooks/use-profile';
 import {
   useExploreData,
   MUSIC_SECTION_ORDER,
@@ -94,6 +96,8 @@ export default function ExplorePage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 space-y-20 relative">
+        <FeaturedCurators />
+
         <CreatorsMarquee
           users={data.users}
           isLoading={data.isLoadingUsers && data.users.length === 0}
@@ -271,6 +275,145 @@ function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
             <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
               @{username}
             </span>
+          </div>
+        </div>
+      </Link>
+    </motion.div>
+  );
+}
+
+function FeaturedCurators() {
+  const { data: curators } = useExploreCurators();
+
+  // Promotional section: render nothing (not even a skeleton) until verified
+  // curators actually arrive, so the page is unchanged when there are none.
+  if (!curators || curators.length === 0) {
+    return null;
+  }
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-10%' }}
+      transition={{ duration: 0.4 }}
+    >
+      <div className="mb-8 inline-block -rotate-[1.5deg]">
+        <div className="relative inline-block">
+          <h2 className="font-teko text-5xl sm:text-6xl font-bold uppercase leading-none tracking-tight">
+            Featured Curators
+          </h2>
+          <span
+            aria-hidden
+            className="absolute -top-3 -right-8 rotate-[10deg] bg-primary text-primary-foreground px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.25em] shadow-flat-2"
+          >
+            Verified
+          </span>
+        </div>
+        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+          Hand-picked tastemakers on Cassette
+        </p>
+      </div>
+
+      <div className="-mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 overflow-x-auto no-scrollbar">
+        <div className="flex gap-6 snap-x snap-mandatory">
+          {curators.map((curator, i) => (
+            <CuratorCard key={curator.userId} curator={curator} index={i} />
+          ))}
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+function CuratorCard({ curator, index }: { curator: ExploreCurator; index: number }) {
+  const rand = hashRand(curator.userId || String(index));
+  const rot = (rand() - 0.5) * 4;
+  const tapeColor = TAPE_COLORS[index % TAPE_COLORS.length];
+  const initials = curator.username?.charAt(0)?.toUpperCase() || 'C';
+  const displayName = curator.displayName?.trim() || curator.username;
+  const artwork = curator.recentArtworkUrls.slice(0, 4);
+  const lastDrop = formatRelativeTime(curator.latestPostAt);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20, rotate: 0 }}
+      whileInView={{ opacity: 1, y: 0, rotate: rot }}
+      whileHover={{ rotate: 0, y: -4, scale: 1.02 }}
+      viewport={{ once: true, margin: '-5%' }}
+      transition={{ duration: 0.4, delay: Math.min(index * 0.04, 0.2) }}
+      className="relative shrink-0 snap-start"
+      style={{ transformOrigin: 'center' }}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'absolute -top-2 left-1/2 -translate-x-1/2 z-10 h-5 w-20 rotate-[-4deg] opacity-80 border border-foreground/10',
+          tapeColor
+        )}
+      />
+
+      <Link
+        href={`/profile/${curator.username}`}
+        className="group block w-[260px] sm:w-[280px] bg-primary-foreground force-light-surface text-foreground border-2 border-foreground shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow"
+      >
+        {artwork.length > 0 && (
+          <div className="grid grid-cols-2 gap-0.5 p-1.5 pb-0">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="relative aspect-square overflow-hidden bg-muted">
+                {artwork[i] ? (
+                  <Image
+                    src={artwork[i]}
+                    alt=""
+                    fill
+                    sizes="140px"
+                    className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Image src="/images/ic_music.png" alt="" width={24} height={24} className="opacity-20" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="p-3 pt-2.5">
+          <div className="flex items-center gap-2.5">
+            <Avatar className="h-10 w-10 border-2 border-foreground shrink-0">
+              <AvatarImage src={curator.avatarUrl} alt={`@${curator.username}`} />
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1">
+                <p className="font-teko text-2xl uppercase leading-none tracking-tight truncate group-hover:text-primary transition-colors">
+                  {displayName}
+                </p>
+                <VerificationBadge accountType={curator.accountType} size="sm" showTooltip={false} />
+              </div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground truncate">
+                @{curator.username}
+              </p>
+            </div>
+          </div>
+
+          {curator.bio && (
+            <p className="mt-2 text-xs text-muted-foreground italic line-clamp-2">{curator.bio}</p>
+          )}
+
+          <div className="mt-2.5 flex items-center gap-2 border-t border-dashed border-foreground/20 pt-2">
+            <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+              {curator.publicPostCount} public {curator.publicPostCount === 1 ? 'mix' : 'mixes'}
+            </span>
+            {lastDrop && (
+              <>
+                <span className="h-px flex-1 bg-foreground/20" />
+                <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+                  {lastDrop}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </Link>

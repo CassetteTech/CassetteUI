@@ -286,6 +286,15 @@ export interface FailedTrack {
   track_name?: string;
   artist_name?: string;
   error_reason?: string;
+  reason_code?: string;
+  attempted_methods?: string[];
+  had_target_platform_id?: boolean;
+  attempted_isrc_count?: number;
+  target_platform?: string;
+  territory?: string | null;
+  decision_policy_version?: string;
+  confidence?: number | null;
+  ambiguous?: boolean;
 }
 
 // API Response type for fetchPostById
@@ -599,7 +608,198 @@ export interface InternalIssuesResponse {
 }
 
 export interface InternalIssueDetail extends InternalIssueSummary {
+  payload: string;
+  matchReviewCandidate?: InternalMatchReviewCandidate | null;
+  matchQualityContext?: InternalIssueMatchQualityContext | null;
+  failedTracks: InternalIssueFailedTrack[];
   operationalContext: InternalIssueOperationalContext;
+}
+
+export interface InternalIssueFailedTrack {
+  position: number;
+  trackName?: string | null;
+  artistName?: string | null;
+  errorReason?: string | null;
+  reasonCode?: string | null;
+  attemptedMethods: string[];
+  hadTargetPlatformId: boolean;
+  attemptedIsrcCount: number;
+  targetPlatform?: string | null;
+  territory?: string | null;
+  decisionPolicyVersion?: string | null;
+  confidence?: number | null;
+  ambiguous: boolean;
+}
+
+export interface InternalIssueMatchQualityContext {
+  outboxId: string;
+  payloadSchemaVersion: number;
+  conversionJobId: string;
+  sourcePlatform?: string | null;
+  sourceEntityType?: string | null;
+  recordedAtUtc: string;
+  decisions: InternalTargetMatchDecision[];
+}
+
+export interface InternalConversionQualityRate {
+  numerator?: number | null;
+  denominator?: number | null;
+  value?: number | null;
+  wilsonLow95?: number | null;
+  wilsonHigh95?: number | null;
+}
+
+export interface InternalConversionQualityMetrics {
+  qualityOpportunities: number;
+  accepted: number;
+  qualityRejections: number;
+  operationalFailures: number;
+  adjudicatedOpportunities: number;
+  adjudicatedExpectedMatches: number;
+  adjudicatedExpectedMisses: number;
+  reasonCounts: Record<string, number>;
+  acceptedMethodCounts: Record<string, number>;
+  targetMatchAcceptanceRate: InternalConversionQualityRate;
+  noMatchRate: InternalConversionQualityRate;
+  noCandidateRate: InternalConversionQualityRate;
+  lowConfidenceRejectionRate: InternalConversionQualityRate;
+  ambiguousMatchRate: InternalConversionQualityRate;
+  policyRejectionRate: InternalConversionQualityRate;
+  operationalFailureRate: InternalConversionQualityRate;
+  successfulTargetMatchRate: InternalConversionQualityRate;
+  decisionAccuracy: InternalConversionQualityRate;
+  wrongMatchRate: InternalConversionQualityRate;
+  falsePositiveAcceptanceRate: InternalConversionQualityRate;
+  expectedMatchMissRate: InternalConversionQualityRate;
+}
+
+export interface InternalConversionQualityTrendPoint {
+  date: string;
+  unlabeled: InternalConversionQualityMetrics;
+  adjudicated: InternalConversionQualityMetrics;
+}
+
+export interface InternalConversionQualityVersionCohort {
+  scorerVersion: string;
+  policyVersion: string;
+  configurationVersion: string;
+  unlabeled: InternalConversionQualityMetrics;
+  adjudicated: InternalConversionQualityMetrics;
+}
+
+export interface InternalConversionQualityDimension {
+  dimension: string;
+  key: string;
+  unlabeled: InternalConversionQualityMetrics;
+  adjudicated: InternalConversionQualityMetrics;
+}
+
+export interface InternalConversionQualityOfflineBaseline {
+  cohort: string;
+  datasetVersion: string;
+  datasetDigestSha256: string;
+  policyVersion: string;
+  configurationVersion: string;
+  scorerVersion: string;
+  cases: number;
+  passed: number;
+  failed: number;
+  successfulTargetMatchRate: InternalConversionQualityRate;
+  decisionAccuracy: InternalConversionQualityRate;
+  targetMatchAcceptanceRate: InternalConversionQualityRate;
+  wrongMatchRate: InternalConversionQualityRate;
+}
+
+export interface InternalConversionQualityTrendResponse {
+  generatedAtUtc: string;
+  windowStartUtc: string;
+  windowEndUtc: string;
+  days: number;
+  metricContract: string;
+  sourceRowsTruncated: boolean;
+  adjudicationRowsTruncated: boolean;
+  parsedEventCount: number;
+  deduplicatedDecisionCount: number;
+  filters: {
+    sourcePlatform?: string | null;
+    targetPlatform?: string | null;
+    method?: string | null;
+    scorerVersion?: string | null;
+    configurationVersion?: string | null;
+  };
+  productionUnlabeled: InternalConversionQualityMetrics;
+  productionAdjudicated: InternalConversionQualityMetrics;
+  daily: InternalConversionQualityTrendPoint[];
+  versionCohorts: InternalConversionQualityVersionCohort[];
+  dimensions: InternalConversionQualityDimension[];
+  offlineBaseline: InternalConversionQualityOfflineBaseline;
+  caveats: string[];
+}
+
+export interface InternalTargetMatchDecision {
+  decisionId: string;
+  platform: string;
+  outcome: string;
+  reasonCode?: string | null;
+  method?: string | null;
+  territory?: string | null;
+  score?: number | null;
+  threshold?: number | null;
+  runnerUpScore?: number | null;
+  runnerUpMargin?: number | null;
+  confidence?: number | null;
+  confidenceBand?: string | null;
+  candidateCount: number;
+  candidateSetTruncated: boolean;
+  scorerVersion?: string | null;
+  decisionPolicyVersion?: string | null;
+  decisionConfigurationVersion?: string | null;
+  correctionId?: string | null;
+  correctionVersion?: number | null;
+  selectedCandidate?: InternalTargetMatchCandidate | null;
+  runnerUpCandidate?: InternalTargetMatchCandidate | null;
+}
+
+export interface InternalTargetMatchCandidate {
+  providerTrackId: string;
+  title?: string | null;
+  artistNames: string[];
+  albumName?: string | null;
+  durationMs?: number | null;
+  score?: number | null;
+  components: InternalTargetMatchScoreComponent[];
+  disqualifiers: string[];
+}
+
+export interface InternalTargetMatchScoreComponent {
+  name: string;
+  awardedScore: number;
+  availableWeight: number;
+  outcome: string;
+  disqualifiers: string[];
+}
+
+export interface InternalMatchReviewCandidate {
+  id: string;
+  reportedProblemType: string;
+  status: string;
+  elementType?: string | null;
+  title?: string | null;
+  artist?: string | null;
+  sourcePlatform?: string | null;
+  sourceProviderId?: string | null;
+  targetCandidatesJson: string;
+  disposition?: string | null;
+  expectedTargetPlatform?: string | null;
+  expectedTargetProviderId?: string | null;
+  expectedMiss?: boolean | null;
+  reviewerUserId?: string | null;
+  reviewedAtUtc?: string | null;
+  reviewNotes?: string | null;
+  correctionId?: string | null;
+  regressionCaseId?: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
 }
 
 export interface InternalConversionJobLambdaInvocation {

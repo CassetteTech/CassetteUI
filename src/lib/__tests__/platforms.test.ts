@@ -8,6 +8,7 @@ import {
   PLAYLIST_CREATION_PLATFORM_UI_KEYS,
   getDisplayPlatformDefinition,
   getPlatformDefinition,
+  extractMatchReviewProviderIdentity,
   normalizePlatformKey,
   normalizePlatformPreferenceKey,
   normalizePlatformUiKey,
@@ -17,6 +18,23 @@ test('active platform constants match the current Bridge platform set', () => {
   assert.deepEqual(ACTIVE_PLATFORM_KEYS, ['spotify', 'applemusic', 'deezer']);
   assert.deepEqual(ACTIVE_PLATFORM_UI_KEYS, ['spotify', 'appleMusic', 'deezer']);
   assert.deepEqual(ACTIVE_PLATFORM_PREFERENCE_KEYS, ['Spotify', 'AppleMusic', 'Deezer']);
+});
+
+test('match review identities retain only bounded provider IDs from supported hosts', () => {
+  assert.deepEqual(
+    extractMatchReviewProviderIdentity('https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh?si=secret'),
+    { platform: 'spotify', providerId: '4iV5W9uYEdYUVa79Axb7Rh' },
+  );
+  assert.deepEqual(
+    extractMatchReviewProviderIdentity('https://music.apple.com/us/album/example/1440833098?i=1440833105'),
+    { platform: 'applemusic', providerId: '1440833105' },
+  );
+  assert.deepEqual(
+    extractMatchReviewProviderIdentity('https://www.deezer.com/us/track/3135556'),
+    { platform: 'deezer', providerId: '3135556' },
+  );
+  assert.equal(extractMatchReviewProviderIdentity('https://evil.example/track/secret'), undefined);
+  assert.equal(extractMatchReviewProviderIdentity('not a url'), undefined);
 });
 
 test('platform aliases normalize to canonical, UI, and preference keys', () => {

@@ -376,55 +376,76 @@ function CuratorCard({ curator, index }: { curator: ExploreCurator; index: numbe
         }}
         className="group block w-[260px] sm:w-[280px] cursor-pointer bg-primary-foreground force-light-surface text-foreground border-2 border-foreground shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
-        {/* Avatar as the card face; recent artwork collage stands in when there is no avatar */}
-        <div className="relative aspect-square overflow-hidden bg-muted m-1.5 mb-0">
-          {curator.avatarUrl ? (
-            <Image
-              src={curator.avatarUrl}
-              alt={`@${curator.username}`}
-              fill
-              sizes="280px"
-              className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-            />
-          ) : artwork.length > 0 ? (
-            <div className="grid h-full grid-cols-2 gap-0.5">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="relative overflow-hidden bg-muted">
-                  {artwork[i] ? (
-                    <Image src={artwork[i]} alt="" fill sizes="140px" className="object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Image src="/images/ic_music.png" alt="" width={24} height={24} className="opacity-20" />
-                    </div>
+        {/* Recent artwork collage — the curator's taste is the hero, not their headshot.
+            The grid adapts to how much artwork exists so there are never empty slots. */}
+        <div className="relative m-1.5 mb-0 aspect-[4/3] overflow-hidden bg-muted">
+          {artwork.length > 0 ? (
+            <div
+              className={cn(
+                'grid h-full gap-0.5',
+                artwork.length === 1 && 'grid-cols-1',
+                artwork.length === 2 && 'grid-cols-2',
+                artwork.length >= 3 && 'grid-cols-2 grid-rows-2'
+              )}
+            >
+              {artwork.map((url, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    'relative overflow-hidden bg-muted',
+                    artwork.length === 3 && i === 0 && 'row-span-2'
                   )}
+                >
+                  <Image
+                    src={url}
+                    alt=""
+                    fill
+                    sizes="280px"
+                    className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"
+                  />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="flex h-full items-center justify-center font-teko text-8xl text-muted-foreground/40">
-              {initials}
+            <div className="flex h-full items-center justify-center">
+              <Image src="/images/ic_music.png" alt="" width={40} height={40} className="opacity-20" />
             </div>
           )}
+        </div>
 
-          {/* Name + taste line over a scrim so the face stays the hero */}
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2.5 pb-1.5 pt-6">
-            <p className="font-teko text-2xl uppercase leading-none tracking-tight text-white truncate">
+        {/* Identity: modest avatar overlapping the collage, name beside it */}
+        <div className="-mt-5 flex items-end gap-2.5 px-2.5">
+          <Avatar className="h-12 w-12 shrink-0 border-2 border-foreground">
+            <AvatarImage src={curator.avatarUrl} alt={`@${curator.username}`} />
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <div className="flex min-w-0 flex-1 items-center gap-1 pb-0.5">
+            <p className="font-teko text-2xl uppercase leading-none tracking-tight truncate group-hover:text-primary transition-colors">
               {displayName}
             </p>
-            {(curator.topGenres ?? []).length > 0 && (
-              <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-white/70 truncate">
-                {(curator.topGenres ?? []).join(' · ')}
-              </p>
-            )}
+            <VerificationBadge accountType={curator.accountType} size="sm" showTooltip={false} />
           </div>
         </div>
 
+        {/* Taste: genre ticket-stubs */}
+        {(curator.topGenres ?? []).length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1 px-2.5">
+            {(curator.topGenres ?? []).map((genre) => (
+              <span
+                key={genre}
+                className="border border-foreground/30 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground"
+              >
+                {genre}
+              </span>
+            ))}
+          </div>
+        )}
+
         {/* Handle row: cassette handle → profile, platform buttons → external */}
-        <div className="flex items-center gap-1.5 p-2.5">
+        <div className="mx-2.5 mt-2 flex items-center gap-1.5 border-t border-dashed border-foreground/20 py-2">
           <span className="min-w-0 flex-1 truncate font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground group-hover:text-primary transition-colors">
             @{curator.username}
           </span>
-          <VerificationBadge accountType={curator.accountType} size="sm" showTooltip={false} />
           {links.map((link) => (
             <a
               key={link.href}

@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { VerificationBadge } from '@/components/ui/verification-badge';
+import { ProfileLinksRow } from '@/components/features/profile/profile-links';
 import type { UserBio, AuthUser, ConnectedService, AccountType, PlatformPreferenceInfo } from '@/types';
 
 interface SidebarProfileCardProps {
@@ -55,6 +56,16 @@ function getPlatformPreferences(user: UserBio | AuthUser): PlatformPreferenceInf
  */
 function getAccountType(user: UserBio | AuthUser): AccountType | number | undefined {
   return user.accountType;
+}
+
+/**
+ * Get profile links from UserBio (AuthUser doesn't include this field).
+ */
+function getProfileLinks(user: UserBio | AuthUser): string[] | undefined {
+  if ('profileLinks' in user) {
+    return user.profileLinks;
+  }
+  return undefined;
 }
 
 /**
@@ -141,6 +152,8 @@ export function SidebarProfileCard({
             )}
           </Tooltip>
         )}
+
+        <ProfileLinksRow links={getProfileLinks(user)} />
 
         {typeof totalLikesReceived === 'number' && (
           <div className="flex items-center gap-1.5 border-t border-border/70 pt-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">

@@ -289,11 +289,11 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
     .toBeVisible();
   await expect(page.getByRole('heading', { name: 'Payment received' })).toBeVisible();
   await expect(page.getByText('Discount', { exact: true }).locator('..'))
-    .toContainText('USD 50.00');
+    .toContainText('$50.00');
   await expect(page.getByText('Tax', { exact: true }).locator('..'))
-    .toContainText('USD 15.00');
+    .toContainText('$15.00');
   await expect(page.getByText('Final total', { exact: true }).locator('..'))
-    .toContainText('USD 215.00');
+    .toContainText('$215.00');
 });
 
 test('creates an album campaign from an album link', async ({ page }) => {
@@ -516,7 +516,7 @@ test('shows a zero-total campaign as paid and visibly non-refundable', async ({ 
 
   await expect(page.getByRole('heading', { name: 'Payment received' })).toBeVisible();
   await expect(page.getByText('This zero-total campaign has no refundable charge.')).toBeVisible();
-  await expect(page.getByText('Final total', { exact: true }).locator('..')).toContainText('USD 0.00');
+  await expect(page.getByText('Final total', { exact: true }).locator('..')).toContainText('$0.00');
 });
 
 test('fails visibly when a paid campaign has unknown checkout totals', async ({ page }) => {

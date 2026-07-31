@@ -20,6 +20,7 @@ export interface UserBio {
   totalLikesReceived?: number;
   connectedServices: ConnectedService[];
   platformPreferences?: PlatformPreferenceInfo[];
+  profileLinks?: string[];
 }
 
 export interface ConnectedService {
@@ -95,6 +96,7 @@ export interface ExploreCurator {
   publicPostCount: number;
   latestPostAt?: string;
   recentArtworkUrls: string[];
+  profileLinks?: string[];
 }
 
 export interface PaginatedExploreUsersResponse {

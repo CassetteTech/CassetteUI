@@ -3,6 +3,9 @@
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { parseProfileLink, type ParsedProfileLink } from '@/lib/profile-links';
+import { ProfileLinkIcon } from '@/components/features/profile/profile-links';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +14,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BackButton } from '@/components/ui/back-button';
 import { Loader2, Search, X, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatRelativeTime } from '@/lib/utils/format-date';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
 import { useExploreCurators } from '@/hooks/use-profile';
 import {
@@ -327,13 +329,19 @@ function FeaturedCurators() {
 }
 
 function CuratorCard({ curator, index }: { curator: ExploreCurator; index: number }) {
+  const router = useRouter();
   const rand = hashRand(curator.userId || String(index));
   const rot = (rand() - 0.5) * 4;
   const tapeColor = TAPE_COLORS[index % TAPE_COLORS.length];
   const initials = curator.username?.charAt(0)?.toUpperCase() || 'C';
   const displayName = curator.displayName?.trim() || curator.username;
   const artwork = curator.recentArtworkUrls.slice(0, 4);
-  const lastDrop = formatRelativeTime(curator.latestPostAt);
+  const links = (curator.profileLinks ?? [])
+    .map(parseProfileLink)
+    .filter((l): l is ParsedProfileLink => l !== null)
+    .slice(0, 3);
+  const profileHref = `/profile/${curator.username}`;
+  const openProfile = () => router.push(profileHref);
 
   return (
     <motion.div
@@ -353,70 +361,81 @@ function CuratorCard({ curator, index }: { curator: ExploreCurator; index: numbe
         )}
       />
 
-      <Link
-        href={`/profile/${curator.username}`}
-        className="group block w-[260px] sm:w-[280px] bg-primary-foreground force-light-surface text-foreground border-2 border-foreground shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow"
+      {/* The platform buttons are real anchors, so the card wrapper is a div-as-link
+          (nested <a> is invalid HTML and browsers restructure it). */}
+      <div
+        role="link"
+        tabIndex={0}
+        aria-label={`View ${displayName} on Cassette`}
+        onClick={openProfile}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openProfile();
+          }
+        }}
+        className="group block w-[260px] sm:w-[280px] cursor-pointer bg-primary-foreground force-light-surface text-foreground border-2 border-foreground shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
-        {artwork.length > 0 && (
-          <div className="grid grid-cols-2 gap-0.5 p-1.5 pb-0">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="relative aspect-square overflow-hidden bg-muted">
-                {artwork[i] ? (
-                  <Image
-                    src={artwork[i]}
-                    alt=""
-                    fill
-                    sizes="140px"
-                    className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Image src="/images/ic_music.png" alt="" width={24} height={24} className="opacity-20" />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="p-3 pt-2.5">
-          <div className="flex items-center gap-2.5">
-            <Avatar className="h-10 w-10 border-2 border-foreground shrink-0">
-              <AvatarImage src={curator.avatarUrl} alt={`@${curator.username}`} />
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1">
-                <p className="font-teko text-2xl uppercase leading-none tracking-tight truncate group-hover:text-primary transition-colors">
-                  {displayName}
-                </p>
-                <VerificationBadge accountType={curator.accountType} size="sm" showTooltip={false} />
-              </div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground truncate">
-                @{curator.username}
-              </p>
+        {/* Avatar as the card face; recent artwork collage stands in when there is no avatar */}
+        <div className="relative aspect-square overflow-hidden bg-muted m-1.5 mb-0">
+          {curator.avatarUrl ? (
+            <Image
+              src={curator.avatarUrl}
+              alt={`@${curator.username}`}
+              fill
+              sizes="280px"
+              className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            />
+          ) : artwork.length > 0 ? (
+            <div className="grid h-full grid-cols-2 gap-0.5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="relative overflow-hidden bg-muted">
+                  {artwork[i] ? (
+                    <Image src={artwork[i]} alt="" fill sizes="140px" className="object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Image src="/images/ic_music.png" alt="" width={24} height={24} className="opacity-20" />
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          </div>
-
-          {curator.bio && (
-            <p className="mt-2 text-xs text-muted-foreground italic line-clamp-2">{curator.bio}</p>
+          ) : (
+            <div className="flex h-full items-center justify-center font-teko text-8xl text-muted-foreground/40">
+              {initials}
+            </div>
           )}
 
-          <div className="mt-2.5 flex items-center gap-2 border-t border-dashed border-foreground/20 pt-2">
-            <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-              {curator.publicPostCount} public {curator.publicPostCount === 1 ? 'mix' : 'mixes'}
-            </span>
-            {lastDrop && (
-              <>
-                <span className="h-px flex-1 bg-foreground/20" />
-                <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-                  {lastDrop}
-                </span>
-              </>
-            )}
+          {/* Name over a scrim so the face stays the hero */}
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2.5 pb-1.5 pt-6">
+            <p className="font-teko text-2xl uppercase leading-none tracking-tight text-white truncate">
+              {displayName}
+            </p>
           </div>
         </div>
-      </Link>
+
+        {/* Handle row: cassette handle → profile, platform buttons → external */}
+        <div className="flex items-center gap-1.5 p-2.5">
+          <span className="min-w-0 flex-1 truncate font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground group-hover:text-primary transition-colors">
+            @{curator.username}
+          </span>
+          <VerificationBadge accountType={curator.accountType} size="sm" showTooltip={false} />
+          {links.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`${displayName} on ${link.platform} (${link.label})`}
+              title={`${link.platform}: ${link.label}`}
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center border border-foreground/30 text-foreground/80 transition-colors hover:border-foreground hover:bg-foreground hover:text-background"
+            >
+              <ProfileLinkIcon link={link} />
+            </a>
+          ))}
+        </div>
+      </div>
     </motion.div>
   );
 }

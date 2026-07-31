@@ -272,6 +272,9 @@ export class ProfileService {
       ) || 0,
       connectedServices,
       platformPreferences,
+      profileLinks: (this.firstArrayCandidate(merged.profileLinks, merged.ProfileLinks) ?? []).filter(
+        (link): link is string => typeof link === 'string' && link.length > 0,
+      ),
       accountType: (merged.accountType ?? merged.AccountType ?? merged.account_type) as UserBio['accountType'],
     };
   }
@@ -744,6 +747,8 @@ export class ProfileService {
     return (json.curators ?? json.Curators ?? []).map((curator) => ({
       ...curator,
       recentArtworkUrls: curator.recentArtworkUrls ?? [],
+      profileLinks:
+        curator.profileLinks ?? (curator as { ProfileLinks?: string[] }).ProfileLinks ?? [],
     }));
   }
 
@@ -840,6 +845,7 @@ export class ProfileService {
     avatarUrl?: string;
     avatarFile?: File | null;
     likedPostsPrivacy?: 'public' | 'private';
+    profileLinks?: string[];
   }): Promise<void> {
     try {
       const url = this.buildApiUrl('/api/v1/profile');
@@ -858,6 +864,17 @@ export class ProfileService {
         formData.append('likedPostsPrivacy', data.likedPostsPrivacy);
         // Compatibility fallback for older servers
         formData.append('showLikedPosts', String(data.likedPostsPrivacy === 'public'));
+      }
+      if (data.profileLinks !== undefined) {
+        // Whole-list replace; the server treats a single blank entry as "clear all"
+        // since multipart forms cannot express an empty list.
+        if (data.profileLinks.length === 0) {
+          formData.append('ProfileLinks', '');
+        } else {
+          for (const link of data.profileLinks) {
+            formData.append('ProfileLinks', link);
+          }
+        }
       }
 
       const response = await fetch(url, {

@@ -749,6 +749,7 @@ export class ProfileService {
       recentArtworkUrls: curator.recentArtworkUrls ?? [],
       profileLinks:
         curator.profileLinks ?? (curator as { ProfileLinks?: string[] }).ProfileLinks ?? [],
+      topGenres: curator.topGenres ?? (curator as { TopGenres?: string[] }).TopGenres ?? [],
     }));
   }
 

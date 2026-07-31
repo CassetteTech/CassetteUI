@@ -406,11 +406,16 @@ function CuratorCard({ curator, index }: { curator: ExploreCurator; index: numbe
             </div>
           )}
 
-          {/* Name over a scrim so the face stays the hero */}
+          {/* Name + taste line over a scrim so the face stays the hero */}
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2.5 pb-1.5 pt-6">
             <p className="font-teko text-2xl uppercase leading-none tracking-tight text-white truncate">
               {displayName}
             </p>
+            {(curator.topGenres ?? []).length > 0 && (
+              <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-white/70 truncate">
+                {(curator.topGenres ?? []).join(' · ')}
+              </p>
+            )}
           </div>
         </div>
 

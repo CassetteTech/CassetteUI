@@ -97,6 +97,7 @@ export interface ExploreCurator {
   latestPostAt?: string;
   recentArtworkUrls: string[];
   profileLinks?: string[];
+  topGenres?: string[];
 }
 
 export interface PaginatedExploreUsersResponse {

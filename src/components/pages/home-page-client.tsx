@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { UrlBar } from '@/components/ui/url-bar';
 import { Button } from '@/components/ui/button';
 import { UIText } from '@/components/ui/typography';
-import { AnimatedBackground } from '@/components/ui/animated-background';
+import { DitherBackground } from '@/components/ui/dither-background';
 import { useTopCharts, useMusicSearch, useMusicLinkConversion } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -425,7 +425,7 @@ export default function HomePageClient() {
   return (
     <div className="min-h-screen relative">
       {/* Animated Background */}
-      <AnimatedBackground className="fixed inset-0 z-0" />
+      <DitherBackground className="fixed inset-0 z-0" />
       
       {/* The search/converting sheet lives inside this wrapper, so during a
           takeover the wrapper itself must rise above the fixed navbar (z-50)

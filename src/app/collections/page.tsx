@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AnimatedBackground } from '@/components/ui/animated-background';
+import { DitherBackground } from '@/components/ui/dither-background';
 import { CollectionGrid, CollectionItemData } from '@/components/features/collection/collection-grid';
 import { useMusicLinkConversion } from '@/hooks/use-music';
 import { Spinner } from '@/components/ui/spinner';
@@ -96,7 +96,7 @@ export default function CollectionsPage() {
   
   return (
     <div className="min-h-screen relative">
-      <AnimatedBackground className="fixed inset-0 z-0" />
+      <DitherBackground className="fixed inset-0 z-0" />
       
       <div className="relative z-10 min-h-screen">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8">

@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { AnimatedBackground } from '@/components/ui/animated-background';
+import { DitherBackground } from '@/components/ui/dither-background';
 import { MailCheck } from 'lucide-react';
 import { useSignUp, useSignInWithProvider } from '@/hooks/use-auth';
 import Image from 'next/image';
@@ -44,7 +44,7 @@ export default function SignUpPage() {
   if (isSuccess && signUpResult?.authenticated !== true) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
-        <AnimatedBackground className="fixed inset-0 z-0" />
+        <DitherBackground className="fixed inset-0 z-0" />
         <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
           <div className="w-full max-w-md">
             <div className="flex justify-center mb-8">
@@ -95,7 +95,7 @@ export default function SignUpPage() {
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Animated Background */}
-      <AnimatedBackground className="fixed inset-0 z-0" />
+      <DitherBackground className="fixed inset-0 z-0" />
 
       <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
         <div className="w-full max-w-md">

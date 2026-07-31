@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { AnimatedButton } from '@/components/ui/animated-button';
 import { HeadlineText, BodyText } from '@/components/ui/typography';
-import { AnimatedBackground } from '@/components/ui/animated-background';
+import { DitherBackground } from '@/components/ui/dither-background';
 import { captureUiException } from '@/lib/observability/error-reporting';
 
 export default function Error({
@@ -22,7 +22,7 @@ export default function Error({
 
   return (
     <div className="min-h-screen relative">
-      <AnimatedBackground className="fixed inset-0 z-0" />
+      <DitherBackground className="fixed inset-0 z-0" />
       <div className="relative z-10 min-h-screen flex items-center justify-center">
         <div className="text-center p-8 max-w-md mx-auto">
           <div className="mb-6">

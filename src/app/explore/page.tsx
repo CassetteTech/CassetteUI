@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -317,21 +318,81 @@ function FeaturedCurators() {
         </p>
       </div>
 
-      <div className="-mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 overflow-x-auto no-scrollbar">
-        <div className="flex gap-6 snap-x snap-mandatory">
-          {curators.map((curator, i) => (
-            <CuratorCard key={curator.userId} curator={curator} index={i} />
-          ))}
-        </div>
-      </div>
+      <CuratorCoverflow curators={curators} />
     </motion.section>
+  );
+}
+
+/**
+ * Coverflow rail: the centered card sits flat and full-size while neighbors
+ * fan away with rotateY/scale/opacity based on distance from the viewport
+ * center. Native scroll + snap does the driving; transforms are written
+ * imperatively on a rAF so scrolling never re-renders React.
+ */
+function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const frame = useRef(0);
+
+  const updateTransforms = useCallback(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const mid = track.scrollLeft + track.clientWidth / 2;
+    for (const item of Array.from(track.children) as HTMLElement[]) {
+      const card = item.firstElementChild as HTMLElement | null;
+      if (!card) continue;
+      const t = Math.max(
+        -2.5,
+        Math.min(2.5, (item.offsetLeft + item.offsetWidth / 2 - mid) / item.offsetWidth)
+      );
+      const a = Math.abs(t);
+      // Coverflow: the angle ramps up fast then holds, so off-center cards all
+      // "file in" at the same tilt; depth (translateZ) does the shrinking and
+      // translateX tucks side cards in behind the centered one.
+      const angle = -Math.sign(t) * Math.min(a * 55, 40);
+      const depth = -Math.min(a, 2) * 90;
+      const tuck = -t * 30;
+      card.style.transform = `translateX(${tuck.toFixed(1)}px) translateZ(${depth.toFixed(1)}px) rotateY(${angle.toFixed(2)}deg)`;
+      card.style.opacity = (1 - Math.min(a * 0.15, 0.4)).toFixed(3);
+      item.style.zIndex = String(50 - Math.round(a * 10));
+    }
+  }, []);
+
+  const onScroll = useCallback(() => {
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(updateTransforms);
+  }, [updateTransforms]);
+
+  useEffect(() => {
+    updateTransforms();
+    window.addEventListener('resize', updateTransforms);
+    return () => {
+      window.removeEventListener('resize', updateTransforms);
+      cancelAnimationFrame(frame.current);
+    };
+  }, [updateTransforms]);
+
+  return (
+    <div
+      ref={trackRef}
+      onScroll={onScroll}
+      className="-mx-4 sm:-mx-6 lg:-mx-8 flex overflow-x-auto no-scrollbar snap-x snap-mandatory py-6 px-[calc(50%-130px)] sm:px-[calc(50%-140px)] [perspective:1200px]"
+    >
+      {curators.map((curator, i) => (
+        <div
+          key={curator.userId}
+          className="relative shrink-0 snap-center -ml-14 first:ml-0 [transform-style:preserve-3d]"
+        >
+          <div className="transition-[transform,opacity] duration-150 ease-out will-change-transform [transform-style:preserve-3d]">
+            <CuratorCard curator={curator} index={i} />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
 function CuratorCard({ curator, index }: { curator: ExploreCurator; index: number }) {
   const router = useRouter();
-  const rand = hashRand(curator.userId || String(index));
-  const rot = (rand() - 0.5) * 4;
   const tapeColor = TAPE_COLORS[index % TAPE_COLORS.length];
   const initials = curator.username?.charAt(0)?.toUpperCase() || 'C';
   const displayName = curator.displayName?.trim() || curator.username;
@@ -344,15 +405,7 @@ function CuratorCard({ curator, index }: { curator: ExploreCurator; index: numbe
   const openProfile = () => router.push(profileHref);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20, rotate: 0 }}
-      whileInView={{ opacity: 1, y: 0, rotate: rot }}
-      whileHover={{ rotate: 0, y: -4, scale: 1.02 }}
-      viewport={{ once: true, margin: '-5%' }}
-      transition={{ duration: 0.4, delay: Math.min(index * 0.04, 0.2) }}
-      className="relative shrink-0 snap-start"
-      style={{ transformOrigin: 'center' }}
-    >
+    <div className="relative">
       <span
         aria-hidden
         className={cn(
@@ -455,14 +508,14 @@ function CuratorCard({ curator, index }: { curator: ExploreCurator; index: numbe
               onClick={(e) => e.stopPropagation()}
               aria-label={`${displayName} on ${link.platform} (${link.label})`}
               title={`${link.platform}: ${link.label}`}
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center border border-foreground/30 text-foreground/80 transition-colors hover:border-foreground hover:bg-foreground hover:text-background"
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center text-foreground/60 transition-colors hover:text-foreground"
             >
               <ProfileLinkIcon link={link} />
             </a>
           ))}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 

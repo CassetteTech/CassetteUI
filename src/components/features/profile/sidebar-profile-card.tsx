@@ -116,12 +116,22 @@ export function SidebarProfileCard({
             </button>
           </AvatarPreviewDialog>
 
-          {/* Connected services - top right */}
-          <MusicConnectionsStatus
-            variant="sidebar-enhanced"
-            platformPreferencesOverride={platformPreferences}
-            connectedServicesOverride={connectedServices}
-          />
+          {/* Likes + connected services - top right */}
+          <div className="flex flex-col items-end gap-2">
+            {typeof totalLikesReceived === 'number' && (
+              <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                <span className="font-bold text-foreground">
+                  {Math.max(0, totalLikesReceived).toLocaleString()}
+                </span>
+                <span>{totalLikesReceived === 1 ? 'like' : 'likes'}</span>
+              </div>
+            )}
+            <MusicConnectionsStatus
+              variant="sidebar-enhanced"
+              platformPreferencesOverride={platformPreferences}
+              connectedServicesOverride={connectedServices}
+            />
+          </div>
         </div>
 
         {/* Name + username - left aligned */}
@@ -154,15 +164,6 @@ export function SidebarProfileCard({
         )}
 
         <ProfileLinksRow links={getProfileLinks(user)} />
-
-        {typeof totalLikesReceived === 'number' && (
-          <div className="flex items-center gap-1.5 border-t border-border/70 pt-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-            <span className="font-bold text-foreground">
-              {Math.max(0, totalLikesReceived).toLocaleString()}
-            </span>
-            <span>{totalLikesReceived === 1 ? 'like' : 'likes'}</span>
-          </div>
-        )}
       </div>
     </div>
   );

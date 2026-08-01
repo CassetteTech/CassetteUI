@@ -375,7 +375,9 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     <div
       ref={trackRef}
       onScroll={onScroll}
-      className="-mx-4 sm:-mx-6 lg:-mx-8 flex overflow-x-auto no-scrollbar snap-x snap-mandatory py-6 px-[calc(50%-130px)] sm:px-[calc(50%-140px)] [perspective:1200px]"
+      // py must clear the card's shadow: overflow-x-auto forces the vertical axis
+      // to clip too, so a tight padding slices the shadow with a hard line.
+      className="-mx-4 sm:-mx-6 lg:-mx-8 flex overflow-x-auto no-scrollbar snap-x snap-mandatory py-14 px-[calc(50%-130px)] sm:px-[calc(50%-140px)] [perspective:1200px]"
     >
       {/* Wrappers overlap each other's cards, so they must be click-transparent;
           only the card itself (pointer-events-auto) takes the hit. */}
@@ -393,12 +395,12 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
   );
 }
 
-function CuratorCard({ curator, index }: { curator: ExploreCurator; index: number }) {
+function CuratorCard({ curator }: { curator: ExploreCurator; index: number }) {
   const router = useRouter();
-  const tapeColor = TAPE_COLORS[index % TAPE_COLORS.length];
   const initials = curator.username?.charAt(0)?.toUpperCase() || 'C';
   const displayName = curator.displayName?.trim() || curator.username;
   const artwork = curator.recentArtworkUrls.slice(0, 4);
+  const genres = (curator.topGenres ?? []).slice(0, 3);
   const links = (curator.profileLinks ?? [])
     .map(parseProfileLink)
     .filter((l): l is ParsedProfileLink => l !== null)
@@ -407,100 +409,83 @@ function CuratorCard({ curator, index }: { curator: ExploreCurator; index: numbe
   const openProfile = () => router.push(profileHref);
 
   return (
-    <div className="relative">
-      <span
-        aria-hidden
-        className={cn(
-          'pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 z-10 h-5 w-20 rotate-[-4deg] opacity-80 border border-foreground/10',
-          tapeColor
-        )}
-      />
-
-      {/* The platform buttons are real anchors, so the card wrapper is a div-as-link
-          (nested <a> is invalid HTML and browsers restructure it). */}
-      <div
-        role="link"
-        tabIndex={0}
-        aria-label={`View ${displayName} on Cassette`}
-        onClick={openProfile}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            openProfile();
-          }
-        }}
-        className="group block w-[260px] sm:w-[280px] cursor-pointer bg-primary-foreground force-light-surface text-foreground border-2 border-foreground shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      >
-        {/* Recent artwork collage — the curator's taste is the hero, not their headshot.
-            The grid adapts to how much artwork exists so there are never empty slots. */}
-        <div className="relative m-1.5 mb-0 aspect-[4/3] overflow-hidden bg-muted">
-          {artwork.length > 0 ? (
-            <div
-              className={cn(
-                'grid h-full gap-0.5',
-                artwork.length === 1 && 'grid-cols-1',
-                artwork.length === 2 && 'grid-cols-2',
-                artwork.length >= 3 && 'grid-cols-2 grid-rows-2'
-              )}
-            >
-              {artwork.map((url, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    'relative overflow-hidden bg-muted',
-                    artwork.length === 3 && i === 0 && 'row-span-2'
-                  )}
-                >
-                  <Image
-                    src={url}
-                    alt=""
-                    fill
-                    sizes="280px"
-                    className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <Image src="/images/ic_music.png" alt="" width={40} height={40} className="opacity-20" />
-            </div>
-          )}
-        </div>
-
-        {/* Identity: modest avatar overlapping the collage, name beside it */}
-        <div className="-mt-5 flex items-end gap-2.5 px-2.5">
-          <Avatar className="h-12 w-12 shrink-0 border-2 border-foreground">
-            <AvatarImage src={curator.avatarUrl} alt={`@${curator.username}`} />
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
-          <div className="flex min-w-0 flex-1 items-center gap-1 pb-0.5">
-            <p className="font-teko text-2xl uppercase leading-none tracking-tight truncate group-hover:text-primary transition-colors">
-              {displayName}
-            </p>
-            <VerificationBadge accountType={curator.accountType} size="sm" showTooltip={false} />
-          </div>
-        </div>
-
-        {/* Taste: genre ticket-stubs */}
-        {(curator.topGenres ?? []).length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1 px-2.5">
-            {(curator.topGenres ?? []).map((genre) => (
-              <span
-                key={genre}
-                className="border border-foreground/30 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground"
+    // The platform buttons are real anchors, so the card wrapper is a div-as-link
+    // (nested <a> is invalid HTML and browsers restructure it).
+    <div
+      role="link"
+      tabIndex={0}
+      aria-label={`View ${displayName} on Cassette`}
+      onClick={openProfile}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openProfile();
+        }
+      }}
+      className="group relative block w-[260px] cursor-pointer overflow-hidden rounded-2xl bg-card shadow-[0_8px_30px_hsl(var(--foreground)/0.12)] ring-1 ring-foreground/10 transition-colors duration-300 hover:ring-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[280px]"
+    >
+      {/* Full-bleed artwork: the curator's taste is the hero. The grid adapts to
+          how much artwork exists so there are never empty slots. */}
+      <div className="relative aspect-[4/5] overflow-hidden bg-muted">
+        {artwork.length > 0 ? (
+          <div
+            className={cn(
+              'grid h-full gap-px',
+              artwork.length === 1 && 'grid-cols-1',
+              artwork.length === 2 && 'grid-cols-2',
+              artwork.length >= 3 && 'grid-cols-2 grid-rows-2'
+            )}
+          >
+            {artwork.map((url, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'relative overflow-hidden bg-muted',
+                  artwork.length === 3 && i === 0 && 'row-span-2'
+                )}
               >
-                {genre}
-              </span>
+                <Image
+                  src={url}
+                  alt=""
+                  fill
+                  sizes="280px"
+                  className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                />
+              </div>
             ))}
           </div>
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <Image src="/images/ic_music.png" alt="" width={40} height={40} className="opacity-20" />
+          </div>
         )}
 
-        {/* Handle row: cassette handle → profile, platform buttons → external */}
-        <div className="mx-2.5 mt-2 flex items-center gap-1.5 border-t border-dashed border-foreground/20 py-2">
-          <span className="min-w-0 flex-1 truncate font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground group-hover:text-primary transition-colors">
-            @{curator.username}
-          </span>
+        {/* Scrim carries the identity so the artwork runs edge to edge */}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3.5 pb-3 pt-14">
+          <div className="flex items-center gap-2.5">
+            <Avatar className="h-10 w-10 shrink-0 ring-2 ring-white/80">
+              <AvatarImage src={curator.avatarUrl} alt={`@${curator.username}`} />
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1">
+                <p className="truncate text-[15px] font-semibold leading-tight text-white">
+                  {displayName}
+                </p>
+                <VerificationBadge accountType={curator.accountType} size="sm" showTooltip={false} />
+              </div>
+              <p className="truncate text-xs text-white/60">@{curator.username}</p>
+            </div>
+          </div>
+          {genres.length > 0 && (
+            <p className="mt-2 truncate text-[11px] text-white/55">{genres.join(' · ')}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Platform links sit on a quiet footer below the artwork */}
+      {links.length > 0 && (
+        <div className="flex items-center gap-1 px-3 py-2">
           {links.map((link) => (
             <a
               key={link.href}
@@ -510,13 +495,13 @@ function CuratorCard({ curator, index }: { curator: ExploreCurator; index: numbe
               onClick={(e) => e.stopPropagation()}
               aria-label={`${displayName} on ${link.platform} (${link.label})`}
               title={`${link.platform}: ${link.label}`}
-              className="inline-flex h-6 w-6 shrink-0 items-center justify-center text-foreground/60 transition-colors hover:text-foreground"
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <ProfileLinkIcon link={link} />
             </a>
           ))}
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -377,12 +377,14 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       onScroll={onScroll}
       className="-mx-4 sm:-mx-6 lg:-mx-8 flex overflow-x-auto no-scrollbar snap-x snap-mandatory py-6 px-[calc(50%-130px)] sm:px-[calc(50%-140px)] [perspective:1200px]"
     >
+      {/* Wrappers overlap each other's cards, so they must be click-transparent;
+          only the card itself (pointer-events-auto) takes the hit. */}
       {curators.map((curator, i) => (
         <div
           key={curator.userId}
-          className="relative shrink-0 snap-center -ml-14 first:ml-0 [transform-style:preserve-3d]"
+          className="pointer-events-none relative shrink-0 snap-center -ml-14 first:ml-0 [transform-style:preserve-3d]"
         >
-          <div className="transition-[transform,opacity] duration-150 ease-out will-change-transform [transform-style:preserve-3d]">
+          <div className="pointer-events-auto transition-[transform,opacity] duration-150 ease-out will-change-transform [transform-style:preserve-3d]">
             <CuratorCard curator={curator} index={i} />
           </div>
         </div>
@@ -409,7 +411,7 @@ function CuratorCard({ curator, index }: { curator: ExploreCurator; index: numbe
       <span
         aria-hidden
         className={cn(
-          'absolute -top-2 left-1/2 -translate-x-1/2 z-10 h-5 w-20 rotate-[-4deg] opacity-80 border border-foreground/10',
+          'pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 z-10 h-5 w-20 rotate-[-4deg] opacity-80 border border-foreground/10',
           tapeColor
         )}
       />

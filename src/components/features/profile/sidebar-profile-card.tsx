@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { VerificationBadge } from '@/components/ui/verification-badge';
+import { ProfileLinksRow } from '@/components/features/profile/profile-links';
 import type { UserBio, AuthUser, ConnectedService, AccountType, PlatformPreferenceInfo } from '@/types';
 
 interface SidebarProfileCardProps {
@@ -55,6 +56,16 @@ function getPlatformPreferences(user: UserBio | AuthUser): PlatformPreferenceInf
  */
 function getAccountType(user: UserBio | AuthUser): AccountType | number | undefined {
   return user.accountType;
+}
+
+/**
+ * Get profile links from UserBio (AuthUser doesn't include this field).
+ */
+function getProfileLinks(user: UserBio | AuthUser): string[] | undefined {
+  if ('profileLinks' in user) {
+    return user.profileLinks;
+  }
+  return undefined;
 }
 
 /**
@@ -105,12 +116,22 @@ export function SidebarProfileCard({
             </button>
           </AvatarPreviewDialog>
 
-          {/* Connected services - top right */}
-          <MusicConnectionsStatus
-            variant="sidebar-enhanced"
-            platformPreferencesOverride={platformPreferences}
-            connectedServicesOverride={connectedServices}
-          />
+          {/* Likes + connected services - top right */}
+          <div className="flex flex-col items-end gap-2">
+            {typeof totalLikesReceived === 'number' && (
+              <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                <span className="font-bold text-foreground">
+                  {Math.max(0, totalLikesReceived).toLocaleString()}
+                </span>
+                <span>{totalLikesReceived === 1 ? 'like' : 'likes'}</span>
+              </div>
+            )}
+            <MusicConnectionsStatus
+              variant="sidebar-enhanced"
+              platformPreferencesOverride={platformPreferences}
+              connectedServicesOverride={connectedServices}
+            />
+          </div>
         </div>
 
         {/* Name + username - left aligned */}
@@ -142,14 +163,7 @@ export function SidebarProfileCard({
           </Tooltip>
         )}
 
-        {typeof totalLikesReceived === 'number' && (
-          <div className="flex items-center gap-1.5 border-t border-border/70 pt-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-            <span className="font-bold text-foreground">
-              {Math.max(0, totalLikesReceived).toLocaleString()}
-            </span>
-            <span>{totalLikesReceived === 1 ? 'like' : 'likes'}</span>
-          </div>
-        )}
+        <ProfileLinksRow links={getProfileLinks(user)} />
       </div>
     </div>
   );

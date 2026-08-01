@@ -14,6 +14,7 @@ import {
   InternalAccountTypeAuditEntry,
   InternalIssuesResponse,
   InternalIssueDetail,
+  InternalConversionQualityTrendResponse,
   InternalLambdaHealthOperationsResponse,
   InternalOperationalAlertsResponse,
   InternalConversionJobsOperationsResponse,
@@ -536,6 +537,27 @@ class ApiService {
     return this.request<InternalIssueDetail>(`/api/v1/internal/issues/${issueId}`, {
       timeoutMs: 20000,
     });
+  }
+
+  async getInternalConversionQualityTrends(params: {
+    days?: number;
+    sourcePlatform?: string;
+    targetPlatform?: string;
+    method?: string;
+    scorerVersion?: string;
+    configurationVersion?: string;
+  } = {}): Promise<InternalConversionQualityTrendResponse> {
+    const query = new URLSearchParams();
+    query.set('days', String(params.days ?? 30));
+    if (params.sourcePlatform) query.set('sourcePlatform', params.sourcePlatform);
+    if (params.targetPlatform) query.set('targetPlatform', params.targetPlatform);
+    if (params.method) query.set('method', params.method);
+    if (params.scorerVersion) query.set('scorerVersion', params.scorerVersion);
+    if (params.configurationVersion) query.set('configurationVersion', params.configurationVersion);
+    return this.request<InternalConversionQualityTrendResponse>(
+      `/api/v1/internal/conversion-quality/trends?${query.toString()}`,
+      { timeoutMs: 30000 }
+    );
   }
 
   async getInternalSentinelFindings(params: {
@@ -1142,6 +1164,28 @@ class ApiService {
     sourceDomain?: string;
     routeContext?: string;
     description?: string;
+    matchContext?: {
+      elementType?: string;
+      title?: string;
+      artist?: string;
+      sourceIdentity?: { platform: string; providerId: string };
+      targetCandidates?: Array<{ platform: string; providerId: string }>;
+      failedTracks?: Array<{
+        position: number;
+        trackName?: string;
+        artistName?: string;
+        errorReason?: string;
+        reasonCode?: string;
+        attemptedMethods?: string[];
+        hadTargetPlatformId?: boolean;
+        attemptedIsrcCount?: number;
+        targetPlatform?: string;
+        territory?: string | null;
+        decisionPolicyVersion?: string;
+        confidence?: number | null;
+        ambiguous?: boolean;
+      }>;
+    };
     context?: Record<string, unknown>;
   }): Promise<{ success: boolean; message?: string; issueId?: string; correlationId?: string }> {
     const correlationId = normalizeCorrelationId(data.correlationId) ?? createCorrelationId();
@@ -1174,6 +1218,7 @@ class ApiService {
       sourceLinkHash,
       sourceDomain,
       description: data.description,
+      matchContext: data.matchContext,
       context: data.context,
     };
 

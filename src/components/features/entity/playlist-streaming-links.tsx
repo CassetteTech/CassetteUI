@@ -27,6 +27,7 @@ import {
   normalizePlatformUiKey,
 } from '@/lib/platforms';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
+import { useReportIssue } from '@/providers/report-issue-provider';
 
 type PlatformKey = PlatformUiKey;
 type RedirectPlatformKey = Extract<PlatformKey, 'spotify' | 'deezer'>;
@@ -68,6 +69,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   sourcePlatform,
 }) => {
   const { isAuthenticated } = useAuthState();
+  const { openReportModal } = useReportIssue();
   const [creationStatus, setCreationStatus] = useState<CreationStatus | null>(null);
   const [showFailedTracks, setShowFailedTracks] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -556,18 +558,38 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
               </button>
 
               {showFailedTracks && (
-                <ul className="mt-2 space-y-1 border-l-2 border-warning/40 pl-3 text-sm text-warning-text">
-                  {failed_tracks.map((track: FailedTrack, idx: number) => (
-                    <li key={idx} className="flex justify-between">
-                      <span className="truncate">
-                        {track.position}. {track.track_name || 'Unknown'} - {track.artist_name || 'Unknown'}
-                      </span>
-                      {track.error_reason && (
-                        <span className="text-xs opacity-70 ml-2">{track.error_reason}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-2 border-l-2 border-warning/40 pl-3">
+                  <ul className="space-y-1 text-sm text-warning-text">
+                    {failed_tracks.map((track: FailedTrack, idx: number) => (
+                      <li key={idx} className="flex justify-between">
+                        <span className="truncate">
+                          {track.position}. {track.track_name || 'Unknown'} - {track.artist_name || 'Unknown'}
+                        </span>
+                        {(track.reason_code || track.error_reason) && (
+                          <span className="ml-2 text-xs opacity-70">{track.reason_code || track.error_reason}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={() => openReportModal({
+                      sourceContext: 'playlist_creation',
+                      sourceLink: resolvedSourceUrl ?? undefined,
+                      conversionData: {
+                        elementType: 'playlist',
+                        postId,
+                        correlationId: creationStatus.result?.correlationId,
+                        sourcePlatform: sourcePlatformKey ?? undefined,
+                        targetPlatform: creationStatus.platform,
+                        failedTracks: failed_tracks,
+                      },
+                    })}
+                    className="mt-2 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-warning-text hover:underline"
+                  >
+                    Report these failures
+                  </button>
+                </div>
               )}
             </div>
           )}

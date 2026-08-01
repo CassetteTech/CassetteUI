@@ -1,5 +1,6 @@
 import {
   ActivityPost,
+  ExploreCurator,
   ExploreUser,
   PaginatedActivityResponse,
   PaginatedExploreUsersResponse,
@@ -271,6 +272,9 @@ export class ProfileService {
       ) || 0,
       connectedServices,
       platformPreferences,
+      profileLinks: (this.firstArrayCandidate(merged.profileLinks, merged.ProfileLinks) ?? []).filter(
+        (link): link is string => typeof link === 'string' && link.length > 0,
+      ),
       accountType: (merged.accountType ?? merged.AccountType ?? merged.account_type) as UserBio['accountType'],
     };
   }
@@ -720,6 +724,35 @@ export class ProfileService {
     }
   }
 
+  async fetchExploreCurators(): Promise<ExploreCurator[]> {
+    const url = this.buildApiUrl('/api/v1/social/explore/curators');
+
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.status !== 200) {
+      appLogger.warn('explore_curators_fetch_failed', { status: response.status });
+      throw new Error('Failed to load explore curators');
+    }
+
+    const json = (await response.json()) as {
+      curators?: ExploreCurator[];
+      Curators?: ExploreCurator[];
+    };
+    return (json.curators ?? json.Curators ?? []).map((curator) => ({
+      ...curator,
+      recentArtworkUrls: curator.recentArtworkUrls ?? [],
+      profileLinks:
+        curator.profileLinks ?? (curator as { ProfileLinks?: string[] }).ProfileLinks ?? [],
+      topGenres: curator.topGenres ?? (curator as { TopGenres?: string[] }).TopGenres ?? [],
+    }));
+  }
+
   async fetchUserLikedPosts(
     userId: string,
     options: {
@@ -813,6 +846,7 @@ export class ProfileService {
     avatarUrl?: string;
     avatarFile?: File | null;
     likedPostsPrivacy?: 'public' | 'private';
+    profileLinks?: string[];
   }): Promise<void> {
     try {
       const url = this.buildApiUrl('/api/v1/profile');
@@ -831,6 +865,17 @@ export class ProfileService {
         formData.append('likedPostsPrivacy', data.likedPostsPrivacy);
         // Compatibility fallback for older servers
         formData.append('showLikedPosts', String(data.likedPostsPrivacy === 'public'));
+      }
+      if (data.profileLinks !== undefined) {
+        // Whole-list replace; the server treats a single blank entry as "clear all"
+        // since multipart forms cannot express an empty list.
+        if (data.profileLinks.length === 0) {
+          formData.append('ProfileLinks', '');
+        } else {
+          for (const link of data.profileLinks) {
+            formData.append('ProfileLinks', link);
+          }
+        }
       }
 
       const response = await fetch(url, {

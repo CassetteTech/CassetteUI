@@ -42,6 +42,11 @@ export interface DisplayPlatformDefinition {
   active: boolean;
 }
 
+export interface MatchReviewProviderIdentity {
+  platform: PlatformKey;
+  providerId: string;
+}
+
 export const ACTIVE_PLATFORM_DEFINITIONS = [
   {
     key: PLATFORM_KEYS.spotify,
@@ -98,6 +103,39 @@ export const ACTIVE_PLATFORM_DEFINITIONS = [
     onboardingDescription: 'Connect to create playlists',
   },
 ] as const satisfies readonly PlatformDefinition[];
+
+const SAFE_PROVIDER_ID = /^[A-Za-z0-9._:-]{1,200}$/;
+
+export function extractMatchReviewProviderIdentity(rawUrl?: string): MatchReviewProviderIdentity | undefined {
+  if (!rawUrl) return undefined;
+
+  try {
+    const url = new URL(rawUrl);
+    const definition = ACTIVE_PLATFORM_DEFINITIONS.find(platform =>
+      platform.sourceHosts.some(host => host === url.hostname.toLowerCase()),
+    );
+    if (!definition) return undefined;
+
+    const segments = url.pathname.split('/').filter(Boolean);
+    let providerId: string | undefined;
+    if (definition.key === PLATFORM_KEYS.appleMusic) {
+      providerId = url.searchParams.get('i') || undefined;
+      if (!providerId) {
+        const typeIndex = segments.findIndex(segment => ['song', 'album', 'artist', 'playlist'].includes(segment));
+        providerId = typeIndex >= 0 ? segments[segments.length - 1] : undefined;
+      }
+    } else {
+      const typeIndex = segments.findIndex(segment => ['track', 'album', 'artist', 'playlist'].includes(segment));
+      providerId = typeIndex >= 0 ? segments[typeIndex + 1] : undefined;
+    }
+
+    return providerId && SAFE_PROVIDER_ID.test(providerId)
+      ? { platform: definition.key, providerId }
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 const DISPLAY_ONLY_PLATFORM_DEFINITIONS = [
   {

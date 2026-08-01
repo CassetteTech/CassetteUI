@@ -10,6 +10,7 @@ import { MusicConnectionsStatus } from '@/components/features/music/music-connec
 import { AvatarPreviewDialog } from '@/components/features/profile/avatar-preview-dialog';
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 import { getDisplayPlatformDefinition, isAppleMusicPlatform } from '@/lib/platforms';
+import { ProfileLinksRow } from '@/components/features/profile/profile-links';
 
 interface ProfileHeaderProps {
   userBio: UserBio;
@@ -124,6 +125,8 @@ export function ProfileHeader({
             {userBio.bio}
           </p>
         )}
+
+        <ProfileLinksRow links={userBio.profileLinks} />
 
         {/* Desktop-only likes row */}
         <div className="hidden lg:flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">

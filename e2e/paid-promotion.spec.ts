@@ -260,6 +260,13 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
 
   await page.goto('/promote/new');
   await expect(page.getByRole('button', { name: 'Promotion home', exact: true })).toBeVisible();
+  const requirements = page.getByTestId('paid-promotion-form-requirements');
+  await expect(requirements).toContainText('music selection');
+  await expect(requirements).toContainText('campaign brief (20+ characters)');
+  await expect(page.getByTestId('paid-promotion-submit')).toHaveAttribute(
+    'aria-describedby',
+    'paid-promotion-form-requirements',
+  );
   await page.getByTestId('paid-promotion-subject-input').fill(
     fixtureConvertTemplates.paidPromotionTrack.originalUrl,
   );
@@ -284,14 +291,17 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
   await expect(weeklyTotal).toContainText('$10.00');
   await expect(weeklyTotal).toContainText('$90.00');
 
+  await page.getByTestId('paid-promotion-brief').fill('Too short');
+  await expect(requirements).toContainText('campaign brief (20+ characters)');
   await page.getByTestId('paid-promotion-brief').fill(
     'Focus on the release story and the live arrangement.',
   );
-  await page.getByLabel('Promoter kind').click();
-  await page.getByRole('option', { name: 'Artist', exact: true }).click();
-  await page.getByLabel('Relationship to the artist').click();
+  await page.getByTestId('paid-promotion-window-start').fill('2026-09-01');
+  await page.getByTestId('paid-promotion-window-end').fill('2026-09-14');
+  await page.getByLabel('Who is promoting this music?').click();
   await page.getByRole('option', { name: 'I am the artist', exact: true }).click();
   await page.getByTestId('paid-promotion-attestation').check();
+  await expect(requirements).toContainText('All required details are complete.');
 
   // The review step gates checkout: the amount to be charged and policy
   // links must be shown before any campaign/checkout request fires.
@@ -300,6 +310,9 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
   await expect(reviewPanel).toBeVisible();
   await expect(page.getByTestId('paid-promotion-review-total')).toContainText('$90.00');
   await expect(page.getByTestId('paid-promotion-review-weeks')).toContainText('4 weeks');
+  await expect(page.getByTestId('paid-promotion-review-window')).toContainText(
+    'Sep 1, 2026 – Sep 14, 2026',
+  );
   await expect(reviewPanel.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute(
     'href',
     '/terms',
@@ -313,12 +326,17 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
     request.method() === 'POST' &&
     new URL(request.url()).pathname === '/api/v1/paid-promotions/campaigns',
   );
+  const campaignResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === 'POST' &&
+    new URL(response.url()).pathname === '/api/v1/paid-promotions/campaigns',
+  );
   const checkoutRequestPromise = page.waitForRequest((request) =>
     request.method() === 'POST' &&
     new URL(request.url()).pathname.endsWith('/checkout-session'),
   );
   await page.getByTestId('paid-promotion-confirm-checkout').click();
   const campaignRequest = await campaignRequestPromise;
+  const campaignResponse = await campaignResponsePromise;
   const checkoutRequest = await checkoutRequestPromise;
   const campaignPayload = campaignRequest.postDataJSON() as Record<string, unknown>;
 
@@ -326,6 +344,14 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
   expect(campaignPayload.rateCardId).toBe(fixturePaidPromotionRateCards[0].id);
   expect(campaignPayload.weeks).toBe(4);
   expect(campaignPayload.attestationAccepted).toBe(true);
+  expect(campaignPayload.promoterKind).toBe('artist');
+  expect(campaignPayload.attestedRelationship).toBe('self_artist');
+  expect(campaignPayload.requestedWindowStart).toBe('2026-09-01');
+  expect(campaignPayload.requestedWindowEnd).toBe('2026-09-14');
+  expect(await campaignResponse.json()).toMatchObject({
+    requestedWindowStart: '2026-09-01',
+    requestedWindowEnd: '2026-09-14',
+  });
   expect(campaignPayload).not.toHaveProperty('weeklyAmountMinor');
   expect(campaignPayload).not.toHaveProperty('amountMinor');
   expect(campaignPayload).not.toHaveProperty('currency');
@@ -373,9 +399,7 @@ test('creates an album campaign from an album link', async ({ page }) => {
 
   await page.getByTestId(`paid-promotion-rate-card-${fixturePaidPromotionRateCards[1].id}`).click();
   await page.getByTestId('paid-promotion-brief').fill('Lead with the deluxe edition.');
-  await page.getByLabel('Promoter kind').click();
-  await page.getByRole('option', { name: 'Artist', exact: true }).click();
-  await page.getByLabel('Relationship to the artist').click();
+  await page.getByLabel('Who is promoting this music?').click();
   await page.getByRole('option', { name: 'I am the artist', exact: true }).click();
   await page.getByTestId('paid-promotion-attestation').check();
   await page.getByTestId('paid-promotion-submit').click();

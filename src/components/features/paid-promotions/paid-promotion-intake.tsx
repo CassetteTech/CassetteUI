@@ -84,21 +84,33 @@ function elementTypeFor(musicElementId: string): PaidPromotionElementType | null
   return ELEMENT_TYPE_BY_PREFIX[musicElementId.slice(0, 2)] ?? null;
 }
 
-const PROMOTER_KINDS: Array<{ value: PaidPromotionPromoterKind; label: string }> = [
-  { value: 'artist', label: 'Artist' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'label', label: 'Label' },
-  { value: 'agency', label: 'Agency' },
-  { value: 'other', label: 'Other' },
+const PROMOTER_IDENTITIES: Array<{
+  promoterKind: PaidPromotionPromoterKind;
+  attestedRelationship: PaidPromotionAttestedRelationship;
+  label: string;
+}> = [
+  { promoterKind: 'artist', attestedRelationship: 'self_artist', label: 'I am the artist' },
+  { promoterKind: 'manager', attestedRelationship: 'manager', label: 'I manage the artist' },
+  { promoterKind: 'label', attestedRelationship: 'label', label: 'I represent a label' },
+  { promoterKind: 'agency', attestedRelationship: 'agency', label: 'I represent an agency' },
+  { promoterKind: 'other', attestedRelationship: 'other', label: 'I am otherwise authorized' },
 ];
 
-const RELATIONSHIPS: Array<{ value: PaidPromotionAttestedRelationship; label: string }> = [
-  { value: 'self_artist', label: 'I am the artist' },
-  { value: 'manager', label: 'I represent the artist as a manager' },
-  { value: 'label', label: 'I represent the artist through a label' },
-  { value: 'agency', label: 'I represent the artist through an agency' },
-  { value: 'other', label: 'Other authorized relationship' },
-];
+const MIN_BRIEF_LENGTH = 20;
+
+const DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+function formatRequestedWindow(start: string, end: string): string {
+  const format = (value: string) => DATE_FORMATTER.format(new Date(`${value}T00:00:00`));
+  if (start && end) return `${format(start)} – ${format(end)}`;
+  if (start) return `Starting ${format(start)}`;
+  if (end) return `Ending by ${format(end)}`;
+  return 'No timing preference';
+}
 
 function createIdempotencyKey(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -167,8 +179,8 @@ export function PaidPromotionIntake() {
   const [promoterKind, setPromoterKind] = useState<PaidPromotionPromoterKind | ''>('');
   const [orgName, setOrgName] = useState('');
   const [website, setWebsite] = useState('');
-  const [attestedRelationship, setAttestedRelationship] =
-    useState<PaidPromotionAttestedRelationship | ''>('');
+  const [requestedWindowStart, setRequestedWindowStart] = useState('');
+  const [requestedWindowEnd, setRequestedWindowEnd] = useState('');
   const [attestationAccepted, setAttestationAccepted] = useState(false);
 
   const [createdCampaignId, setCreatedCampaignId] = useState<string | null>(null);
@@ -365,21 +377,37 @@ export function PaidPromotionIntake() {
     ? Math.min(Math.max(rawWeeks, selectedRateCard.minWeeks), selectedRateCard.maxWeeks)
     : rawWeeks;
   const pricing = selectedRateCard ? computePaidPromotionPricing(selectedRateCard, weeks) : null;
+  const selectedIdentity = PROMOTER_IDENTITIES.find(
+    (identity) => identity.promoterKind === promoterKind,
+  ) ?? null;
+  const briefIsComplete = brief.trim().length >= MIN_BRIEF_LENGTH;
+  const requestedWindowIsValid = !(
+    requestedWindowStart &&
+    requestedWindowEnd &&
+    requestedWindowEnd < requestedWindowStart
+  );
 
   const canSubmit = Boolean(
     resolvedSubject &&
     selectedRateCard &&
-    brief.trim() &&
-    promoterKind &&
-    attestedRelationship &&
+    briefIsComplete &&
+    selectedIdentity &&
+    requestedWindowIsValid &&
     attestationAccepted &&
     attestation
   );
 
-  const promoterKindLabel = PROMOTER_KINDS.find((option) => option.value === promoterKind)?.label;
-  const relationshipLabel = RELATIONSHIPS.find(
-    (option) => option.value === attestedRelationship,
-  )?.label;
+  const missingRequirements = [
+    !resolvedSubject ? 'music selection' : null,
+    !selectedRateCard ? 'package' : null,
+    !briefIsComplete ? `campaign brief (${MIN_BRIEF_LENGTH}+ characters)` : null,
+    !selectedIdentity ? 'your role' : null,
+    !requestedWindowIsValid ? 'a valid requested date window' : null,
+    !attestationAccepted || !attestation ? 'authorization confirmation' : null,
+  ].filter((requirement): requirement is string => Boolean(requirement));
+  const requirementsMessage = missingRequirements.length > 0
+    ? `Still needed: ${missingRequirements.join(', ')}.`
+    : 'All required details are complete.';
 
   const handleCampaignCheckout = async () => {
     if (!resolvedSubject || !canSubmit || isSubmitting) return;
@@ -396,11 +424,13 @@ export function PaidPromotionIntake() {
           rateCardId: selectedRateCardId,
           weeks,
           brief: brief.trim(),
-          promoterKind: promoterKind as PaidPromotionPromoterKind,
+          requestedWindowStart: requestedWindowStart || undefined,
+          requestedWindowEnd: requestedWindowEnd || undefined,
+          promoterKind: selectedIdentity!.promoterKind,
           orgName: orgName.trim() || undefined,
           website: website.trim() || undefined,
           attestationAccepted: true,
-          attestedRelationship: attestedRelationship as PaidPromotionAttestedRelationship,
+          attestedRelationship: selectedIdentity!.attestedRelationship,
         });
         campaignId = campaign.id;
         setCreatedCampaignId(campaign.id);
@@ -780,21 +810,106 @@ export function PaidPromotionIntake() {
               title="About the release"
               description="What should Cassette know before it starts posting? Angle, story, anything time-sensitive."
             >
-              <Textarea
-                id="paid-promotion-brief"
-                data-testid="paid-promotion-brief"
-                value={brief}
-                onChange={(event) => setBrief(event.target.value)}
-                maxLength={5000}
-                rows={6}
-                disabled={!resolvedSubject || isLocked}
-                placeholder="The single is the lead track from an EP out in March. We'd love the focus on the live arrangement."
-                aria-label="Campaign brief"
-                className="min-h-36 resize-y bg-field"
-              />
-              <p className="mt-2 text-right font-mono text-[10px] text-muted-foreground">
-                {brief.length}/5000
-              </p>
+              <div className="space-y-5">
+                <div
+                  id="paid-promotion-brief-guidance"
+                  className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-6 text-muted-foreground"
+                >
+                  <p className="font-medium text-foreground">Helpful details to include</p>
+                  <ul className="mt-1 grid list-disc gap-x-8 pl-5 sm:grid-cols-2">
+                    <li>Your goal and ideal audience</li>
+                    <li>The release story or strongest angle</li>
+                    <li>Useful press, video, or social links</li>
+                    <li>Launch dates or time-sensitive moments</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <Textarea
+                    id="paid-promotion-brief"
+                    data-testid="paid-promotion-brief"
+                    value={brief}
+                    onChange={(event) => setBrief(event.target.value)}
+                    minLength={MIN_BRIEF_LENGTH}
+                    maxLength={5000}
+                    rows={6}
+                    disabled={!resolvedSubject || isLocked}
+                    placeholder="The single is the lead track from an EP out in March. We'd love the focus on the live arrangement."
+                    aria-label="Campaign brief"
+                    aria-describedby="paid-promotion-brief-guidance paid-promotion-brief-count"
+                    aria-invalid={brief.length > 0 && !briefIsComplete}
+                    className="min-h-36 resize-y bg-field"
+                  />
+                  <div
+                    id="paid-promotion-brief-count"
+                    className="mt-2 flex items-center justify-between gap-4 text-xs text-muted-foreground"
+                  >
+                    <span>
+                      {brief.length > 0 && !briefIsComplete
+                        ? `${MIN_BRIEF_LENGTH - brief.trim().length} more characters needed`
+                        : `${MIN_BRIEF_LENGTH} character minimum`}
+                    </span>
+                    <span className="font-mono text-[10px]">{brief.length}/5000</span>
+                  </div>
+                </div>
+
+                <fieldset className="space-y-3 rounded-lg border border-border p-4">
+                  <legend className="px-1 font-atkinson font-bold text-foreground">
+                    Requested campaign window{' '}
+                    <span className="font-sans text-sm font-normal text-muted-foreground">
+                      (optional)
+                    </span>
+                  </legend>
+                  <p id="paid-promotion-window-description" className="text-sm text-muted-foreground">
+                    Share a preferred window, or leave both dates blank if your timing is flexible.
+                  </p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="paid-promotion-window-start">Start date</Label>
+                      <Input
+                        id="paid-promotion-window-start"
+                        data-testid="paid-promotion-window-start"
+                        type="date"
+                        value={requestedWindowStart}
+                        max={requestedWindowEnd || undefined}
+                        onChange={(event) => setRequestedWindowStart(event.target.value)}
+                        disabled={!resolvedSubject || isLocked}
+                        aria-describedby={requestedWindowIsValid
+                          ? 'paid-promotion-window-description'
+                          : 'paid-promotion-window-description paid-promotion-window-error'}
+                        aria-invalid={!requestedWindowIsValid}
+                        className="bg-field"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="paid-promotion-window-end">End date</Label>
+                      <Input
+                        id="paid-promotion-window-end"
+                        data-testid="paid-promotion-window-end"
+                        type="date"
+                        value={requestedWindowEnd}
+                        min={requestedWindowStart || undefined}
+                        onChange={(event) => setRequestedWindowEnd(event.target.value)}
+                        disabled={!resolvedSubject || isLocked}
+                        aria-describedby={requestedWindowIsValid
+                          ? 'paid-promotion-window-description'
+                          : 'paid-promotion-window-description paid-promotion-window-error'}
+                        aria-invalid={!requestedWindowIsValid}
+                        className="bg-field"
+                      />
+                    </div>
+                  </div>
+                  {!requestedWindowIsValid && (
+                    <p
+                      id="paid-promotion-window-error"
+                      role="alert"
+                      className="text-sm text-destructive"
+                    >
+                      Choose an end date on or after the start date.
+                    </p>
+                  )}
+                </fieldset>
+              </div>
             </Step>
 
             <Step
@@ -803,52 +918,30 @@ export function PaidPromotionIntake() {
               description="Cassette only runs campaigns booked by someone entitled to promote the music."
             >
               <div className="space-y-5">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="paid-promotion-promoter-kind">You are acting as</Label>
-                    <Select
-                      value={promoterKind}
-                      onValueChange={(value) => setPromoterKind(value as PaidPromotionPromoterKind)}
-                      disabled={!resolvedSubject || isLocked}
+                <div className="space-y-2">
+                  <Label htmlFor="paid-promotion-promoter-kind">
+                    Who is promoting this music?
+                  </Label>
+                  <Select
+                    value={promoterKind}
+                    onValueChange={(value) => setPromoterKind(value as PaidPromotionPromoterKind)}
+                    disabled={!resolvedSubject || isLocked}
+                  >
+                    <SelectTrigger
+                      id="paid-promotion-promoter-kind"
+                      aria-label="Who is promoting this music?"
+                      className="w-full bg-field sm:max-w-md"
                     >
-                      <SelectTrigger
-                        id="paid-promotion-promoter-kind"
-                        aria-label="Promoter kind"
-                        className="w-full bg-field"
-                      >
-                        <SelectValue placeholder="Select your role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PROMOTER_KINDS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="paid-promotion-relationship">Relationship to the artist</Label>
-                    <Select
-                      value={attestedRelationship}
-                      onValueChange={(value) => setAttestedRelationship(
-                        value as PaidPromotionAttestedRelationship,
-                      )}
-                      disabled={!resolvedSubject || isLocked}
-                    >
-                      <SelectTrigger
-                        id="paid-promotion-relationship"
-                        aria-label="Relationship to the artist"
-                        className="w-full bg-field"
-                      >
-                        <SelectValue placeholder="Select your relationship" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {RELATIONSHIPS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      <SelectValue placeholder="Select your role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROMOTER_IDENTITIES.map((identity) => (
+                        <SelectItem key={identity.promoterKind} value={identity.promoterKind}>
+                          {identity.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -977,6 +1070,17 @@ export function PaidPromotionIntake() {
                     {pricing.discountMinor > 0 &&
                       ` · less ${formatPaidPromotionMinorAmount(pricing.discountMinor, selectedRateCard.currency)}`}
                   </p>
+                  {(requestedWindowStart || requestedWindowEnd) && (
+                    <p
+                      data-testid="paid-promotion-review-window"
+                      className="mt-2 text-sm text-muted-foreground"
+                    >
+                      Requested window: {formatRequestedWindow(
+                        requestedWindowStart,
+                        requestedWindowEnd,
+                      )}
+                    </p>
+                  )}
                   <p className="mt-3 border-t border-border pt-3 text-xs leading-5 text-muted-foreground">
                     Any tax or promo-code discount is calculated on the Stripe checkout page, where
                     the final total is shown before you pay.
@@ -986,9 +1090,9 @@ export function PaidPromotionIntake() {
                 {attestation && (
                   <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-6">
                     <p className="text-foreground">You confirmed: {attestation.text}</p>
-                    {promoterKindLabel && relationshipLabel && (
+                    {selectedIdentity && (
                       <p className="mt-1 text-muted-foreground">
-                        Acting as {promoterKindLabel} · {relationshipLabel}
+                        {selectedIdentity.label}
                       </p>
                     )}
                   </div>
@@ -1150,17 +1254,27 @@ export function PaidPromotionIntake() {
                   </Button>
                 </div>
               ) : (
-                <Button
-                  type="button"
-                  variant="brutalist"
-                  onClick={() => setIsReviewingOrder(true)}
-                  disabled={!canSubmit || isReviewingOrder}
-                  data-testid="paid-promotion-submit"
-                  className="w-full bg-foreground text-background hover:bg-foreground/90"
-                >
-                  <ArrowRight />
-                  Review your order
-                </Button>
+                <div className="space-y-2">
+                  <output
+                    id="paid-promotion-form-requirements"
+                    data-testid="paid-promotion-form-requirements"
+                    className="block text-xs leading-5 text-muted-foreground"
+                  >
+                    {requirementsMessage}
+                  </output>
+                  <Button
+                    type="button"
+                    variant="brutalist"
+                    onClick={() => setIsReviewingOrder(true)}
+                    disabled={!canSubmit || isReviewingOrder}
+                    aria-describedby="paid-promotion-form-requirements"
+                    data-testid="paid-promotion-submit"
+                    className="w-full bg-foreground text-background hover:bg-foreground/90"
+                  >
+                    <ArrowRight />
+                    Review your order
+                  </Button>
+                </div>
               )}
 
               <p className="flex items-start gap-2 border-t border-border pt-4 text-xs leading-5 text-muted-foreground max-lg:hidden">

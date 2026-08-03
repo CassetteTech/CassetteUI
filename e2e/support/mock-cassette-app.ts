@@ -1128,6 +1128,11 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         submittedUrl: string;
         rateCardId: string;
         weeks: number;
+        brief: string;
+        requestedWindowStart?: string;
+        requestedWindowEnd?: string;
+        promoterKind: string;
+        attestedRelationship: string;
       };
       const rateCard = state.paidPromotionRateCards.find((candidate) => candidate.id === payload.rateCardId);
       if (!rateCard) {
@@ -1169,6 +1174,9 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         weeks: payload.weeks,
         weeklyAmountMinor: rateCard.amountMinor,
         durationDiscountBps: discountApplies ? rateCard.discountBps : null,
+        brief: payload.brief,
+        requestedWindowStart: payload.requestedWindowStart ?? null,
+        requestedWindowEnd: payload.requestedWindowEnd ?? null,
         paymentStatus: null,
       };
       state.paidPromotionCampaignsById.set(campaign.id, campaign);

@@ -376,7 +376,9 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
 
                 {(state === 'paid' || state === 'refunded' || state === 'disputed') && (
                   <Button asChild variant="brutalist-outline" className="w-full">
-                    <Link href="/promote">View your campaigns</Link>
+                    <Link href={`/promote/${encodeURIComponent(campaign.id)}`}>
+                      View campaign details
+                    </Link>
                   </Button>
                 )}
 

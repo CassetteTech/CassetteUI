@@ -71,8 +71,62 @@ test('renders the signed-in promoter home from owner-scoped campaign and subject
   expect(requestedApiPaths.some((path) => path.includes('/internal/paid-promotions'))).toBe(false);
 
   await page.getByTestId(`paid-promotion-campaign-link-${fixturePaidPromotionCampaign.id}`).click();
-  await expect(page).toHaveURL(`/promote/${fixturePaidPromotionCampaign.id}/return`);
-  await expect(page.getByRole('heading', { name: 'Waiting for payment confirmation' })).toBeVisible();
+  await expect(page).toHaveURL(`/promote/${fixturePaidPromotionCampaign.id}`);
+  await expect(page.getByRole('heading', { name: 'Campaign details' })).toBeVisible();
+  await expect(page.getByText(fixturePaidPromotionCampaign.brief)).toBeVisible();
+});
+
+test('shows every published or verified result on a delivered campaign detail', async ({ page }) => {
+  const deliveredCampaign = {
+    ...fixturePaidPromotionCampaign,
+    status: 'delivered',
+    paymentStatus: 'paid',
+    discountAmountMinor: 0,
+    taxAmountMinor: 500,
+    finalTotalMinor: 3000,
+    amountRefundedMinor: 0,
+    refundableRemainderMinor: 3000,
+    requestedWindowStart: '2026-07-18',
+    requestedWindowEnd: '2026-07-25',
+    deliverables: [
+      {
+        channel: 'instagram',
+        publishedAtUtc: '2026-07-18T14:30:00Z',
+        evidenceUrl: 'https://social.example/instagram-result',
+        status: 'published' as const,
+      },
+      {
+        channel: 'reddit',
+        publishedAtUtc: '2026-07-20T09:00:00Z',
+        evidenceUrl: 'https://social.example/reddit-result',
+        status: 'verified' as const,
+      },
+    ],
+  };
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    paidPromotionCampaign: deliveredCampaign,
+  });
+
+  await page.goto(`/promote/${deliveredCampaign.id}`);
+
+  await expect(page.getByRole('heading', { name: 'Campaign details' })).toBeVisible();
+  await expect(page.getByText('Delivered', { exact: true })).toBeVisible();
+  const summary = page.getByTestId('paid-promotion-delivery-summary');
+  await expect(summary).toContainText('Instagram 1');
+  await expect(summary).toContainText('Reddit 1');
+  await expect(summary).toContainText('Jul');
+  const evidenceLinks = page.getByRole('link', { name: 'View evidence' });
+  await expect(evidenceLinks).toHaveCount(2);
+  await expect(evidenceLinks.nth(0)).toHaveAttribute(
+    'href',
+    'https://social.example/instagram-result',
+  );
+  await expect(evidenceLinks.nth(1)).toHaveAttribute(
+    'href',
+    'https://social.example/reddit-result',
+  );
+  await expect(page.getByText(/planned|failed|removed/i)).toHaveCount(0);
 });
 
 test('keeps signed-in users without campaigns on the landing continue state', async ({ page }) => {
@@ -517,6 +571,10 @@ test('shows a zero-total campaign as paid and visibly non-refundable', async ({ 
   await expect(page.getByRole('heading', { name: 'Payment received' })).toBeVisible();
   await expect(page.getByText('This zero-total campaign has no refundable charge.')).toBeVisible();
   await expect(page.getByText('Final total', { exact: true }).locator('..')).toContainText('$0.00');
+  await expect(page.getByRole('link', { name: 'View campaign details' })).toHaveAttribute(
+    'href',
+    `/promote/${fixturePaidPromotionCampaign.id}`,
+  );
 });
 
 test('fails visibly when a paid campaign has unknown checkout totals', async ({ page }) => {
@@ -581,6 +639,40 @@ test('keeps promoter home usable within a narrow mobile viewport', async ({ page
   await expect(page.getByTestId(
     `paid-promotion-campaign-link-${fixturePaidPromotionCampaign.id}`,
   )).toBeVisible();
+  await expect.poll(() => page.evaluate(() => {
+    const documentWidth = Math.max(
+      document.documentElement.scrollWidth,
+      document.body.scrollWidth,
+    );
+    return documentWidth - window.innerWidth;
+  })).toBeLessThanOrEqual(1);
+});
+
+test('keeps campaign detail and evidence links usable within a narrow mobile viewport', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    paidPromotionCampaign: {
+      ...fixturePaidPromotionCampaign,
+      status: 'delivered',
+      paymentStatus: 'paid',
+      discountAmountMinor: 0,
+      taxAmountMinor: 0,
+      finalTotalMinor: fixturePaidPromotionCampaign.amountMinor,
+      refundableRemainderMinor: fixturePaidPromotionCampaign.amountMinor,
+      deliverables: [{
+        channel: 'instagram',
+        publishedAtUtc: '2026-07-18T14:30:00Z',
+        evidenceUrl: 'https://social.example/mobile-result',
+        status: 'verified',
+      }],
+    },
+  });
+
+  await page.goto(`/promote/${fixturePaidPromotionCampaign.id}`);
+  await expect(page.getByRole('link', { name: 'View evidence' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => {
     const documentWidth = Math.max(
       document.documentElement.scrollWidth,

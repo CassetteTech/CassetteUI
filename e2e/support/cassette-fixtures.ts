@@ -126,6 +126,7 @@ export interface FixturePaidPromotionCampaign {
   weeks: number;
   weeklyAmountMinor: number;
   durationDiscountBps: number | null;
+  brief: string;
   status: string;
   rejectionReason?: string | null;
   holdKind?: string | null;
@@ -137,6 +138,12 @@ export interface FixturePaidPromotionCampaign {
   refundableRemainderMinor: number | null;
   requestedWindowStart: string | null;
   requestedWindowEnd: string | null;
+  deliverables: Array<{
+    channel: string;
+    publishedAtUtc: string;
+    evidenceUrl: string;
+    status: 'published' | 'verified';
+  }>;
   createdAtUtc: string;
   updatedAtUtc: string;
 }
@@ -520,6 +527,7 @@ export const fixturePaidPromotionCampaign: FixturePaidPromotionCampaign = {
   weeks: 1,
   weeklyAmountMinor: fixturePaidPromotionRateCards[0].amountMinor,
   durationDiscountBps: null,
+  brief: 'Share this release with listeners who follow indie soul.',
   status: 'pending_payment',
   paymentStatus: 'pending',
   discountAmountMinor: null,
@@ -529,6 +537,7 @@ export const fixturePaidPromotionCampaign: FixturePaidPromotionCampaign = {
   refundableRemainderMinor: null,
   requestedWindowStart: null,
   requestedWindowEnd: null,
+  deliverables: [],
   createdAtUtc: FIXTURE_TIMESTAMP,
   updatedAtUtc: FIXTURE_TIMESTAMP,
 };

@@ -1,5 +1,6 @@
 import type {
   PaidPromotionCampaign,
+  PaidPromotionCampaignDeliverable,
   PaidPromotionCampaignStatus,
   PaidPromotionPaymentStatus,
   PaidPromotionRateCard,
@@ -43,6 +44,41 @@ function nullableInteger(value: unknown, path: string): number | null {
   return value === null || value === undefined ? null : integer(value, path);
 }
 
+function absoluteHttpUrl(value: unknown, path: string): string {
+  const candidate = string(value, path);
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') invalid(path);
+  } catch {
+    invalid(path);
+  }
+  return candidate;
+}
+
+function dateTimeString(value: unknown, path: string): string {
+  const candidate = string(value, path);
+  if (Number.isNaN(Date.parse(candidate))) invalid(path);
+  return candidate;
+}
+
+function parseDeliverables(value: unknown): PaidPromotionCampaignDeliverable[] {
+  if (!Array.isArray(value)) invalid('campaign.deliverables');
+
+  return value.map((candidate, index) => {
+    const path = `campaign.deliverables[${index}]`;
+    const item = record(candidate, path);
+    const status = string(item.status, `${path}.status`);
+    if (status !== 'published' && status !== 'verified') invalid(`${path}.status`);
+
+    return {
+      channel: string(item.channel, `${path}.channel`) as PaidPromotionCampaignDeliverable['channel'],
+      publishedAtUtc: dateTimeString(item.publishedAtUtc, `${path}.publishedAtUtc`),
+      evidenceUrl: absoluteHttpUrl(item.evidenceUrl, `${path}.evidenceUrl`),
+      status,
+    };
+  });
+}
+
 export function parsePaidPromotionCampaign(value: unknown): PaidPromotionCampaign {
   const item = record(value, 'campaign');
 
@@ -63,6 +99,7 @@ export function parsePaidPromotionCampaign(value: unknown): PaidPromotionCampaig
     weeks: integer(item.weeks, 'campaign.weeks'),
     weeklyAmountMinor: integer(item.weeklyAmountMinor, 'campaign.weeklyAmountMinor'),
     durationDiscountBps: nullableInteger(item.durationDiscountBps, 'campaign.durationDiscountBps'),
+    brief: string(item.brief, 'campaign.brief'),
     status: string(item.status, 'campaign.status') as PaidPromotionCampaignStatus,
     rejectionReason: nullableString(item.rejectionReason, 'campaign.rejectionReason'),
     holdKind: nullableString(item.holdKind, 'campaign.holdKind'),
@@ -80,6 +117,7 @@ export function parsePaidPromotionCampaign(value: unknown): PaidPromotionCampaig
     ),
     requestedWindowStart: nullableString(item.requestedWindowStart, 'campaign.requestedWindowStart'),
     requestedWindowEnd: nullableString(item.requestedWindowEnd, 'campaign.requestedWindowEnd'),
+    deliverables: parseDeliverables(item.deliverables),
     createdAtUtc: string(item.createdAtUtc, 'campaign.createdAtUtc'),
     updatedAtUtc: string(item.updatedAtUtc, 'campaign.updatedAtUtc'),
   };

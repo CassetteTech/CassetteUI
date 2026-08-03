@@ -221,7 +221,7 @@ function CampaignCard({
                 className="w-full sm:w-auto"
               >
                 <Link
-                  href={`/promote/${encodeURIComponent(campaign.id)}/return`}
+                  href={`/promote/${encodeURIComponent(campaign.id)}`}
                   aria-label={`View campaign ${campaign.id} for ${subject?.title ?? campaign.elementId}`}
                   data-testid={`paid-promotion-campaign-link-${campaign.id}`}
                 >

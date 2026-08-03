@@ -24,6 +24,7 @@ function campaign(paymentStatus: PaidPromotionPaymentStatus | null): PaidPromoti
     weeks: 1,
     weeklyAmountMinor: 25000,
     durationDiscountBps: null,
+    brief: 'Share this release with listeners who follow indie soul.',
     status: paymentStatus === 'paid' ? 'in_review' : 'pending_payment',
     rejectionReason: null,
     holdKind: null,
@@ -35,6 +36,7 @@ function campaign(paymentStatus: PaidPromotionPaymentStatus | null): PaidPromoti
     refundableRemainderMinor: 25000,
     requestedWindowStart: null,
     requestedWindowEnd: null,
+    deliverables: [],
     createdAtUtc: '2026-07-15T12:00:00Z',
     updatedAtUtc: '2026-07-15T12:00:00Z',
   };
@@ -150,6 +152,53 @@ void test('passes rejection reason and hold kind through the boundary', () => {
   });
   assert.equal(parsed.rejectionReason, 'Track rights could not be verified.');
   assert.equal(parsed.holdKind, 'payment_dispute');
+});
+
+void test('parses only customer-safe published deliverables', () => {
+  const parsed = parsePaidPromotionCampaign({
+    ...campaign('paid'),
+    deliverables: [
+      {
+        channel: 'instagram',
+        publishedAtUtc: '2026-07-18T14:30:00Z',
+        evidenceUrl: 'https://social.example/published',
+        status: 'published',
+      },
+      {
+        channel: 'reddit',
+        publishedAtUtc: '2026-07-19T09:00:00Z',
+        evidenceUrl: 'https://social.example/verified',
+        status: 'verified',
+      },
+    ],
+  });
+
+  assert.equal(parsed.deliverables.length, 2);
+  assert.equal(parsed.deliverables[1].status, 'verified');
+  assert.throws(
+    () => parsePaidPromotionCampaign({
+      ...campaign('paid'),
+      deliverables: [{
+        channel: 'instagram',
+        publishedAtUtc: '2026-07-18T14:30:00Z',
+        evidenceUrl: 'https://social.example/planned',
+        status: 'planned',
+      }],
+    }),
+    /campaign\.deliverables\[0\]\.status/,
+  );
+  assert.throws(
+    () => parsePaidPromotionCampaign({
+      ...campaign('paid'),
+      deliverables: [{
+        channel: 'instagram',
+        publishedAtUtc: '2026-07-18T14:30:00Z',
+        evidenceUrl: 'javascript:alert(1)',
+        status: 'published',
+      }],
+    }),
+    /campaign\.deliverables\[0\]\.evidenceUrl/,
+  );
 });
 
 void test('parses the owner campaign collection with indexed errors', () => {

@@ -382,6 +382,7 @@ export interface PaidPromotionCampaign {
   weeks: number;
   weeklyAmountMinor: number;
   durationDiscountBps: number | null;
+  brief: string;
   status: PaidPromotionCampaignStatus;
   rejectionReason: string | null;
   holdKind: string | null;
@@ -393,6 +394,7 @@ export interface PaidPromotionCampaign {
   refundableRemainderMinor: number | null;
   requestedWindowStart: string | null;
   requestedWindowEnd: string | null;
+  deliverables: PaidPromotionCampaignDeliverable[];
   createdAtUtc: string;
   updatedAtUtc: string;
 }
@@ -434,6 +436,13 @@ export type PaidPromotionDeliverableStatus =
   | 'verified'
   | 'failed'
   | 'removed';
+
+export interface PaidPromotionCampaignDeliverable {
+  channel: PaidPromotionDeliverableChannel;
+  publishedAtUtc: string;
+  evidenceUrl: string;
+  status: 'published' | 'verified';
+}
 
 export type PaidPromotionExceptionKind =
   | 'webhook_error'

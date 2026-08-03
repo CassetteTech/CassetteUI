@@ -460,6 +460,16 @@ class ApiService {
     );
   }
 
+  async cancelPaidPromotionCampaign(
+    campaignId: string
+  ): Promise<PaidPromotionCampaign> {
+    const response = await this.request<unknown>(
+      `/api/v1/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/cancel`,
+      { method: 'POST' }
+    );
+    return parsePaidPromotionCampaign(response);
+  }
+
   async getPaidPromotionSubjects(): Promise<unknown> {
     return this.request<unknown>('/api/v1/paid-promotions/subjects');
   }

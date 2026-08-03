@@ -1211,6 +1211,36 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       });
     }
 
+    const paidPromotionCancelMatch = pathname.match(
+      /^\/api\/v1\/paid-promotions\/campaigns\/([^/]+)\/cancel$/,
+    );
+    if (paidPromotionCancelMatch && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      const campaignId = decodeURIComponent(paidPromotionCancelMatch[1]);
+      const campaign = state.paidPromotionCampaignsById.get(campaignId);
+      if (!campaign) {
+        return json(route, {
+          errorCode: 'paid_promotion_campaign_not_found',
+          message: 'Paid-promotion campaign not found.',
+        }, 404);
+      }
+      if (campaign.status !== 'pending_payment') {
+        return json(route, {
+          errorCode: 'paid_promotion_campaign_state_invalid',
+          message: 'Only an unpaid pending paid-promotion campaign can be canceled.',
+        }, 409);
+      }
+
+      const canceledCampaign = {
+        ...campaign,
+        status: 'canceled' as const,
+        paymentStatus: campaign.paymentStatus ? 'expired' : null,
+        updatedAtUtc: FIXTURE_TIMESTAMP,
+      };
+      state.paidPromotionCampaignsById.set(campaignId, canceledCampaign);
+      return json(route, canceledCampaign);
+    }
+
     const paidPromotionCampaignMatch = pathname.match(
       /^\/api\/v1\/paid-promotions\/campaigns\/([^/]+)$/,
     );

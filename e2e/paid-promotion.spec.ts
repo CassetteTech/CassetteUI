@@ -129,6 +129,31 @@ test('shows every published or verified result on a delivered campaign detail', 
   await expect(page.getByText(/planned|failed|removed/i)).toHaveCount(0);
 });
 
+test('lets the owner cancel an unpaid campaign after confirmation', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    paidPromotionCampaign: fixturePaidPromotionCampaign,
+  });
+  const cancelRequestPromise = page.waitForRequest((request) =>
+    request.method() === 'POST' &&
+    new URL(request.url()).pathname ===
+      `/api/v1/paid-promotions/campaigns/${fixturePaidPromotionCampaign.id}/cancel`,
+  );
+
+  await page.goto(`/promote/${fixturePaidPromotionCampaign.id}`);
+  await page.getByRole('button', { name: 'Cancel unpaid campaign' }).click();
+  await expect(page.getByRole('alertdialog')).toContainText(
+    'Any open checkout session will expire.',
+  );
+  await page.getByRole('button', { name: 'Cancel campaign', exact: true }).click();
+
+  const cancelRequest = await cancelRequestPromise;
+  expect(cancelRequest.postData()).toBeNull();
+  await expect(page.getByText('Canceled', { exact: true })).toBeVisible();
+  await expect(page.getByText('Checkout expired', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Cancel unpaid campaign' })).toHaveCount(0);
+});
+
 test('keeps signed-in users without campaigns on the landing continue state', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,

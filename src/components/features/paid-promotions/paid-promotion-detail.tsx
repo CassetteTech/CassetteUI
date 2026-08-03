@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   CalendarRange,
@@ -15,10 +15,22 @@ import {
 } from 'lucide-react';
 import { PaidPromotionSupportContact } from '@/components/features/paid-promotions/paid-promotion-support';
 import { Eyebrow, TapeDeckBand } from '@/components/features/paid-promotions/promote-tape-deck';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { PageLoader } from '@/components/ui/page-loader';
 import { useAuthState } from '@/hooks/use-auth';
 import { usePaidPromotionCampaign } from '@/hooks/use-paid-promotion-campaign';
+import { apiService } from '@/services/api';
 import {
   formatPaidPromotionMinorAmount,
   isPaidPromotionCampaignId,
@@ -94,12 +106,24 @@ export function PaidPromotionDetail({ campaignId }: PaidPromotionDetailProps) {
     );
   }
 
-  return <CampaignDetail campaign={campaign} />;
+  return <CampaignDetail campaign={campaign} onRefresh={refresh} />;
 }
 
-function CampaignDetail({ campaign }: { campaign: PaidPromotionCampaign }) {
+function CampaignDetail({
+  campaign,
+  onRefresh,
+}: {
+  campaign: PaidPromotionCampaign;
+  onRefresh: () => void;
+}) {
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const status = getPaidPromotionStatusPresentation(campaign);
   const completed = campaign.status === 'delivered' || campaign.status === 'completed';
+  const canCancel = campaign.status === 'pending_payment' &&
+    !campaign.paymentStatus?.match(
+      /^(processing|paid|refund_pending|partially_refunded|refunded|disputed|charged_back)$/,
+    );
   const deliverySummary = useMemo(() => summarizeDeliverables(campaign.deliverables), [campaign]);
   const deliveredWindow = campaign.deliverables.length > 0
     ? {
@@ -107,6 +131,22 @@ function CampaignDetail({ campaign }: { campaign: PaidPromotionCampaign }) {
         end: campaign.deliverables[campaign.deliverables.length - 1].publishedAtUtc,
       }
     : null;
+
+  const cancelCampaign = async () => {
+    setIsCanceling(true);
+    setCancelError(null);
+    try {
+      await apiService.cancelPaidPromotionCampaign(campaign.id);
+      onRefresh();
+    } catch (caught) {
+      setCancelError(getUserFacingApiErrorMessage(
+        caught,
+        'We could not cancel this campaign. Please try again.',
+      ));
+    } finally {
+      setIsCanceling(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-16">
@@ -270,6 +310,45 @@ function CampaignDetail({ campaign }: { campaign: PaidPromotionCampaign }) {
                 View checkout details
               </Link>
             </Button>
+            {canCancel && (
+              <div className="mt-4 border-t border-border pt-4">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      className="w-full"
+                      disabled={isCanceling}
+                    >
+                      {isCanceling ? 'Canceling campaign...' : 'Cancel unpaid campaign'}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Cancel this campaign?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Any open checkout session will expire. This campaign cannot be reopened,
+                        and no payment will be taken.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Keep campaign</AlertDialogCancel>
+                      <AlertDialogAction
+                        variant="destructive"
+                        onClick={() => void cancelCampaign()}
+                      >
+                        Cancel campaign
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                {cancelError && (
+                  <p role="alert" className="mt-3 text-sm leading-6 text-destructive">
+                    {cancelError}
+                  </p>
+                )}
+              </div>
+            )}
           </section>
 
           <PaidPromotionSupportContact className="justify-start border-t border-border pt-5" />

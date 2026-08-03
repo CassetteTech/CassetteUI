@@ -15,6 +15,7 @@ function subject(): Record<string, unknown> {
     elementType: 'track',
     title: 'Signal Fire',
     coverArtUrl: 'https://images.cassette.test/signal-fire.jpg',
+    repeatSourceUrl: 'https://open.spotify.com/track/signal-fire',
     subtitleNames: ['Mia Groove'],
     campaignCount: 3,
     campaignStatusCounts: {
@@ -31,6 +32,7 @@ void test('parses the shared owner and team subject contract', () => {
 
   assert.equal(parsed.elementId, 't_123456789ABC');
   assert.equal(parsed.elementType, 'track');
+  assert.equal(parsed.repeatSourceUrl, 'https://open.spotify.com/track/signal-fire');
   assert.equal(parsed.campaignCount, 3);
   assert.deepEqual(parsed.campaignStatusCounts, { in_review: 1, scheduled: 2 });
   assert.deepEqual(parsePaidPromotionSubjects([subject()]), [parsed]);
@@ -55,6 +57,10 @@ void test('rejects malformed rendered fields at the boundary', () => {
   assert.throws(
     () => parsePaidPromotionSubject({ ...subject(), coverArtUrl: 'javascript:alert(1)' }),
     /coverArtUrl/,
+  );
+  assert.throws(
+    () => parsePaidPromotionSubject({ ...subject(), repeatSourceUrl: 'javascript:alert(1)' }),
+    /repeatSourceUrl/,
   );
   assert.throws(
     () => parsePaidPromotionSubject({ ...subject(), subtitleNames: [''] }),

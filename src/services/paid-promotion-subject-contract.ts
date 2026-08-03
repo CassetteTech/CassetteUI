@@ -79,6 +79,7 @@ export function parsePaidPromotionSubject(
     ) as PaidPromotionSubject['elementType'],
     title: string(item.title, `${path}.title`),
     coverArtUrl: nullableHttpUrl(item.coverArtUrl, `${path}.coverArtUrl`),
+    repeatSourceUrl: nullableHttpUrl(item.repeatSourceUrl, `${path}.repeatSourceUrl`),
     subtitleNames,
     campaignCount: integer(item.campaignCount, `${path}.campaignCount`),
     campaignStatusCounts: parseStatusCounts(

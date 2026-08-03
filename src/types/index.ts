@@ -411,6 +411,9 @@ export interface PaidPromotionSubject {
   elementType: PaidPromotionElementType;
   title: string;
   coverArtUrl: string | null;
+  // Latest owner-submitted URL, used only to revalidate a repeat intake.
+  // Internal/global subject responses intentionally leave it null.
+  repeatSourceUrl: string | null;
   // Secondary display line: artist names for tracks and albums, empty for
   // artists and playlists.
   subtitleNames: string[];

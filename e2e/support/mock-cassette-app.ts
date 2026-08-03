@@ -1140,6 +1140,13 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         promoterKind: string;
         attestedRelationship: string;
       };
+      const sourceTemplate = state.convertTemplatesByUrl.get(payload.submittedUrl);
+      if (!sourceTemplate || sourceTemplate.musicElementId !== payload.elementId) {
+        return json(route, {
+          errorCode: 'paid_promotion_subject_conversion_required',
+          message: 'Convert the submitted music before starting a campaign.',
+        }, 400);
+      }
       const rateCard = state.paidPromotionRateCards.find((candidate) => candidate.id === payload.rateCardId);
       if (!rateCard) {
         return json(route, {

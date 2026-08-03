@@ -243,6 +243,7 @@ export interface FixturePaidPromotionSubject {
   elementType: 'track' | 'album' | 'artist' | 'playlist';
   title: string;
   coverArtUrl: string | null;
+  repeatSourceUrl: string | null;
   subtitleNames: string[];
   campaignCount: number;
   campaignStatusCounts: Record<string, number>;
@@ -654,6 +655,7 @@ export const fixturePaidPromotionSubjects: FixturePaidPromotionSubject[] = [
     elementType: 'track',
     title: fixtureConvertTemplates.paidPromotionTrack.title,
     coverArtUrl: null,
+    repeatSourceUrl: fixtureConvertTemplates.paidPromotionTrack.originalUrl,
     subtitleNames: [fixtureConvertTemplates.paidPromotionTrack.artist],
     campaignCount: 2,
     campaignStatusCounts: {
@@ -668,6 +670,7 @@ export const fixturePaidPromotionSubjects: FixturePaidPromotionSubject[] = [
     elementType: 'album',
     title: fixtureConvertTemplates.paidPromotionAlbum.title,
     coverArtUrl: null,
+    repeatSourceUrl: fixtureConvertTemplates.paidPromotionAlbum.originalUrl,
     subtitleNames: [fixtureConvertTemplates.paidPromotionAlbum.artist],
     campaignCount: 1,
     campaignStatusCounts: {
@@ -683,6 +686,7 @@ export const fixturePaidPromotionSubjects: FixturePaidPromotionSubject[] = [
     elementType: 'artist',
     title: fixtureConvertTemplates.paidPromotionArtist.title,
     coverArtUrl: null,
+    repeatSourceUrl: fixtureConvertTemplates.paidPromotionArtist.originalUrl,
     subtitleNames: [],
     campaignCount: 1,
     campaignStatusCounts: {

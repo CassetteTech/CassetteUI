@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, Music2, RefreshCw } from 'lucide-react';
+import { ArrowRight, Music2, RefreshCw, RotateCcw } from 'lucide-react';
 import { ArtworkImage } from '@/components/ui/artwork-image';
 import { Button } from '@/components/ui/button';
 import { PaidPromotionSupportContact } from '@/components/features/paid-promotions/paid-promotion-support';
@@ -66,6 +66,11 @@ const CAMPAIGN_GROUPS = [
 
 const CLOSED_STATUSES = new Set<string>(CAMPAIGN_GROUPS[2].statuses);
 const WAITING_STATUSES = new Set<string>(CAMPAIGN_GROUPS[0].statuses);
+const REPEATABLE_CAMPAIGN_STATUSES = new Set<string>(['delivered', 'completed']);
+
+function repeatCampaignHref(subject: PaidPromotionSubject): string {
+  return `/promote/new?subject=${encodeURIComponent(subject.elementId)}`;
+}
 
 function groupKeyForStatus(status: string): (typeof CAMPAIGN_GROUPS)[number]['key'] {
   if (WAITING_STATUSES.has(status)) return 'waiting-on-you';
@@ -109,6 +114,9 @@ function CampaignCard({
 }) {
   const statusPresentation = getPaidPromotionStatusPresentation(campaign);
   const awaitingPromoter = statusPresentation.actor === 'you';
+  const canRepeat = Boolean(
+    subject?.repeatSourceUrl && REPEATABLE_CAMPAIGN_STATUSES.has(campaign.status),
+  );
 
   return (
     <li className={cn(featured && 'xl:col-span-2')}>
@@ -215,19 +223,32 @@ function CampaignCard({
                   {DATE_FORMATTER.format(new Date(campaign.updatedAtUtc))}
                 </time>
               </p>
-              <Button
-                asChild
-                variant={featured ? 'brutalist' : 'brutalist-outline'}
-                className="w-full sm:w-auto"
-              >
-                <Link
-                  href={`/promote/${encodeURIComponent(campaign.id)}`}
-                  aria-label={`View campaign ${campaign.id} for ${subject?.title ?? campaign.elementId}`}
-                  data-testid={`paid-promotion-campaign-link-${campaign.id}`}
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                {canRepeat && subject && (
+                  <Button asChild variant="brutalist-outline" className="w-full sm:w-auto">
+                    <Link
+                      href={repeatCampaignHref(subject)}
+                      aria-label={`Promote ${subject.title} again`}
+                      data-testid={`paid-promotion-campaign-repeat-${campaign.id}`}
+                    >
+                      Promote again <RotateCcw aria-hidden="true" />
+                    </Link>
+                  </Button>
+                )}
+                <Button
+                  asChild
+                  variant={featured ? 'brutalist' : 'brutalist-outline'}
+                  className="w-full sm:w-auto"
                 >
-                  View campaign <ArrowRight aria-hidden="true" />
-                </Link>
-              </Button>
+                  <Link
+                    href={`/promote/${encodeURIComponent(campaign.id)}`}
+                    aria-label={`View campaign ${campaign.id} for ${subject?.title ?? campaign.elementId}`}
+                    data-testid={`paid-promotion-campaign-link-${campaign.id}`}
+                  >
+                    View campaign <ArrowRight aria-hidden="true" />
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -272,6 +293,17 @@ function SubjectCard({ subject }: { subject: PaidPromotionSubject }) {
             </li>
           ))}
         </ul>
+        {subject.repeatSourceUrl && (
+          <Button asChild variant="brutalist-outline" size="sm" className="mt-3 w-full">
+            <Link
+              href={repeatCampaignHref(subject)}
+              aria-label={`Promote ${subject.title} again`}
+              data-testid={`paid-promotion-subject-repeat-${subject.elementId}`}
+            >
+              Promote again <RotateCcw aria-hidden="true" />
+            </Link>
+          </Button>
+        )}
       </div>
     </li>
   );

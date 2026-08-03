@@ -65,6 +65,12 @@ test('renders the signed-in promoter home from owner-scoped campaign and subject
     'href',
     '/promote/new',
   );
+  await expect(page.getByTestId(
+    `paid-promotion-subject-repeat-${fixturePaidPromotionSubjects[0].elementId}`,
+  )).toHaveAttribute(
+    'href',
+    `/promote/new?subject=${fixturePaidPromotionSubjects[0].elementId}`,
+  );
   await expect(page.getByText("Other owner's campaign")).toHaveCount(0);
   expect(new URL(campaignRequest.url()).search).toBe('');
   expect(new URL(subjectRequest.url()).search).toBe('');
@@ -74,6 +80,92 @@ test('renders the signed-in promoter home from owner-scoped campaign and subject
   await expect(page).toHaveURL(`/promote/${fixturePaidPromotionCampaign.id}`);
   await expect(page.getByRole('heading', { name: 'Campaign details' })).toBeVisible();
   await expect(page.getByText(fixturePaidPromotionCampaign.brief)).toBeVisible();
+});
+
+test('starts a repeat campaign with the canonical subject already resolved', async ({ page }) => {
+  const analyticsCaptures: Array<Record<string, unknown>> = [];
+  const deliveredCampaign = {
+    ...fixturePaidPromotionCampaign,
+    status: 'delivered',
+    paymentStatus: 'paid',
+    discountAmountMinor: 0,
+    taxAmountMinor: 0,
+    finalTotalMinor: fixturePaidPromotionCampaign.amountMinor,
+    amountRefundedMinor: 0,
+    refundableRemainderMinor: fixturePaidPromotionCampaign.amountMinor,
+  };
+  let conversionRequests = 0;
+  page.on('request', (request) => {
+    if (
+      request.method() === 'POST' &&
+      new URL(request.url()).pathname === '/api/v1/convert'
+    ) {
+      conversionRequests += 1;
+    }
+  });
+
+  await mockCassetteApp(page, {
+    analyticsCaptures,
+    currentUser: fixtureUsers.member,
+    paidPromotionCampaigns: [deliveredCampaign],
+    paidPromotionSubjects: [fixturePaidPromotionSubjects[0]],
+  });
+
+  await page.goto('/promote');
+  const repeatAction = page.getByTestId(
+    `paid-promotion-campaign-repeat-${deliveredCampaign.id}`,
+  );
+  await expect(repeatAction).toHaveAttribute(
+    'href',
+    `/promote/new?subject=${deliveredCampaign.elementId}`,
+  );
+  await repeatAction.click();
+
+  await expect(page).toHaveURL(`/promote/new?subject=${deliveredCampaign.elementId}`);
+  const resolvedSubject = page.getByTestId('paid-promotion-resolved-subject');
+  await expect(resolvedSubject).toContainText(fixtureConvertTemplates.paidPromotionTrack.title);
+  await expect(resolvedSubject).toContainText('Canonical track');
+  await expect(page.getByTestId('paid-promotion-subject-input')).toHaveValue(
+    fixtureConvertTemplates.paidPromotionTrack.originalUrl,
+  );
+  await expect(page.getByTestId(
+    `paid-promotion-rate-card-${fixturePaidPromotionRateCards[0].id}`,
+  )).toBeVisible();
+  expect(conversionRequests).toBe(0);
+
+  const attestation = page.getByTestId('paid-promotion-attestation');
+  await expect(attestation).not.toBeChecked();
+  await page.getByTestId(
+    `paid-promotion-rate-card-${fixturePaidPromotionRateCards[0].id}`,
+  ).click();
+  await page.getByTestId('paid-promotion-brief').fill(
+    'Bring this track back for a second audience run.',
+  );
+  await page.getByLabel('Who is promoting this music?').click();
+  await page.getByRole('option', { name: 'I am the artist', exact: true }).click();
+  await attestation.check();
+  await page.getByTestId('paid-promotion-submit').click();
+
+  const campaignRequestPromise = page.waitForRequest((request) =>
+    request.method() === 'POST' &&
+    new URL(request.url()).pathname === '/api/v1/paid-promotions/campaigns',
+  );
+  await page.getByTestId('paid-promotion-confirm-checkout').click();
+  const campaignPayload = (await campaignRequestPromise).postDataJSON() as Record<string, unknown>;
+  expect(campaignPayload.elementId).toBe(deliveredCampaign.elementId);
+  expect(campaignPayload.submittedUrl).toBe(
+    fixtureConvertTemplates.paidPromotionTrack.originalUrl,
+  );
+  expect(campaignPayload.attestationAccepted).toBe(true);
+
+  await expect.poll(() => analyticsCaptures.some((capture) => {
+    const properties = capture.properties;
+    return capture.event === 'paid_promotion_intake_started' &&
+      properties !== null &&
+      typeof properties === 'object' &&
+      !Array.isArray(properties) &&
+      (properties as Record<string, unknown>).source_context === 'repeat';
+  })).toBe(true);
 });
 
 test('shows every published or verified result on a delivered campaign detail', async ({ page }) => {

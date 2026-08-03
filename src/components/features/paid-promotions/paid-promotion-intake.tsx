@@ -44,6 +44,7 @@ import {
   PaidPromotionResolutionError,
   type PaidPromotionResolutionFailure,
 } from '@/services/paid-promotion-resolution-errors';
+import { paidPromotionSubjectsService } from '@/services/paid-promotion-subjects';
 import { getPaidPromotionElementTypeLabel } from '@/services/paid-promotion-status-presentation';
 import type {
   PaidPromotionAttestation,
@@ -172,11 +173,12 @@ function RequiredIndicator() {
   );
 }
 
-export function PaidPromotionIntake() {
+export function PaidPromotionIntake({ repeatElementId }: { repeatElementId?: string }) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuthState();
   const linkConversion = useMusicLinkConversion();
   const intakeTrackedRef = useRef(false);
+  const repeatLoadedRef = useRef(false);
   const resolvedSubjectRef = useRef<HTMLDivElement>(null);
   const subjectInputRef = useRef<HTMLInputElement>(null);
 
@@ -208,8 +210,11 @@ export function PaidPromotionIntake() {
   const [errorMessage, setErrorMessage] = useState('');
   const [resolutionFailure, setResolutionFailure] =
     useState<PaidPromotionResolutionFailure | null>(null);
+  const [isLoadingRepeatSubject, setIsLoadingRepeatSubject] = useState(Boolean(repeatElementId));
+  const [repeatSubjectError, setRepeatSubjectError] = useState('');
 
   const isConverting = conversionKey !== null;
+  const isResolvingSubject = isConverting || isLoadingRepeatSubject;
   const isLocked = Boolean(createdCampaignId);
 
   // The one input accepts either a link or a search phrase. Anything that looks
@@ -227,9 +232,12 @@ export function PaidPromotionIntake() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.replace('/auth/signin?redirect=/promote/new');
+      const redirect = repeatElementId
+        ? encodeURIComponent(`/promote/new?subject=${encodeURIComponent(repeatElementId)}`)
+        : '/promote/new';
+      router.replace(`/auth/signin?redirect=${redirect}`);
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, repeatElementId, router]);
 
   useEffect(() => {
     if (authLoading || !isAuthenticated || intakeTrackedRef.current) return;
@@ -238,9 +246,68 @@ export function PaidPromotionIntake() {
     void captureClientEvent('paid_promotion_intake_started', {
       route: '/promote/new',
       source_surface: 'paid_promotion',
+      source_context: repeatElementId ? 'repeat' : undefined,
       is_authenticated: true,
     });
-  }, [authLoading, isAuthenticated]);
+  }, [authLoading, isAuthenticated, repeatElementId]);
+
+  useEffect(() => {
+    if (
+      authLoading ||
+      !isAuthenticated ||
+      !repeatElementId ||
+      repeatLoadedRef.current
+    ) {
+      return;
+    }
+
+    repeatLoadedRef.current = true;
+    let cancelled = false;
+    setIsLoadingRepeatSubject(true);
+    setRepeatSubjectError('');
+
+    paidPromotionSubjectsService.listOwned()
+      .then((subjects) => {
+        if (cancelled) return;
+        const subject = subjects.find((candidate) => candidate.elementId === repeatElementId);
+        const elementType = subject ? elementTypeFor(subject.elementId) : null;
+        const sourceUrl = subject?.repeatSourceUrl ?? '';
+        const detected = detectContentType(sourceUrl);
+
+        if (
+          !subject ||
+          !elementType ||
+          elementType !== subject.elementType ||
+          !isSupportedMusicLink(sourceUrl)
+        ) {
+          throw new Error('Repeat subject unavailable');
+        }
+
+        setMusicUrl(sourceUrl);
+        setResolvedSubject({
+          elementId: subject.elementId,
+          elementType,
+          submittedUrl: sourceUrl,
+          title: subject.title,
+          subtitle: subject.subtitleNames.join(', '),
+          artwork: subject.coverArtUrl ?? undefined,
+          sourcePlatform: PLATFORM_LABELS[detected.platform],
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRepeatSubjectError(
+          'We could not reuse that promoted record. Search for the music or paste its link instead.',
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingRepeatSubject(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, isAuthenticated, repeatElementId]);
 
   useEffect(() => {
     if (resolvedSubject) {
@@ -353,6 +420,7 @@ export function PaidPromotionIntake() {
       setIsReviewingOrder(false);
     }
     setErrorMessage('');
+    setRepeatSubjectError('');
     setResolutionFailure(null);
   };
 
@@ -369,6 +437,7 @@ export function PaidPromotionIntake() {
 
     setMusicUrl(url);
     setErrorMessage('');
+    setRepeatSubjectError('');
     setResolutionFailure(null);
     void resolveSubject(url);
   };
@@ -380,6 +449,7 @@ export function PaidPromotionIntake() {
     setCreatedCampaignId(null);
     setIsReviewingOrder(false);
     setErrorMessage('');
+    setRepeatSubjectError('');
     setResolutionFailure(null);
   };
 
@@ -463,6 +533,7 @@ export function PaidPromotionIntake() {
         void captureClientEvent('paid_promotion_campaign_submitted', {
           route: '/promote/new',
           source_surface: 'paid_promotion',
+          source_context: repeatElementId ? 'repeat' : undefined,
           paid_promotion_campaign_id: campaign.id,
           is_authenticated: true,
         });
@@ -472,6 +543,7 @@ export function PaidPromotionIntake() {
       void captureClientEvent('paid_promotion_checkout_started', {
         route: '/promote/new',
         source_surface: 'paid_promotion',
+        source_context: repeatElementId ? 'repeat' : undefined,
         paid_promotion_campaign_id: campaignId,
         is_authenticated: true,
       });
@@ -539,9 +611,11 @@ export function PaidPromotionIntake() {
           aria-live="polite"
           className="sr-only"
         >
-          {isConverting
-            ? 'Resolving your music. Package and campaign details are unavailable until this finishes.'
-            : ''}
+          {isLoadingRepeatSubject
+            ? 'Loading your previously promoted music. Package and campaign details are unavailable until this finishes.'
+            : isConverting
+              ? 'Resolving your music. Package and campaign details are unavailable until this finishes.'
+              : ''}
         </output>
 
         <form
@@ -566,11 +640,17 @@ export function PaidPromotionIntake() {
                   />
                 )}
 
+                {isLoadingRepeatSubject && (
+                  <output className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Spinner size="sm" /> Loading your previously promoted music…
+                  </output>
+                )}
+
                 <ConversionBeam active={isConverting}>
                   <UrlBar
                     variant="light"
                     beamActive={isConverting}
-                    hasError={Boolean(resolutionFailure)}
+                    hasError={Boolean(resolutionFailure || repeatSubjectError)}
                     className="w-full"
                   >
                     {isConverting ? (
@@ -598,7 +678,7 @@ export function PaidPromotionIntake() {
                           aria-label="Search for music or paste a music link"
                           aria-required="true"
                           required
-                          disabled={isLocked}
+                          disabled={isLocked || isLoadingRepeatSubject}
                           className="h-full w-full border-none bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-0 disabled:opacity-60"
                         />
                         {musicUrl && !isLocked && (
@@ -615,6 +695,16 @@ export function PaidPromotionIntake() {
                     )}
                   </UrlBar>
                 </ConversionBeam>
+
+                {repeatSubjectError && (
+                  <p
+                    role="alert"
+                    data-testid="paid-promotion-repeat-subject-error"
+                    className="text-sm text-destructive"
+                  >
+                    {repeatSubjectError}
+                  </p>
+                )}
 
                 {resolutionFailure && (
                   <div
@@ -723,7 +813,7 @@ export function PaidPromotionIntake() {
                       type="button"
                       variant="outline"
                       onClick={() => void resolveSubject()}
-                      disabled={!musicUrl.trim() || isConverting || isLocked}
+                      disabled={!musicUrl.trim() || isResolvingSubject || isLocked}
                       data-testid="paid-promotion-resolve-subject"
                     >
                       {isConverting ? <Spinner size="sm" /> : <Music2 />}
@@ -739,7 +829,7 @@ export function PaidPromotionIntake() {
               title="Package and run length"
               description="Prices come from Cassette's active rate card and are charged per week."
               required
-              busy={isConverting}
+              busy={isResolvingSubject}
             >
               {isLoadingRateCards ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -875,7 +965,7 @@ export function PaidPromotionIntake() {
               index="03"
               title="About the release"
               description="What should Cassette know before it starts posting? Angle, story, anything time-sensitive."
-              busy={isConverting}
+              busy={isResolvingSubject}
             >
               <div className="space-y-5">
                 <div
@@ -989,7 +1079,7 @@ export function PaidPromotionIntake() {
               title="Your authority to promote it"
               description="Cassette only runs campaigns booked by someone entitled to promote the music."
               required
-              busy={isConverting}
+              busy={isResolvingSubject}
             >
               <div className="space-y-5">
                 <div className="space-y-2">

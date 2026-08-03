@@ -55,7 +55,7 @@ export const ACTIVE_PLATFORM_DEFINITIONS = [
     analyticsKey: 'spotify',
     displayName: 'Spotify',
     aliases: ['spotify'],
-    sourceHosts: ['open.spotify.com', 'play.spotify.com'],
+    sourceHosts: ['open.spotify.com', 'play.spotify.com', 'spotify.link'],
     logoSrc: '/images/spotify_logo_colored.png',
     color: 'hsl(var(--platform-spotify))',
     bgColor: 'bg-platform-spotify/10',

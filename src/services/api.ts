@@ -322,7 +322,7 @@ class ApiService {
 
     if (response.status === 'ready') {
       if (!response.postId) {
-        throw new Error('Conversion completed without a post id');
+        throw new ApiError('Conversion completed without a post id', false, 'conversion_missing_post_id');
       }
 
       return createLifecycleConversionPlaceholder({
@@ -337,7 +337,7 @@ class ApiService {
 
     if (response.status === 'processing') {
       if (!response.jobId) {
-        throw new Error('Conversion is processing without a job id');
+        throw new ApiError('Conversion is processing without a job id', false, 'conversion_missing_job_id');
       }
 
       const resolvedPostId = await this.waitForConvertJob(
@@ -357,7 +357,13 @@ class ApiService {
       });
     }
 
-    throw new Error(getLifecycleConversionFailureMessage(response));
+    throw new ApiError(
+      getLifecycleConversionFailureMessage(response),
+      false,
+      response.errorCode,
+      undefined,
+      { jobId: response.jobId, postId: response.postId, apiStatus: response.status, correlationId: response.correlationId },
+    );
   }
 
   private async waitForConvertJob(jobId: string, initialRetryMs?: number, anonymous?: boolean, correlationId?: string): Promise<string> {
@@ -377,7 +383,13 @@ class ApiService {
         return jobResponse.postId;
       }
       if (jobResponse.status === 'failed') {
-        throw new Error(jobResponse.message || jobResponse.errorCode || 'Conversion failed');
+        throw new ApiError(
+          jobResponse.message || jobResponse.errorCode || 'Conversion failed',
+          false,
+          jobResponse.errorCode,
+          undefined,
+          { jobId, postId: jobResponse.postId, apiStatus: jobResponse.status, correlationId: jobResponse.correlationId ?? correlationId },
+        );
       }
 
       retryMs = jobResponse.retryAfterMs ?? 400;

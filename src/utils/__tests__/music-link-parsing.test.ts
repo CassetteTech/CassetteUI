@@ -57,6 +57,9 @@ test('music link input helpers normalize pasted text and classify support', () =
   assert.equal(isSupportedMusicLink('https://link.deezer.com/'), false);
   assert.equal(isSupportedMusicLink('https://link.deezer.com/s/'), false);
   assert.equal(isSupportedMusicLink('https://evil.link.deezer.com/s/short123'), false);
+  assert.equal(isSupportedMusicLink('https://spotify.link/short123'), true);
+  assert.equal(isSupportedMusicLink('https://spotify.link/'), false);
+  assert.equal(isSupportedMusicLink('https://evil.spotify.link/short123'), false);
   assert.equal(isSupportedMusicLink('httpss://open.spotify.com/track/abc123'), false);
 });
 
@@ -64,6 +67,7 @@ test('music link input helpers expose source labels and validation messages from
   assert.equal(getPlatformDisplayName('apple'), 'Apple Music');
   assert.equal(getMusicSourceLabel('https://music.apple.com/us/song/name/1615585000'), 'Apple Music');
   assert.equal(getMusicSourceLabel('https://link.deezer.com/s/short123'), 'Deezer');
+  assert.equal(getMusicSourceLabel('https://spotify.link/short123'), 'Spotify');
   assert.equal(
     validateMusicLink('https://music.apple.com/us/library/playlist/p.abc123'),
     "You've pasted a private Apple Music playlist link. Please use the 'Share Playlist' option to copy the correct link.",
@@ -77,6 +81,7 @@ test('music link input helpers expose source labels and validation messages from
     "This music service isn't supported yet. Please use a link from Spotify, Apple Music, or Deezer.",
   );
   assert.equal(validateMusicLink('https://link.deezer.com/s/short123'), null);
+  assert.equal(validateMusicLink('https://spotify.link/short123'), null);
   assert.equal(
     validateMusicLink('httpss://open.spotify.com/track/abc123'),
     'Please enter a valid URL starting with http:// or https://',

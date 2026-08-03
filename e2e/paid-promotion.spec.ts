@@ -433,6 +433,27 @@ test('resolves a subject picked from catalog search, not just a pasted link', as
   ).toBeVisible();
 });
 
+test('turns resolution failures into customer copy with a recovery action', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+
+  await page.goto('/promote/new');
+  const input = page.getByTestId('paid-promotion-subject-input');
+  await input.fill('https://example.com/internal-record');
+  await page.getByTestId('paid-promotion-resolve-subject').click();
+
+  const error = page.getByTestId('paid-promotion-resolution-error');
+  await expect(error).toContainText('Use a supported music link');
+  await expect(error.getByRole('button', { name: 'Choose another link' })).toBeVisible();
+
+  const missingTemplateUrl = 'https://open.spotify.com/track/noTemplateForThisTrack';
+  await input.fill(missingTemplateUrl);
+  await page.getByTestId('paid-promotion-resolve-subject').click();
+
+  await expect(error).toContainText('We could not find that music');
+  await expect(error.getByRole('button', { name: 'Use a fresh link' })).toBeVisible();
+  await expect(error).not.toContainText(`No conversion template for ${missingTemplateUrl}`);
+});
+
 test('offers support instead of a dead end when the whole catalog is empty', async ({ page }) => {
   // An environment whose rate-card catalog has not been seeded yet.
   await mockCassetteApp(page, { currentUser: fixtureUsers.member, paidPromotionRateCards: [] });

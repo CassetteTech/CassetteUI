@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, CheckCircle2, Music2, RotateCcw, Search, ShieldCheck, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, CircleAlert, Music2, RotateCcw, Search, ShieldCheck, X } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +39,11 @@ import {
   computePaidPromotionPricing,
   formatPaidPromotionMinorAmount,
 } from '@/services/paid-promotion-lifecycle';
+import {
+  getPaidPromotionResolutionFailure,
+  PaidPromotionResolutionError,
+  type PaidPromotionResolutionFailure,
+} from '@/services/paid-promotion-resolution-errors';
 import { getPaidPromotionElementTypeLabel } from '@/services/paid-promotion-status-presentation';
 import type {
   PaidPromotionAttestation,
@@ -142,6 +147,7 @@ export function PaidPromotionIntake() {
   const linkConversion = useMusicLinkConversion();
   const intakeTrackedRef = useRef(false);
   const resolvedSubjectRef = useRef<HTMLDivElement>(null);
+  const subjectInputRef = useRef<HTMLInputElement>(null);
 
   const [musicUrl, setMusicUrl] = useState('');
   const [resolvedSubject, setResolvedSubject] = useState<ResolvedSubject | null>(null);
@@ -169,6 +175,8 @@ export function PaidPromotionIntake() {
   const [isReviewingOrder, setIsReviewingOrder] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [resolutionFailure, setResolutionFailure] =
+    useState<PaidPromotionResolutionFailure | null>(null);
 
   const isConverting = conversionKey !== null;
   const isLocked = Boolean(createdCampaignId);
@@ -248,10 +256,13 @@ export function PaidPromotionIntake() {
     const detected = detectContentType(normalizedUrl);
 
     if (validationError || !isSupportedMusicLink(normalizedUrl)) {
-      setErrorMessage(
-        validationError ||
-          "This music service isn't supported yet. Use a Spotify, Apple Music, or Deezer link.",
+      const kind = validationError?.includes("isn't supported yet")
+        ? 'unsupported_link'
+        : 'invalid_link';
+      setResolutionFailure(
+        getPaidPromotionResolutionFailure(new PaidPromotionResolutionError(kind)),
       );
+      setErrorMessage('');
       playErrorTone();
       return;
     }
@@ -262,6 +273,7 @@ export function PaidPromotionIntake() {
     setResolvedSubject(null);
     setCreatedCampaignId(null);
     setErrorMessage('');
+    setResolutionFailure(null);
 
     try {
       const conversion = await linkConversion.mutateAsync({
@@ -269,13 +281,13 @@ export function PaidPromotionIntake() {
         idempotencyKey: key,
       });
       if (!conversion.postId) {
-        throw new Error('Conversion completed without a post id.');
+        throw new PaidPromotionResolutionError('missing_post');
       }
 
       const post = await apiService.fetchPostById(conversion.postId);
       const elementType = elementTypeFor(post.musicElementId);
       if (!post.success || !elementType || post.elementType.toLowerCase() !== elementType) {
-        throw new Error('Cassette could not resolve this link to a canonical record.');
+        throw new PaidPromotionResolutionError('canonical_record');
       }
 
       setMusicUrl(normalizedUrl);
@@ -295,10 +307,7 @@ export function PaidPromotionIntake() {
       playLinkRecognized();
     } catch (error) {
       playErrorTone();
-      setErrorMessage(getUserFacingApiErrorMessage(
-        error,
-        'We could not resolve that link. Check it and try again.',
-      ));
+      setResolutionFailure(getPaidPromotionResolutionFailure(error));
     } finally {
       setConversionKey(null);
     }
@@ -313,6 +322,7 @@ export function PaidPromotionIntake() {
       setIsReviewingOrder(false);
     }
     setErrorMessage('');
+    setResolutionFailure(null);
   };
 
   const handleSelectSearchResult = (url: string) => {
@@ -328,6 +338,7 @@ export function PaidPromotionIntake() {
 
     setMusicUrl(url);
     setErrorMessage('');
+    setResolutionFailure(null);
     void resolveSubject(url);
   };
 
@@ -338,6 +349,7 @@ export function PaidPromotionIntake() {
     setCreatedCampaignId(null);
     setIsReviewingOrder(false);
     setErrorMessage('');
+    setResolutionFailure(null);
   };
 
   // Packages are sold per element type: a resolved subject whose type has no
@@ -484,7 +496,12 @@ export function PaidPromotionIntake() {
                 )}
 
                 <ConversionBeam active={isConverting}>
-                  <UrlBar variant="light" beamActive={isConverting} className="w-full">
+                  <UrlBar
+                    variant="light"
+                    beamActive={isConverting}
+                    hasError={Boolean(resolutionFailure)}
+                    className="w-full"
+                  >
                     {isConverting ? (
                       <div className="flex h-full w-full flex-col items-center justify-center px-4">
                         <span className="max-w-full truncate text-sm font-semibold text-foreground">
@@ -496,6 +513,7 @@ export function PaidPromotionIntake() {
                       <div className="flex h-full w-full items-center gap-2 px-4">
                         <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                         <input
+                          ref={subjectInputRef}
                           data-testid="paid-promotion-subject-input"
                           value={musicUrl}
                           onChange={(event) => handleMusicUrlChange(event.target.value)}
@@ -521,6 +539,49 @@ export function PaidPromotionIntake() {
                     )}
                   </UrlBar>
                 </ConversionBeam>
+
+                {resolutionFailure && (
+                  <div
+                    role="alert"
+                    data-testid="paid-promotion-resolution-error"
+                    className="rounded-lg border border-destructive/30 bg-destructive/5 p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <CircleAlert
+                        className="mt-0.5 size-5 shrink-0 text-destructive"
+                        aria-hidden
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-atkinson font-bold text-foreground">
+                          {resolutionFailure.title}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          {resolutionFailure.message}
+                        </p>
+                        {resolutionFailure.action === 'contact_support' ? (
+                          <PaidPromotionSupportContact className="mt-3 justify-start" />
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="mt-3"
+                            onClick={() => {
+                              if (resolutionFailure.action === 'edit_link') {
+                                subjectInputRef.current?.focus();
+                                subjectInputRef.current?.select();
+                                return;
+                              }
+                              void resolveSubject();
+                            }}
+                          >
+                            {resolutionFailure.action === 'retry' && <RotateCcw />}
+                            {resolutionFailure.actionLabel}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Results are capped and scroll internally: an unbounded list
                     shoves the rest of the form down the page while you type. */}

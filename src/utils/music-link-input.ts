@@ -29,6 +29,8 @@ const DEEZER_REDIRECT_HOSTS = [
   'link.deezer.com',
 ] as const;
 
+const SPOTIFY_REDIRECT_HOSTS = ['spotify.link'] as const;
+
 function getParsedUrl(raw: string): URL | null {
   try {
     return new URL(raw);
@@ -41,14 +43,26 @@ function hostnameIncludes(hostname: string, domain: string): boolean {
   return hostname === domain || hostname.endsWith(`.${domain}`);
 }
 
-function isDeezerRedirectUrl(url: URL): boolean {
+function getMusicRedirectPlatform(url: URL): 'Spotify' | 'Deezer' | null {
   const hostname = url.hostname.toLowerCase();
   const pathSegments = url.pathname.split('/').filter(Boolean);
-  return (
-    (url.protocol === 'http:' || url.protocol === 'https:') &&
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+
+  if (
     DEEZER_REDIRECT_HOSTS.some((domain) => hostname === domain) &&
     (hostname === 'link.deezer.com' ? pathSegments.length >= 2 : pathSegments.length >= 1)
-  );
+  ) {
+    return 'Deezer';
+  }
+
+  if (
+    SPOTIFY_REDIRECT_HOSTS.some((domain) => hostname === domain) &&
+    pathSegments.length >= 1
+  ) {
+    return 'Spotify';
+  }
+
+  return null;
 }
 
 export function normalizeMusicLinkInput(raw: string): string {
@@ -66,7 +80,7 @@ export function isSupportedMusicLink(raw: string): boolean {
   if (!parsedUrl || (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:')) {
     return false;
   }
-  if (isDeezerRedirectUrl(parsedUrl)) {
+  if (getMusicRedirectPlatform(parsedUrl)) {
     return true;
   }
 
@@ -77,8 +91,9 @@ export function isSupportedMusicLink(raw: string): boolean {
 export function getMusicSourceLabel(raw: string): 'Spotify' | 'Apple Music' | 'Deezer' | 'unknown' {
   const normalized = normalizeMusicLinkInput(raw);
   const parsedUrl = getParsedUrl(normalized);
-  if (parsedUrl && isDeezerRedirectUrl(parsedUrl)) {
-    return 'Deezer';
+  const redirectPlatform = parsedUrl ? getMusicRedirectPlatform(parsedUrl) : null;
+  if (redirectPlatform) {
+    return redirectPlatform;
   }
 
   const displayName = getPlatformDisplayName(detectContentType(normalized).platform);
@@ -135,8 +150,8 @@ export function validateMusicLink(raw: string): string | null {
 
   const platform = getPlatformDefinitionForHostname(hostname);
   if (platform) {
-    // Bridge resolves these redirect links before extracting the Deezer ID.
-    if (isDeezerRedirectUrl(parsedUrl)) {
+    // Bridge resolves approved redirect links before extracting the provider ID.
+    if (getMusicRedirectPlatform(parsedUrl)) {
       return null;
     }
 

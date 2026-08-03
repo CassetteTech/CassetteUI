@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, CheckCircle2, CircleAlert, Music2, RotateCcw, Search, ShieldCheck, X } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
@@ -128,21 +128,32 @@ function Step({
   index,
   title,
   description,
+  required = false,
+  busy = false,
   children,
 }: {
   index: string;
   title: string;
   description: string;
+  required?: boolean;
+  busy?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-t border-border pt-6 first:border-t-0 first:pt-0">
+    <section
+      aria-busy={busy || undefined}
+      aria-describedby={busy ? 'paid-promotion-dependent-steps-status' : undefined}
+      className="border-t border-border pt-6 first:border-t-0 first:pt-0"
+    >
       <div className="mb-4">
         <div className="flex items-baseline gap-3">
           <span className="font-mono text-[11px] font-bold tracking-[0.2em] text-muted-foreground">
             {index}
           </span>
-          <h2 className="font-atkinson text-xl font-bold tracking-tight text-foreground">{title}</h2>
+          <h2 className="font-atkinson text-xl font-bold tracking-tight text-foreground">
+            {title}
+            {required && <RequiredIndicator />}
+          </h2>
         </div>
         <p className="mt-1.5 pl-[calc(1.5rem+0.75rem)] text-sm leading-6 text-muted-foreground">
           {description}
@@ -150,6 +161,14 @@ function Step({
       </div>
       {children}
     </section>
+  );
+}
+
+function RequiredIndicator() {
+  return (
+    <span className="ml-2 font-sans text-xs font-normal text-muted-foreground">
+      (required)
+    </span>
   );
 }
 
@@ -409,6 +428,13 @@ export function PaidPromotionIntake() {
     ? `Still needed: ${missingRequirements.join(', ')}.`
     : 'All required details are complete.';
 
+  const handleReviewSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (canSubmit && !isLocked && !isReviewingOrder) {
+      setIsReviewingOrder(true);
+    }
+  };
+
   const handleCampaignCheckout = async () => {
     if (!resolvedSubject || !canSubmit || isSubmitting) return;
 
@@ -508,13 +534,28 @@ export function PaidPromotionIntake() {
           </p>
         </header>
 
-        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-12">
+        <output
+          id="paid-promotion-dependent-steps-status"
+          aria-live="polite"
+          className="sr-only"
+        >
+          {isConverting
+            ? 'Resolving your music. Package and campaign details are unavailable until this finishes.'
+            : ''}
+        </output>
+
+        <form
+          aria-labelledby="paid-promotion-intake-heading"
+          onSubmit={handleReviewSubmit}
+          className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-12"
+        >
           {/* Flow */}
           <div className="min-w-0 space-y-8">
             <Step
               index="01"
               title="What are you promoting?"
               description="Search Cassette's catalog, or paste a Spotify, Apple Music, or Deezer link. We resolve it to a canonical record first."
+              required
             >
               <div className="space-y-4">
                 {isConverting && (
@@ -548,10 +589,15 @@ export function PaidPromotionIntake() {
                           value={musicUrl}
                           onChange={(event) => handleMusicUrlChange(event.target.value)}
                           onKeyDown={(event) => {
-                            if (event.key === 'Enter') void resolveSubject();
+                            if (event.key === 'Enter') {
+                              event.preventDefault();
+                              void resolveSubject();
+                            }
                           }}
                           placeholder="Search a song or album, or paste a link"
                           aria-label="Search for music or paste a music link"
+                          aria-required="true"
+                          required
                           disabled={isLocked}
                           className="h-full w-full border-none bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-0 disabled:opacity-60"
                         />
@@ -692,6 +738,8 @@ export function PaidPromotionIntake() {
               index="02"
               title="Package and run length"
               description="Prices come from Cassette's active rate card and are charged per week."
+              required
+              busy={isConverting}
             >
               {isLoadingRateCards ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -731,40 +779,58 @@ export function PaidPromotionIntake() {
                 </div>
               ) : (
                 <div className="space-y-5">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {availableRateCards.map((rateCard) => {
-                      const selected = selectedRateCardId === rateCard.id;
-                      return (
-                        <button
-                          key={rateCard.id}
-                          type="button"
-                          onClick={() => setSelectedRateCardId(rateCard.id)}
-                          disabled={isLocked}
-                          aria-pressed={selected}
-                          data-testid={`paid-promotion-rate-card-${rateCard.id}`}
-                          className={`rounded-lg border p-4 text-left transition-[border-color,background-color] disabled:cursor-not-allowed disabled:opacity-50 ${
-                            selected
-                              ? 'border-primary bg-primary/5'
-                              : 'border-border bg-card hover:border-foreground'
-                          }`}
-                        >
-                          <span className="block font-atkinson text-lg font-bold text-foreground">
-                            {rateCard.displayName}
-                          </span>
-                          <span className="mt-1 block text-sm leading-5 text-muted-foreground">
-                            {rateCard.description}
-                          </span>
-                          <span className="mt-4 block font-mono text-sm font-bold text-foreground">
-                            {formatPaidPromotionMinorAmount(rateCard.amountMinor, rateCard.currency)}/week
-                          </span>
-                          <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-                            {rateCard.minWeeks}–{rateCard.maxWeeks} weeks · at least{' '}
-                            {rateCard.weeklyDeliverableMinimum} per week
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <fieldset
+                    role="radiogroup"
+                    aria-required="true"
+                    disabled={isLocked}
+                    className="space-y-3"
+                  >
+                    <legend className="font-atkinson font-bold text-foreground">
+                      Choose a package
+                      <RequiredIndicator />
+                    </legend>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {availableRateCards.map((rateCard) => {
+                        const selected = selectedRateCardId === rateCard.id;
+                        return (
+                          <label
+                            key={rateCard.id}
+                            data-testid={`paid-promotion-rate-card-${rateCard.id}`}
+                            className={`cursor-pointer rounded-lg border p-4 text-left transition-[border-color,background-color,box-shadow] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${
+                              isLocked ? 'cursor-not-allowed opacity-50' : ''
+                            } ${
+                              selected
+                                ? 'border-primary bg-primary/5'
+                                : 'border-border bg-card hover:border-foreground'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="paid-promotion-rate-card"
+                              value={rateCard.id}
+                              checked={selected}
+                              onChange={() => setSelectedRateCardId(rateCard.id)}
+                              required
+                              className="sr-only"
+                            />
+                            <span className="block font-atkinson text-lg font-bold text-foreground">
+                              {rateCard.displayName}
+                            </span>
+                            <span className="mt-1 block text-sm leading-5 text-muted-foreground">
+                              {rateCard.description}
+                            </span>
+                            <span className="mt-4 block font-mono text-sm font-bold text-foreground">
+                              {formatPaidPromotionMinorAmount(rateCard.amountMinor, rateCard.currency)}/week
+                            </span>
+                            <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+                              {rateCard.minWeeks}–{rateCard.maxWeeks} weeks · at least{' '}
+                              {rateCard.weeklyDeliverableMinimum} per week
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
 
                   {selectedRateCard && (
                     <div className="space-y-2">
@@ -809,6 +875,7 @@ export function PaidPromotionIntake() {
               index="03"
               title="About the release"
               description="What should Cassette know before it starts posting? Angle, story, anything time-sensitive."
+              busy={isConverting}
             >
               <div className="space-y-5">
                 <div
@@ -824,13 +891,18 @@ export function PaidPromotionIntake() {
                   </ul>
                 </div>
 
-                <div>
+                <div className="space-y-2">
+                  <Label htmlFor="paid-promotion-brief">
+                    Campaign brief
+                    <RequiredIndicator />
+                  </Label>
                   <Textarea
                     id="paid-promotion-brief"
                     data-testid="paid-promotion-brief"
                     value={brief}
                     onChange={(event) => setBrief(event.target.value)}
                     minLength={MIN_BRIEF_LENGTH}
+                    required
                     maxLength={5000}
                     rows={6}
                     disabled={!resolvedSubject || isLocked}
@@ -916,11 +988,14 @@ export function PaidPromotionIntake() {
               index="04"
               title="Your authority to promote it"
               description="Cassette only runs campaigns booked by someone entitled to promote the music."
+              required
+              busy={isConverting}
             >
               <div className="space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="paid-promotion-promoter-kind">
                     Who is promoting this music?
+                    <RequiredIndicator />
                   </Label>
                   <Select
                     value={promoterKind}
@@ -930,6 +1005,7 @@ export function PaidPromotionIntake() {
                     <SelectTrigger
                       id="paid-promotion-promoter-kind"
                       aria-label="Who is promoting this music?"
+                      aria-required="true"
                       className="w-full bg-field sm:max-w-md"
                     >
                       <SelectValue placeholder="Select your role" />
@@ -987,12 +1063,14 @@ export function PaidPromotionIntake() {
                       checked={attestationAccepted}
                       onChange={(event) => setAttestationAccepted(event.target.checked)}
                       disabled={!resolvedSubject || isLocked}
+                      required
                       data-testid="paid-promotion-attestation"
                       className="mt-0.5 size-4 shrink-0 accent-primary"
                     />
                     <Label htmlFor="paid-promotion-attestation" className="block cursor-pointer font-normal">
                       <span className="block text-sm leading-6 text-foreground">
                         {attestation.text}
+                        <RequiredIndicator />
                       </span>
                       <span className="mt-1 block font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground">
                         Attestation {attestation.version}
@@ -1263,9 +1341,8 @@ export function PaidPromotionIntake() {
                     {requirementsMessage}
                   </output>
                   <Button
-                    type="button"
+                    type="submit"
                     variant="brutalist"
-                    onClick={() => setIsReviewingOrder(true)}
                     disabled={!canSubmit || isReviewingOrder}
                     aria-describedby="paid-promotion-form-requirements"
                     data-testid="paid-promotion-submit"
@@ -1284,7 +1361,7 @@ export function PaidPromotionIntake() {
               </p>
             </div>
           </aside>
-        </div>
+        </form>
 
         <PaidPromotionSupportContact className="mt-12 border-t border-border pt-6" />
       </section>

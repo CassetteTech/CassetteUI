@@ -50,6 +50,7 @@ type MockCassetteOptions = {
   issueReportFailures?: number;
   googleAuthInitFailures?: number;
   paidPromotionRateCards?: FixturePaidPromotionRateCard[];
+  paidPromotionConversionDelayMs?: number;
   paidPromotionCampaign?: FixturePaidPromotionCampaign;
   paidPromotionCampaigns?: FixturePaidPromotionCampaign[];
   paidPromotionCampaignsResponse?: unknown;
@@ -122,6 +123,7 @@ type MockState = {
   issueReportFailuresRemaining: number;
   googleAuthInitFailuresRemaining: number;
   paidPromotionRateCards: FixturePaidPromotionRateCard[];
+  paidPromotionConversionDelayMs: number;
   paidPromotionCampaignsById: Map<string, FixturePaidPromotionCampaign>;
   paidPromotionCampaignsResponse?: unknown;
   paidPromotionCampaignsStatus: number;
@@ -423,6 +425,7 @@ const buildState = (options: MockCassetteOptions): MockState => {
     issueReportFailuresRemaining: options.issueReportFailures ?? 0,
     googleAuthInitFailuresRemaining: options.googleAuthInitFailures ?? 0,
     paidPromotionRateCards: clone(options.paidPromotionRateCards || fixturePaidPromotionRateCards),
+    paidPromotionConversionDelayMs: options.paidPromotionConversionDelayMs ?? 0,
     paidPromotionCampaignsById: new Map<string, FixturePaidPromotionCampaign>(),
     paidPromotionCampaignsResponse: options.paidPromotionCampaignsResponse === undefined
       ? undefined
@@ -859,6 +862,9 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         sourceLink: string;
         description?: string;
       };
+      if (state.paidPromotionConversionDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, state.paidPromotionConversionDelayMs));
+      }
       const template = state.convertTemplatesByUrl.get(payload.sourceLink);
       if (!template) {
         return json(route, { message: `No conversion template for ${payload.sourceLink}` }, 404);

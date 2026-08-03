@@ -285,14 +285,20 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
 
   await page.goto('/promote/new');
   await expect(page.getByRole('button', { name: 'Promotion home', exact: true })).toBeVisible();
+  const intakeForm = page.getByRole('form', { name: /Put your music in front/ });
+  await expect(intakeForm).toBeVisible();
   const requirements = page.getByTestId('paid-promotion-form-requirements');
   await expect(requirements).toContainText('music selection');
   await expect(requirements).toContainText('campaign brief (20+ characters)');
-  await expect(page.getByTestId('paid-promotion-submit')).toHaveAttribute(
+  const submitButton = page.getByTestId('paid-promotion-submit');
+  await expect(submitButton).toHaveAttribute('type', 'submit');
+  await expect(submitButton).toHaveAttribute(
     'aria-describedby',
     'paid-promotion-form-requirements',
   );
-  await page.getByTestId('paid-promotion-subject-input').fill(
+  const subjectInput = page.getByTestId('paid-promotion-subject-input');
+  await expect(subjectInput).toHaveAttribute('required', '');
+  await subjectInput.fill(
     fixtureConvertTemplates.paidPromotionTrack.originalUrl,
   );
   await page.getByTestId('paid-promotion-resolve-subject').click();
@@ -302,9 +308,13 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
   await expect(resolvedSubject).toContainText('Canonical track');
   await expect(resolvedSubject).toHaveAttribute('role', 'status');
   await expect(resolvedSubject).toBeFocused();
-  await page.getByTestId(
+  const packageGroup = page.getByRole('radiogroup', { name: /Choose a package/ });
+  await expect(packageGroup).toHaveAttribute('aria-required', 'true');
+  const selectedPackage = page.getByTestId(
     `paid-promotion-rate-card-${fixturePaidPromotionRateCards[0].id}`,
-  ).click();
+  );
+  await selectedPackage.click();
+  await expect(selectedPackage.getByRole('radio')).toBeChecked();
 
   // Weeks drive the displayed total: 4 weeks crosses the discount threshold,
   // so $25/week × 4 shows as $90.00 (10% off), not $100.00.
@@ -316,16 +326,22 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
   await expect(weeklyTotal).toContainText('$10.00');
   await expect(weeklyTotal).toContainText('$90.00');
 
-  await page.getByTestId('paid-promotion-brief').fill('Too short');
+  const briefInput = page.getByTestId('paid-promotion-brief');
+  await expect(briefInput).toHaveAttribute('required', '');
+  await briefInput.fill('Too short');
   await expect(requirements).toContainText('campaign brief (20+ characters)');
-  await page.getByTestId('paid-promotion-brief').fill(
+  await briefInput.fill(
     'Focus on the release story and the live arrangement.',
   );
   await page.getByTestId('paid-promotion-window-start').fill('2026-09-01');
   await page.getByTestId('paid-promotion-window-end').fill('2026-09-14');
-  await page.getByLabel('Who is promoting this music?').click();
+  const promoterKind = page.getByLabel('Who is promoting this music?');
+  await expect(promoterKind).toHaveAttribute('aria-required', 'true');
+  await promoterKind.click();
   await page.getByRole('option', { name: 'I am the artist', exact: true }).click();
-  await page.getByTestId('paid-promotion-attestation').check();
+  const attestation = page.getByTestId('paid-promotion-attestation');
+  await expect(attestation).toHaveAttribute('required', '');
+  await attestation.check();
   await expect(requirements).toContainText('All required details are complete.');
 
   // The review step gates checkout: the amount to be charged and policy
@@ -390,9 +406,10 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
   await expect(page).toHaveURL(
     new RegExp(`/promote/${fixturePaidPromotionCampaign.id}/return\\?session_id=`),
   );
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Campaign status');
   await expect(page.getByRole('heading', { name: 'Waiting for payment confirmation' }))
     .toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Payment received' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Payment received' })).toBeVisible();
   await expect(page.getByText('Discount', { exact: true }).locator('..'))
     .toContainText('$50.00');
   await expect(page.getByText('Tax', { exact: true }).locator('..'))
@@ -480,6 +497,60 @@ test('resolves a subject picked from catalog search, not just a pasted link', as
   await expect(
     page.getByTestId(`paid-promotion-rate-card-${fixturePaidPromotionRateCards[0].id}`),
   ).toBeVisible();
+});
+
+test('supports native radio keyboard navigation between eligible packages', async ({ page }) => {
+  const trackRateCard = fixturePaidPromotionRateCards[0];
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    paidPromotionRateCards: [
+      trackRateCard,
+      {
+        ...trackRateCard,
+        id: 'rate-track-featured',
+        displayName: 'Featured track package',
+      },
+    ],
+  });
+
+  await page.goto('/promote/new');
+  await page.getByTestId('paid-promotion-subject-input').fill(
+    fixtureConvertTemplates.paidPromotionTrack.originalUrl,
+  );
+  await page.getByTestId('paid-promotion-resolve-subject').click();
+
+  const radios = page.getByRole('radiogroup', { name: /Choose a package/ }).getByRole('radio');
+  await expect(radios).toHaveCount(2);
+  await radios.first().focus();
+  await page.keyboard.press('Space');
+  await expect(radios.first()).toBeChecked();
+  await page.keyboard.press('ArrowRight');
+  await expect(radios.nth(1)).toBeChecked();
+});
+
+test('announces dependent steps as busy while music is resolving', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    paidPromotionConversionDelayMs: 300,
+  });
+
+  await page.goto('/promote/new');
+  await page.getByTestId('paid-promotion-subject-input').fill(
+    fixtureConvertTemplates.paidPromotionTrack.originalUrl,
+  );
+  await page.getByTestId('paid-promotion-resolve-subject').click();
+
+  const dependentStatus = page.locator('#paid-promotion-dependent-steps-status');
+  await expect(dependentStatus).toContainText('Resolving your music');
+  const busySteps = page.locator('section[aria-busy="true"]');
+  await expect(busySteps).toHaveCount(3);
+  await expect(busySteps.first()).toHaveAttribute(
+    'aria-describedby',
+    'paid-promotion-dependent-steps-status',
+  );
+
+  await expect(page.getByTestId('paid-promotion-resolved-subject')).toBeVisible();
+  await expect(busySteps).toHaveCount(0);
 });
 
 test('turns resolution failures into customer copy with a recovery action', async ({ page }) => {

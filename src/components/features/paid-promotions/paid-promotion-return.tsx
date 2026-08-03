@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { PaidPromotionSupportContact } from '@/components/features/paid-promotions/paid-promotion-support';
 import { PageLoader } from '@/components/ui/page-loader';
 import { Spinner } from '@/components/ui/spinner';
@@ -229,12 +229,12 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
             <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-foreground">
               Paid-promotion checkout
             </p>
-            <CardTitle
+            <h1
               id="paid-promotion-return-heading"
               className="font-atkinson text-2xl sm:text-3xl"
             >
               Campaign status
-            </CardTitle>
+            </h1>
             <CardDescription>
               This page shows the payment status Cassette has confirmed. Returning from Stripe does not by itself mark a payment complete.
             </CardDescription>
@@ -425,7 +425,7 @@ function StatusMessage({
       <div className="mb-4 flex size-16 items-center justify-center rounded-full border-2 border-current bg-card">
         <Icon className={`size-8 ${presentation.iconClassName}`} aria-hidden />
       </div>
-      <h1 className="font-atkinson text-2xl font-bold text-foreground">{presentation.title}</h1>
+      <h2 className="font-atkinson text-2xl font-bold text-foreground">{presentation.title}</h2>
       <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
         {detail || presentation.description}
       </p>

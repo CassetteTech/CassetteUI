@@ -489,6 +489,7 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
 
       <DeliverableDialog
         campaignId={campaign.id}
+        campaignSubject={campaign.subject}
         deliverable={selectedDeliverable}
         open={deliverableOpen}
         onOpenChange={setDeliverableOpen}

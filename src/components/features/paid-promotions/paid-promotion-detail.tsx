@@ -58,6 +58,9 @@ const CHANNEL_LABELS: Record<PaidPromotionDeliverableChannel, string> = {
   tiktok: 'TikTok',
   x: 'X',
   reddit: 'Reddit',
+  curator_playlist_placement: 'Curator playlist placement',
+  in_playlist_track_suggestion: 'In-playlist track suggestion',
+  explore_boost: 'Explore boost',
   other: 'Other',
 };
 

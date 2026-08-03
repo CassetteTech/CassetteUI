@@ -152,6 +152,7 @@ export interface FixtureInternalPaidPromotionDeliverable {
   id: string;
   campaignId: string;
   postId: string | null;
+  subjectElementId: string | null;
   channel: string;
   plannedAtUtc: string | null;
   publishedAtUtc: string | null;
@@ -624,6 +625,7 @@ export const fixtureInternalPaidPromotionCampaign: FixtureInternalPaidPromotionC
       id: 'pmd_FixtureDeliverable01',
       campaignId: fixturePaidPromotionCampaign.id,
       postId: null,
+      subjectElementId: null,
       channel: 'instagram',
       plannedAtUtc: FIXTURE_TIMESTAMP,
       publishedAtUtc: null,

@@ -192,6 +192,32 @@ test('supports rejection and deliverable CRUD without bypassing server refresh',
   await expect(page.getByText('Rejected', { exact: true }).first()).toBeVisible();
 });
 
+test('records the exact focus track for playlist-shaped deliverables', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.team });
+  await page.goto('/internal/paid-promotions/' + fixturePaidPromotionCampaign.id);
+
+  await page.getByRole('button', { name: 'Add' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add deliverable' });
+  await dialog.getByLabel('Deliverable channel').selectOption('curator_playlist_placement');
+  await dialog.getByLabel('Placed subject element ID (required)')
+    .fill(fixturePaidPromotionCampaign.elementId);
+
+  const createRequest = page.waitForRequest((request) =>
+    request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/deliverables'),
+  );
+  await dialog.getByRole('button', { name: 'Save deliverable' }).click();
+  expect((await createRequest).postDataJSON()).toMatchObject({
+    channel: 'curator_playlist_placement',
+    subjectElementId: fixturePaidPromotionCampaign.elementId,
+  });
+  await expect(page.getByText(fixturePaidPromotionCampaign.elementId, { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Edit Curator Playlist Placement deliverable' }).click();
+  await expect(page.getByRole('dialog', { name: 'Edit deliverable' })
+    .getByLabel('Placed subject element ID (required)'))
+    .toHaveValue(fixturePaidPromotionCampaign.elementId);
+});
+
 test('shows the team subject catalog once through the paid-promotion shell', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: fixtureUsers.team });
 

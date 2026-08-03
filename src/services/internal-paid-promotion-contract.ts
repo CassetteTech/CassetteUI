@@ -60,6 +60,9 @@ export const PAID_PROMOTION_DELIVERABLE_CHANNELS = [
   'tiktok',
   'x',
   'reddit',
+  'curator_playlist_placement',
+  'in_playlist_track_suggestion',
+  'explore_boost',
   'other',
 ] as const satisfies readonly PaidPromotionDeliverableChannel[];
 
@@ -99,6 +102,14 @@ function nullableString(value: unknown, path: string): string | null {
 
 export function isPaidPromotionDeliverablePostId(value: string): boolean {
   return /^p_\d{14}_[0-9a-z]{14}$/.test(value);
+}
+
+export function isPaidPromotionSubjectElementId(value: string): boolean {
+  return /^[tarl]_[1-9A-HJ-NP-Za-km-z]{12}$/.test(value);
+}
+
+export function isPaidPromotionFocusTrackId(value: string): boolean {
+  return /^t_[1-9A-HJ-NP-Za-km-z]{12}$/.test(value);
 }
 
 function nullableHttpUrl(value: unknown, path: string): string | null {
@@ -194,6 +205,7 @@ export function parseInternalPaidPromotionDeliverable(
     id: string(item.id, `${path}.id`),
     campaignId: string(item.campaignId, `${path}.campaignId`),
     postId: nullableString(item.postId, `${path}.postId`),
+    subjectElementId: nullableString(item.subjectElementId, `${path}.subjectElementId`),
     channel: string(item.channel, `${path}.channel`) as PaidPromotionDeliverableChannel,
     plannedAtUtc: nullableString(item.plannedAtUtc, `${path}.plannedAtUtc`),
     publishedAtUtc: nullableString(item.publishedAtUtc, `${path}.publishedAtUtc`),

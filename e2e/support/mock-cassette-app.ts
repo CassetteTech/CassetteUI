@@ -1032,6 +1032,9 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       }
       const payload = request.postDataJSON() as Record<string, unknown>;
       deliverable.postId = typeof payload.postId === 'string' ? payload.postId : null;
+      deliverable.subjectElementId = typeof payload.subjectElementId === 'string'
+        ? payload.subjectElementId
+        : null;
       deliverable.channel = String(payload.channel);
       deliverable.status = String(payload.status);
       deliverable.plannedAtUtc = typeof payload.plannedAtUtc === 'string' ? payload.plannedAtUtc : null;
@@ -1059,6 +1062,9 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
           id: 'pmd_FixtureDeliverable02',
           campaignId,
           postId: typeof payload.postId === 'string' ? payload.postId : null,
+          subjectElementId: typeof payload.subjectElementId === 'string'
+            ? payload.subjectElementId
+            : null,
           channel: String(payload.channel),
           plannedAtUtc: typeof payload.plannedAtUtc === 'string' ? payload.plannedAtUtc : null,
           publishedAtUtc: typeof payload.publishedAtUtc === 'string' ? payload.publishedAtUtc : null,

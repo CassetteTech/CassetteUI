@@ -24,7 +24,9 @@ export {
   parseInternalPaidPromotionDeliverable,
   parseInternalPaidPromotionException,
   parseInternalPaidPromotionRefund,
+  isPaidPromotionFocusTrackId,
   isPaidPromotionDeliverablePostId,
+  isPaidPromotionSubjectElementId,
 } from './internal-paid-promotion-contract';
 
 class InternalPaidPromotionsService {

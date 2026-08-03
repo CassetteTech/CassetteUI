@@ -430,6 +430,9 @@ export type PaidPromotionDeliverableChannel =
   | 'tiktok'
   | 'x'
   | 'reddit'
+  | 'curator_playlist_placement'
+  | 'in_playlist_track_suggestion'
+  | 'explore_boost'
   | 'other';
 
 export type PaidPromotionDeliverableStatus =
@@ -517,6 +520,7 @@ export interface InternalPaidPromotionDeliverable {
   id: string;
   campaignId: string;
   postId: string | null;
+  subjectElementId: string | null;
   channel: PaidPromotionDeliverableChannel;
   plannedAtUtc: string | null;
   publishedAtUtc: string | null;
@@ -602,6 +606,7 @@ export interface InternalPaidPromotionRefundResponse {
 
 export interface InternalPaidPromotionDeliverableInput {
   postId?: string | null;
+  subjectElementId?: string | null;
   channel: PaidPromotionDeliverableChannel;
   plannedAtUtc?: string;
   publishedAtUtc?: string;

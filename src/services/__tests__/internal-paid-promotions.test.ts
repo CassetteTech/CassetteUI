@@ -121,6 +121,7 @@ void test('passes deliverable post ids through without format gating', () => {
     id: 'pmd_TestDeliverable1',
     campaignId: 'pmc_TestCampaign1',
     postId: 'p_20260715120000_abcdefghijklmn',
+    subjectElementId: 't_123456789ABC',
     channel: 'instagram',
     plannedAtUtc: null,
     publishedAtUtc: null,
@@ -132,7 +133,15 @@ void test('passes deliverable post ids through without format gating', () => {
   };
 
   assert.equal(parseInternalPaidPromotionDeliverable(deliverable).postId, deliverable.postId);
+  assert.equal(
+    parseInternalPaidPromotionDeliverable(deliverable).subjectElementId,
+    deliverable.subjectElementId,
+  );
   assert.equal(parseInternalPaidPromotionDeliverable({ ...deliverable, postId: null }).postId, null);
+  assert.equal(
+    parseInternalPaidPromotionDeliverable({ ...deliverable, subjectElementId: null }).subjectElementId,
+    null,
+  );
 });
 
 void test('preserves server totals without re-auditing checkout arithmetic', () => {

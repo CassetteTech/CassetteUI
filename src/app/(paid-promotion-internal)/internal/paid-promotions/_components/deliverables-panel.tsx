@@ -52,6 +52,7 @@ export function DeliverablesPanel({
                   <TableHead>Channel</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Post</TableHead>
+                  <TableHead>Placed subject</TableHead>
                   <TableHead>Planned</TableHead>
                   <TableHead>Published</TableHead>
                   <TableHead>Evidence</TableHead>
@@ -77,6 +78,9 @@ export function DeliverablesPanel({
                             {deliverable.postId}
                           </Link>
                         ) : '—'}
+                      </TableCell>
+                      <TableCell className="max-w-40 truncate font-mono text-[10px]">
+                        {deliverable.subjectElementId || '—'}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{formatDate(deliverable.plannedAtUtc)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{formatDate(deliverable.publishedAtUtc)}</TableCell>
@@ -149,6 +153,12 @@ export function DeliverablesPanel({
                         ) : 'Not linked'}
                       </dd>
                     </div>
+                    {deliverable.subjectElementId && (
+                      <div className="col-span-2">
+                        <dt className="text-muted-foreground">Placed subject</dt>
+                        <dd className="break-all font-mono text-[10px]">{deliverable.subjectElementId}</dd>
+                      </div>
+                    )}
                   </dl>
                   {deliverable.notes && <p className="break-words text-xs">{deliverable.notes}</p>}
                   <div className="flex flex-wrap gap-2">

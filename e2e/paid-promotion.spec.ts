@@ -9,6 +9,12 @@ import {
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
+const CUSTOMER_COPY_DENYLIST = /\b(?:persisted|canonical|owner[- ]scoped)\b/i;
+
+async function expectCustomerCopy(page: import('@playwright/test').Page) {
+  await expect(page.locator('body')).not.toContainText(CUSTOMER_COPY_DENYLIST);
+}
+
 test('renders the signed-in promoter home from owner-scoped campaign and subject responses', async ({
   page,
 }) => {
@@ -40,6 +46,10 @@ test('renders the signed-in promoter home from owner-scoped campaign and subject
   await expect(page.getByRole('heading', { name: 'Your campaigns' })).toBeVisible();
   await expect(page.getByText('Signal Fire').first()).toBeVisible();
   await expect(page.getByText('Awaiting payment')).toBeVisible();
+  await expect(page.getByTestId(
+    `paid-promotion-campaign-amount-${fixturePaidPromotionCampaign.id}`,
+  )).toContainText('$25.00');
+  await expectCustomerCopy(page);
 
   // Campaigns of either type render with a type badge and their own title —
   // no track-shaped fallbacks.
@@ -124,7 +134,8 @@ test('starts a repeat campaign with the canonical subject already resolved', asy
   await expect(page).toHaveURL(`/promote/new?subject=${deliveredCampaign.elementId}`);
   const resolvedSubject = page.getByTestId('paid-promotion-resolved-subject');
   await expect(resolvedSubject).toContainText(fixtureConvertTemplates.paidPromotionTrack.title);
-  await expect(resolvedSubject).toContainText('Canonical track');
+  await expect(resolvedSubject).toContainText('Track selected');
+  await expectCustomerCopy(page);
   await expect(page.getByTestId('paid-promotion-subject-input')).toHaveValue(
     fixtureConvertTemplates.paidPromotionTrack.originalUrl,
   );
@@ -300,7 +311,7 @@ test('fails visibly for malformed promoter-home server collections', async ({ pa
   await page.goto('/promote');
 
   await expect(page.getByText(
-    'Cassette returned unrecognized paid-promotion data. No campaign details were inferred.',
+    'We could not read some of your campaign details. Refresh the page or contact support if this continues.',
   )).toHaveCount(2);
 });
 
@@ -397,7 +408,7 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
 
   const resolvedSubject = page.getByTestId('paid-promotion-resolved-subject');
   await expect(resolvedSubject).toContainText('Signal Fire');
-  await expect(resolvedSubject).toContainText('Canonical track');
+  await expect(resolvedSubject).toContainText('Track selected');
   await expect(resolvedSubject).toHaveAttribute('role', 'status');
   await expect(resolvedSubject).toBeFocused();
   const packageGroup = page.getByRole('radiogroup', { name: /Choose a package/ });
@@ -521,7 +532,7 @@ test('creates an album campaign from an album link', async ({ page }) => {
 
   const resolvedSubject = page.getByTestId('paid-promotion-resolved-subject');
   await expect(resolvedSubject).toContainText('Signal Fire (Deluxe)');
-  await expect(resolvedSubject).toContainText('Canonical album');
+  await expect(resolvedSubject).toContainText('Album selected');
 
   // Only the album package is offered for an album subject.
   await expect(page.getByTestId(
@@ -565,7 +576,7 @@ test('says so when a resolved subject type has no packages instead of failing', 
   await page.getByTestId('paid-promotion-resolve-subject').click();
 
   await expect(page.getByTestId('paid-promotion-resolved-subject')).toContainText(
-    'Canonical artist',
+    'Artist selected',
   );
   await expect(page.getByTestId('paid-promotion-no-packages')).toContainText(
     "doesn't sell paid-promotion packages for artist campaigns yet",
@@ -824,9 +835,10 @@ test('fails visibly when a paid campaign has unknown checkout totals', async ({ 
 
   await expect(page.getByRole('heading', { name: 'Payment status unavailable' })).toBeVisible();
   await expect(page.getByRole('alert').filter({
-    hasText: 'Final checkout totals are unavailable',
+    hasText: 'Final checkout totals are not available yet',
   })).toBeVisible();
-  await expect(page.getByText('Final total', { exact: true }).locator('..')).toContainText('Unavailable');
+  await expect(page.getByText('Final total', { exact: true }).locator('..')).toContainText('Not available yet');
+  await expectCustomerCopy(page);
 });
 
 test('keeps paid-promotion intake within a narrow mobile viewport', async ({ page }) => {

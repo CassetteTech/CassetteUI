@@ -277,9 +277,11 @@ void test('mirrors the server duration-discount math for display', () => {
 
 void test("renders minor amounts using the currency's own minor-unit size", () => {
   // A two-minor-unit currency: 2500 minor units is 25 major units.
-  assert.match(formatPaidPromotionMinorAmount(2500, 'USD'), /25[.,]00/);
+  assert.equal(formatPaidPromotionMinorAmount(2500, 'USD', 'en-US'), '$25.00');
   // A zero-minor-unit currency is not divided by 100.
-  assert.match(formatPaidPromotionMinorAmount(2500, 'JPY'), /2.?500/);
+  assert.equal(formatPaidPromotionMinorAmount(2500, 'JPY', 'en-US'), '¥2,500');
+  // Every paid-promotion surface uses this same null presentation.
+  assert.equal(formatPaidPromotionMinorAmount(null, 'USD', 'en-US'), 'Not available yet');
 });
 
 void test('degrades instead of throwing when the currency cannot be resolved', () => {

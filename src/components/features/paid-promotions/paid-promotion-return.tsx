@@ -23,7 +23,7 @@ import { usePaidPromotionCampaign } from '@/hooks/use-paid-promotion-campaign';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { apiService } from '@/services/api';
 import {
-  formatPaidPromotionMinorAmount as formatMoney,
+  formatPaidPromotionMinorAmount,
   getPaidPromotionReturnState,
   hasKnownPaidPromotionCheckoutTotals,
   isPaidPromotionCampaignId,
@@ -85,14 +85,14 @@ const RETURN_STATE_PRESENTATIONS: Record<PaidPromotionReturnState, ReturnStatePr
   refunded: {
     title: 'Payment refunded',
     description:
-      'Some or all of this campaign’s payment has been refunded. The amounts below reflect the latest confirmed state.',
+      'Some or all of this campaign’s payment has been refunded. The amounts below are the latest totals confirmed by Cassette.',
     icon: Undo2,
     iconClassName: 'text-warning-text',
   },
   disputed: {
     title: 'Payment disputed',
     description:
-      'A dispute or chargeback is in progress on this campaign’s payment, and delivery is paused while your card issuer resolves it. The amounts below reflect the latest confirmed state.',
+      'A dispute or chargeback is in progress on this campaign’s payment, and delivery is paused while your card issuer resolves it. The amounts below are the latest totals confirmed by Cassette.',
     icon: CircleAlert,
     iconClassName: 'text-warning-text',
   },
@@ -236,7 +236,7 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
               Campaign status
             </h1>
             <CardDescription>
-              This page shows the payment status Cassette has confirmed. Returning from Stripe does not by itself mark a payment complete.
+              This page shows the payment status confirmed by Cassette. We wait for Stripe&apos;s confirmation before marking a payment complete.
             </CardDescription>
           </CardHeader>
 
@@ -244,7 +244,7 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
             {!validCampaignId ? (
               <StatusMessage
                 presentation={RETURN_STATE_PRESENTATIONS.unavailable}
-                detail="The paid-promotion campaign id in this URL is invalid."
+                detail="This campaign link is invalid. Return to your promotion home and open the campaign again."
               />
             ) : isLoading && !campaign ? (
               <div className="flex flex-col items-center gap-3 py-8 text-center">
@@ -305,32 +305,32 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
                     <dt className="text-xs text-muted-foreground">Run length</dt>
                     <dd className="mt-1 font-medium text-foreground">
                       {campaign.weeks} {campaign.weeks === 1 ? 'week' : 'weeks'} ·{' '}
-                      {formatMoney(campaign.weeklyAmountMinor, campaign.currency)}/week
+                      {formatPaidPromotionMinorAmount(campaign.weeklyAmountMinor, campaign.currency)}/week
                     </dd>
                   </div>
                   <MoneyRow
                     label="Quote / subtotal"
-                    value={formatMoney(campaign.amountMinor, campaign.currency)}
+                    value={formatPaidPromotionMinorAmount(campaign.amountMinor, campaign.currency)}
                   />
                   <MoneyRow
                     label="Discount"
-                    value={formatCheckoutMoney(campaign.discountAmountMinor, campaign.currency)}
+                    value={formatPaidPromotionMinorAmount(campaign.discountAmountMinor, campaign.currency)}
                   />
                   <MoneyRow
                     label="Tax"
-                    value={formatCheckoutMoney(campaign.taxAmountMinor, campaign.currency)}
+                    value={formatPaidPromotionMinorAmount(campaign.taxAmountMinor, campaign.currency)}
                   />
                   <MoneyRow
                     label="Final total"
-                    value={formatCheckoutMoney(campaign.finalTotalMinor, campaign.currency)}
+                    value={formatPaidPromotionMinorAmount(campaign.finalTotalMinor, campaign.currency)}
                   />
                   <MoneyRow
                     label="Refunded amount"
-                    value={formatCheckoutMoney(campaign.amountRefundedMinor, campaign.currency)}
+                    value={formatPaidPromotionMinorAmount(campaign.amountRefundedMinor, campaign.currency)}
                   />
                   <MoneyRow
                     label="Refundable remainder"
-                    value={formatCheckoutMoney(campaign.refundableRemainderMinor, campaign.currency)}
+                    value={formatPaidPromotionMinorAmount(campaign.refundableRemainderMinor, campaign.currency)}
                   />
                 </dl>
 
@@ -339,7 +339,7 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
                     role={campaign.paymentStatus === 'paid' ? 'alert' : 'status'}
                     className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
                   >
-                    Final checkout totals are unavailable. Cassette is not treating the quote as the amount charged.
+                    Final checkout totals are not available yet. Cassette will not treat the campaign subtotal as the amount you paid.
                   </p>
                 )}
 
@@ -396,10 +396,6 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
       </section>
     </div>
   );
-}
-
-function formatCheckoutMoney(amountMinor: number | null, currency: string): string {
-  return amountMinor === null ? 'Unavailable' : formatMoney(amountMinor, currency);
 }
 
 function MoneyRow({ label, value }: { label: string; value: string }) {

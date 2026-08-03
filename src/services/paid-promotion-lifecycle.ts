@@ -174,11 +174,17 @@ export function computePaidPromotionPricing(
  * a two-decimal amount rather than throwing: these amounts are rendered inline
  * across the intake, so a throw here blanks the whole page instead of one price.
  */
-export function formatPaidPromotionMinorAmount(amountMinor: number, currency: string): string {
+export function formatPaidPromotionMinorAmount(
+  amountMinor: number | null,
+  currency: string,
+  locale?: string | string[],
+): string {
+  if (amountMinor === null) return 'Not available yet';
+
   const code = currency.trim().toUpperCase();
 
   try {
-    const formatter = new Intl.NumberFormat(undefined, { style: 'currency', currency: code });
+    const formatter = new Intl.NumberFormat(locale, { style: 'currency', currency: code });
     const fractionDigits = formatter.resolvedOptions().maximumFractionDigits;
     if (fractionDigits !== undefined) {
       return formatter.format(amountMinor / 10 ** fractionDigits);

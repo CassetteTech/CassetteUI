@@ -16,6 +16,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useAuthState } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { apiService } from '@/services/api';
+import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import {
   getPaidPromotionElementTypeLabel,
   getPaidPromotionPaymentStatusLabel,
@@ -86,7 +87,7 @@ function resourceFailure(error: unknown, fallback: string): ResourceState<never>
   ) {
     return {
       phase: 'unknown',
-      message: 'Cassette returned unrecognized paid-promotion data. No campaign details were inferred.',
+      message: 'We could not read some of your campaign details. Refresh the page or contact support if this continues.',
     };
   }
 
@@ -117,6 +118,8 @@ function CampaignCard({
   const canRepeat = Boolean(
     subject?.repeatSourceUrl && REPEATABLE_CAMPAIGN_STATUSES.has(campaign.status),
   );
+  const displayedAmountMinor = campaign.finalTotalMinor ?? campaign.amountMinor;
+  const displayedAmountLabel = campaign.finalTotalMinor === null ? 'Campaign subtotal' : 'Final total';
 
   return (
     <li className={cn(featured && 'xl:col-span-2')}>
@@ -200,6 +203,18 @@ function CampaignCard({
                 {campaign.elementId}
               </p>
             )}
+
+            <dl className="mt-3 border-y border-border py-2.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-xs text-muted-foreground">{displayedAmountLabel}</dt>
+                <dd
+                  data-testid={`paid-promotion-campaign-amount-${campaign.id}`}
+                  className="font-mono text-sm font-bold text-foreground"
+                >
+                  {formatPaidPromotionMinorAmount(displayedAmountMinor, campaign.currency)}
+                </dd>
+              </div>
+            </dl>
 
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               {statusPresentation.explanation}
@@ -384,7 +399,7 @@ export function PaidPromotionHome() {
     setHasLoadedCampaigns(true);
     setAnnouncement(
       campaignResult.status === 'fulfilled' && subjectResult.status === 'fulfilled'
-        ? `${campaignResult.value.length} campaigns and ${subjectResult.value.length} promoted subjects loaded.`
+        ? `${campaignResult.value.length} campaigns and ${subjectResult.value.length} promoted music selections loaded.`
         : 'Some paid-promotion information could not be loaded.',
     );
   }, []);
@@ -443,7 +458,7 @@ export function PaidPromotionHome() {
             <p className="mt-2 max-w-xl text-sm leading-6 opacity-85">
               {totalCampaigns === null
                 ? 'Your campaigns and the music you have promoted.'
-                : `${totalCampaigns} ${totalCampaigns === 1 ? 'campaign' : 'campaigns'} on your account, showing each one's latest server-confirmed status.`}
+                : `${totalCampaigns} ${totalCampaigns === 1 ? 'campaign' : 'campaigns'} on your account, showing each one's latest confirmed status.`}
             </p>
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:items-end">
@@ -461,7 +476,7 @@ export function PaidPromotionHome() {
               className="inline-flex w-full items-center justify-center gap-2 self-stretch border-b-2 border-current pb-1 font-mono text-[10px] font-bold uppercase tracking-[0.18em] opacity-75 transition-opacity hover:opacity-100 disabled:opacity-40 sm:w-auto sm:self-end"
             >
               {isRefreshing ? <Spinner size="sm" /> : <RefreshCw className="size-3.5" aria-hidden="true" />}
-              Refresh server status
+              Refresh campaign status
             </button>
           </div>
         </div>
@@ -531,7 +546,7 @@ export function PaidPromotionHome() {
               Previously promoted music
             </h2>
             <p className="text-sm text-muted-foreground">
-              Canonical records from your owner-scoped catalog.
+              Music from your past campaigns, ready when you want to promote it again.
             </p>
           </div>
 
@@ -552,7 +567,7 @@ export function PaidPromotionHome() {
               </div>
             ) : (
               <ul
-                aria-label="Your previously promoted canonical records"
+                aria-label="Your previously promoted music"
                 className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
                 {subjects.data.map((subject) => (

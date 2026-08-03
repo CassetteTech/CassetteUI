@@ -569,9 +569,10 @@ export function PaidPromotionIntake({ repeatElementId }: { repeatElementId?: str
     return null;
   }
 
-  const subjectTypeLabel = resolvedSubject
-    ? getPaidPromotionElementTypeLabel(resolvedSubject.elementType).toLowerCase()
+  const subjectTypeDisplayName = resolvedSubject
+    ? getPaidPromotionElementTypeLabel(resolvedSubject.elementType)
     : null;
+  const subjectTypeLabel = subjectTypeDisplayName?.toLowerCase() ?? null;
 
   return (
     <div className="relative min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
@@ -628,7 +629,7 @@ export function PaidPromotionIntake({ repeatElementId }: { repeatElementId?: str
             <Step
               index="01"
               title="What are you promoting?"
-              description="Search Cassette's catalog, or paste a Spotify, Apple Music, or Deezer link. We resolve it to a canonical record first."
+              description="Search Cassette's catalog, or paste a Spotify, Apple Music, or Deezer link. We match it to the exact music you want to promote."
               required
             >
               <div className="space-y-4">
@@ -802,7 +803,7 @@ export function PaidPromotionIntake({ repeatElementId }: { repeatElementId?: str
                         </p>
                       )}
                       <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.15em] text-success-text">
-                        Canonical {subjectTypeLabel} · {resolvedSubject.sourcePlatform}
+                        {subjectTypeDisplayName} selected · {resolvedSubject.sourcePlatform}
                       </p>
                     </div>
                     <CheckCircle2 className="size-5 shrink-0 text-success-text" aria-hidden />

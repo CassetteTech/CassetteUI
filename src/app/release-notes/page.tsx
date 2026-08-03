@@ -12,6 +12,7 @@ const description = "See what is new across Cassette Music, profiles, and MusicL
 export const metadata: Metadata = {
   title: { absolute: title },
   description,
+  alternates: { canonical: '/release-notes' },
   openGraph: { title, description },
   twitter: { title, description },
 };

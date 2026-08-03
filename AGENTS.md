@@ -13,6 +13,12 @@ CassetteUI is the Next.js frontend for Cassette. It owns the web user experience
 - Analytics code lives under `src/lib/analytics`, `scripts/posthog`, and related tests.
 - E2E mocks live under `e2e/support`; extend shared mocks before adding isolated route stubs.
 
+## Branch & Deploy
+
+- `main` is the default branch and staging trunk: PRs land here; AWS Amplify builds `main` on the staging app.
+- `prod` is a merge-only production pointer: Amplify builds it on the production app, which serves cassette.tech. Promote by merging `main` → `prod`. Never commit work directly to `prod`.
+- The old `production` branch is retired (CAS-406, 2026-07-21) and pending deletion; do not branch from or target it.
+
 ## Design System
 
 - Check `src/app/globals.css` and `tailwind.config.js` before changing colors or tokens.
@@ -39,8 +45,8 @@ CassetteUI is the Next.js frontend for Cassette. It owns the web user experience
 - Preserve only material decisions, blockers, cross-repo contracts, rollout concerns, and meaningful verification in ticket notes; do not post an activity diary.
 - Do not put Linear issue identifiers or URLs in source files, including comments, docstrings, identifiers, test names, fixtures, configuration, logs, or user-visible text. Describe the behavior and rationale in code; keep ticket linkage in Linear, branches, commits, pull requests, and handoff notes.
 - Create or update milestones only for meaningful multi-issue delivery gates, with the relevant issues assigned.
-- Update project state, health, and the project update when a milestone, blocker, rollout, or delivery confidence materially changes.
-- Default locally complete, verified work to `In Review`. When `Done` is also plausible, ask the user at handoff and leave the issue in review unless they confirm.
+- Apply routine authorized ticket and project maintenance automatically, including project state and health changes. Only Linear's named **Project Update** activity item requires separate approval before publication; keep its draft concise and company-readable, with only decision-relevant technical detail.
+- Set issue state automatically from its acceptance contract. Use `In Review` while a required gate remains and `Done` only after every required gate is satisfied.
 - Mark work `Done` only after its actual acceptance and required verification, merge, deployment, or rollout. Never put secrets or sensitive data in Linear.
 
 ## Verification
@@ -56,3 +62,11 @@ Use `PLAYWRIGHT_TEST=true` behavior and the existing `playwright.config.ts` serv
 Keep `typescript` as the TypeScript 7 package that compiler scripts and Next's
 experimental CLI checker resolve. Oxlint owns TypeScript-aware linting because
 typescript-eslint still depends on the removed JavaScript compiler API.
+
+<!-- BEGIN:nextjs-agent-rules -->
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+<!-- END:nextjs-agent-rules -->

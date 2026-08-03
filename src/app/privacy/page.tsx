@@ -11,6 +11,7 @@ const description = "How Cassette Technologies collects, uses, and protects your
 export const metadata: Metadata = {
   title: { absolute: title },
   description,
+  alternates: { canonical: '/privacy' },
   openGraph: { title, description },
   twitter: { title, description },
 };

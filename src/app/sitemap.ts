@@ -1,19 +1,14 @@
 import type { MetadataRoute } from 'next';
+import { PUBLIC_STATIC_ROUTES, SITE_URL } from '@/lib/seo';
 
-// Static public marketing/content surfaces only; user-generated routes
-// (posts, profiles) are discovered through links and OG metadata instead.
-const PUBLIC_ROUTES = [
-  '/',
-  '/explore',
-  '/promote',
-  '/about',
-  '/team',
-  '/release-notes',
-  '/privacy',
-  '/terms',
-];
-
+// Static routes only. Enumerating every post would aim crawlers at the SSR
+// metadata path that has already exhausted the Bridge transaction pool once;
+// posts are discovered through shares. Any future post feed here must be
+// bounded and cached, not a full dump.
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://www.cassette.tech';
-  return PUBLIC_ROUTES.map((route) => ({ url: new URL(route, base).toString() }));
+  return PUBLIC_STATIC_ROUTES.map((route) => ({
+    url: new URL(route, SITE_URL).href,
+    changeFrequency: route === '/' || route === '/explore' ? 'daily' : 'monthly',
+    priority: route === '/' ? 1 : 0.7,
+  }));
 }

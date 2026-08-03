@@ -14,6 +14,10 @@ import {
   InternalAccountTypeAuditEntry,
   InternalIssuesResponse,
   InternalIssueDetail,
+  InternalConversionQualityTrendResponse,
+  InternalLambdaHealthOperationsResponse,
+  InternalOperationalAlertsResponse,
+  InternalConversionJobsOperationsResponse,
   InternalSentinelFindingsResponse,
   InternalSentinelAuditRunsResponse,
   InternalSentinelInvariantRegistryResponse,
@@ -56,6 +60,7 @@ import { CASSETTE_CORRELATION_HEADER, createCorrelationId, normalizeCorrelationI
 import { getSourceDomain, hashSourceLink, normalizeRouteContext } from '@/lib/observability/source-link';
 import { appLogger } from '@/lib/observability/logger';
 import { getPlatformDefinition } from '@/lib/platforms';
+import { ApiConnectionError } from '@/utils/api-connection-error';
 import {
   createLifecycleConversionPlaceholder,
   getLifecycleConversionFailureMessage,
@@ -135,10 +140,19 @@ class ApiService {
     const { skipAuth, timeoutMs = 60000, signal: externalSignal, correlationId, ...requestOptions } = options;
     const headers = skipAuth ? { 'Content-Type': 'application/json' } : await this.getAuthHeaders();
     const timeoutController = new AbortController();
-    const timeoutHandle = setTimeout(() => timeoutController.abort(), timeoutMs);
+    let timeoutTriggered = false;
+    const timeoutHandle = setTimeout(() => {
+      timeoutTriggered = true;
+      timeoutController.abort();
+    }, timeoutMs);
+    const abortFromCaller = () => timeoutController.abort(externalSignal?.reason);
 
     if (externalSignal) {
-      externalSignal.addEventListener('abort', () => timeoutController.abort(), { once: true });
+      if (externalSignal.aborted) {
+        abortFromCaller();
+      } else {
+        externalSignal.addEventListener('abort', abortFromCaller, { once: true });
+      }
     }
 
     try {
@@ -231,6 +245,14 @@ class ApiService {
       }
       return data;
     } catch (error) {
+      const aborted = error instanceof DOMException
+        ? error.name === 'AbortError'
+        : error instanceof Error && error.name === 'AbortError';
+      if (aborted && externalSignal?.aborted && !timeoutTriggered) {
+        appLogger.debug('api_request_cancelled', { route: endpoint, correlationId });
+        throw error;
+      }
+
       if (error instanceof ApiError) {
         appLogger.error('api_request_failed', {
           route: endpoint,
@@ -245,18 +267,16 @@ class ApiService {
           errorName: error instanceof Error ? error.name : typeof error,
         });
       }
-      const aborted = error instanceof DOMException
-        ? error.name === 'AbortError'
-        : error instanceof Error && error.name === 'AbortError';
       if (aborted) {
         throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s: ${endpoint}`);
       }
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error(`Cannot connect to API at ${url}. Is your local server running on port 5000?`);
+        throw new ApiConnectionError(url);
       }
       throw error;
     } finally {
       clearTimeout(timeoutHandle);
+      externalSignal?.removeEventListener('abort', abortFromCaller);
     }
   }
 
@@ -638,6 +658,42 @@ class ApiService {
   }
 
   // Internal dashboard endpoints
+  async getInternalLambdaHealth(): Promise<InternalLambdaHealthOperationsResponse> {
+    return this.request<InternalLambdaHealthOperationsResponse>(
+      '/api/v1/internal/operations/lambda-health',
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async getInternalOperationalAlerts(): Promise<InternalOperationalAlertsResponse> {
+    return this.request<InternalOperationalAlertsResponse>(
+      '/api/v1/internal/operations/alerts',
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async getInternalConversionJobs(params: {
+    q?: string;
+    status?: string;
+    fromDate?: string;
+    toDate?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}): Promise<InternalConversionJobsOperationsResponse> {
+    const query = new URLSearchParams();
+    if (params.q) query.set('q', params.q);
+    if (params.status) query.set('status', params.status);
+    if (params.fromDate) query.set('fromDate', params.fromDate);
+    if (params.toDate) query.set('toDate', params.toDate);
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(Math.min(100, params.pageSize)));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request<InternalConversionJobsOperationsResponse>(
+      `/api/v1/internal/operations/conversion-jobs${suffix}`,
+      { timeoutMs: 20000 }
+    );
+  }
+
   async getInternalUsers(params: {
     q?: string;
     accountType?: string;
@@ -718,6 +774,27 @@ class ApiService {
     return this.request<InternalIssueDetail>(`/api/v1/internal/issues/${issueId}`, {
       timeoutMs: 20000,
     });
+  }
+
+  async getInternalConversionQualityTrends(params: {
+    days?: number;
+    sourcePlatform?: string;
+    targetPlatform?: string;
+    method?: string;
+    scorerVersion?: string;
+    configurationVersion?: string;
+  } = {}): Promise<InternalConversionQualityTrendResponse> {
+    const query = new URLSearchParams();
+    query.set('days', String(params.days ?? 30));
+    if (params.sourcePlatform) query.set('sourcePlatform', params.sourcePlatform);
+    if (params.targetPlatform) query.set('targetPlatform', params.targetPlatform);
+    if (params.method) query.set('method', params.method);
+    if (params.scorerVersion) query.set('scorerVersion', params.scorerVersion);
+    if (params.configurationVersion) query.set('configurationVersion', params.configurationVersion);
+    return this.request<InternalConversionQualityTrendResponse>(
+      `/api/v1/internal/conversion-quality/trends?${query.toString()}`,
+      { timeoutMs: 30000 }
+    );
   }
 
   async getInternalSentinelFindings(params: {
@@ -1324,6 +1401,28 @@ class ApiService {
     sourceDomain?: string;
     routeContext?: string;
     description?: string;
+    matchContext?: {
+      elementType?: string;
+      title?: string;
+      artist?: string;
+      sourceIdentity?: { platform: string; providerId: string };
+      targetCandidates?: Array<{ platform: string; providerId: string }>;
+      failedTracks?: Array<{
+        position: number;
+        trackName?: string;
+        artistName?: string;
+        errorReason?: string;
+        reasonCode?: string;
+        attemptedMethods?: string[];
+        hadTargetPlatformId?: boolean;
+        attemptedIsrcCount?: number;
+        targetPlatform?: string;
+        territory?: string | null;
+        decisionPolicyVersion?: string;
+        confidence?: number | null;
+        ambiguous?: boolean;
+      }>;
+    };
     context?: Record<string, unknown>;
   }): Promise<{ success: boolean; message?: string; issueId?: string; correlationId?: string }> {
     const correlationId = normalizeCorrelationId(data.correlationId) ?? createCorrelationId();
@@ -1356,6 +1455,7 @@ class ApiService {
       sourceLinkHash,
       sourceDomain,
       description: data.description,
+      matchContext: data.matchContext,
       context: data.context,
     };
 

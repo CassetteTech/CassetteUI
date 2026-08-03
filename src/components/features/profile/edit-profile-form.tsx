@@ -12,7 +12,7 @@ import { useInvalidateProfileQueries } from '@/hooks/use-profile';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { TextField } from '@/components/ui/text-field';
 import { DeleteAccountModal } from './delete-account-modal';
-import { AlertTriangle, Camera, Globe2, Lock } from 'lucide-react';
+import { AlertTriangle, Camera, Globe2, Lock, Plus, X } from 'lucide-react';
 import { AvatarCropDialog } from '@/components/shared/avatar-crop-dialog';
 import { appLogger } from '@/lib/observability/logger';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
@@ -23,6 +23,23 @@ const MAX_UPLOAD_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_USERNAME_LENGTH = 30;
 const MAX_DISPLAY_NAME_LENGTH = 100;
 const MAX_BIO_LENGTH = 200;
+const MAX_PROFILE_LINKS = 5;
+const MAX_PROFILE_LINK_LENGTH = 500;
+
+// Mirrors the server rules: absolute http(s) URLs only. Bare domains get https:// prepended.
+function normalizeProfileLink(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(withScheme);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    if (withScheme.length > MAX_PROFILE_LINK_LENGTH) return null;
+    return withScheme;
+  } catch {
+    return null;
+  }
+}
 
 const editProfileSchema = z.object({
   fullName: z
@@ -78,6 +95,8 @@ export function EditProfileFormComponent({
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [links, setLinks] = useState<string[]>(initialData?.profileLinks ?? []);
+  const [linksError, setLinksError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -170,6 +189,8 @@ export function EditProfileFormComponent({
     setSaveError(null);
     setAvatarFile(null);
     setPendingAvatarFile(null);
+    setLinks(initialData?.profileLinks ?? []);
+    setLinksError(null);
     setAvatarPreviewUrl((current) => {
       if (current) {
         URL.revokeObjectURL(current);
@@ -181,6 +202,15 @@ export function EditProfileFormComponent({
   const onSubmit = async (data: EditProfileForm) => {
     if (isLoading || usernameStatus === 'checking' || usernameStatus === 'taken') return;
     const normalizedUsername = normalizeUsername(data.username);
+
+    const enteredLinks = links.map((l) => l.trim()).filter((l) => l.length > 0);
+    const normalizedLinks = enteredLinks.map(normalizeProfileLink);
+    if (normalizedLinks.some((l) => l === null)) {
+      setLinksError('Each link must be a valid web address (e.g. instagram.com/yourname).');
+      return;
+    }
+    setLinksError(null);
+
     setIsLoading(true);
     setSaveError(null);
 
@@ -207,6 +237,7 @@ export function EditProfileFormComponent({
         avatarUrl: avatarFile ? undefined : data.avatarUrl,
         avatarFile,
         likedPostsPrivacy: data.likedPostsPrivacy,
+        profileLinks: normalizedLinks as string[],
       });
 
       // Refresh the auth store with updated user data (including bio)
@@ -375,6 +406,59 @@ export function EditProfileFormComponent({
               <p className="mt-1 text-xs text-destructive">{errors.bio.message}</p>
             )}
           </div>
+        </div>
+
+        {/* Links */}
+        <div className="w-full border-t border-border/70 pt-5">
+          <div className="flex items-baseline justify-between">
+            <FieldLabel>Links</FieldLabel>
+            <span className="font-mono text-[10px] tracking-[0.15em] text-muted-foreground">
+              {links.length}/{MAX_PROFILE_LINKS}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {links.map((link, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input
+                  type="url"
+                  value={link}
+                  onChange={(e) => {
+                    const next = [...links];
+                    next[index] = e.target.value;
+                    setLinks(next);
+                  }}
+                  maxLength={MAX_PROFILE_LINK_LENGTH}
+                  placeholder="https://instagram.com/yourname"
+                  aria-label={`Link ${index + 1}`}
+                  className="flex-1 min-w-0 rounded-md border border-border bg-field px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setLinks(links.filter((_, i) => i !== index))}
+                  aria-label={`Remove link ${index + 1}`}
+                  className="shrink-0 p-2 text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+          {links.length < MAX_PROFILE_LINKS && (
+            <button
+              type="button"
+              onClick={() => setLinks([...links, ''])}
+              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-foreground border border-border rounded-md px-3 py-1.5 hover:bg-muted transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add link
+            </button>
+          )}
+          {linksError && (
+            <p className="mt-1.5 text-xs text-destructive" role="alert">{linksError}</p>
+          )}
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Shown on your profile and curator card — Instagram, TikTok, Spotify, or anywhere else.
+          </p>
         </div>
 
         {/* Privacy */}

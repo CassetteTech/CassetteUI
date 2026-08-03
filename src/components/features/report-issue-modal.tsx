@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { apiService } from '@/services/api';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { appLogger } from '@/lib/observability/logger';
+import { extractMatchReviewProviderIdentity } from '@/lib/platforms';
+import type { FailedTrack } from '@/types';
 
 type ReportType = 'conversion_issue' | 'ui_bug' | 'general_feedback' | 'missing_track' | 'wrong_match';
 
@@ -33,6 +35,7 @@ interface ReportIssueModalProps {
     correlationId?: string;
     sourcePlatform?: string;
     targetPlatform?: string;
+    failedTracks?: FailedTrack[];
   };
 }
 
@@ -77,6 +80,16 @@ export function ReportIssueModal({
     setErrorMessage('');
 
     try {
+      const sourceIdentity = extractMatchReviewProviderIdentity(sourceLink);
+      const targetCandidates = Object.values(conversionData?.platforms ?? {})
+        .filter((value): value is string => typeof value === 'string')
+        .map(extractMatchReviewProviderIdentity)
+        .filter(candidate => candidate !== undefined)
+        .filter(candidate =>
+          sourceIdentity === undefined ||
+          candidate.platform !== sourceIdentity.platform ||
+          candidate.providerId !== sourceIdentity.providerId,
+        );
       const response = await apiService.reportIssue({
         reportType,
         sourceContext,
@@ -85,6 +98,28 @@ export function ReportIssueModal({
         conversionJobId: conversionData?.conversionJobId,
         routeContext: typeof window !== 'undefined' ? window.location.pathname : undefined,
         description: description.trim() || undefined,
+        matchContext: {
+          elementType: conversionData?.elementType,
+          title: conversionData?.title,
+          artist: conversionData?.artist,
+          sourceIdentity,
+          targetCandidates,
+          failedTracks: conversionData?.failedTracks?.map(track => ({
+            position: track.position,
+            trackName: track.track_name,
+            artistName: track.artist_name,
+            errorReason: track.error_reason,
+            reasonCode: track.reason_code,
+            attemptedMethods: track.attempted_methods,
+            hadTargetPlatformId: track.had_target_platform_id,
+            attemptedIsrcCount: track.attempted_isrc_count,
+            targetPlatform: track.target_platform,
+            territory: track.territory,
+            decisionPolicyVersion: track.decision_policy_version,
+            confidence: track.confidence,
+            ambiguous: track.ambiguous,
+          })),
+        },
         context: {
           elementType: conversionData?.elementType,
           postId: conversionData?.postId,

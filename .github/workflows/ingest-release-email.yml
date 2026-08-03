@@ -1,0 +1,42 @@
+name: Ingest published release email
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Numeric GitHub release ID from CassetteTech/CassetteUI
+        required: true
+        type: string
+      curated_summary:
+        description: Curated customer-facing summary (1000 characters maximum)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cassetteui-release-email-ingestion
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out CassetteUI
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Validate and ingest published release
+        run: node scripts/ingest-release-email.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          RELEASE_ID_INPUT: ${{ inputs.release_id }}
+          CURATED_SUMMARY: ${{ inputs.curated_summary }}
+          CASSETTE_BRIDGE_RELEASE_INGESTION_URL: ${{ secrets.CASSETTE_BRIDGE_RELEASE_INGESTION_URL }}
+          CASSETTE_RELEASE_INGESTION_SECRET: ${{ secrets.CASSETTE_RELEASE_INGESTION_SECRET }}

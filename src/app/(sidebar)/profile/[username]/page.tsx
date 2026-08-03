@@ -17,6 +17,7 @@ import { Container } from '@/components/ui/container';
 import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { appLogger } from '@/lib/observability/logger';
+import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 
 const TAB_ELEMENT_TYPE: Partial<Record<TabType, string>> = {
   playlists: 'Playlist',
@@ -258,7 +259,7 @@ export default function ProfilePage() {
     updateUrlForTab(type);
   }, [activeTab, hasResolvedInitialTab, updateUrlForTab]);
 
-  const handleShare = useCallback(() => {
+  const handleShare = useCallback(async () => {
     void captureClientEvent('profile_shared', {
       route: `/profile/${userBio?.username || ''}`,
       source_surface: 'profile',
@@ -268,14 +269,22 @@ export default function ProfilePage() {
 
     const shareUrl = `${window.location.origin}/profile/${userBio?.username}`;
 
-    if (navigator.share) {
-      navigator.share({
-        title: `${userBio?.displayName || userBio?.username}'s Profile`,
-        text: `Check out ${userBio?.displayName || userBio?.username}'s music profile on Cassette`,
-        url: shareUrl,
-      });
+    if (canShareWebContent()) {
+      try {
+        await shareWebContent({
+          title: `${userBio?.displayName || userBio?.username}'s Profile`,
+          text: `Check out ${userBio?.displayName || userBio?.username}'s music profile on Cassette`,
+          url: shareUrl,
+        });
+      } catch (error) {
+        appLogger.warn('profile_share_failed', { error, route: '/profile/[username]' });
+      }
     } else {
-      navigator.clipboard.writeText(shareUrl);
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+      } catch (error) {
+        appLogger.warn('profile_share_copy_failed', { error, route: '/profile/[username]' });
+      }
     }
   }, [userBio, user]);
 

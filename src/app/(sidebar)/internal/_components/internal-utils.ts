@@ -1,3 +1,6 @@
+import { toast } from 'sonner';
+import type { Tone } from './kit/primitives';
+
 export const PAGE_SIZE = 25;
 
 export function normalizeAccountType(
@@ -23,6 +26,29 @@ export function formatDate(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
+}
+
+export function formatDuration(value?: number | null) {
+  if (value == null) return null;
+  if (value < 1000) return `${value}ms`;
+  return `${(value / 1000).toFixed(value < 10000 ? 1 : 0)}s`;
+}
+
+export function statusTone(status: string): Tone {
+  if (status === 'healthy' || status === 'ready' || status === 'succeeded' || status === 'clear') return 'success';
+  if (status === 'degraded' || status === 'processing' || status === 'active') return 'warning';
+  if (status === 'failing' || status === 'failed') return 'critical';
+  if (status === 'insufficient_data') return 'info';
+  return 'neutral';
+}
+
+export async function copyToClipboard(text: string, label: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success(`${label} copied`);
+  } catch {
+    toast.error('Failed to copy');
+  }
 }
 
 export function accountTypeBadgeVariant(

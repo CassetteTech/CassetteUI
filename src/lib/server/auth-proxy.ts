@@ -8,6 +8,7 @@ import {
 } from '@/lib/auth/signup-attribution';
 import { getApiUrl } from '@/lib/utils/url';
 import { shouldUseSecureCookies } from '@/lib/server/cookie-security';
+import { fetchBackendWithCallerCancellation } from '@/lib/server/proxy-fetch';
 
 export const SESSION_COOKIE_NAME = 'cassette_session';
 export const SIGNUP_ATTRIBUTION_COOKIE_NAME = SIGNUP_ATTRIBUTION_COOKIE_NAME_VALUE;
@@ -226,6 +227,18 @@ export async function readRequestBody(request: NextRequest): Promise<ArrayBuffer
 
   const body = await request.arrayBuffer();
   return body.byteLength > 0 ? body : undefined;
+}
+
+export async function forwardApiRequest(
+  request: NextRequest,
+  backendUrl: string,
+): Promise<Response> {
+  return fetchBackendWithCallerCancellation(backendUrl, {
+    method: request.method,
+    headers: buildForwardHeaders(request),
+    body: await readRequestBody(request),
+    cache: 'no-store',
+  }, request.signal);
 }
 
 export async function createProxyResponse(response: Response): Promise<NextResponse> {

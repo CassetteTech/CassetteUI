@@ -20,6 +20,8 @@ import { Disc3, ListMusic, Lock, MoreHorizontal, Music, Pencil, Repeat2, Share, 
 import type { LucideIcon } from 'lucide-react';
 import type { TabType } from './profile-tabs';
 import { ArtworkImage } from '@/components/ui/artwork-image';
+import { appLogger } from '@/lib/observability/logger';
+import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 
 interface ProfileActivityProps {
   posts: ActivityPost[];
@@ -161,18 +163,26 @@ function ActivityPostItem({
     return `/post/${targetPostId}?from=${encodeURIComponent(currentPath)}`;
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const baseUrl = window.location.origin;
     const shareUrl = `${baseUrl}/post/${post.postId}`;
 
-    if (navigator.share) {
-      navigator.share({
-        title: post.title,
-        text: `Check out "${post.title}" on Cassette`,
-        url: shareUrl,
-      });
+    if (canShareWebContent()) {
+      try {
+        await shareWebContent({
+          title: post.title,
+          text: `Check out "${post.title}" on Cassette`,
+          url: shareUrl,
+        });
+      } catch (error) {
+        appLogger.warn('profile_activity_share_failed', { error, route: '/profile/[username]' });
+      }
     } else {
-      navigator.clipboard.writeText(shareUrl);
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+      } catch (error) {
+        appLogger.warn('profile_activity_share_copy_failed', { error, route: '/profile/[username]' });
+      }
     }
   };
 
@@ -258,7 +268,7 @@ function ActivityPostItem({
                     size="icon"
                     onClick={(e) => {
                       e.preventDefault();
-                      handleShare();
+                      void handleShare();
                     }}
                     className="w-8 h-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
                     aria-label="Share"

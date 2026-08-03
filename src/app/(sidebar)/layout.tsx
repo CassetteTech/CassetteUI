@@ -2,6 +2,7 @@
 
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/app-sidebar';
+import { EmailPreferencesSettingsProvider } from '@/components/features/profile/email-preferences-settings';
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
@@ -9,7 +10,7 @@ interface SidebarLayoutProps {
 
 export default function SidebarLayout({ children }: SidebarLayoutProps) {
   return (
-    <>
+    <EmailPreferencesSettingsProvider>
       {/* Mobile: render children directly (pages handle mobile layout) */}
       <div className="lg:hidden">
         {children}
@@ -24,6 +25,6 @@ export default function SidebarLayout({ children }: SidebarLayoutProps) {
           </SidebarInset>
         </SidebarProvider>
       </div>
-    </>
+    </EmailPreferencesSettingsProvider>
   );
 }

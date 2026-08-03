@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import { NOINDEX_ROUTES, NOINDEX_SUBTREES } from "./src/lib/seo";
 
 const distDir = process.env.NEXT_DIST_DIR ?? ".next";
+
+// Most private pages are client components, which cannot export `metadata`.
+// An X-Robots-Tag header carries the same directive without a layout file per
+// route. This is deliberately belt-and-braces with the robots.txt disallow
+// list: bots that ignore robots.txt still see the header on a direct fetch.
+const NOINDEX_HEADERS = [
+  { key: "X-Robots-Tag", value: "noindex, nofollow" },
+];
 
 const nextConfig: NextConfig = {
   distDir,
@@ -170,6 +179,33 @@ const nextConfig: NextConfig = {
         destination: '/release-notes',
         permanent: true,
       },
+      // Email/password auth is temporarily disabled (Google-only), so the
+      // password reset flow is parked too — a password set here could never be
+      // used to sign in. Remove these when the email auth blocks in
+      // /auth/signin and /auth/signup are re-enabled.
+      {
+        source: '/auth/forgot-password',
+        destination: '/auth/signin',
+        permanent: false,
+      },
+      {
+        source: '/auth/reset',
+        destination: '/auth/signin',
+        permanent: false,
+      },
+    ];
+  },
+  async headers() {
+    return [
+      // Exact matches only — `/profile/:username` is public and must stay indexable.
+      ...NOINDEX_ROUTES.map((route) => ({
+        source: route,
+        headers: NOINDEX_HEADERS,
+      })),
+      ...NOINDEX_SUBTREES.flatMap((subtree) => [
+        { source: subtree, headers: NOINDEX_HEADERS },
+        { source: `${subtree}/:path*`, headers: NOINDEX_HEADERS },
+      ]),
     ];
   },
 };

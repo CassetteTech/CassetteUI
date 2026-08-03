@@ -11,6 +11,7 @@ import { UserBio } from '@/types';
 import { Container } from '@/components/ui/container';
 import { BackButton } from '@/components/ui/back-button';
 import { appLogger } from '@/lib/observability/logger';
+import { EmailPreferencesSettings } from '@/components/features/profile/email-preferences-settings';
 
 export default function EditProfilePage() {
   const { username } = useParams();
@@ -161,9 +162,12 @@ export default function EditProfilePage() {
                   onSuccess={handleSuccess}
                   onCancel={handleCancel}
                   footerContent={
-                    <div className="mt-6 sm:mt-8">
-                      <MusicConnectionsFlow />
-                    </div>
+                    <>
+                      <EmailPreferencesSettings />
+                      <div className="mt-6 sm:mt-8">
+                        <MusicConnectionsFlow />
+                      </div>
+                    </>
                   }
                 />
               </>
@@ -197,9 +201,12 @@ export default function EditProfilePage() {
               onSuccess={handleSuccess}
               onCancel={handleCancel}
               footerContent={
-                <div className="mt-8">
-                  <MusicConnectionsFlow />
-                </div>
+                <>
+                  <EmailPreferencesSettings />
+                  <div className="mt-8">
+                    <MusicConnectionsFlow />
+                  </div>
+                </>
               }
             />
           </>

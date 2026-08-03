@@ -10,6 +10,7 @@ const description = 'Turn Spotify, Apple Music, and Deezer links into one sharea
 export const metadata: Metadata = {
   title: { absolute: title },
   description,
+  alternates: { canonical: '/' },
   openGraph: { title, description },
   twitter: { title, description },
 };

@@ -60,6 +60,8 @@ Certain features (for example, real-time conversions or previews) may be labeled
 
 Our Privacy Policy describes how we collect and use personal data. By using the Service, you agree to our Privacy Policy.
 
+If you register an account, we send occasional promotional emails about product and release updates by default, as described in our Privacy Policy. You can opt out of these emails at any time in your account settings or through the unsubscribe link in any such email; opting out does not stop transactional, account, security, or service emails. Nothing in this section limits any rights you have under applicable law.
+
 ## 11) Changes to the Service and Terms
 
 We may modify or discontinue the Service in whole or in part and update these Terms. We will post changes with a revised effective date. Your continued use after changes constitutes acceptance.

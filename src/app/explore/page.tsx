@@ -1,8 +1,12 @@
 'use client';
 
+import { useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { parseProfileLink, type ParsedProfileLink } from '@/lib/profile-links';
+import { ProfileLinkIcon } from '@/components/features/profile/profile-links';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +15,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BackButton } from '@/components/ui/back-button';
 import { Loader2, Search, X, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ActivityPost, ExploreUser } from '@/types';
+import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
+import { useExploreCurators } from '@/hooks/use-profile';
 import {
   useExploreData,
   MUSIC_SECTION_ORDER,
@@ -94,6 +99,8 @@ export default function ExplorePage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 space-y-20 relative">
+        <FeaturedCurators />
+
         <CreatorsMarquee
           users={data.users}
           isLoading={data.isLoadingUsers && data.users.length === 0}
@@ -275,6 +282,227 @@ function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
         </div>
       </Link>
     </motion.div>
+  );
+}
+
+function FeaturedCurators() {
+  const { data: curators } = useExploreCurators();
+
+  // Promotional section: render nothing (not even a skeleton) until verified
+  // curators actually arrive, so the page is unchanged when there are none.
+  if (!curators || curators.length === 0) {
+    return null;
+  }
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-10%' }}
+      transition={{ duration: 0.4 }}
+    >
+      <div className="mb-8 inline-block -rotate-[1.5deg]">
+        <div className="relative inline-block">
+          <h2 className="font-teko text-5xl sm:text-6xl font-bold uppercase leading-none tracking-tight">
+            Featured Curators
+          </h2>
+          <span
+            aria-hidden
+            className="absolute -top-3 -right-8 rotate-[10deg] bg-primary text-primary-foreground px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.25em] shadow-flat-2"
+          >
+            Verified
+          </span>
+        </div>
+        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+          Hand-picked tastemakers on Cassette
+        </p>
+      </div>
+
+      <CuratorCoverflow curators={curators} />
+    </motion.section>
+  );
+}
+
+/**
+ * Coverflow rail: the centered card sits flat and full-size while neighbors
+ * fan away with rotateY/scale/opacity based on distance from the viewport
+ * center. Native scroll + snap does the driving; transforms are written
+ * imperatively on a rAF so scrolling never re-renders React.
+ */
+function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const frame = useRef(0);
+
+  const updateTransforms = useCallback(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const mid = track.scrollLeft + track.clientWidth / 2;
+    for (const item of Array.from(track.children) as HTMLElement[]) {
+      const card = item.firstElementChild as HTMLElement | null;
+      if (!card) continue;
+      const t = Math.max(
+        -2.5,
+        Math.min(2.5, (item.offsetLeft + item.offsetWidth / 2 - mid) / item.offsetWidth)
+      );
+      const a = Math.abs(t);
+      // Coverflow: the angle ramps up fast then holds, so off-center cards all
+      // "file in" at the same tilt; depth (translateZ) does the shrinking and
+      // translateX tucks side cards in behind the centered one.
+      const angle = -Math.sign(t) * Math.min(a * 55, 40);
+      const depth = -Math.min(a, 2) * 90;
+      const tuck = -t * 30;
+      card.style.transform = `translateX(${tuck.toFixed(1)}px) translateZ(${depth.toFixed(1)}px) rotateY(${angle.toFixed(2)}deg)`;
+      card.style.opacity = (1 - Math.min(a * 0.15, 0.4)).toFixed(3);
+      item.style.zIndex = String(50 - Math.round(a * 10));
+    }
+  }, []);
+
+  const onScroll = useCallback(() => {
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(updateTransforms);
+  }, [updateTransforms]);
+
+  useEffect(() => {
+    updateTransforms();
+    window.addEventListener('resize', updateTransforms);
+    return () => {
+      window.removeEventListener('resize', updateTransforms);
+      cancelAnimationFrame(frame.current);
+    };
+  }, [updateTransforms]);
+
+  return (
+    <div
+      ref={trackRef}
+      onScroll={onScroll}
+      // py must clear the card's shadow: overflow-x-auto forces the vertical axis
+      // to clip too, so a tight padding slices the shadow with a hard line.
+      className="-mx-4 sm:-mx-6 lg:-mx-8 flex overflow-x-auto no-scrollbar snap-x snap-mandatory py-14 px-[calc(50%-130px)] sm:px-[calc(50%-140px)] [perspective:1200px]"
+    >
+      {/* Wrappers overlap each other's cards, so they must be click-transparent;
+          only the card itself (pointer-events-auto) takes the hit. */}
+      {curators.map((curator, i) => (
+        <div
+          key={curator.userId}
+          className="pointer-events-none relative shrink-0 snap-center -ml-14 first:ml-0 [transform-style:preserve-3d]"
+        >
+          <div className="pointer-events-auto transition-[transform,opacity] duration-150 ease-out will-change-transform [transform-style:preserve-3d]">
+            <CuratorCard curator={curator} index={i} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CuratorCard({ curator }: { curator: ExploreCurator; index: number }) {
+  const router = useRouter();
+  const initials = curator.username?.charAt(0)?.toUpperCase() || 'C';
+  const displayName = curator.displayName?.trim() || curator.username;
+  const artwork = curator.recentArtworkUrls.slice(0, 4);
+  const genres = (curator.topGenres ?? []).slice(0, 3);
+  const links = (curator.profileLinks ?? [])
+    .map(parseProfileLink)
+    .filter((l): l is ParsedProfileLink => l !== null)
+    .slice(0, 3);
+  const profileHref = `/profile/${curator.username}`;
+  const openProfile = () => router.push(profileHref);
+
+  return (
+    // The platform buttons are real anchors, so the card wrapper is a div-as-link
+    // (nested <a> is invalid HTML and browsers restructure it).
+    <div
+      role="link"
+      tabIndex={0}
+      aria-label={`View ${displayName} on Cassette`}
+      onClick={openProfile}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openProfile();
+        }
+      }}
+      className="group relative block w-[260px] cursor-pointer overflow-hidden rounded-2xl bg-card shadow-[0_8px_30px_hsl(var(--foreground)/0.12)] ring-1 ring-foreground/10 transition-colors duration-300 hover:ring-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[280px]"
+    >
+      {/* Full-bleed artwork: the curator's taste is the hero. The grid adapts to
+          how much artwork exists so there are never empty slots. */}
+      <div className="relative aspect-[4/5] overflow-hidden bg-muted">
+        {artwork.length > 0 ? (
+          <div
+            className={cn(
+              'grid h-full gap-px',
+              artwork.length === 1 && 'grid-cols-1',
+              artwork.length === 2 && 'grid-cols-2',
+              artwork.length >= 3 && 'grid-cols-2 grid-rows-2'
+            )}
+          >
+            {artwork.map((url, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'relative overflow-hidden bg-muted',
+                  artwork.length === 3 && i === 0 && 'row-span-2'
+                )}
+              >
+                <Image
+                  src={url}
+                  alt=""
+                  fill
+                  sizes="280px"
+                  className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <Image src="/images/ic_music.png" alt="" width={40} height={40} className="opacity-20" />
+          </div>
+        )}
+
+        {/* Scrim carries the identity so the artwork runs edge to edge */}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3.5 pb-3 pt-14">
+          <div className="flex items-center gap-2.5">
+            <Avatar className="h-10 w-10 shrink-0 ring-2 ring-white/80">
+              <AvatarImage src={curator.avatarUrl} alt={`@${curator.username}`} />
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1">
+                <p className="truncate text-[15px] font-semibold leading-tight text-white">
+                  {displayName}
+                </p>
+                <VerificationBadge accountType={curator.accountType} size="sm" showTooltip={false} />
+              </div>
+              <p className="truncate text-xs text-white/60">@{curator.username}</p>
+            </div>
+          </div>
+          {genres.length > 0 && (
+            <p className="mt-2 truncate text-[11px] text-white/55">{genres.join(' · ')}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Platform links sit on a quiet footer below the artwork */}
+      {links.length > 0 && (
+        <div className="flex items-center gap-1 px-3 py-2">
+          {links.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`${displayName} on ${link.platform} (${link.label})`}
+              title={`${link.platform}: ${link.label}`}
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ProfileLinkIcon link={link} />
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

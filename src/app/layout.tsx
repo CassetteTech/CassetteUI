@@ -6,6 +6,7 @@ import { Providers } from "@/providers/providers";
 import { Layout } from "@/components/layout/layout";
 import { Toaster } from "@/components/ui/sonner";
 import { SOCIAL_LINKS } from "@/lib/social-links";
+import { SITE_URL } from "@/lib/seo";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,9 +31,7 @@ const teko = Teko({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_DOMAIN || "https://www.cassette.tech"
-  ),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "Cassette Music — Share Music Across Platforms",
     template: "%s | Cassette Music",
@@ -63,8 +62,8 @@ const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "Cassette",
-  url: "https://www.cassette.tech",
-  logo: "https://www.cassette.tech/images/cassette_logo.png",
+  url: SITE_URL,
+  logo: new URL("/images/cassette_logo.png", SITE_URL).href,
   sameAs: SOCIAL_LINKS.map((link) => link.href),
 };
 

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Share2, Music } from "lucide-react";
 import Image from "next/image";
 import { EASE_OUT_QUART } from "@/lib/motion";
+import { appLogger } from '@/lib/observability/logger';
+import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 
 type TabType = 'playlists' | 'tracks' | 'artists' | 'albums';
 
@@ -92,17 +94,25 @@ interface ProfileDemoProps {
 export function ProfileDemo({ annotations = true }: ProfileDemoProps) {
   const [activeTab, setActiveTab] = useState<TabType>('playlists');
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const shareUrl = 'https://cassette.tech/';
 
-    if (navigator.share) {
-      navigator.share({
-        title: `${dummyUserBio.displayName}'s Profile`,
-        text: `Check out ${dummyUserBio.displayName}'s music profile on Cassette`,
-        url: shareUrl,
-      });
+    if (canShareWebContent()) {
+      try {
+        await shareWebContent({
+          title: `${dummyUserBio.displayName}'s Profile`,
+          text: `Check out ${dummyUserBio.displayName}'s music profile on Cassette`,
+          url: shareUrl,
+        });
+      } catch (error) {
+        appLogger.warn('demo_profile_share_failed', { error, route: '/demo' });
+      }
     } else {
-      navigator.clipboard.writeText(shareUrl);
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+      } catch (error) {
+        appLogger.warn('demo_profile_share_copy_failed', { error, route: '/demo' });
+      }
     }
   };
 

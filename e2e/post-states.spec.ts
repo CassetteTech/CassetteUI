@@ -44,6 +44,9 @@ test('marks a failed Spotify track preview unavailable instead of leaving a dead
         title: 'Silent Sample',
         trackNumber: 1,
         artists: ['Crate Keeper'],
+        // Title-only tracks intentionally render no preview control; the ID makes
+        // this row eligible so the failed lookup exercises the disabled state.
+        spotifyTrackId: 'spotify-preview-missing',
       },
     ],
   };

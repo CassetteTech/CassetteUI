@@ -32,6 +32,7 @@ We may create aggregated or de-identified data that cannot reasonably identify y
 - Authenticate you and your connected services (OAuth), store or refresh tokens, and manage sessions.
 - Prevent abuse, enforce policies, and secure the Service (rate limiting, fraud or malware detection, logging).
 - Communicate with you about your account, support requests, and important changes to the Service.
+- Send registered users occasional promotional emails about product and release updates. These emails are on by default; see Section 9 for how to opt out.
 - Comply with law and respond to lawful requests.
 
 **Legal bases (EEA/UK):** performance of a contract (providing the Service), legitimate interests (site security, product analytics, and product improvement), consent where required by law, and legal obligation.
@@ -77,7 +78,7 @@ We may process and store data in the United States and other countries. Where re
 
 ## 9) Your Rights and Choices
 
-**Email communications.** We may send service-related and transactional emails. If we send optional marketing messages, you can opt out using the unsubscribe mechanism in the message.
+**Email communications.** We send service-related and transactional emails (for example, account, security, and service messages) that are necessary to operate the Service. If you register an account, we also send occasional promotional emails about product and release updates by default. You can opt out of these promotional emails at any time in your account settings or through the unsubscribe link included in any such email. Opting out does not stop necessary transactional, account, security, or service emails. We also apply bounce and complaint suppression, which may stop promotional email delivery to your address.
 
 **Cookies or analytics.** You can manage cookies and related storage technologies through your browser settings.
 

@@ -24,8 +24,14 @@ npm ci
 Run locally:
 
 ```bash
-npm run dev
+npm run local
 ```
+
+The guided launcher checks Node/npm, installs dependencies when needed,
+configures local or hosted Bridge and Supabase combinations, preserves existing
+environment values, and can repeat the last run. See
+[Local setup](docs/local-setup.md) for the complete Windows, macOS, and Linux
+guide.
 
 Copy `.env.local.example` to `.env.local`. For browser OAuth testing, open the
 app at [http://local.cassette.tech:3000](http://local.cassette.tech:3000).
@@ -71,6 +77,7 @@ for user-flow changes.
 ## Documentation
 
 - [Documentation Index](docs/README.md)
+- [Local Setup](docs/local-setup.md)
 - [Music API Setup](docs/music-api-setup.md)
 - [Music Conversion Test Flow](docs/music-conversion-test-flow.md)
 - [Release Email Ingestion](docs/release-email-ingestion.md)

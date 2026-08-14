@@ -6,7 +6,7 @@ import { Providers } from "@/providers/providers";
 import { Layout } from "@/components/layout/layout";
 import { Toaster } from "@/components/ui/sonner";
 import { SOCIAL_LINKS } from "@/lib/social-links";
-import { SITE_URL } from "@/lib/seo";
+import { DEFAULT_SOCIAL_PREVIEW, SITE_URL } from "@/lib/seo";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -45,6 +45,7 @@ export const metadata: Metadata = {
     apple: [{ url: "/images/cassette_logo.png", type: "image/png" }],
   },
   openGraph: {
+    ...DEFAULT_SOCIAL_PREVIEW,
     title: "Cassette Music — Share Music Across Platforms",
     description: "Share your favorite music across all platforms. Connect with friends and discover new tunes.",
     type: "website",
@@ -52,6 +53,7 @@ export const metadata: Metadata = {
     siteName: "Cassette Music",
   },
   twitter: {
+    ...DEFAULT_SOCIAL_PREVIEW,
     card: "summary_large_image",
     title: "Cassette Music — Share Music Across Platforms",
     description: "Share your favorite music across all platforms. Connect with friends and discover new tunes.",

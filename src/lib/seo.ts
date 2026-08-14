@@ -9,6 +9,15 @@
  */
 export const SITE_URL = process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://www.cassette.tech';
 
+export const DEFAULT_SOCIAL_PREVIEW = {
+  images: [{
+    url: '/images/backgrounds/cassette-engraved-footer-v2.png',
+    width: 1672,
+    height: 941,
+    alt: 'An engraved cassette surrounded by unspooled tape',
+  }],
+};
+
 /** Public routes with stable content. Deliberately excludes every `/post/*`
  *  and `/profile/*` URL — see the note on sitemap size below. */
 export const PUBLIC_STATIC_ROUTES = [

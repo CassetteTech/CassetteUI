@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BackButton } from '@/components/ui/back-button';
-import { Loader2, Search, X, Star, Music2 } from 'lucide-react';
+import { Heart, Loader2, Search, X, Star, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
 import { useExploreCurators } from '@/hooks/use-profile';
@@ -432,14 +432,13 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
 
 function CuratorCard({ curator }: { curator: ExploreCurator }) {
   const router = useRouter();
-  const initials = curator.username?.charAt(0)?.toUpperCase() || 'C';
   const displayName = curator.displayName?.trim() || curator.username;
   const artwork = curator.recentArtworkUrls.slice(0, 4);
-  const genres = (curator.topGenres ?? []).slice(0, 3);
+  const tagline = curator.bio?.trim() || (curator.topGenres ?? []).slice(0, 3).join(' · ');
   const links = (curator.profileLinks ?? [])
     .map(parseProfileLink)
     .filter((l): l is ParsedProfileLink => l !== null)
-    .slice(0, 3);
+    .slice(0, 2);
   const profileHref = `/profile/${curator.username}`;
   const openProfile = () => router.push(profileHref);
 
@@ -459,10 +458,18 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
       }}
       className="group relative block w-[260px] cursor-pointer overflow-hidden rounded-2xl bg-card shadow-[0_8px_30px_hsl(var(--foreground)/0.12)] ring-1 ring-foreground/10 transition-colors duration-300 hover:ring-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[280px]"
     >
-      {/* Full-bleed artwork: the curator's taste is the hero. The grid adapts to
-          how much artwork exists so there are never empty slots. */}
       <div className="relative aspect-[4/5] overflow-hidden bg-muted">
-        {artwork.length > 0 ? (
+        {/* The curator themself is the hero; recent artwork fills in when they
+            have no photo, and a branded tile when they have neither. */}
+        {curator.avatarUrl ? (
+          <Image
+            src={curator.avatarUrl}
+            alt=""
+            fill
+            sizes="280px"
+            className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+        ) : artwork.length > 0 ? (
           <div
             className={cn(
               'grid h-full gap-px',
@@ -490,7 +497,6 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
             ))}
           </div>
         ) : (
-          // No artwork yet: a quiet branded tile, not a blank box.
           <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/30 via-muted to-accentRoyal/30">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-background/60 ring-1 ring-foreground/15">
               <Music2 className="h-8 w-8 text-muted-foreground" />
@@ -498,48 +504,36 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
           </div>
         )}
 
-        {/* Scrim carries the identity so the artwork runs edge to edge */}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3.5 pb-3 pt-14">
-          <div className="flex items-center gap-2.5">
-            <Avatar className="h-14 w-14 shrink-0 ring-2 ring-white/80">
-              <AvatarImage src={curator.avatarUrl} alt={`@${curator.username}`} />
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1">
-                <p className="truncate text-[15px] font-semibold leading-tight text-white">
-                  {displayName}
-                </p>
-                <VerificationBadge accountType={curator.accountType} size="sm" showTooltip={false} />
-              </div>
-            </div>
-          </div>
-          {genres.length > 0 && (
-            <p className="mt-2 truncate text-[11px] text-white/55">{genres.join(' · ')}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Keep the footer present so every card has the same resting height. */}
-      <div className="flex h-12 items-center justify-between gap-3 border-t border-foreground/10 px-3">
-        <span className="min-w-0 truncate text-xs font-medium text-muted-foreground">
-          @{curator.username}
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+          Playlist Curator
+          <Heart className="h-3 w-3 fill-red-500 text-red-500" aria-hidden />
         </span>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              onClick={(e) => e.stopPropagation()}
-              aria-label={`${displayName} on ${link.platform} (${link.label})`}
-              title={`${link.platform}: ${link.label}`}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground/[0.06] text-foreground/75 ring-1 ring-foreground/15 transition-colors hover:bg-primary hover:text-primary-foreground hover:ring-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <ProfileLinkIcon link={link} />
-            </a>
-          ))}
+
+        {/* Scrim carries the identity so the photo runs edge to edge */}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-4 pb-4 pt-16">
+          <p className="truncate text-xl font-bold leading-tight text-white">{displayName}</p>
+          {tagline && (
+            <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-white/80">{tagline}</p>
+          )}
+          {links.length > 0 && (
+            <div className="mt-3 flex items-center gap-2">
+              {links.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={`${displayName} on ${link.platform} (${link.label})`}
+                  title={`${link.platform}: ${link.label}`}
+                  className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-white/60 px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <ProfileLinkIcon link={link} className="shrink-0" />
+                  <span className="truncate">{link.platform}</span>
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BackButton } from '@/components/ui/back-button';
-import { Heart, Loader2, Search, X, Star, Music2 } from 'lucide-react';
+import { Loader2, Search, X, Star, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
 import { useExploreCurators } from '@/hooks/use-profile';
@@ -505,8 +505,13 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
         )}
 
         <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
-          Playlist Curator
-          <Heart className="h-3 w-3 fill-red-500 text-red-500" aria-hidden />
+          Music Curator
+          <VerificationBadge
+            accountType={curator.accountType}
+            size="sm"
+            showTooltip={false}
+            className="[&_svg]:text-white"
+          />
         </span>
 
         {/* Scrim carries the identity so the photo runs edge to edge */}

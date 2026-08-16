@@ -92,8 +92,9 @@ export function CuratorPayoutCard() {
   useEffect(() => {
     if (flow !== 'return' || !status.isSuccess || returnHandled.current) return;
     returnHandled.current = true;
+    queryClient.setQueryData(['curator-payout-account', 'current'], status.data ?? null);
     removePayoutQuery();
-  }, [flow, status.isSuccess]);
+  }, [flow, queryClient, status.data, status.isSuccess]);
 
   const account = status.data ?? null;
   const loading = flow === 'checking' || status.isPending;

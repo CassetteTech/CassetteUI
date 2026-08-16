@@ -22,7 +22,13 @@ export const WEB_AUTH_PURPOSES = {
   passwordReset: 'password_reset',
 } as const;
 
-const FORWARDED_RESPONSE_HEADERS = ['content-type', 'content-disposition', CASSETTE_CORRELATION_HEADER] as const;
+const FORWARDED_RESPONSE_HEADERS = [
+  'content-type',
+  'content-disposition',
+  'cache-control',
+  'vary',
+  CASSETTE_CORRELATION_HEADER,
+] as const;
 const FORWARDED_REQUEST_HEADERS = ['accept', 'authorization', 'content-type', 'x-idempotency-key', CASSETTE_CORRELATION_HEADER] as const;
 const INTERACTIVE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 const PASSWORD_RESET_MAX_AGE_SECONDS = 15 * 60;

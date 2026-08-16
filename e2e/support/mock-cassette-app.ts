@@ -6,6 +6,13 @@ import type {
   CuratorProfile,
 } from '../../src/services/curator';
 import type { CuratorProStatus } from '../../src/services/curator-pro';
+import type { CuratorEarnings } from '../../src/services/curator-earnings';
+import type {
+  CuratorFeature,
+  CuratorPlan,
+  CuratorPlanRequest,
+  CuratorPricing,
+} from '../../src/services/curator-plans';
 import {
   FIXTURE_TIMESTAMP,
   FixturePost,
@@ -42,10 +49,15 @@ const elementTypeForFixtureId = (
 type MockCassetteOptions = {
   analyticsCaptures?: Array<Record<string, unknown>>;
   currentUser?: FixtureUser | null;
+  curatorEarnings?: Pick<CuratorEarnings, 'activeMemberCount' | 'items'>;
   curatorPage?: CuratorPage;
   curatorPayoutAccount?: CuratorPayoutAccount | null;
   curatorPayoutRefreshAccount?: CuratorPayoutAccount;
   curatorPayoutOnboardingUrl?: string;
+  curatorPlans?: CuratorPlan[];
+  curatorPlanToolsStatus?: number;
+  curatorFeatures?: CuratorFeature[];
+  curatorPricing?: CuratorPricing;
   curatorProfile?: CuratorProfile | null;
   curatorProStatus?: CuratorProStatus;
   curatorProStatusSequence?: CuratorProStatus[];
@@ -124,6 +136,8 @@ type MockEmailPreference = {
 
 type MockState = {
   currentUser: FixtureUser | null;
+  curatorEarnings: Pick<CuratorEarnings, 'activeMemberCount' | 'items'>;
+  curatorEarningsRequests: Array<{ page: number; pageSize: number }>;
   curatorPage?: CuratorPage;
   curatorPayoutAccount: CuratorPayoutAccount | null;
   curatorPayoutRefreshAccount?: CuratorPayoutAccount;
@@ -132,6 +146,13 @@ type MockState = {
   curatorPayoutOnboardingFailuresRemaining: number;
   curatorPayoutStatusFailuresRemaining: number;
   curatorPayoutOnboardingUrl: string;
+  curatorPlans: CuratorPlan[];
+  curatorPlanCreateRequests: CuratorPlanRequest[];
+  curatorPlanPublishRequests: string[];
+  curatorPlanArchiveRequests: string[];
+  curatorPlanToolsStatus: number;
+  curatorFeatures: CuratorFeature[];
+  curatorPricing: CuratorPricing;
   curatorProfile: CuratorProfile | null;
   curatorProStatus: CuratorProStatus;
   curatorProStatusSequence: CuratorProStatus[];
@@ -226,6 +247,45 @@ const curatorProfileRequestSchema = z.object({
   declaredGenres: z.array(z.string().max(2000)).max(20),
   declaredPlatforms: z.array(z.string().max(2000)).max(20),
 }).strict();
+
+const curatorPlanRequestSchema = z.object({
+  name: z.string().trim().min(1).max(150),
+  description: z.string().trim().max(2000),
+  amountMinor: z.number().int().min(500).max(10_000),
+  annualAmountMinor: z.number().int().positive().nullable(),
+  featureKeys: z.array(z.string().regex(/^[a-z0-9_]+$/)).max(10),
+}).strict();
+
+const defaultCuratorFeatures: CuratorFeature[] = [
+  {
+    featureKey: 'member_badge',
+    displayName: 'Member badge',
+    description: 'Show member identity on comments and likes.',
+  },
+  {
+    featureKey: 'member_posts',
+    displayName: 'Member-only posts',
+    description: 'Unlock subscriber-only posts.',
+  },
+];
+
+const defaultCuratorPricing: CuratorPricing = {
+  curatorProMonthlyPriceMinor: 500,
+  currency: 'USD',
+  platformFeeBps: 1000,
+  serviceFeeBps: 400,
+  serviceFeeFixedMinor: 30,
+  processingBorneBy: 'platform',
+  processingFeeBps: 360,
+  processingFeeFixedMinor: 30,
+  payoutOpsFeeBps: 150,
+  payoutCadence: 'quarterly',
+  minPayoutMinor: 2500,
+};
+
+const curatorServiceFee = (faceMinor: number, pricing: CuratorPricing) =>
+  Math.floor((faceMinor * pricing.serviceFeeBps + 5_000) / 10_000) +
+  pricing.serviceFeeFixedMinor;
 
 const defaultMembershipStatus = (
   page: CuratorPage | undefined,
@@ -486,6 +546,8 @@ const buildState = (options: MockCassetteOptions): MockState => {
   const curatorPage = options.curatorPage ? clone(options.curatorPage) : undefined;
   const state: MockState = {
     currentUser: options.currentUser ? clone(options.currentUser) : null,
+    curatorEarnings: clone(options.curatorEarnings || { activeMemberCount: 0, items: [] }),
+    curatorEarningsRequests: [],
     curatorPage,
     curatorPayoutAccount: options.curatorPayoutAccount
       ? clone(options.curatorPayoutAccount)
@@ -499,6 +561,13 @@ const buildState = (options: MockCassetteOptions): MockState => {
     curatorPayoutStatusFailuresRemaining: 0,
     curatorPayoutOnboardingUrl: options.curatorPayoutOnboardingUrl ??
       'https://connect.stripe.test/payout-onboarding',
+    curatorPlans: clone(options.curatorPlans || []),
+    curatorPlanCreateRequests: [],
+    curatorPlanPublishRequests: [],
+    curatorPlanArchiveRequests: [],
+    curatorPlanToolsStatus: options.curatorPlanToolsStatus ?? 200,
+    curatorFeatures: clone(options.curatorFeatures || defaultCuratorFeatures),
+    curatorPricing: clone(options.curatorPricing || defaultCuratorPricing),
     curatorProfile: options.curatorProfile ? clone(options.curatorProfile) : null,
     curatorProStatus: clone(options.curatorProStatus || fixtureCuratorProDefaultStatus),
     curatorProStatusSequence: clone(options.curatorProStatusSequence || []),
@@ -823,6 +892,121 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         statusChangedAtUtc: FIXTURE_TIMESTAMP,
       };
       return json(route, state.curatorProfile, 201);
+    }
+
+    if (pathname === '/api/v1/curators/me/earnings' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      if (!state.curatorProfile) {
+        return json(route, { message: 'Curator profile not found.' }, 404);
+      }
+      const requestedPage = Number(url.searchParams.get('page'));
+      const requestedPageSize = Number(url.searchParams.get('pageSize'));
+      const offset = (requestedPage - 1) * requestedPageSize;
+      state.curatorEarningsRequests.push({ page: requestedPage, pageSize: requestedPageSize });
+      return json(route, {
+        activeMemberCount: state.curatorEarnings.activeMemberCount,
+        items: state.curatorEarnings.items.slice(offset, offset + requestedPageSize),
+        totalItems: state.curatorEarnings.items.length,
+        page: requestedPage,
+        pageSize: requestedPageSize,
+      });
+    }
+
+    if (pathname === '/api/v1/curators/plans/features' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      return state.curatorPlanToolsStatus === 200
+        ? json(route, state.curatorFeatures)
+        : json(route, { message: 'Membership plan tools are unavailable.' }, state.curatorPlanToolsStatus);
+    }
+
+    if (pathname === '/api/v1/curators/pricing' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      return state.curatorPlanToolsStatus === 200
+        ? json(route, state.curatorPricing)
+        : json(route, { message: 'Membership plan tools are unavailable.' }, state.curatorPlanToolsStatus);
+    }
+
+    if (pathname === '/api/v1/curators/plans' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      if (state.curatorPlanToolsStatus !== 200) {
+        return json(route, { message: 'Membership plan tools are unavailable.' }, state.curatorPlanToolsStatus);
+      }
+      if (!state.curatorProfile) {
+        return json(route, { message: 'Curator profile not found.' }, 404);
+      }
+      return json(route, state.curatorPlans);
+    }
+
+    if (pathname === '/api/v1/curators/plans' && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      if (!state.curatorProfile) {
+        return json(route, { message: 'Curator profile not found.' }, 404);
+      }
+      const payload = curatorPlanRequestSchema.parse(request.postDataJSON());
+      if (payload.annualAmountMinor !== null && payload.annualAmountMinor > payload.amountMinor * 12) {
+        return json(route, { message: 'Annual price exceeds the plan limit.' }, 400);
+      }
+      if (payload.featureKeys.some((key) =>
+        !state.curatorFeatures.some((feature) => feature.featureKey === key))) {
+        return json(route, { message: 'Unknown membership feature.' }, 400);
+      }
+      state.curatorPlanCreateRequests.push(clone(payload));
+      const plan: CuratorPlan = {
+        id: `mpl_FixtureStudioPlan${String(state.curatorPlans.length + 1).padStart(2, '0')}`,
+        ...payload,
+        currency: state.curatorPricing.currency,
+        serviceFeeMinor: null,
+        annualServiceFeeMinor: null,
+        status: 'draft',
+        createdAtUtc: FIXTURE_TIMESTAMP,
+        publishedAtUtc: null,
+        archivedAtUtc: null,
+      };
+      state.curatorPlans = [plan, ...state.curatorPlans];
+      return json(route, plan);
+    }
+
+    const curatorPlanAction = pathname.match(
+      /^\/api\/v1\/curators\/plans\/(mpl_[0-9A-Za-z]+)\/(publish|archive)$/,
+    );
+    if (curatorPlanAction && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      const [, planId, action] = curatorPlanAction;
+      const plan = state.curatorPlans.find((candidate) => candidate.id === planId);
+      if (!plan) return json(route, { message: 'Membership plan not found.' }, 404);
+
+      if (action === 'publish') {
+        state.curatorPlanPublishRequests.push(planId);
+        if (plan.status === 'active') return json(route, plan);
+        if (plan.status === 'archived' || state.curatorProfile?.status !== 'active' ||
+            !state.curatorProStatus.hasAccess ||
+            state.curatorPayoutAccount?.transfersCapabilityStatus !== 'active' ||
+            state.curatorPlans.some((candidate) =>
+              candidate.id !== planId && candidate.status === 'active')) {
+          return json(route, { message: 'Membership plan cannot be published.' }, 409);
+        }
+        Object.assign(plan, {
+          status: 'active',
+          serviceFeeMinor: curatorServiceFee(plan.amountMinor, state.curatorPricing),
+          annualServiceFeeMinor: plan.annualAmountMinor === null
+            ? null
+            : curatorServiceFee(plan.annualAmountMinor, state.curatorPricing),
+          publishedAtUtc: FIXTURE_TIMESTAMP,
+        } satisfies Partial<CuratorPlan>);
+        return json(route, plan);
+      }
+
+      state.curatorPlanArchiveRequests.push(planId);
+      if (plan.status === 'draft') {
+        return json(route, { message: 'Draft plans cannot be archived.' }, 409);
+      }
+      if (plan.status === 'active') {
+        Object.assign(plan, {
+          status: 'archived',
+          archivedAtUtc: FIXTURE_TIMESTAMP,
+        } satisfies Partial<CuratorPlan>);
+      }
+      return json(route, plan);
     }
 
     if (pathname === '/api/v1/curators/payout-account' && method === 'GET') {

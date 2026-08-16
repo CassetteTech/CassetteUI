@@ -3,7 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { RequireAuth } from '@/components/auth/RequireAuth';
+import { CuratorEarningsCard } from '@/components/features/curator/curator-earnings-card';
 import { CuratorPayoutCard } from '@/components/features/curator/curator-payout-card';
+import { CuratorPlanCard } from '@/components/features/curator/curator-plan-card';
 import { CuratorProCard } from '@/components/features/curator/curator-pro-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -178,7 +180,11 @@ function CuratorStudio() {
             </CardContent>
           </Card>
         ) : (
-          <CuratorProfileForm key={profile.data?.id ?? 'new'} profile={profile.data} />
+          <>
+            <CuratorProfileForm key={profile.data?.id ?? 'new'} profile={profile.data} />
+            {profile.data && <CuratorPlanCard profile={profile.data} />}
+            {profile.data && <CuratorEarningsCard />}
+          </>
         )}
       </div>
     </div>

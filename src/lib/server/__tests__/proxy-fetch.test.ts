@@ -1,14 +1,28 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 import { fetchBackendWithCallerCancellation } from '../proxy-fetch';
 
-test('API proxy aborts its Bridge fetch when the caller disconnects', async () => {
+void test('API proxy preserves backend cache isolation headers', () => {
+  const source = fs.readFileSync(
+    path.join(process.cwd(), 'src/lib/server/auth-proxy.ts'),
+    'utf8',
+  );
+  const forwardedHeaders = source.match(/FORWARDED_RESPONSE_HEADERS = \[([\s\S]*?)] as const/)?.[1];
+
+  assert.match(forwardedHeaders ?? '', /'cache-control'/);
+  assert.match(forwardedHeaders ?? '', /'vary'/);
+});
+
+void test('API proxy aborts its Bridge fetch when the caller disconnects', async () => {
   const callerCancellation = new AbortController();
   const previousFetch = globalThis.fetch;
   let forwardedSignal: AbortSignal | null = null;
 
   globalThis.fetch = async (_input, init) => {
-    const signal = init?.signal as AbortSignal;
+    const signal = init?.signal;
+    assert.ok(signal instanceof AbortSignal);
     forwardedSignal = signal;
     return await new Promise<Response>((_resolve, reject) => {
       signal.addEventListener(

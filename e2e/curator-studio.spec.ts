@@ -1,10 +1,78 @@
 import { expect, type Page, test } from '@playwright/test';
-import type { CuratorPayoutAccount } from '../src/services/curator';
-import { fixtureUsers } from './support/cassette-fixtures';
+import type {
+  CuratorPayoutAccount,
+  CuratorProfile,
+} from '../src/services/curator';
+import type { CuratorPricing } from '../src/services/curator-plans';
+import type { CuratorEarningsHistoryItem } from '../src/services/curator-earnings';
+import {
+  fixtureCuratorProActiveStatus,
+  fixtureUsers,
+} from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 const STUDIO_PATH = '/studio/curator';
 const PAYOUT_URL = 'https://connect.stripe.test/payout-onboarding';
+
+const curatorProfile: CuratorProfile = {
+  id: 'cpr_FixtureStudioProfile01',
+  status: 'active',
+  headline: 'Independent weekly finds',
+  about: 'A free curator profile.',
+  declaredGenres: ['Electronic'],
+  declaredPlatforms: ['Spotify'],
+  suspensionReason: null,
+  createdAtUtc: '2026-08-16T12:00:00Z',
+  statusChangedAtUtc: '2026-08-16T12:00:00Z',
+};
+
+const curatorBornePricing: CuratorPricing = {
+  curatorProMonthlyPriceMinor: 500,
+  currency: 'USD',
+  platformFeeBps: 1000,
+  serviceFeeBps: 0,
+  serviceFeeFixedMinor: 0,
+  processingBorneBy: 'curator',
+  processingFeeBps: 360,
+  processingFeeFixedMinor: 30,
+  payoutOpsFeeBps: 0,
+  payoutCadence: 'monthly',
+  minPayoutMinor: 1000,
+};
+
+const earningsItems: CuratorEarningsHistoryItem[] = [
+  {
+    kind: 'allocation',
+    amountMinor: 125,
+    currency: 'USD',
+    status: 'forfeited',
+    occurredAtUtc: '2026-08-16T12:00:00Z',
+    payableAtUtc: '2026-08-30T12:00:00Z',
+  },
+  {
+    kind: 'transfer',
+    amountMinor: 900,
+    currency: 'USD',
+    status: 'succeeded',
+    occurredAtUtc: '2026-08-15T12:00:00Z',
+  },
+  {
+    kind: 'allocation',
+    amountMinor: 425,
+    currency: 'USD',
+    status: 'accrued',
+    occurredAtUtc: '2026-08-14T12:00:00Z',
+    payableAtUtc: '2026-08-28T12:00:00Z',
+  },
+  ...Array.from({ length: 8 }, (_, index): CuratorEarningsHistoryItem => ({
+    kind: 'allocation',
+    amountMinor: 200 + index,
+    currency: 'USD',
+    status: 'accrued',
+    occurredAtUtc: `2026-08-${String(13 - index).padStart(2, '0')}T12:00:00Z`,
+    payableAtUtc: `2026-08-${String(27 - index).padStart(2, '0')}T12:00:00Z`,
+  })),
+];
 
 const payoutAccount = (
   overrides: Partial<CuratorPayoutAccount> = {},
@@ -164,4 +232,157 @@ test('keeps free and Pro surfaces usable through restricted and failed payout st
 
   await expect.poll(() => state.curatorProfile?.headline).toBe('Free profile survives payout errors');
   await expect(page.getByTestId('curator-pro-subscribe')).toBeEnabled();
+});
+
+test('creates a free draft with policy economics before Pro or payouts', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+  });
+
+  await page.goto(STUDIO_PATH);
+
+  const card = page.getByTestId('curator-plan-card');
+  await expect(card.getByRole('heading', { name: 'Fan membership plan' })).toBeVisible();
+  await expect(card.getByLabel('Monthly price (USD)')).toHaveValue('5.00');
+  await card.getByLabel('Monthly price (USD)').fill('7');
+  await card.getByLabel('Annual price (USD, optional)').fill('70');
+  await expect(card.getByText('$7.58', { exact: true })).toBeVisible();
+  await expect(card.getByText('$6.19', { exact: true })).toBeVisible();
+  await expect(card.getByText('$73.10', { exact: true })).toBeVisible();
+  await expect(card.getByText('$5.00/month, billed separately', { exact: true })).toBeVisible();
+
+  await card.getByLabel('Plan name').fill('Selector Club');
+  await card.getByLabel('Description').fill('Member-only selections.');
+  await card.getByLabel(/Member-only posts/).check();
+  await card.getByRole('button', { name: 'Save draft' }).click();
+
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft saved. Publishing remains optional.');
+  await expect(card.getByTestId('curator-plan-draft')).toContainText('Selector Club');
+  await expect(card.getByTestId('curator-plan-publish')).toBeDisabled();
+  expect(state.curatorPlanCreateRequests).toEqual([{
+    name: 'Selector Club',
+    description: 'Member-only selections.',
+    amountMinor: 700,
+    annualAmountMinor: 7000,
+    featureKeys: ['member_posts'],
+  }]);
+  await expect(page.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+  await expect(page.getByTestId('curator-pro-subscribe')).toBeEnabled();
+  await expect(page.getByTestId('curator-payout-onboarding')).toBeEnabled();
+});
+
+test('publishes with active mirrors and archives without canceling subscriptions', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorProStatus: fixtureCuratorProActiveStatus,
+    curatorPayoutAccount: payoutAccount({
+      onboardingStatus: 'active',
+      transfersCapabilityStatus: 'active',
+      capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
+    }),
+  });
+
+  await page.goto(STUDIO_PATH);
+  const card = page.getByTestId('curator-plan-card');
+  await card.getByLabel('Plan name').fill('Ready Plan');
+  await card.getByLabel('Monthly price (USD)').fill('7');
+  await card.getByRole('button', { name: 'Save draft' }).click();
+
+  const publish = card.getByTestId('curator-plan-publish');
+  await expect(publish).toBeEnabled();
+  await publish.click();
+  await expect(card.getByTestId('curator-plan-active')).toContainText('$7.58 (frozen)');
+  expect(state.curatorPlanPublishRequests).toEqual(['mpl_FixtureStudioPlan01']);
+
+  await card.getByRole('button', { name: 'Archive plan' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('Existing subscriptions are not canceled');
+  await dialog.getByRole('button', { name: 'Archive plan' }).click();
+
+  await expect(card.getByTestId('curator-plan-archived')).toContainText('Ready Plan');
+  await expect(card.getByTestId('curator-plan-notice')).toContainText('Existing subscriptions were not canceled.');
+  expect(state.curatorPlanArchiveRequests).toEqual(['mpl_FixtureStudioPlan01']);
+});
+
+test('uses server-provided curator-borne processing in the estimate', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPricing: curatorBornePricing,
+  });
+
+  await page.goto(STUDIO_PATH);
+  const card = page.getByTestId('curator-plan-card');
+  await card.getByLabel('Monthly price (USD)').fill('7');
+
+  await expect(card.getByText('Payment processing').locator('..')).toContainText('−$0.55');
+  await expect(card.getByText('Estimated curator accrual').locator('..')).toContainText('$5.75');
+  await expect(card.getByText('$5.00/month, billed separately', { exact: true })).toBeVisible();
+  await expect(card).toContainText('monthly, after your balance reaches $10.00');
+});
+
+test('isolates plan-tool failures from profile, Pro, and payout controls', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlanToolsStatus: 503,
+  });
+
+  await page.goto(STUDIO_PATH);
+
+  await expect(page.getByTestId('curator-plan-card').getByRole('alert')).toContainText(
+    'Your free profile, Curator Pro, and payout controls still work.',
+    { timeout: 10_000 },
+  );
+  await page.getByLabel('Headline').fill('Free profile survives plan errors');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+
+  await expect.poll(() => state.curatorProfile?.headline).toBe('Free profile survives plan errors');
+  await expect(page.getByTestId('curator-pro-subscribe')).toBeEnabled();
+  await expect(page.getByTestId('curator-payout-onboarding')).toBeEnabled();
+});
+
+test('shows private paginated earnings without Curator Pro', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorEarnings: { activeMemberCount: 3, items: earningsItems },
+  });
+  const firstPageResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname === '/api/v1/curators/me/earnings' && url.searchParams.get('page') === '1';
+  });
+
+  await page.goto(STUDIO_PATH);
+
+  const card = page.getByTestId('curator-earnings-card');
+  await expect(card).toBeVisible();
+  await expect(card.getByTestId('curator-active-member-count')).toHaveText('3');
+  await expect(page.getByTestId('curator-pro-subscribe')).toBeEnabled();
+
+  const terminalAllocation = card.getByText('$1.25', { exact: true }).locator('..').locator('..');
+  await expect(terminalAllocation).toContainText('Membership earning');
+  await expect(terminalAllocation).toContainText('Not earned');
+  await expect(terminalAllocation).not.toContainText('Payout eligibility');
+  await expect(card.getByText('$4.25', { exact: true }).locator('..').locator('..')).toContainText(
+    'Payout eligibility',
+  );
+  const transfer = card.getByText('$9.00', { exact: true }).locator('..').locator('..');
+  await expect(transfer).toContainText('Payout transfer');
+  await expect(transfer).toContainText('Paid');
+
+  const responseText = JSON.stringify(await (await firstPageResponse).json());
+  expect(responseText).not.toMatch(
+    /sourceRef|stripe|failureDetail|reversalReason|fanUserId|membershipSubscriptionId/i,
+  );
+
+  await card.getByRole('button', { name: 'Next' }).click();
+  await expect(card.getByText(/Page 2/)).toBeVisible();
+  await expect(card.getByText('$2.07', { exact: true })).toBeVisible();
+  expect(state.curatorEarningsRequests).toEqual([
+    { page: 1, pageSize: 10 },
+    { page: 2, pageSize: 10 },
+  ]);
 });

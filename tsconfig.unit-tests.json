@@ -53,6 +53,8 @@
     "src/services/__tests__/curator-plans.test.ts",
     "src/services/curator-earnings.ts",
     "src/services/__tests__/curator-earnings.test.ts",
+    "src/services/internal-curators.ts",
+    "src/services/__tests__/internal-curators.test.ts",
     "src/services/membership.ts",
     "src/services/__tests__/membership.test.ts",
     "src/services/curator-pro.ts",

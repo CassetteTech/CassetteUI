@@ -93,8 +93,11 @@ class InternalPaidPromotionsService {
     );
   }
 
-  async listExceptions(params: { status?: string; kind?: string } = {}) {
-    const response = await apiService.getInternalPaidPromotionExceptions(params);
+  async listExceptions(
+    params: { status?: string; kind?: string } = {},
+    signal?: AbortSignal,
+  ) {
+    const response = await apiService.getInternalPaidPromotionExceptions(params, signal);
     return parseInternalPaidPromotionArray(response, 'exceptions').map((exception, index) =>
       parseInternalPaidPromotionException(exception, `exceptions[${index}]`)
     );

@@ -7,6 +7,15 @@ import type {
 } from '../../src/services/curator';
 import type { CuratorProStatus } from '../../src/services/curator-pro';
 import type { CuratorEarnings } from '../../src/services/curator-earnings';
+import {
+  parsePricingAssignmentRequest,
+  parsePricingPolicyRequest,
+  type InternalCurator,
+  type PricingAssignment,
+  type PricingAssignmentRequest,
+  type PricingPolicy,
+  type PricingPolicyRequest,
+} from '../../src/services/internal-curators';
 import type {
   CuratorFeature,
   CuratorPlan,
@@ -49,6 +58,9 @@ const elementTypeForFixtureId = (
 type MockCassetteOptions = {
   analyticsCaptures?: Array<Record<string, unknown>>;
   currentUser?: FixtureUser | null;
+  internalCurators?: InternalCurator[];
+  internalPricingPolicies?: PricingPolicy[];
+  internalPricingAssignments?: PricingAssignment[];
   curatorEarnings?: Pick<CuratorEarnings, 'activeMemberCount' | 'items'>;
   curatorPage?: CuratorPage;
   curatorPayoutAccount?: CuratorPayoutAccount | null;
@@ -136,6 +148,14 @@ type MockEmailPreference = {
 
 type MockState = {
   currentUser: FixtureUser | null;
+  internalCurators: InternalCurator[];
+  internalPricingPolicies: PricingPolicy[];
+  internalPricingAssignments: PricingAssignment[];
+  internalCuratorSuspendRequests: Array<{ curatorId: string; reason: string }>;
+  internalCuratorReinstateRequests: string[];
+  internalPricingPolicyCreateRequests: PricingPolicyRequest[];
+  internalPricingPolicyDefaultRequests: string[];
+  internalPricingAssignmentRequests: PricingAssignmentRequest[];
   curatorEarnings: Pick<CuratorEarnings, 'activeMemberCount' | 'items'>;
   curatorEarningsRequests: Array<{ page: number; pageSize: number }>;
   curatorPage?: CuratorPage;
@@ -246,6 +266,10 @@ const curatorProfileRequestSchema = z.object({
   about: z.string().max(2000).nullable(),
   declaredGenres: z.array(z.string().max(2000)).max(20),
   declaredPlatforms: z.array(z.string().max(2000)).max(20),
+}).strict();
+
+const internalCuratorSuspendRequestSchema = z.object({
+  reason: z.string().trim().min(1),
 }).strict();
 
 const curatorPlanRequestSchema = z.object({
@@ -520,6 +544,11 @@ const getCurrentUserOrThrow = (state: MockState) => {
   return state.currentUser;
 };
 
+const isCassetteTeam = (state: MockState) => {
+  const accountType = getCurrentUserOrThrow(state).accountType;
+  return accountType === 'CassetteTeam' || accountType === 2;
+};
+
 const createOwnedPostFromTemplate = (
   state: MockState,
   template: FixturePost,
@@ -546,6 +575,14 @@ const buildState = (options: MockCassetteOptions): MockState => {
   const curatorPage = options.curatorPage ? clone(options.curatorPage) : undefined;
   const state: MockState = {
     currentUser: options.currentUser ? clone(options.currentUser) : null,
+    internalCurators: clone(options.internalCurators || []),
+    internalPricingPolicies: clone(options.internalPricingPolicies || []),
+    internalPricingAssignments: clone(options.internalPricingAssignments || []),
+    internalCuratorSuspendRequests: [],
+    internalCuratorReinstateRequests: [],
+    internalPricingPolicyCreateRequests: [],
+    internalPricingPolicyDefaultRequests: [],
+    internalPricingAssignmentRequests: [],
     curatorEarnings: clone(options.curatorEarnings || { activeMemberCount: 0, items: [] }),
     curatorEarningsRequests: [],
     curatorPage,
@@ -1473,6 +1510,157 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         status: 'ready',
         postId: createdPost.postId,
       });
+    }
+
+    if ((pathname.startsWith('/api/v1/internal/curators') ||
+      pathname.startsWith('/api/v1/internal/memberships/pricing-policies') ||
+      pathname.startsWith('/api/v1/internal/paid-promotions/exceptions')) &&
+      !isCassetteTeam(state)) {
+      return json(route, { message: 'Cassette team access is required.' }, 403);
+    }
+
+    if (pathname === '/api/v1/internal/curators' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      const status = url.searchParams.get('status');
+      return json(route, status
+        ? state.internalCurators.filter((curator) => curator.status === status)
+        : state.internalCurators);
+    }
+
+    const internalCuratorMatch = pathname.match(
+      /^\/api\/v1\/internal\/curators\/(cpr_[0-9A-Za-z]+)\/(suspend|reinstate)$/,
+    );
+    if (internalCuratorMatch) {
+      getCurrentUserOrThrow(state);
+      const curatorId = decodeURIComponent(internalCuratorMatch[1]);
+      const action = internalCuratorMatch[2];
+      const curator = state.internalCurators.find((candidate) => candidate.id === curatorId);
+      if (!curator) return json(route, { message: 'Curator profile not found.' }, 404);
+      if (method !== 'POST') return json(route, { message: 'Method not allowed.' }, 405);
+
+      if (action === 'suspend') {
+        if (curator.status !== 'active') {
+          return json(route, { message: 'Only active curator profiles can be suspended.' }, 409);
+        }
+        const payload = internalCuratorSuspendRequestSchema.parse(request.postDataJSON());
+        state.internalCuratorSuspendRequests.push({
+          curatorId,
+          reason: payload.reason,
+        });
+        curator.status = 'suspended';
+        curator.suspensionReason = payload.reason;
+      }
+      if (action === 'reinstate') {
+        if (curator.status !== 'suspended') {
+          return json(route, { message: 'Only suspended curator profiles can be reinstated.' }, 409);
+        }
+        state.internalCuratorReinstateRequests.push(curatorId);
+        curator.status = 'active';
+        curator.suspensionReason = null;
+      }
+      curator.statusChangedAtUtc = FIXTURE_TIMESTAMP;
+      return json(route, curator);
+    }
+
+    if (pathname === '/api/v1/internal/memberships/pricing-policies/assignments') {
+      getCurrentUserOrThrow(state);
+      if (method === 'GET') {
+        const curatorProfileId = url.searchParams.get('curatorProfileId');
+        return json(route, state.internalPricingAssignments.filter(
+          (assignment) => assignment.curatorProfileId === curatorProfileId,
+        ));
+      }
+      if (method === 'POST') {
+        const payload = parsePricingAssignmentRequest(request.postDataJSON());
+        state.internalPricingAssignmentRequests.push(clone(payload));
+        const { curatorProfileId, policyId } = payload;
+        const policy = state.internalPricingPolicies.find((candidate) => candidate.id === policyId);
+        const curator = state.internalCurators.find(
+          (candidate) => candidate.id === curatorProfileId,
+        );
+        if (!policy || !curator) {
+          return json(route, { message: 'Policy or curator not found.' }, 404);
+        }
+        if (!policy.isActive) {
+          return json(route, { message: 'Assignments must target an active policy.' }, 400);
+        }
+        const assignment: PricingAssignment = {
+          id: `cfa_FixtureAssignment${String(state.internalPricingAssignments.length + 1).padStart(2, '0')}`,
+          curatorProfileId,
+          policyId,
+          policyKey: policy.policyKey,
+          policyVersion: policy.version,
+          policyDisplayName: policy.displayName,
+          assignedByUserId: '00000000-0000-4000-8000-000000000367',
+          assignedByUsername: getCurrentUserOrThrow(state).username,
+          reason: payload.reason,
+          effectiveAtUtc: payload.effectiveAtUtc ?? FIXTURE_TIMESTAMP,
+          createdAtUtc: FIXTURE_TIMESTAMP,
+        };
+        state.internalPricingAssignments.unshift(assignment);
+        return json(route, { id: assignment.id });
+      }
+    }
+
+    const internalPricingDefaultMatch = pathname.match(
+      /^\/api\/v1\/internal\/memberships\/pricing-policies\/([^/]+)\/set-default$/,
+    );
+    if (internalPricingDefaultMatch && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      const policyId = decodeURIComponent(internalPricingDefaultMatch[1]);
+      const policy = state.internalPricingPolicies.find((candidate) => candidate.id === policyId);
+      if (!policy) return json(route, { message: 'Pricing policy not found.' }, 404);
+      if (!policy.isActive) {
+        return json(route, { message: 'Only an active policy can be the default.' }, 400);
+      }
+      if (policy.isDefault) return json(route, policy);
+      if (policy.defaultEffectiveAtUtc !== null) {
+        return json(route, { message: 'A former default cannot be selected again.' }, 400);
+      }
+      state.internalPricingPolicyDefaultRequests.push(policyId);
+      for (const candidate of state.internalPricingPolicies) candidate.isDefault = false;
+      policy.isDefault = true;
+      policy.defaultEffectiveAtUtc = FIXTURE_TIMESTAMP;
+      return json(route, policy);
+    }
+
+    if (pathname === '/api/v1/internal/memberships/pricing-policies') {
+      getCurrentUserOrThrow(state);
+      if (method === 'GET') return json(route, state.internalPricingPolicies);
+      if (method === 'POST') {
+        const payload = parsePricingPolicyRequest(request.postDataJSON());
+        state.internalPricingPolicyCreateRequests.push(clone(payload));
+        const { policyKey } = payload;
+        const version = Math.max(
+          0,
+          ...state.internalPricingPolicies
+            .filter((candidate) => candidate.policyKey === policyKey)
+            .map((candidate) => candidate.version),
+        ) + 1;
+        const policy: PricingPolicy = {
+          id: `msf_FixturePolicy${String(state.internalPricingPolicies.length + 1).padStart(2, '0')}`,
+          policyKey,
+          version,
+          displayName: payload.displayName,
+          isActive: payload.isActive,
+          isDefault: false,
+          defaultEffectiveAtUtc: null,
+          curatorProMonthlyPriceMinor: payload.curatorProMonthlyPriceMinor,
+          currency: 'USD',
+          platformFeeBps: payload.platformFeeBps,
+          serviceFeeBps: payload.serviceFeeBps,
+          serviceFeeFixedMinor: payload.serviceFeeFixedMinor,
+          processingBorneBy: payload.processingBorneBy,
+          processingFeeBps: 360,
+          processingFeeFixedMinor: 30,
+          payoutOpsFeeBps: payload.payoutOpsFeeBps,
+          payoutCadence: payload.payoutCadence,
+          minPayoutMinor: payload.minPayoutMinor,
+          createdAtUtc: FIXTURE_TIMESTAMP,
+        };
+        state.internalPricingPolicies.push(policy);
+        return json(route, policy);
+      }
     }
 
     if (pathname === '/api/v1/internal/paid-promotions/subjects' && method === 'GET') {

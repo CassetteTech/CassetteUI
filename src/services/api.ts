@@ -693,14 +693,14 @@ class ApiService {
   async getInternalPaidPromotionExceptions(params: {
     status?: string;
     kind?: string;
-  } = {}): Promise<InternalPaidPromotionException[]> {
+  } = {}, signal?: AbortSignal): Promise<InternalPaidPromotionException[]> {
     const query = new URLSearchParams();
     if (params.status) query.set('status', params.status);
     if (params.kind) query.set('kind', params.kind);
     const suffix = query.toString() ? `?${query.toString()}` : '';
     return this.request<InternalPaidPromotionException[]>(
       `/api/v1/internal/paid-promotions/exceptions${suffix}`,
-      { timeoutMs: 20000 }
+      { cache: 'no-store', signal, timeoutMs: 20000 }
     );
   }
 

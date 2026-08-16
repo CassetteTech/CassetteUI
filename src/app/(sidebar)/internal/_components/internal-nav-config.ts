@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Layers,
   ChartNoAxesCombined,
+  UserRoundCog,
   Megaphone,
   type LucideIcon,
 } from 'lucide-react';
@@ -84,6 +85,13 @@ export const CONSOLE_NAV: ConsoleNavSection[] = [
         href: '/internal/users',
         icon: Users,
         blurb: 'Search accounts, manage roles, and export data.',
+      },
+      {
+        key: 'curators',
+        label: 'Curators',
+        href: '/internal/curators',
+        icon: UserRoundCog,
+        blurb: 'Manage pricing policies, operational status, and payout exceptions.',
       },
       {
         key: 'attribution',

@@ -456,7 +456,9 @@ export type PaidPromotionExceptionKind =
   | 'refund_failed'
   | 'dispute_opened'
   | 'stuck_pending'
-  | 'orphan_session';
+  | 'orphan_session'
+  | 'payout_clawback'
+  | 'payout_transfer';
 
 export type PaidPromotionExceptionStatus = 'open' | 'resolved';
 

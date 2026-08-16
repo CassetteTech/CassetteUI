@@ -120,6 +120,11 @@ const curatorPageSchema = z.object({
     (item) => item.kind === 'post' && item.post.privacy === 'public',
   ),
   { message: 'Subscriber posts require an active membership plan' },
+).refine(
+  (page) => page.viewer.isOwner || page.viewer.isMember || page.posts.items.every(
+    (item) => item.kind === 'locked' || item.post.privacy === 'public',
+  ),
+  { message: 'Subscriber post bodies require an entitled viewer' },
 );
 
 export type CuratorPage = z.infer<typeof curatorPageSchema>;

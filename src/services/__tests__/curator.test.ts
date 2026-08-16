@@ -132,6 +132,18 @@ void test('rejects subscriber post state without an active membership plan', () 
   }), /Subscriber posts require an active membership plan/);
 });
 
+void test('rejects subscriber post bodies for an unentitled viewer', () => {
+  const payload = pagePayload();
+
+  assert.throws(() => parseCuratorPage({
+    ...payload,
+    posts: {
+      ...payload.posts,
+      items: [{ kind: 'post', post: { ...fullPost(), privacy: 'subscriber' } }],
+    },
+  }), /Subscriber post bodies require an entitled viewer/);
+});
+
 void test('rejects unsafe membership totals', () => {
   const payload = pagePayload();
 

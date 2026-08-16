@@ -54,6 +54,7 @@ test('shows default economics without taking away the free profile editor', asyn
 test('renders policy pricing and each valid launch discount', async ({ page }) => {
   const dynamicStatus = proStatus({
     monthlyPriceMinor: 725,
+    platformFeeBps: 1_250,
   });
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
@@ -63,6 +64,7 @@ test('renders policy pricing and each valid launch discount', async ({ page }) =
   await page.goto(STUDIO_PATH);
   const card = page.getByTestId('curator-pro-card');
   await expect(card).toContainText('$7.25');
+  await expect(card).toContainText('12.5%');
 
   state.curatorProStatus = {
     ...fixtureCuratorProActiveStatus,

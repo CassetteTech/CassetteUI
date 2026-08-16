@@ -306,6 +306,31 @@ test('publishes with active mirrors and archives without canceling subscriptions
   expect(state.curatorPlanArchiveRequests).toEqual(['mpl_FixtureStudioPlan01']);
 });
 
+test('does not publish a suspended profile after a crafted Pro return', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile: {
+      ...curatorProfile,
+      status: 'suspended',
+      suspensionReason: 'Payout account ownership requires review.',
+    },
+    curatorProStatus: fixtureCuratorProActiveStatus,
+    curatorPayoutAccount: payoutAccount({
+      onboardingStatus: 'active',
+      transfersCapabilityStatus: 'active',
+      capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
+    }),
+  });
+
+  await page.goto(`${STUDIO_PATH}?pro=return&session_id=untrusted`);
+  const card = page.getByTestId('curator-plan-card');
+  await card.getByLabel('Plan name').fill('Suspended Plan');
+  await card.getByRole('button', { name: 'Save draft' }).click();
+
+  await expect(card.getByTestId('curator-plan-publish')).toBeDisabled();
+  expect(state.curatorPlanPublishRequests).toEqual([]);
+});
+
 test('uses server-provided curator-borne processing in the estimate', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,

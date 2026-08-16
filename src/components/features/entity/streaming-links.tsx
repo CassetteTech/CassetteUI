@@ -27,6 +27,8 @@ interface StreamingLinksProps {
   sourcePlatform?: string;
   isAuthenticated?: boolean;
   paidPromotionCampaignId?: string | null;
+  curatorId?: string | null;
+  isMemberView?: boolean;
 }
 
 export interface StreamingService {
@@ -58,6 +60,8 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
   sourcePlatform,
   isAuthenticated,
   paidPromotionCampaignId,
+  curatorId,
+  isMemberView,
 }) => {
   const availableLinks = Object.entries(links).filter(([, url]) => url);
   
@@ -106,6 +110,8 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                   is_authenticated: isAuthenticated,
                   source_domain: sanitizeDomain(url),
                   paid_promotion_campaign_id: paidPromotionCampaignId ?? undefined,
+                  curator_id: curatorId ?? undefined,
+                  is_member_view: isMemberView === true,
                 });
                 handleStreamingLinkClick(event, url);
               }}

@@ -1,9 +1,11 @@
 import type { Page, Route } from '@playwright/test';
+import { z } from 'zod';
 import type { CuratorPage } from '../../src/services/curator';
 import {
   FIXTURE_TIMESTAMP,
   FixturePost,
   FixtureInternalPaidPromotionCampaign,
+  FixtureMembershipStatusView,
   FixturePaidPromotionCampaign,
   FixturePaidPromotionRateCard,
   FixtureSearchResults,
@@ -35,6 +37,9 @@ type MockCassetteOptions = {
   analyticsCaptures?: Array<Record<string, unknown>>;
   currentUser?: FixtureUser | null;
   curatorPage?: CuratorPage;
+  membershipStatus?: FixtureMembershipStatusView;
+  membershipPollSequence?: FixtureMembershipStatusView[];
+  membershipActiveCuratorPage?: CuratorPage;
   googleAuthUser?: FixtureUser | null;
   users?: FixtureUser[];
   posts?: FixturePost[];
@@ -107,6 +112,13 @@ type MockEmailPreference = {
 type MockState = {
   currentUser: FixtureUser | null;
   curatorPage?: CuratorPage;
+  membershipStatus: FixtureMembershipStatusView | null;
+  membershipPollSequence: FixtureMembershipStatusView[];
+  membershipPollSequenceActive: boolean;
+  membershipActiveCuratorPage?: CuratorPage;
+  membershipCheckoutRequests: Array<{ planId: string; interval: 'month' | 'year' }>;
+  membershipPortalRequests: Array<{ membershipSubscriptionId: string }>;
+  membershipStatusRequests: string[];
   googleAuthUser: FixtureUser | null;
   usersById: Map<string, FixtureUser>;
   usernamesToIds: Map<string, string>;
@@ -172,6 +184,37 @@ const buildConnectedServices = (services: string[] = []) =>
     connectedAt: FIXTURE_TIMESTAMP,
   }));
 
+const membershipCheckoutRequestSchema = z.object({
+  planId: z.string(),
+  interval: z.enum(['month', 'year']),
+}).strict();
+
+const membershipPortalRequestSchema = z.object({
+  membershipSubscriptionId: z.string(),
+}).strict();
+
+const defaultMembershipStatus = (
+  page: CuratorPage | undefined,
+): FixtureMembershipStatusView | null => {
+  if (!page) return null;
+
+  return {
+    curatorProfileId: page.curator.id,
+    canSubscribe: Boolean(page.membership && !page.viewer.isMember),
+    membership: page.viewer.isMember
+      ? {
+          membershipSubscriptionId: 'msb_FixtureMembership01',
+          planId: page.membership?.planId ?? 'mpl_FixtureMembership01',
+          billingInterval: 'month',
+          status: 'active',
+          canManage: true,
+          cancelAtPeriodEnd: false,
+          paidThroughUtc: '2026-09-16T12:00:00Z',
+        }
+      : null,
+  };
+};
+
 const toSessionUser = (user: FixtureUser) => ({
   userId: user.id,
   email: user.email,
@@ -235,6 +278,8 @@ const toPostByIdResponse = (post: FixturePost) => ({
   postId: post.postId,
   redirectPostId: post.postId,
   paidPromotionCampaignId: post.paidPromotionCampaignId ?? null,
+  curatorId: post.curatorId ?? null,
+  isMemberView: post.isMemberView ?? false,
   repostedByCurrentUser: post.repostedByCurrentUser || false,
   elementType: post.elementType,
   musicElementId: post.musicElementId,
@@ -404,9 +449,21 @@ const createOwnedPostFromTemplate = (
 };
 
 const buildState = (options: MockCassetteOptions): MockState => {
+  const curatorPage = options.curatorPage ? clone(options.curatorPage) : undefined;
   const state: MockState = {
     currentUser: options.currentUser ? clone(options.currentUser) : null,
-    curatorPage: options.curatorPage ? clone(options.curatorPage) : undefined,
+    curatorPage,
+    membershipStatus: options.membershipStatus
+      ? clone(options.membershipStatus)
+      : defaultMembershipStatus(curatorPage),
+    membershipPollSequence: clone(options.membershipPollSequence || []),
+    membershipPollSequenceActive: false,
+    membershipActiveCuratorPage: options.membershipActiveCuratorPage
+      ? clone(options.membershipActiveCuratorPage)
+      : undefined,
+    membershipCheckoutRequests: [],
+    membershipPortalRequests: [],
+    membershipStatusRequests: [],
     googleAuthUser: options.googleAuthUser ? clone(options.googleAuthUser) : null,
     usersById: new Map<string, FixtureUser>(),
     usernamesToIds: new Map<string, string>(),
@@ -691,6 +748,133 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       }
 
       return json(route, state.curatorPage);
+    }
+
+    const membershipStatusMatch = pathname.match(
+      /^\/api\/v1\/memberships\/status\/([^/]+)$/,
+    );
+    if (membershipStatusMatch && method === 'GET') {
+      if (!state.currentUser) {
+        return json(route, {
+          errorCode: 'curator_invalid_user_session',
+          message: 'The authenticated Cassette user could not be resolved.',
+        }, 401);
+      }
+
+      const nextStatus = state.membershipPollSequenceActive
+        ? state.membershipPollSequence.shift()
+        : undefined;
+      if (nextStatus) {
+        state.membershipStatus = clone(nextStatus);
+      }
+
+      const curatorProfileId = decodeURIComponent(membershipStatusMatch[1]);
+      state.membershipStatusRequests.push(curatorProfileId);
+      const status = state.membershipStatus?.curatorProfileId === curatorProfileId
+        ? state.membershipStatus
+        : {
+            curatorProfileId,
+            canSubscribe: false,
+            membership: null,
+          };
+      if (
+        status.membership &&
+        ['active', 'trialing', 'past_due'].includes(status.membership.status) &&
+        state.membershipActiveCuratorPage
+      ) {
+        state.curatorPage = clone(state.membershipActiveCuratorPage);
+      }
+
+      return json(route, status);
+    }
+
+    if (pathname === '/api/v1/memberships/checkout' && method === 'POST') {
+      if (!state.currentUser) {
+        return json(route, {
+          errorCode: 'curator_invalid_user_session',
+          message: 'The authenticated Cassette user could not be resolved.',
+        }, 401);
+      }
+
+      const requestBody = membershipCheckoutRequestSchema.parse(request.postDataJSON());
+      state.membershipCheckoutRequests.push(clone(requestBody));
+      const curatorPage = state.curatorPage;
+      const plan = curatorPage?.membership;
+      const interval = requestBody.interval;
+      if (
+        !curatorPage ||
+        !plan ||
+        requestBody.planId !== plan.planId ||
+        !state.membershipStatus?.canSubscribe
+      ) {
+        return json(route, {
+          errorCode: 'membership_state_invalid',
+          message: 'This membership plan is not available for Checkout.',
+        }, 409);
+      }
+
+      const annual = interval === 'year';
+      const faceAmountMinor = annual ? plan.annualAmountMinor : plan.amountMinor;
+      const serviceFeeMinor = annual ? plan.annualServiceFeeMinor : plan.serviceFeeMinor;
+      if (faceAmountMinor === null || serviceFeeMinor === null) {
+        return json(route, {
+          errorCode: 'membership_state_invalid',
+          message: 'The requested membership billing interval is not available.',
+        }, 409);
+      }
+
+      const membershipSubscriptionId = 'msb_FixtureMembership01';
+      state.membershipStatus = {
+        curatorProfileId: curatorPage.curator.id,
+        canSubscribe: true,
+        membership: {
+          membershipSubscriptionId,
+          planId: plan.planId,
+          billingInterval: interval,
+          status: 'incomplete',
+          canManage: false,
+          cancelAtPeriodEnd: false,
+          paidThroughUtc: null,
+        },
+      };
+      state.membershipPollSequenceActive = true;
+
+      return json(route, {
+        membershipSubscriptionId,
+        planId: plan.planId,
+        billingInterval: interval,
+        status: 'incomplete',
+        checkoutUrl: 'https://checkout.stripe.test/membership-session',
+        faceAmountMinor,
+        serviceFeeMinor,
+        totalAmountMinor: faceAmountMinor + serviceFeeMinor,
+        currency: plan.currency,
+      });
+    }
+
+    if (pathname === '/api/v1/memberships/billing-portal' && method === 'POST') {
+      if (!state.currentUser) {
+        return json(route, {
+          errorCode: 'curator_invalid_user_session',
+          message: 'The authenticated Cassette user could not be resolved.',
+        }, 401);
+      }
+
+      const requestBody = membershipPortalRequestSchema.parse(request.postDataJSON());
+      state.membershipPortalRequests.push(clone(requestBody));
+      if (
+        !state.membershipStatus?.membership?.canManage ||
+        requestBody.membershipSubscriptionId !==
+          state.membershipStatus.membership.membershipSubscriptionId
+      ) {
+        return json(route, {
+          errorCode: 'membership_subscription_not_found',
+          message: 'Membership subscription not found.',
+        }, 404);
+      }
+
+      state.membershipPollSequenceActive = true;
+      return json(route, { portalUrl: 'https://billing.stripe.test/membership-session' });
     }
 
     if (pathname.startsWith('/api/v1/profile/check-username/')) {

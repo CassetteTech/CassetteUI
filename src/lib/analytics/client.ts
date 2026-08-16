@@ -278,6 +278,7 @@ export function surfaceFromRoute(route?: string | null): SourceSurface {
   if (path.startsWith('/promote')) return 'paid_promotion';
   if (path.startsWith('/post')) return 'post';
   if (path.startsWith('/profile')) return 'profile';
+  if (path.startsWith('/curator')) return 'curator';
   if (path.startsWith('/onboarding')) return 'onboarding';
   if (path.startsWith('/explore')) return 'explore';
   if (path.startsWith('/auth')) return 'auth';

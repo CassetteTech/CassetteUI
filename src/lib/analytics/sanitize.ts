@@ -32,6 +32,9 @@ const ALLOWED_KEYS = new Set<keyof AnalyticsBaseProps>([
   'plan',
   'post_id',
   'paid_promotion_campaign_id',
+  'curator_id',
+  'membership_plan_id',
+  'is_member_view',
   'music_element_id',
   'status',
   'success',
@@ -181,6 +184,22 @@ export function sanitizeAnalyticsProps(input: Partial<AnalyticsBaseProps>): Part
         /^pmc_[0-9A-Za-z]+$/.test(rawValue)
       ) {
         sanitized.paid_promotion_campaign_id = rawValue;
+      }
+      continue;
+    }
+
+    if (key === 'curator_id') {
+      const value = input.curator_id;
+      if (value && value.length <= 40 && /^cpr_[0-9A-Za-z]+$/.test(value)) {
+        sanitized.curator_id = value;
+      }
+      continue;
+    }
+
+    if (key === 'membership_plan_id') {
+      const value = input.membership_plan_id;
+      if (value && value.length <= 40 && /^mpl_[0-9A-Za-z]+$/.test(value)) {
+        sanitized.membership_plan_id = value;
       }
       continue;
     }

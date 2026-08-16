@@ -69,6 +69,15 @@ import {
   parsePaidPromotionCampaign,
   parsePaidPromotionCampaigns,
 } from './paid-promotion-lifecycle';
+import {
+  parseMembershipCheckout,
+  parseMembershipPortal,
+  parseMembershipStatus,
+  type MembershipCheckout,
+  type MembershipInterval,
+  type MembershipPortal,
+  type MembershipStatusView,
+} from './membership';
 
 // interface MusicConnection {
 //   id: string;
@@ -423,6 +432,36 @@ class ApiService {
 
   async getPaidPromotionRateCards(): Promise<PaidPromotionRateCardsResponse> {
     return this.request<PaidPromotionRateCardsResponse>('/api/v1/paid-promotions/rate-cards');
+  }
+
+  async getMembershipStatus(
+    curatorProfileId: string,
+    signal?: AbortSignal,
+  ): Promise<MembershipStatusView> {
+    const response = await this.request<unknown>(
+      `/api/v1/memberships/status/${encodeURIComponent(curatorProfileId)}`,
+      { signal },
+    );
+    return parseMembershipStatus(response);
+  }
+
+  async createMembershipCheckout(
+    planId: string,
+    interval: MembershipInterval,
+  ): Promise<MembershipCheckout> {
+    const response = await this.request<unknown>('/api/v1/memberships/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ planId, interval }),
+    });
+    return parseMembershipCheckout(response);
+  }
+
+  async createMembershipPortal(membershipSubscriptionId: string): Promise<MembershipPortal> {
+    const response = await this.request<unknown>('/api/v1/memberships/billing-portal', {
+      method: 'POST',
+      body: JSON.stringify({ membershipSubscriptionId }),
+    });
+    return parseMembershipPortal(response);
   }
 
   async createPaidPromotionCampaign(

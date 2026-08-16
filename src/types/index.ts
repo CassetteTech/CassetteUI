@@ -650,6 +650,8 @@ export interface PostByIdResponse {
   postId: string;
   redirectPostId?: string;
   paidPromotionCampaignId?: string | null;
+  curatorId?: string | null;
+  isMemberView?: boolean;
   isRepost?: boolean;
   originalPostId?: string | null;
   repostedByCurrentUser?: boolean;

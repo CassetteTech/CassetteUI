@@ -1,6 +1,6 @@
 'use client';
 
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { EmailPreferencesSettingsProvider } from '@/components/features/profile/email-preferences-settings';
 
@@ -11,20 +11,12 @@ interface SidebarLayoutProps {
 export default function SidebarLayout({ children }: SidebarLayoutProps) {
   return (
     <EmailPreferencesSettingsProvider>
-      {/* Mobile: render children directly (pages handle mobile layout) */}
-      <div className="lg:hidden">
-        {children}
-      </div>
-
-      {/* Desktop: persistent sidebar with content area */}
-      <div className="hidden lg:block h-screen overflow-hidden bg-background">
-        <SidebarProvider defaultOpen={true} className="h-full min-h-0">
+      <SidebarProvider defaultOpen className="min-h-svh lg:h-screen lg:min-h-0 lg:overflow-hidden">
+        <div className="hidden lg:block">
           <AppSidebar />
-          <SidebarInset className="overflow-y-auto">
-            {children}
-          </SidebarInset>
-        </SidebarProvider>
-      </div>
+        </div>
+        <div className="min-w-0 flex-1 lg:overflow-y-auto">{children}</div>
+      </SidebarProvider>
     </EmailPreferencesSettingsProvider>
   );
 }

@@ -14,6 +14,9 @@ test('sanitizeAnalyticsProps strips forbidden and unknown fields', () => {
     element_type: 'track',
     post_id: 'post-123',
     paid_promotion_campaign_id: 'pmc_0123AbCd',
+    curator_id: 'cpr_0123AbCd',
+    membership_plan_id: 'mpl_0123AbCd',
+    is_member_view: true,
     source_domain: 'https://open.spotify.com/track/abc?si=secret',
     signup_source: 'friend',
     signup_medium: 'dm',
@@ -55,6 +58,9 @@ test('sanitizeAnalyticsProps strips forbidden and unknown fields', () => {
   assert.equal(result.element_type, 'track');
   assert.equal(result.post_id, 'post-123');
   assert.equal(result.paid_promotion_campaign_id, 'pmc_0123AbCd');
+  assert.equal(result.curator_id, 'cpr_0123AbCd');
+  assert.equal(result.membership_plan_id, 'mpl_0123AbCd');
+  assert.equal(result.is_member_view, true);
   assert.equal(result.source_domain, 'open.spotify.com');
   assert.equal(result.signup_source, 'friend');
   assert.equal(result.signup_medium, 'dm');
@@ -106,6 +112,19 @@ test('sanitizeAnalyticsProps keeps only opaque bounded paid-promotion campaign i
   assert.equal(
     sanitizeAnalyticsProps({ paid_promotion_campaign_id: `pmc_${'a'.repeat(37)}` })
       .paid_promotion_campaign_id,
+    undefined,
+  );
+});
+
+test('sanitizeAnalyticsProps keeps only opaque bounded curator membership ids', () => {
+  assert.equal(sanitizeAnalyticsProps({ curator_id: 'cpr_0123AbCd' }).curator_id, 'cpr_0123AbCd');
+  assert.equal(
+    sanitizeAnalyticsProps({ membership_plan_id: 'mpl_0123AbCd' }).membership_plan_id,
+    'mpl_0123AbCd',
+  );
+  assert.equal(sanitizeAnalyticsProps({ curator_id: 'curator/matt' }).curator_id, undefined);
+  assert.equal(
+    sanitizeAnalyticsProps({ membership_plan_id: `mpl_${'a'.repeat(37)}` }).membership_plan_id,
     undefined,
   );
 });

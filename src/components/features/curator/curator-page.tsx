@@ -1,11 +1,12 @@
 'use client';
 
-import { useId } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   BadgeCheck,
   CalendarDays,
-  Check,
   Disc3,
   ListMusic,
   LockKeyhole,
@@ -14,17 +15,25 @@ import {
 } from 'lucide-react';
 import { useAuthState } from '@/hooks/use-auth';
 import { useCuratorPage } from '@/hooks/use-curator';
+import { useMembershipStatus } from '@/hooks/use-membership-status';
 import {
   CuratorPageError,
-  formatCuratorPlanPrice,
   type CuratorPage as CuratorPageData,
   type CuratorPostItem,
 } from '@/services/curator';
+import { apiService } from '@/services/api';
+import {
+  grantsMembershipAccess,
+  type MembershipInterval,
+  type MembershipStatus,
+} from '@/services/membership';
+import { captureClientEvent } from '@/lib/analytics/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { ArtworkImage } from '@/components/ui/artwork-image';
+import { CuratorMembershipCard } from '@/components/features/curator/curator-membership-card';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -40,14 +49,324 @@ function getPostIcon(elementType: string) {
   }
 }
 
-export function PublicCuratorPage({ username }: { username: string }) {
+type MembershipFlow = 'join' | 'return' | 'canceled' | 'portal-return' | null;
+const joinIntentPrefix = 'cassette:membership-join-intent:';
+const checkoutReturnPrefix = 'cassette:membership-checkout-return:';
+const joinIntentLifetimeMs = 10 * 60 * 1_000;
+const checkoutReturnLifetimeMs = (2 * 60 + 5) * 60 * 1_000;
+const portalBaselinePrefix = 'cassette:membership-portal-baseline:';
+
+function removeMembershipQuery(...keys: string[]) {
+  const url = new URL(window.location.href);
+  for (const key of keys) url.searchParams.delete(key);
+  window.history.replaceState(
+    window.history.state,
+    '',
+    `${url.pathname}${url.search}${url.hash}`,
+  );
+}
+
+export function PublicCuratorPage({
+  username,
+  membershipFlow,
+  initialInterval,
+}: {
+  username: string;
+  membershipFlow: MembershipFlow;
+  initialInterval: MembershipInterval;
+}) {
   const instanceId = useId();
   const curatorNameId = `curator-name-${instanceId}`;
   const feedHeadingId = `curator-feed-heading-${instanceId}`;
   const membershipId = `membership-${instanceId}`;
-  const { user, isLoading: authLoading } = useAuthState();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuthState();
   const viewerKey = authLoading ? null : (user?.id ?? 'anonymous');
   const query = useCuratorPage(username, viewerKey);
+  const page = query.data?.pages[0];
+  const [interval, setInterval] = useState(initialInterval);
+  const [pollStatus, setPollStatus] = useState(
+    membershipFlow === 'return' || membershipFlow === 'portal-return',
+  );
+  const [notice, setNotice] = useState<string | null>(
+    membershipFlow === 'canceled' ? 'Checkout was canceled. You were not charged.' : null,
+  );
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [checkoutPending, setCheckoutPending] = useState(false);
+  const [portalPending, setPortalPending] = useState(false);
+  const pageViewCaptured = useRef(false);
+  const flowHandled = useRef(false);
+  const portalBaseline = useRef<{ cancelAtPeriodEnd: boolean; canceled: boolean } | null>(null);
+  const statusQuery = useMembershipStatus(
+    page?.curator.id ?? '',
+    isAuthenticated && user?.id ? user.id : null,
+    pollStatus,
+  );
+  const currentMembership = statusQuery.data?.membership;
+  const checkoutInterval = currentMembership?.status === 'incomplete' &&
+    currentMembership.planId === page?.membership?.planId
+    ? currentMembership.billingInterval
+    : interval;
+  const checkoutIntervalAvailable = checkoutInterval === 'month' || (
+    page?.membership?.annualAmountMinor != null &&
+    page.membership.annualServiceFeeMinor != null
+  );
+  const startCheckout = useCallback(async (
+    planId: string,
+    curatorProfileId: string,
+    selectedInterval: MembershipInterval,
+  ) => {
+    setCheckoutPending(true);
+    setActionError(null);
+    try {
+      const checkout = await apiService.createMembershipCheckout(planId, selectedInterval);
+      try {
+        sessionStorage.setItem(
+          `${checkoutReturnPrefix}${curatorProfileId}:${checkout.membershipSubscriptionId}`,
+          String(Date.now()),
+        );
+      } catch {
+        // Checkout still works; analytics attribution stays fail-closed.
+      }
+      void captureClientEvent('membership_checkout_started', {
+        route: '/curator/[username]',
+        source_surface: 'curator',
+        curator_id: curatorProfileId,
+        membership_plan_id: checkout.planId,
+        is_member_view: false,
+      });
+      window.location.assign(checkout.checkoutUrl);
+    } catch {
+      setActionError('We could not start secure Checkout. Try again.');
+      setCheckoutPending(false);
+    }
+  }, []);
+  async function manage(
+    membershipSubscriptionId: string,
+    cancelAtPeriodEnd: boolean,
+    status: MembershipStatus,
+  ) {
+    setPortalPending(true);
+    setActionError(null);
+    try {
+      const portal = await apiService.createMembershipPortal(membershipSubscriptionId);
+      try {
+        sessionStorage.setItem(
+          `${portalBaselinePrefix}${membershipSubscriptionId}`,
+          `${cancelAtPeriodEnd}:${status === 'canceled'}`,
+        );
+      } catch {
+        // The status poll remains authoritative when storage is unavailable.
+      }
+      window.location.assign(portal.portalUrl);
+    } catch {
+      setActionError('We could not open membership management. Try again.');
+      setPortalPending(false);
+    }
+  }
+
+  useEffect(() => {
+    removeMembershipQuery('session_id');
+  }, []);
+
+  useEffect(() => {
+    if (
+      authLoading ||
+      isAuthenticated ||
+      (membershipFlow !== 'return' &&
+       membershipFlow !== 'portal-return')
+    ) return;
+
+    const query = new URLSearchParams({ membership: membershipFlow });
+    const returnPath = `/curator/${encodeURIComponent(username)}?${query}`;
+    router.replace(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
+  }, [authLoading, isAuthenticated, membershipFlow, router, username]);
+
+  useEffect(() => {
+    if (!page || pageViewCaptured.current) return;
+    pageViewCaptured.current = true;
+    void captureClientEvent('curator_page_viewed', {
+      route: '/curator/[username]',
+      source_surface: 'curator',
+      curator_id: page.curator.id,
+      membership_plan_id: page.membership?.planId,
+      is_member_view: page.viewer.isMember,
+    });
+  }, [page]);
+
+  useEffect(() => {
+    if (!pollStatus) return;
+    const timeout = window.setTimeout(() => {
+      setPollStatus(false);
+      setNotice('Your membership update is still processing. Refresh in a moment.');
+      removeMembershipQuery('membership', 'interval');
+    }, 30_000);
+    return () => window.clearTimeout(timeout);
+  }, [pollStatus]);
+
+  useEffect(() => {
+    const status = statusQuery.data;
+    const membership = status?.membership;
+    if (!status || !membership || flowHandled.current) return;
+
+    if (membershipFlow === 'return' && grantsMembershipAccess(membership.status)) {
+      flowHandled.current = true;
+      setPollStatus(false);
+      setNotice('Your membership is active.');
+      removeMembershipQuery('membership', 'interval');
+      void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
+      let checkoutStarted = false;
+      try {
+        const key = `${checkoutReturnPrefix}${status.curatorProfileId}:${membership.membershipSubscriptionId}`;
+        const createdAt = Number(sessionStorage.getItem(key));
+        sessionStorage.removeItem(key);
+        const age = Date.now() - createdAt;
+        checkoutStarted = Number.isFinite(createdAt) && age >= 0 && age <= checkoutReturnLifetimeMs;
+      } catch {
+        // Server truth still renders; analytics attribution stays fail-closed.
+      }
+      if (checkoutStarted) {
+        void captureClientEvent('membership_started', {
+          route: '/curator/[username]',
+          source_surface: 'curator',
+          curator_id: status.curatorProfileId,
+          membership_plan_id: membership.planId,
+          is_member_view: true,
+        });
+      }
+      return;
+    }
+
+    if (membershipFlow === 'return' && membership.status !== 'incomplete') {
+      flowHandled.current = true;
+      setPollStatus(false);
+      setNotice('Checkout did not activate this membership. You can try again.');
+      removeMembershipQuery('membership', 'interval');
+      return;
+    }
+
+    if (membershipFlow !== 'portal-return') return;
+
+    if (portalBaseline.current === null) {
+      try {
+        const key = `${portalBaselinePrefix}${membership.membershipSubscriptionId}`;
+        const stored = sessionStorage.getItem(key);
+        sessionStorage.removeItem(key);
+        if (['false:false', 'false:true', 'true:false', 'true:true'].includes(stored ?? '')) {
+          const [cancelAtPeriodEnd, canceled] = stored!.split(':');
+          portalBaseline.current = {
+            cancelAtPeriodEnd: cancelAtPeriodEnd === 'true',
+            canceled: canceled === 'true',
+          };
+        }
+      } catch {
+        // Fall back to the first server response below.
+      }
+    }
+
+    const baseline = portalBaseline.current;
+    const cancellationObserved = baseline !== null && (
+      (!baseline.canceled && membership.status === 'canceled') ||
+      (!baseline.cancelAtPeriodEnd && membership.cancelAtPeriodEnd)
+    );
+    if (cancellationObserved) {
+      flowHandled.current = true;
+      setPollStatus(false);
+      setNotice(
+        membership.status === 'canceled'
+          ? 'Your membership is canceled.'
+          : 'Your membership will end after the current billing period.',
+      );
+      removeMembershipQuery('membership', 'interval');
+      void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
+      void captureClientEvent('membership_canceled', {
+        route: '/curator/[username]',
+        source_surface: 'curator',
+        curator_id: status.curatorProfileId,
+        membership_plan_id: membership.planId,
+        is_member_view: grantsMembershipAccess(membership.status),
+      });
+      return;
+    }
+
+    if (baseline === null) {
+      portalBaseline.current = {
+        cancelAtPeriodEnd: membership.cancelAtPeriodEnd,
+        canceled: membership.status === 'canceled',
+      };
+      return;
+    }
+
+    if (baseline.canceled && membership.status === 'canceled') {
+      flowHandled.current = true;
+      setPollStatus(false);
+      setNotice('Membership management is up to date.');
+      removeMembershipQuery('membership', 'interval');
+      return;
+    }
+
+    if (
+      (baseline.cancelAtPeriodEnd && !membership.cancelAtPeriodEnd) ||
+      (baseline.canceled && membership.status !== 'canceled')
+    ) {
+      flowHandled.current = true;
+      setPollStatus(false);
+      setNotice('Your membership will continue.');
+      removeMembershipQuery('membership', 'interval');
+      void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
+    }
+  }, [membershipFlow, queryClient, statusQuery.data, username]);
+
+  useEffect(() => {
+    if (membershipFlow !== 'canceled') return;
+    removeMembershipQuery('membership', 'interval');
+  }, [membershipFlow]);
+
+  useEffect(() => {
+    if (
+      membershipFlow !== 'join' ||
+      flowHandled.current ||
+      !isAuthenticated ||
+      !page?.membership ||
+      !statusQuery.data
+    ) return;
+
+    flowHandled.current = true;
+    removeMembershipQuery('membership', 'interval');
+    let intentCreatedAt = Number.NaN;
+    try {
+      const key = `${joinIntentPrefix}${page.membership.planId}:${checkoutInterval}`;
+      intentCreatedAt = Number(sessionStorage.getItem(key));
+      sessionStorage.removeItem(key);
+    } catch {
+      // An explicit authenticated Join remains available when storage is unavailable.
+    }
+    const intentAge = Date.now() - intentCreatedAt;
+    if (!Number.isFinite(intentCreatedAt) || intentAge < 0 || intentAge > joinIntentLifetimeMs) {
+      setNotice('Choose a billing option and select Join to continue.');
+      return;
+    }
+
+    if (statusQuery.data.canSubscribe) {
+      if (!checkoutIntervalAvailable) {
+        setInterval('month');
+        setActionError('Annual billing is not available. Review the monthly option before joining.');
+        return;
+      }
+      void startCheckout(page.membership.planId, page.curator.id, checkoutInterval);
+    } else {
+      setNotice('This membership already has an active or pending billing record.');
+    }
+  }, [
+    checkoutInterval,
+    checkoutIntervalAvailable,
+    isAuthenticated,
+    membershipFlow,
+    page,
+    startCheckout,
+    statusQuery.data,
+  ]);
 
   if (authLoading || query.isPending) {
     return <CuratorPageSkeleton />;
@@ -60,9 +379,34 @@ export function PublicCuratorPage({ username }: { username: string }) {
     return <CuratorLoadError onRetry={() => void query.refetch()} />;
   }
 
-  const page = query.data.pages[0];
+  if (!page) return <CuratorLoadError onRetry={() => void query.refetch()} />;
+
+  const join = () => {
+    if (!page.membership) return;
+    if (!checkoutIntervalAvailable) {
+      setInterval('month');
+      setActionError('Annual billing is not available. Review the monthly option before joining.');
+      return;
+    }
+    if (!isAuthenticated) {
+      try {
+        sessionStorage.setItem(
+          `${joinIntentPrefix}${page.membership.planId}:${checkoutInterval}`,
+          String(Date.now()),
+        );
+      } catch {
+        // The fan can select Join again after signing in.
+      }
+      const returnPath = `/curator/${encodeURIComponent(username)}?membership=join&interval=${checkoutInterval}`;
+      router.push(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
+      return;
+    }
+    void startCheckout(page.membership.planId, page.curator.id, checkoutInterval);
+  };
+
   const posts = query.data.pages.flatMap((result) => result.posts.items);
   const displayName = page.curator.displayName?.trim() || page.curator.username;
+  const showMembership = Boolean(page.membership || statusQuery.data?.membership?.canManage);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
@@ -70,7 +414,7 @@ export function PublicCuratorPage({ username }: { username: string }) {
 
       <div className={cn(
         'mt-8 grid gap-6',
-        page.membership && 'lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start',
+        showMembership && 'lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start',
       )}>
         <CuratorFeed
           items={posts}
@@ -81,8 +425,25 @@ export function PublicCuratorPage({ username }: { username: string }) {
           isFetchingNextPage={query.isFetchingNextPage}
           onLoadMore={() => void query.fetchNextPage()}
         />
-        {page.membership && (
-          <MembershipCard page={page} displayName={displayName} membershipId={membershipId} />
+        {showMembership && (
+          <CuratorMembershipCard
+            page={page}
+            displayName={displayName}
+            membershipId={membershipId}
+            interval={checkoutIntervalAvailable ? checkoutInterval : 'month'}
+            status={statusQuery.data ?? null}
+            statusLoading={statusQuery.isPending}
+            statusUnavailable={statusQuery.isError}
+            authenticated={isAuthenticated}
+            notice={notice}
+            error={actionError}
+            checkoutPending={checkoutPending}
+            portalPending={portalPending}
+            checkoutCanceled={membershipFlow === 'canceled'}
+            onIntervalChange={setInterval}
+            onJoin={join}
+            onManage={(id, cancelAtPeriodEnd, status) => void manage(id, cancelAtPeriodEnd, status)}
+          />
         )}
       </div>
     </div>
@@ -167,88 +528,6 @@ function CuratorIdentity({
         </p>
       </div>
     </section>
-  );
-}
-
-function MembershipCard({
-  page,
-  displayName,
-  membershipId,
-}: {
-  page: CuratorPageData;
-  displayName: string;
-  membershipId: string;
-}) {
-  const plan = page.membership;
-  if (!plan) return null;
-
-  const monthlyPrice = formatCuratorPlanPrice(
-    plan.amountMinor,
-    plan.serviceFeeMinor,
-    plan.currency,
-  );
-  const annualPrice = plan.annualAmountMinor === null || plan.annualServiceFeeMinor === null
-    ? null
-    : formatCuratorPlanPrice(
-        plan.annualAmountMinor,
-        plan.annualServiceFeeMinor,
-        plan.currency,
-      );
-
-  return (
-    <aside className="order-first lg:order-last lg:sticky lg:top-6" aria-label="Membership">
-      <Card id={membershipId} data-testid="curator-membership-card" className="border-foreground/30 elev-2">
-        <CardHeader>
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-            Membership
-          </p>
-          <h2 className="break-words font-teko text-3xl font-semibold uppercase leading-none">{plan.name}</h2>
-          <div className="pt-2">
-            <span className="font-teko text-3xl font-bold">{monthlyPrice}</span>
-            <span className="text-sm text-muted-foreground">/month</span>
-            {annualPrice && (
-              <p className="mt-1 text-sm text-muted-foreground">or {annualPrice}/year</p>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {plan.description && (
-            <p className="whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground">
-              {plan.description}
-            </p>
-          )}
-          {plan.benefits.length > 0 && (
-            <ul className="mt-5 space-y-3" aria-label="Membership benefits">
-              {plan.benefits.map((benefit) => (
-                <li key={benefit.featureKey} className="flex gap-2 text-sm">
-                  <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-                  <span>
-                    <span className="font-semibold">{benefit.name}</span>
-                    {benefit.description && (
-                      <span className="mt-0.5 block text-muted-foreground">{benefit.description}</span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="mt-6">
-            {page.viewer.isOwner ? (
-              <p className="text-sm font-medium text-muted-foreground">Your published membership plan</p>
-            ) : page.viewer.isMember ? (
-              <Badge variant="secondary" className="px-3 py-1.5">Member</Badge>
-            ) : (
-              <Button asChild className="w-full">
-                <a href={`#${membershipId}`} aria-label={`Join ${displayName}'s membership`}>
-                  Join {displayName}
-                </a>
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </aside>
   );
 }
 

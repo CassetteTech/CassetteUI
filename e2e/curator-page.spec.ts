@@ -40,8 +40,7 @@ test('shows a paid curator plan without leaking locked content to a nonmember', 
     fixtureCuratorPage.membership!.benefits[0].name,
   );
   await expect(membershipCard).toContainText(/\$5\.50\s*\/month/);
-  const membershipJoin = membershipCard.getByRole('link', { name: /join/i });
-  await expect(membershipJoin).toHaveAttribute('href', /^#membership-/);
+  await expect(membershipCard.getByRole('button', { name: /join/i })).toBeVisible();
   const lockedPost = page.locator('[data-testid="curator-locked-post"]:visible').first();
   await expect(lockedPost).toBeVisible();
   const lockedJoin = lockedPost.getByRole('link', { name: /join/i });
@@ -114,10 +113,14 @@ test('keeps the curator page accessible and responsive on mobile and desktop', a
   await expect(
     page.locator('[data-testid="curator-profile"]:visible').first(),
   ).toBeInViewport({ ratio: 1 });
-  const joinLink = page.locator('[data-testid="curator-membership-card"]:visible').first()
-    .getByRole('link', { name: /join/i });
-  await joinLink.scrollIntoViewIfNeeded();
-  await expect(joinLink).toBeInViewport({ ratio: 1 });
+  const joinButton = page.locator('[data-testid="curator-membership-card"]:visible').first()
+    .getByRole('button', { name: /join/i });
+  await joinButton.scrollIntoViewIfNeeded();
+  await expect(joinButton).toBeInViewport({ ratio: 1 });
+  await expectNoHorizontalOverflow(page);
+
+  await page.setViewportSize({ width: 900, height: 800 });
+  await expect(page.locator('[data-slot="sidebar-gap"]')).toBeHidden();
   await expectNoHorizontalOverflow(page);
 
   await page.setViewportSize({ width: 1440, height: 900 });

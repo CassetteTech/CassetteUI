@@ -7,6 +7,7 @@ export type SourceSurface =
   | 'post'
   | 'post_direct'
   | 'profile'
+  | 'curator'
   | 'onboarding'
   | 'explore'
   | 'auth'
@@ -74,6 +75,11 @@ export type AnalyticsEventName =
   | 'paid_promotion_campaign_submitted'
   | 'paid_promotion_checkout_started'
   | 'paid_promotion_checkout_returned'
+  | 'curator_page_viewed'
+  | 'membership_checkout_started'
+  | 'membership_started'
+  | 'membership_canceled'
+  | 'member_post_viewed'
   | 'issue_report_submitted'
   | 'issue_reported'
   | 'issue_report_failed';
@@ -91,6 +97,9 @@ export type AnalyticsBaseProps = {
   plan?: string;
   post_id?: string;
   paid_promotion_campaign_id?: string;
+  curator_id?: string;
+  membership_plan_id?: string;
+  is_member_view?: boolean;
   music_element_id?: string;
   status?: 'submitted' | 'succeeded' | 'failed';
   success?: boolean;

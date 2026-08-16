@@ -1,4 +1,5 @@
 import type { CuratorPage as FixtureCuratorPage } from '../../src/services/curator';
+import type { MembershipStatusView } from '../../src/services/membership';
 
 export interface FixtureSearchResults {
   tracks: Array<{
@@ -64,6 +65,8 @@ export interface FixtureUser {
 export interface FixturePost {
   postId: string;
   paidPromotionCampaignId?: string | null;
+  curatorId?: string | null;
+  isMemberView?: boolean;
   musicElementId: string;
   elementType: 'Track' | 'Album' | 'Artist' | 'Playlist';
   title: string;
@@ -99,6 +102,8 @@ export interface FixturePost {
     appleMusicTrackId?: string;
   }>;
 }
+
+export type FixtureMembershipStatusView = MembershipStatusView;
 
 export interface FixturePaidPromotionRateCard {
   id: string;
@@ -451,8 +456,8 @@ export const fixtureCuratorPage: FixtureCuratorPage = {
     description: 'Get the notes behind each weekly playlist.',
     amountMinor: 500,
     serviceFeeMinor: 50,
-    annualAmountMinor: null,
-    annualServiceFeeMinor: null,
+    annualAmountMinor: 5000,
+    annualServiceFeeMinor: 500,
     currency: 'USD',
     benefits: [
       {
@@ -479,6 +484,54 @@ export const fixtureCuratorPage: FixtureCuratorPage = {
     totalItems: 2,
     page: 1,
     pageSize: 20,
+  },
+};
+
+export const fixtureNoMembershipStatus: FixtureMembershipStatusView = {
+  curatorProfileId: fixtureCuratorPage.curator.id,
+  canSubscribe: true,
+  membership: null,
+};
+
+export const fixtureIncompleteMembershipStatus: FixtureMembershipStatusView = {
+  curatorProfileId: fixtureCuratorPage.curator.id,
+  canSubscribe: true,
+  membership: {
+    membershipSubscriptionId: 'msb_FixtureMembership01',
+    planId: fixtureCuratorPage.membership!.planId,
+    billingInterval: 'month',
+    status: 'incomplete',
+    canManage: false,
+    cancelAtPeriodEnd: false,
+    paidThroughUtc: null,
+  },
+};
+
+export const fixtureActiveMembershipStatus: FixtureMembershipStatusView = {
+  curatorProfileId: fixtureCuratorPage.curator.id,
+  canSubscribe: false,
+  membership: {
+    ...fixtureIncompleteMembershipStatus.membership!,
+    status: 'active',
+    canManage: true,
+    paidThroughUtc: '2026-09-16T12:00:00Z',
+  },
+};
+
+export const fixtureCancelingMembershipStatus: FixtureMembershipStatusView = {
+  ...fixtureActiveMembershipStatus,
+  membership: {
+    ...fixtureActiveMembershipStatus.membership!,
+    cancelAtPeriodEnd: true,
+  },
+};
+
+export const fixtureCanceledMembershipStatus: FixtureMembershipStatusView = {
+  ...fixtureActiveMembershipStatus,
+  canSubscribe: true,
+  membership: {
+    ...fixtureActiveMembershipStatus.membership!,
+    status: 'canceled',
   },
 };
 

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { captureClientEvent, identifyClientUser, resetAnalyticsContextForTests, surfaceFromRoute, trackBrowserPageview } from '../client';
 import { shouldSuppressClientCapture, isCassetteInternalAccount, isInternalOrDemoRoute } from '../internal-suppression';
+import type { AnalyticsBaseProps } from '../events';
 
 type MemoryStorage = {
   getItem(key: string): string | null;
@@ -13,6 +14,10 @@ type MemoryStorage = {
 test('maps paid-promotion routes to their sanitized analytics surface', () => {
   assert.equal(surfaceFromRoute('/promote'), 'paid_promotion');
   assert.equal(surfaceFromRoute('/promote/pmc_0123AbCd/return?session_id=secret'), 'paid_promotion');
+});
+
+test('maps curator routes to their analytics surface', () => {
+  assert.equal(surfaceFromRoute('/curator/matt?membership=return&session_id=secret'), 'curator');
 });
 
 test('suppresses every internal paid-promotion console route', () => {
@@ -444,6 +449,50 @@ test('fan-action events keep only sanitizer-validated paid-promotion attribution
     (invalid?.properties as Record<string, unknown> | undefined)?.paid_promotion_campaign_id,
     undefined,
   );
+
+  mocks.restore();
+  process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;
+  process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
+});
+
+test('membership events keep only opaque attribution and relationship state', { concurrency: false }, async () => {
+  const previousKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  const previousDevFlag = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV;
+  process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_test_key';
+  process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = 'true';
+  resetAnalyticsContextForTests();
+
+  const mocks = setupBrowserMocks('/curator/selector');
+  const unsafeProperties: AnalyticsBaseProps & {
+    amount_minor: number;
+    checkout_url: string;
+    promotion_code: string;
+    billing_status: string;
+  } = {
+    route: '/curator/[username]',
+    source_surface: 'curator',
+    curator_id: 'cpr_0123AbCd',
+    membership_plan_id: 'mpl_0123AbCd',
+    is_member_view: false,
+    amount_minor: 550,
+    checkout_url: 'https://checkout.stripe.test/secret',
+    promotion_code: 'SECRET',
+    billing_status: 'active',
+  };
+  await captureClientEvent('membership_checkout_started', unsafeProperties);
+
+  const captured = await collectCapturedPayloads(mocks.fetchPayloads, mocks.beaconPayloads);
+  const properties = captured.find((payload) =>
+    payload.event === 'membership_checkout_started'
+  )?.properties as Record<string, unknown> | undefined;
+
+  assert.equal(properties?.curator_id, 'cpr_0123AbCd');
+  assert.equal(properties?.membership_plan_id, 'mpl_0123AbCd');
+  assert.equal(properties?.is_member_view, false);
+  assert.equal(properties?.amount_minor, undefined);
+  assert.equal(properties?.checkout_url, undefined);
+  assert.equal(properties?.promotion_code, undefined);
+  assert.equal(properties?.billing_status, undefined);
 
   mocks.restore();
   process.env.NEXT_PUBLIC_POSTHOG_KEY = previousKey;

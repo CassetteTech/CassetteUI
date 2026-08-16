@@ -100,6 +100,8 @@ type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
   originalPostId?: string | null;
   redirectPostId?: string;
   paidPromotionCampaignId?: string | null;
+  curatorId?: string | null;
+  isMemberView?: boolean;
   repostedByCurrentUser?: boolean;
   username?: string;
   userId?: string | null;
@@ -377,6 +379,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       source_platform: sourcePlatformRef.current as 'spotify' | 'apple' | 'deezer' | 'unknown' | undefined,
       user_id: user?.id,
       is_authenticated: isAuthenticated,
+      curator_id: postData?.curatorId ?? undefined,
+      is_member_view: postData?.isMemberView === true,
       ...(isTeamAccount ? { source_context: 'share_menu_plain' } : {}),
     });
 
@@ -416,7 +420,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         setTimeout(() => setCopyState('idle'), 2000);
       }
     }
-  }, [buildShareUrl, postData?.metadata?.title, postData?.metadata?.artist, postData?.postId, postData?.metadata?.type, postId, user?.id, isAuthenticated, isTeamAccount]);
+  }, [buildShareUrl, postData?.metadata?.title, postData?.metadata?.artist, postData?.postId, postData?.metadata?.type, postData?.curatorId, postData?.isMemberView, postId, user?.id, isAuthenticated, isTeamAccount]);
 
   // Team-only: copy the post URL tagged with a link template's utm params so the
   // resulting traffic and signups surface in the internal attribution dashboard.
@@ -439,6 +443,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       traffic_medium: template.medium ?? undefined,
       traffic_campaign: template.campaign ?? undefined,
       traffic_content: `post-${resolvedPostId}`,
+      curator_id: postData?.curatorId ?? undefined,
+      is_member_view: postData?.isMemberView === true,
     });
 
     try {
@@ -451,7 +457,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       playErrorTone();
       setTimeout(() => setCopyState('idle'), 2000);
     }
-  }, [postData?.postId, postData?.metadata?.type, postId, user?.id, isAuthenticated]);
+  }, [postData?.postId, postData?.metadata?.type, postData?.curatorId, postData?.isMemberView, postId, user?.id, isAuthenticated]);
 
   const handleAddToProfile = useCallback(() => {
     const musicElementId = postData?.musicElementId;
@@ -718,6 +724,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
             originalPostId: response.originalPostId ?? null,
             redirectPostId: response.redirectPostId || response.postId || postId,
             paidPromotionCampaignId: response.paidPromotionCampaignId ?? null,
+            curatorId: response.curatorId ?? null,
+            isMemberView: response.isMemberView === true,
             repostedByCurrentUser: Boolean(
               (response as unknown as Record<string, unknown>).repostedByCurrentUser === true ||
               (response as unknown as Record<string, unknown>).RepostedByCurrentUser === true ||
@@ -927,7 +935,18 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       is_authenticated: isAuthenticated,
       is_creator_view: isCreatorView,
       paid_promotion_campaign_id: postData.paidPromotionCampaignId ?? undefined,
+      curator_id: postData.curatorId ?? undefined,
+      is_member_view: postData.isMemberView === true,
     });
+    if (postData.isMemberView && postData.curatorId) {
+      void captureClientEvent('member_post_viewed', {
+        route: `/post/${resolvedPostId}`,
+        source_surface: 'post',
+        post_id: resolvedPostId,
+        curator_id: postData.curatorId,
+        is_member_view: true,
+      });
+    }
   }, [isLoading, isAuthenticated, postData, postId, user?.id]);
 
   // Color extraction function
@@ -1215,6 +1234,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                     is_authenticated: isAuthenticated,
                                     paid_promotion_campaign_id:
                                       postData?.paidPromotionCampaignId ?? undefined,
+                                    curator_id: postData?.curatorId ?? undefined,
+                                    is_member_view: postData?.isMemberView === true,
                                   });
                                   handleStreamingLinkClick(event, resolvedSourceUrl);
                                 }}
@@ -1277,6 +1298,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                               sourcePlatform={analyticsSourcePlatform}
                               isAuthenticated={isAuthenticated}
                               paidPromotionCampaignId={postData?.paidPromotionCampaignId}
+                              curatorId={postData?.curatorId}
+                              isMemberView={postData?.isMemberView}
                               className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                             />
                           )}
@@ -1566,6 +1589,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                   sourcePlatform={analyticsSourcePlatform}
                                   isAuthenticated={isAuthenticated}
                                   paidPromotionCampaignId={postData?.paidPromotionCampaignId}
+                                  curatorId={postData?.curatorId}
+                                  isMemberView={postData?.isMemberView}
                                   className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                                 />
                               )}
@@ -1788,6 +1813,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             is_authenticated: isAuthenticated,
                             paid_promotion_campaign_id:
                               postData?.paidPromotionCampaignId ?? undefined,
+                            curator_id: postData?.curatorId ?? undefined,
+                            is_member_view: postData?.isMemberView === true,
                           });
                           handleStreamingLinkClick(event, resolvedSourceUrl);
                         }}
@@ -1887,6 +1914,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                         sourcePlatform={analyticsSourcePlatform}
                         isAuthenticated={isAuthenticated}
                         paidPromotionCampaignId={postData?.paidPromotionCampaignId}
+                        curatorId={postData?.curatorId}
+                        isMemberView={postData?.isMemberView}
                         className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
                       />
                     )}

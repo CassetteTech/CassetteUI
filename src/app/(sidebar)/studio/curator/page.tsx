@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { RequireAuth } from '@/components/auth/RequireAuth';
+import { CuratorPayoutCard } from '@/components/features/curator/curator-payout-card';
 import { CuratorProCard } from '@/components/features/curator/curator-pro-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -166,6 +167,7 @@ function CuratorStudio() {
 
       <div className="space-y-6">
         <CuratorProCard />
+        <CuratorPayoutCard />
         {profile.isPending ? (
           <Card><CardContent><output>Loading curator profile…</output></CardContent></Card>
         ) : profile.isError ? (

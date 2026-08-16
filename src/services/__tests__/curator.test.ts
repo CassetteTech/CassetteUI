@@ -3,11 +3,15 @@ import test from 'node:test';
 import {
   CuratorPageError,
   createCuratorProfile,
+  fetchCuratorPayoutAccount,
   fetchCuratorPage,
   fetchOwnCuratorProfile,
   formatCuratorPlanPrice,
   parseCuratorPage,
+  parseCuratorPayoutAccount,
+  parseCuratorPayoutOnboarding,
   parseCuratorProfile,
+  startCuratorPayoutOnboarding,
   updateCuratorProfile,
   type CuratorProfileRequest,
 } from '../curator';
@@ -214,6 +218,89 @@ void test('creates and updates the authenticated curator profile with the public
       },
     ],
   );
+});
+
+void test('parses payout status and secure onboarding without provider identifiers', () => {
+  const account = {
+    onboardingStatus: 'onboarding',
+    transfersCapabilityStatus: 'pending',
+    requirementsDue: true,
+    capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
+    correlationId: '44444444-4444-4444-8444-444444444444',
+  };
+  const parsed = parseCuratorPayoutAccount(account);
+  assert.equal(parsed.onboardingStatus, 'onboarding');
+  assert.equal('correlationId' in parsed, false);
+  assert.throws(() => parseCuratorPayoutAccount({ ...account, stripeAccountId: 'acct_secret' }));
+
+  const onboarding = parseCuratorPayoutOnboarding({
+    onboardingUrl: 'https://connect.stripe.test/setup',
+    expiresAtUtc: '2026-08-16T13:00:00Z',
+    account,
+    correlationId: '55555555-5555-4555-8555-555555555555',
+  });
+  assert.equal(onboarding.onboardingUrl, 'https://connect.stripe.test/setup');
+  assert.throws(() => parseCuratorPayoutOnboarding({
+    onboardingUrl: 'http://connect.stripe.test/setup',
+    expiresAtUtc: '2026-08-16T13:00:00Z',
+    account,
+  }));
+});
+
+void test('loads payout status and starts onboarding through authenticated endpoints', async (t) => {
+  const calls: Array<{ init?: RequestInit; input: string | URL | Request }> = [];
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async (input: string | URL | Request, init?: RequestInit) => {
+      calls.push({ init, input });
+      return new Response(JSON.stringify(calls.length === 1
+        ? {
+            onboardingStatus: 'created',
+            transfersCapabilityStatus: null,
+            requirementsDue: false,
+            capabilityCheckedAtUtc: null,
+          }
+        : {
+            onboardingUrl: 'https://connect.stripe.test/setup',
+            expiresAtUtc: '2026-08-16T13:00:00Z',
+            account: {
+              onboardingStatus: 'onboarding',
+              transfersCapabilityStatus: null,
+              requirementsDue: false,
+              capabilityCheckedAtUtc: null,
+            },
+          }));
+    },
+  );
+
+  await fetchCuratorPayoutAccount(true);
+  await startCuratorPayoutOnboarding();
+
+  assert.deepEqual(calls.map(({ init, input }) => ({
+    cache: init?.cache,
+    credentials: init?.credentials,
+    method: init?.method,
+    url: input,
+  })), [
+    {
+      cache: 'no-store',
+      credentials: 'include',
+      method: undefined,
+      url: '/api/v1/curators/payout-account?refresh=true',
+    },
+    {
+      cache: undefined,
+      credentials: 'include',
+      method: 'POST',
+      url: '/api/v1/curators/payout-account',
+    },
+  ]);
+});
+
+void test('returns null when no payout account exists', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => new Response(null, { status: 404 }));
+  assert.equal(await fetchCuratorPayoutAccount(), null);
 });
 
 void test('formats the fan charge from face price plus frozen service fee', () => {

@@ -1,6 +1,10 @@
 import type { Page, Route } from '@playwright/test';
 import { z } from 'zod';
-import type { CuratorPage, CuratorProfile } from '../../src/services/curator';
+import type {
+  CuratorPage,
+  CuratorPayoutAccount,
+  CuratorProfile,
+} from '../../src/services/curator';
 import type { CuratorProStatus } from '../../src/services/curator-pro';
 import {
   FIXTURE_TIMESTAMP,
@@ -39,6 +43,9 @@ type MockCassetteOptions = {
   analyticsCaptures?: Array<Record<string, unknown>>;
   currentUser?: FixtureUser | null;
   curatorPage?: CuratorPage;
+  curatorPayoutAccount?: CuratorPayoutAccount | null;
+  curatorPayoutRefreshAccount?: CuratorPayoutAccount;
+  curatorPayoutOnboardingUrl?: string;
   curatorProfile?: CuratorProfile | null;
   curatorProStatus?: CuratorProStatus;
   curatorProStatusSequence?: CuratorProStatus[];
@@ -118,6 +125,13 @@ type MockEmailPreference = {
 type MockState = {
   currentUser: FixtureUser | null;
   curatorPage?: CuratorPage;
+  curatorPayoutAccount: CuratorPayoutAccount | null;
+  curatorPayoutRefreshAccount?: CuratorPayoutAccount;
+  curatorPayoutStatusRequests: boolean[];
+  curatorPayoutOnboardingRequests: number;
+  curatorPayoutOnboardingFailuresRemaining: number;
+  curatorPayoutStatusFailuresRemaining: number;
+  curatorPayoutOnboardingUrl: string;
   curatorProfile: CuratorProfile | null;
   curatorProStatus: CuratorProStatus;
   curatorProStatusSequence: CuratorProStatus[];
@@ -473,6 +487,18 @@ const buildState = (options: MockCassetteOptions): MockState => {
   const state: MockState = {
     currentUser: options.currentUser ? clone(options.currentUser) : null,
     curatorPage,
+    curatorPayoutAccount: options.curatorPayoutAccount
+      ? clone(options.curatorPayoutAccount)
+      : null,
+    curatorPayoutRefreshAccount: options.curatorPayoutRefreshAccount
+      ? clone(options.curatorPayoutRefreshAccount)
+      : undefined,
+    curatorPayoutStatusRequests: [],
+    curatorPayoutOnboardingRequests: 0,
+    curatorPayoutOnboardingFailuresRemaining: 0,
+    curatorPayoutStatusFailuresRemaining: 0,
+    curatorPayoutOnboardingUrl: options.curatorPayoutOnboardingUrl ??
+      'https://connect.stripe.test/payout-onboarding',
     curatorProfile: options.curatorProfile ? clone(options.curatorProfile) : null,
     curatorProStatus: clone(options.curatorProStatus || fixtureCuratorProDefaultStatus),
     curatorProStatusSequence: clone(options.curatorProStatusSequence || []),
@@ -797,6 +823,65 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         statusChangedAtUtc: FIXTURE_TIMESTAMP,
       };
       return json(route, state.curatorProfile, 201);
+    }
+
+    if (pathname === '/api/v1/curators/payout-account' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      const refresh = url.searchParams.get('refresh') === 'true';
+      state.curatorPayoutStatusRequests.push(refresh);
+      if (state.curatorPayoutStatusFailuresRemaining > 0) {
+        state.curatorPayoutStatusFailuresRemaining -= 1;
+        return json(route, {
+          errorCode: 'curator_invalid_request',
+          message: 'Payout status is temporarily unavailable.',
+        }, 503);
+      }
+      if (refresh && state.curatorPayoutRefreshAccount) {
+        state.curatorPayoutAccount = clone(state.curatorPayoutRefreshAccount);
+      }
+      if (!state.curatorPayoutAccount) {
+        return json(route, {
+          errorCode: 'curator_profile_not_found',
+          message: 'No payout account exists for this curator.',
+        }, 404);
+      }
+      return json(route, state.curatorPayoutAccount);
+    }
+
+    if (pathname === '/api/v1/curators/payout-account' && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      state.curatorPayoutOnboardingRequests += 1;
+      if (!state.curatorProfile) {
+        state.curatorProfile = {
+          id: 'cpr_FixtureStudioProfile01',
+          status: 'active',
+          headline: null,
+          about: null,
+          declaredGenres: [],
+          declaredPlatforms: [],
+          suspensionReason: null,
+          createdAtUtc: FIXTURE_TIMESTAMP,
+          statusChangedAtUtc: FIXTURE_TIMESTAMP,
+        };
+      }
+      if (state.curatorPayoutOnboardingFailuresRemaining > 0) {
+        state.curatorPayoutOnboardingFailuresRemaining -= 1;
+        return json(route, {
+          errorCode: 'curator_invalid_request',
+          message: 'Payout onboarding is temporarily unavailable.',
+        }, 503);
+      }
+      state.curatorPayoutAccount = state.curatorPayoutAccount ?? {
+        onboardingStatus: 'onboarding',
+        transfersCapabilityStatus: null,
+        requirementsDue: false,
+        capabilityCheckedAtUtc: null,
+      };
+      return json(route, {
+        onboardingUrl: state.curatorPayoutOnboardingUrl,
+        expiresAtUtc: '2026-08-16T13:00:00Z',
+        account: state.curatorPayoutAccount,
+      });
     }
 
     if (pathname === '/api/v1/curators/pro/status' && method === 'GET') {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { correlationIdSchema, httpsUrlSchema } from './membership';
 import { formatPaidPromotionMinorAmount } from './paid-promotion-lifecycle';
 
 const nullableString = z.string().nullable();
@@ -6,6 +7,21 @@ const timestamp = z.string().datetime({ offset: true });
 const moneyMinor = z.number().int().nonnegative().safe();
 const profileText = z.string().max(2000);
 const profileList = z.array(profileText).max(20);
+
+const curatorPayoutAccountSchema = z.object({
+  onboardingStatus: z.enum(['created', 'onboarding', 'active', 'restricted']),
+  transfersCapabilityStatus: z.string().min(1).max(50).nullable(),
+  requirementsDue: z.boolean(),
+  capabilityCheckedAtUtc: timestamp.nullable(),
+  correlationId: correlationIdSchema,
+}).strict().transform(({ correlationId: _correlationId, ...account }) => account);
+
+const curatorPayoutOnboardingSchema = z.object({
+  onboardingUrl: httpsUrlSchema,
+  expiresAtUtc: timestamp,
+  account: curatorPayoutAccountSchema,
+  correlationId: correlationIdSchema,
+}).strict().transform(({ correlationId: _correlationId, ...onboarding }) => onboarding);
 
 const curatorProfileRequestSchema = z.object({
   headline: profileText.nullable(),
@@ -110,6 +126,8 @@ export type CuratorPage = z.infer<typeof curatorPageSchema>;
 export type CuratorPostItem = z.infer<typeof postItemSchema>;
 export type CuratorProfileRequest = z.infer<typeof curatorProfileRequestSchema>;
 export type CuratorProfile = z.infer<typeof curatorProfileSchema>;
+export type CuratorPayoutAccount = z.infer<typeof curatorPayoutAccountSchema>;
+export type CuratorPayoutOnboarding = z.infer<typeof curatorPayoutOnboardingSchema>;
 
 export class CuratorPageError extends Error {
   constructor(message: string, readonly status: number) {
@@ -128,6 +146,18 @@ export function parseCuratorPage(value: unknown): CuratorPage {
 // oxlint-disable-next-line anti-slop/no-unknown-parameters
 export function parseCuratorProfile(value: unknown): CuratorProfile {
   return curatorProfileSchema.parse(value);
+}
+
+// The endpoint body is untrusted until this schema succeeds.
+// oxlint-disable-next-line anti-slop/no-unknown-parameters
+export function parseCuratorPayoutAccount(value: unknown): CuratorPayoutAccount {
+  return curatorPayoutAccountSchema.parse(value);
+}
+
+// The endpoint body is untrusted until this schema succeeds.
+// oxlint-disable-next-line anti-slop/no-unknown-parameters
+export function parseCuratorPayoutOnboarding(value: unknown): CuratorPayoutOnboarding {
+  return curatorPayoutOnboardingSchema.parse(value);
 }
 
 export function buildCuratorPagePath(username: string, page: number, pageSize: number): string {
@@ -204,6 +234,38 @@ export function updateCuratorProfile(
   request: CuratorProfileRequest,
 ): Promise<CuratorProfile> {
   return saveCuratorProfile('/api/v1/curators/me', 'PUT', request);
+}
+
+export async function fetchCuratorPayoutAccount(
+  refresh = false,
+  signal?: AbortSignal,
+): Promise<CuratorPayoutAccount | null> {
+  const response = await fetch(`/api/v1/curators/payout-account?refresh=${refresh}`, {
+    cache: 'no-store',
+    credentials: 'include',
+    signal,
+  });
+
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new CuratorPageError('Failed to load payout account', response.status);
+  }
+
+  return parseCuratorPayoutAccount(await response.json());
+}
+
+export async function startCuratorPayoutOnboarding(
+  signal?: AbortSignal,
+): Promise<CuratorPayoutOnboarding> {
+  const response = await fetch('/api/v1/curators/payout-account', {
+    method: 'POST',
+    credentials: 'include',
+    signal,
+  });
+  if (!response.ok) {
+    throw new CuratorPageError('Failed to start payout onboarding', response.status);
+  }
+  return parseCuratorPayoutOnboarding(await response.json());
 }
 
 export function formatCuratorPlanPrice(

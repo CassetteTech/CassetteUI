@@ -78,6 +78,14 @@ import {
   type MembershipPortal,
   type MembershipStatusView,
 } from './membership';
+import {
+  parseCuratorProCheckout,
+  parseCuratorProPortal,
+  parseCuratorProStatus,
+  type CuratorProCheckout,
+  type CuratorProPortal,
+  type CuratorProStatus,
+} from './curator-pro';
 
 // interface MusicConnection {
 //   id: string;
@@ -462,6 +470,28 @@ class ApiService {
       body: JSON.stringify({ membershipSubscriptionId }),
     });
     return parseMembershipPortal(response);
+  }
+
+  async getCuratorProStatus(signal?: AbortSignal): Promise<CuratorProStatus> {
+    const response = await this.request<unknown>('/api/v1/curators/pro/status', {
+      cache: 'no-store',
+      signal,
+    });
+    return parseCuratorProStatus(response);
+  }
+
+  async createCuratorProCheckout(): Promise<CuratorProCheckout> {
+    const response = await this.request<unknown>('/api/v1/curators/pro/checkout', {
+      method: 'POST',
+    });
+    return parseCuratorProCheckout(response);
+  }
+
+  async createCuratorProPortal(): Promise<CuratorProPortal> {
+    const response = await this.request<unknown>('/api/v1/curators/pro/billing-portal', {
+      method: 'POST',
+    });
+    return parseCuratorProPortal(response);
   }
 
   async createPaidPromotionCampaign(

@@ -1,4 +1,5 @@
 import type { CuratorPage as FixtureCuratorPage } from '../../src/services/curator';
+import type { CuratorProStatus as FixtureCuratorProStatus } from '../../src/services/curator-pro';
 import type { MembershipStatusView } from '../../src/services/membership';
 
 export interface FixtureSearchResults {
@@ -104,6 +105,29 @@ export interface FixturePost {
 }
 
 export type FixtureMembershipStatusView = MembershipStatusView;
+
+export const fixtureCuratorProDefaultStatus: FixtureCuratorProStatus = {
+  hasAccess: false,
+  canSubscribe: true,
+  status: null,
+  monthlyPriceMinor: 500,
+  currency: 'USD',
+  platformFeeBps: 1000,
+  discountKind: 'none',
+  discountEndsAtUtc: null,
+  canManage: false,
+  cancelAtPeriodEnd: false,
+  paidThroughUtc: null,
+};
+
+export const fixtureCuratorProActiveStatus: FixtureCuratorProStatus = {
+  ...fixtureCuratorProDefaultStatus,
+  hasAccess: true,
+  canSubscribe: false,
+  status: 'active',
+  canManage: true,
+  paidThroughUtc: '2026-09-16T12:00:00Z',
+};
 
 export interface FixturePaidPromotionRateCard {
   id: string;

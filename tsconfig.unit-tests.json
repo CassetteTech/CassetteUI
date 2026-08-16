@@ -51,6 +51,8 @@
     "src/services/__tests__/curator.test.ts",
     "src/services/membership.ts",
     "src/services/__tests__/membership.test.ts",
+    "src/services/curator-pro.ts",
+    "src/services/__tests__/curator-pro.test.ts",
     "src/services/paid-promotion-subject-contract.ts",
     "src/services/__tests__/paid-promotion-subjects.test.ts",
     "src/app/(sidebar)/internal/_components/explore-snapshot-utils.ts",

@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { RequireAuth } from '@/components/auth/RequireAuth';
+import { CuratorProCard } from '@/components/features/curator/curator-pro-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -163,18 +164,21 @@ function CuratorStudio() {
         </p>
       </header>
 
-      {profile.isPending ? (
-        <Card><CardContent><output>Loading curator profile…</output></CardContent></Card>
-      ) : profile.isError ? (
-        <Card>
-          <CardContent className="space-y-4">
-            <p role="alert">Could not load your curator profile.</p>
-            <Button variant="outline" onClick={() => profile.refetch()}>Try again</Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <CuratorProfileForm key={profile.data?.id ?? 'new'} profile={profile.data} />
-      )}
+      <div className="space-y-6">
+        <CuratorProCard />
+        {profile.isPending ? (
+          <Card><CardContent><output>Loading curator profile…</output></CardContent></Card>
+        ) : profile.isError ? (
+          <Card>
+            <CardContent className="space-y-4">
+              <p role="alert">Could not load your curator profile.</p>
+              <Button variant="outline" onClick={() => profile.refetch()}>Try again</Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <CuratorProfileForm key={profile.data?.id ?? 'new'} profile={profile.data} />
+        )}
+      </div>
     </div>
   );
 }

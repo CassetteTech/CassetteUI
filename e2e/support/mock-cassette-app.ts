@@ -1,6 +1,7 @@
 import type { Page, Route } from '@playwright/test';
 import { z } from 'zod';
 import type { CuratorPage, CuratorProfile } from '../../src/services/curator';
+import type { CuratorProStatus } from '../../src/services/curator-pro';
 import {
   FIXTURE_TIMESTAMP,
   FixturePost,
@@ -11,6 +12,7 @@ import {
   FixtureSearchResults,
   FixtureUser,
   fixtureConvertTemplates,
+  fixtureCuratorProDefaultStatus,
   fixtureInternalPaidPromotionCampaign,
   fixturePaidPromotionCampaign,
   fixturePaidPromotionRateCards,
@@ -38,6 +40,9 @@ type MockCassetteOptions = {
   currentUser?: FixtureUser | null;
   curatorPage?: CuratorPage;
   curatorProfile?: CuratorProfile | null;
+  curatorProStatus?: CuratorProStatus;
+  curatorProStatusSequence?: CuratorProStatus[];
+  curatorProStatusFailures?: number;
   membershipStatus?: FixtureMembershipStatusView;
   membershipPollSequence?: FixtureMembershipStatusView[];
   membershipActiveCuratorPage?: CuratorPage;
@@ -114,6 +119,12 @@ type MockState = {
   currentUser: FixtureUser | null;
   curatorPage?: CuratorPage;
   curatorProfile: CuratorProfile | null;
+  curatorProStatus: CuratorProStatus;
+  curatorProStatusSequence: CuratorProStatus[];
+  curatorProStatusSequenceActive: boolean;
+  curatorProStatusRequests: number;
+  curatorProPortalRequests: number;
+  curatorProStatusFailuresRemaining: number;
   membershipStatus: FixtureMembershipStatusView | null;
   membershipPollSequence: FixtureMembershipStatusView[];
   membershipPollSequenceActive: boolean;
@@ -463,6 +474,12 @@ const buildState = (options: MockCassetteOptions): MockState => {
     currentUser: options.currentUser ? clone(options.currentUser) : null,
     curatorPage,
     curatorProfile: options.curatorProfile ? clone(options.curatorProfile) : null,
+    curatorProStatus: clone(options.curatorProStatus || fixtureCuratorProDefaultStatus),
+    curatorProStatusSequence: clone(options.curatorProStatusSequence || []),
+    curatorProStatusSequenceActive: false,
+    curatorProStatusRequests: 0,
+    curatorProPortalRequests: 0,
+    curatorProStatusFailuresRemaining: options.curatorProStatusFailures ?? 0,
     membershipStatus: options.membershipStatus
       ? clone(options.membershipStatus)
       : defaultMembershipStatus(curatorPage),
@@ -780,6 +797,65 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         statusChangedAtUtc: FIXTURE_TIMESTAMP,
       };
       return json(route, state.curatorProfile, 201);
+    }
+
+    if (pathname === '/api/v1/curators/pro/status' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      state.curatorProStatusRequests += 1;
+      if (state.curatorProStatusFailuresRemaining > 0) {
+        state.curatorProStatusFailuresRemaining -= 1;
+        return json(route, {
+          errorCode: 'curator_invalid_request',
+          message: 'Curator Pro billing is temporarily unavailable.',
+        }, 503);
+      }
+
+      const nextStatus = state.curatorProStatusSequenceActive
+        ? state.curatorProStatusSequence.shift()
+        : undefined;
+      if (nextStatus) state.curatorProStatus = clone(nextStatus);
+      return json(route, state.curatorProStatus);
+    }
+
+    if (pathname === '/api/v1/curators/pro/checkout' && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      if (!state.curatorProStatus.canSubscribe) {
+        return json(route, {
+          errorCode: 'curator_invalid_profile_state',
+          message: 'A Curator Pro subscription or Checkout Session is already active.',
+        }, 409);
+      }
+
+      state.curatorProStatus = {
+        ...state.curatorProStatus,
+        hasAccess: false,
+        canSubscribe: false,
+        status: 'incomplete',
+        canManage: false,
+        cancelAtPeriodEnd: false,
+        paidThroughUtc: null,
+      };
+      state.curatorProStatusSequenceActive = true;
+      return json(route, {
+        checkoutUrl: 'https://checkout.stripe.test/curator-pro-session',
+        status: 'incomplete',
+        monthlyPriceMinor: state.curatorProStatus.monthlyPriceMinor,
+        currency: state.curatorProStatus.currency,
+      });
+    }
+
+    if (pathname === '/api/v1/curators/pro/billing-portal' && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      if (!state.curatorProStatus.canManage) {
+        return json(route, {
+          errorCode: 'curator_invalid_profile_state',
+          message: 'No Curator Pro subscription is available to manage.',
+        }, 409);
+      }
+
+      state.curatorProPortalRequests += 1;
+      state.curatorProStatusSequenceActive = true;
+      return json(route, { portalUrl: 'https://billing.stripe.test/curator-pro-session' });
     }
 
     const curatorPageMatch = pathname.match(/^\/api\/v1\/curators\/([^/]+)\/page$/);

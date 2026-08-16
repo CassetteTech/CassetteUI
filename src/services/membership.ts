@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const membershipStatusSchema = z.enum([
+export const membershipStatusSchema = z.enum([
   'incomplete',
   'incomplete_expired',
   'trialing',
@@ -16,9 +16,9 @@ const membershipIntervalSchema = z.enum(['month', 'year']);
 const curatorIdSchema = z.string().regex(/^cpr_[0-9A-Za-z]+$/).max(40);
 const planIdSchema = z.string().regex(/^mpl_[0-9A-Za-z]+$/).max(40);
 const subscriptionIdSchema = z.string().regex(/^msb_[0-9A-Za-z]+$/).max(40);
-const correlationIdSchema = z.string().uuid().optional();
-const moneyMinorSchema = z.number().int().nonnegative().safe();
-const httpsUrlSchema = z.string().url().refine(
+export const correlationIdSchema = z.string().uuid().optional();
+export const moneyMinorSchema = z.number().int().nonnegative().safe();
+export const httpsUrlSchema = z.string().url().refine(
   (value) => new URL(value).protocol === 'https:',
   { message: 'Stripe handoff URL must use HTTPS' },
 );

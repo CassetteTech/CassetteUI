@@ -1,4 +1,5 @@
 import type { Page, Route } from '@playwright/test';
+import type { CuratorPage } from '../../src/services/curator';
 import {
   FIXTURE_TIMESTAMP,
   FixturePost,
@@ -33,6 +34,7 @@ const elementTypeForFixtureId = (
 type MockCassetteOptions = {
   analyticsCaptures?: Array<Record<string, unknown>>;
   currentUser?: FixtureUser | null;
+  curatorPage?: CuratorPage;
   googleAuthUser?: FixtureUser | null;
   users?: FixtureUser[];
   posts?: FixturePost[];
@@ -104,6 +106,7 @@ type MockEmailPreference = {
 
 type MockState = {
   currentUser: FixtureUser | null;
+  curatorPage?: CuratorPage;
   googleAuthUser: FixtureUser | null;
   usersById: Map<string, FixtureUser>;
   usernamesToIds: Map<string, string>;
@@ -403,6 +406,7 @@ const createOwnedPostFromTemplate = (
 const buildState = (options: MockCassetteOptions): MockState => {
   const state: MockState = {
     currentUser: options.currentUser ? clone(options.currentUser) : null,
+    curatorPage: options.curatorPage ? clone(options.curatorPage) : undefined,
     googleAuthUser: options.googleAuthUser ? clone(options.googleAuthUser) : null,
     usersById: new Map<string, FixtureUser>(),
     usernamesToIds: new Map<string, string>(),
@@ -672,6 +676,21 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         artists: [],
         playlists: [],
       });
+    }
+
+    const curatorPageMatch = pathname.match(/^\/api\/v1\/curators\/([^/]+)\/page$/);
+    if (curatorPageMatch && method === 'GET') {
+      if (
+        !state.curatorPage ||
+        normalizeUsername(curatorPageMatch[1]) !== normalizeUsername(state.curatorPage.curator.username)
+      ) {
+        return json(route, {
+          errorCode: 'curator_profile_not_found',
+          message: 'Curator not found.',
+        }, 404);
+      }
+
+      return json(route, state.curatorPage);
     }
 
     if (pathname.startsWith('/api/v1/profile/check-username/')) {

@@ -25,7 +25,7 @@ useEffect(() => {
   apiService.warmupLambdas().catch((error) => {
     appLogger.warn('lambda_warmup_failed', {
       error,
-      route: typeof window !== 'undefined' ? window.location.pathname : '/',
+      route: window.location.pathname,
     });
   });
 
@@ -36,7 +36,7 @@ useEffect(() => {
 
 
   const isAuthPage = pathname?.startsWith('/auth');
-  const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/add-music') || pathname?.startsWith('/internal');
+  const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/curator') || pathname?.startsWith('/add-music') || pathname?.startsWith('/internal');
   const isProfileRoute = pathname?.startsWith('/profile');
   const isHomePage = pathname === '/';
   const isPostPage = pathname?.startsWith('/post');

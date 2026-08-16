@@ -1,3 +1,5 @@
+import type { CuratorPage as FixtureCuratorPage } from '../../src/services/curator';
+
 export interface FixtureSearchResults {
   tracks: Array<{
     id: string;
@@ -391,6 +393,117 @@ export const fixturePosts = {
     },
   },
 } satisfies Record<string, FixturePost>;
+
+export const CURATOR_SUBSCRIBER_SENTINEL = 'The members-only midnight signal';
+
+const fixtureCuratorPublicPost = {
+  kind: 'post',
+  post: {
+    postId: 'post-curator-public',
+    redirectPostId: 'post-curator-public',
+    elementType: 'Playlist',
+    title: 'Sunday Morning Selects',
+    subtitle: null,
+    description: 'A public playlist for slow starts.',
+    imageUrl: null,
+    username: fixtureUsers.playlistCurator.username,
+    createdAt: FIXTURE_TIMESTAMP,
+    privacy: 'public',
+    accountType: 'Regular',
+  },
+} satisfies FixtureCuratorPage['posts']['items'][number];
+
+const fixtureCuratorSubscriberPost = {
+  kind: 'post',
+  post: {
+    postId: 'post-curator-subscriber',
+    redirectPostId: 'post-curator-subscriber',
+    elementType: 'Playlist',
+    title: CURATOR_SUBSCRIBER_SENTINEL,
+    subtitle: null,
+    description: 'Private notes for active members.',
+    imageUrl: '/images/cassette_logo.png?subscriber-secret-artwork',
+    username: fixtureUsers.playlistCurator.username,
+    createdAt: FIXTURE_TIMESTAMP,
+    privacy: 'subscriber',
+    accountType: 'Regular',
+  },
+} satisfies FixtureCuratorPage['posts']['items'][number];
+
+export const fixtureCuratorPage: FixtureCuratorPage = {
+  curator: {
+    id: 'cpr_FixtureCurator01',
+    username: fixtureUsers.playlistCurator.username,
+    displayName: fixtureUsers.playlistCurator.displayName,
+    bio: fixtureUsers.playlistCurator.bio || '',
+    avatarUrl: null,
+    profileLinks: [],
+    accountType: 'Regular',
+    headline: 'Thoughtful playlists for unhurried listening.',
+    about: 'I dig through new releases and old favorites so you do not have to.',
+    declaredGenres: ['Soul', 'Jazz'],
+    declaredPlatforms: ['Spotify', 'Apple Music'],
+    curatorSinceUtc: FIXTURE_TIMESTAMP,
+  },
+  membership: {
+    planId: 'mpl_FixtureMembership01',
+    name: 'Crate Notes',
+    description: 'Get the notes behind each weekly playlist.',
+    amountMinor: 500,
+    serviceFeeMinor: 50,
+    annualAmountMinor: null,
+    annualServiceFeeMinor: null,
+    currency: 'USD',
+    benefits: [
+      {
+        featureKey: 'member_posts',
+        name: 'Member posts',
+        description: 'Unlock subscriber-only playlists and curator notes.',
+      },
+    ],
+  },
+  viewer: {
+    isOwner: false,
+    isMember: false,
+    hasMemberBadge: false,
+  },
+  posts: {
+    items: [
+      fixtureCuratorPublicPost,
+      {
+        kind: 'locked',
+        postId: fixtureCuratorSubscriberPost.post.postId,
+        createdAt: FIXTURE_TIMESTAMP,
+      },
+    ],
+    totalItems: 2,
+    page: 1,
+    pageSize: 20,
+  },
+};
+
+export const fixtureMemberCuratorPage: FixtureCuratorPage = {
+  ...fixtureCuratorPage,
+  viewer: {
+    isOwner: false,
+    isMember: true,
+    hasMemberBadge: true,
+  },
+  posts: {
+    ...fixtureCuratorPage.posts,
+    items: [fixtureCuratorPublicPost, fixtureCuratorSubscriberPost],
+  },
+};
+
+export const fixtureFreeCuratorPage: FixtureCuratorPage = {
+  ...fixtureCuratorPage,
+  membership: null,
+  posts: {
+    ...fixtureCuratorPage.posts,
+    items: [fixtureCuratorPublicPost],
+    totalItems: 1,
+  },
+};
 
 export const fixtureConvertTemplates = {
   homeTrack: {

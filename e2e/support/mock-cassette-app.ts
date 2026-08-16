@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { z } from 'zod';
-import type { CuratorPage } from '../../src/services/curator';
+import type { CuratorPage, CuratorProfile } from '../../src/services/curator';
 import {
   FIXTURE_TIMESTAMP,
   FixturePost,
@@ -37,6 +37,7 @@ type MockCassetteOptions = {
   analyticsCaptures?: Array<Record<string, unknown>>;
   currentUser?: FixtureUser | null;
   curatorPage?: CuratorPage;
+  curatorProfile?: CuratorProfile | null;
   membershipStatus?: FixtureMembershipStatusView;
   membershipPollSequence?: FixtureMembershipStatusView[];
   membershipActiveCuratorPage?: CuratorPage;
@@ -112,6 +113,7 @@ type MockEmailPreference = {
 type MockState = {
   currentUser: FixtureUser | null;
   curatorPage?: CuratorPage;
+  curatorProfile: CuratorProfile | null;
   membershipStatus: FixtureMembershipStatusView | null;
   membershipPollSequence: FixtureMembershipStatusView[];
   membershipPollSequenceActive: boolean;
@@ -191,6 +193,13 @@ const membershipCheckoutRequestSchema = z.object({
 
 const membershipPortalRequestSchema = z.object({
   membershipSubscriptionId: z.string(),
+}).strict();
+
+const curatorProfileRequestSchema = z.object({
+  headline: z.string().max(2000).nullable(),
+  about: z.string().max(2000).nullable(),
+  declaredGenres: z.array(z.string().max(2000)).max(20),
+  declaredPlatforms: z.array(z.string().max(2000)).max(20),
 }).strict();
 
 const defaultMembershipStatus = (
@@ -453,6 +462,7 @@ const buildState = (options: MockCassetteOptions): MockState => {
   const state: MockState = {
     currentUser: options.currentUser ? clone(options.currentUser) : null,
     curatorPage,
+    curatorProfile: options.curatorProfile ? clone(options.curatorProfile) : null,
     membershipStatus: options.membershipStatus
       ? clone(options.membershipStatus)
       : defaultMembershipStatus(curatorPage),
@@ -733,6 +743,43 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         artists: [],
         playlists: [],
       });
+    }
+
+    if (pathname === '/api/v1/curators/me' && (method === 'GET' || method === 'PUT')) {
+      getCurrentUserOrThrow(state);
+      if (!state.curatorProfile) {
+        return json(route, {
+          errorCode: 'curator_profile_not_found',
+          message: 'Curator profile not found.',
+        }, 404);
+      }
+
+      if (method === 'GET') return json(route, state.curatorProfile);
+
+      const payload = curatorProfileRequestSchema.parse(request.postDataJSON());
+      state.curatorProfile = { ...state.curatorProfile, ...payload };
+      return json(route, state.curatorProfile);
+    }
+
+    if (pathname === '/api/v1/curators' && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      if (state.curatorProfile) {
+        return json(route, {
+          errorCode: 'curator_profile_exists',
+          message: 'A curator profile already exists for this user.',
+        }, 409);
+      }
+
+      const payload = curatorProfileRequestSchema.parse(request.postDataJSON());
+      state.curatorProfile = {
+        id: 'cpr_FixtureStudioProfile01',
+        status: 'active',
+        ...payload,
+        suspensionReason: null,
+        createdAtUtc: FIXTURE_TIMESTAMP,
+        statusChangedAtUtc: FIXTURE_TIMESTAMP,
+      };
+      return json(route, state.curatorProfile, 201);
     }
 
     const curatorPageMatch = pathname.match(/^\/api\/v1\/curators\/([^/]+)\/page$/);

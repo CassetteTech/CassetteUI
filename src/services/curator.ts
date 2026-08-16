@@ -4,6 +4,24 @@ import { formatPaidPromotionMinorAmount } from './paid-promotion-lifecycle';
 const nullableString = z.string().nullable();
 const timestamp = z.string().datetime({ offset: true });
 const moneyMinor = z.number().int().nonnegative().safe();
+const profileText = z.string().max(2000);
+const profileList = z.array(profileText).max(20);
+
+const curatorProfileRequestSchema = z.object({
+  headline: profileText.nullable(),
+  about: profileText.nullable(),
+  declaredGenres: profileList,
+  declaredPlatforms: profileList,
+}).strict();
+
+const curatorProfileSchema = curatorProfileRequestSchema.extend({
+  id: z.string().regex(/^cpr_[0-9A-Za-z]+$/).max(40),
+  status: z.enum(['active', 'suspended', 'retired']),
+  suspensionReason: nullableString,
+  createdAtUtc: timestamp,
+  statusChangedAtUtc: timestamp,
+  correlationId: z.string().uuid().optional(),
+}).transform(({ correlationId: _correlationId, ...profile }) => profile);
 
 const curatorPostSchema = z.object({
   postId: z.string().min(1),
@@ -90,6 +108,8 @@ const curatorPageSchema = z.object({
 
 export type CuratorPage = z.infer<typeof curatorPageSchema>;
 export type CuratorPostItem = z.infer<typeof postItemSchema>;
+export type CuratorProfileRequest = z.infer<typeof curatorProfileRequestSchema>;
+export type CuratorProfile = z.infer<typeof curatorProfileSchema>;
 
 export class CuratorPageError extends Error {
   constructor(message: string, readonly status: number) {
@@ -102,6 +122,12 @@ export class CuratorPageError extends Error {
 // oxlint-disable-next-line anti-slop/no-unknown-parameters
 export function parseCuratorPage(value: unknown): CuratorPage {
   return curatorPageSchema.parse(value);
+}
+
+// The endpoint body is untrusted until this schema succeeds.
+// oxlint-disable-next-line anti-slop/no-unknown-parameters
+export function parseCuratorProfile(value: unknown): CuratorProfile {
+  return curatorProfileSchema.parse(value);
 }
 
 export function buildCuratorPagePath(username: string, page: number, pageSize: number): string {
@@ -130,6 +156,54 @@ export async function fetchCuratorPage(
   }
 
   return parseCuratorPage(await response.json());
+}
+
+export async function fetchOwnCuratorProfile(
+  signal?: AbortSignal,
+): Promise<CuratorProfile | null> {
+  const response = await fetch('/api/v1/curators/me', {
+    cache: 'no-store',
+    credentials: 'include',
+    signal,
+  });
+
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new CuratorPageError('Failed to load curator profile', response.status);
+  }
+
+  return parseCuratorProfile(await response.json());
+}
+
+async function saveCuratorProfile(
+  path: string,
+  method: 'POST' | 'PUT',
+  request: CuratorProfileRequest,
+): Promise<CuratorProfile> {
+  const response = await fetch(path, {
+    method,
+    body: JSON.stringify(curatorProfileRequestSchema.parse(request)),
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new CuratorPageError('Failed to save curator profile', response.status);
+  }
+
+  return parseCuratorProfile(await response.json());
+}
+
+export function createCuratorProfile(
+  request: CuratorProfileRequest,
+): Promise<CuratorProfile> {
+  return saveCuratorProfile('/api/v1/curators', 'POST', request);
+}
+
+export function updateCuratorProfile(
+  request: CuratorProfileRequest,
+): Promise<CuratorProfile> {
+  return saveCuratorProfile('/api/v1/curators/me', 'PUT', request);
 }
 
 export function formatCuratorPlanPrice(

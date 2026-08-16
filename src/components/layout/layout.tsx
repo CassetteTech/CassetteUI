@@ -36,7 +36,7 @@ useEffect(() => {
 
 
   const isAuthPage = pathname?.startsWith('/auth');
-  const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/curator') || pathname?.startsWith('/add-music') || pathname?.startsWith('/internal');
+  const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/curator') || pathname?.startsWith('/studio') || pathname?.startsWith('/add-music') || pathname?.startsWith('/internal');
   const isProfileRoute = pathname?.startsWith('/profile');
   const isHomePage = pathname === '/';
   const isPostPage = pathname?.startsWith('/post');

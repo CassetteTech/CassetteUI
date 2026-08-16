@@ -2,9 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   CuratorPageError,
+  createCuratorProfile,
   fetchCuratorPage,
+  fetchOwnCuratorProfile,
   formatCuratorPlanPrice,
   parseCuratorPage,
+  parseCuratorProfile,
+  updateCuratorProfile,
+  type CuratorProfileRequest,
 } from '../curator';
 
 function fullPost() {
@@ -78,6 +83,20 @@ function pagePayload(leakLockedContent = false) {
   };
 }
 
+function profilePayload() {
+  return {
+    id: 'cpr_0123456789AbCdEfGhIjK',
+    status: 'active',
+    headline: 'Rare records, every week.',
+    about: 'Independent selections.',
+    declaredGenres: ['Soul'],
+    declaredPlatforms: ['Spotify'],
+    suspensionReason: null,
+    createdAtUtc: '2026-08-01T00:00:00Z',
+    statusChangedAtUtc: '2026-08-01T00:00:00Z',
+  };
+}
+
 void test('parses the curator page union and strips internal additive fields', () => {
   const parsed = parseCuratorPage(pagePayload());
 
@@ -128,6 +147,72 @@ void test('preserves a not-found response as a typed 404', async (t) => {
   await assert.rejects(
     fetchCuratorPage('missing', 1, 20),
     (error) => error instanceof CuratorPageError && error.status === 404,
+  );
+});
+
+void test('parses the strict self-profile contract and strips the transport correlation ID', () => {
+  const profile = profilePayload();
+  const parsed = parseCuratorProfile({
+    ...profile,
+    correlationId: '44444444-4444-4444-8444-444444444444',
+  });
+
+  assert.equal(parsed.id, profile.id);
+  assert.equal('correlationId' in parsed, false);
+  assert.throws(() => parseCuratorProfile({ ...profile, eligibilityStatus: 'approved' }));
+  assert.throws(() => parseCuratorProfile({ ...profile, status: 'pending_review' }));
+});
+
+void test('returns null when the authenticated user has no curator profile', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => new Response(null, { status: 404 }));
+
+  assert.equal(await fetchOwnCuratorProfile(), null);
+});
+
+void test('creates and updates the authenticated curator profile with the public request only', async (t) => {
+  const calls: Array<{ init?: RequestInit; input: string | URL | Request }> = [];
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async (input: string | URL | Request, init?: RequestInit) => {
+      calls.push({ init, input });
+      return new Response(JSON.stringify({
+        ...profilePayload(),
+        correlationId: '44444444-4444-4444-8444-444444444444',
+      }));
+    },
+  );
+  const request: CuratorProfileRequest = {
+    headline: 'Rare records, every week.',
+    about: null,
+    declaredGenres: ['Soul'],
+    declaredPlatforms: ['Spotify'],
+  };
+
+  await createCuratorProfile(request);
+  await updateCuratorProfile(request);
+
+  assert.deepEqual(
+    calls.map(({ init, input }) => ({
+      body: init?.body,
+      credentials: init?.credentials,
+      method: init?.method,
+      url: input,
+    })),
+    [
+      {
+        body: JSON.stringify(request),
+        credentials: 'include',
+        method: 'POST',
+        url: '/api/v1/curators',
+      },
+      {
+        body: JSON.stringify(request),
+        credentials: 'include',
+        method: 'PUT',
+        url: '/api/v1/curators/me',
+      },
+    ],
   );
 });
 

@@ -35,7 +35,7 @@ import {
 } from './navigation-config';
 
 // Interleaved sidebar ordering across primary + account groups.
-const SIDEBAR_NAV_ORDER = ['profile', 'add-music', 'edit-profile', 'explore', 'promote', 'internal'] as const;
+const SIDEBAR_NAV_ORDER = ['profile', 'add-music', 'edit-profile', 'curator-studio', 'explore', 'promote', 'internal'] as const;
 
 function getSidebarNavItems(user: NavUser): NavigationItemDefinition[] {
   const all = [...primaryNavItems, ...accountNavItems];

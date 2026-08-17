@@ -4,6 +4,7 @@ This folder contains current project documentation for the Cassette web app. His
 
 ## Guides
 
+- [Local Setup](local-setup.md)
 - [Music API Setup](music-api-setup.md)
 - [Music Conversion Test Flow](music-conversion-test-flow.md)
 - [Release Email Ingestion](release-email-ingestion.md)

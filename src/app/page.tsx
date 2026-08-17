@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import HomePageClient from '@/components/pages/home-page-client';
 import { SocialLinks } from '@/components/ui/social-links';
+import { DEFAULT_SOCIAL_PREVIEW } from '@/lib/seo';
 
 const title = 'Universal Music Links — Cassette Music';
 const description = 'Turn Spotify, Apple Music, and Deezer links into one shareable MusicLink.';
@@ -11,8 +12,8 @@ export const metadata: Metadata = {
   title: { absolute: title },
   description,
   alternates: { canonical: '/' },
-  openGraph: { title, description },
-  twitter: { title, description },
+  openGraph: { ...DEFAULT_SOCIAL_PREVIEW, title, description },
+  twitter: { ...DEFAULT_SOCIAL_PREVIEW, title, description },
 };
 
 export default function HomePage() {

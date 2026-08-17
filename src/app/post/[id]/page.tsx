@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { fetchPostForMetadata } from '@/lib/server/fetch-post';
+import { DEFAULT_SOCIAL_PREVIEW } from '@/lib/seo';
 import PostClientPage from './post-client';
 
 type Props = {
@@ -22,8 +23,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: { absolute: title },
       description: 'This MusicLink could not be found on Cassette Music.',
       robots: { index: false, follow: false },
-      openGraph: { title },
-      twitter: { title },
+      openGraph: { ...DEFAULT_SOCIAL_PREVIEW, title },
+      twitter: { ...DEFAULT_SOCIAL_PREVIEW, title },
     };
   }
 
@@ -58,13 +59,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
               alt: ogTitle,
             },
           ]
-        : [],
+        : DEFAULT_SOCIAL_PREVIEW.images,
     },
     twitter: {
       card: 'summary_large_image',
       title: `${ogTitle} | Cassette MusicLink`,
       description,
-      images: artwork ? [artwork] : [],
+      images: artwork ? [artwork] : DEFAULT_SOCIAL_PREVIEW.images,
     },
   };
 }

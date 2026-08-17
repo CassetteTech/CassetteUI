@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import test from 'node:test';
-import { buildRobotsDisallowList } from '../seo';
+import { buildRobotsDisallowList, DEFAULT_SOCIAL_PREVIEW } from '../seo';
+
+test('default social preview uses available landscape artwork', () => {
+  const [image] = DEFAULT_SOCIAL_PREVIEW.images;
+  assert.equal(fs.existsSync(`public${image.url}`), true);
+  assert.ok(image.width / image.height > 1.7);
+});
 
 /** Mirrors how crawlers apply robots.txt: prefix match, `$` anchors the end. */
 function isDisallowed(path: string): boolean {

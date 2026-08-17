@@ -62,3 +62,6 @@ amplifytools.xcconfig
 .secret-*
 **.sample
 #amplify-do-not-edit-end
+
+# Guided local-development state
+.local-dev/

@@ -301,6 +301,7 @@ export type PaidPromotionCampaignStatus =
   | 'draft'
   | 'pending_payment'
   | 'in_review'
+  | 'needs_info'
   | 'scheduled'
   | 'fulfilling'
   | 'delivered'
@@ -351,6 +352,14 @@ export interface PaidPromotionAttestation {
   text: string;
 }
 
+export interface PaidPromotionNeedsInfo {
+  id: string;
+  requestMessage: string;
+  customerResponse: string | null;
+  requestedAtUtc: string;
+  respondedAtUtc: string | null;
+}
+
 export interface PaidPromotionRateCardsResponse {
   rateCards: PaidPromotionRateCard[];
   attestation: PaidPromotionAttestation;
@@ -394,6 +403,7 @@ export interface PaidPromotionCampaign {
   refundableRemainderMinor: number | null;
   requestedWindowStart: string | null;
   requestedWindowEnd: string | null;
+  needsInfo: PaidPromotionNeedsInfo | null;
   deliverables: PaidPromotionCampaignDeliverable[];
   createdAtUtc: string;
   updatedAtUtc: string;
@@ -577,6 +587,7 @@ export interface InternalPaidPromotionCampaignDetail {
   attestedAtUtc: string | null;
   attestationVersion: string | null;
   attestedRelationship: PaidPromotionAttestedRelationship | null;
+  needsInfo: PaidPromotionNeedsInfo | null;
   payment: InternalPaidPromotionPayment | null;
   pricingSnapshots: InternalPaidPromotionPricingSnapshot[];
   deliverables: InternalPaidPromotionDeliverable[];

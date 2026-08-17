@@ -10,6 +10,7 @@ import {
   Clock3,
   CreditCard,
   ExternalLink,
+  MessageSquareMore,
   Radio,
   RefreshCw,
 } from 'lucide-react';
@@ -28,6 +29,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { PageLoader } from '@/components/ui/page-loader';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuthState } from '@/hooks/use-auth';
 import { usePaidPromotionCampaign } from '@/hooks/use-paid-promotion-campaign';
 import { apiService } from '@/services/api';
@@ -121,6 +124,9 @@ function CampaignDetail({
 }) {
   const [isCanceling, setIsCanceling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [responseText, setResponseText] = useState('');
+  const [isResponding, setIsResponding] = useState(false);
+  const [responseError, setResponseError] = useState<string | null>(null);
   const status = getPaidPromotionStatusPresentation(campaign);
   const completed = campaign.status === 'delivered' || campaign.status === 'completed';
   const canCancel = campaign.status === 'pending_payment' &&
@@ -148,6 +154,29 @@ function CampaignDetail({
       ));
     } finally {
       setIsCanceling(false);
+    }
+  };
+
+  const respondToReview = async () => {
+    const normalizedResponse = responseText.trim();
+    if (!normalizedResponse) {
+      setResponseError('Enter a response before sending it to the review team.');
+      return;
+    }
+
+    setIsResponding(true);
+    setResponseError(null);
+    try {
+      await apiService.respondToPaidPromotionNeedsInfo(campaign.id, normalizedResponse);
+      setResponseText('');
+      onRefresh();
+    } catch (caught) {
+      setResponseError(getUserFacingApiErrorMessage(
+        caught,
+        'We could not send your response. Please try again.',
+      ));
+    } finally {
+      setIsResponding(false);
     }
   };
 
@@ -181,6 +210,74 @@ function CampaignDetail({
 
       <main className="mx-auto grid w-full max-w-6xl gap-8 px-4 pt-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:px-10">
         <div className="min-w-0 space-y-8">
+          {campaign.needsInfo && (
+            <section
+              aria-labelledby="campaign-review-request-heading"
+              className="border-2 border-foreground bg-card shadow-flat-4"
+            >
+              <div className="border-b-2 border-foreground bg-primary/10 px-5 py-4 sm:px-6">
+                <div className="flex items-center gap-3">
+                  <MessageSquareMore className="size-5 text-primary" aria-hidden="true" />
+                  <h2 id="campaign-review-request-heading" className="font-atkinson text-2xl font-bold">
+                    {campaign.status === 'needs_info' ? 'Review team needs your reply' : 'Latest review conversation'}
+                  </h2>
+                </div>
+              </div>
+              <div className="space-y-5 p-5 sm:p-6">
+                <div>
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                    Cassette review request
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
+                    {campaign.needsInfo.requestMessage}
+                  </p>
+                </div>
+
+                {campaign.needsInfo.customerResponse ? (
+                  <div className="border-t border-border pt-5">
+                    <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                      Your response
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
+                      {campaign.needsInfo.customerResponse}
+                    </p>
+                  </div>
+                ) : campaign.status === 'needs_info' ? (
+                  <form
+                    className="grid gap-3 border-t border-border pt-5"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void respondToReview();
+                    }}
+                  >
+                    <Label htmlFor="paid-promotion-review-response">Your response</Label>
+                    <Textarea
+                      id="paid-promotion-review-response"
+                      required
+                      maxLength={2000}
+                      rows={6}
+                      disabled={isResponding}
+                      value={responseText}
+                      onChange={(event) => setResponseText(event.target.value)}
+                      placeholder="Share the information the review team requested"
+                    />
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <span className="text-xs text-muted-foreground">
+                        {responseText.length.toLocaleString()} / 2,000
+                      </span>
+                      <Button type="submit" variant="brutalist" disabled={isResponding || !responseText.trim()}>
+                        {isResponding ? 'Sending response…' : 'Send response'}
+                      </Button>
+                    </div>
+                    {responseError && (
+                      <p role="alert" className="text-sm leading-6 text-destructive">{responseError}</p>
+                    )}
+                  </form>
+                ) : null}
+              </div>
+            </section>
+          )}
+
           <section aria-labelledby="campaign-overview-heading" className="border-2 border-foreground bg-card shadow-flat-4">
             <div className="border-b-2 border-foreground px-5 py-4 sm:px-6">
               <h2 id="campaign-overview-heading" className="font-atkinson text-2xl font-bold">

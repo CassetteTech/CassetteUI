@@ -39,6 +39,7 @@ function campaignDetail(): Record<string, unknown> {
     attestedAtUtc: timestamp,
     attestationVersion: 'paid-promotion-authority-v1',
     attestedRelationship: 'self_artist',
+    needsInfo: null,
     payment: {
       id: 'pmp_TestPayment1',
       amountMinor: 25000,
@@ -67,6 +68,22 @@ void test('accepts the complete internal paid-promotion detail contract', () => 
   assert.equal(parsed.id, 'pmc_TestCampaign1');
   assert.equal(parsed.payment?.status, 'paid');
   assert.equal(parsed.attestedRelationship, 'self_artist');
+});
+
+void test('parses durable needs-info conversation fields for operators', () => {
+  const detail = campaignDetail();
+  detail.status = 'needs_info';
+  detail.needsInfo = {
+    id: 'pmr_ReviewRequest1',
+    requestMessage: 'Please provide the authorization contact.',
+    customerResponse: 'The authorization contact is rights@example.com.',
+    requestedAtUtc: timestamp,
+    respondedAtUtc: timestamp,
+  };
+
+  const parsed = parseInternalPaidPromotionCampaignDetail(detail);
+  assert.equal(parsed.needsInfo?.requestMessage, 'Please provide the authorization contact.');
+  assert.equal(parsed.needsInfo?.customerResponse, 'The authorization contact is rights@example.com.');
 });
 
 void test('tolerates unknown campaign and payment states so the console keeps rendering', () => {

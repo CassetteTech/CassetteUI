@@ -470,6 +470,20 @@ class ApiService {
     return parsePaidPromotionCampaign(response);
   }
 
+  async respondToPaidPromotionNeedsInfo(
+    campaignId: string,
+    responseText: string
+  ): Promise<PaidPromotionCampaign> {
+    const response = await this.request<unknown>(
+      `/api/v1/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/needs-info-response`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ response: responseText }),
+      }
+    );
+    return parsePaidPromotionCampaign(response);
+  }
+
   async getPaidPromotionSubjects(): Promise<unknown> {
     return this.request<unknown>('/api/v1/paid-promotions/subjects');
   }
@@ -528,6 +542,20 @@ class ApiService {
     return this.request<InternalPaidPromotionActionResponse>(
       `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/approve`,
       { method: 'POST', timeoutMs: 20000 }
+    );
+  }
+
+  async requestInternalPaidPromotionInfo(
+    campaignId: string,
+    message: string
+  ): Promise<InternalPaidPromotionActionResponse> {
+    return this.request<InternalPaidPromotionActionResponse>(
+      `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/needs-info`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ message }),
+        timeoutMs: 20000,
+      }
     );
   }
 

@@ -79,6 +79,27 @@ test('manual quote submits only a server rate-card id', async ({ page }) => {
   await expect(page.getByText('pmq_FixtureSnapshot01', { exact: true })).toBeVisible();
 });
 
+test('requests customer information and renders the durable review conversation', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.team });
+  await page.goto('/internal/paid-promotions/' + fixturePaidPromotionCampaign.id);
+
+  await page.getByRole('button', { name: 'Request information' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Request more information' });
+  const message = 'Please confirm who controls the master recording rights.';
+  await dialog.getByLabel('Information needed').fill(message);
+  const requestPromise = page.waitForRequest((request) =>
+    request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/needs-info'),
+  );
+  await dialog.getByRole('button', { name: 'Send request' }).click();
+
+  expect((await requestPromise).postDataJSON()).toEqual({ message });
+  await expect(page.getByText('Needs Info', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Latest review conversation' })).toBeVisible();
+  await expect(page.getByText(message, { exact: true })).toBeVisible();
+  await expect(page.getByText('Waiting for the customer to respond.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Approve' })).toHaveCount(0);
+});
+
 test('reviews and refunds an album campaign the same way as a track', async ({ page }) => {
   const albumCampaign = {
     ...fixtureInternalPaidPromotionCampaign,

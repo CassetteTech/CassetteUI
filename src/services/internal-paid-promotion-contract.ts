@@ -13,6 +13,7 @@ import type {
   PaidPromotionDeliverableChannel,
   PaidPromotionDeliverableStatus,
   PaidPromotionPaymentStatus,
+  PaidPromotionNeedsInfo,
 } from '@/types';
 
 /**
@@ -30,6 +31,7 @@ export const PAID_PROMOTION_CAMPAIGN_STATUSES = [
   'draft',
   'pending_payment',
   'in_review',
+  'needs_info',
   'scheduled',
   'fulfilling',
   'delivered',
@@ -246,6 +248,18 @@ function parseSnapshot(value: unknown, path: string): InternalPaidPromotionPrici
   };
 }
 
+function parseNeedsInfo(value: unknown, path: string): PaidPromotionNeedsInfo | null {
+  if (value === null || value === undefined) return null;
+  const item = record(value, path);
+  return {
+    id: string(item.id, `${path}.id`),
+    requestMessage: string(item.requestMessage, `${path}.requestMessage`),
+    customerResponse: nullableString(item.customerResponse, `${path}.customerResponse`),
+    requestedAtUtc: string(item.requestedAtUtc, `${path}.requestedAtUtc`),
+    respondedAtUtc: nullableString(item.respondedAtUtc, `${path}.respondedAtUtc`),
+  };
+}
+
 export function parseInternalPaidPromotionCampaignSummary(
   value: unknown,
   path = 'campaign'
@@ -326,6 +340,7 @@ export function parseInternalPaidPromotionCampaignDetail(
       item.attestedRelationship,
       'campaign.attestedRelationship',
     ) as InternalPaidPromotionCampaignDetail['attestedRelationship'],
+    needsInfo: parseNeedsInfo(item.needsInfo, 'campaign.needsInfo'),
     payment: item.payment === null || item.payment === undefined
       ? null
       : parsePayment(item.payment, 'campaign.payment'),

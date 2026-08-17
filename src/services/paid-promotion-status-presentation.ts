@@ -35,6 +35,12 @@ const STATUS_PRESENTATIONS: Record<PaidPromotionCampaignStatus, PaidPromotionSta
     nextAction: 'No action needed — this page updates when review finishes.',
     actor: 'cassette',
   },
+  needs_info: {
+    label: 'Action needed',
+    explanation: 'Cassette needs more information before review can continue.',
+    nextAction: 'Reply to the review request on this page.',
+    actor: 'you',
+  },
   scheduled: {
     label: 'Scheduled',
     explanation: 'Your campaign passed review and delivery is being scheduled.',

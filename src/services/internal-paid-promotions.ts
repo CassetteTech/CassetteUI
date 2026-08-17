@@ -55,6 +55,12 @@ class InternalPaidPromotionsService {
     return parseInternalPaidPromotionAction(await apiService.approveInternalPaidPromotion(campaignId));
   }
 
+  async requestInfo(campaignId: string, message: string) {
+    return parseInternalPaidPromotionAction(
+      await apiService.requestInternalPaidPromotionInfo(campaignId, message),
+    );
+  }
+
   async reject(campaignId: string, reason?: string) {
     return parseInternalPaidPromotionAction(
       await apiService.rejectInternalPaidPromotion(campaignId, reason),

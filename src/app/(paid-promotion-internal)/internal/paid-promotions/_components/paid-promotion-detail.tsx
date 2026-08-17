@@ -6,6 +6,7 @@ import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { SectionHeader, StatusPill } from '@/app/(sidebar)/internal/_components/kit';
 import { internalPaidPromotionsService } from '@/services/internal-paid-promotions';
 import type {
@@ -65,7 +66,7 @@ function canRefund(campaign: InternalPaidPromotionCampaignDetail): boolean {
   if (!campaign.payment || !['paid', 'partially_refunded'].includes(campaign.payment.status)) return false;
   if (campaign.payment.refundableRemainderMinor === null ||
       campaign.payment.refundableRemainderMinor <= 0) return false;
-  return ['in_review', 'scheduled', 'fulfilling', 'delivered', 'completed', 'rejected'].includes(campaign.status);
+  return ['in_review', 'needs_info', 'scheduled', 'fulfilling', 'delivered', 'completed', 'rejected'].includes(campaign.status);
 }
 
 export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
@@ -76,6 +77,8 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
   const [busy, setBusy] = useState(false);
   const [lifecycleAction, setLifecycleAction] = useState<LifecycleAction | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [requestInfoOpen, setRequestInfoOpen] = useState(false);
+  const [requestInfoMessage, setRequestInfoMessage] = useState('');
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [rateCardId, setRateCardId] = useState('');
   const [refundOpen, setRefundOpen] = useState(false);
@@ -141,6 +144,8 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
       setAnnouncement(message);
       setLifecycleAction(null);
       setRejectReason('');
+      setRequestInfoOpen(false);
+      setRequestInfoMessage('');
       setQuoteOpen(false);
       setRefundOpen(false);
       setRemovingDeliverable(null);
@@ -174,6 +179,18 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
     void runMutation(
       'Manual quote created from the server-owned rate card.',
       () => internalPaidPromotionsService.quote(campaignId, normalizedRateCardId)
+    );
+  };
+
+  const submitRequestInfo = () => {
+    const message = requestInfoMessage.trim();
+    if (!message) {
+      setError('Enter the information the customer needs to provide.');
+      return;
+    }
+    void runMutation(
+      'Information request sent and campaign moved to needs info.',
+      () => internalPaidPromotionsService.requestInfo(campaignId, message),
     );
   };
 
@@ -284,6 +301,13 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
         </Button>
         {campaign.status === 'in_review' && hasFulfillmentPayment && (
           <>
+            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => {
+              setError(null);
+              setRequestInfoMessage('');
+              setRequestInfoOpen(true);
+            }}>
+              Request information
+            </Button>
             <Button type="button" size="sm" disabled={busy} onClick={() => {
               setError(null);
               setLifecycleAction('approve');
@@ -330,6 +354,24 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
       )}
 
       <CampaignSummary campaign={campaign} />
+
+      {campaign.needsInfo && (
+        <section aria-labelledby="review-conversation-heading" className="rounded-lg border border-border bg-card p-5">
+          <h2 id="review-conversation-heading" className="text-base font-semibold">Latest review conversation</h2>
+          <dl className="mt-4 grid gap-5 md:grid-cols-2">
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Operator request</dt>
+              <dd className="mt-2 whitespace-pre-wrap text-sm leading-6">{campaign.needsInfo.requestMessage}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Customer response</dt>
+              <dd className="mt-2 whitespace-pre-wrap text-sm leading-6">
+                {campaign.needsInfo.customerResponse ?? 'Waiting for the customer to respond.'}
+              </dd>
+            </div>
+          </dl>
+        </section>
+      )}
 
       <DeliverablesPanel
         deliverables={campaign.deliverables}
@@ -408,6 +450,37 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </ActionDialog>
       )}
+
+      <ActionDialog
+        open={requestInfoOpen}
+        onOpenChange={(open) => {
+          setRequestInfoOpen(open);
+          if (!open) setRequestInfoMessage('');
+        }}
+        title="Request more information"
+        description="The campaign will pause in needs info. The customer will receive an email linking back to their campaign, but this message is stored only with the review record."
+        confirmLabel="Send request"
+        busy={busy}
+        onConfirm={submitRequestInfo}
+      >
+        <div className="grid gap-1.5">
+          <Label htmlFor="paid-promotion-info-request">Information needed</Label>
+          <Textarea
+            id="paid-promotion-info-request"
+            required
+            maxLength={1000}
+            rows={6}
+            autoComplete="off"
+            value={requestInfoMessage}
+            onChange={(event) => setRequestInfoMessage(event.target.value)}
+            placeholder="Explain exactly what the customer should provide"
+          />
+          <p className="text-xs text-muted-foreground">
+            {requestInfoMessage.length.toLocaleString()} / 1,000
+          </p>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        </div>
+      </ActionDialog>
 
       <ActionDialog
         open={quoteOpen}

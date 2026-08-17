@@ -12,6 +12,7 @@ const ALL_CAMPAIGN_STATUSES: PaidPromotionCampaignStatus[] = [
   'draft',
   'pending_payment',
   'in_review',
+  'needs_info',
   'scheduled',
   'fulfilling',
   'delivered',
@@ -59,6 +60,12 @@ void test('no customer-facing status string contains internal vocabulary', () =>
 void test('a rejected campaign states the refund expectation', () => {
   const presentation = getPaidPromotionStatusPresentation({ status: 'rejected', holdKind: null });
   assert.match(presentation.nextAction, /refund/i);
+});
+
+void test('needs info makes the customer action explicit', () => {
+  const presentation = getPaidPromotionStatusPresentation({ status: 'needs_info', holdKind: null });
+  assert.equal(presentation.actor, 'you');
+  assert.match(presentation.nextAction, /reply/i);
 });
 
 void test('a dispute hold is explained differently from a generic hold', () => {

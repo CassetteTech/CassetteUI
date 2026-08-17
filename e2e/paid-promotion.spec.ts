@@ -232,6 +232,47 @@ test('shows every published or verified result on a delivered campaign detail', 
   await expect(page.getByText(/planned|failed|removed/i)).toHaveCount(0);
 });
 
+test('lets the campaign owner answer a review information request once', async ({ page }) => {
+  const requestMessage = 'Please confirm who controls the master recording rights.';
+  const needsInfoCampaign = {
+    ...fixturePaidPromotionCampaign,
+    status: 'needs_info',
+    paymentStatus: 'paid',
+    discountAmountMinor: 0,
+    taxAmountMinor: 0,
+    finalTotalMinor: fixturePaidPromotionCampaign.amountMinor,
+    amountRefundedMinor: 0,
+    refundableRemainderMinor: fixturePaidPromotionCampaign.amountMinor,
+    needsInfo: {
+      id: 'pmr_FixtureReview01',
+      requestMessage,
+      customerResponse: null,
+      requestedAtUtc: '2026-08-17T12:00:00Z',
+      respondedAtUtc: null,
+    },
+  };
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    paidPromotionCampaign: needsInfoCampaign,
+  });
+  await page.goto(`/promote/${needsInfoCampaign.id}`);
+
+  await expect(page.getByText('Action needed', { exact: true })).toBeVisible();
+  await expect(page.getByText(requestMessage, { exact: true })).toBeVisible();
+  const response = 'Our label controls the master and has approved this campaign.';
+  await page.getByLabel('Your response').fill(response);
+  const responsePromise = page.waitForRequest((request) =>
+    request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/needs-info-response'),
+  );
+  await page.getByRole('button', { name: 'Send response' }).click();
+
+  expect((await responsePromise).postDataJSON()).toEqual({ response });
+  await expect(page.getByText('In review', { exact: true })).toBeVisible();
+  await expect(page.getByText(response, { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send response' })).toHaveCount(0);
+  await expectCustomerCopy(page);
+});
+
 test('lets the owner cancel an unpaid campaign after confirmation', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,

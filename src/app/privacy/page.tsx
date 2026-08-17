@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Metadata } from "next";
 import { Markdown } from "@/components/markdown";
+import { DEFAULT_SOCIAL_PREVIEW } from "@/lib/seo";
 
 export const dynamic = 'force-static';
 
@@ -12,8 +13,8 @@ export const metadata: Metadata = {
   title: { absolute: title },
   description,
   alternates: { canonical: '/privacy' },
-  openGraph: { title, description },
-  twitter: { title, description },
+  openGraph: { ...DEFAULT_SOCIAL_PREVIEW, title, description },
+  twitter: { ...DEFAULT_SOCIAL_PREVIEW, title, description },
 };
 
 const privacyMarkdownPath = path.join(process.cwd(), "src/content/privacy.md");

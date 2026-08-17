@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { fetchProfileForMetadata } from '@/lib/server/fetch-profile';
+import { DEFAULT_SOCIAL_PREVIEW } from '@/lib/seo';
 import ProfileLayoutClient from './layout-client';
 
 type Props = {
@@ -28,15 +29,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: { absolute: title },
       description: 'This Cassette Music profile could not be found.',
       robots: { index: false, follow: false },
-      openGraph: { title },
-      twitter: { title },
+      openGraph: { ...DEFAULT_SOCIAL_PREVIEW, title },
+      twitter: { ...DEFAULT_SOCIAL_PREVIEW, title },
     };
   }
 
   const displayName = profile.displayName || profile.username;
   const title = `${displayName} (@${profile.username}) | Cassette Profile`;
   const description = profile.bio || `Explore ${displayName}'s music profile and MusicLinks on Cassette.`;
-  const images = profile.avatarUrl ? [profile.avatarUrl] : [];
+  const images = profile.avatarUrl ? [profile.avatarUrl] : DEFAULT_SOCIAL_PREVIEW.images;
 
   return {
     title: { absolute: title },

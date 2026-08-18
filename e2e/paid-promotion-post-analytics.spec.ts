@@ -1,3 +1,5 @@
+// Verifies paid-promotion and curator attribution emitted from public post interactions.
+
 import { expect, test } from '@playwright/test';
 
 import { fixturePosts, fixtureUsers } from './support/cassette-fixtures';

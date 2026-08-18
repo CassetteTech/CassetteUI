@@ -1,3 +1,5 @@
+/** Emulates Bridge and platform routes so end-to-end tests can assert stateful UI workflows. */
+
 import type { Page, Route } from '@playwright/test';
 import { z } from 'zod';
 import type {
@@ -303,7 +305,7 @@ const defaultCuratorPricing: CuratorPricing = {
   processingFeeBps: 360,
   processingFeeFixedMinor: 30,
   payoutOpsFeeBps: 150,
-  payoutCadence: 'quarterly',
+  payoutCadence: 'monthly',
   minPayoutMinor: 2500,
 };
 
@@ -1017,7 +1019,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         if (plan.status === 'active') return json(route, plan);
         if (plan.status === 'archived' || state.curatorProfile?.status !== 'active' ||
             !state.curatorProStatus.hasAccess ||
-            state.curatorPayoutAccount?.transfersCapabilityStatus !== 'active' ||
+            !state.curatorPayoutAccount ||
             state.curatorPlans.some((candidate) =>
               candidate.id !== planId && candidate.status === 'active')) {
           return json(route, { message: 'Membership plan cannot be published.' }, 409);
@@ -1176,7 +1178,18 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         }, 404);
       }
 
-      return json(route, state.curatorPage);
+      const page = Math.max(1, Number(url.searchParams.get('page') || 1));
+      const pageSize = Math.min(50, Math.max(1, Number(url.searchParams.get('pageSize') || 20)));
+      const offset = (page - 1) * pageSize;
+      return json(route, {
+        ...state.curatorPage,
+        posts: {
+          items: state.curatorPage.posts.items.slice(offset, offset + pageSize),
+          totalItems: state.curatorPage.posts.totalItems,
+          page,
+          pageSize,
+        },
+      });
     }
 
     const membershipStatusMatch = pathname.match(
@@ -1459,6 +1472,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         musicElementId?: string;
         elementType?: string;
         description?: string;
+        privacy?: FixturePost['privacy'];
       };
       const currentUser = getCurrentUserOrThrow(state);
       const sourcePost = Array.from(state.postsById.values()).find(
@@ -1474,7 +1488,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         description: payload.description || sourcePost?.description || '',
         ownerId: currentUser.id,
         ownerUsername: currentUser.username,
-        privacy: 'public',
+        privacy: payload.privacy ?? 'public',
         createdAt: FIXTURE_TIMESTAMP,
         likeCount: 0,
         likedByCurrentUser: false,
@@ -1493,6 +1507,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       const payload = request.postDataJSON() as {
         sourceLink: string;
         description?: string;
+        privacy?: FixturePost['privacy'];
       };
       if (state.paidPromotionConversionDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, state.paidPromotionConversionDelayMs));
@@ -1504,6 +1519,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
 
       const createdPost = createOwnedPostFromTemplate(state, template, {
         description: payload.description || template.description || '',
+        privacy: payload.privacy ?? 'public',
       });
 
       return json(route, {
@@ -2309,7 +2325,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       if (method === 'PATCH') {
         const payload = request.postDataJSON() as {
           description?: string;
-          privacy?: 'public' | 'private';
+          privacy?: FixturePost['privacy'];
           commentsEnabled?: boolean;
         };
         const updatedPost = {

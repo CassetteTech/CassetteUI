@@ -1,5 +1,7 @@
 'use client';
 
+/** Provides Cassette operators with curator lifecycle, pricing policy, and payout controls. */
+
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, BadgeDollarSign, UserRoundCog } from 'lucide-react';
@@ -40,9 +42,10 @@ import type { InternalPaidPromotionException } from '@/types';
 const selectClassName =
   'h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50';
 const fieldClassName = 'grid gap-1 text-xs font-medium text-foreground';
+const percentFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 
 function percent(basisPoints: number) {
-  return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(basisPoints / 100)}%`;
+  return `${percentFormatter.format(basisPoints / 100)}%`;
 }
 
 const errorMessage = (error: Error) => error.message;
@@ -137,7 +140,7 @@ function CuratorOperations({
             <form className="grid gap-2" onSubmit={suspend}>
               <label className={fieldClassName} htmlFor="suspension-reason">
                 Suspension reason
-                <Textarea id="suspension-reason" name="suspensionReason" required />
+                <Textarea id="suspension-reason" name="suspensionReason" required maxLength={2_000} />
               </label>
               <Button type="submit" variant="destructive" disabled={lifecycle.isPending}>
                 Suspend curator
@@ -247,7 +250,7 @@ function AssignmentPanel({
           </label>
           <label className={`${fieldClassName} sm:col-span-2`} htmlFor="assignment-reason">
             Assignment reason
-            <Textarea id="assignment-reason" name="assignmentReason" required />
+            <Textarea id="assignment-reason" name="assignmentReason" required maxLength={2_000} />
           </label>
           <Button type="submit" disabled={assignment.isPending || activePolicies.length === 0}>
             Assign policy

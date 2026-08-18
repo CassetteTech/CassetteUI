@@ -1,3 +1,5 @@
+/** Exercises Curator Pro checkout and billing lifecycle states using server-polled status. */
+
 import { expect, type Page, test } from '@playwright/test';
 
 import type { CuratorProStatus } from '../src/services/curator-pro';
@@ -7,6 +9,7 @@ import {
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
+import { openStudioStep } from './support/studio-steps';
 
 const STUDIO_PATH = '/studio/curator';
 const CHECKOUT_URL = 'https://checkout.stripe.test/curator-pro-session';
@@ -106,6 +109,7 @@ test('waits for polled subscription truth after Checkout returns', async ({ page
     CHECKOUT_URL,
     `${STUDIO_PATH}?pro=return&session_id=cs_secret_must_not_be_trusted`,
   );
+  await openStudioStep(page, 'studio-pro');
   await page.getByTestId('curator-pro-subscribe').click();
 
   expect(state.curatorProStatus.hasAccess).toBe(false);
@@ -126,6 +130,7 @@ test('keeps billing management available across non-active lifecycle states', as
   });
 
   await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-pro');
   const card = page.getByTestId('curator-pro-card');
   await expect(page.getByTestId('curator-pro-manage')).toBeVisible();
   await expect(page.getByTestId('curator-pro-subscribe')).toHaveCount(0);
@@ -136,6 +141,7 @@ test('keeps billing management available across non-active lifecycle states', as
     hasAccess: false,
   };
   await page.reload();
+  await openStudioStep(page, 'studio-pro');
   await expect(page.getByTestId('curator-pro-manage')).toBeVisible();
   await expect(card).toContainText('Access unavailable');
   await expect(card).toContainText('subscription is current, but access is unavailable.');
@@ -149,6 +155,7 @@ test('keeps billing management available across non-active lifecycle states', as
     paidThroughUtc: '2026-09-16T12:00:00Z',
   });
   await page.reload();
+  await openStudioStep(page, 'studio-pro');
   await expect(page.getByTestId('curator-pro-manage')).toBeVisible();
   await expect(card).toContainText('Curator Pro is canceling on Sep 16, 2026.');
 
@@ -157,6 +164,7 @@ test('keeps billing management available across non-active lifecycle states', as
     canManage: true,
   });
   await page.reload();
+  await openStudioStep(page, 'studio-pro');
   await expect(page.getByTestId('curator-pro-manage')).toBeVisible();
   await expect(page.getByTestId('curator-pro-subscribe')).toHaveText('Restart Curator Pro');
   await expect(card).toContainText('Curator Pro is canceled.');
@@ -175,6 +183,7 @@ test('reflects cancellation and reactivation only after Billing Portal mirror ch
 
   await page.goto(STUDIO_PATH);
   await returnFromProvider(page, PORTAL_URL, `${STUDIO_PATH}?pro=portal-return`);
+  await openStudioStep(page, 'studio-pro');
   await page.getByTestId('curator-pro-manage').click();
 
   await expect.poll(() => state.curatorProPortalRequests).toBe(1);
@@ -194,10 +203,12 @@ test('leaves the free profile editor usable when Pro status fails', async ({ pag
   });
 
   await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-pro');
 
   await expect(page.getByTestId('curator-pro-card').getByRole('alert')).toBeVisible({
     timeout: 10_000,
   });
+  await openStudioStep(page, 'studio-profile');
   await page.getByLabel('Headline').fill('Free profile still works');
   await page.getByRole('button', { name: 'Create curator profile' }).click();
 

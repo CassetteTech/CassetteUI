@@ -1,3 +1,5 @@
+// Defines the team-only sidebar destinations for moderation, payments, and curator operations.
+
 import {
   Users,
   AlertCircle,

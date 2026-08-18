@@ -1,3 +1,5 @@
+/** Covers public curator visibility, locked-content privacy, entitlement, and responsive layout. */
+
 import { expect, type Page, test } from '@playwright/test';
 
 import {
@@ -9,7 +11,7 @@ import {
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
-const CURATOR_PATH = `/curator/${fixtureCuratorPage.curator.username}`;
+const CURATOR_PATH = `/profile/${fixtureCuratorPage.curator.username}`;
 const MOBILE_VIEWPORT = { width: 390, height: 667 };
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -27,11 +29,9 @@ test('shows a paid curator plan without leaking locked content to a nonmember', 
 
   await page.goto(CURATOR_PATH);
 
-  const main = page.locator('main:visible').last();
-  await expect(main.getByRole('heading', {
-    level: 1,
-    name: fixtureUsers.playlistCurator.displayName,
-  })).toBeVisible();
+  await expect(
+    page.getByText(fixtureUsers.playlistCurator.displayName, { exact: true }).first(),
+  ).toBeVisible();
   const membershipCard = page.locator('[data-testid="curator-membership-card"]:visible').first();
   await expect(membershipCard).toContainText(
     fixtureCuratorPage.membership!.name,
@@ -67,8 +67,7 @@ test('shows subscriber content and the member badge to an entitled viewer', asyn
     page.locator('h3:visible').filter({ hasText: CURATOR_SUBSCRIBER_SENTINEL }).first(),
   ).toBeVisible();
   await expect(
-    page.locator('[data-testid="curator-profile"]:visible').first()
-      .getByText('Member', { exact: true }),
+    page.getByTestId('curator-membership-card').getByText('Member', { exact: true }),
   ).toBeVisible();
   await expect(page.getByRole('link', { name: /join/i })).toHaveCount(0);
 });
@@ -90,14 +89,75 @@ test('keeps an active curator without Pro public-only', async ({ page }) => {
   expect(await page.content()).not.toContain(CURATOR_SUBSCRIBER_SENTINEL);
 });
 
-test('renders the same not-found state for suspended and missing curators', async ({ page }) => {
-  await mockCassetteApp(page, { currentUser: fixtureUsers.viewer });
+test('loads each curator feed page once without repeating earlier posts', async ({ page }) => {
+  const firstPost = fixtureFreeCuratorPage.posts.items[0];
+  if (firstPost.kind !== 'post') throw new Error('Expected a public curator post fixture');
+  const items = Array.from({ length: 21 }, (_, index) => ({
+    ...firstPost,
+    post: {
+      ...firstPost.post,
+      postId: `post-curator-page-${index + 1}`,
+      redirectPostId: `post-curator-page-${index + 1}`,
+      title: `Curator page item ${index + 1}`,
+    },
+  }));
 
-  for (const username of ['suspended-curator', 'missing-curator']) {
-    await page.goto(`/curator/${username}`);
-    await expect(page.getByRole('heading', { name: /curator not found/i })).toBeVisible();
-    await expect(page.getByTestId('curator-profile')).toHaveCount(0);
-  }
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.viewer,
+    curatorPage: {
+      ...fixtureFreeCuratorPage,
+      posts: {
+        items,
+        totalItems: items.length,
+        page: 1,
+        pageSize: 20,
+      },
+    },
+  });
+
+  await page.goto(CURATOR_PATH);
+
+  await expect(page.getByRole('heading', { name: 'Curator page item 20' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Curator page item 21' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Load more' }).click();
+  await expect(page.getByRole('heading', { name: 'Curator page item 21' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Load more' })).toHaveCount(0);
+});
+
+test('keeps the ordinary profile visible when curator monetization is unavailable', async ({ page }) => {
+  const suspendedCurator = {
+    ...fixtureUsers.playlistCurator,
+    id: 'user-suspended-curator',
+    username: 'suspended-curator',
+    displayName: 'Suspended Curator',
+  };
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.viewer,
+    users: [suspendedCurator],
+  });
+
+  await page.goto(`/profile/${suspendedCurator.username}`);
+  await expect(page.getByText(suspendedCurator.displayName, { exact: true }).first()).toBeVisible();
+  await expect(page.getByTestId('curator-membership-card')).toHaveCount(0);
+
+  await page.goto('/profile/missing-curator');
+  await expect(page.getByRole('heading', { name: /user not found/i })).toBeVisible();
+});
+
+test('redirects legacy curator links to the canonical profile with query state intact', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.viewer,
+    curatorPage: fixtureCuratorPage,
+  });
+
+  await page.goto(`/curator/${fixtureCuratorPage.curator.username}?membership=canceled&source=legacy`);
+
+  await expect(page.getByTestId('membership-notice')).toHaveText(
+    'Checkout was canceled. You were not charged.',
+  );
+  await expect(page).toHaveURL(
+    new RegExp(`/profile/${fixtureCuratorPage.curator.username}\\?source=legacy$`),
+  );
 });
 
 test('keeps the curator page accessible and responsive on mobile and desktop', async ({ page }) => {
@@ -109,9 +169,8 @@ test('keeps the curator page accessible and responsive on mobile and desktop', a
 
   await page.goto(CURATOR_PATH);
 
-  await expect(page.locator('h1:visible')).toHaveCount(1);
   await expect(
-    page.locator('[data-testid="curator-profile"]:visible').first(),
+    page.locator('[data-testid="curator-details"]:visible').first(),
   ).toBeInViewport({ ratio: 1 });
   const joinButton = page.locator('[data-testid="curator-membership-card"]:visible').first()
     .getByRole('button', { name: /join/i });

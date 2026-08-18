@@ -1,5 +1,7 @@
 'use client';
 
+// Renders Cassette's responsive application sidebar from role-aware navigation configuration.
+
 import { useRef, useState, useEffect } from 'react';
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import {

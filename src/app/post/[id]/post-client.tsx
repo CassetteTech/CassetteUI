@@ -1,5 +1,7 @@
 'use client';
 
+// Renders a public post, enforces viewer-state presentation, and emits sanitized interaction analytics.
+
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTemplate, PostByIdResponse, PublicPostPageMetadata } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';

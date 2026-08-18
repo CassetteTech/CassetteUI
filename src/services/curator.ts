@@ -1,3 +1,5 @@
+/** Defines public curator privacy boundaries plus profile and payout API operations. */
+
 import { z } from 'zod';
 import { correlationIdSchema, httpsUrlSchema } from './membership';
 import { formatPaidPromotionMinorAmount } from './paid-promotion-lifecycle';

@@ -1,3 +1,5 @@
+/** Parses and requests the curator's paginated membership earnings ledger view. */
+
 import { z } from 'zod';
 import { CuratorPageError } from './curator';
 import { moneyMinorSchema } from './membership';

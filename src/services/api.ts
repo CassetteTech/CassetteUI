@@ -1,3 +1,5 @@
+// Provides the browser API client and shared request, auth, error, and response handling.
+
 import { clientConfig } from '@/lib/config-client';
 import {
   MusicLinkConversion,
@@ -51,6 +53,7 @@ import {
   InternalPaidPromotionDeliverableInput,
   InternalPaidPromotionException,
   InternalPaidPromotionRefundResponse,
+  type PostPrivacy,
 } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent, surfaceFromRoute } from '@/lib/analytics/client';
@@ -300,7 +303,7 @@ class ApiService {
   // Music conversion endpoints
   async convertMusicLink(
     url: string,
-    options?: { anonymous?: boolean; description?: string; idempotencyKey?: string }
+    options?: { anonymous?: boolean; description?: string; idempotencyKey?: string; privacy?: PostPrivacy }
   ): Promise<MusicLinkConversion> {
     const correlationId = createCorrelationId();
     const detected = detectContentType(url);
@@ -330,6 +333,7 @@ class ApiService {
       body: JSON.stringify({
         sourceLink: url,
         description: options?.description || undefined,
+        privacy: options?.privacy,
       }),
       skipAuth: options?.anonymous,
       correlationId,
@@ -1267,10 +1271,10 @@ class ApiService {
   }
 
   // Add music element to user's profile by creating a post
-  async addToProfile(musicElementId: string, elementType: string, description?: string): Promise<{ postId: string }> {
+  async addToProfile(musicElementId: string, elementType: string, description?: string, privacy?: PostPrivacy): Promise<{ postId: string }> {
     return this.request('/api/v1/social/posts', {
       method: 'POST',
-      body: JSON.stringify({ musicElementId, elementType, description }),
+      body: JSON.stringify({ musicElementId, elementType, description, privacy }),
     });
   }
 

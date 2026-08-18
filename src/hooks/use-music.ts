@@ -1,3 +1,5 @@
+/** Owns React Query operations and cache refreshes for music conversion and social posts. */
+
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { musicService } from '@/services/music';
@@ -6,6 +8,7 @@ import { useMusicStore } from '@/stores/music-store';
 import { seedArtworkCache } from '@/services/profile-artwork-cache';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { appLogger } from '@/lib/observability/logger';
+import type { PostPrivacy } from '@/types';
 
 function trackPostCreated(
   postId: string | undefined,
@@ -62,10 +65,10 @@ export const useMusicLinkConversion = (options?: { anonymous?: boolean }) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (params: { url: string; description?: string; idempotencyKey?: string; anonymous?: boolean }) => {
+    mutationFn: (params: { url: string; description?: string; idempotencyKey?: string; anonymous?: boolean; privacy?: PostPrivacy }) => {
       const anonymous = typeof params.anonymous === 'boolean' ? params.anonymous : options?.anonymous;
       appLogger.debug('music_link_conversion_submitted', { anonymous });
-      return musicService.convertMusicLink(params.url, { anonymous, description: params.description, idempotencyKey: params.idempotencyKey });
+      return musicService.convertMusicLink(params.url, { anonymous, description: params.description, idempotencyKey: params.idempotencyKey, privacy: params.privacy });
     },
     onSuccess: (data, variables) => {
       seedArtworkCache(data.postId, data.metadata?.artwork);
@@ -163,12 +166,13 @@ export const useAddMusicToProfile = () => {
       elementType: string;
       description?: string;
       artworkUrl?: string;
+      privacy?: PostPrivacy;
     }) => {
       appLogger.debug('add_music_to_profile_submitted', {
         element_type: params.elementType,
         music_element_id: params.musicElementId,
       });
-      return apiService.addToProfile(params.musicElementId, params.elementType, params.description);
+      return apiService.addToProfile(params.musicElementId, params.elementType, params.description, params.privacy);
     },
     onSuccess: (data, variables) => {
       seedArtworkCache(data.postId, variables.artworkUrl);

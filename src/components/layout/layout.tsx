@@ -1,5 +1,7 @@
 'use client';
 
+// Hosts the client application layout, session refresh, and route-level analytics lifecycle.
+
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { authService } from '@/services/auth';

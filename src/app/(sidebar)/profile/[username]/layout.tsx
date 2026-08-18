@@ -1,3 +1,5 @@
+/** Builds social metadata for the canonical public profile and wraps its responsive layout. */
+
 import type { Metadata } from 'next';
 import { fetchProfileForMetadata } from '@/lib/server/fetch-profile';
 import { DEFAULT_SOCIAL_PREVIEW } from '@/lib/seo';
@@ -36,7 +38,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const displayName = profile.displayName || profile.username;
   const title = `${displayName} (@${profile.username}) | Cassette Profile`;
-  const description = profile.bio || `Explore ${displayName}'s music profile and MusicLinks on Cassette.`;
+  const description = profile.bio ||
+    `Explore ${displayName}'s music profile and MusicLinks on Cassette.`;
   const images = profile.avatarUrl ? [profile.avatarUrl] : DEFAULT_SOCIAL_PREVIEW.images;
 
   return {

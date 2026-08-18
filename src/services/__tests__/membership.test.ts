@@ -1,3 +1,5 @@
+/** Covers strict fan membership status and secure Stripe handoff contracts. */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {

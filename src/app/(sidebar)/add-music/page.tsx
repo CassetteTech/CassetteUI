@@ -1,5 +1,7 @@
 'use client';
 
+/** Creates a music post from search or a provider link, including its caption and visibility. */
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { UrlBar } from '@/components/ui/url-bar';
@@ -33,6 +35,8 @@ import {
   validateMusicLink,
 } from '@/utils/music-link-input';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
+import { useSubscriberPostEligibility } from '@/hooks/use-curator';
+import type { PostPrivacy } from '@/types';
 
 type SelectedItem = {
   id: string;
@@ -52,6 +56,9 @@ type ConvertingMeta = {
   headline: string;
 };
 
+const STANDARD_PRIVACY_OPTIONS: readonly PostPrivacy[] = ['public', 'private'];
+const SUBSCRIBER_PRIVACY_OPTIONS: readonly PostPrivacy[] = [...STANDARD_PRIVACY_OPTIONS, 'subscriber'];
+
 // Add Music Form component extracted to prevent recreation on every render
 const AddMusicForm = ({
   isSearchActive,
@@ -66,6 +73,9 @@ const AddMusicForm = ({
   clearSelection,
   description,
   setDescription,
+  privacy,
+  setPrivacy,
+  privacyOptions,
   handleAddToProfile,
   errorMessage,
   searchInputRef,
@@ -90,6 +100,9 @@ const AddMusicForm = ({
   clearSelection: () => void;
   description: string;
   setDescription: (value: string) => void;
+  privacy: PostPrivacy;
+  setPrivacy: (value: PostPrivacy) => void;
+  privacyOptions: readonly PostPrivacy[];
   handleAddToProfile: () => void;
   errorMessage: string;
   searchInputRef: React.RefObject<HTMLInputElement | null>;
@@ -106,6 +119,12 @@ const AddMusicForm = ({
   // visual viewport, which would otherwise push the bar and the top of the
   // results out of view the moment the input focuses.
   const sheetRef = useSheetViewportPin(isSearchActive);
+  const handlePrivacyChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = event.target.value;
+    if (value === 'public' || value === 'private' || value === 'subscriber') {
+      setPrivacy(value);
+    }
+  };
 
   return (
   <>
@@ -359,6 +378,30 @@ const AddMusicForm = ({
           />
         </div>
 
+        <div className="mb-4 sm:mb-6 md:mb-8">
+          <label htmlFor="add-music-privacy" className="block font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
+            Post visibility
+          </label>
+          <select
+            id="add-music-privacy"
+            value={privacy}
+            onChange={handlePrivacyChange}
+            disabled={isConverting}
+            className="w-full rounded-lg border border-border bg-field elev-1 px-4 py-3 text-sm text-foreground transition-colors focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-70"
+          >
+            {privacyOptions.map((option) => (
+              <option key={option} value={option}>
+                {option === 'subscriber' ? 'Subscribers only' : option === 'public' ? 'Public' : 'Private'}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {privacyOptions.includes('subscriber')
+              ? 'Subscribers-only posts are unlocked by fans with an active membership.'
+              : 'Subscribers-only posts require active Curator Pro and a published member-post plan.'}
+          </p>
+        </div>
+
         {/* Add to Profile Button */}
         <div className="text-center">
           <button
@@ -388,6 +431,7 @@ export default function AddMusicPage() {
   
   const [musicUrl, setMusicUrl] = useState(prefilledUrl);
   const [description, setDescription] = useState('');
+  const [privacy, setPrivacy] = useState<PostPrivacy>('public');
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
   const [pastedLinkSource, setPastedLinkSource] = useState<string | null>(null);
@@ -404,6 +448,10 @@ export default function AddMusicPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
   const resolvedReturnRoute = user?.username ? `/profile/${user.username}` : null;
   const linkConversion = useMusicLinkConversion();
+  const canUseSubscriberPosts = useSubscriberPostEligibility();
+  const privacyOptions = canUseSubscriberPosts
+    ? SUBSCRIBER_PRIVACY_OPTIONS
+    : STANDARD_PRIVACY_OPTIONS;
   const { label: conversionStageLabel } = useConversionStage(conversionKey);
   const isConverting = conversionKey != null;
   const { data: topCharts, isLoading: isLoadingCharts } = useTopCharts();
@@ -752,6 +800,7 @@ export default function AddMusicPage() {
         url: urlToConvert,
         description: description.trim() || undefined,
         idempotencyKey: key,
+        privacy,
       });
 
       // Warm handoff: prefetch the route and stash the post payload so
@@ -784,7 +833,7 @@ export default function AddMusicPage() {
         'Something went wrong while converting your link. Please try again.',
       ));
     }
-  }, [conversionKey, description, isValidMusicUrl, linkConversion, musicUrl, normalizeUrlInput, resolvedReturnRoute, router, selectedItem]);
+  }, [conversionKey, description, isValidMusicUrl, linkConversion, musicUrl, normalizeUrlInput, privacy, resolvedReturnRoute, router, selectedItem]);
 
   useEffect(() => {
     const query = debouncedSearchTerm.trim();
@@ -887,6 +936,9 @@ export default function AddMusicPage() {
                   clearSelection={clearSelection}
                   description={description}
                   setDescription={setDescription}
+                  privacy={privacy}
+                  setPrivacy={setPrivacy}
+                  privacyOptions={privacyOptions}
                   handleAddToProfile={handleAddToProfile}
                   errorMessage={errorMessage}
                   searchInputRef={searchInputRef}
@@ -939,6 +991,9 @@ export default function AddMusicPage() {
               clearSelection={clearSelection}
               description={description}
               setDescription={setDescription}
+              privacy={privacy}
+              setPrivacy={setPrivacy}
+              privacyOptions={privacyOptions}
               handleAddToProfile={handleAddToProfile}
               errorMessage={errorMessage}
               searchInputRef={searchInputRef}

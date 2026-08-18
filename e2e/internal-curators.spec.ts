@@ -1,3 +1,5 @@
+/** Covers internal curator lifecycle, immutable pricing policy, assignment, and payout views. */
+
 import { expect, test, type Page } from '@playwright/test';
 import type { InternalCurator, PricingPolicy } from '../src/services/internal-curators';
 import {

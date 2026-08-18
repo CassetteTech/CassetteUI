@@ -1,11 +1,22 @@
+/** Verifies post owners can edit visibility and comments, then delete their post. */
+
 import { expect, test } from '@playwright/test';
-import { fixturePosts, fixtureUsers } from './support/cassette-fixtures';
+import {
+  fixtureActiveCuratorProfile,
+  fixtureActiveMemberPostPlan,
+  fixtureCuratorProActiveStatus,
+  fixturePosts,
+  fixtureUsers,
+} from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 test('lets a post owner edit and delete a post', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.owner,
     posts: [fixturePosts.ownerTrack],
+    curatorProfile: fixtureActiveCuratorProfile,
+    curatorProStatus: fixtureCuratorProActiveStatus,
+    curatorPlans: [fixtureActiveMemberPostPlan],
   });
 
   await page.goto('/post/post-owner-track');
@@ -13,7 +24,7 @@ test('lets a post owner edit and delete a post', async ({ page }) => {
   await page.getByRole('menuitem', { name: 'Edit' }).click();
 
   await page.getByPlaceholder('Add a description...').fill('Updated description from Playwright.');
-  await page.locator('#post-privacy').selectOption('private');
+  await page.locator('#post-privacy').selectOption('subscriber');
   const commentsSwitch = page.getByRole('switch', { name: 'Allow comments' });
   await expect(commentsSwitch).toHaveAttribute('aria-checked', 'true');
   await commentsSwitch.click();
@@ -37,7 +48,7 @@ test('lets a post owner edit and delete a post', async ({ page }) => {
   await expect(page.getByPlaceholder('Add a description...')).toHaveValue(
     'Updated description from Playwright.',
   );
-  await expect(page.locator('#post-privacy')).toHaveValue('private');
+  await expect(page.locator('#post-privacy')).toHaveValue('subscriber');
   await page.getByRole('button', { name: 'Cancel' }).click();
 
   await page.getByTestId('post-actions-trigger').click();

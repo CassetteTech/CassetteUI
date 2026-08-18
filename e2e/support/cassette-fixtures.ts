@@ -1,4 +1,10 @@
-import type { CuratorPage as FixtureCuratorPage } from '../../src/services/curator';
+/** Supplies deterministic Cassette domain fixtures shared by browser-level feature tests. */
+
+import type {
+  CuratorPage as FixtureCuratorPage,
+  CuratorProfile as FixtureCuratorProfile,
+} from '../../src/services/curator';
+import type { CuratorPlan as FixtureCuratorPlan } from '../../src/services/curator-plans';
 import type { CuratorProStatus as FixtureCuratorProStatus } from '../../src/services/curator-pro';
 import type { MembershipStatusView } from '../../src/services/membership';
 
@@ -76,7 +82,7 @@ export interface FixturePost {
   artworkUrl?: string;
   ownerId?: string;
   ownerUsername?: string;
-  privacy?: 'public' | 'private';
+  privacy?: 'public' | 'private' | 'subscriber';
   createdAt?: string;
   likeCount?: number;
   likedByCurrentUser?: boolean;
@@ -127,6 +133,34 @@ export const fixtureCuratorProActiveStatus: FixtureCuratorProStatus = {
   status: 'active',
   canManage: true,
   paidThroughUtc: '2026-09-16T12:00:00Z',
+};
+
+export const fixtureActiveCuratorProfile: FixtureCuratorProfile = {
+  id: 'cpr_FixtureAuthor0000000001',
+  status: 'active',
+  headline: 'Member recommendations',
+  about: null,
+  declaredGenres: [],
+  declaredPlatforms: [],
+  suspensionReason: null,
+  createdAtUtc: '2026-08-16T12:00:00Z',
+  statusChangedAtUtc: '2026-08-16T12:00:00Z',
+};
+
+export const fixtureActiveMemberPostPlan: FixtureCuratorPlan = {
+  id: 'mpl_FixtureMemberPosts0001',
+  name: 'Member posts',
+  description: 'Subscriber-only recommendations.',
+  amountMinor: 500,
+  annualAmountMinor: null,
+  currency: 'USD',
+  serviceFeeMinor: 50,
+  annualServiceFeeMinor: null,
+  status: 'active',
+  featureKeys: ['member_posts'],
+  createdAtUtc: '2026-08-16T12:00:00Z',
+  publishedAtUtc: '2026-08-16T12:00:00Z',
+  archivedAtUtc: null,
 };
 
 export interface FixturePaidPromotionRateCard {

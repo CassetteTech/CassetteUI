@@ -1,5 +1,7 @@
 'use client';
 
+/** Polls the authenticated fan's Bridge-owned membership status for one curator. */
+
 import { useQuery } from '@tanstack/react-query';
 import { apiService } from '@/services/api';
 

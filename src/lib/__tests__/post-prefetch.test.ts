@@ -1,3 +1,5 @@
+/** Ensures prefetched post handoffs cannot retain curator or member attribution. */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { savePrefetchedPost, takePrefetchedPost } from '../post-prefetch';

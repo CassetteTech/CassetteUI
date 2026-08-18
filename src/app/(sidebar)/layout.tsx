@@ -1,5 +1,7 @@
 'use client';
 
+// Composes the authenticated sidebar shell and its shared application providers.
+
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { EmailPreferencesSettingsProvider } from '@/components/features/profile/email-preferences-settings';

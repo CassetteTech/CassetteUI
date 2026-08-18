@@ -1,12 +1,14 @@
+/** Defines internal curator lifecycle, immutable pricing policy, and assignment operations. */
+
 import { z } from 'zod';
 
 const timestampSchema = z.string().datetime({ offset: true });
 const curatorIdSchema = z.string().regex(/^cpr_[0-9A-Za-z]+$/).max(40);
 const policyIdSchema = z.string().regex(/^msf_[0-9A-Za-z]+$/).max(40);
 const assignmentIdSchema = z.string().regex(/^cfa_[0-9A-Za-z]+$/).max(40);
-const moneyMinorSchema = z.number().int().nonnegative().safe();
-const basisPointsSchema = z.number().int().nonnegative().safe();
-const reasonSchema = z.string().trim().min(1);
+const moneyMinorSchema = z.number().int().nonnegative().max(99_999_999);
+const basisPointsSchema = z.number().int().nonnegative().max(10_000);
+const reasonSchema = z.string().trim().min(1).max(2_000);
 
 const curatorStatusSchema = z.enum(['active', 'suspended', 'retired']);
 
@@ -19,7 +21,7 @@ const internalCuratorSchema = z.object({
   about: z.string().max(2_000).nullable(),
   declaredGenres: z.array(z.string().max(2_000)).max(20),
   declaredPlatforms: z.array(z.string().max(2_000)).max(20),
-  suspensionReason: z.string().min(1).nullable(),
+  suspensionReason: z.string().min(1).max(2_000).nullable(),
   createdAtUtc: timestampSchema,
   statusChangedAtUtc: timestampSchema,
 }).strict().refine(
@@ -33,7 +35,7 @@ const pricingPolicyFields = {
   isActive: z.boolean(),
   curatorProMonthlyPriceMinor: moneyMinorSchema.positive(),
   currency: z.literal('USD'),
-  platformFeeBps: basisPointsSchema.max(10_000),
+  platformFeeBps: basisPointsSchema,
   serviceFeeBps: basisPointsSchema,
   serviceFeeFixedMinor: moneyMinorSchema,
   processingBorneBy: z.enum(['platform', 'curator']),

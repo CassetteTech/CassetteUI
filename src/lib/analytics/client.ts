@@ -1,5 +1,7 @@
 'use client';
 
+// Provides sanitized browser analytics capture, identity, page-view, and route-surface helpers.
+
 import type { AnalyticsBaseProps, AnalyticsEventName, SourceSurface } from './events';
 import { sanitizeAnalyticsProps, sanitizeRoute } from './sanitize';
 import { withCoreAction } from './events';

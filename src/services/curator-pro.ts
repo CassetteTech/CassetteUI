@@ -1,3 +1,5 @@
+/** Defines strict Curator Pro lifecycle and Stripe handoff response contracts. */
+
 import { z } from 'zod';
 import {
   correlationIdSchema,

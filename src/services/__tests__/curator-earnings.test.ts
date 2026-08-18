@@ -1,3 +1,5 @@
+/** Verifies curator earnings parsing, pagination, and authenticated request behavior. */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {

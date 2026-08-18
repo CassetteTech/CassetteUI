@@ -1,3 +1,5 @@
+// Redacts analytics properties to an explicit, size-bounded, non-sensitive schema.
+
 import type { AnalyticsBaseProps, ElementTypeDimension, PlatformDimension } from './events';
 
 const MAX_STRING_LENGTH = 180;

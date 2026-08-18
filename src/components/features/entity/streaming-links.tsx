@@ -1,3 +1,5 @@
+// Renders outbound streaming destinations and records allowlisted conversion analytics.
+
 import React from 'react';
 import Image from 'next/image';
 import { ArrowUpRight } from 'lucide-react';

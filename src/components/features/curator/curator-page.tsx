@@ -1,5 +1,7 @@
 'use client';
 
+/** Coordinates the public curator feed, fan entitlement state, and Stripe handoff flows. */
+
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -70,10 +72,12 @@ export function PublicCuratorPage({
   username,
   membershipFlow,
   initialInterval,
+  embedded = false,
 }: {
   username: string;
   membershipFlow: MembershipFlow;
   initialInterval: MembershipInterval;
+  embedded?: boolean;
 }) {
   const instanceId = useId();
   const curatorNameId = `curator-name-${instanceId}`;
@@ -85,7 +89,7 @@ export function PublicCuratorPage({
   const viewerKey = authLoading ? null : (user?.id ?? 'anonymous');
   const query = useCuratorPage(username, viewerKey);
   const page = query.data?.pages[0];
-  const [interval, setInterval] = useState(initialInterval);
+  const [interval, setBillingInterval] = useState(initialInterval);
   const [pollStatus, setPollStatus] = useState(
     membershipFlow === 'return' || membershipFlow === 'portal-return',
   );
@@ -130,7 +134,7 @@ export function PublicCuratorPage({
         // Checkout still works; analytics attribution stays fail-closed.
       }
       void captureClientEvent('membership_checkout_started', {
-        route: '/curator/[username]',
+        route: '/profile/[username]',
         source_surface: 'curator',
         curator_id: curatorProfileId,
         membership_plan_id: checkout.planId,
@@ -179,7 +183,7 @@ export function PublicCuratorPage({
     ) return;
 
     const query = new URLSearchParams({ membership: membershipFlow });
-    const returnPath = `/curator/${encodeURIComponent(username)}?${query}`;
+    const returnPath = `/profile/${encodeURIComponent(username)}?${query}`;
     router.replace(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
   }, [authLoading, isAuthenticated, membershipFlow, router, username]);
 
@@ -187,7 +191,7 @@ export function PublicCuratorPage({
     if (!page || pageViewCaptured.current) return;
     pageViewCaptured.current = true;
     void captureClientEvent('curator_page_viewed', {
-      route: '/curator/[username]',
+      route: '/profile/[username]',
       source_surface: 'curator',
       curator_id: page.curator.id,
       membership_plan_id: page.membership?.planId,
@@ -228,7 +232,7 @@ export function PublicCuratorPage({
       }
       if (checkoutStarted) {
         void captureClientEvent('membership_started', {
-          route: '/curator/[username]',
+          route: '/profile/[username]',
           source_surface: 'curator',
           curator_id: status.curatorProfileId,
           membership_plan_id: membership.planId,
@@ -281,7 +285,7 @@ export function PublicCuratorPage({
       removeMembershipQuery('membership', 'interval');
       void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
       void captureClientEvent('membership_canceled', {
-        route: '/curator/[username]',
+        route: '/profile/[username]',
         source_surface: 'curator',
         curator_id: status.curatorProfileId,
         membership_plan_id: membership.planId,
@@ -350,7 +354,7 @@ export function PublicCuratorPage({
 
     if (statusQuery.data.canSubscribe) {
       if (!checkoutIntervalAvailable) {
-        setInterval('month');
+        setBillingInterval('month');
         setActionError('Annual billing is not available. Review the monthly option before joining.');
         return;
       }
@@ -384,7 +388,7 @@ export function PublicCuratorPage({
   const join = () => {
     if (!page.membership) return;
     if (!checkoutIntervalAvailable) {
-      setInterval('month');
+      setBillingInterval('month');
       setActionError('Annual billing is not available. Review the monthly option before joining.');
       return;
     }
@@ -397,7 +401,7 @@ export function PublicCuratorPage({
       } catch {
         // The fan can select Join again after signing in.
       }
-      const returnPath = `/curator/${encodeURIComponent(username)}?membership=join&interval=${checkoutInterval}`;
+      const returnPath = `/profile/${encodeURIComponent(username)}?membership=join&interval=${checkoutInterval}`;
       router.push(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
       return;
     }
@@ -409,8 +413,18 @@ export function PublicCuratorPage({
   const showMembership = Boolean(page.membership || statusQuery.data?.membership?.canManage);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-      <CuratorIdentity page={page} displayName={displayName} headingId={curatorNameId} />
+    <div className={cn(
+      'mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10',
+      embedded && 'lg:max-w-none',
+    )}>
+      {embedded ? (
+        <>
+          <h1 className="sr-only" id={curatorNameId}>{displayName}</h1>
+          <CuratorDetails page={page} />
+        </>
+      ) : (
+        <CuratorIdentity page={page} displayName={displayName} headingId={curatorNameId} />
+      )}
 
       <div className={cn(
         'mt-8 grid gap-6',
@@ -440,13 +454,39 @@ export function PublicCuratorPage({
             checkoutPending={checkoutPending}
             portalPending={portalPending}
             checkoutCanceled={membershipFlow === 'canceled'}
-            onIntervalChange={setInterval}
+            onIntervalChange={setBillingInterval}
             onJoin={join}
             onManage={(id, cancelAtPeriodEnd, status) => void manage(id, cancelAtPeriodEnd, status)}
           />
         )}
       </div>
     </div>
+  );
+}
+
+function CuratorDetails({ page }: { page: CuratorPageData }) {
+  const { curator } = page;
+  const interests = [...new Set([...curator.declaredGenres, ...curator.declaredPlatforms])];
+  if (!curator.headline && !curator.about && interests.length === 0) return null;
+
+  return (
+    <section data-testid="curator-details" className="mb-8 rounded-xl border border-border/70 bg-card p-5 elev-1 sm:p-6">
+      {curator.headline && (
+        <p className="break-words text-lg font-semibold leading-snug sm:text-xl">
+          {curator.headline}
+        </p>
+      )}
+      {curator.about && (
+        <p className="mt-3 max-w-3xl whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground sm:text-base">
+          {curator.about}
+        </p>
+      )}
+      {interests.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2" aria-label="Curator interests">
+          {interests.map((label) => <Badge key={label} variant="outline">{label}</Badge>)}
+        </div>
+      )}
+    </section>
   );
 }
 

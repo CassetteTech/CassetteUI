@@ -1,10 +1,17 @@
 'use client';
 
+/** Manages Stripe Connect onboarding and renders only the payout status confirmed by Bridge. */
+
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Badge } from '@/components/ui/badge';
+import {
+  StudioChip,
+  StudioFact,
+  StudioNotice,
+  StudioSection,
+  type StudioChipTone,
+} from '@/components/features/curator/studio-shell';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   fetchCuratorPayoutAccount,
   startCuratorPayoutOnboarding,
@@ -34,6 +41,13 @@ function payoutLabel(account: CuratorPayoutAccount | null) {
   if (account.transfersCapabilityStatus === 'active') return 'Ready';
   if (account.onboardingStatus === 'restricted' || account.requirementsDue) return 'Needs attention';
   return 'In progress';
+}
+
+function payoutTone(account: CuratorPayoutAccount | null): StudioChipTone {
+  if (!account) return 'neutral';
+  if (account.transfersCapabilityStatus === 'active') return 'positive';
+  if (account.onboardingStatus === 'restricted' || account.requirementsDue) return 'warning';
+  return 'neutral';
 }
 
 function capabilityLabel(status: string | null) {
@@ -101,24 +115,18 @@ export function CuratorPayoutCard() {
   const actionLabel = account ? 'Continue payout setup' : 'Set up payouts';
 
   return (
-    <Card data-testid="curator-payout-card" aria-labelledby="curator-payout-title">
-      <CardHeader className="sm:flex sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 id="curator-payout-title" className="text-xl font-semibold">Payouts</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Payout setup is free and does not require Curator Pro.
-          </p>
-        </div>
-        {!loading && !status.isError && (
-          <Badge
-            variant={account?.transfersCapabilityStatus === 'active' ? 'default' : 'outline'}
-            className="mt-2 sm:mt-0"
-          >
-            {payoutLabel(account)}
-          </Badge>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <StudioSection
+      id="studio-payouts"
+      eyebrow={<><span className="text-primary">Step 3</span> · Get paid</>}
+      title="Payouts"
+      headingId="curator-payout-title"
+      testId="curator-payout-card"
+      description="Payout setup is free and does not require Curator Pro."
+      chip={!loading && !status.isError && (
+        <StudioChip tone={payoutTone(account)}>{payoutLabel(account)}</StudioChip>
+      )}
+    >
+      <div className="space-y-5">
         {flow === 'refresh' ? (
           <div className="space-y-3">
             <p className="text-sm">
@@ -152,41 +160,31 @@ export function CuratorPayoutCard() {
         ) : (
           <>
             {flow === 'return' && (
-              <output
-                data-testid="curator-payout-notice"
-                aria-live="polite"
-                className="block rounded-md border bg-muted/40 p-3 text-sm"
-              >
+              <StudioNotice testId="curator-payout-notice">
                 {account?.transfersCapabilityStatus === 'active'
                   ? 'Payout setup is complete.'
                   : 'Payout setup is not complete yet. Review the current status below.'}
-              </output>
+              </StudioNotice>
             )}
 
-            <p className="text-sm">{statusCopy(account)}</p>
+            <p className="text-sm leading-relaxed">{statusCopy(account)}</p>
 
             {account && (
-              <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-muted-foreground">Onboarding</dt>
-                  <dd className="capitalize">{account.onboardingStatus}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Transfers</dt>
-                  <dd>{capabilityLabel(account.transfersCapabilityStatus)}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Information required</dt>
-                  <dd>{account.requirementsDue ? 'Yes' : 'No'}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Status checked</dt>
-                  <dd>
-                    {account.capabilityCheckedAtUtc
-                      ? checkedAtFormatter.format(new Date(account.capabilityCheckedAtUtc))
-                      : 'Not yet'}
-                  </dd>
-                </div>
+              <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                <StudioFact label="Onboarding">
+                  <span className="capitalize">{account.onboardingStatus}</span>
+                </StudioFact>
+                <StudioFact label="Transfers">
+                  {capabilityLabel(account.transfersCapabilityStatus)}
+                </StudioFact>
+                <StudioFact label="Information required">
+                  {account.requirementsDue ? 'Yes' : 'No'}
+                </StudioFact>
+                <StudioFact label="Status checked">
+                  {account.capabilityCheckedAtUtc
+                    ? checkedAtFormatter.format(new Date(account.capabilityCheckedAtUtc))
+                    : 'Not yet'}
+                </StudioFact>
               </dl>
             )}
 
@@ -208,7 +206,7 @@ export function CuratorPayoutCard() {
             )}
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </StudioSection>
   );
 }

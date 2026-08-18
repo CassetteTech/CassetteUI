@@ -1,3 +1,5 @@
+// Proxies browser authentication requests while preserving Cassette's attribution cookies and headers.
+
 import { NextRequest, NextResponse } from 'next/server';
 import {
   SIGNUP_ATTRIBUTION_COOKIE_MAX_AGE_SECONDS,

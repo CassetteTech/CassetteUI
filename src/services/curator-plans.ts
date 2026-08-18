@@ -1,3 +1,5 @@
+/** Owns curator plan, feature, pricing, and deterministic economics contracts. */
+
 import { z } from 'zod';
 import { moneyMinorSchema } from './membership';
 import { CuratorPageError } from './curator';

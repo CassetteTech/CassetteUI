@@ -1,3 +1,5 @@
+// Verifies client analytics wrappers, route surfaces, and internal-account suppression.
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { captureClientEvent, identifyClientUser, resetAnalyticsContextForTests, surfaceFromRoute, trackBrowserPageview } from '../client';
@@ -462,14 +464,14 @@ test('membership events keep only opaque attribution and relationship state', { 
   process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = 'true';
   resetAnalyticsContextForTests();
 
-  const mocks = setupBrowserMocks('/curator/selector');
+  const mocks = setupBrowserMocks('/profile/selector');
   const unsafeProperties: AnalyticsBaseProps & {
     amount_minor: number;
     checkout_url: string;
     promotion_code: string;
     billing_status: string;
   } = {
-    route: '/curator/[username]',
+    route: '/profile/[username]',
     source_surface: 'curator',
     curator_id: 'cpr_0123AbCd',
     membership_plan_id: 'mpl_0123AbCd',

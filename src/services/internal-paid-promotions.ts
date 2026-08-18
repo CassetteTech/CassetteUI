@@ -1,3 +1,5 @@
+// Wraps staff-only paid-promotion review, exception, and reconciliation endpoints.
+
 import { apiService } from '@/services/api';
 import type {
   InternalPaidPromotionCampaignSummary,

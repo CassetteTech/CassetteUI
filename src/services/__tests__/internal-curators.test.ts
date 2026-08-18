@@ -1,3 +1,5 @@
+/** Verifies internal curator, immutable policy, and assignment request contracts. */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -52,6 +54,11 @@ const curator = {
 void test('internal curator contracts reject inconsistent and unexpected fields', () => {
   assert.deepEqual(parseInternalCurators([curator]), [curator]);
   assert.throws(() => parseInternalCurators([{ ...curator, status: 'suspended' }]));
+  assert.throws(() => parseInternalCurators([{
+    ...curator,
+    status: 'suspended',
+    suspensionReason: 'x'.repeat(2_001),
+  }]));
   assert.throws(() => parseInternalCurators([{ ...curator, email: 'private@example.test' }]));
 });
 
@@ -80,6 +87,8 @@ void test('pricing policy contracts keep internal economics exact', () => {
     ...request,
     processingBorneBy: 'curator',
   }));
+  assert.throws(() => parsePricingPolicyRequest({ ...request, serviceFeeBps: 10_001 }));
+  assert.throws(() => parsePricingPolicyRequest({ ...request, minPayoutMinor: 100_000_000 }));
 });
 
 void test('assignment contracts preserve actor and effective-time audit fields', () => {
@@ -107,6 +116,7 @@ void test('assignment contracts preserve actor and effective-time audit fields',
   };
   assert.deepEqual(parsePricingAssignmentRequest(request), request);
   assert.throws(() => parsePricingAssignmentRequest({ ...request, reason: ' ' }));
+  assert.throws(() => parsePricingAssignmentRequest({ ...request, reason: 'x'.repeat(2_001) }));
 });
 
 void test('decimal inputs convert to exact minor units and basis points', () => {

@@ -1,5 +1,7 @@
+/** Provides browser-facing music search, conversion, and catalog lookup operations. */
+
 import { apiService } from './api';
-import { MusicSearchResult, MusicLinkConversion, Track, Album, Artist, Playlist } from '@/types';
+import { MusicSearchResult, MusicLinkConversion, Track, Album, Artist, Playlist, type PostPrivacy } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 
 class MusicService {
@@ -14,7 +16,7 @@ class MusicService {
 
   async convertMusicLink(
     url: string,
-    options?: { anonymous?: boolean; description?: string; idempotencyKey?: string }
+    options?: { anonymous?: boolean; description?: string; idempotencyKey?: string; privacy?: PostPrivacy }
   ): Promise<MusicLinkConversion> {
     // Keep using backend API for link conversion
     const result = await apiService.convertMusicLink(url, options);

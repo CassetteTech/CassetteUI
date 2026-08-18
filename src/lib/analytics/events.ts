@@ -1,3 +1,5 @@
+// Defines the closed analytics event and dimension vocabulary shared by UI instrumentation.
+
 export type ElementTypeDimension = 'track' | 'album' | 'artist' | 'playlist';
 export type PlatformDimension = 'spotify' | 'apple' | 'deezer' | 'unknown';
 export type SourceSurface =

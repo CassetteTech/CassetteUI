@@ -1,3 +1,5 @@
+/** Tests free curator profiles, payout onboarding, plan economics, and earnings in Studio. */
+
 import { expect, type Page, test } from '@playwright/test';
 import type {
   CuratorPayoutAccount,
@@ -10,6 +12,7 @@ import {
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
+import { openStudioStep } from './support/studio-steps';
 
 const STUDIO_PATH = '/studio/curator';
 const PAYOUT_URL = 'https://connect.stripe.test/payout-onboarding';
@@ -137,6 +140,8 @@ test('lets a signed-in user create and edit a free curator profile', async ({ pa
   await expect.poll(() => state.curatorProfile?.declaredGenres).toEqual(['Electronic', 'Soul']);
 
   await page.reload();
+  // After reload the accordion opens the next unfinished step, not the profile.
+  await openStudioStep(page, 'studio-profile');
   await expect(page.getByLabel('Headline')).toHaveValue('Fresh finds every Friday');
   await expect(page.getByLabel('Genres')).toHaveValue('Electronic, Soul');
 });
@@ -155,10 +160,14 @@ test('hands a user with no payout account to secure onboarding', async ({ page }
   await expect(page.getByRole('button', { name: 'Create curator profile' })).toBeEnabled();
 
   state.curatorPayoutOnboardingFailuresRemaining = 1;
+  await openStudioStep(page, 'studio-payouts');
   await page.getByTestId('curator-payout-onboarding').click();
   await expect(card.getByRole('alert')).toBeVisible();
+  // Onboarding auto-created the free profile; its editor is on the profile step.
+  await openStudioStep(page, 'studio-profile');
   await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
 
+  await openStudioStep(page, 'studio-payouts');
   await page.getByTestId('curator-payout-onboarding').click();
 
   await expect(page).toHaveURL(PAYOUT_URL);
@@ -225,8 +234,10 @@ test('keeps free and Pro surfaces usable through restricted and failed payout st
 
   state.curatorPayoutStatusFailuresRemaining = 10;
   await page.reload();
+  await openStudioStep(page, 'studio-payouts');
   await expect(card.getByRole('alert')).toBeVisible({ timeout: 10_000 });
 
+  await openStudioStep(page, 'studio-profile');
   await page.getByLabel('Headline').fill('Free profile survives payout errors');
   await page.getByRole('button', { name: 'Create curator profile' }).click();
 
@@ -241,6 +252,7 @@ test('creates a free draft with policy economics before Pro or payouts', async (
   });
 
   await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
 
   const card = page.getByTestId('curator-plan-card');
   await expect(card.getByRole('heading', { name: 'Fan membership plan' })).toBeVisible();
@@ -267,19 +279,21 @@ test('creates a free draft with policy economics before Pro or payouts', async (
     annualAmountMinor: 7000,
     featureKeys: ['member_posts'],
   }]);
+  await openStudioStep(page, 'studio-profile');
   await expect(page.getByRole('button', { name: 'Save changes' })).toBeEnabled();
   await expect(page.getByTestId('curator-pro-subscribe')).toBeEnabled();
   await expect(page.getByTestId('curator-payout-onboarding')).toBeEnabled();
 });
 
-test('publishes with active mirrors and archives without canceling subscriptions', async ({ page }) => {
+test('publishes after payout onboarding starts and archives without canceling subscriptions', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProfile,
     curatorProStatus: fixtureCuratorProActiveStatus,
     curatorPayoutAccount: payoutAccount({
-      onboardingStatus: 'active',
-      transfersCapabilityStatus: 'active',
+      onboardingStatus: 'restricted',
+      transfersCapabilityStatus: 'restricted',
+      requirementsDue: true,
       capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
     }),
   });
@@ -323,6 +337,7 @@ test('does not publish a suspended profile after a crafted Pro return', async ({
   });
 
   await page.goto(`${STUDIO_PATH}?pro=return&session_id=untrusted`);
+  await openStudioStep(page, 'studio-plan');
   const card = page.getByTestId('curator-plan-card');
   await card.getByLabel('Plan name').fill('Suspended Plan');
   await card.getByRole('button', { name: 'Save draft' }).click();
@@ -339,13 +354,16 @@ test('uses server-provided curator-borne processing in the estimate', async ({ p
   });
 
   await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
   const card = page.getByTestId('curator-plan-card');
   await card.getByLabel('Monthly price (USD)').fill('7');
 
   await expect(card.getByText('Payment processing').locator('..')).toContainText('−$0.55');
   await expect(card.getByText('Estimated curator accrual').locator('..')).toContainText('$5.75');
   await expect(card.getByText('$5.00/month, billed separately', { exact: true })).toBeVisible();
-  await expect(card).toContainText('monthly, after your balance reaches $10.00');
+  await expect(card).toContainText(
+    'monthly, after your balance reaches $10.00. Smaller cleared balances are paid after 90 days or when Curator Pro ends.',
+  );
 });
 
 test('isolates plan-tool failures from profile, Pro, and payout controls', async ({ page }) => {
@@ -356,11 +374,13 @@ test('isolates plan-tool failures from profile, Pro, and payout controls', async
   });
 
   await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
 
   await expect(page.getByTestId('curator-plan-card').getByRole('alert')).toContainText(
     'Your free profile, Curator Pro, and payout controls still work.',
     { timeout: 10_000 },
   );
+  await openStudioStep(page, 'studio-profile');
   await page.getByLabel('Headline').fill('Free profile survives plan errors');
   await page.getByRole('button', { name: 'Save changes' }).click();
 
@@ -381,6 +401,7 @@ test('shows private paginated earnings without Curator Pro', async ({ page }) =>
   });
 
   await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-earnings');
 
   const card = page.getByTestId('curator-earnings-card');
   await expect(card).toBeVisible();

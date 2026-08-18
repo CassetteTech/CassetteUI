@@ -1,3 +1,4 @@
+// Configures Next.js build, runtime, and security behavior for CassetteUI.
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 import { NOINDEX_ROUTES, NOINDEX_SUBTREES } from "./src/lib/seo";
@@ -13,6 +14,7 @@ const NOINDEX_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['local.cassette.tech'],
   distDir,
   turbopack: {
     root: process.cwd(),

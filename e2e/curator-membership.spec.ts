@@ -1,3 +1,5 @@
+/** Verifies fan membership checkout, return polling, billing management, and privacy-safe analytics. */
+
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
 import {
@@ -14,7 +16,7 @@ import {
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
-const CURATOR_PATH = `/curator/${fixtureCuratorPage.curator.username}`;
+const CURATOR_PATH = `/profile/${fixtureCuratorPage.curator.username}`;
 const CHECKOUT_URL = 'https://checkout.stripe.test/membership-session';
 const PORTAL_URL = 'https://billing.stripe.test/membership-session';
 

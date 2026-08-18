@@ -1,5 +1,7 @@
 'use client';
 
+/** Handles Curator Pro checkout and portal returns using Bridge status as the sole authority. */
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -7,9 +9,14 @@ import { useAuthState } from '@/hooks/use-auth';
 import { apiService } from '@/services/api';
 import type { CuratorProStatus } from '@/services/curator-pro';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
-import { Badge } from '@/components/ui/badge';
+import {
+  StudioChip,
+  StudioFact,
+  StudioNotice,
+  StudioSection,
+  type StudioChipTone,
+} from '@/components/features/curator/studio-shell';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 type ProFlow = 'return' | 'portal-return' | null;
 
@@ -69,6 +76,13 @@ function writePortalBaseline(userId: string, status: CuratorProStatus) {
 
 function formatMoney(amountMinor: number, currency: string) {
   return formatPaidPromotionMinorAmount(amountMinor, currency, priceLocale);
+}
+
+function statusTone(status: CuratorProStatus): StudioChipTone {
+  if (status.cancelAtPeriodEnd) return 'warning';
+  if (status.hasAccess) return 'positive';
+  if (status.status === 'past_due' || status.status === 'unpaid') return 'danger';
+  return 'neutral';
 }
 
 function statusLabel(status: CuratorProStatus) {
@@ -234,33 +248,17 @@ export function CuratorProCard() {
   const actionPending = checkout.isPending || portal.isPending;
 
   return (
-    <Card data-testid="curator-pro-card" aria-labelledby="curator-pro-title">
-      <CardHeader className="sm:flex sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 id="curator-pro-title" className="text-xl font-semibold">Curator Pro</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Curator Pro is required before locked posts and fan membership revenue. Regular Cassette features stay free.
-          </p>
-        </div>
-        {status && (
-          <Badge
-            variant={status.hasAccess ? 'default' : status.status === 'past_due' || status.status === 'unpaid' ? 'destructive' : 'outline'}
-            className="mt-2 sm:mt-0"
-          >
-            {statusLabel(status)}
-          </Badge>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-5">
-        {notice && (
-          <output
-            data-testid="curator-pro-notice"
-            aria-live="polite"
-            className="block rounded-md border bg-muted/40 p-3 text-sm"
-          >
-            {notice}
-          </output>
-        )}
+    <StudioSection
+      id="studio-pro"
+      eyebrow={<><span className="text-primary">Step 2</span> · Subscription</>}
+      title="Curator Pro"
+      headingId="curator-pro-title"
+      testId="curator-pro-card"
+      description="Curator Pro is required before locked posts and fan membership revenue. Regular Cassette features stay free."
+      chip={status && <StudioChip tone={statusTone(status)}>{statusLabel(status)}</StudioChip>}
+    >
+      <div className="space-y-5">
+        {notice && <StudioNotice testId="curator-pro-notice">{notice}</StudioNotice>}
 
         {statusQuery.isPending ? (
           <output className="text-sm text-muted-foreground">Loading Curator Pro…</output>
@@ -275,28 +273,24 @@ export function CuratorProCard() {
           </div>
         ) : status ? (
           <>
-            <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-muted-foreground">Base monthly price</dt>
-                <dd className="font-semibold">{formatMoney(status.monthlyPriceMinor, status.currency)}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Your monthly price</dt>
-                <dd className="font-semibold">
+            <dl className="grid gap-2 text-sm sm:grid-cols-2">
+              <StudioFact label="Base monthly price">
+                <span className="font-mono text-base font-semibold tabular-nums">
+                  {formatMoney(status.monthlyPriceMinor, status.currency)}
+                </span>
+              </StudioFact>
+              <StudioFact label="Your monthly price">
+                <span className="font-mono text-base font-semibold tabular-nums text-primary">
                   {formatMoney(status.discountKind === 'none' ? status.monthlyPriceMinor : 0, status.currency)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Offer</dt>
-                <dd>{discountCopy(status)}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Fan membership platform fee</dt>
-                <dd>{feeFormatter.format(status.platformFeeBps / 10_000)}</dd>
-              </div>
+                </span>
+              </StudioFact>
+              <StudioFact label="Offer">{discountCopy(status)}</StudioFact>
+              <StudioFact label="Fan membership platform fee">
+                {feeFormatter.format(status.platformFeeBps / 10_000)}
+              </StudioFact>
             </dl>
 
-            <p className="text-sm">{lifecycleCopy(status)}</p>
+            <p className="text-sm leading-relaxed">{lifecycleCopy(status)}</p>
             <p className="text-xs text-muted-foreground">
               Promotional codes are entered in secure Stripe Checkout.
             </p>
@@ -336,7 +330,7 @@ export function CuratorProCard() {
             </div>
           </>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </StudioSection>
   );
 }

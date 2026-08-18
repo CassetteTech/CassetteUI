@@ -1,3 +1,5 @@
+/** Resolves a minimal anonymous curator lookup shared by route metadata and 404 handling. */
+
 import { cache } from 'react';
 import { CuratorPageError, fetchCuratorPage, type CuratorPage } from '@/services/curator';
 import { getApiUrl } from '@/lib/utils/url';

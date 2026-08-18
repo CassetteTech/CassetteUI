@@ -1,3 +1,5 @@
+/** Locks plan contracts, pricing-policy math, and lifecycle request behavior to Bridge. */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {

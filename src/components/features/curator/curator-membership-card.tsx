@@ -1,5 +1,7 @@
 'use client';
 
+/** Renders a fan's server-authorized membership offer and current billing actions. */
+
 import { Check } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,6 +16,11 @@ import type {
   MembershipStatusView,
 } from '@/services/membership';
 import { cn } from '@/lib/utils';
+
+const membershipEndFormatter = new Intl.DateTimeFormat('en-US', {
+  dateStyle: 'medium',
+  timeZone: 'UTC',
+});
 
 export function CuratorMembershipCard({
   page,
@@ -77,10 +84,7 @@ export function CuratorMembershipCard({
   const canJoin = Boolean(plan) && (!authenticated || status?.canSubscribe === true);
   const statusNotice = membership?.cancelAtPeriodEnd
     ? membership.paidThroughUtc
-      ? `Your membership will end on ${new Intl.DateTimeFormat('en-US', {
-          dateStyle: 'medium',
-          timeZone: 'UTC',
-        }).format(new Date(membership.paidThroughUtc))}.`
+      ? `Your membership will end on ${membershipEndFormatter.format(new Date(membership.paidThroughUtc))}.`
       : 'Your membership will end after the current billing period.'
     : membership?.status === 'canceled'
       ? 'Your membership is canceled.'

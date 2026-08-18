@@ -1,3 +1,5 @@
+/** Covers public-page privacy invariants plus curator profile and payout API contracts. */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {

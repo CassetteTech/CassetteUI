@@ -1,5 +1,7 @@
 'use client';
 
+/** Lets a post owner update its caption, visibility, and comment setting. */
+
 import { useState, useEffect } from 'react';
 import {
   Sheet,
@@ -18,6 +20,7 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { PostPrivacy } from '@/types';
 import { appLogger } from '@/lib/observability/logger';
+import { useSubscriberPostEligibility } from '@/hooks/use-curator';
 
 const MAX_DESCRIPTION_LENGTH = 500;
 
@@ -44,6 +47,8 @@ export function EditPostModal({
   const [privacy, setPrivacy] = useState<PostPrivacy>(currentPrivacy);
   const [commentsEnabled, setCommentsEnabled] = useState(currentCommentsEnabled);
   const updatePost = useUpdatePost();
+  const canUseSubscriberPosts = useSubscriberPostEligibility(open);
+  const showSubscriberOption = canUseSubscriberPosts || currentPrivacy === 'subscriber';
 
   // Reset description when modal opens with new data
   useEffect(() => {
@@ -70,6 +75,13 @@ export function EditPostModal({
     const value = e.target.value;
     if (value.length <= MAX_DESCRIPTION_LENGTH) {
       setDescription(value);
+    }
+  };
+
+  const handlePrivacyChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = event.target.value;
+    if (value === 'public' || value === 'private' || value === 'subscriber') {
+      setPrivacy(value);
     }
   };
 
@@ -104,15 +116,18 @@ export function EditPostModal({
           <select
             id="post-privacy"
             value={privacy}
-            onChange={(e) => setPrivacy(e.target.value as PostPrivacy)}
+            onChange={handlePrivacyChange}
             disabled={updatePost.isPending}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <option value="public">Public</option>
             <option value="private">Private</option>
+            {showSubscriberOption && <option value="subscriber">Subscribers only</option>}
           </select>
           <p className="text-xs text-muted-foreground">
-            Private posts only appear on your profile to you. Anyone with the link can still view them.
+            {privacy === 'subscriber'
+              ? 'Only fans with an active membership can open this post from your curator page.'
+              : 'Private posts only appear on your profile to you. Anyone with the link can still view them.'}
           </p>
         </div>
 

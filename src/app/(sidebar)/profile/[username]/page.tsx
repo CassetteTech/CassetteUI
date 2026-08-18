@@ -1,5 +1,7 @@
 'use client';
 
+/** Renders the canonical public profile, enriching it with curator membership content when active. */
+
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -18,6 +20,8 @@ import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
+import { PublicCuratorPage } from '@/components/features/curator/curator-page';
+import { useCuratorPage } from '@/hooks/use-curator';
 
 const TAB_ELEMENT_TYPE: Partial<Record<TabType, string>> = {
   playlists: 'Playlist',
@@ -26,13 +30,15 @@ const TAB_ELEMENT_TYPE: Partial<Record<TabType, string>> = {
   albums: 'Album',
 };
 
+const membershipFlows = ['join', 'return', 'canceled', 'portal-return'] as const;
+
 export default function ProfilePage() {
   const { username } = useParams();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const { user } = useAuthState();
+  const { user, isLoading: authLoading } = useAuthState();
 
   const [activeTab, setActiveTab] = useState<TabType>('playlists');
   const [hasResolvedInitialTab, setHasResolvedInitialTab] = useState(false);
@@ -45,6 +51,15 @@ export default function ProfilePage() {
   // Check if this is edit mode and determine the actual user to fetch
   const isEditMode = userIdentifier === 'edit';
   const userIdToFetch = isEditMode && user ? user.id : userIdentifier;
+  const curatorQuery = useCuratorPage(
+    isEditMode ? '' : (userIdentifier ?? ''),
+    isEditMode || authLoading ? null : (user?.id ?? 'anonymous'),
+  );
+  const hasCuratorPage = Boolean(curatorQuery.data?.pages[0]);
+  const membership = membershipFlows.find(
+    (flow) => flow === searchParams.get('membership'),
+  ) ?? null;
+  const membershipInterval = searchParams.get('interval') === 'year' ? 'year' : 'month';
 
   // Use React Query for bio and activity - handles deduplication automatically
   const {
@@ -120,6 +135,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (hasResolvedInitialTab || !userIdToFetch) return;
+    if (!isEditMode && (curatorQuery.isPending || hasCuratorPage)) return;
 
     const tabParam = searchParams.get('tab');
     const validTabs: TabType[] = ['playlists', 'tracks', 'artists', 'albums', 'liked'];
@@ -197,7 +213,7 @@ export default function ProfilePage() {
     return () => {
       isCancelled = true;
     };
-  }, [hasResolvedInitialTab, isLoadingBio, likedPostsUserId, likedSectionVisible, queryClient, searchParams, updateUrlForTab, userBio, userIdToFetch]);
+  }, [curatorQuery.isPending, hasCuratorPage, hasResolvedInitialTab, isEditMode, isLoadingBio, likedPostsUserId, likedSectionVisible, queryClient, searchParams, updateUrlForTab, userBio, userIdToFetch]);
 
   useEffect(() => {
     if (!likedSectionVisible && activeTab === 'liked') {
@@ -379,6 +395,36 @@ export default function ProfilePage() {
           </div>
         </div>
       </>
+    );
+  }
+
+  if (hasCuratorPage && userBio) {
+    return (
+      <div className="min-w-0 flex-1 lg:h-screen lg:overflow-y-auto">
+        <div className="bg-background lg:hidden">
+          <Container className="bg-transparent p-0">
+            <div className="mx-auto max-w-4xl">
+              {!isCurrentUser && (
+                <div className="px-4 pt-4">
+                  <BackButton fallbackRoute="/explore" />
+                </div>
+              )}
+              <ProfileHeader
+                userBio={userBio}
+                isCurrentUser={isCurrentUser}
+                onShare={handleShare}
+                onAddMusic={isCurrentUser ? handleAddMusic : undefined}
+              />
+            </div>
+          </Container>
+        </div>
+        <PublicCuratorPage
+          username={userBio.username}
+          membershipFlow={membership}
+          initialInterval={membershipInterval}
+          embedded
+        />
+      </div>
     );
   }
 

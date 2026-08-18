@@ -1,3 +1,5 @@
+// Defines the primary user navigation groups and their route metadata.
+
 import {
   Compass,
   Edit,

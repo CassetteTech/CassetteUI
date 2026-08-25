@@ -380,6 +380,13 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       // distant clones pile into the edge stack instead of drifting into view.
       const depth = -a * 300;
       card.style.transform = `translateZ(${depth.toFixed(1)}px) rotateY(${angle.toFixed(2)}deg)`;
+      // The edge stack dissolves instead of piling: full opacity through four
+      // neighbors, gone by eight. Mobile never shows past ~1.2 pitches, so the
+      // fade only ever engages on wide viewports. Fully faded cards also drop
+      // hit testing so the dissolved edge is not secretly clickable.
+      const fade = Math.max(0, Math.min(1, (8 - a) / 4));
+      card.style.opacity = fade.toFixed(3);
+      card.style.visibility = fade === 0 ? 'hidden' : '';
       // overflow-x-auto forces the track's transform-style back to flat, so the
       // browser paints in DOM order instead of depth-sorting and later cards
       // slice across the centered one. Order the stack by distance ourselves.

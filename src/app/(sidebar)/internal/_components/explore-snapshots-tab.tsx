@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Layers,
   RefreshCw,
   XCircle,
   Hash,
-  Database,
   Clock,
 } from 'lucide-react';
+import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { apiService } from '@/services/api';
 import type {
   InternalExploreSnapshotSummary,
@@ -23,7 +22,6 @@ import {
   snapshotStatusTone,
 } from './explore-snapshot-utils';
 import { ExploreSnapshotItemsTable } from './explore-snapshot-items-table';
-import { EmptyState } from './empty-state';
 import { ErrorState } from './error-state';
 import {
   SectionHeader,
@@ -186,11 +184,10 @@ export function ExploreSnapshotsTab() {
               </div>
             ) : !snapshots.length ? (
               <div className="p-3">
-                <EmptyState
-                  icon={Database}
-                  title="No snapshots"
-                  description={`No Explore snapshots generated in the last ${days} days.`}
-                />
+                <Empty>
+                  <EmptyTitle>No snapshots</EmptyTitle>
+                  <EmptyDescription>No Explore snapshots generated in the last {days} days.</EmptyDescription>
+                </Empty>
               </div>
             ) : (
               <div className="max-h-[calc(100vh-14rem)] overflow-y-auto no-scrollbar divide-y divide-border">
@@ -249,11 +246,10 @@ export function ExploreSnapshotsTab() {
           {!selectedSnapshot ? (
             <Panel>
               <div className="p-4">
-                <EmptyState
-                  icon={Layers}
-                  title="No snapshot selected"
-                  description="Pick a snapshot from the list to inspect its ranked items."
-                />
+                <Empty>
+                  <EmptyTitle>No snapshot selected</EmptyTitle>
+                  <EmptyDescription>Pick a snapshot from the list to inspect its ranked items.</EmptyDescription>
+                </Empty>
               </div>
             </Panel>
           ) : (

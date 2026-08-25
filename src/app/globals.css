@@ -638,3 +638,25 @@
     border: 1px solid hsl(var(--border));
   }
 }
+
+/* ─── Tab scroll fade ────────────────────────────────────────────────────────
+   Edge fades for the horizontally scrollable profile tab row (mobile/tablet).
+   The 12px fade only covers tab padding, never label text. */
+@media (max-width: 1023px) {
+  .tab-scroll-fade {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 12px,
+      #000 calc(100% - 12px),
+      transparent
+    );
+  }
+}
+
+/* ─── Squircle ───────────────────────────────────────────────────────────────
+   iOS-style superellipse corners for square artwork (vault "Apple's Corners"). */
+.squircle {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath d='M100 0C30 0 0 30 0 100s30 100 100 100 100-30 100-100S170 0 100 0Z'/%3E%3C/svg%3E");
+  mask-size: 100% 100%;
+}

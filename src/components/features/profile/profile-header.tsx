@@ -11,36 +11,59 @@ import { AvatarPreviewDialog } from '@/components/features/profile/avatar-previe
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 import { getDisplayPlatformDefinition, isAppleMusicPlatform } from '@/lib/platforms';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
+import { Badge } from '@/components/ui/badge';
 
 interface ProfileHeaderProps {
   userBio: UserBio;
   isCurrentUser: boolean;
   onShare: () => void;
   onAddMusic?: () => void;
+  curatorHeadline?: string | null;
+  curatorGenres?: string[];
+  curatorAbout?: string | null;
+  curatorPlatforms?: string[];
 }
 
 export function ProfileHeader({
   userBio,
   isCurrentUser,
   onShare,
-  onAddMusic
+  onAddMusic,
+  curatorHeadline,
+  curatorGenres,
+  curatorAbout,
+  curatorPlatforms,
 }: ProfileHeaderProps) {
   const totalLikesReceived = Number(userBio.totalLikesReceived ?? 0);
+  const curatorInterests = [...new Set([
+    ...(curatorGenres ?? []),
+    ...(curatorPlatforms ?? []),
+  ])];
 
   return (
     <div className="relative text-card-foreground px-4 pt-4 pb-3 sm:px-5 lg:p-0">
-      {/* Mobile/tablet: settings gear anchored top-right, out of the identity line */}
-      {isCurrentUser && (
-        <Link
-          href={`/profile/${userBio.username}/edit`}
-          aria-label="Edit profile"
-          className="lg:hidden absolute top-3 right-3 p-2 -m-2 text-muted-foreground hover:text-foreground transition-colors"
+      {/* Mobile/tablet: share + settings anchored top-right, out of the identity line */}
+      <div className="lg:hidden absolute top-2 right-2 flex items-center">
+        <button
+          type="button"
+          onClick={onShare}
+          aria-label="Share profile"
+          className="p-2 text-muted-foreground hover:text-foreground transition-colors"
         >
-          <Settings className="w-5 h-5" />
-        </Link>
-      )}
+          <Share2 className="w-5 h-5" />
+        </button>
+        {isCurrentUser && (
+          <Link
+            href={`/profile/${userBio.username}/edit`}
+            aria-label="Edit profile"
+            className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Settings className="w-5 h-5" />
+          </Link>
+        )}
+      </div>
 
-      <div className="flex flex-col gap-3 lg:gap-4">
+      <div className="flex flex-col gap-2 lg:gap-3">
         {/* Top Row: Avatar + User Info */}
         <div className="flex items-center gap-4 lg:items-start lg:gap-6">
           {/* Avatar */}
@@ -69,7 +92,7 @@ export function ProfileHeader({
 
           {/* User Info */}
           <div className="flex-1 min-w-0 flex flex-col gap-1">
-            <div className="flex items-center gap-2 min-w-0">
+            <div className={`flex items-center gap-2 min-w-0 lg:pr-0 ${isCurrentUser ? 'pr-16' : 'pr-8'}`}>
               <span className="font-teko font-bold leading-none text-card-foreground truncate text-3xl sm:text-4xl lg:text-5xl">
                 {userBio.displayName || userBio.username}
               </span>
@@ -77,7 +100,15 @@ export function ProfileHeader({
                 accountType={userBio.accountType}
                 size="md"
               />
-              {/* Desktop keeps the gear inline with the name */}
+              {/* Desktop keeps share + gear inline with the name */}
+              <button
+                type="button"
+                onClick={onShare}
+                aria-label="Share profile"
+                className="hidden lg:inline-flex flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Share2 className="w-6 h-6" />
+              </button>
               {isCurrentUser && (
                 <Link href={`/profile/${userBio.username}/edit`} className="hidden lg:inline-flex hover:scale-105 transition-transform flex-shrink-0">
                   <Settings
@@ -103,11 +134,13 @@ export function ProfileHeader({
               </div>
             </div>
 
-            {/* Mobile likes stat on its own line — no fragile dot-separator, no wrapping */}
-            <span className="lg:hidden font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-0.5">
-              <span className="font-bold text-card-foreground">{totalLikesReceived.toLocaleString()}</span>
-              {' '}{totalLikesReceived === 1 ? 'like' : 'likes'}
-            </span>
+            {/* Mobile likes stat on its own line — hidden entirely until there is one */}
+            {totalLikesReceived > 0 && (
+              <span className="lg:hidden font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-0.5">
+                <span className="font-bold text-card-foreground tabular-nums">{totalLikesReceived.toLocaleString()}</span>
+                {' '}{totalLikesReceived === 1 ? 'like' : 'likes'}
+              </span>
+            )}
 
             {/* Desktop keeps the services in the identity column below username */}
             <div className="hidden lg:block mt-1">
@@ -119,32 +152,46 @@ export function ProfileHeader({
           </div>
         </div>
 
+        {/* Curator headline — tagline directly under the identity block */}
+        {curatorHeadline && (
+          <p className="text-pretty text-base font-semibold leading-snug text-card-foreground sm:text-lg">
+            {curatorHeadline}
+          </p>
+        )}
+
         {/* Bio — full text on mobile; only clamp when truly long to keep header compact */}
         {userBio.bio && (
           <p className="text-card-foreground/90 text-sm sm:text-base lg:text-lg whitespace-pre-wrap">
             {userBio.bio}
           </p>
         )}
+        {curatorAbout && (
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-card-foreground/90 sm:text-base">
+            {curatorAbout}
+          </p>
+        )}
+
+        {curatorInterests.length > 0 && (
+          <div className="flex flex-wrap gap-2" aria-label="Curator interests">
+            {curatorInterests.map((interest) => (
+              <Badge key={interest} variant="outline">{interest}</Badge>
+            ))}
+          </div>
+        )}
 
         <ProfileLinksRow links={userBio.profileLinks} />
 
-        {/* Desktop-only likes row */}
-        <div className="hidden lg:flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-          <span className="font-bold text-card-foreground">{totalLikesReceived.toLocaleString()}</span>
-          <span>{totalLikesReceived === 1 ? 'like' : 'likes'}</span>
-        </div>
+        {/* Desktop-only likes row — hidden entirely until there is one */}
+        {totalLikesReceived > 0 && (
+          <div className="hidden lg:flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            <span className="font-bold text-card-foreground tabular-nums">{totalLikesReceived.toLocaleString()}</span>
+            <span>{totalLikesReceived === 1 ? 'like' : 'likes'}</span>
+          </div>
+        )}
 
         {/* Action Buttons — editorial voice: mono labels, quiet chrome, ≥40px tap target */}
+        {isCurrentUser && (onAddMusic || isCassetteInternalAccount(userBio.accountType)) && (
         <div className="flex flex-row gap-2 sm:gap-3 lg:flex-col lg:gap-3">
-          <button
-            type="button"
-            onClick={onShare}
-            className="inline-flex h-10 flex-1 min-w-0 items-center justify-center gap-2 rounded-md bg-primary px-4 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-primary-foreground elev-1 transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:w-full lg:flex-none"
-          >
-            <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
-            <span className="truncate">Share Profile</span>
-          </button>
-
           {isCurrentUser && onAddMusic && (
             <button
               type="button"
@@ -166,6 +213,7 @@ export function ProfileHeader({
             </Link>
           )}
         </div>
+        )}
       </div>
     </div>
   );

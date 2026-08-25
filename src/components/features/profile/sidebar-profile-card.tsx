@@ -8,6 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
 import type { UserBio, AuthUser, ConnectedService, AccountType, PlatformPreferenceInfo } from '@/types';
@@ -18,6 +19,10 @@ interface SidebarProfileCardProps {
   /** Whether this is the current logged-in user's own profile */
   isCurrentUser?: boolean;
   className?: string;
+  curatorHeadline?: string | null;
+  curatorGenres?: string[];
+  curatorAbout?: string | null;
+  curatorPlatforms?: string[];
 }
 
 /**
@@ -82,6 +87,10 @@ export function SidebarProfileCard({
   user,
   isCurrentUser = false,
   className = '',
+  curatorHeadline,
+  curatorGenres,
+  curatorAbout,
+  curatorPlatforms,
 }: SidebarProfileCardProps) {
   const avatarUrl = getAvatarUrl(user);
   const connectedServices = getConnectedServices(user);
@@ -90,6 +99,10 @@ export function SidebarProfileCard({
   const bio = user.bio || '';
   const initial = user.username?.charAt(0)?.toUpperCase() || 'U';
   const totalLikesReceived = getTotalLikesReceived(user);
+  const curatorInterests = [...new Set([
+    ...(curatorGenres ?? []),
+    ...(curatorPlatforms ?? []),
+  ])];
 
   return (
     <div className={`mx-2 p-4 rounded-lg bg-background border border-border/50 transition-colors min-h-[156px] ${className}`}>
@@ -118,7 +131,7 @@ export function SidebarProfileCard({
 
           {/* Likes + connected services - top right */}
           <div className="flex flex-col items-end gap-2">
-            {typeof totalLikesReceived === 'number' && (
+            {typeof totalLikesReceived === 'number' && totalLikesReceived > 0 && (
               <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                 <span className="font-bold text-foreground">
                   {Math.max(0, totalLikesReceived).toLocaleString()}
@@ -147,6 +160,13 @@ export function SidebarProfileCard({
           </p>
         </div>
 
+        {/* Curator headline — tagline under the identity block */}
+        {curatorHeadline && (
+          <p className="text-pretty text-xs font-semibold leading-snug text-foreground">
+            {curatorHeadline}
+          </p>
+        )}
+
         {/* Bio with tooltip for long text - left aligned */}
         {bio && (
           <Tooltip>
@@ -161,6 +181,28 @@ export function SidebarProfileCard({
               </TooltipContent>
             )}
           </Tooltip>
+        )}
+        {curatorAbout && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <p className="line-clamp-3 cursor-default text-xs leading-relaxed text-muted-foreground">
+                {curatorAbout}
+              </p>
+            </TooltipTrigger>
+            {curatorAbout.length > 120 && (
+              <TooltipContent side="bottom" className="max-w-[280px] whitespace-pre-wrap text-sm">
+                {curatorAbout}
+              </TooltipContent>
+            )}
+          </Tooltip>
+        )}
+
+        {curatorInterests.length > 0 && (
+          <div className="flex flex-wrap gap-1.5" aria-label="Curator interests">
+            {curatorInterests.map((interest) => (
+              <Badge key={interest} variant="outline" className="text-[10px]">{interest}</Badge>
+            ))}
+          </div>
         )}
 
         <ProfileLinksRow links={getProfileLinks(user)} />

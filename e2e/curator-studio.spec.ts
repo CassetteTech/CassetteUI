@@ -195,6 +195,23 @@ test('refreshes capability truth after hosted onboarding returns', async ({ page
   expect(state.curatorPayoutAccount).toEqual(active);
 });
 
+test('keeps restricted payout setup as the next unfinished step', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorProStatus: fixtureCuratorProActiveStatus,
+    curatorPayoutAccount: payoutAccount({
+      onboardingStatus: 'restricted',
+      transfersCapabilityStatus: 'restricted',
+      requirementsDue: true,
+    }),
+  });
+
+  await page.goto(STUDIO_PATH);
+
+  await expect(page.getByTestId('studio-payouts-trigger')).toHaveAttribute('aria-expanded', 'true');
+});
+
 test('mints a new hosted link when the provider refresh URL returns', async ({ page }) => {
   const renewedUrl = `${PAYOUT_URL}-renewed`;
   const { state } = await mockCassetteApp(page, {
@@ -212,7 +229,7 @@ test('mints a new hosted link when the provider refresh URL returns', async ({ p
 
   await expect(page).toHaveURL(renewedUrl);
   expect(state.curatorPayoutOnboardingRequests).toBe(1);
-  expect(state.curatorPayoutStatusRequests).toEqual([]);
+  expect(state.curatorPayoutStatusRequests).toEqual([false]);
 });
 
 test('keeps free and Pro surfaces usable through restricted and failed payout status', async ({ page }) => {
@@ -299,6 +316,7 @@ test('publishes after payout onboarding starts and archives without canceling su
   });
 
   await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
   const card = page.getByTestId('curator-plan-card');
   await card.getByLabel('Plan name').fill('Ready Plan');
   await card.getByLabel('Monthly price (USD)').fill('7');
@@ -409,14 +427,14 @@ test('shows private paginated earnings without Curator Pro', async ({ page }) =>
   await expect(page.getByTestId('curator-pro-subscribe')).toBeEnabled();
 
   const terminalAllocation = card.getByText('$1.25', { exact: true }).locator('..').locator('..');
-  await expect(terminalAllocation).toContainText('Membership earning');
+  await expect(terminalAllocation).toContainText('Earning forfeited');
   await expect(terminalAllocation).toContainText('Not earned');
   await expect(terminalAllocation).not.toContainText('Payout eligibility');
   await expect(card.getByText('$4.25', { exact: true }).locator('..').locator('..')).toContainText(
     'Payout eligibility',
   );
   const transfer = card.getByText('$9.00', { exact: true }).locator('..').locator('..');
-  await expect(transfer).toContainText('Payout transfer');
+  await expect(transfer).toContainText('Payout sent');
   await expect(transfer).toContainText('Paid');
 
   const responseText = JSON.stringify(await (await firstPageResponse).json());

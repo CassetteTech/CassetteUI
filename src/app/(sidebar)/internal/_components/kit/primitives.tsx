@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { Copy, RefreshCw, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { copyToClipboard } from '../internal-utils';
 
@@ -201,7 +202,11 @@ export function ErrorBanner({ message, onRetry }: { message: string; onRetry: ()
   return (
     <div className="flex items-center justify-between gap-3 border-b border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
       <span>{message}</span>
-      <button type="button" className="underline underline-offset-2" onClick={onRetry}>
+      <button
+        type="button"
+        className="rounded-sm underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={onRetry}
+      >
         Retry
       </button>
     </div>
@@ -220,6 +225,7 @@ export function RefreshButton({ loading, onClick }: { loading: boolean; onClick:
       disabled={loading}
       onClick={onClick}
       title="Refresh"
+      aria-label="Refresh"
     >
       <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
     </Button>
@@ -233,15 +239,19 @@ export function RefreshButton({ loading, onClick }: { loading: boolean; onClick:
 
 export function CopyId({ value, label }: { value: string; label: string }) {
   return (
-    <button
-      type="button"
-      onClick={() => void copyToClipboard(value, label)}
-      title={`Copy ${label}`}
-      className="group inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 font-mono text-[10px] tabular-nums text-muted-foreground transition hover:border-domain/50 hover:text-foreground"
-    >
-      <span className="truncate">{value}</span>
-      <Copy className="h-3 w-3 shrink-0 opacity-50 transition group-hover:opacity-100" />
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={() => void copyToClipboard(value, label)}
+          className="group inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 font-mono text-[10px] tabular-nums text-muted-foreground transition-colors hover:border-domain/50 hover:text-foreground"
+        >
+          <span className="truncate">{value}</span>
+          <Copy className="h-3 w-3 shrink-0 opacity-50 transition-opacity group-hover:opacity-100" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="break-all font-mono text-[10px]">{value}</TooltipContent>
+    </Tooltip>
   );
 }
 

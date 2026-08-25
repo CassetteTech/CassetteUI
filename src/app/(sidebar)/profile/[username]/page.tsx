@@ -3,6 +3,7 @@
 /** Renders the canonical public profile, enriching it with curator membership content when active. */
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
@@ -94,7 +95,7 @@ export default function ProfilePage() {
   } = useUserActivity(userIdToFetch, {
     page: 1,
     elementType: TAB_ELEMENT_TYPE[activeTab],
-    enabled: !isLikedTab && Boolean(userBio)
+    enabled: !isLikedTab && activeTab !== 'posts' && Boolean(userBio)
   });
 
   const {
@@ -135,15 +136,28 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (hasResolvedInitialTab || !userIdToFetch) return;
-    if (!isEditMode && (curatorQuery.isPending || hasCuratorPage)) return;
+    if (!isEditMode && curatorQuery.isPending) return;
 
     const tabParam = searchParams.get('tab');
-    const validTabs: TabType[] = ['playlists', 'tracks', 'artists', 'albums', 'liked'];
+    const validTabs: TabType[] = [
+      ...(hasCuratorPage ? ['posts' as TabType] : []),
+      'playlists', 'tracks', 'artists', 'albums', 'liked',
+    ];
     const hasValidTabParam = tabParam && validTabs.includes(tabParam as TabType);
     const canUseTabParam = hasValidTabParam && !(tabParam === 'liked' && !likedSectionVisible);
     if (canUseTabParam) {
       setActiveTab(tabParam as TabType);
       setHasResolvedInitialTab(true);
+      return;
+    }
+
+    // Curators land on their posts feed (also the membership checkout return surface).
+    // Skip the URL write during membership flows: the curator page strips those
+    // params itself and a concurrent router.replace could resurrect them.
+    if (hasCuratorPage) {
+      setActiveTab('posts');
+      setHasResolvedInitialTab(true);
+      if (!membership) updateUrlForTab('posts');
       return;
     }
 
@@ -213,7 +227,7 @@ export default function ProfilePage() {
     return () => {
       isCancelled = true;
     };
-  }, [curatorQuery.isPending, hasCuratorPage, hasResolvedInitialTab, isEditMode, isLoadingBio, likedPostsUserId, likedSectionVisible, queryClient, searchParams, updateUrlForTab, userBio, userIdToFetch]);
+  }, [curatorQuery.isPending, hasCuratorPage, hasResolvedInitialTab, isEditMode, isLoadingBio, likedPostsUserId, likedSectionVisible, membership, queryClient, searchParams, updateUrlForTab, userBio, userIdToFetch]);
 
   useEffect(() => {
     if (!likedSectionVisible && activeTab === 'liked') {
@@ -398,9 +412,14 @@ export default function ProfilePage() {
     );
   }
 
-  if (hasCuratorPage && userBio) {
+  const curatorInfo = curatorQuery.data?.pages[0]?.curator;
+  const isPostsTab = activeTab === 'posts' && hasCuratorPage;
+
+  // The curator posts pane owns Stripe flow effects, so it must mount exactly
+  // once — a single responsive branch instead of the CSS-split double layout.
+  if (isPostsTab && userBio) {
     return (
-      <div className="min-w-0 flex-1 lg:h-screen lg:overflow-y-auto">
+      <div className="min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
         <div className="bg-background lg:hidden">
           <Container className="bg-transparent p-0">
             <div className="mx-auto max-w-4xl">
@@ -414,15 +433,47 @@ export default function ProfilePage() {
                 isCurrentUser={isCurrentUser}
                 onShare={handleShare}
                 onAddMusic={isCurrentUser ? handleAddMusic : undefined}
+                curatorHeadline={curatorInfo?.headline}
+                curatorGenres={curatorInfo?.declaredGenres}
+                curatorAbout={curatorInfo?.about}
+                curatorPlatforms={curatorInfo?.declaredPlatforms}
               />
             </div>
           </Container>
         </div>
+        <div className="sticky top-0 z-10 flex items-center border-b bg-background/80 backdrop-blur-sm">
+          <div className="min-w-0 flex-1">
+            <ProfileTabs
+              activeTab={activeTab}
+              onTabChange={filterByElementType}
+              showPostsTab
+              showLikedTab={likedSectionVisible}
+              likedTabVisibility={likedTabVisibility}
+            />
+          </div>
+          {isCurrentUser && (
+            <div className="hidden flex-shrink-0 px-4 lg:block">
+              <NotificationMenu />
+            </div>
+          )}
+        </div>
+        {isCurrentUser && (
+          <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-muted/40 px-4 py-2 sm:px-6 lg:px-8">
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              This is your public page
+            </p>
+            <Link
+              href="/studio/curator"
+              className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-primary underline-offset-4 hover:underline"
+            >
+              Manage in Curator Studio
+            </Link>
+          </div>
+        )}
         <PublicCuratorPage
           username={userBio.username}
           membershipFlow={membership}
           initialInterval={membershipInterval}
-          embedded
         />
       </div>
     );
@@ -448,12 +499,17 @@ export default function ProfilePage() {
                 isCurrentUser={isCurrentUser}
                 onShare={handleShare}
                 onAddMusic={isCurrentUser ? handleAddMusic : undefined}
+                curatorHeadline={curatorInfo?.headline}
+                curatorGenres={curatorInfo?.declaredGenres}
+                curatorAbout={curatorInfo?.about}
+                curatorPlatforms={curatorInfo?.declaredPlatforms}
               />
             ) : null}
             <div className="sticky top-0 z-10">
               <ProfileTabs
                 activeTab={activeTab}
                 onTabChange={filterByElementType}
+                showPostsTab={hasCuratorPage}
                 showLikedTab={likedSectionVisible}
                 likedTabVisibility={likedTabVisibility}
               />
@@ -491,6 +547,7 @@ export default function ProfilePage() {
               <ProfileTabs
                 activeTab={activeTab}
                 onTabChange={filterByElementType}
+                showPostsTab={hasCuratorPage}
                 showLikedTab={likedSectionVisible}
                 likedTabVisibility={likedTabVisibility}
               />

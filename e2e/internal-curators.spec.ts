@@ -109,9 +109,9 @@ test('suspends, reinstates, and keeps retired curators read-only', async ({ page
   const reason = 'Repeated payout-account ownership mismatch.';
 
   await expect(page.getByRole('list', { name: 'Open payout exceptions' }))
-    .toContainText('payout transfer');
+    .toContainText('Payout Transfer');
   await expect(page.getByRole('list', { name: 'Open payout exceptions' }))
-    .toContainText('payout clawback');
+    .toContainText('Payout Clawback');
   await expect(page.getByText('pmx_FixturePayoutTransfer01')).toBeVisible();
   await expect(page.getByText('pmx_FixturePayoutClawback01')).toBeVisible();
 
@@ -125,11 +125,13 @@ test('suspends, reinstates, and keeps retired curators read-only', async ({ page
   }]);
 
   await page.getByRole('button', { name: 'Reinstate curator' }).click();
+  const reinstateDialog = page.getByRole('alertdialog', { name: 'Reinstate curator' });
+  await expect(reinstateDialog).toContainText(`@${activeCurator.username}`);
+  await reinstateDialog.getByRole('button', { name: 'Reinstate', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Suspend curator' })).toBeVisible();
   expect(state.internalCuratorReinstateRequests).toEqual([activeCurator.id]);
 
-  await page.getByRole('combobox', { name: 'Curator', exact: true })
-    .selectOption(retiredCurator.id);
+  await page.getByRole('row').filter({ hasText: retiredCurator.username }).click();
   await expect(page.getByText('Retired profiles are read-only.')).toBeVisible();
   await expect(page.getByText('Retired profiles cannot receive new assignments.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Suspend curator' })).toHaveCount(0);
@@ -174,11 +176,10 @@ test('creates, defaults, assigns, and records an immutable pricing policy', asyn
     minPayoutMinor: 4_000,
   }]);
 
-  page.once('dialog', (dialog) => {
-    expect(dialog.message()).toContain('curator_launch v1');
-    void dialog.accept();
-  });
   await createdPolicy.getByRole('button', { name: 'Set as default' }).click();
+  const defaultDialog = page.getByRole('alertdialog', { name: 'Set default pricing policy' });
+  await expect(defaultDialog).toContainText('curator_launch v1');
+  await defaultDialog.getByRole('button', { name: 'Set as default' }).click();
   await expect(createdPolicy).toContainText('default');
   expect(state.internalPricingPolicyDefaultRequests).toEqual(['msf_FixturePolicy02']);
 

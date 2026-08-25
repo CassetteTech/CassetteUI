@@ -10,13 +10,14 @@ import { apiService } from '@/services/api';
 import type { CuratorProStatus } from '@/services/curator-pro';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import {
+  ReceiptRow,
   StudioChip,
-  StudioFact,
   StudioNotice,
   StudioSection,
   type StudioChipTone,
 } from '@/components/features/curator/studio-shell';
 import { Button } from '@/components/ui/button';
+import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 type ProFlow = 'return' | 'portal-return' | null;
 
@@ -137,6 +138,8 @@ export function CuratorProCard() {
   const userId = user?.id ?? null;
   const [flow, setFlow] = useState<ProFlow>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Set when the 30s poll gives up, so the curator can restart it themselves.
+  const [timedOutFlow, setTimedOutFlow] = useState<ProFlow>(null);
   const flowInitialized = useRef(false);
   const flowHandled = useRef(false);
   const portalBaseline = useRef<PortalBaseline | null>(null);
@@ -196,6 +199,7 @@ export function CuratorProCard() {
   useEffect(() => {
     if (!flow) return;
     const timeout = window.setTimeout(() => {
+      setTimedOutFlow(flow);
       finishFlow(
         flow === 'return'
           ? 'Curator Pro activation is still processing. Refresh in a moment.'
@@ -241,31 +245,50 @@ export function CuratorProCard() {
   }, [finishFlow, flow, status]);
 
   const actionError = checkout.isError
-    ? 'We could not start secure Checkout. Try again.'
+    ? `${getUserFacingApiErrorMessage(checkout.error, 'We could not start secure Checkout.')} Try again.`
     : portal.isError
-      ? 'We could not open billing management. Try again.'
+      ? `${getUserFacingApiErrorMessage(portal.error, 'We could not open billing management.')} Try again.`
       : null;
-  const actionPending = checkout.isPending || portal.isPending;
+  // isSuccess keeps the buttons disabled while the Stripe navigation is pending,
+  // preventing a double submit after the mutation resolves.
+  const actionPending = checkout.isPending || checkout.isSuccess ||
+    portal.isPending || portal.isSuccess;
 
   return (
     <StudioSection
       id="studio-pro"
-      eyebrow={<><span className="text-primary">Step 2</span> · Subscription</>}
+      eyebrow="Subscription"
       title="Curator Pro"
       headingId="curator-pro-title"
       testId="curator-pro-card"
       description="Curator Pro is required before locked posts and fan membership revenue. Regular Cassette features stay free."
       chip={status && <StudioChip tone={statusTone(status)}>{statusLabel(status)}</StudioChip>}
     >
+      <StudioNotice testId="curator-pro-notice" className="mb-5">{notice}</StudioNotice>
       <div className="space-y-5">
-        {notice && <StudioNotice testId="curator-pro-notice">{notice}</StudioNotice>}
+        {timedOutFlow && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setNotice(null);
+              flowHandled.current = false;
+              setTimedOutFlow(null);
+              setFlow(timedOutFlow);
+            }}
+          >
+            Check again
+          </Button>
+        )}
 
         {statusQuery.isPending ? (
           <output className="text-sm text-muted-foreground">Loading Curator Pro…</output>
         ) : statusQuery.isError && !status ? (
           <div className="space-y-3">
             <p role="alert" className="text-sm text-destructive">
-              Curator Pro status is unavailable. Your free curator profile still works.
+              {getUserFacingApiErrorMessage(statusQuery.error, 'Curator Pro status is unavailable.')}
+              {' '}Your free curator profile still works.
             </p>
             <Button type="button" variant="outline" onClick={() => void statusQuery.refetch()}>
               Try again
@@ -273,21 +296,29 @@ export function CuratorProCard() {
           </div>
         ) : status ? (
           <>
-            <dl className="grid gap-2 text-sm sm:grid-cols-2">
-              <StudioFact label="Base monthly price">
-                <span className="font-mono text-base font-semibold tabular-nums">
-                  {formatMoney(status.monthlyPriceMinor, status.currency)}
-                </span>
-              </StudioFact>
-              <StudioFact label="Your monthly price">
-                <span className="font-mono text-base font-semibold tabular-nums text-primary">
-                  {formatMoney(status.discountKind === 'none' ? status.monthlyPriceMinor : 0, status.currency)}
-                </span>
-              </StudioFact>
-              <StudioFact label="Offer">{discountCopy(status)}</StudioFact>
-              <StudioFact label="Fan membership platform fee">
-                {feeFormatter.format(status.platformFeeBps / 10_000)}
-              </StudioFact>
+            <dl className="divide-y divide-border/70 text-sm">
+              <ReceiptRow
+                className="py-2.5"
+                label="Base monthly price"
+                value={formatMoney(status.monthlyPriceMinor, status.currency)}
+              />
+              <ReceiptRow
+                className="py-2.5"
+                label="Your monthly price"
+                value={
+                  <span className="font-semibold text-primary">
+                    {formatMoney(status.discountKind === 'none' ? status.monthlyPriceMinor : 0, status.currency)}
+                  </span>
+                }
+              />
+              {status.discountKind !== 'none' && (
+                <ReceiptRow className="py-2.5" label="Offer" value={discountCopy(status)} />
+              )}
+              <ReceiptRow
+                className="py-2.5"
+                label="Fan membership platform fee"
+                value={feeFormatter.format(status.platformFeeBps / 10_000)}
+              />
             </dl>
 
             <p className="text-sm leading-relaxed">{lifecycleCopy(status)}</p>
@@ -297,18 +328,19 @@ export function CuratorProCard() {
 
             {actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               {status.canSubscribe && (
                 <Button
                   type="button"
                   data-testid="curator-pro-subscribe"
+                  className="w-full sm:w-auto"
                   disabled={actionPending}
                   onClick={() => {
                     portal.reset();
                     checkout.mutate();
                   }}
                 >
-                  {checkout.isPending
+                  {checkout.isPending || checkout.isSuccess
                     ? 'Opening Checkout…'
                     : status.status === 'canceled' ? 'Restart Curator Pro' : 'Start Curator Pro'}
                 </Button>
@@ -318,13 +350,14 @@ export function CuratorProCard() {
                   type="button"
                   variant="outline"
                   data-testid="curator-pro-manage"
+                  className="w-full sm:w-auto"
                   disabled={actionPending}
                   onClick={() => {
                     checkout.reset();
                     portal.mutate();
                   }}
                 >
-                  {portal.isPending ? 'Opening…' : 'Manage billing'}
+                  {portal.isPending || portal.isSuccess ? 'Opening…' : 'Manage billing'}
                 </Button>
               )}
             </div>

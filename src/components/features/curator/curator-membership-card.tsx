@@ -6,6 +6,8 @@ import { Check } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Spinner } from '@/components/ui/spinner';
 import {
   formatCuratorPlanPrice,
   type CuratorPage,
@@ -36,9 +38,11 @@ export function CuratorMembershipCard({
   checkoutPending,
   portalPending,
   checkoutCanceled,
+  noticeAction,
   onIntervalChange,
   onJoin,
   onManage,
+  onCheckStatus,
 }: {
   page: CuratorPage;
   displayName: string;
@@ -53,6 +57,7 @@ export function CuratorMembershipCard({
   checkoutPending: boolean;
   portalPending: boolean;
   checkoutCanceled: boolean;
+  noticeAction: { label: string; onClick: () => void } | null;
   onIntervalChange: (interval: MembershipInterval) => void;
   onJoin: () => void;
   onManage: (
@@ -60,6 +65,7 @@ export function CuratorMembershipCard({
     cancelAtPeriodEnd: boolean,
     status: MembershipStatus,
   ) => void;
+  onCheckStatus: () => void;
 }) {
   const plan = page.membership;
   const membership = status?.membership;
@@ -90,57 +96,118 @@ export function CuratorMembershipCard({
       ? 'Your membership is canceled.'
       : null;
 
+  const manageButton = !page.viewer.isOwner && membership?.canManage ? (
+    <Button
+      variant="outline"
+      className="w-full"
+      onClick={() => onManage(
+        membership.membershipSubscriptionId,
+        membership.cancelAtPeriodEnd,
+        membership.status,
+      )}
+      disabled={portalPending}
+      data-testid="membership-manage"
+    >
+      {portalPending ? (
+        <>
+          <Spinner size="sm" />
+          Opening management…
+        </>
+      ) : 'Manage membership'}
+    </Button>
+  ) : null;
+
+  const noticeBlock = (
+    <>
+      {(notice ?? statusNotice) && (
+        <output className="mt-4 block text-sm text-muted-foreground" data-testid="membership-notice">
+          {notice ?? statusNotice}
+        </output>
+      )}
+      {notice && noticeAction && (
+        <Button variant="outline" size="sm" className="mt-2 w-full" onClick={noticeAction.onClick}>
+          {noticeAction.label}
+        </Button>
+      )}
+      {error && <p className="mt-4 text-sm text-destructive" role="alert">{error}</p>}
+    </>
+  );
+
+  // Active member: collapse to a slim confirmation row — no pitch, no pricing.
+  if (page.viewer.isMember) {
+    return (
+      <aside className="lg:sticky lg:top-6" aria-label="Membership">
+        <Card id={membershipId} data-testid="curator-membership-card" className="border-foreground/30 elev-1">
+          <CardContent>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <Badge variant="secondary" className="px-3 py-1.5">
+                <Check aria-hidden />
+                Member
+              </Badge>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                {displayedPlan?.name ?? `${displayName} membership`}
+              </span>
+            </div>
+            {manageButton && <div className="mt-4">{manageButton}</div>}
+            {noticeBlock}
+          </CardContent>
+        </Card>
+      </aside>
+    );
+  }
+
   return (
-    <aside className="order-first lg:order-last lg:sticky lg:top-6" aria-label="Membership">
+    <aside className="lg:sticky lg:top-6" aria-label="Membership">
       <Card id={membershipId} data-testid="curator-membership-card" className="border-foreground/30 elev-2">
         <CardHeader>
           <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
             Membership
           </p>
-          <h2 className="break-words font-teko text-3xl font-semibold uppercase leading-none">
+          <h2 className="text-balance break-words font-teko text-2xl font-semibold uppercase leading-none">
             {displayedPlan?.name ?? `${displayName} membership`}
           </h2>
           {selectedPrice && (
             <div className="pt-2">
-              <span className="font-teko text-3xl font-bold">{selectedPrice}</span>
+              <span className="font-teko text-3xl font-bold tabular-nums">{selectedPrice}</span>
               <span className="text-sm text-muted-foreground">/{displayedInterval}</span>
             </div>
           )}
         </CardHeader>
         <CardContent>
           {displayedPlan?.description && (
-            <p className="whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground">
+            <p className="whitespace-pre-line text-pretty break-words text-sm leading-relaxed text-muted-foreground">
               {displayedPlan.description}
             </p>
           )}
           {displayedPlan && annualAvailable && canJoin && !page.viewer.isOwner &&
             !(membership?.status === 'incomplete' && planMatchesMembership) && (
-            <fieldset className="mt-5 grid grid-cols-2 gap-2">
-              <legend className="sr-only">Billing interval</legend>
+            <RadioGroup
+              value={interval}
+              // SAFETY: the only rendered items are 'month' and 'year', both MembershipInterval.
+              onValueChange={(value) => onIntervalChange(value as MembershipInterval)}
+              aria-label="Billing interval"
+              className="mt-5 grid grid-cols-2 gap-2"
+            >
               {(['month', 'year'] as const).map((option) => (
                 <label
                   key={option}
                   className={cn(
-                    'cursor-pointer rounded-md border px-3 py-2 text-center text-sm capitalize has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2',
-                    interval === option && 'border-primary bg-primary/10 font-semibold',
+                    'flex min-h-11 cursor-pointer items-center justify-center rounded-md border px-3 py-2.5 text-center text-sm transition-colors hover:border-foreground/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2',
+                    interval === option && 'border-primary bg-primary/10 font-semibold hover:border-primary',
                   )}
                 >
-                  <input
-                    type="radio"
-                    name={`membership-interval-${membershipId}`}
+                  <RadioGroupItem
                     value={option}
-                    checked={interval === option}
-                    onChange={() => onIntervalChange(option)}
                     className="sr-only"
                     data-testid={`membership-interval-${option}`}
                   />
                   {option === 'month' ? 'Monthly' : 'Annual'}
                 </label>
               ))}
-            </fieldset>
+            </RadioGroup>
           )}
           {displayedPlan && selectedFace != null && selectedFee != null && selectedFee > 0 && canJoin && (
-            <dl className="mt-4 space-y-1 border-y py-3 text-sm">
+            <dl className="mt-4 space-y-1 border-y py-3 text-sm tabular-nums">
               <div className="flex justify-between gap-3">
                 <dt>Membership</dt>
                 <dd>{formatCuratorPlanPrice(selectedFace, 0, displayedPlan.currency)}</dd>
@@ -174,51 +241,50 @@ export function CuratorMembershipCard({
           <div className="mt-6 space-y-2">
             {page.viewer.isOwner ? (
               <p className="text-sm font-medium text-muted-foreground">Your published membership plan</p>
-            ) : page.viewer.isMember ? (
-              <Badge variant="secondary" className="px-3 py-1.5">Member</Badge>
             ) : statusLoading && authenticated ? (
               <p className="text-sm text-muted-foreground">Checking membership…</p>
             ) : statusUnavailable && authenticated ? (
-              <p className="text-sm text-muted-foreground">Membership status is temporarily unavailable.</p>
+              <>
+                <p className="text-sm text-muted-foreground">Membership status is temporarily unavailable.</p>
+                <Button variant="outline" className="w-full" onClick={onCheckStatus}>
+                  Try again
+                </Button>
+              </>
             ) : canJoin ? (
-              <Button
-                className="w-full"
-                onClick={onJoin}
-                disabled={checkoutPending}
-                data-testid="membership-join"
-              >
-                {checkoutPending
-                  ? 'Opening secure Checkout…'
-                  : checkoutCanceled && membership?.status === 'incomplete'
+              <>
+                <Button
+                  className="w-full"
+                  onClick={onJoin}
+                  disabled={checkoutPending}
+                  data-testid="membership-join"
+                >
+                  {checkoutPending ? (
+                    <>
+                      <Spinner size="sm" />
+                      Opening secure Checkout…
+                    </>
+                  ) : checkoutCanceled && membership?.status === 'incomplete'
                     ? 'Retry Checkout'
                     : `Join ${displayName}`}
-              </Button>
+                </Button>
+                {!authenticated && (
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    You will be asked to sign in or create a free account first.
+                  </p>
+                )}
+              </>
             ) : membership?.status === 'incomplete' ? (
-              <p className="text-sm text-muted-foreground">Checkout confirmation is pending.</p>
+              <>
+                <p className="text-sm text-muted-foreground">Checkout confirmation is pending.</p>
+                <Button variant="outline" className="w-full" onClick={onCheckStatus}>
+                  Check status
+                </Button>
+              </>
             ) : null}
 
-            {!page.viewer.isOwner && membership?.canManage && (
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => onManage(
-                  membership.membershipSubscriptionId,
-                  membership.cancelAtPeriodEnd,
-                  membership.status,
-                )}
-                disabled={portalPending}
-                data-testid="membership-manage"
-              >
-                {portalPending ? 'Opening management…' : 'Manage membership'}
-              </Button>
-            )}
+            {manageButton}
           </div>
-          {(notice ?? statusNotice) && (
-            <output className="mt-4 block text-sm text-muted-foreground" data-testid="membership-notice">
-              {notice ?? statusNotice}
-            </output>
-          )}
-          {error && <p className="mt-4 text-sm text-destructive" role="alert">{error}</p>}
+          {noticeBlock}
         </CardContent>
       </Card>
     </aside>

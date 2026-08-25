@@ -40,13 +40,14 @@ useEffect(() => {
   const isAuthPage = pathname?.startsWith('/auth');
   const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/curator') || pathname?.startsWith('/studio') || pathname?.startsWith('/add-music') || pathname?.startsWith('/internal');
   const isProfileRoute = pathname?.startsWith('/profile');
+  const isStudioRoute = pathname?.startsWith('/studio');
   const isHomePage = pathname === '/';
   const isPostPage = pathname?.startsWith('/post');
   // /about and /team render their own MarketingFooter inside the curtain sheet
   const isStoryPage = pathname === '/about' || pathname === '/team';
 
   const showNavbar = !isAuthPage;
-  const showFooter = !isAuthPage && !isHomePage && !isPostPage && !isProfileRoute && !isStoryPage;
+  const showFooter = !isAuthPage && !isHomePage && !isPostPage && !isProfileRoute && !isStudioRoute && !isStoryPage;
 
   if (isLoading && !isHomePage) {
     return <PageLoader />;
@@ -69,8 +70,8 @@ useEffect(() => {
           <Footer />
         </div>
       )}
-      {/* Hide floating support button on desktop profile pages and all post/conversion pages */}
-      {!isPostPage && (
+      {/* Ko-fi button stays off post/conversion pages and money/content surfaces (profile, studio) */}
+      {!isPostPage && !isProfileRoute && !isStudioRoute && (
         <div className={isProfilePage ? 'lg:hidden' : ''}>
           <SupportFloatingButton />
         </div>

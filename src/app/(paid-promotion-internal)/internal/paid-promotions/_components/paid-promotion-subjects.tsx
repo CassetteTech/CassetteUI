@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Music2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { ArtworkImage } from '@/components/ui/artwork-image';
 import { Button } from '@/components/ui/button';
+import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import {
   Table,
   TableBody,
@@ -14,7 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { EmptyState } from '@/app/(sidebar)/internal/_components/empty-state';
 import { Panel, SectionHeader, StatusPill } from '@/app/(sidebar)/internal/_components/kit';
 import {
   PAID_PROMOTION_CAMPAIGN_STATUSES,
@@ -155,11 +155,10 @@ export function PaidPromotionSubjects() {
             </Button>
           </div>
         ) : subjects.length === 0 ? (
-          <EmptyState
-            icon={Music2}
-            title="No promoted subjects"
-            description="No canonical records have a paid-promotion campaign yet."
-          />
+          <Empty>
+            <EmptyTitle>No promoted subjects</EmptyTitle>
+            <EmptyDescription>No canonical records have a paid-promotion campaign yet.</EmptyDescription>
+          </Empty>
         ) : (
           <>
             <div className="hidden md:block">

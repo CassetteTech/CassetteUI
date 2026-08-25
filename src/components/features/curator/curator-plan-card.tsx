@@ -26,7 +26,6 @@ import { cn } from '@/lib/utils';
 import {
   ReceiptRow,
   StudioChip,
-  StudioFact,
   StudioNotice,
   StudioSection,
   type StudioChipTone,
@@ -43,16 +42,21 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, Plus } from 'lucide-react';
+import { Check, ChevronDown, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 type PlanAction = { kind: 'publish' | 'archive'; planId: string };
 
 const profileQueryKey = ['curator-profile', 'me'] as const;
 const payoutQueryKey = ['curator-payout-account', 'current'] as const;
+// Server contract bounds for the monthly price (see curatorPlanRequestSchema).
+const monthlyMinMinor = 500;
+const monthlyMaxMinor = 10_000;
 
 function priceMinor(value: string): number | null {
   const amount = Number(value);
@@ -94,8 +98,8 @@ function EconomicsBreakdown({
   interval: 'month' | 'year';
 }) {
   return (
-    <div className="rounded-lg border border-border/70 bg-muted/20 p-4 sm:p-5">
-      <h4 className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+    <div className="bg-muted/30 p-4 sm:p-5">
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Per {interval}
       </h4>
       <dl className="mt-4 space-y-2 text-sm">
@@ -126,8 +130,11 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile }) {
   const { user } = useAuthState();
   const queryClient = useQueryClient();
   const formRef = useRef<HTMLFormElement>(null);
+  const monthlyRef = useRef<HTMLInputElement>(null);
+  const annualRef = useRef<HTMLInputElement>(null);
   const [monthlyPrice, setMonthlyPrice] = useState('5.00');
   const [annualPrice, setAnnualPrice] = useState('');
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   // null = follow the default (open only while the curator has no plans yet)
   const [createOpen, setCreateOpen] = useState<boolean | null>(null);
@@ -191,9 +198,21 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile }) {
   });
 
   const monthlyMinor = priceMinor(monthlyPrice);
-  const annualMinor = annualPrice.trim() ? priceMinor(annualPrice) : null;
-  const validMonthly = monthlyMinor !== null && monthlyMinor >= 500 && monthlyMinor <= 10_000;
+  const annualEntered = annualPrice.trim() !== '';
+  const annualMinor = annualEntered ? priceMinor(annualPrice) : null;
+  const validMonthly = monthlyMinor !== null && monthlyMinor >= monthlyMinMinor && monthlyMinor <= monthlyMaxMinor;
   const validAnnual = annualMinor !== null && monthlyMinor !== null && annualMinor <= monthlyMinor * 12;
+  const priceCurrency = pricing.data?.currency ?? 'USD';
+  const monthlyError = validMonthly
+    ? null
+    : `Monthly price must be between ${money(monthlyMinMinor, priceCurrency)} and ${money(monthlyMaxMinor, priceCurrency)}.`;
+  const annualError = !annualEntered || validAnnual
+    ? null
+    : annualMinor === null
+      ? 'Enter a valid annual price.'
+      : 'Annual price can be at most 12 monthly payments.';
+  const showMonthlyError = monthlyError !== null && (submitAttempted || monthlyPrice.trim() !== '');
+  const showAnnualError = annualError !== null;
   const monthlyEconomics = validMonthly && pricing.data
     ? calculateCuratorPlanEconomics(monthlyMinor, pricing.data)
     : null;
@@ -213,21 +232,24 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile }) {
   return (
     <StudioSection
       id="studio-plan"
-      eyebrow={<><span className="text-primary">Step 4</span> · Monetize</>}
+      eyebrow="Monetize"
       title="Fan membership plan"
       headingId="curator-plan-title"
       testId="curator-plan-card"
       description="Drafting is free. Active Curator Pro and started payout setup are required only when you publish."
     >
+      <StudioNotice testId="curator-plan-notice" className="mb-8">{notice}</StudioNotice>
       <div className="space-y-8">
-        {notice && <StudioNotice testId="curator-plan-notice">{notice}</StudioNotice>}
-
         {corePending ? (
           <output className="text-sm text-muted-foreground">Loading membership plan tools…</output>
         ) : coreError || !plans.data || !features.data || !pricing.data ? (
           <div className="space-y-3">
             <p role="alert" className="text-sm text-destructive">
-              Membership plan tools are unavailable. Your free profile, Curator Pro, and payout controls still work.
+              {getUserFacingApiErrorMessage(
+                plans.error ?? features.error ?? pricing.error,
+                'Membership plan tools are unavailable.',
+              )}
+              {' '}Your free profile, Curator Pro, and payout controls still work.
             </p>
             <Button
               type="button"
@@ -247,22 +269,53 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile }) {
               </div>
               {/* Requirements surface only while an unpublishable draft is waiting */}
               {!gatesConfirmed && plans.data.some((plan) => plan.status === 'draft') && (
-                <dl aria-label="Publishing requirements" className="grid gap-2 text-sm sm:grid-cols-3">
-                  <StudioFact label="Free profile">
-                    <span className={profileReady ? 'text-success-text' : undefined}>
-                      {profileReady ? 'Active' : 'Not active'}
-                    </span>
-                  </StudioFact>
-                  <StudioFact label="Curator Pro">
-                    <span className={proReady ? 'text-success-text' : undefined}>
-                      {pro.isPending ? 'Checking…' : proReady ? 'Active' : pro.isError ? 'Unavailable' : 'Required'}
-                    </span>
-                  </StudioFact>
-                  <StudioFact label="Payout setup">
-                    <span className={payoutStarted ? 'text-success-text' : undefined}>
-                      {payout.isPending ? 'Checking…' : payoutStarted ? 'Started' : payout.isError ? 'Unavailable' : 'Not started'}
-                    </span>
-                  </StudioFact>
+                <dl aria-label="Publishing requirements" className="divide-y divide-border/70 text-sm">
+                  <ReceiptRow
+                    className="py-2.5"
+                    label="Free profile"
+                    value={profileReady ? (
+                      <span className="inline-flex items-center gap-1 text-success-text">
+                        <Check aria-hidden className="size-3.5" />
+                        Active
+                      </span>
+                    ) : 'Not active'}
+                  />
+                  <ReceiptRow
+                    className="py-2.5"
+                    label="Curator Pro"
+                    value={pro.isPending ? 'Checking…' : proReady ? (
+                      <span className="inline-flex items-center gap-1 text-success-text">
+                        <Check aria-hidden className="size-3.5" />
+                        Active
+                      </span>
+                    ) : pro.isError ? (
+                      <button
+                        type="button"
+                        className="underline underline-offset-2"
+                        onClick={() => void pro.refetch()}
+                      >
+                        Unavailable — retry
+                      </button>
+                    ) : 'Required'}
+                  />
+                  <ReceiptRow
+                    className="py-2.5"
+                    label="Payout setup"
+                    value={payout.isPending ? 'Checking…' : payoutStarted ? (
+                      <span className="inline-flex items-center gap-1 text-success-text">
+                        <Check aria-hidden className="size-3.5" />
+                        Started
+                      </span>
+                    ) : payout.isError ? (
+                      <button
+                        type="button"
+                        className="underline underline-offset-2"
+                        onClick={() => void payout.refetch()}
+                      >
+                        Unavailable — retry
+                      </button>
+                    ) : 'Not started'}
+                  />
                 </dl>
               )}
               {change.isError && (
@@ -279,20 +332,20 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile }) {
                     key={plan.id}
                     data-testid={`curator-plan-${plan.status}`}
                     className={cn(
-                      'overflow-hidden rounded-xl border elev-1',
-                      plan.status === 'active' ? 'border-primary/40' : 'border-border/80',
+                      'border-t-2',
+                      plan.status === 'active' ? 'border-primary/60' : 'border-foreground/15',
                       plan.status === 'archived' && 'opacity-70',
                     )}
                   >
                     {/* Tier header: reads like the card a fan would see */}
-                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 bg-muted/20 px-4 py-4 sm:px-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 py-4">
                       <div className="min-w-0">
                         <h4 className="break-words font-teko text-2xl font-semibold uppercase leading-none">{plan.name}</h4>
                         <p className="mt-1.5 text-sm text-muted-foreground">{plan.description || 'No description.'}</p>
                       </div>
                       <StudioChip tone={planChipTone[plan.status]} className="capitalize">{plan.status}</StudioChip>
                     </div>
-                    <div className="space-y-4 px-4 py-4 sm:px-5">
+                    <div className="space-y-4 py-4">
                       <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
                         <div className="flex items-baseline justify-between gap-4">
                           <dt className="text-muted-foreground">Monthly price</dt>
@@ -324,16 +377,63 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile }) {
                         <Button
                           type="button"
                           data-testid="curator-plan-publish"
-                          disabled={!canPublish || change.isPending}
+                          // aria-disabled keeps the button focusable so the linked
+                          // requirement text stays reachable; the click is guarded.
+                          aria-disabled={!canPublish || change.isPending ? true : undefined}
+                          aria-describedby={[
+                            !gatesConfirmed && `plan-${plan.id}-gates`,
+                            blockedByActivePlan && `plan-${plan.id}-blocked`,
+                          ].filter(Boolean).join(' ') || undefined}
+                          className="w-full sm:w-auto aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                           onClick={() => {
+                            if (!canPublish || change.isPending) return;
                             setNotice(null);
                             change.mutate({ kind: 'publish', planId: plan.id });
                           }}
                         >
                           {changing ? 'Publishing…' : 'Publish plan'}
                         </Button>
-                        {!gatesConfirmed && <p className="text-xs text-muted-foreground">Confirm an active profile, Curator Pro, and started payout setup before publishing.</p>}
-                        {blockedByActivePlan && <p className="text-xs text-muted-foreground">Archive the active plan before publishing this draft.</p>}
+                        {!gatesConfirmed && <p id={`plan-${plan.id}-gates`} className="text-xs text-muted-foreground">Confirm an active profile, Curator Pro, and started payout setup before publishing.</p>}
+                        {blockedByActivePlan && <p id={`plan-${plan.id}-blocked`} className="text-xs text-muted-foreground">Archive the active plan before publishing this draft.</p>}
+                      </div>
+                    )}
+                    {plan.status === 'active' && (
+                      <div className="rounded-none border border-border p-4 sm:p-5">
+                        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+                          What fans see
+                        </p>
+                        <h5 className="mt-3 break-words font-teko text-2xl font-semibold uppercase leading-none">
+                          {plan.name}
+                        </h5>
+                        <p className="mt-1.5 text-sm">
+                          <span className="font-mono font-semibold tabular-nums">{money(plan.amountMinor, plan.currency)}</span>
+                          <span className="text-muted-foreground">/month</span>
+                        </p>
+                        {plan.description && (
+                          <p className="mt-2 text-pretty text-sm text-muted-foreground">{plan.description}</p>
+                        )}
+                        {plan.featureKeys.length > 0 && (
+                          <ul className="mt-3 space-y-1.5 text-sm">
+                            {plan.featureKeys.map((key) => (
+                              <li key={key} className="flex items-start gap-2">
+                                <Check aria-hidden className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                                {featureNames.get(key) ?? key}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {/* Preview only: non-interactive stand-in for the join button. */}
+                        <Button
+                          type="button"
+                          aria-disabled="true"
+                          tabIndex={-1}
+                          className="pointer-events-none mt-4 w-full"
+                        >
+                          Join {user?.displayName || 'you'}
+                        </Button>
+                        <p className="mt-2 text-center text-xs text-muted-foreground">
+                          Preview — fans join from your public page
+                        </p>
                       </div>
                     )}
                     {plan.status === 'active' && (
@@ -383,7 +483,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile }) {
                 >
                   <span className="flex items-start gap-3">
                     <span aria-hidden className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary">
-                      <Plus className="size-4 transition-transform group-data-[state=open]:rotate-45" />
+                      <Plus className="size-4 transition-transform group-data-[state=open]:rotate-45 motion-reduce:transition-none" />
                     </span>
                     <span>
                       <span className="block font-teko text-xl font-semibold uppercase tracking-tight">Create a draft</span>
@@ -392,7 +492,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile }) {
                       </span>
                     </span>
                   </span>
-                  <ChevronDown aria-hidden className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                  <ChevronDown aria-hidden className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
@@ -401,10 +501,18 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile }) {
                   className="grid gap-8 pt-6 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start"
                   onSubmit={(event) => {
                     event.preventDefault();
+                    setSubmitAttempted(true);
+                    if (monthlyMinor === null || !validMonthly) {
+                      monthlyRef.current?.focus();
+                      return;
+                    }
+                    if (annualEntered && !validAnnual) {
+                      annualRef.current?.focus();
+                      return;
+                    }
                     const data = new FormData(event.currentTarget);
-                    const amountMinor = priceMinor(monthlyPrice);
-                    const annualAmountMinor = annualPrice.trim() ? priceMinor(annualPrice) : null;
-                    if (amountMinor === null || (annualPrice.trim() && annualAmountMinor === null)) return;
+                    const amountMinor = monthlyMinor;
+                    const annualAmountMinor = annualEntered ? annualMinor : null;
                     setNotice(null);
                     create.mutate({
                       name: formText(data, 'name'),
@@ -429,37 +537,49 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile }) {
                       <div className="space-y-2">
                         <Label htmlFor="curator-plan-monthly">Monthly price (USD)</Label>
                         <Input
+                          ref={monthlyRef}
                           id="curator-plan-monthly"
                           name="monthlyPrice"
-                          type="number"
+                          type="text"
                           inputMode="decimal"
-                          min="5"
-                          max="100"
-                          step="0.01"
-                          required
+                          aria-required="true"
+                          aria-invalid={showMonthlyError || undefined}
+                          aria-describedby={showMonthlyError ? 'curator-plan-monthly-error' : undefined}
                           value={monthlyPrice}
                           onChange={(event) => setMonthlyPrice(event.target.value)}
                         />
+                        {showMonthlyError && (
+                          <p id="curator-plan-monthly-error" className="text-xs text-destructive">
+                            {monthlyError}
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="curator-plan-annual">Annual price (USD, optional)</Label>
                         <Input
+                          ref={annualRef}
                           id="curator-plan-annual"
                           name="annualPrice"
-                          type="number"
+                          type="text"
                           inputMode="decimal"
-                          min="0.01"
-                          max={monthlyMinor === null ? '1200' : String(monthlyMinor * 0.12)}
-                          step="0.01"
+                          aria-invalid={showAnnualError || undefined}
+                          aria-describedby={showAnnualError
+                            ? 'curator-plan-annual-error curator-plan-annual-help'
+                            : 'curator-plan-annual-help'}
                           value={annualPrice}
                           onChange={(event) => setAnnualPrice(event.target.value)}
                         />
-                        <p className="text-xs text-muted-foreground">At most 12 monthly payments.</p>
+                        {showAnnualError && (
+                          <p id="curator-plan-annual-error" className="text-xs text-destructive">
+                            {annualError}
+                          </p>
+                        )}
+                        <p id="curator-plan-annual-help" className="text-xs text-muted-foreground">At most 12 monthly payments.</p>
                       </div>
                     </div>
 
                     <fieldset className="space-y-2.5">
-                      <legend className="pb-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                      <legend className="pb-1 text-sm font-semibold">
                         Included Cassette features
                       </legend>
                       {features.data.length === 0 ? (
@@ -468,10 +588,10 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile }) {
                         <Label
                           htmlFor={`curator-feature-${feature.featureKey}`}
                           key={feature.featureKey}
-                          // has-checked highlights the row when its checkbox is on
-                          className="flex items-start gap-3 rounded-lg border border-border/70 p-3.5 text-sm font-normal transition-colors has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5"
+                          // data-state highlights the row when its checkbox is on
+                          className="flex items-start gap-3 rounded-none border border-border/70 p-3.5 text-sm font-normal transition-colors has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5"
                         >
-                          <input id={`curator-feature-${feature.featureKey}`} className="mt-0.5 size-4 accent-primary" type="checkbox" name="featureKeys" value={feature.featureKey} />
+                          <Checkbox id={`curator-feature-${feature.featureKey}`} className="mt-0.5" name="featureKeys" value={feature.featureKey} />
                           <span><span className="font-medium">{feature.displayName}</span><span className="mt-1 block text-muted-foreground">{feature.description}</span></span>
                         </Label>
                       ))}
@@ -482,7 +602,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile }) {
                         The draft save could not be confirmed. Review the refreshed saved plans before trying again.
                       </p>
                     )}
-                    <Button type="submit" disabled={create.isPending}>{create.isPending ? 'Saving draft…' : 'Save draft'}</Button>
+                    <Button type="submit" className="w-full sm:w-auto" disabled={create.isPending}>{create.isPending ? 'Saving draft…' : 'Save draft'}</Button>
                   </div>
 
                   {/* Live estimate beside the form, so pricing reads as a preview */}
@@ -497,15 +617,22 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile }) {
                     </div>
                     {monthlyEconomics && <EconomicsBreakdown economics={monthlyEconomics} currency={pricing.data.currency} interval="month" />}
                     {annualEconomics && <EconomicsBreakdown economics={annualEconomics} currency={pricing.data.currency} interval="year" />}
-                    <dl className="grid gap-2 text-sm">
-                      <StudioFact label="Current Curator Pro base price">
-                        {money(pricing.data.curatorProMonthlyPriceMinor, pricing.data.currency)}/month, billed separately
-                      </StudioFact>
-                      <StudioFact label="Payout schedule">
-                        {/* capitalize only the cadence word, not the whole sentence */}
-                        <span className="capitalize">{pricing.data.payoutCadence}</span>
-                        , after your balance reaches {money(pricing.data.minPayoutMinor, pricing.data.currency)}. Smaller cleared balances are paid after 90 days or when Curator Pro ends.
-                      </StudioFact>
+                    <dl className="divide-y divide-border/70 text-sm">
+                      <div className="py-2.5">
+                        <dt className="text-muted-foreground">Current Curator Pro base price</dt>
+                        <dd className="mt-1">
+                          <span className="font-mono tabular-nums">{money(pricing.data.curatorProMonthlyPriceMinor, pricing.data.currency)}</span>/month, billed separately
+                        </dd>
+                      </div>
+                      <div className="py-2.5">
+                        <dt className="text-muted-foreground">Payout schedule</dt>
+                        <dd className="mt-1 text-pretty">
+                          {/* capitalize only the cadence word, not the whole sentence */}
+                          <span className="capitalize">{pricing.data.payoutCadence}</span>
+                          , after your balance reaches{' '}
+                          <span className="font-mono tabular-nums">{money(pricing.data.minPayoutMinor, pricing.data.currency)}</span>. Smaller cleared balances are paid after 90 days or when Curator Pro ends.
+                        </dd>
+                      </div>
                     </dl>
                     <p className="text-xs text-muted-foreground">Curator Pro is not subtracted from the estimated accrual.</p>
                   </aside>

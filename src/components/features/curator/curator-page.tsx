@@ -6,9 +6,8 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
-  BadgeCheck,
-  CalendarDays,
   Disc3,
   ListMusic,
   LockKeyhole,
@@ -20,7 +19,7 @@ import { useCuratorPage } from '@/hooks/use-curator';
 import { useMembershipStatus } from '@/hooks/use-membership-status';
 import {
   CuratorPageError,
-  type CuratorPage as CuratorPageData,
+  formatCuratorPlanPrice,
   type CuratorPostItem,
 } from '@/services/curator';
 import { apiService } from '@/services/api';
@@ -30,15 +29,15 @@ import {
   type MembershipStatus,
 } from '@/services/membership';
 import { captureClientEvent } from '@/lib/analytics/client';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArtworkImage } from '@/components/ui/artwork-image';
 import { CuratorMembershipCard } from '@/components/features/curator/curator-membership-card';
-import { ProfileLinksRow } from '@/components/features/profile/profile-links';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
+import { Empty, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
 
@@ -72,12 +71,10 @@ export function PublicCuratorPage({
   username,
   membershipFlow,
   initialInterval,
-  embedded = false,
 }: {
   username: string;
   membershipFlow: MembershipFlow;
   initialInterval: MembershipInterval;
-  embedded?: boolean;
 }) {
   const instanceId = useId();
   const curatorNameId = `curator-name-${instanceId}`;
@@ -99,6 +96,7 @@ export function PublicCuratorPage({
   const [actionError, setActionError] = useState<string | null>(null);
   const [checkoutPending, setCheckoutPending] = useState(false);
   const [portalPending, setPortalPending] = useState(false);
+  const [pollTimedOut, setPollTimedOut] = useState(false);
   const pageViewCaptured = useRef(false);
   const flowHandled = useRef(false);
   const portalBaseline = useRef<{ cancelAtPeriodEnd: boolean; canceled: boolean } | null>(null);
@@ -175,6 +173,17 @@ export function PublicCuratorPage({
   }, []);
 
   useEffect(() => {
+    // bfcache restore: the page comes back with stale "opening…" pending state.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      setCheckoutPending(false);
+      setPortalPending(false);
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, []);
+
+  useEffect(() => {
     if (
       authLoading ||
       isAuthenticated ||
@@ -203,7 +212,8 @@ export function PublicCuratorPage({
     if (!pollStatus) return;
     const timeout = window.setTimeout(() => {
       setPollStatus(false);
-      setNotice('Your membership update is still processing. Refresh in a moment.');
+      setPollTimedOut(true);
+      setNotice('Your membership update is still processing.');
       removeMembershipQuery('membership', 'interval');
     }, 30_000);
     return () => window.clearTimeout(timeout);
@@ -245,7 +255,7 @@ export function PublicCuratorPage({
     if (membershipFlow === 'return' && membership.status !== 'incomplete') {
       flowHandled.current = true;
       setPollStatus(false);
-      setNotice('Checkout did not activate this membership. You can try again.');
+      toast.info('Checkout did not activate this membership. You can try again.');
       removeMembershipQuery('membership', 'interval');
       return;
     }
@@ -277,11 +287,12 @@ export function PublicCuratorPage({
     if (cancellationObserved) {
       flowHandled.current = true;
       setPollStatus(false);
-      setNotice(
-        membership.status === 'canceled'
-          ? 'Your membership is canceled.'
-          : 'Your membership will end after the current billing period.',
-      );
+      if (membership.status === 'canceled') {
+        // Transient toast; the persistent canceled state stays inline via statusNotice.
+        toast.info('Your membership is canceled.');
+      } else {
+        setNotice('Your membership will end after the current billing period.');
+      }
       removeMembershipQuery('membership', 'interval');
       void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
       void captureClientEvent('membership_canceled', {
@@ -360,7 +371,7 @@ export function PublicCuratorPage({
       }
       void startCheckout(page.membership.planId, page.curator.id, checkoutInterval);
     } else {
-      setNotice('This membership already has an active or pending billing record.');
+      setNotice('You already have a membership with this curator.');
     }
   }, [
     checkoutInterval,
@@ -413,28 +424,41 @@ export function PublicCuratorPage({
   const showMembership = Boolean(page.membership || statusQuery.data?.membership?.canManage);
 
   return (
-    <div className={cn(
-      'mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10',
-      embedded && 'lg:max-w-none',
-    )}>
-      {embedded ? (
-        <>
-          <h1 className="sr-only" id={curatorNameId}>{displayName}</h1>
-          <CuratorDetails page={page} />
-        </>
-      ) : (
-        <CuratorIdentity page={page} displayName={displayName} headingId={curatorNameId} />
-      )}
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:max-w-none lg:px-8 lg:py-10">
+      <h1 className="sr-only" id={curatorNameId}>{displayName}</h1>
 
       <div className={cn(
-        'mt-8 grid gap-6',
+        'grid gap-6',
         showMembership && 'lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start',
       )}>
+        {/* Compact membership banner: mobile-only, the single Join CTA above the feed */}
+        {page.membership && !page.viewer.isMember && !page.viewer.isOwner && (
+          <a
+            href={`#${membershipId}`}
+            className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2.5 transition-colors hover:bg-primary/15 lg:hidden"
+          >
+            <span className="min-w-0 truncate text-sm font-semibold">
+              {page.membership.name}
+              <span className="font-normal tabular-nums text-muted-foreground">
+                {' · '}
+                {formatCuratorPlanPrice(
+                  page.membership.amountMinor,
+                  page.membership.serviceFeeMinor,
+                  page.membership.currency,
+                )}/mo
+              </span>
+            </span>
+            <span className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">
+              Join
+            </span>
+          </a>
+        )}
         <CuratorFeed
           items={posts}
           displayName={displayName}
           headingId={feedHeadingId}
           membershipId={membershipId}
+          showMembership={showMembership}
           hasNextPage={query.hasNextPage}
           isFetchingNextPage={query.isFetchingNextPage}
           onLoadMore={() => void query.fetchNextPage()}
@@ -454,120 +478,22 @@ export function PublicCuratorPage({
             checkoutPending={checkoutPending}
             portalPending={portalPending}
             checkoutCanceled={membershipFlow === 'canceled'}
+            noticeAction={pollTimedOut ? {
+              label: 'Check again',
+              onClick: () => {
+                setPollTimedOut(false);
+                setNotice(null);
+                setPollStatus(true);
+              },
+            } : null}
             onIntervalChange={setBillingInterval}
             onJoin={join}
             onManage={(id, cancelAtPeriodEnd, status) => void manage(id, cancelAtPeriodEnd, status)}
+            onCheckStatus={() => void statusQuery.refetch()}
           />
         )}
       </div>
     </div>
-  );
-}
-
-function CuratorDetails({ page }: { page: CuratorPageData }) {
-  const { curator } = page;
-  const interests = [...new Set([...curator.declaredGenres, ...curator.declaredPlatforms])];
-  if (!curator.headline && !curator.about && interests.length === 0) return null;
-
-  return (
-    <section data-testid="curator-details" className="mb-8 rounded-xl border border-border/70 bg-card p-5 elev-1 sm:p-6">
-      {curator.headline && (
-        <p className="break-words text-lg font-semibold leading-snug sm:text-xl">
-          {curator.headline}
-        </p>
-      )}
-      {curator.about && (
-        <p className="mt-3 max-w-3xl whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground sm:text-base">
-          {curator.about}
-        </p>
-      )}
-      {interests.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2" aria-label="Curator interests">
-          {interests.map((label) => <Badge key={label} variant="outline">{label}</Badge>)}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function CuratorIdentity({
-  page,
-  displayName,
-  headingId,
-}: {
-  page: CuratorPageData;
-  displayName: string;
-  headingId: string;
-}) {
-  const { curator, viewer } = page;
-  const interests = [...new Set([...curator.declaredGenres, ...curator.declaredPlatforms])];
-
-  return (
-    <section
-      data-testid="curator-profile"
-      aria-labelledby={headingId}
-      className="rounded-xl border border-border/70 bg-card p-5 elev-1 sm:p-7"
-    >
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-        <Avatar className="size-24 border-2 border-foreground/80 sm:size-28">
-          <AvatarImage src={curator.avatarUrl ?? undefined} alt={`@${curator.username}`} />
-          <AvatarFallback className="text-2xl font-bold text-muted-foreground">
-            {displayName.charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 id={headingId} className="min-w-0 break-words font-teko text-4xl font-bold uppercase leading-none sm:text-5xl">
-              {displayName}
-            </h1>
-            <VerificationBadge accountType={curator.accountType} size="md" />
-            {viewer.hasMemberBadge && (
-              <Badge className="gap-1">
-                <BadgeCheck aria-hidden />
-                Member
-              </Badge>
-            )}
-          </div>
-          <p className="mt-1 font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            @{curator.username}
-          </p>
-          {curator.headline && (
-            <p className="mt-4 max-w-3xl break-words text-lg font-semibold leading-snug sm:text-xl">
-              {curator.headline}
-            </p>
-          )}
-          {curator.bio && (
-            <p className="mt-3 max-w-3xl whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground sm:text-base">
-              {curator.bio}
-            </p>
-          )}
-          <ProfileLinksRow links={curator.profileLinks} className="mt-3" />
-        </div>
-      </div>
-
-      <div className="mt-6 border-t border-border/70 pt-5">
-        {curator.about && (
-          <div>
-            <h2 className="font-mono text-xs font-bold uppercase tracking-[0.2em]">About</h2>
-            <p className="mt-2 max-w-3xl whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground sm:text-base">
-              {curator.about}
-            </p>
-          </div>
-        )}
-        {interests.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2" aria-label="Curator interests">
-            {interests.map((label) => (
-              <Badge key={label} variant="outline">{label}</Badge>
-            ))}
-          </div>
-        )}
-        <p className="mt-4 inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          <CalendarDays className="size-3.5" aria-hidden />
-          Curating since {new Date(curator.curatorSinceUtc).getUTCFullYear()}
-        </p>
-      </div>
-    </section>
   );
 }
 
@@ -576,6 +502,7 @@ function CuratorFeed({
   displayName,
   headingId,
   membershipId,
+  showMembership,
   hasNextPage,
   isFetchingNextPage,
   onLoadMore,
@@ -584,19 +511,26 @@ function CuratorFeed({
   displayName: string;
   headingId: string;
   membershipId: string;
+  showMembership: boolean;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
 }) {
   return (
-    <section data-testid="curator-feed" aria-labelledby={headingId} className="min-w-0">
-      <h2 id={headingId} className="font-teko text-3xl font-bold uppercase">Latest posts</h2>
+    <section data-testid="curator-feed" aria-labelledby={headingId} className="min-w-0 max-w-2xl">
+      <h2 id={headingId} className="text-balance font-teko text-3xl font-bold uppercase">Latest posts</h2>
       {items.length === 0 ? (
-        <Card className="mt-3 px-6 text-center text-sm text-muted-foreground">
-          No posts yet.
-        </Card>
+        <Empty className="mt-3">
+          <EmptyTitle>No posts yet</EmptyTitle>
+          <EmptyDescription>
+            {displayName} has not shared any posts. Explore music from other curators in the meantime.
+          </EmptyDescription>
+          <Button asChild variant="outline">
+            <Link href="/explore">Explore music</Link>
+          </Button>
+        </Empty>
       ) : (
-        <div className="mt-3 grid gap-3 xl:grid-cols-2">
+        <div className="mt-3 grid gap-3">
           {items.map((item) => item.kind === 'locked'
             ? (
                 <LockedPost
@@ -604,6 +538,7 @@ function CuratorFeed({
                   createdAt={item.createdAt}
                   displayName={displayName}
                   membershipId={membershipId}
+                  showMembership={showMembership}
                 />
               )
             : <CuratorPost key={item.post.postId} post={item.post} />)}
@@ -613,7 +548,8 @@ function CuratorFeed({
       {hasNextPage && (
         <div className="mt-6 text-center">
           <Button variant="outline" onClick={onLoadMore} disabled={isFetchingNextPage}>
-            {isFetchingNextPage ? 'Loading…' : 'Load more'}
+            {isFetchingNextPage && <Spinner size="sm" />}
+            Load more
           </Button>
         </div>
       )}
@@ -625,28 +561,48 @@ function LockedPost({
   createdAt,
   displayName,
   membershipId,
+  showMembership,
 }: {
   createdAt: string;
   displayName: string;
   membershipId: string;
+  showMembership: boolean;
 }) {
-  return (
-    <article data-testid="curator-locked-post" aria-label="Members-only post">
-      <Card className="justify-center border-dashed border-primary/40 px-5 py-6 text-center">
-        <LockKeyhole className="mx-auto size-7 text-primary" aria-hidden />
-        <div>
-          <h3 className="font-teko text-2xl font-bold uppercase">Members-only post</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Join {displayName} to unlock this post.
-          </p>
-          <time dateTime={createdAt} className="mt-2 block font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+  const card = (
+    <Card className="flex-row gap-0 overflow-hidden p-0 elev-1 sm:gap-0 sm:py-0">
+      {/* Obscured artwork slot, flush to the card's left edge */}
+      <div className="relative flex size-24 shrink-0 items-center justify-center bg-gradient-to-br from-primary/15 via-primary/5 to-transparent sm:size-28">
+        <LockKeyhole className="size-8 text-primary/60" aria-hidden />
+      </div>
+      <div className="min-w-0 flex-1 py-3 pr-3 pl-3 sm:py-4 sm:pr-4 sm:pl-4">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
+            <LockKeyhole aria-hidden />
+            Members only
+          </Badge>
+          <time dateTime={createdAt} className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
             {formatRelativeTime(createdAt)}
           </time>
         </div>
-        <Button asChild variant="outline" size="sm" className="mx-auto">
-          <a href={`#${membershipId}`}>Join</a>
-        </Button>
-      </Card>
+        <h3 className="mt-1.5 text-base font-semibold leading-snug sm:text-lg">Members-only post</h3>
+        <p className="mt-1 text-pretty text-sm leading-snug text-muted-foreground">
+          Join {displayName} to unlock this post.
+        </p>
+      </div>
+    </Card>
+  );
+
+  return (
+    <article data-testid="curator-locked-post" aria-label="Members-only post">
+      {showMembership ? (
+        <a
+          href={`#${membershipId}`}
+          aria-label={`Join ${displayName}`}
+          className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          {card}
+        </a>
+      ) : card}
     </article>
   );
 }
@@ -658,41 +614,42 @@ function CuratorPost({ post }: { post: Extract<CuratorPostItem, { kind: 'post' }
   const detail = post.description?.trim() || post.subtitle?.trim();
 
   return (
-    <Card className="gap-0 overflow-hidden p-0 elev-1 sm:gap-0 sm:p-0">
-      <Link href={`/post/${targetPostId}`} prefetch={false} className="block p-3 sm:p-4">
-        <div className="flex gap-3 sm:gap-4">
-          <div className="relative size-24 shrink-0 sm:size-28">
-            <ArtworkImage
-              src={post.imageUrl}
-              alt={title}
-              width={112}
-              height={112}
-              className="size-full rounded-md object-cover ring-1 ring-border/40"
-              fallbackClassName="rounded-md ring-1 ring-border/40"
-            />
-            <Badge className="absolute bottom-1.5 left-1.5 bg-background/90 text-foreground" variant="outline">
-              <TypeIcon aria-hidden />
-              {post.elementType}
+    <Card className="gap-0 overflow-hidden p-0 elev-1 sm:gap-0 sm:py-0">
+      <Link href={`/post/${targetPostId}`} prefetch={false} className="flex gap-3 sm:gap-4">
+        {/* Artwork flush to the card's left edge; outer card corners do the rounding */}
+        <div className="relative size-24 shrink-0 sm:size-28">
+          <ArtworkImage
+            src={post.imageUrl}
+            alt={title}
+            width={112}
+            height={112}
+            className="size-full object-cover"
+          />
+          <Badge className="absolute bottom-1.5 left-1.5 bg-background/90 text-foreground" variant="outline">
+            <TypeIcon aria-hidden />
+            {post.elementType}
+          </Badge>
+        </div>
+        <div className="min-w-0 flex-1 py-3 pr-3 sm:py-4 sm:pr-4">
+          <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+            <span className="truncate font-bold text-foreground/80">@{post.username}</span>
+            <VerificationBadge accountType={post.accountType ?? undefined} size="sm" />
+            <span>/ {formatRelativeTime(post.createdAt)}</span>
+          </div>
+          <h3 className="mt-1.5 line-clamp-2 break-words text-base font-semibold leading-snug sm:text-lg">
+            {title}
+          </h3>
+          {detail && (
+            <p className="mt-1 line-clamp-2 text-pretty text-sm leading-snug text-muted-foreground">
+              {detail}
+            </p>
+          )}
+          {post.privacy === 'subscriber' && (
+            <Badge variant="outline" className="mt-2 border-primary/40 bg-primary/10 text-primary">
+              <LockKeyhole aria-hidden />
+              Members
             </Badge>
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-              <span className="truncate font-bold text-foreground/80">@{post.username}</span>
-              <VerificationBadge accountType={post.accountType ?? undefined} size="sm" />
-              <span>/ {formatRelativeTime(post.createdAt)}</span>
-            </div>
-            <h3 className="mt-2 line-clamp-2 break-words font-teko text-2xl uppercase leading-none">
-              {title}
-            </h3>
-            {detail && (
-              <p className="mt-2 line-clamp-2 text-sm italic leading-snug text-muted-foreground">
-                {detail}
-              </p>
-            )}
-            {post.privacy === 'subscriber' && (
-              <Badge variant="secondary" className="mt-3">Members</Badge>
-            )}
-          </div>
+          )}
         </div>
       </Link>
     </Card>
@@ -701,47 +658,44 @@ function CuratorPost({ post }: { post: Extract<CuratorPostItem, { kind: 'post' }
 
 function CuratorNotFound() {
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center px-6 text-center">
-      <h1 className="font-teko text-4xl font-bold uppercase">Curator not found</h1>
-      <p className="mt-2 text-muted-foreground">This curator page is not available.</p>
-      <Button asChild variant="outline" className="mt-6">
-        <Link href="/explore">Explore music</Link>
-      </Button>
+    <div className="mx-auto flex min-h-[60vh] max-w-lg items-center justify-center px-6">
+      <Empty className="w-full border-none">
+        <EmptyTitle className="text-balance font-teko text-4xl font-bold uppercase">
+          Curator not found
+        </EmptyTitle>
+        <EmptyDescription>This curator page is not available.</EmptyDescription>
+        <Button asChild variant="outline" className="mt-3">
+          <Link href="/explore">Explore music</Link>
+        </Button>
+      </Empty>
     </div>
   );
 }
 
 function CuratorLoadError({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center px-6 text-center">
-      <h1 className="font-teko text-4xl font-bold uppercase">Could not load curator</h1>
-      <p className="mt-2 text-muted-foreground">Try again in a moment.</p>
-      <Button onClick={onRetry} className="mt-6">Try again</Button>
+    <div className="mx-auto flex min-h-[60vh] max-w-lg items-center justify-center px-6">
+      <Empty className="w-full border-none">
+        <EmptyTitle className="text-balance font-teko text-4xl font-bold uppercase">
+          Could not load curator
+        </EmptyTitle>
+        <EmptyDescription>Try again in a moment.</EmptyDescription>
+        <Button onClick={onRetry} className="mt-3">Try again</Button>
+      </Empty>
     </div>
   );
 }
 
 function CuratorPageSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10" aria-label="Loading curator">
-      <div className="rounded-xl border bg-card p-5 sm:p-7">
-        <div className="flex gap-5">
-          <Skeleton className="size-24 shrink-0 rounded-full sm:size-28" />
-          <div className="flex-1 space-y-3">
-            <Skeleton className="h-10 w-52" />
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-5 w-full max-w-xl" />
-            <Skeleton className="h-4 w-full max-w-2xl" />
-          </div>
-        </div>
-      </div>
-      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:max-w-none lg:px-8 lg:py-10" aria-label="Loading curator">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-3">
           <Skeleton className="h-8 w-36" />
           <Skeleton className="h-36 w-full rounded-xl" />
           <Skeleton className="h-36 w-full rounded-xl" />
         </div>
-        <Skeleton className="order-first h-72 rounded-xl lg:order-last" />
+        <Skeleton className="h-72 rounded-xl" />
       </div>
     </div>
   );

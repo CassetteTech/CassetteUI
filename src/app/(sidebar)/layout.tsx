@@ -17,7 +17,7 @@ export default function SidebarLayout({ children }: SidebarLayoutProps) {
         <div className="hidden lg:block">
           <AppSidebar />
         </div>
-        <div className="min-w-0 flex-1 lg:overflow-y-auto">{children}</div>
+        <main className="min-w-0 flex-1 lg:overflow-y-auto">{children}</main>
       </SidebarProvider>
     </EmailPreferencesSettingsProvider>
   );

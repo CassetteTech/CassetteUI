@@ -7,11 +7,14 @@ import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /** Single-open accordion state shared by the studio page and its step sections.
-    Collapsed steps stay mounted (only visually folded) so their queries keep running. */
+    Collapsed steps stay mounted (only visually folded) so their queries keep running.
+    `eyebrows` lets the page override a section's eyebrow by id (e.g. numbered
+    "Step n" labels while that section sits in the setup stepper). */
 export const StudioStepsContext = createContext<{
   openId: string | null;
   toggle: (id: string) => void;
   open: (id: string) => void;
+  eyebrows?: Record<string, ReactNode>;
 } | null>(null);
 
 export type StudioChipTone = 'neutral' | 'positive' | 'warning' | 'danger';
@@ -32,7 +35,7 @@ export function StudioChip({
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.15em]',
+        'inline-flex shrink-0 items-center gap-1.5 rounded-none border bg-transparent px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.15em]',
         chipTones[tone],
         className,
       )}
@@ -70,17 +73,17 @@ export function StudioSection({
   const steps = useContext(StudioStepsContext);
   // Without a provider (storybook-style usage) the section is simply open.
   const open = steps ? steps.openId === id : true;
+  // The page can override the eyebrow by id (e.g. numbered setup steps).
+  const eyebrowNode = steps?.eyebrows?.[id] ?? eyebrow;
 
   return (
     <section
       id={id}
       data-testid={testId}
       aria-labelledby={headingId}
-      // scroll-mt keeps anchored jumps clear of any sticky chrome above
-      className={cn(
-        'scroll-mt-24 overflow-hidden rounded-xl border bg-card transition-shadow',
-        open ? 'border-border/80 elev-2' : 'border-border/60',
-      )}
+      // scroll-mt keeps anchored jumps clear of any sticky chrome above.
+      // Flat language: full-width block, strong top rule, no card chrome.
+      className="scroll-mt-24 rounded-none border-t-2 border-foreground/15 bg-transparent"
     >
       <h2 id={headingId} className="m-0">
         <button
@@ -90,22 +93,27 @@ export function StudioSection({
           aria-controls={`${id}-body`}
           onClick={() => steps?.toggle(id)}
           className={cn(
-            'group flex w-full items-center gap-4 px-5 py-5 text-left transition-colors sm:px-8 sm:py-6',
-            !open && 'hover:bg-muted/40',
+            'group flex w-full items-center gap-4 py-6 text-left transition-colors sm:py-7',
+            !open && 'hover:bg-muted/30',
           )}
         >
-          <span className="min-w-0 flex-1">
-            <span className="block font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-              {eyebrow}
+          {/* Chip stacks under the title on narrow screens so they never fight for one row */}
+          <span className="flex min-w-0 flex-1 flex-col items-start gap-2.5 sm:flex-row sm:items-center sm:gap-4">
+            <span className="min-w-0 flex-1">
+              {/* short red rule echoes the hero's brand-red top bar */}
+              <span aria-hidden className="mb-2.5 block h-0.5 w-8 bg-primary" />
+              <span className="block font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+                {eyebrowNode}
+              </span>
+              <span className="mt-1.5 block text-balance break-words font-teko text-2xl font-semibold uppercase leading-none tracking-tight sm:text-3xl">
+                {title}
+              </span>
             </span>
-            <span className="mt-1.5 block break-words font-teko text-3xl font-semibold uppercase leading-none tracking-tight">
-              {title}
-            </span>
+            {chip}
           </span>
-          {chip}
           <ChevronDown
             aria-hidden
-            className={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-300', open && 'rotate-180')}
+            className={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-300 motion-reduce:transition-none', open && 'rotate-180')}
           />
         </button>
       </h2>
@@ -113,14 +121,14 @@ export function StudioSection({
       <div
         id={`${id}-body`}
         className={cn(
-          'grid transition-[grid-template-rows] duration-300 ease-out',
+          'grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none',
           open ? 'grid-rows-[1fr]' : 'invisible grid-rows-[0fr]',
         )}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="px-5 pb-6 sm:px-8 sm:pb-7">
+          <div className="pb-8 sm:pb-10">
             {description && (
-              <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">{description}</p>
+              <p className="max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground">{description}</p>
             )}
             <div className={cn('editorial-rule-dashed', description && 'mt-4')} />
             <div className="pt-6">{children}</div>
@@ -131,19 +139,27 @@ export function StudioSection({
   );
 }
 
-/** Inline confirmation banner; keeps the <output> semantics tests and screen readers rely on. */
+/** Inline confirmation banner; keeps the <output> semantics tests and screen readers rely on.
+    The live region stays mounted (visually collapsed while empty) so swapping the text
+    content in actually fires the announcement. */
 export function StudioNotice({
   testId,
+  className,
   children,
 }: {
   testId?: string;
+  /** Applied only while the notice has visible content. */
+  className?: string;
   children: ReactNode;
 }) {
+  const hasContent = children !== null && children !== undefined && children !== false && children !== '';
   return (
     <output
       data-testid={testId}
       aria-live="polite"
-      className="block rounded-lg border border-primary/25 border-l-2 border-l-primary bg-primary/5 px-4 py-3 text-sm"
+      className={hasContent
+        ? cn('block rounded-none border border-primary/25 border-l-2 border-l-primary bg-primary/5 px-4 py-3 text-sm', className)
+        : 'sr-only'}
     >
       {children}
     </output>
@@ -177,26 +193,6 @@ export function ReceiptRow({
       >
         {value}
       </dd>
-    </div>
-  );
-}
-
-/** Small labeled stat tile used for status/fact grids inside sections. */
-export function StudioFact({
-  label,
-  children,
-  className,
-}: {
-  label: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn('rounded-lg border border-border/70 bg-muted/20 px-3.5 py-3', className)}>
-      <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="mt-1.5 text-sm font-medium">{children}</dd>
     </div>
   );
 }

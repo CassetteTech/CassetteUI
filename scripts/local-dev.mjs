@@ -30,7 +30,11 @@ const LOCAL_BRIDGE_ORIGIN = 'http://localhost:5001';
 const LOCAL_SUPABASE_URL = 'http://127.0.0.1:55321';
 const LOCAL_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
 const LOCAL_SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
-let rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+let rl;
+
+function input() {
+  return rl ??= readline.createInterface({ input: process.stdin, output: process.stdout });
+}
 
 const info = (message) => console.log(`[info] ${message}`);
 const ok = (message) => console.log(`[ ok ] ${message}`);
@@ -96,7 +100,7 @@ async function choose(prompt, options, defaultValue) {
     console.log(`  ${index + 1}. ${label}${value === defaultValue ? ' (default)' : ''}`);
   });
   while (true) {
-    const answer = (await rl.question('> ')).trim();
+    const answer = (await input().question('> ')).trim();
     if (!answer) return defaultValue;
     const index = Number(answer) - 1;
     if (Number.isInteger(index) && options[index]) return options[index][0];
@@ -108,7 +112,7 @@ async function choose(prompt, options, defaultValue) {
 
 async function promptText(label, defaultValue = '', required = true) {
   while (true) {
-    const answer = (await rl.question(`${label}${defaultValue ? ` [${defaultValue}]` : ''}: `)).trim();
+    const answer = (await input().question(`${label}${defaultValue ? ` [${defaultValue}]` : ''}: `)).trim();
     if (answer) return answer;
     if (defaultValue) return defaultValue;
     if (!required) return '';
@@ -118,7 +122,7 @@ async function promptText(label, defaultValue = '', required = true) {
 
 async function yesNo(prompt, defaultValue) {
   while (true) {
-    const answer = (await rl.question(`${prompt} [${defaultValue ? 'Y/n' : 'y/N'}]: `)).trim().toLowerCase();
+    const answer = (await input().question(`${prompt} [${defaultValue ? 'Y/n' : 'y/N'}]: `)).trim().toLowerCase();
     if (!answer) return defaultValue;
     if (['y', 'yes'].includes(answer)) return true;
     if (['n', 'no'].includes(answer)) return false;
@@ -393,6 +397,7 @@ function npmInvocation(args) {
 
 async function runUi(state) {
   if (!(await check(state)) || !(await ensureDependencies(state))) return 1;
+  rl?.close();
   console.log('\nRun summary');
   console.log(`  UI:       ${LOCAL_UI_ORIGIN}`);
   console.log(`  Bridge:   ${state.bridgeMode} (${state.bridgeUrl})`);
@@ -460,5 +465,5 @@ async function main() {
 try {
   process.exitCode = await main();
 } finally {
-  rl.close();
+  rl?.close();
 }

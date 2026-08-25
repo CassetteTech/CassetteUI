@@ -26,6 +26,7 @@ import { KOFI_SUPPORT_URL } from '@/lib/ko-fi';
 import { KofiIcon } from '@/components/ui/kofi-icon';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { useUserBio } from '@/hooks/use-profile';
+import { useCuratorPage } from '@/hooks/use-curator';
 import {
   accountNavItems,
   getVisibleNavItems,
@@ -52,7 +53,7 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ className }: AppSidebarProps) {
-  const { user } = useAuthState();
+  const { user, isLoading: authLoading } = useAuthState();
   const { mutate: signOut } = useSignOut();
   const { openReportModal } = useReportIssue();
   const pathname = usePathname();
@@ -72,6 +73,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
     staleTime: 1000 * 60,
     gcTime: 1000 * 60 * 10,
   });
+
+  // Curator identity (headline/genres) rides the profile page's cached query.
+  const curatorQuery = useCuratorPage(
+    profileUsername ?? '',
+    profileUsername && !authLoading ? (user?.id ?? 'anonymous') : null,
+  );
+  const sidebarCurator = curatorQuery.data?.pages[0]?.curator;
 
   // Determine which user to display in the profile card
   // If viewing a profile page, avoid showing the wrong user while loading.
@@ -174,6 +182,10 @@ export function AppSidebar({ className }: AppSidebarProps) {
               <SidebarProfileCard
                 user={displayUser}
                 isCurrentUser={isViewingOwnProfile ?? false}
+                curatorHeadline={sidebarCurator?.headline}
+                curatorGenres={sidebarCurator?.declaredGenres}
+                curatorAbout={sidebarCurator?.about}
+                curatorPlatforms={sidebarCurator?.declaredPlatforms}
               />
             </SidebarGroupContent>
           </SidebarGroup>

@@ -28,6 +28,16 @@ export function formatDate(value?: string | null) {
   return date.toLocaleString();
 }
 
+export function formatState(value: string): string {
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+export const selectClassName =
+  'h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50';
+
 export function formatDuration(value?: number | null) {
   if (value == null) return null;
   if (value < 1000) return `${value}ms`;

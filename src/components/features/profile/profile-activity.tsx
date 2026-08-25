@@ -36,6 +36,7 @@ interface ProfileActivityProps {
 }
 
 const TAB_LABELS: Record<TabType, string> = {
+  posts: 'posts',
   playlists: 'playlists',
   tracks: 'tracks',
   artists: 'artists',

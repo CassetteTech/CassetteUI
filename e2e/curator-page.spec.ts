@@ -32,6 +32,11 @@ test('shows a paid curator plan without leaking locked content to a nonmember', 
   await expect(
     page.getByText(fixtureUsers.playlistCurator.displayName, { exact: true }).first(),
   ).toBeVisible();
+  await expect(page.getByText(
+    'I dig through new releases and old favorites so you do not have to.',
+    { exact: true },
+  ).first()).toBeVisible();
+  await expect(page.getByText('Apple Music', { exact: true }).first()).toBeVisible();
   const membershipCard = page.locator('[data-testid="curator-membership-card"]:visible').first();
   await expect(membershipCard).toContainText(
     fixtureCuratorPage.membership!.name,
@@ -170,8 +175,8 @@ test('keeps the curator page accessible and responsive on mobile and desktop', a
   await page.goto(CURATOR_PATH);
 
   await expect(
-    page.locator('[data-testid="curator-details"]:visible').first(),
-  ).toBeInViewport({ ratio: 1 });
+    page.getByText(fixtureCuratorPage.curator.headline!, { exact: true }).filter({ visible: true }).first(),
+  ).toBeVisible();
   const joinButton = page.locator('[data-testid="curator-membership-card"]:visible').first()
     .getByRole('button', { name: /join/i });
   await joinButton.scrollIntoViewIfNeeded();

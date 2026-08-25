@@ -1,15 +1,16 @@
 'use client';
 
-/** Curator Studio: a launch-checklist console over a stepped accordion for the
-    free profile, Curator Pro, payouts, membership plans, and earnings. */
+/** Curator Studio: flat, divider-based sections in two modes. Setup mode fronts
+    a numbered "Set up" stepper of only the unfinished steps (finished ones move
+    to "Manage" with full functionality); once everything is complete the page
+    becomes a dashboard ordered by role, with billing settings grouped last. */
 
-import { Suspense, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, Suspense, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUpRight, Check } from 'lucide-react';
-import { toast } from 'sonner';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { CuratorEarningsCard } from '@/components/features/curator/curator-earnings-card';
 import { CuratorPayoutCard } from '@/components/features/curator/curator-payout-card';
@@ -17,10 +18,12 @@ import { CuratorPlanCard } from '@/components/features/curator/curator-plan-card
 import { CuratorProCard } from '@/components/features/curator/curator-pro-card';
 import {
   StudioChip,
+  StudioNotice,
   StudioSection,
   StudioStepsContext,
   type StudioChipTone,
 } from '@/components/features/curator/studio-shell';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,6 +43,7 @@ import {
 import { fetchCuratorEarnings } from '@/services/curator-earnings';
 import { fetchCuratorPlans } from '@/services/curator-plans';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
+import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 import { cn } from '@/lib/utils';
 
 const profileQueryKey = ['curator-profile', 'me'] as const;
@@ -62,20 +66,21 @@ const profileChipTone = {
 
 function CuratorProfileForm({ profile }: { profile: CuratorProfile | null }) {
   const queryClient = useQueryClient();
+  const [notice, setNotice] = useState<string | null>(null);
   const mutation = useMutation({
     mutationFn: (request: CuratorProfileRequest) => profile
       ? updateCuratorProfile(request)
       : createCuratorProfile(request),
     onSuccess: (savedProfile) => {
       queryClient.setQueryData(profileQueryKey, savedProfile);
-      toast.success(profile ? 'Curator profile updated.' : 'Curator profile created.');
+      setNotice(profile ? 'Curator profile updated.' : 'Curator profile created.');
     },
   });
 
   return (
     <StudioSection
       id="studio-profile"
-      eyebrow={<><span className="text-primary">Step 1</span> · Identity</>}
+      eyebrow="Identity"
       title="Your free curator profile"
       headingId="curator-profile-title"
       description="Curator Pro is not required to create, edit, or keep this profile."
@@ -86,15 +91,20 @@ function CuratorProfileForm({ profile }: { profile: CuratorProfile | null }) {
       }
     >
       {profile?.suspensionReason && (
-        <p className="mb-6 rounded-lg border border-destructive/40 border-l-2 border-l-destructive bg-destructive/10 px-4 py-3 text-sm">
-          This curator profile is suspended: {profile.suspensionReason}
-        </p>
+        <Alert variant="destructive" className="mb-6">
+          <AlertDescription>
+            This curator profile is suspended: {profile.suspensionReason}
+          </AlertDescription>
+        </Alert>
       )}
+
+      <StudioNotice testId="curator-profile-notice" className="mb-6">{notice}</StudioNotice>
 
       <form
         className="space-y-6"
         onSubmit={(event) => {
           event.preventDefault();
+          setNotice(null);
           const data = new FormData(event.currentTarget);
           mutation.mutate({
             headline: formText(data, 'headline') || null,
@@ -157,7 +167,7 @@ function CuratorProfileForm({ profile }: { profile: CuratorProfile | null }) {
 
         {mutation.isError && (
           <p role="alert" className="text-sm text-destructive">
-            Your changes were not saved. Check the fields and try again.
+            {getUserFacingApiErrorMessage(mutation.error, 'Your changes were not saved. Check the fields and try again.')}
           </p>
         )}
 
@@ -171,14 +181,18 @@ function CuratorProfileForm({ profile }: { profile: CuratorProfile | null }) {
   );
 }
 
-/** Patreon-style launch checklist. Reads the same query keys the section cards
-    use, so React Query dedupes the requests and the rail stays in sync. */
-function LaunchRail({ profile }: { profile: CuratorProfile | null }) {
+/** Launch-checklist state shared by the desktop rail and the mobile summary.
+    Reads the same query keys the section cards use, so React Query dedupes
+    the requests and both surfaces stay in sync. */
+function useLaunchSteps(profile: CuratorProfile | null) {
   const { user } = useAuthState();
   const searchParams = useSearchParams();
-  // During a hosted-onboarding return (?payout=…) the payout card owns the
-  // single status request; the rail only reads the cache it seeds.
-  const payoutFlowActive = searchParams.has('payout');
+  // Provider return flows land on their owning section. During a payout return,
+  // the payout card owns the single refresh request.
+  const flowStep = searchParams.has('payout')
+    ? 'studio-payouts'
+    : searchParams.has('pro') ? 'studio-pro' : null;
+  const payoutFlowActive = flowStep === 'studio-payouts';
   const pro = useQuery({
     queryKey: ['curator-pro-status', user?.id ?? null],
     queryFn: ({ signal }) => apiService.getCuratorProStatus(signal),
@@ -198,19 +212,37 @@ function LaunchRail({ profile }: { profile: CuratorProfile | null }) {
     staleTime: 0,
   });
 
-  const stepsAccordion = useContext(StudioStepsContext);
+  // Payouts count as done only once transfers are actually active; a started but
+  // unfinished account renders as the in-progress "Finish payout setup" step.
+  const payoutsActive = payout.data?.transfersCapabilityStatus === 'active';
   const steps = [
     { href: '#studio-profile', label: 'Create your free profile', done: profile?.status === 'active' },
     { href: '#studio-pro', label: 'Start Curator Pro', done: pro.data?.hasAccess === true },
-    { href: '#studio-payouts', label: 'Set up payouts', done: payout.data != null },
+    {
+      href: '#studio-payouts',
+      label: payout.data != null && !payoutsActive ? 'Finish payout setup' : 'Set up payouts',
+      done: payoutsActive,
+    },
     { href: '#studio-plan', label: 'Publish a membership plan', done: plans.data?.some((plan) => plan.status === 'active') === true },
   ];
   const doneCount = steps.filter((step) => step.done).length;
-  // The first unfinished step is the curator's next action.
   const nextIndex = steps.findIndex((step) => !step.done);
+  const isPending = pro.isPending ||
+    !payoutFlowActive && payout.isPending ||
+    profile !== null && plans.isPending;
+
+  return { steps, doneCount, nextIndex, isPending, flowStep };
+}
+
+type LaunchState = ReturnType<typeof useLaunchSteps>;
+
+/** Patreon-style launch checklist card (desktop header rail, setup mode only). */
+function LaunchRail({ launch }: { launch: LaunchState }) {
+  const { steps, doneCount, nextIndex } = launch;
+  const stepsAccordion = useContext(StudioStepsContext);
 
   return (
-    <div className="rounded-xl border border-section-dark-fg/15 bg-section-dark-fg/5 p-5 sm:p-6">
+    <div className="rounded-none border border-section-dark-fg/15 bg-section-dark-fg/5 p-5 sm:p-6">
       <div className="flex items-baseline justify-between gap-3">
         <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em]">Launch checklist</p>
         <p className="font-mono text-[10px] font-bold tabular-nums opacity-70" aria-hidden>
@@ -266,6 +298,41 @@ function LaunchRail({ profile }: { profile: CuratorProfile | null }) {
   );
 }
 
+/** Compact mobile launch summary: a thin progress bar plus one next-step action.
+    The step accordion below is the checklist itself on mobile, so the full
+    checklist card stays desktop-only. */
+function MobileLaunchSummary({ launch }: { launch: LaunchState }) {
+  const { steps, doneCount, nextIndex } = launch;
+  const stepsAccordion = useContext(StudioStepsContext);
+  const next = steps[nextIndex] ?? null;
+
+  // Dashboard mode: the compact hero shows just the stats row.
+  if (nextIndex === -1) return null;
+
+  return (
+    <div className="mt-6 lg:hidden">
+      <div className="flex items-center gap-3">
+        <Progress
+          value={(doneCount / steps.length) * 100}
+          aria-label={`Launch progress: ${doneCount} of ${steps.length} steps complete`}
+          className="h-1 flex-1 bg-section-dark-fg/15"
+        />
+        <p className="font-mono text-[10px] font-bold tabular-nums opacity-70" aria-hidden>
+          {doneCount}/{steps.length}
+        </p>
+      </div>
+      {next && (
+        <Button asChild size="sm" className="mt-4 w-full rounded-full">
+          {/* Expands the matching accordion step before the anchor scrolls to it. */}
+          <a href={next.href} onClick={() => stepsAccordion?.open(next.href.slice(1))}>
+            Next: {next.label}
+          </a>
+        </Button>
+      )}
+    </div>
+  );
+}
+
 /** At-a-glance numbers in the header band. Shares the earnings and plans query
     keys with the sections below, so the requests are deduped. */
 function HeaderStats({ profile }: { profile: CuratorProfile }) {
@@ -284,12 +351,12 @@ function HeaderStats({ profile }: { profile: CuratorProfile }) {
   const activePlan = plans.data?.find((plan) => plan.status === 'active') ?? null;
 
   return (
-    <dl className="mt-7 flex flex-wrap gap-x-10 gap-y-4">
+    <dl className="mt-5 flex flex-wrap gap-x-8 gap-y-4 lg:mt-7 lg:gap-x-10">
       <div>
         <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] opacity-70">
           Active members
         </dt>
-        <dd className="mt-1 font-teko text-4xl font-bold leading-none tabular-nums">
+        <dd className="mt-1 font-teko text-3xl font-bold leading-none tabular-nums lg:text-4xl">
           {earnings.data ? memberCountFormatter.format(earnings.data.activeMemberCount) : '—'}
         </dd>
       </div>
@@ -297,7 +364,7 @@ function HeaderStats({ profile }: { profile: CuratorProfile }) {
         <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] opacity-70">
           Live plan
         </dt>
-        <dd className="mt-1 font-teko text-4xl font-bold leading-none tabular-nums">
+        <dd className="mt-1 font-teko text-3xl font-bold leading-none tabular-nums lg:text-4xl">
           {plans.isPending
             ? '—'
             : activePlan
@@ -309,8 +376,9 @@ function HeaderStats({ profile }: { profile: CuratorProfile }) {
   );
 }
 
-function StudioHeader({ profile }: { profile: CuratorProfile | null }) {
+function StudioHeader({ profile, launch }: { profile: CuratorProfile | null; launch: LaunchState }) {
   const { user } = useAuthState();
+  const setupMode = launch.nextIndex !== -1;
   const reduceMotion = useReducedMotion();
   // One orchestrated entrance; disabled entirely under prefers-reduced-motion.
   const entrance = (delay: number) => reduceMotion
@@ -322,7 +390,7 @@ function StudioHeader({ profile }: { profile: CuratorProfile | null }) {
       };
 
   return (
-    <header className="relative overflow-hidden rounded-2xl section-dark elev-3">
+    <header className="relative overflow-hidden rounded-none section-dark elev-3">
       {/* brand-red spine along the top edge */}
       <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-primary" />
       {/* oversized watermark anchors the band without adding content */}
@@ -333,91 +401,82 @@ function StudioHeader({ profile }: { profile: CuratorProfile | null }) {
         Studio
       </span>
 
-      <div className="relative grid gap-8 p-6 sm:p-9 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-center">
+      <div
+        className={cn(
+          'relative grid gap-8 p-5 sm:p-9 lg:items-center',
+          setupMode && 'lg:grid-cols-[minmax(0,1fr)_21rem]',
+        )}
+      >
         <motion.div {...entrance(0)}>
           <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] opacity-70">
             Curator tools
           </p>
-          <h1 className="mt-2 font-teko text-5xl font-bold uppercase leading-none tracking-tight sm:text-6xl">
+          <h1 className="mt-2 text-balance font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-6xl">
             Curator Studio
           </h1>
-          <p className="mt-4 max-w-md text-sm leading-relaxed opacity-80 sm:text-base">
+          {/* Intro copy is desktop-only; the mobile header stays compact. */}
+          <p className="mt-4 hidden max-w-md text-pretty text-sm leading-relaxed opacity-80 sm:text-base lg:block">
             Set up your curator identity while keeping every regular Cassette feature. A paid
             subscription is only needed to lock posts or earn membership revenue.
           </p>
           {profile && <HeaderStats profile={profile} />}
-          {profile && user?.username && (
+          <MobileLaunchSummary launch={launch} />
+          <div className="mt-6 flex flex-wrap gap-2">
+            {/* Posting is free in both modes, so this stays the loudest action. */}
             <Button
               asChild
-              variant="outline"
-              className="mt-6 border-section-dark-fg/30 bg-transparent font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-section-dark-fg hover:bg-section-dark-fg/10 hover:text-section-dark-fg"
+              className="w-full font-mono text-[10px] font-bold uppercase tracking-[0.2em] sm:w-auto"
             >
-              <Link href={`/profile/${encodeURIComponent(user.username)}`}>
-                View profile
-                <ArrowUpRight aria-hidden />
-              </Link>
+              <Link href="/add-music">New post</Link>
             </Button>
-          )}
+            {profile && user?.username && (
+              <Button
+                asChild
+                variant="outline"
+                className="w-full border-section-dark-fg/30 bg-transparent font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-section-dark-fg hover:bg-section-dark-fg/10 hover:text-section-dark-fg sm:w-auto"
+              >
+                <Link href={`/profile/${encodeURIComponent(user.username)}`}>
+                  View profile
+                  <ArrowUpRight aria-hidden />
+                </Link>
+              </Button>
+            )}
+          </div>
         </motion.div>
 
-        <motion.div {...entrance(0.12)}>
-          <LaunchRail profile={profile} />
-        </motion.div>
+        {/* Full checklist card is desktop-only and setup-mode-only; mobile gets
+            the compact summary above. */}
+        {setupMode && (
+          <motion.div {...entrance(0.12)} className="hidden lg:block">
+            <LaunchRail launch={launch} />
+          </motion.div>
+        )}
       </div>
     </header>
   );
 }
 
-/** Decides which accordion step should open first. Uses the same queries the
-    checklist and cards subscribe to, so this adds no network requests. */
-function useDefaultStepId(profileStatus: {
-  isPending: boolean;
-  isError: boolean;
-  data: CuratorProfile | null | undefined;
-}): string | null {
-  const { user } = useAuthState();
-  const searchParams = useSearchParams();
-  // Provider return flows (?pro=… / ?payout=…) land the curator on that step.
-  const flowStep = searchParams.has('payout')
-    ? 'studio-payouts'
-    : searchParams.has('pro') ? 'studio-pro' : null;
-  const pro = useQuery({
-    queryKey: ['curator-pro-status', user?.id ?? null],
-    queryFn: ({ signal }) => apiService.getCuratorProStatus(signal),
-    enabled: Boolean(user?.id),
-    staleTime: 0,
-  });
-  const payout = useQuery({
-    queryKey: ['curator-payout-account', 'current'],
-    queryFn: ({ signal }) => fetchCuratorPayoutAccount(false, signal),
-    // During a payout return flow the payout card owns the single status request.
-    enabled: flowStep !== 'studio-payouts',
-    staleTime: 0,
-  });
-  const plans = useQuery({
-    queryKey: ['curator-plans', profileStatus.data?.id ?? 'none'],
-    queryFn: ({ signal }) => fetchCuratorPlans(signal),
-    enabled: Boolean(profileStatus.data),
-    staleTime: 0,
-  });
-
-  if (flowStep) return flowStep;
-  if (profileStatus.isError) return 'studio-profile';
-  if (profileStatus.isPending) return null;
-  if (!profileStatus.data) return 'studio-profile';
-  // Wait until the launch state settles, then open the first unfinished step.
-  if (pro.isPending || payout.isPending || plans.isPending) return null;
-  if (pro.data?.hasAccess !== true) return 'studio-pro';
-  if (payout.data == null) return 'studio-payouts';
-  if (!plans.data?.some((plan) => plan.status === 'active')) return 'studio-plan';
-  return 'studio-earnings';
+/** Group label between section stacks: mono eyebrow plus an optional Teko title. */
+function GroupHeading({ eyebrow, title }: { eyebrow: string; title?: string }) {
+  return (
+    <div className="pb-4 pt-12 first:pt-0">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+        {eyebrow}
+      </p>
+      {title && (
+        <h2 className="mt-1.5 font-teko text-3xl font-bold uppercase leading-none tracking-tight">
+          {title}
+        </h2>
+      )}
+    </div>
+  );
 }
 
 function ProfileSectionSkeleton() {
   return (
     <StudioSection
       id="studio-profile"
-      eyebrow={<><span className="text-primary">Step 1</span> · Identity</>}
+      eyebrow="Identity"
       title="Your free curator profile"
       headingId="curator-profile-title"
     >
@@ -435,13 +494,28 @@ function ProfileSectionSkeleton() {
   );
 }
 
+/** Role label per launch step; setup mode prefixes these with "Step n". */
+function stepRole(id: string) {
+  if (id === 'studio-profile') return 'Identity';
+  if (id === 'studio-pro') return 'Subscription';
+  if (id === 'studio-payouts') return 'Get paid';
+  return 'Monetize';
+}
+
 function CuratorStudio() {
   const profile = useQuery({
     queryKey: profileQueryKey,
     queryFn: ({ signal }) => fetchOwnCuratorProfile(signal),
     staleTime: 0,
   });
-  const defaultStepId = useDefaultStepId(profile);
+  const launch = useLaunchSteps(profile.data ?? null);
+  let defaultStepId: string | null;
+  if (launch.flowStep) defaultStepId = launch.flowStep;
+  else if (profile.isError || !profile.isPending && !profile.data) defaultStepId = 'studio-profile';
+  else if (profile.isPending || launch.isPending) defaultStepId = null;
+  else defaultStepId = launch.steps[launch.nextIndex]?.href.slice(1) ?? 'studio-earnings';
+  const setupMode = launch.nextIndex !== -1;
+  const incompleteIds = launch.steps.filter((step) => !step.done).map((step) => step.href.slice(1));
 
   const [openId, setOpenId] = useState<string | null>(null);
   // Once the curator toggles a step themselves, the default never overrides them.
@@ -453,6 +527,8 @@ function CuratorStudio() {
     setReady(true);
   }, [defaultStepId, ready]);
 
+  // Setup-mode stepper eyebrows, numbered by position among the unfinished steps.
+  const incompleteKey = incompleteIds.join('|');
   const stepsValue = useMemo(() => ({
     openId,
     toggle: (id: string) => {
@@ -463,49 +539,79 @@ function CuratorStudio() {
       touched.current = true;
       setOpenId(id);
     },
-  }), [openId]);
+    eyebrows: incompleteKey === ''
+      ? undefined
+      : Object.fromEntries(incompleteKey.split('|').map((id, index) => [
+          id,
+          <Fragment key={id}><span className="text-primary">Step {index + 1}</span> · {stepRole(id)}</Fragment>,
+        ])),
+  }), [openId, incompleteKey]);
+
+  const profileSection = profile.isPending ? (
+    <ProfileSectionSkeleton />
+  ) : profile.isError ? (
+    <StudioSection
+      id="studio-profile"
+      eyebrow="Identity"
+      title="Your free curator profile"
+      headingId="curator-profile-title"
+    >
+      <div className="space-y-4">
+        <p role="alert">Could not load your curator profile.</p>
+        <Button variant="outline" onClick={() => profile.refetch()}>Try again</Button>
+      </div>
+    </StudioSection>
+  ) : (
+    <CuratorProfileForm key={profile.data?.id ?? 'new'} profile={profile.data} />
+  );
 
   return (
     <StudioStepsContext.Provider value={stepsValue}>
       <div
-        className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 lg:py-10"
+        className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 lg:max-w-6xl lg:py-10"
         data-studio-steps-ready={ready ? 'true' : undefined}
       >
-        <StudioHeader profile={profile.data ?? null} />
+        <StudioHeader profile={profile.data ?? null} launch={launch} />
 
-        <div className="mt-8 space-y-3">
-          {profile.isPending ? (
-            <ProfileSectionSkeleton />
-          ) : profile.isError ? (
-            <StudioSection
-              id="studio-profile"
-              eyebrow={<><span className="text-primary">Step 1</span> · Identity</>}
-              title="Your free curator profile"
-              headingId="curator-profile-title"
-            >
-              <div className="space-y-4">
-                <p role="alert">Could not load your curator profile.</p>
-                <Button variant="outline" onClick={() => profile.refetch()}>Try again</Button>
-              </div>
-            </StudioSection>
-          ) : (
-            <CuratorProfileForm key={profile.data?.id ?? 'new'} profile={profile.data} />
-          )}
-
-          <CuratorProCard />
-          <CuratorPayoutCard />
-          {profile.data && <CuratorPlanCard profile={profile.data} />}
-          {profile.data && <CuratorEarningsCard />}
+        <div className="mt-10 grid grid-cols-1 gap-x-14 lg:grid-cols-2 lg:items-start">
+          {/* Setup: the account/setup chain leads on mobile; dashboard: money leads. */}
+          <div className={cn('min-w-0', setupMode && 'order-last lg:order-none')}>
+            {profile.data && <CuratorEarningsCard profile={profile.data} />}
+            {profile.data && <CuratorPlanCard profile={profile.data} />}
+          </div>
+          <div className={cn('min-w-0', setupMode && 'order-first lg:order-none')}>
+            {setupMode && <GroupHeading eyebrow="Set up" />}
+            {profileSection}
+            {!setupMode && <GroupHeading eyebrow="Settings" title="Billing & payouts" />}
+            <CuratorProCard />
+            <CuratorPayoutCard />
+          </div>
         </div>
       </div>
     </StudioStepsContext.Provider>
   );
 }
 
+function StudioPageSkeleton() {
+  return (
+    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 lg:py-10">
+      <output className="sr-only">Loading Curator Studio…</output>
+      <div aria-hidden>
+        <Skeleton className="h-64 w-full rounded-none" />
+        <div className="mt-10 space-y-3">
+          <Skeleton className="h-24 w-full rounded-none" />
+          <Skeleton className="h-24 w-full rounded-none" />
+          <Skeleton className="h-24 w-full rounded-none" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CuratorStudioPage() {
   return (
     <RequireAuth>
-      <Suspense fallback={null}>
+      <Suspense fallback={<StudioPageSkeleton />}>
         <CuratorStudio />
       </Suspense>
     </RequireAuth>

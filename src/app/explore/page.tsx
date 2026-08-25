@@ -318,7 +318,7 @@ function FeaturedCurators() {
         // slack) so the real rail mounts without a layout shift.
         <div className="-mt-8 -mb-12 flex justify-center gap-6 overflow-hidden py-14">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="aspect-[4/5] w-[260px] shrink-0 rounded-2xl sm:w-[280px]" />
+            <Skeleton key={i} className="aspect-[4/5] w-[240px] shrink-0 rounded-2xl sm:w-[280px]" />
           ))}
         </div>
       )}
@@ -363,7 +363,7 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     for (const item of items) {
       const card = item.firstElementChild as HTMLElement | null;
       if (!card) continue;
-      const t = Math.max(-3, Math.min(3, (item.offsetLeft + item.offsetWidth / 2 - mid) / step));
+      const t = (item.offsetLeft + item.offsetWidth / 2 - mid) / step;
       const a = Math.abs(t);
       const side = Math.sign(t);
       // Coverflow: the angle ramps fast then holds, so off-center cards all
@@ -375,7 +375,9 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       // Depth does all the shrinking — perspective also pulls receding cards
       // toward the centered one, which is what tucks them behind it. It must
       // stay unclamped: two cards at the same depth stop converging and the
-      // fan opens a gap between them instead of filing back in a stack.
+      // fan opens a gap between them instead of filing back in a stack. The
+      // projection is self-limiting — centers asymptote at 4 pitches out — so
+      // distant clones pile into the edge stack instead of drifting into view.
       const depth = -a * 300;
       card.style.transform = `translateZ(${depth.toFixed(1)}px) rotateY(${angle.toFixed(2)}deg)`;
       // overflow-x-auto forces the track's transform-style back to flat, so the
@@ -502,7 +504,7 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       // negative vertical margins hand back the slack so the section doesn't
       // float in dead space. Percentage padding uses the main content width, so
       // compensate for the matching negative margin to keep snap centers exact.
-      className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-8 -mb-12 flex overflow-x-auto overscroll-x-contain no-scrollbar snap-x snap-mandatory py-14 px-[calc(50%-114px)] sm:px-[calc(50%-116px)] lg:px-[calc(50%-108px)] [perspective:1200px] [transform-style:preserve-3d]"
+      className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-8 -mb-12 flex overflow-x-auto overscroll-x-contain no-scrollbar snap-x snap-mandatory py-14 px-[calc(50%-104px)] sm:px-[calc(50%-116px)] lg:px-[calc(50%-108px)] [perspective:1200px] [transform-style:preserve-3d]"
     >
       {/* Wrappers overlap each other's cards, so they must be click-transparent;
           only the card itself (pointer-events-auto) takes the hit. */}
@@ -561,7 +563,7 @@ function CuratorCard({
           openProfile();
         }
       }}
-      className="group relative block w-[260px] cursor-pointer overflow-hidden rounded-2xl bg-card shadow-[0_8px_30px_hsl(var(--foreground)/0.12)] ring-1 ring-foreground/10 transition-colors duration-300 hover:ring-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[280px]"
+      className="group relative block w-[240px] cursor-pointer overflow-hidden rounded-2xl bg-card shadow-[0_8px_30px_hsl(var(--foreground)/0.12)] ring-1 ring-foreground/10 transition-colors duration-300 hover:ring-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[280px]"
     >
       <div className="relative aspect-[4/5] overflow-hidden bg-muted">
         {/* The curator themself is the hero; recent artwork fills in when they

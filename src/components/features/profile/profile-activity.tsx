@@ -22,6 +22,7 @@ import type { TabType } from './profile-tabs';
 import { ArtworkImage } from '@/components/ui/artwork-image';
 import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
+import { PendingLabel } from '@/components/ui/interior/loading-button';
 
 interface ProfileActivityProps {
   posts: ActivityPost[];
@@ -119,7 +120,7 @@ export function ProfileActivity({
               disabled={isLoading}
               className="rounded-md border border-border bg-transparent px-6 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
             >
-              {isLoading ? 'Loading…' : 'Load more +'}
+              <PendingLabel pending={isLoading} label="Load more +" pendingLabel="Loading…" />
             </button>
           </div>
         )}

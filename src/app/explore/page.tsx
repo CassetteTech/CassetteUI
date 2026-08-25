@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -286,11 +286,12 @@ function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
 }
 
 function FeaturedCurators() {
-  const { data: curators } = useExploreCurators();
+  const { data: curators, isLoading } = useExploreCurators();
 
-  // Promotional section: render nothing (not even a skeleton) until verified
-  // curators actually arrive, so the page is unchanged when there are none.
-  if (!curators || curators.length === 0) {
+  // Promotional section: reserve the space with a skeleton rail immediately so
+  // navigation doesn't pop the section in later; render nothing only once we
+  // know there are no verified curators (or the fetch failed).
+  if (!isLoading && (!curators || curators.length === 0)) {
     return null;
   }
 
@@ -310,21 +311,46 @@ function FeaturedCurators() {
         </p>
       </div>
 
-      <CuratorCoverflow curators={curators} />
+      {curators && curators.length > 0 ? (
+        <CuratorCoverflow curators={curators} />
+      ) : (
+        // Mirrors the coverflow's vertical rhythm (card size and margin/padding
+        // slack) so the real rail mounts without a layout shift.
+        <div className="-mt-8 -mb-12 flex justify-center gap-6 overflow-hidden py-14">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-[4/5] w-[240px] shrink-0 rounded-2xl sm:w-[280px]" />
+          ))}
+        </div>
+      )}
     </motion.section>
   );
 }
 
 /**
  * Coverflow rail: the centered card sits flat and full-size while neighbors
- * fan away with rotateY/scale/opacity based on distance from the viewport
+ * fan away with rotateY/depth based on distance from the viewport
  * center. Native scroll + snap does the driving; transforms are written
  * imperatively on a rAF so scrolling never re-renders React.
+ *
+ * Looping: the list renders several identical copies and the scroll position
+ * teleports by one copy width whenever it settles outside the middle copy.
+ * The copies are pixel-identical, so the jump is invisible, and it means the
+ * first curator starts centered with real neighbors on both sides.
  */
 function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
-  const settle = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const settle = useRef<number | undefined>(undefined);
+
+  // Duplicate the list until the runway holds at least 75 cards, so even a
+  // hard fling stays deep inside rendered content and the rail reads as
+  // infinite. The settle-time correction still re-normalizes the position;
+  // an odd copy count keeps a true middle copy to normalize back to.
+  const n = curators.length;
+  const minCards = 75;
+  const rawCopies = Math.max(3, Math.ceil(minCards / n));
+  const copies = n > 1 ? rawCopies + (1 - (rawCopies % 2)) : 1;
+  const midCopy = (copies - 1) / 2;
 
   const updateTransforms = useCallback(() => {
     const track = trackRef.current;
@@ -337,7 +363,7 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     for (const item of items) {
       const card = item.firstElementChild as HTMLElement | null;
       if (!card) continue;
-      const t = Math.max(-3, Math.min(3, (item.offsetLeft + item.offsetWidth / 2 - mid) / step));
+      const t = (item.offsetLeft + item.offsetWidth / 2 - mid) / step;
       const a = Math.abs(t);
       const side = Math.sign(t);
       // Coverflow: the angle ramps fast then holds, so off-center cards all
@@ -349,10 +375,20 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       // Depth does all the shrinking — perspective also pulls receding cards
       // toward the centered one, which is what tucks them behind it. It must
       // stay unclamped: two cards at the same depth stop converging and the
-      // fan opens a gap between them instead of filing back in a stack.
+      // fan opens a gap between them instead of filing back in a stack. The
+      // projection is self-limiting — centers asymptote at 4 pitches out — so
+      // distant clones pile into the edge stack instead of drifting into view.
       const depth = -a * 300;
       card.style.transform = `translateZ(${depth.toFixed(1)}px) rotateY(${angle.toFixed(2)}deg)`;
-      card.style.opacity = (1 - Math.min(a * 0.22, 0.5)).toFixed(3);
+      // The edge stack dissolves instead of piling: full opacity through four
+      // neighbors, gone by eight. Mobile never shows past ~1.2 pitches, so the
+      // fade only ever engages on wide viewports. Fully faded cards drop hit
+      // testing (not visibility — that would evict focusable middle-copy cards
+      // from the tab order and accessibility tree); a keyboard focus on an
+      // invisible card natively scrolls it into view, which fades it back in.
+      const fade = Math.max(0, Math.min(1, (8 - a) / 4));
+      card.style.opacity = fade.toFixed(3);
+      card.style.pointerEvents = fade === 0 ? 'none' : '';
       // overflow-x-auto forces the track's transform-style back to flat, so the
       // browser paints in DOM order instead of depth-sorting and later cards
       // slice across the centered one. Order the stack by distance ourselves.
@@ -360,14 +396,69 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     }
   }, []);
 
+  // Lands scroll/transform writes in a single frame by suspending the cards'
+  // 200ms ease. The loop teleport is only invisible when it is instant: it
+  // swaps every element's role with a clone's, and easing those swaps makes
+  // the whole rail visibly swing after each scroll settles.
+  const applyInstantly = useCallback((write: () => void) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const cards: HTMLElement[] = [];
+    for (const item of Array.from(track.children)) {
+      const card = item.firstElementChild as HTMLElement | null;
+      if (card) cards.push(card);
+    }
+    for (const card of cards) card.style.transition = 'none';
+    write();
+    // Transform writes don't dirty layout, so no synchronous read can
+    // commit them under transition:none — and rAF callbacks fire BEFORE the
+    // frame's style commit, so a single rAF would restore the ease too early.
+    // Double rAF guarantees one full rendering update lands with transitions
+    // off before they come back.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        for (const card of cards) card.style.removeProperty('transition');
+      });
+    });
+  }, []);
+
+  const recenter = useCallback(() => {
+    const track = trackRef.current;
+    if (!track || copies === 1) return;
+    const items = track.children as HTMLCollectionOf<HTMLElement>;
+    // Measure pitch inside the repeated region: the very first card has no
+    // overlap margin, so spans that include it would skew the copy width.
+    const first = items[midCopy * n];
+    const copyWidth = items[(midCopy + 1) * n].offsetLeft - first.offsetLeft;
+    // Keep the settled position within one copy width centered on the middle
+    // copy's first card; anything outside teleports back by whole copies.
+    const lo = first.offsetLeft + first.offsetWidth / 2 - track.clientWidth / 2 - copyWidth / 2;
+    let next = track.scrollLeft;
+    while (next < lo) next += copyWidth;
+    while (next >= lo + copyWidth) next -= copyWidth;
+    if (next !== track.scrollLeft) {
+      applyInstantly(() => {
+        track.scrollLeft = next;
+        updateTransforms();
+      });
+    }
+  }, [applyInstantly, copies, midCopy, n, updateTransforms]);
+
+  // Teleporting mid-momentum kills the fling on iOS, so the loop correction
+  // only runs once scrolling has settled.
+  const onSettle = useCallback(() => {
+    recenter();
+    updateTransforms();
+  }, [recenter, updateTransforms]);
+
   const onScroll = useCallback(() => {
     cancelAnimationFrame(frame.current);
     frame.current = requestAnimationFrame(updateTransforms);
     // scrollend is not universal; guarantee a final correction frame after the
     // last scroll event so momentum + snap never leave stale transforms.
     clearTimeout(settle.current);
-    settle.current = setTimeout(updateTransforms, 140);
-  }, [updateTransforms]);
+    settle.current = window.setTimeout(onSettle, 140);
+  }, [onSettle, updateTransforms]);
 
   // A click on an off-center card means "bring that one to the front", not
   // "open it". Capture phase so the card's own handler (and the platform link
@@ -386,18 +477,31 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     track.scrollTo({ left: track.scrollLeft + offset, behavior: 'smooth' });
   }, []);
 
+  // Start on the first curator of the middle copy so both neighbors are
+  // visible immediately; layout effect so neither the jump nor the initial
+  // fan-out paints untransformed first.
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    if (!track || copies === 1) return;
+    applyInstantly(() => {
+      const item = (track.children as HTMLCollectionOf<HTMLElement>)[midCopy * n];
+      track.scrollLeft = item.offsetLeft + item.offsetWidth / 2 - track.clientWidth / 2;
+      updateTransforms();
+    });
+  }, [applyInstantly, copies, midCopy, n, updateTransforms]);
+
   useEffect(() => {
     const track = trackRef.current;
     updateTransforms();
     window.addEventListener('resize', updateTransforms);
-    track?.addEventListener('scrollend', updateTransforms);
+    track?.addEventListener('scrollend', onSettle);
     return () => {
       window.removeEventListener('resize', updateTransforms);
-      track?.removeEventListener('scrollend', updateTransforms);
+      track?.removeEventListener('scrollend', onSettle);
       cancelAnimationFrame(frame.current);
       clearTimeout(settle.current);
     };
-  }, [updateTransforms]);
+  }, [onSettle, updateTransforms]);
 
   return (
     <div
@@ -405,41 +509,52 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       onScroll={onScroll}
       onClickCapture={onClickCapture}
       // py must clear the card's shadow: overflow-x-auto forces the vertical axis
-      // to clip too, so a tight padding slices the shadow with a hard line.
-      // Percentage padding uses the main content width, so compensate for the
-      // matching negative margin to keep the first and last snap centers exact.
-      className="-mx-4 sm:-mx-6 lg:-mx-8 flex overflow-x-auto no-scrollbar snap-x snap-mandatory py-14 px-[calc(50%-114px)] sm:px-[calc(50%-116px)] lg:px-[calc(50%-108px)] [perspective:1200px] [transform-style:preserve-3d]"
+      // to clip too, so a tight padding slices the shadow with a hard line. The
+      // negative vertical margins hand back the slack so the section doesn't
+      // float in dead space. Percentage padding uses the main content width, so
+      // compensate for the matching negative margin to keep snap centers exact.
+      className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-8 -mb-12 flex overflow-x-auto overscroll-x-contain no-scrollbar snap-x snap-mandatory py-14 px-[calc(50%-104px)] sm:px-[calc(50%-116px)] lg:px-[calc(50%-108px)] [perspective:1200px] [transform-style:preserve-3d]"
     >
       {/* Wrappers overlap each other's cards, so they must be click-transparent;
           only the card itself (pointer-events-auto) takes the hit. */}
-      {curators.map((curator) => (
-        <div
-          key={curator.userId}
-          className="pointer-events-none relative shrink-0 snap-center -ml-24 first:ml-0 [transform-style:preserve-3d]"
-        >
-          {/* Scroll input arrives in coarse steps (wheel notches, snap landings),
-              so the raw per-frame transform reads as stepping. A short ease lets
-              the fan glide between positions; longer than this and the cards
-              visibly trail a finger drag. */}
-          <div className="pointer-events-auto transition-[transform,opacity] duration-200 ease-out will-change-transform [transform-style:preserve-3d]">
-            <CuratorCard curator={curator} />
+      {Array.from({ length: copies }, (_, copy) =>
+        curators.map((curator) => (
+          <div
+            key={`${copy}:${curator.userId}`}
+            aria-hidden={copy !== midCopy || undefined}
+            className="pointer-events-none relative shrink-0 snap-center -ml-24 first:ml-0 [transform-style:preserve-3d]"
+          >
+            {/* Scroll input arrives in coarse steps (wheel notches, snap landings),
+                so the raw per-frame transform reads as stepping. A short ease lets
+                the fan glide between positions; longer than this and the cards
+                visibly trail a finger drag. */}
+            <div className="pointer-events-auto transition-[transform,opacity] duration-200 ease-out will-change-transform [transform-style:preserve-3d]">
+              <CuratorCard curator={curator} focusable={copy === midCopy} />
+            </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }
 
-function CuratorCard({ curator }: { curator: ExploreCurator }) {
+function CuratorCard({
+  curator,
+  focusable = true,
+}: {
+  curator: ExploreCurator;
+  // Looping clones are aria-hidden, so nothing inside them may take focus.
+  focusable?: boolean;
+}) {
   const router = useRouter();
-  const initials = curator.username?.charAt(0)?.toUpperCase() || 'C';
   const displayName = curator.displayName?.trim() || curator.username;
   const artwork = curator.recentArtworkUrls.slice(0, 4);
-  const genres = (curator.topGenres ?? []).slice(0, 3);
+  const tagline = curator.bio?.trim();
+  const genres = (curator.topGenres ?? []).slice(0, 2);
   const links = (curator.profileLinks ?? [])
     .map(parseProfileLink)
     .filter((l): l is ParsedProfileLink => l !== null)
-    .slice(0, 3);
+    .slice(0, 2);
   const profileHref = `/profile/${curator.username}`;
   const openProfile = () => router.push(profileHref);
 
@@ -448,7 +563,7 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
     // (nested <a> is invalid HTML and browsers restructure it).
     <div
       role="link"
-      tabIndex={0}
+      tabIndex={focusable ? 0 : -1}
       aria-label={`View ${displayName} on Cassette`}
       onClick={openProfile}
       onKeyDown={(e) => {
@@ -457,12 +572,20 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
           openProfile();
         }
       }}
-      className="group relative block w-[260px] cursor-pointer overflow-hidden rounded-2xl bg-card shadow-[0_8px_30px_hsl(var(--foreground)/0.12)] ring-1 ring-foreground/10 transition-colors duration-300 hover:ring-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[280px]"
+      className="group relative block w-[240px] cursor-pointer overflow-hidden rounded-2xl bg-card shadow-[0_8px_30px_hsl(var(--foreground)/0.12)] ring-1 ring-foreground/10 transition-colors duration-300 hover:ring-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[280px]"
     >
-      {/* Full-bleed artwork: the curator's taste is the hero. The grid adapts to
-          how much artwork exists so there are never empty slots. */}
       <div className="relative aspect-[4/5] overflow-hidden bg-muted">
-        {artwork.length > 0 ? (
+        {/* The curator themself is the hero; recent artwork fills in when they
+            have no photo, and a branded tile when they have neither. */}
+        {curator.avatarUrl ? (
+          <Image
+            src={curator.avatarUrl}
+            alt=""
+            fill
+            sizes="280px"
+            className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+        ) : artwork.length > 0 ? (
           <div
             className={cn(
               'grid h-full gap-px',
@@ -490,7 +613,6 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
             ))}
           </div>
         ) : (
-          // No artwork yet: a quiet branded tile, not a blank box.
           <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/30 via-muted to-accentRoyal/30">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-background/60 ring-1 ring-foreground/15">
               <Music2 className="h-8 w-8 text-muted-foreground" />
@@ -498,48 +620,54 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
           </div>
         )}
 
-        {/* Scrim carries the identity so the artwork runs edge to edge */}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3.5 pb-3 pt-14">
-          <div className="flex items-center gap-2.5">
-            <Avatar className="h-14 w-14 shrink-0 ring-2 ring-white/80">
-              <AvatarImage src={curator.avatarUrl} alt={`@${curator.username}`} />
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1">
-                <p className="truncate text-[15px] font-semibold leading-tight text-white">
-                  {displayName}
-                </p>
-                <VerificationBadge accountType={curator.accountType} size="sm" showTooltip={false} />
-              </div>
-            </div>
-          </div>
-          {genres.length > 0 && (
-            <p className="mt-2 truncate text-[11px] text-white/55">{genres.join(' · ')}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Keep the footer present so every card has the same resting height. */}
-      <div className="flex h-12 items-center justify-between gap-3 border-t border-foreground/10 px-3">
-        <span className="min-w-0 truncate text-xs font-medium text-muted-foreground">
-          @{curator.username}
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+          Verified Curator
+          <VerificationBadge
+            accountType={curator.accountType}
+            size="sm"
+            showTooltip={false}
+            className="[&_svg]:text-white"
+          />
         </span>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              onClick={(e) => e.stopPropagation()}
-              aria-label={`${displayName} on ${link.platform} (${link.label})`}
-              title={`${link.platform}: ${link.label}`}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground/[0.06] text-foreground/75 ring-1 ring-foreground/15 transition-colors hover:bg-primary hover:text-primary-foreground hover:ring-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <ProfileLinkIcon link={link} />
-            </a>
-          ))}
+
+        {/* Scrim carries the identity so the photo runs edge to edge */}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-4 pb-4 pt-16">
+          <p className="truncate text-xl font-bold leading-tight text-white">{displayName}</p>
+          {tagline && (
+            <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-white/80">{tagline}</p>
+          )}
+          {genres.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {genres.map((genre) => (
+                <span
+                  key={genre}
+                  className="rounded-full bg-white/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.15em] text-white/70 ring-1 ring-inset ring-white/20"
+                >
+                  {genre}
+                </span>
+              ))}
+            </div>
+          )}
+          {links.length > 0 && (
+            <div className="mt-3 flex items-center gap-2">
+              {links.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  tabIndex={focusable ? undefined : -1}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={`${displayName} on ${link.platform} (${link.label})`}
+                  title={`${link.platform}: ${link.label}`}
+                  className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-white/60 px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <ProfileLinkIcon link={link} className="shrink-0" />
+                  <span className="truncate">{link.platform}</span>
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

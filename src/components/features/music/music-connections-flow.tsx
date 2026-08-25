@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { apiService } from '@/services/api';
 import { platformConnectService } from '@/services/platform-connect';
 import { appLogger } from '@/lib/observability/logger';
+import { PendingLabel } from '@/components/ui/interior/loading-button';
 import {
   ACTIVE_PLATFORM_DEFINITIONS,
   ACTIVE_PLATFORM_PREFERENCE_KEYS,
@@ -328,7 +329,11 @@ export function MusicConnectionsFlow({
                     disabled={platformStates.AppleMusic.isLoading}
                     className="sm:shrink-0"
                   >
-                    {platformStates.AppleMusic.isLoading ? 'Authorizing...' : 'Authorize Apple Music'}
+                    <PendingLabel
+                      pending={platformStates.AppleMusic.isLoading}
+                      label="Authorize Apple Music"
+                      pendingLabel="Authorizing…"
+                    />
                   </Button>
                 </div>
               </div>
@@ -346,7 +351,11 @@ export function MusicConnectionsFlow({
                     disabled={platformStates.Deezer.isLoading}
                     className="sm:shrink-0"
                   >
-                    {platformStates.Deezer.isLoading ? 'Authorizing...' : 'Authorize Deezer'}
+                    <PendingLabel
+                      pending={platformStates.Deezer.isLoading}
+                      label="Authorize Deezer"
+                      pendingLabel="Authorizing…"
+                    />
                   </Button>
                 </div>
               </div>
@@ -397,35 +406,41 @@ export function MusicConnectionsFlow({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {state.isLoading ? (
-                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                    ) : (
-                      <>
-                        {service.requiresAuth && !state.isAuthenticated && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              if (service.id === 'Deezer') {
-                                void handleDeezerAuthorization();
-                              } else {
-                                void handleAppleMusicAuthorization(!state.isSelected);
-                              }
-                            }}
-                          >
-                            {state.isSelected ? 'Authorize' : 'Add & Authorize'}
-                          </Button>
-                        )}
-                        <Switch
-                          checked={state.isSelected}
-                          onCheckedChange={() => handleToggle(service.id)}
-                          disabled={state.isLoading}
-                          aria-label={`Toggle ${service.name}`}
-                          data-testid={`music-service-toggle-${service.id.toLowerCase()}`}
+                    {service.requiresAuth && !state.isAuthenticated && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={state.isLoading}
+                        onClick={() => {
+                          if (service.id === 'Deezer') {
+                            void handleDeezerAuthorization();
+                          } else {
+                            void handleAppleMusicAuthorization(!state.isSelected);
+                          }
+                        }}
+                      >
+                        <PendingLabel
+                          pending={state.isLoading}
+                          label={state.isSelected ? 'Authorize' : 'Add & Authorize'}
+                          pendingLabel="Authorizing…"
                         />
-                      </>
+                      </Button>
                     )}
+                    <span className="relative grid place-items-center">
+                      <Loader2
+                        aria-hidden
+                        className={`col-start-1 row-start-1 w-5 h-5 animate-spin text-muted-foreground transition-opacity ${state.isLoading ? 'opacity-100' : 'opacity-0'}`}
+                      />
+                      <Switch
+                        checked={state.isSelected}
+                        onCheckedChange={() => handleToggle(service.id)}
+                        disabled={state.isLoading}
+                        aria-label={`Toggle ${service.name}`}
+                        data-testid={`music-service-toggle-${service.id.toLowerCase()}`}
+                        className={`col-start-1 row-start-1 transition-opacity ${state.isLoading ? 'opacity-0' : 'opacity-100'}`}
+                      />
+                    </span>
                   </div>
                 </div>
               );

@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SegmentedControl as SlidingSegments } from '@/components/ui/interior/segmented-control';
 
 /**
  * Shared filter toolbar. A flat search field plus a slot for per-tab filter
@@ -54,7 +55,7 @@ export function Toolbar({
 
 /**
  * Dense segmented toggle, used for inline filters (account type, status, etc.).
- * Active segment carries the domain accent.
+ * Sliding thumb + radiogroup semantics via the interior primitive.
  */
 export function SegmentedControl<T extends string>({
   label,
@@ -72,26 +73,12 @@ export function SegmentedControl<T extends string>({
       {label && (
         <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
       )}
-      <div className="inline-flex items-center rounded-lg bg-muted p-0.5">
-        {options.map((opt) => {
-          const active = opt.value === value;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => onChange(opt.value)}
-              className={cn(
-                'rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
-                active
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>
+      <SlidingSegments
+        label={label ?? 'Filter'}
+        value={value}
+        onValueChange={(next) => onChange(next as T)}
+        options={options}
+      />
     </div>
   );
 }

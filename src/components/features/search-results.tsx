@@ -1,10 +1,12 @@
+'use client';
+
 import React from 'react';
 import Image from 'next/image';
 import { UIText } from '@/components/ui/typography';
 import { Badge } from '@/components/ui/badge';
 import { Track, Album, Artist, Playlist } from '@/types';
 import { rankSearchResults, RankedItem } from '@/utils/search-ranking';
-import { Spinner } from '@/components/ui/spinner';
+import { SkeletonSwap } from '@/components/ui/interior/skeleton-swap';
 import { appLogger } from '@/lib/observability/logger';
 
 interface SearchResultsProps {
@@ -28,6 +30,36 @@ interface SearchResultsProps {
    * bar above is already the focal element.
    */
   chrome?: 'retro' | 'flat';
+}
+
+// Row-shaped placeholders matching the result-row geometry below:
+// artwork square + title/artist lines, same paddings and borders.
+const TITLE_WIDTHS = [72, 58, 81, 64, 76, 52] as const;
+const ARTIST_WIDTHS = [44, 60, 38, 52, 41, 66] as const;
+
+function ResultRowSkeletons({ rows = 6 }: { rows?: number }) {
+  return (
+    <div>
+      {Array.from({ length: rows }, (_, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-2 sm:gap-3 px-2 py-1.5 sm:p-3 border-b border-border last:border-b-0"
+        >
+          <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-md bg-muted animate-pulse motion-reduce:animate-none" />
+          <div className="flex-1 min-w-0">
+            <div
+              className="h-3.5 rounded bg-muted animate-pulse motion-reduce:animate-none"
+              style={{ width: `${TITLE_WIDTHS[i % TITLE_WIDTHS.length]}%` }}
+            />
+            <div
+              className="mt-1.5 h-3 rounded bg-muted animate-pulse motion-reduce:animate-none"
+              style={{ width: `${ARTIST_WIDTHS[i % ARTIST_WIDTHS.length]}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export const SearchResults: React.FC<SearchResultsProps> = ({
@@ -139,18 +171,9 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     }
   };
 
-  if (isLoading || isSearching) {
-    return (
-      <div className="text-center py-8">
-        <Spinner size="lg" variant="primary" className="mx-auto mb-4" />
-        <UIText className="text-muted-foreground">
-          {isSearching ? 'Searching...' : 'Loading top charts...'}
-        </UIText>
-      </div>
-    );
-  }
+  const pending = isLoading || isSearching;
 
-  if (!results || allResults.length === 0) {
+  if (!pending && (!results || allResults.length === 0)) {
     return (
       <div className="text-center py-8">
         <UIText className="text-muted-foreground">No results found</UIText>
@@ -218,6 +241,11 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                 : undefined
             }
           >
+            <SkeletonSwap
+              ready={!pending}
+              label={showSearchResults ? 'Search results' : 'Top charts'}
+              skeleton={<ResultRowSkeletons />}
+            >
             {allResults.map((item, index) => (
               <div
                 key={`${item.type}-${item.id}-${index}`}
@@ -301,6 +329,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                 </svg>
               </div>
             ))}
+            </SkeletonSwap>
           </div>
         </div>
       </div>

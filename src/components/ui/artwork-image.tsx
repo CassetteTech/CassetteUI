@@ -19,12 +19,15 @@ export function ArtworkImage({
   className,
   fallbackClassName,
   fallbackIconClassName,
+  onLoad,
   onError,
   ...props
 }: ArtworkImageProps) {
   const normalizedSrc = src?.trim() || '';
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const failed = normalizedSrc !== '' && failedSrc === normalizedSrc;
+  const loaded = loadedSrc === normalizedSrc;
 
   if (!normalizedSrc || failed) {
     return (
@@ -46,7 +49,17 @@ export function ArtworkImage({
       {...props}
       src={normalizedSrc}
       alt={alt}
-      className={className}
+      className={cn(
+        // Blur-up reveal: hidden+blurred until decoded, then eased in.
+        // motion-reduce flips instantly.
+        'transition-[opacity,filter] duration-500 ease-out motion-reduce:transition-none',
+        loaded ? 'opacity-100 blur-0' : 'opacity-0 blur-sm',
+        className,
+      )}
+      onLoad={(event) => {
+        setLoadedSrc(normalizedSrc);
+        onLoad?.(event);
+      }}
       onError={(event) => {
         setFailedSrc(normalizedSrc);
         onError?.(event);

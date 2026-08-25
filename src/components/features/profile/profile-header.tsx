@@ -1,8 +1,10 @@
 'use client';
 
+import { useId } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Plus, Settings, Share2, Shield } from 'lucide-react';
+import { Check, Plus, Settings, Share2, Shield } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { UserBio, ConnectedService, PlatformPreferenceInfo } from '@/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { VerificationBadge } from '@/components/ui/verification-badge';
@@ -11,11 +13,13 @@ import { AvatarPreviewDialog } from '@/components/features/profile/avatar-previe
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 import { getDisplayPlatformDefinition, isAppleMusicPlatform } from '@/lib/platforms';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
+import { useShowMore } from '@/components/ui/interior/show-more';
 
 interface ProfileHeaderProps {
   userBio: UserBio;
   isCurrentUser: boolean;
   onShare: () => void;
+  shareCopied?: boolean;
   onAddMusic?: () => void;
 }
 
@@ -23,6 +27,7 @@ export function ProfileHeader({
   userBio,
   isCurrentUser,
   onShare,
+  shareCopied = false,
   onAddMusic
 }: ProfileHeaderProps) {
   const totalLikesReceived = Number(userBio.totalLikesReceived ?? 0);
@@ -119,12 +124,8 @@ export function ProfileHeader({
           </div>
         </div>
 
-        {/* Bio — full text on mobile; only clamp when truly long to keep header compact */}
-        {userBio.bio && (
-          <p className="text-card-foreground/90 text-sm sm:text-base lg:text-lg whitespace-pre-wrap">
-            {userBio.bio}
-          </p>
-        )}
+        {/* Bio — clamps at ~4 lines with a show-more affordance; short bios render bare */}
+        {userBio.bio && <ProfileBio bio={userBio.bio} />}
 
         <ProfileLinksRow links={userBio.profileLinks} />
 
@@ -141,8 +142,23 @@ export function ProfileHeader({
             onClick={onShare}
             className="inline-flex h-10 flex-1 min-w-0 items-center justify-center gap-2 rounded-md bg-primary px-4 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-primary-foreground elev-1 transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:w-full lg:flex-none"
           >
-            <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
-            <span className="truncate">Share Profile</span>
+            {shareCopied ? (
+              <Check className="h-3.5 w-3.5" aria-hidden="true" />
+            ) : (
+              <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            {/* Both labels share one grid cell so the button keeps its width during the swap */}
+            <span className="grid min-w-0">
+              <span className={`col-start-1 row-start-1 truncate ${shareCopied ? 'invisible' : ''}`} aria-hidden={shareCopied}>
+                Share Profile
+              </span>
+              <span className={`col-start-1 row-start-1 truncate text-center ${shareCopied ? '' : 'invisible'}`} aria-hidden={!shareCopied}>
+                Link Copied
+              </span>
+            </span>
+            <span role="status" aria-live="polite" className="sr-only">
+              {shareCopied ? 'Profile link copied' : ''}
+            </span>
           </button>
 
           {isCurrentUser && onAddMusic && (
@@ -167,6 +183,42 @@ export function ProfileHeader({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* Long bios collapse to ~4 lines; the interior hook measures line height and
+   only surfaces the toggle when the text actually overflows. */
+function ProfileBio({ bio }: { bio: string }) {
+  const reduced = useReducedMotion();
+  const regionId = useId();
+  const { contentRef, open, toggle, height, expandable } = useShowMore({ lines: 4 });
+
+  return (
+    <div className="min-w-0">
+      <motion.div
+        id={regionId}
+        initial={false}
+        animate={height === null ? {} : { height }}
+        transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 190, damping: 30, mass: 1 }}
+        style={{ maxHeight: height === null ? '4lh' : undefined }}
+        className="overflow-hidden"
+      >
+        <div ref={contentRef} className="text-card-foreground/90 text-sm sm:text-base lg:text-lg whitespace-pre-wrap">
+          {bio}
+        </div>
+      </motion.div>
+      {expandable && (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-controls={regionId}
+          className="mt-1 rounded-sm font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {open ? 'Show less' : 'Show more'}
+        </button>
+      )}
     </div>
   );
 }

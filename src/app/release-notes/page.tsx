@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Clock } from "lucide-react";
 import { Markdown } from "@/components/markdown";
+import { DEFAULT_SOCIAL_PREVIEW } from "@/lib/seo";
 import {
   getPublishedGitHubReleases,
   type PublishedGitHubRelease,
@@ -13,8 +14,8 @@ export const metadata: Metadata = {
   title: { absolute: title },
   description,
   alternates: { canonical: '/release-notes' },
-  openGraph: { title, description },
-  twitter: { title, description },
+  openGraph: { ...DEFAULT_SOCIAL_PREVIEW, title, description },
+  twitter: { ...DEFAULT_SOCIAL_PREVIEW, title, description },
 };
 
 function formatDate(value: string): string {

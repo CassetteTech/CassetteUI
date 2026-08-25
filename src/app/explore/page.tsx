@@ -331,10 +331,14 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
   const frame = useRef(0);
   const settle = useRef<number | undefined>(undefined);
 
-  // Enough copies that a hard flick still lands inside the rendered runway
-  // before the settle-time correction brings the scroll back to the middle.
+  // Duplicate the list until the runway holds at least 75 cards, so even a
+  // hard fling stays deep inside rendered content and the rail reads as
+  // infinite. The settle-time correction still re-normalizes the position;
+  // an odd copy count keeps a true middle copy to normalize back to.
   const n = curators.length;
-  const copies = n > 1 ? Math.max(3, 1 + 2 * Math.ceil(6 / n)) : 1;
+  const minCards = 75;
+  const rawCopies = Math.max(3, Math.ceil(minCards / n));
+  const copies = n > 1 ? rawCopies + (1 - (rawCopies % 2)) : 1;
   const midCopy = (copies - 1) / 2;
 
   const updateTransforms = useCallback(() => {

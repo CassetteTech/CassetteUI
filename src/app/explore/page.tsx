@@ -371,6 +371,32 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     }
   }, []);
 
+  // Lands scroll/transform writes in a single frame by suspending the cards'
+  // 200ms ease. The loop teleport is only invisible when it is instant: it
+  // swaps every element's role with a clone's, and easing those swaps makes
+  // the whole rail visibly swing and fade after each scroll settles.
+  const applyInstantly = useCallback((write: () => void) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const cards: HTMLElement[] = [];
+    for (const item of Array.from(track.children)) {
+      const card = item.firstElementChild as HTMLElement | null;
+      if (card) cards.push(card);
+    }
+    for (const card of cards) card.style.transition = 'none';
+    write();
+    // Transform/opacity writes don't dirty layout, so no synchronous read can
+    // commit them under transition:none — and rAF callbacks fire BEFORE the
+    // frame's style commit, so a single rAF would restore the ease too early.
+    // Double rAF guarantees one full rendering update lands with transitions
+    // off before they come back.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        for (const card of cards) card.style.removeProperty('transition');
+      });
+    });
+  }, []);
+
   const recenter = useCallback(() => {
     const track = trackRef.current;
     if (!track || copies === 1) return;
@@ -386,10 +412,12 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     while (next < lo) next += copyWidth;
     while (next >= lo + copyWidth) next -= copyWidth;
     if (next !== track.scrollLeft) {
-      track.scrollLeft = next;
-      updateTransforms();
+      applyInstantly(() => {
+        track.scrollLeft = next;
+        updateTransforms();
+      });
     }
-  }, [copies, midCopy, n, updateTransforms]);
+  }, [applyInstantly, copies, midCopy, n, updateTransforms]);
 
   // Teleporting mid-momentum kills the fling on iOS, so the loop correction
   // only runs once scrolling has settled.
@@ -425,13 +453,17 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
   }, []);
 
   // Start on the first curator of the middle copy so both neighbors are
-  // visible immediately; layout effect so the jump never paints.
+  // visible immediately; layout effect so neither the jump nor the initial
+  // fan-out paints untransformed first.
   useLayoutEffect(() => {
     const track = trackRef.current;
     if (!track || copies === 1) return;
-    const item = (track.children as HTMLCollectionOf<HTMLElement>)[midCopy * n];
-    track.scrollLeft = item.offsetLeft + item.offsetWidth / 2 - track.clientWidth / 2;
-  }, [copies, midCopy, n]);
+    applyInstantly(() => {
+      const item = (track.children as HTMLCollectionOf<HTMLElement>)[midCopy * n];
+      track.scrollLeft = item.offsetLeft + item.offsetWidth / 2 - track.clientWidth / 2;
+      updateTransforms();
+    });
+  }, [applyInstantly, copies, midCopy, n, updateTransforms]);
 
   useEffect(() => {
     const track = trackRef.current;

@@ -382,11 +382,13 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       card.style.transform = `translateZ(${depth.toFixed(1)}px) rotateY(${angle.toFixed(2)}deg)`;
       // The edge stack dissolves instead of piling: full opacity through four
       // neighbors, gone by eight. Mobile never shows past ~1.2 pitches, so the
-      // fade only ever engages on wide viewports. Fully faded cards also drop
-      // hit testing so the dissolved edge is not secretly clickable.
+      // fade only ever engages on wide viewports. Fully faded cards drop hit
+      // testing (not visibility — that would evict focusable middle-copy cards
+      // from the tab order and accessibility tree); a keyboard focus on an
+      // invisible card natively scrolls it into view, which fades it back in.
       const fade = Math.max(0, Math.min(1, (8 - a) / 4));
       card.style.opacity = fade.toFixed(3);
-      card.style.visibility = fade === 0 ? 'hidden' : '';
+      card.style.pointerEvents = fade === 0 ? 'none' : '';
       // overflow-x-auto forces the track's transform-style back to flat, so the
       // browser paints in DOM order instead of depth-sorting and later cards
       // slice across the centered one. Order the stack by distance ourselves.
@@ -526,7 +528,7 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
                 so the raw per-frame transform reads as stepping. A short ease lets
                 the fan glide between positions; longer than this and the cards
                 visibly trail a finger drag. */}
-            <div className="pointer-events-auto transition-transform duration-200 ease-out will-change-transform [transform-style:preserve-3d]">
+            <div className="pointer-events-auto transition-[transform,opacity] duration-200 ease-out will-change-transform [transform-style:preserve-3d]">
               <CuratorCard curator={curator} focusable={copy === midCopy} />
             </div>
           </div>

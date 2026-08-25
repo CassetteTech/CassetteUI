@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -320,11 +320,22 @@ function FeaturedCurators() {
  * fan away with rotateY/scale/opacity based on distance from the viewport
  * center. Native scroll + snap does the driving; transforms are written
  * imperatively on a rAF so scrolling never re-renders React.
+ *
+ * Looping: the list renders several identical copies and the scroll position
+ * teleports by one copy width whenever it settles outside the middle copy.
+ * The copies are pixel-identical, so the jump is invisible, and it means the
+ * first curator starts centered with real neighbors on both sides.
  */
 function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
-  const settle = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const settle = useRef<number | undefined>(undefined);
+
+  // Enough copies that a hard flick still lands inside the rendered runway
+  // before the settle-time correction brings the scroll back to the middle.
+  const n = curators.length;
+  const copies = n > 1 ? Math.max(3, 1 + 2 * Math.ceil(6 / n)) : 1;
+  const midCopy = (copies - 1) / 2;
 
   const updateTransforms = useCallback(() => {
     const track = trackRef.current;
@@ -360,14 +371,41 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     }
   }, []);
 
+  const recenter = useCallback(() => {
+    const track = trackRef.current;
+    if (!track || copies === 1) return;
+    const items = track.children as HTMLCollectionOf<HTMLElement>;
+    // Measure pitch inside the repeated region: the very first card has no
+    // overlap margin, so spans that include it would skew the copy width.
+    const first = items[midCopy * n];
+    const copyWidth = items[(midCopy + 1) * n].offsetLeft - first.offsetLeft;
+    // Keep the settled position within one copy width centered on the middle
+    // copy's first card; anything outside teleports back by whole copies.
+    const lo = first.offsetLeft + first.offsetWidth / 2 - track.clientWidth / 2 - copyWidth / 2;
+    let next = track.scrollLeft;
+    while (next < lo) next += copyWidth;
+    while (next >= lo + copyWidth) next -= copyWidth;
+    if (next !== track.scrollLeft) {
+      track.scrollLeft = next;
+      updateTransforms();
+    }
+  }, [copies, midCopy, n, updateTransforms]);
+
+  // Teleporting mid-momentum kills the fling on iOS, so the loop correction
+  // only runs once scrolling has settled.
+  const onSettle = useCallback(() => {
+    recenter();
+    updateTransforms();
+  }, [recenter, updateTransforms]);
+
   const onScroll = useCallback(() => {
     cancelAnimationFrame(frame.current);
     frame.current = requestAnimationFrame(updateTransforms);
     // scrollend is not universal; guarantee a final correction frame after the
     // last scroll event so momentum + snap never leave stale transforms.
     clearTimeout(settle.current);
-    settle.current = setTimeout(updateTransforms, 140);
-  }, [updateTransforms]);
+    settle.current = window.setTimeout(onSettle, 140);
+  }, [onSettle, updateTransforms]);
 
   // A click on an off-center card means "bring that one to the front", not
   // "open it". Capture phase so the card's own handler (and the platform link
@@ -386,18 +424,27 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     track.scrollTo({ left: track.scrollLeft + offset, behavior: 'smooth' });
   }, []);
 
+  // Start on the first curator of the middle copy so both neighbors are
+  // visible immediately; layout effect so the jump never paints.
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    if (!track || copies === 1) return;
+    const item = (track.children as HTMLCollectionOf<HTMLElement>)[midCopy * n];
+    track.scrollLeft = item.offsetLeft + item.offsetWidth / 2 - track.clientWidth / 2;
+  }, [copies, midCopy, n]);
+
   useEffect(() => {
     const track = trackRef.current;
     updateTransforms();
     window.addEventListener('resize', updateTransforms);
-    track?.addEventListener('scrollend', updateTransforms);
+    track?.addEventListener('scrollend', onSettle);
     return () => {
       window.removeEventListener('resize', updateTransforms);
-      track?.removeEventListener('scrollend', updateTransforms);
+      track?.removeEventListener('scrollend', onSettle);
       cancelAnimationFrame(frame.current);
       clearTimeout(settle.current);
     };
-  }, [updateTransforms]);
+  }, [onSettle, updateTransforms]);
 
   return (
     <div
@@ -405,36 +452,48 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       onScroll={onScroll}
       onClickCapture={onClickCapture}
       // py must clear the card's shadow: overflow-x-auto forces the vertical axis
-      // to clip too, so a tight padding slices the shadow with a hard line.
-      // Percentage padding uses the main content width, so compensate for the
-      // matching negative margin to keep the first and last snap centers exact.
-      className="-mx-4 sm:-mx-6 lg:-mx-8 flex overflow-x-auto no-scrollbar snap-x snap-mandatory py-14 px-[calc(50%-114px)] sm:px-[calc(50%-116px)] lg:px-[calc(50%-108px)] [perspective:1200px] [transform-style:preserve-3d]"
+      // to clip too, so a tight padding slices the shadow with a hard line. The
+      // negative vertical margins hand back the slack so the section doesn't
+      // float in dead space. Percentage padding uses the main content width, so
+      // compensate for the matching negative margin to keep snap centers exact.
+      className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-8 -mb-12 flex overflow-x-auto overscroll-x-contain no-scrollbar snap-x snap-mandatory py-14 px-[calc(50%-114px)] sm:px-[calc(50%-116px)] lg:px-[calc(50%-108px)] [perspective:1200px] [transform-style:preserve-3d]"
     >
       {/* Wrappers overlap each other's cards, so they must be click-transparent;
           only the card itself (pointer-events-auto) takes the hit. */}
-      {curators.map((curator) => (
-        <div
-          key={curator.userId}
-          className="pointer-events-none relative shrink-0 snap-center -ml-24 first:ml-0 [transform-style:preserve-3d]"
-        >
-          {/* Scroll input arrives in coarse steps (wheel notches, snap landings),
-              so the raw per-frame transform reads as stepping. A short ease lets
-              the fan glide between positions; longer than this and the cards
-              visibly trail a finger drag. */}
-          <div className="pointer-events-auto transition-[transform,opacity] duration-200 ease-out will-change-transform [transform-style:preserve-3d]">
-            <CuratorCard curator={curator} />
+      {Array.from({ length: copies }, (_, copy) =>
+        curators.map((curator) => (
+          <div
+            key={`${copy}:${curator.userId}`}
+            aria-hidden={copy !== midCopy || undefined}
+            className="pointer-events-none relative shrink-0 snap-center -ml-24 first:ml-0 [transform-style:preserve-3d]"
+          >
+            {/* Scroll input arrives in coarse steps (wheel notches, snap landings),
+                so the raw per-frame transform reads as stepping. A short ease lets
+                the fan glide between positions; longer than this and the cards
+                visibly trail a finger drag. */}
+            <div className="pointer-events-auto transition-[transform,opacity] duration-200 ease-out will-change-transform [transform-style:preserve-3d]">
+              <CuratorCard curator={curator} focusable={copy === midCopy} />
+            </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }
 
-function CuratorCard({ curator }: { curator: ExploreCurator }) {
+function CuratorCard({
+  curator,
+  focusable = true,
+}: {
+  curator: ExploreCurator;
+  // Looping clones are aria-hidden, so nothing inside them may take focus.
+  focusable?: boolean;
+}) {
   const router = useRouter();
   const displayName = curator.displayName?.trim() || curator.username;
   const artwork = curator.recentArtworkUrls.slice(0, 4);
-  const tagline = curator.bio?.trim() || (curator.topGenres ?? []).slice(0, 3).join(' · ');
+  const tagline = curator.bio?.trim();
+  const genres = (curator.topGenres ?? []).slice(0, 2);
   const links = (curator.profileLinks ?? [])
     .map(parseProfileLink)
     .filter((l): l is ParsedProfileLink => l !== null)
@@ -447,7 +506,7 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
     // (nested <a> is invalid HTML and browsers restructure it).
     <div
       role="link"
-      tabIndex={0}
+      tabIndex={focusable ? 0 : -1}
       aria-label={`View ${displayName} on Cassette`}
       onClick={openProfile}
       onKeyDown={(e) => {
@@ -505,7 +564,7 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
         )}
 
         <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
-          Music Curator
+          Verified Curator
           <VerificationBadge
             accountType={curator.accountType}
             size="sm"
@@ -520,12 +579,25 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
           {tagline && (
             <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-white/80">{tagline}</p>
           )}
+          {genres.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {genres.map((genre) => (
+                <span
+                  key={genre}
+                  className="rounded-full bg-white/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.15em] text-white/70 ring-1 ring-inset ring-white/20"
+                >
+                  {genre}
+                </span>
+              ))}
+            </div>
+          )}
           {links.length > 0 && (
             <div className="mt-3 flex items-center gap-2">
               {links.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
+                  tabIndex={focusable ? undefined : -1}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
                   onClick={(e) => e.stopPropagation()}

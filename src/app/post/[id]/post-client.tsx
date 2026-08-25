@@ -1711,34 +1711,36 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
               </div>
 
               {/* Album Art — fixed by width so browser height changes cannot resize it. */}
-              <div className="relative mx-auto rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10">
-                <Image
-                  src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
-                  alt={metadata.title}
-                  width={340}
-                  height={340}
-                  sizes="(max-width: 639px) 260px, 340px"
-                  className="block h-[260px] w-[260px] rounded-sm object-cover sm:h-[340px] sm:w-[340px]"
-                  priority
-                  onError={() => setImageError(true)}
-                  unoptimized={!imageError && !!metadata.artwork}
-                />
+              <div className="flex flex-1 items-center justify-center">
+                <div className="relative rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10">
+                  <Image
+                    src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
+                    alt={metadata.title}
+                    width={340}
+                    height={340}
+                    sizes="(max-width: 639px) 260px, 340px"
+                    className="block h-[260px] w-[260px] rounded-sm object-cover sm:h-[340px] sm:w-[340px]"
+                    priority
+                    onError={() => setImageError(true)}
+                    unoptimized={!imageError && !!metadata.artwork}
+                  />
 
-                {/* Play Preview for Tracks only */}
-                {isTrack && postData?.previewUrl && (
-                  <div className="absolute -bottom-4 -right-2">
-                    <PlayPreview
-                      previewUrl={postData.previewUrl}
-                      title={metadata.title}
-                      artist={metadata.artist}
-                      artwork={metadata.artwork}
-                      mobile={true}
-                      postId={postData?.postId || postId}
-                      elementType="track"
-                      sourcePlatform={sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey ?? 'unknown'}
-                    />
-                  </div>
-                )}
+                  {/* Play Preview for Tracks only */}
+                  {isTrack && postData?.previewUrl && (
+                    <div className="absolute -bottom-4 -right-2">
+                      <PlayPreview
+                        previewUrl={postData.previewUrl}
+                        title={metadata.title}
+                        artist={metadata.artist}
+                        artwork={metadata.artwork}
+                        mobile={true}
+                        postId={postData?.postId || postId}
+                        elementType="track"
+                        sourcePlatform={sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey ?? 'unknown'}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Track Information Card - Mobile */}

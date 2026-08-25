@@ -71,14 +71,20 @@ test('keeps mobile post cover art at a stable size', async ({ page }) => {
   await page.goto('/post/post-public-track');
 
   const artwork = page.getByRole('img', { name: fixturePosts.publicTrack.title });
-  await expect(artwork).toHaveCSS('width', '260px');
-  await expect(artwork).toHaveCSS('height', '260px');
+  const expectArtworkSize = async (size: number) => {
+    await expect(artwork).toHaveCSS('width', `${size}px`);
+    await expect(artwork).toHaveCSS('height', `${size}px`);
+  };
 
-  await page.reload();
-  await expect(artwork).toHaveCSS('width', '260px');
-  await expect(artwork).toHaveCSS('height', '260px');
+  await expectArtworkSize(260);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await page.reload();
+    await expectArtworkSize(260);
+  }
 
   await page.setViewportSize({ width: 390, height: 900 });
-  await expect(artwork).toHaveCSS('width', '260px');
-  await expect(artwork).toHaveCSS('height', '260px');
+  await expectArtworkSize(260);
+
+  await page.setViewportSize({ width: 640, height: 900 });
+  await expectArtworkSize(340);
 });

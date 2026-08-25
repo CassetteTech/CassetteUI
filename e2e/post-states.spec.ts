@@ -63,3 +63,22 @@ test('marks a failed Spotify track preview unavailable instead of leaving a dead
   await expect(unavailable).toBeVisible();
   await expect(unavailable).toBeDisabled();
 });
+
+test('keeps mobile post cover art at a stable size', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 659 });
+  await mockCassetteApp(page, { posts: [fixturePosts.publicTrack] });
+
+  await page.goto('/post/post-public-track');
+
+  const artwork = page.getByRole('img', { name: fixturePosts.publicTrack.title });
+  await expect(artwork).toHaveCSS('width', '260px');
+  await expect(artwork).toHaveCSS('height', '260px');
+
+  await page.reload();
+  await expect(artwork).toHaveCSS('width', '260px');
+  await expect(artwork).toHaveCSS('height', '260px');
+
+  await page.setViewportSize({ width: 390, height: 900 });
+  await expect(artwork).toHaveCSS('width', '260px');
+  await expect(artwork).toHaveCSS('height', '260px');
+});

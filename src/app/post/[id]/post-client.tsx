@@ -1636,11 +1636,9 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         ) : (
           // Mobile Layout
           <div className="px-4 sm:px-6 md:px-8 pb-2 sm:pb-8 pt-16 max-w-lg mx-auto">
-            {/* First-viewport unit — identical for every post type: toolbar, type
-                label, artwork, info card. The artwork flexes to absorb device
-                height differences so this unit fits the screen (minus a small
-                peek of what follows); the tracklist and everything after it
-                live below the fold. */}
+            {/* First content unit — identical for every post type: toolbar, type
+                label, artwork, info card. The tracklist and secondary actions
+                follow it. */}
             <section className="flex flex-col min-h-[calc(100svh-6.5rem)]">
             {/* Header Toolbar — 1fr/auto/1fr grid keeps Share centered on the
                 screen with Back at the left edge and the owner-only menu at
@@ -1712,43 +1710,35 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                 )}
               </div>
 
-              {/* Album Art — flexes to absorb the leftover first-viewport height.
-                  The square is absolutely positioned: it claims no intrinsic
-                  height (only the wrapper's min-h counts in the fold math), and
-                  its h-full resolves against the wrapper's final size, which an
-                  in-flow child can't do under a min-h-only ancestor chain. */}
-              <div className="relative flex-1 min-h-[120px]">
-                <div className="absolute inset-0 m-auto h-full max-h-[min(340px,calc(100vw-2rem))] aspect-square">
-                  <div className="relative h-full w-full rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10">
-                    <Image
-                      src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
-                      alt={metadata.title}
-                      width={0}
-                      height={0}
-                      sizes="340px"
-                      className="block rounded-sm object-cover w-full h-full"
-                      priority
-                      onError={() => setImageError(true)}
-                      unoptimized={!imageError && !!metadata.artwork}
+              {/* Album Art — fixed by width so browser height changes cannot resize it. */}
+              <div className="relative mx-auto rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10">
+                <Image
+                  src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
+                  alt={metadata.title}
+                  width={340}
+                  height={340}
+                  sizes="(max-width: 639px) 260px, 340px"
+                  className="block h-[260px] w-[260px] rounded-sm object-cover sm:h-[340px] sm:w-[340px]"
+                  priority
+                  onError={() => setImageError(true)}
+                  unoptimized={!imageError && !!metadata.artwork}
+                />
+
+                {/* Play Preview for Tracks only */}
+                {isTrack && postData?.previewUrl && (
+                  <div className="absolute -bottom-4 -right-2">
+                    <PlayPreview
+                      previewUrl={postData.previewUrl}
+                      title={metadata.title}
+                      artist={metadata.artist}
+                      artwork={metadata.artwork}
+                      mobile={true}
+                      postId={postData?.postId || postId}
+                      elementType="track"
+                      sourcePlatform={sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey ?? 'unknown'}
                     />
                   </div>
-
-                  {/* Play Preview for Tracks only */}
-                  {isTrack && postData?.previewUrl && (
-                    <div className="absolute -bottom-4 -right-2">
-                      <PlayPreview
-                        previewUrl={postData.previewUrl}
-                        title={metadata.title}
-                        artist={metadata.artist}
-                        artwork={metadata.artwork}
-                        mobile={true}
-                        postId={postData?.postId || postId}
-                        elementType="track"
-                        sourcePlatform={sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey ?? 'unknown'}
-                      />
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
 
               {/* Track Information Card - Mobile */}

@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { useId, useLayoutEffect, useRef } from 'react';
+import { motion, useMotionValue } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BackButton } from '@/components/ui/back-button';
+import { useSnapCarousel, type UseSnapCarouselResult } from '@/components/ui/interior/snap-carousel';
 import { Loader2, Search, X, Star, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
@@ -327,214 +328,160 @@ function FeaturedCurators() {
 }
 
 /**
- * Coverflow rail: the centered card sits flat and full-size while neighbors
- * fan away with rotateY/depth based on distance from the viewport
- * center. Native scroll + snap does the driving; transforms are written
- * imperatively on a rAF so scrolling never re-renders React.
- *
- * Looping: the list renders several identical copies and the scroll position
- * teleports by one copy width whenever it settles outside the middle copy.
- * The copies are pixel-identical, so the jump is invisible, and it means the
- * first curator starts centered with real neighbors on both sides.
+ * Coverflow rail on the shared snap-carousel mechanics: drag/flick/arrow-key
+ * input drives a spring-animated x motion value that always settles centered
+ * on a card, and every card derives rotateY/depth from that same value, so
+ * the fan tracks the rail continuously. Finite on purpose — each curator
+ * renders exactly once and the ends rubber-band instead of looping, which
+ * retires the teleport-on-settle and iOS momentum-kill hazards of the old
+ * cloned infinite rail.
  */
 function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const frame = useRef(0);
-  const settle = useRef<number | undefined>(undefined);
+  const hintId = useId();
+  // framer still emits a click when a drag ends on a card; swallow that one.
+  const dragged = useRef(false);
 
-  // Duplicate the list until the runway holds at least 75 cards, so even a
-  // hard fling stays deep inside rendered content and the rail reads as
-  // infinite. The settle-time correction still re-normalizes the position;
-  // an odd copy count keeps a true middle copy to normalize back to.
-  const n = curators.length;
-  const minCards = 75;
-  const rawCopies = Math.max(3, Math.ceil(minCards / n));
-  const copies = n > 1 ? rawCopies + (1 - (rawCopies % 2)) : 1;
-  const midCopy = (copies - 1) / 2;
-
-  const updateTransforms = useCallback(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const items = Array.from(track.children) as HTMLElement[];
-    const mid = track.scrollLeft + track.clientWidth / 2;
-    // Cards overlap, so their pitch is narrower than a card. Measuring it makes
-    // t == ±1 the immediate neighbor no matter how deep the overlap gets.
-    const step = items.length > 1 ? items[1].offsetLeft - items[0].offsetLeft : 1;
-    for (const item of items) {
-      const card = item.firstElementChild as HTMLElement | null;
-      if (!card) continue;
-      const t = Math.max(-3, Math.min(3, (item.offsetLeft + item.offsetWidth / 2 - mid) / step));
-      const a = Math.abs(t);
-      const side = Math.sign(t);
-      // Coverflow: the angle ramps fast then holds, so off-center cards all
-      // "file in" at the same tilt. A positive angle on a right-side card
-      // swings its OUTER edge back, so the fan faces inward toward the
-      // centered card; the opposite sign faces cards away from center and
-      // slices the forward outer edge across the centered card.
-      const angle = side * Math.min(a * 2.5, 1) * 45;
-      // Depth does all the shrinking — perspective also pulls receding cards
-      // toward the centered one, which is what tucks them behind it. It must
-      // stay unclamped: two cards at the same depth stop converging and the
-      // fan opens a gap between them instead of filing back in a stack.
-      const depth = -a * 300;
-      card.style.transform = `translateZ(${depth.toFixed(1)}px) rotateY(${angle.toFixed(2)}deg)`;
-      // overflow-x-auto forces the track's transform-style back to flat, so the
-      // browser paints in DOM order instead of depth-sorting and later cards
-      // slice across the centered one. Order the stack by distance ourselves.
-      item.style.zIndex = String(50 - Math.round(a * 10));
-    }
-  }, []);
-
-  // Lands scroll/transform writes in a single frame by suspending the cards'
-  // 200ms ease. The loop teleport is only invisible when it is instant: it
-  // swaps every element's role with a clone's, and easing those swaps makes
-  // the whole rail visibly swing after each scroll settles.
-  const applyInstantly = useCallback((write: () => void) => {
-    const track = trackRef.current;
-    if (!track) return;
-    const cards: HTMLElement[] = [];
-    for (const item of Array.from(track.children)) {
-      const card = item.firstElementChild as HTMLElement | null;
-      if (card) cards.push(card);
-    }
-    for (const card of cards) card.style.transition = 'none';
-    write();
-    // Transform writes don't dirty layout, so no synchronous read can
-    // commit them under transition:none — and rAF callbacks fire BEFORE the
-    // frame's style commit, so a single rAF would restore the ease too early.
-    // Double rAF guarantees one full rendering update lands with transitions
-    // off before they come back.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        for (const card of cards) card.style.removeProperty('transition');
-      });
-    });
-  }, []);
-
-  const recenter = useCallback(() => {
-    const track = trackRef.current;
-    if (!track || copies === 1) return;
-    const items = track.children as HTMLCollectionOf<HTMLElement>;
-    // Measure pitch inside the repeated region: the very first card has no
-    // overlap margin, so spans that include it would skew the copy width.
-    const first = items[midCopy * n];
-    const copyWidth = items[(midCopy + 1) * n].offsetLeft - first.offsetLeft;
-    // Keep the settled position within one copy width centered on the middle
-    // copy's first card; anything outside teleports back by whole copies.
-    const lo = first.offsetLeft + first.offsetWidth / 2 - track.clientWidth / 2 - copyWidth / 2;
-    let next = track.scrollLeft;
-    while (next < lo) next += copyWidth;
-    while (next >= lo + copyWidth) next -= copyWidth;
-    if (next !== track.scrollLeft) {
-      applyInstantly(() => {
-        track.scrollLeft = next;
-        updateTransforms();
-      });
-    }
-  }, [applyInstantly, copies, midCopy, n, updateTransforms]);
-
-  // Teleporting mid-momentum kills the fling on iOS, so the loop correction
-  // only runs once scrolling has settled.
-  const onSettle = useCallback(() => {
-    recenter();
-    updateTransforms();
-  }, [recenter, updateTransforms]);
-
-  const onScroll = useCallback(() => {
-    cancelAnimationFrame(frame.current);
-    frame.current = requestAnimationFrame(updateTransforms);
-    // scrollend is not universal; guarantee a final correction frame after the
-    // last scroll event so momentum + snap never leave stale transforms.
-    clearTimeout(settle.current);
-    settle.current = window.setTimeout(onSettle, 140);
-  }, [onSettle, updateTransforms]);
-
-  // A click on an off-center card means "bring that one to the front", not
-  // "open it". Capture phase so the card's own handler (and the platform link
-  // anchors) never fire — an angled card is a poor click target anyway.
-  const onClickCapture = useCallback((e: React.MouseEvent) => {
-    const track = trackRef.current;
-    if (!track) return;
-    const item = (Array.from(track.children) as HTMLElement[]).find((c) =>
-      c.contains(e.target as Node)
-    );
-    if (!item) return;
-    const offset = item.offsetLeft + item.offsetWidth / 2 - (track.scrollLeft + track.clientWidth / 2);
-    if (Math.abs(offset) < 12) return; // already centered — let the card open
-    e.preventDefault();
-    e.stopPropagation();
-    track.scrollTo({ left: track.scrollLeft + offset, behavior: 'smooth' });
-  }, []);
-
-  // Start on the first curator of the middle copy so both neighbors are
-  // visible immediately; layout effect so neither the jump nor the initial
-  // fan-out paints untransformed first.
-  useLayoutEffect(() => {
-    const track = trackRef.current;
-    if (!track || copies === 1) return;
-    applyInstantly(() => {
-      const item = (track.children as HTMLCollectionOf<HTMLElement>)[midCopy * n];
-      track.scrollLeft = item.offsetLeft + item.offsetWidth / 2 - track.clientWidth / 2;
-      updateTransforms();
-    });
-  }, [applyInstantly, copies, midCopy, n, updateTransforms]);
-
-  useEffect(() => {
-    const track = trackRef.current;
-    updateTransforms();
-    window.addEventListener('resize', updateTransforms);
-    track?.addEventListener('scrollend', onSettle);
-    return () => {
-      window.removeEventListener('resize', updateTransforms);
-      track?.removeEventListener('scrollend', onSettle);
-      cancelAnimationFrame(frame.current);
-      clearTimeout(settle.current);
-    };
-  }, [onSettle, updateTransforms]);
+  const car = useSnapCarousel({ count: curators.length, gap: 0, maxFlick: 3 });
 
   return (
-    <div
-      ref={trackRef}
-      onScroll={onScroll}
-      onClickCapture={onClickCapture}
-      // py must clear the card's shadow: overflow-x-auto forces the vertical axis
-      // to clip too, so a tight padding slices the shadow with a hard line. The
-      // negative vertical margins hand back the slack so the section doesn't
-      // float in dead space. Percentage padding uses the main content width, so
-      // compensate for the matching negative margin to keep snap centers exact.
-      className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-8 -mb-12 flex overflow-x-auto overscroll-x-contain no-scrollbar snap-x snap-mandatory py-14 px-[calc(50%-114px)] sm:px-[calc(50%-116px)] lg:px-[calc(50%-108px)] [perspective:1200px] [transform-style:preserve-3d]"
-    >
-      {/* Wrappers overlap each other's cards, so they must be click-transparent;
-          only the card itself (pointer-events-auto) takes the hit. */}
-      {Array.from({ length: copies }, (_, copy) =>
-        curators.map((curator) => (
-          <div
-            key={`${copy}:${curator.userId}`}
-            aria-hidden={copy !== midCopy || undefined}
-            className="pointer-events-none relative shrink-0 snap-center -ml-24 first:ml-0 [transform-style:preserve-3d]"
-          >
-            {/* Scroll input arrives in coarse steps (wheel notches, snap landings),
-                so the raw per-frame transform reads as stepping. A short ease lets
-                the fan glide between positions; longer than this and the cards
-                visibly trail a finger drag. */}
-            <div className="pointer-events-auto transition-transform duration-200 ease-out will-change-transform [transform-style:preserve-3d]">
-              <CuratorCard curator={curator} focusable={copy === midCopy} />
-            </div>
-          </div>
-        ))
-      )}
-    </div>
+    <>
+      <div
+        ref={car.viewportRef}
+        {...car.viewportProps}
+        aria-label="Featured curators"
+        aria-describedby={hintId}
+        onPointerDownCapture={() => {
+          dragged.current = false;
+        }}
+        // py must clear the card's shadow: overflow-hidden clips the vertical
+        // axis too, and a tight padding slices the shadow with a hard line. The
+        // negative vertical margins hand back the slack so the section doesn't
+        // float in dead space. px sets the slide pitch (card width minus the
+        // 96px coverflow overlap); percentage padding resolves against the main
+        // content width, so it compensates for the negative bleed margins.
+        className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-8 -mb-12 overflow-hidden px-[calc(50%-66px)] py-14 outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-[calc(50%-68px)] lg:px-[calc(50%-60px)] [perspective:1200px]"
+      >
+        <motion.div
+          {...car.trackProps}
+          onDragStart={() => {
+            dragged.current = true;
+            car.trackProps.onDragStart();
+          }}
+          className={cn(
+            'flex [transform-style:preserve-3d]',
+            car.dragging ? 'cursor-grabbing' : 'cursor-grab'
+          )}
+        >
+          {curators.map((curator, i) => (
+            <CoverflowSlide
+              key={curator.userId}
+              curator={curator}
+              position={i}
+              car={car}
+              dragged={dragged}
+            />
+          ))}
+        </motion.div>
+      </div>
+      <span id={hintId} className="sr-only">
+        Left and right arrow keys move between {curators.length} curators.
+      </span>
+      <span aria-live="polite" aria-atomic className="sr-only">
+        Curator {car.index + 1} of {curators.length}
+      </span>
+    </>
   );
 }
 
-function CuratorCard({
+function CoverflowSlide({
   curator,
-  focusable = true,
+  position,
+  car,
+  dragged,
 }: {
   curator: ExploreCurator;
-  // Looping clones are aria-hidden, so nothing inside them may take focus.
-  focusable?: boolean;
+  position: number;
+  car: UseSnapCarouselResult;
+  dragged: { current: boolean };
 }) {
+  const { x, step, goTo } = car;
+  const rotateY = useMotionValue(0);
+  const z = useMotionValue(0);
+  const zIndex = useMotionValue(50);
+  // Pointer interactions handle centering in the click phase; only keyboard
+  // focus (no pointer down in flight) recenters eagerly.
+  const pointing = useRef(false);
+
+  useLayoutEffect(() => {
+    // t is this card's distance from the rail center in card pitches;
+    // subscribing to x keeps the fan glued to the drag without React renders.
+    const update = (v: number) => {
+      const t = step === 0 ? 0 : Math.max(-3, Math.min(3, position + v / step));
+      const a = Math.abs(t);
+      // Coverflow: the angle ramps fast then holds, so off-center cards all
+      // "file in" at the same tilt, with the outer edge swung back so the fan
+      // faces inward toward the centered card.
+      rotateY.set(Math.sign(t) * Math.min(a * 2.5, 1) * 45);
+      // Depth does all the shrinking — perspective also pulls receding cards
+      // toward the centered one, which is what tucks them behind it.
+      z.set(-a * 300);
+      // The track paints in DOM order, so order the stack by distance instead.
+      zIndex.set(50 - Math.round(a * 10));
+    };
+    update(x.get());
+    return x.on('change', update);
+  }, [position, step, x, rotateY, z, zIndex]);
+
+  const offCenter = () =>
+    step !== 0 && Math.abs(position + x.get() / step) > 0.05;
+
+  return (
+    <motion.div
+      role="group"
+      aria-roledescription="slide"
+      aria-label={`${position + 1} of ${car.count}`}
+      style={{ zIndex }}
+      onPointerDownCapture={() => {
+        pointing.current = true;
+      }}
+      onPointerUpCapture={() => {
+        pointing.current = false;
+      }}
+      onPointerCancelCapture={() => {
+        pointing.current = false;
+      }}
+      // Tabbing to an off-screen card must reveal it — the transform-driven
+      // rail means the browser cannot scroll a focused card into view itself.
+      onFocusCapture={() => {
+        if (!pointing.current && offCenter()) goTo(position);
+      }}
+      // A click on an off-center card means "bring that one to the front", not
+      // "open it" — an angled card is a poor click target anyway.
+      onClickCapture={(e) => {
+        if (dragged.current) {
+          dragged.current = false;
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        if (!offCenter()) return;
+        e.preventDefault();
+        e.stopPropagation();
+        goTo(position);
+      }}
+      className="w-full shrink-0 select-none [transform-style:preserve-3d]"
+    >
+      {/* Cells tile at the pitch; the wider card centers over its cell and
+          overlaps its neighbors, which is what packs the fan into a stack.
+          w-fit keeps the transform origin on the card's own center. */}
+      <motion.div style={{ rotateY, z }} className="-ml-12 w-fit will-change-transform">
+        <CuratorCard curator={curator} />
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function CuratorCard({ curator }: { curator: ExploreCurator }) {
   const router = useRouter();
   const displayName = curator.displayName?.trim() || curator.username;
   const artwork = curator.recentArtworkUrls.slice(0, 4);
@@ -552,7 +499,7 @@ function CuratorCard({
     // (nested <a> is invalid HTML and browsers restructure it).
     <div
       role="link"
-      tabIndex={focusable ? 0 : -1}
+      tabIndex={0}
       aria-label={`View ${displayName} on Cassette`}
       onClick={openProfile}
       onKeyDown={(e) => {
@@ -643,7 +590,6 @@ function CuratorCard({
                 <a
                   key={link.href}
                   href={link.href}
-                  tabIndex={focusable ? undefined : -1}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
                   onClick={(e) => e.stopPropagation()}

@@ -31,6 +31,7 @@ import { ColorExtractor, ColorPalette } from '@/services/color-extractor';
 import { MainContainer } from '@/components/ui/container';
 import { HeadlineText, BodyText } from '@/components/ui/typography';
 import Image from 'next/image';
+import { ArtworkImage } from '@/components/ui/artwork-image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError, apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
@@ -1157,7 +1158,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   {/* Artwork — clean sleeve */}
                   <div className="relative mb-8">
                     <div className="relative rounded-md bg-card p-2.5 elev-3 ring-1 ring-foreground/10">
-                      <Image
+                      <ArtworkImage
                         src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
                         alt={metadata.title}
                         width={340}
@@ -1459,7 +1460,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   <div className="flex-[2] flex justify-center">
                     <div className="relative">
                       <div className="relative rounded-md bg-card p-3 elev-3 ring-1 ring-foreground/10">
-                        <Image
+                        <ArtworkImage
                           src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
                           alt={metadata.title}
                           width={440}
@@ -1713,7 +1714,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
               {/* Album Art — fixed by width so browser height changes cannot resize it. */}
               <div className="flex flex-1 items-center justify-center">
                 <div className="relative rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10">
-                  <Image
+                  <ArtworkImage
                     src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
                     alt={metadata.title}
                     width={340}

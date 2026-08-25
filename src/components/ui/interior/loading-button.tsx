@@ -1,100 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
-const CELL = { type: "spring", stiffness: 520, damping: 34, mass: 0.45 } as const;
 const CROSSFADE = { type: "spring", stiffness: 260, damping: 34, mass: 0.8 } as const;
 const INSTANT = { duration: 0 } as const;
-
-export type AsyncActionStatus = "idle" | "pending" | "success" | "error";
-
-export type UseAsyncActionOptions = {
-  action: () => unknown;
-  resetAfter?: number;
-  onError?: (error: unknown) => void;
-};
-
-export function useAsyncAction({
-  action,
-  resetAfter = 1400,
-  onError,
-}: UseAsyncActionOptions) {
-  const [status, setStatus] = useState<AsyncActionStatus>("idle");
-
-  const phase = useRef<AsyncActionStatus>("idle");
-  const runId = useRef(0);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const alive = useRef(true);
-
-  const act = useRef(action);
-  const fail = useRef(onError);
-
-  useEffect(() => {
-    act.current = action;
-    fail.current = onError;
-  });
-
-  const clear = useCallback(() => {
-    if (timer.current) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
-  }, []);
-
-  const reset = useCallback(() => {
-    runId.current += 1;
-    clear();
-    phase.current = "idle";
-    setStatus("idle");
-  }, [clear]);
-
-  const run = useCallback(() => {
-    if (phase.current === "pending") return;
-
-    clear();
-    const id = ++runId.current;
-    phase.current = "pending";
-    setStatus("pending");
-
-    const settle = (next: "success" | "error") => {
-      if (!alive.current || id !== runId.current) return;
-      clear();
-      phase.current = next;
-      setStatus(next);
-      timer.current = setTimeout(() => {
-        if (!alive.current || id !== runId.current) return;
-        phase.current = "idle";
-        setStatus("idle");
-      }, resetAfter);
-    };
-
-    Promise.resolve()
-      .then(() => act.current())
-      .then(
-        () => settle("success"),
-        (error: unknown) => {
-          fail.current?.(error);
-          settle("error");
-        },
-      );
-  }, [clear, resetAfter]);
-
-  useEffect(() => {
-    alive.current = true;
-    return () => {
-      alive.current = false;
-      clear();
-    };
-  }, [clear]);
-
-  return {
-    status,
-    run,
-    reset,
-    pending: status === "pending",
-  };
-}
 
 function Spinner({ still }: { still: boolean }) {
   return (
@@ -128,156 +38,60 @@ function Spinner({ still }: { still: boolean }) {
   );
 }
 
-function CheckMark() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="none"
-      aria-hidden="true"
-      className="shrink-0"
-    >
-      <path
-        d="M2.6 6.3 4.9 8.6 9.4 3.6"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function AlertMark() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="none"
-      aria-hidden="true"
-      className="shrink-0"
-    >
-      <path d="M6 2.9v3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <path d="M6 9.05h.01" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-export type LoadingButtonProps = {
-  onAction: () => unknown;
-  children: string;
-  pendingLabel?: string;
-  successLabel?: string;
-  errorLabel?: string;
-  resetAfter?: number;
-  disabled?: boolean;
-  onError?: (error: unknown) => void;
+export type PendingLabelProps = {
+  pending: boolean;
+  label: ReactNode;
+  pendingLabel?: ReactNode;
   className?: string;
 };
 
-export function LoadingButton({
-  onAction,
-  children,
-  pendingLabel = children,
-  successLabel = "Done",
-  errorLabel = "Try again",
-  resetAfter = 1400,
-  disabled = false,
-  onError,
+/**
+ * Crossfades an idle label with a spinner + pending label inside an existing
+ * button. Faces are stacked in one grid cell, so the width stays reserved at
+ * the widest face — no layout jump when the pending state toggles.
+ * Use when the caller already owns the async lifecycle (forms, stores).
+ */
+export function PendingLabel({
+  pending,
+  label,
+  pendingLabel = label,
   className = "",
-}: LoadingButtonProps) {
+}: PendingLabelProps) {
   const reduced = useReducedMotion();
-
-  const { status, run, pending } = useAsyncAction({
-    action: onAction,
-    resetAfter,
-    onError,
-  });
-
   const fade = reduced ? INSTANT : CROSSFADE;
 
-
-  const label =
-    status === "pending"
-      ? pendingLabel
-      : status === "success"
-        ? successLabel
-        : status === "error"
-          ? errorLabel
-          : children;
-
   const faces = [
-    {
-      key: "idle",
-      text: children,
-      tone: "text-foreground",
-      icon: null,
-    },
+    { key: "idle", active: !pending, content: label },
     {
       key: "pending",
-      text: pendingLabel,
-      tone: "text-muted-foreground",
-      icon: <Spinner still={reduced === true || status !== "pending"} />,
-    },
-    {
-      key: "success",
-      text: successLabel,
-      tone: "text-emerald-600",
-      icon: <CheckMark />,
-    },
-    {
-      key: "error",
-      text: errorLabel,
-      tone: "text-red-600",
-      icon: <AlertMark />,
+      active: pending,
+      content: (
+        <>
+          <Spinner still={reduced === true || !pending} />
+          {pendingLabel}
+        </>
+      ),
     },
   ];
 
   return (
-    <>
-      <motion.button
-        type="button"
-        disabled={disabled}
-        aria-label={label}
-        aria-busy={pending || undefined}
-        aria-disabled={pending || undefined}
-        whileTap={disabled || pending || reduced ? undefined : { y: 1 }}
-        transition={CELL}
-        onClick={(event) => {
-          if (pending) {
-            event.preventDefault();
-            return;
+    <span aria-busy={pending || undefined} className={`relative grid place-items-center ${className}`}>
+      {faces.map((face) => (
+        <motion.span
+          key={face.key}
+          initial={false}
+          aria-hidden={!face.active || undefined}
+          animate={
+            face.active
+              ? { opacity: 1, y: 0, filter: "blur(0px)" }
+              : { opacity: 0, y: 3, filter: "blur(3px)" }
           }
-          run();
-        }}
-        className={`relative inline-flex h-9 select-none items-center justify-center rounded-[9px] border border-border bg-card px-3.5 text-[13px] font-medium text-foreground shadow-[inset_0_1.5px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(28,25,23,0.06),0_1px_2px_rgba(28,25,23,0.08)] outline-none transition-[border-color,box-shadow,background-color] duration-150 hover:bg-muted/50 focus-visible:border-primary focus-visible:shadow-[0_1px_2px_rgba(28,25,23,0.08),0_10px_20px_-14px_rgba(69,104,255,0.6)] disabled:opacity-50(255,255,255,0.07),0_1px_2px_rgba(0,0,0,0.4)](147,176,255,0.5)] ${className}`}
-        style={{ borderRadius: 9, touchAction: "manipulation" }}
-      >
-        <span aria-hidden className="relative grid place-items-center">
-          {faces.map((face) => (
-            <motion.span
-              key={face.key}
-              initial={false}
-              animate={
-                face.key === status
-                  ? { opacity: 1, y: 0, filter: "blur(0px)" }
-                  : { opacity: 0, y: 3, filter: "blur(3px)" }
-              }
-              transition={fade}
-              className={`col-start-1 row-start-1 flex items-center justify-center gap-1.5 whitespace-nowrap ${face.tone}`}
-            >
-              {face.icon}
-              {face.text}
-            </motion.span>
-          ))}
-        </span>
-      </motion.button>
-
-      <span role="status" aria-live="polite" className="sr-only">
-        {status === "success" ? successLabel : status === "error" ? errorLabel : ""}
-      </span>
-    </>
+          transition={fade}
+          className="col-start-1 row-start-1 inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
+        >
+          {face.content}
+        </motion.span>
+      ))}
+    </span>
   );
 }

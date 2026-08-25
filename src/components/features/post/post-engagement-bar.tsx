@@ -4,6 +4,9 @@ import { Heart, Repeat2, MessageSquare, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { ValueFlash } from '@/components/ui/interior/value-flash';
+
+const numberFormatter = new Intl.NumberFormat('en-US');
 
 interface PostEngagementBarProps {
   likeCount?: number;
@@ -49,11 +52,8 @@ export function PostEngagementBar({
   const btnGap = compact ? 'gap-1' : 'gap-1 sm:gap-1.5';
   const hasLikeData = typeof likeCount === 'number';
   const hasCommentCount = typeof commentCount === 'number';
-  const formattedLikes = hasLikeData
-    ? new Intl.NumberFormat('en-US').format(Math.max(0, likeCount))
-    : null;
   const formattedComments = hasCommentCount
-    ? new Intl.NumberFormat('en-US').format(Math.max(0, commentCount))
+    ? numberFormatter.format(Math.max(0, commentCount))
     : null;
 
   const commentsAriaLabel = hasCommentCount
@@ -93,7 +93,9 @@ export function PostEngagementBar({
         >
           <Heart className={cn('size-3.5', likedByCurrentUser && 'fill-current')} />
         </motion.span>
-        {hasLikeData && <span className="tabular-nums">{formattedLikes}</span>}
+        {hasLikeData && (
+          <ValueFlash value={Math.max(0, likeCount)} format={numberFormatter.format} label="Likes" />
+        )}
       </button>
 
       <span className="h-4 w-px bg-border/40" aria-hidden />
@@ -115,7 +117,7 @@ export function PostEngagementBar({
       >
         <MessageSquare className="size-3.5" />
         {hasCommentCount ? (
-          <span className="tabular-nums">{formattedComments}</span>
+          <ValueFlash value={Math.max(0, commentCount)} format={numberFormatter.format} label="Comments" />
         ) : (
           <span
             aria-hidden

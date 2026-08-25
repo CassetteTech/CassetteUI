@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { DeleteCommentDialog } from './delete-comment-dialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
@@ -70,6 +71,7 @@ export function PostCommentsSheet({
   const [replyContent, setReplyContent] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [pendingLikeIds, setPendingLikeIds] = useState<Record<string, boolean>>({});
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
   const [visibleRepliesCount, setVisibleRepliesCount] = useState<Record<string, number>>({});
@@ -662,7 +664,7 @@ export function PostCommentsSheet({
                           <button
                             type="button"
                             disabled={pendingDeleteId === comment.commentId}
-                            onClick={() => void handleDelete(comment.commentId)}
+                            onClick={() => setConfirmDeleteId(comment.commentId)}
                             className="rounded-full p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                           >
                             <Trash2 className="size-3" />
@@ -900,6 +902,20 @@ export function PostCommentsSheet({
     </div>
   );
 
+  const deleteConfirmDialog = (
+    <DeleteCommentDialog
+      open={confirmDeleteId !== null}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) setConfirmDeleteId(null);
+      }}
+      onConfirm={() => {
+        if (confirmDeleteId) void handleDelete(confirmDeleteId);
+      }}
+      contentClassName="z-[70]"
+      overlayClassName="z-[70]"
+    />
+  );
+
   if (isMobile) {
     if (!hasMounted || !open) return null;
 
@@ -947,6 +963,7 @@ export function PostCommentsSheet({
             </div>
           </div>
         </div>
+        {deleteConfirmDialog}
       </>,
       document.body
     );
@@ -977,6 +994,7 @@ export function PostCommentsSheet({
           <div className="border-t border-border bg-background/80 backdrop-blur-sm px-3 sm:px-5 py-2.5 sm:py-3 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
             {composer}
           </div>
+          {deleteConfirmDialog}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

@@ -12,7 +12,7 @@ import {
 const CELL = { type: "spring", stiffness: 520, damping: 34, mass: 0.45 } as const;
 
 const SEG =
-  "px-3 py-[7px] text-center text-[13px] font-medium leading-[18px] tracking-[-0.01em] whitespace-nowrap";
+  "px-2.5 py-1 text-center text-[11px] font-medium leading-4 whitespace-nowrap";
 
 export type SegmentedOption = {
   value: string;
@@ -21,7 +21,7 @@ export type SegmentedOption = {
 };
 
 export type SegmentedControlProps = {
-  options: SegmentedOption[];
+  options: ReadonlyArray<SegmentedOption>;
   label: string;
   value?: string;
   defaultValue?: string;
@@ -118,7 +118,7 @@ export function SegmentedControl({
     <div
       role="radiogroup"
       aria-label={label}
-      className={`relative inline-block select-none rounded-[9px] border border-border bg-muted/70 p-[3px] shadow-[inset_0_1px_2px_rgba(28,25,23,0.07)](0,0,0,0.45)] ${className}`}
+      className={`relative inline-block select-none rounded-lg bg-muted p-0.5 ${className}`}
     >
       <div
         className="relative grid"
@@ -130,7 +130,7 @@ export function SegmentedControl({
             aria-hidden
             className={`${SEG} pointer-events-none ${
               option.disabled
-                ? "text-primary-foreground/60"
+                ? "text-muted-foreground/50"
                 : hovered === i && i !== index
                   ? "text-foreground"
                   : "text-muted-foreground"
@@ -142,7 +142,7 @@ export function SegmentedControl({
 
         <motion.div
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 left-0 overflow-hidden rounded-[6px] bg-primary shadow-[0_1px_2px_rgba(28,25,23,0.28)](0,0,0,0.5)]"
+          className="pointer-events-none absolute inset-y-0 left-0 overflow-hidden rounded-md bg-card shadow-sm"
           style={{ width: `${100 / count}%`, x: thumbX }}
           initial={false}
         >
@@ -158,7 +158,7 @@ export function SegmentedControl({
               {options.map((option) => (
                 <span
                   key={option.value}
-                  className={`${SEG} text-primary-foreground`}
+                  className={`${SEG} text-foreground`}
                 >
                   {option.label}
                 </span>
@@ -185,7 +185,7 @@ export function SegmentedControl({
               onClick={() => !option.disabled && select(option.value)}
               onKeyDown={(e) => onKeyDown(e, i)}
               onPointerEnter={() => !option.disabled && setHovered(i)}
-              className="cursor-default rounded-[6px] outline-none focus-visible:bg-primary/10 focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--primary))]"
+              className="cursor-default rounded-md outline-none focus-visible:bg-primary/10 focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--primary))]"
             >
               <span className="sr-only">{option.label}</span>
             </button>

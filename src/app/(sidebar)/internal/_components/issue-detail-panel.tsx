@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Copy, Inbox } from 'lucide-react';
+import { Inbox } from 'lucide-react';
 import type { InternalIssueDetail, InternalTargetMatchCandidate } from '@/types';
-import { Field, Mono, Panel, StatusPill } from './kit/primitives';
-import { copyToClipboard, formatDate, formatDuration, statusTone } from './internal-utils';
+import { CopyId, Field, Mono, Panel, StatusPill } from './kit/primitives';
+import { formatDate, formatDuration, statusTone } from './internal-utils';
 
 interface IssueDetailPanelProps {
   issue: InternalIssueDetail | null;
@@ -206,10 +206,7 @@ export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
 
       <div className="border-t border-border px-3 py-1.5">
         <Field label="ID">
-          <span className="inline-flex items-center gap-1">
-            <Mono>{issue.id}</Mono>
-            <button type="button" onClick={() => void copyToClipboard(issue.id, 'ID')} className="text-muted-foreground hover:text-foreground"><Copy className="h-3 w-3" /></button>
-          </span>
+          <CopyId value={issue.id} label="ID" />
         </Field>
         {clientContext.elementType && <Field label="Element"><Mono>{clientContext.elementType}</Mono></Field>}
         {clientContext.routeContext && <Field label="Route"><Mono>{clientContext.routeContext}</Mono></Field>}

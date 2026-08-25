@@ -109,9 +109,9 @@ export type PasswordStrengthProps = {
 
 const TONES = {
   none: { bar: "bg-muted", text: "text-muted-foreground" },
-  danger: { bar: "bg-red-500", text: "text-red-600" },
-  caution: { bar: "bg-amber-500", text: "text-amber-600" },
-  safe: { bar: "bg-emerald-500", text: "text-emerald-600" },
+  danger: { bar: "bg-destructive", text: "text-destructive" },
+  caution: { bar: "bg-warning", text: "text-warning-text" },
+  safe: { bar: "bg-success", text: "text-success-text" },
 } as const;
 
 function toneFor(score: number, max: number) {
@@ -188,7 +188,7 @@ export function PasswordStrength({
 
         <motion.span
           aria-hidden
-          className="whitespace-nowrap text-[11.5px] leading-5 text-amber-600"
+          className="whitespace-nowrap text-[11.5px] leading-5 text-warning-text"
           initial={false}
           animate={{ opacity: guessable ? 1 : 0 }}
           transition={reduced ? INSTANT : CROSSFADE}
@@ -201,9 +201,9 @@ export function PasswordStrength({
         <ul className="mt-3 grid gap-1.5">
           {evaluated.map((rule) => (
             <li key={rule.id} className="flex items-center gap-2">
-              <span className="relative grid size-[14px] shrink-0 place-items-center rounded-[4px] border border-border text-primary-foreground">
+              <span className="relative grid size-[14px] shrink-0 place-items-center rounded-[4px] border border-border text-success-foreground">
                 <motion.span
-                  className="absolute inset-0 rounded-[3px] bg-emerald-500"
+                  className="absolute inset-0 rounded-[3px] bg-success"
                   initial={false}
                   animate={{ opacity: rule.met ? 1 : 0 }}
                   transition={reduced ? INSTANT : CROSSFADE}

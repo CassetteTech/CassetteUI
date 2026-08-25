@@ -123,21 +123,21 @@ export function ValueFlash({
 
   const tone = flashing
     ? direction === "up"
-      ? "text-emerald-600"
-      : "text-red-600"
-    : "text-foreground";
+      ? "text-success-text"
+      : "text-destructive"
+    : "";
 
   const tint =
     direction === "up"
-      ? "bg-emerald-500/[0.12]"
-      : "bg-red-500/[0.12]";
+      ? "bg-success/[0.12]"
+      : "bg-destructive/[0.12]";
 
   return (
     <motion.span
       initial={false}
       animate={{ scale: reduced ? 1 : flashing ? 1.05 : 1 }}
       transition={reduced ? STILL : flashing ? LIFT : SETTLE}
-      className={`relative inline-grid grid-flow-col items-center gap-1.5 rounded-[6px] px-1.5 py-[3px] text-[13px] font-medium tabular-nums transition-colors duration-200 ${tone} ${className}`}
+      className={`relative inline-grid grid-flow-col items-center gap-1 rounded-[6px] tabular-nums transition-colors duration-200 ${tone} ${className}`}
     >
       {direction ? (
         <motion.span

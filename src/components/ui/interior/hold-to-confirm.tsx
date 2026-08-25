@@ -8,6 +8,7 @@ import {
   useReducedMotion,
   useTransform,
 } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 const FACE = { type: "spring", stiffness: 260, damping: 34, mass: 0.8 } as const;
 
@@ -20,8 +21,6 @@ export type UseHoldToConfirmOptions = {
   duration?: number;
   steps?: number;
   releaseRate?: number;
-  moveTolerance?: number;
-  haptic?: boolean;
   disabled?: boolean;
 };
 
@@ -31,8 +30,6 @@ export function useHoldToConfirm({
   duration = 1800,
   steps = 20,
   releaseRate = 2.5,
-  moveTolerance = 10,
-  haptic = true,
   disabled = false,
 }: UseHoldToConfirmOptions) {
   const [step, setStep] = useState(0);
@@ -91,7 +88,7 @@ export function useHoldToConfirm({
           origin.current = null;
           setStep(steps);
           move("committed");
-          if (haptic) navigator.vibrate?.(14);
+          navigator.vibrate?.(14);
           confirm.current();
           return;
         }
@@ -115,7 +112,7 @@ export function useHoldToConfirm({
 
       raf.current = requestAnimationFrame(loop);
     },
-    [disabled, duration, steps, releaseRate, haptic, move],
+    [disabled, duration, steps, releaseRate, move],
   );
 
   const release = useCallback(() => {
@@ -150,7 +147,7 @@ export function useHoldToConfirm({
     onPointerMove: (e: React.PointerEvent) => {
       const from = origin.current;
       if (phaseRef.current !== "holding" || !from) return;
-      if (Math.hypot(e.clientX - from.x, e.clientY - from.y) > moveTolerance) {
+      if (Math.hypot(e.clientX - from.x, e.clientY - from.y) > 10) {
         release();
       }
     },
@@ -203,6 +200,7 @@ export type HoldToConfirmProps = {
   releaseRate?: number;
   disabled?: boolean;
   className?: string;
+  fillClassName?: string;
 };
 
 export function HoldToConfirm({
@@ -216,6 +214,7 @@ export function HoldToConfirm({
   releaseRate = 2.5,
   disabled = false,
   className = "",
+  fillClassName = "",
 }: HoldToConfirmProps) {
   const { bind, phase, reset } = useHoldToConfirm({
     onConfirm,
@@ -279,9 +278,11 @@ export function HoldToConfirm({
       aria-describedby={hintId}
       {...bind}
       style={{ touchAction: "manipulation", WebkitTouchCallout: "none" }}
-      className={`relative isolate inline-grid h-10 select-none place-items-center overflow-hidden rounded-[9px] border border-border bg-card px-4 text-[13px] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-        disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
-      } ${className}`}
+      className={cn(
+        "relative isolate inline-grid h-10 select-none place-items-center overflow-hidden rounded-[9px] border border-border bg-card px-4 text-[13px] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+        className,
+      )}
     >
       <Faces committed={committed} confirmLabel={confirmLabel}>
         {children}
@@ -290,7 +291,10 @@ export function HoldToConfirm({
       <motion.span
         aria-hidden
         style={{ clipPath }}
-        className="absolute inset-0 grid place-items-center bg-primary px-4 text-primary-foreground"
+        className={cn(
+          "absolute inset-0 grid place-items-center bg-primary px-4 text-primary-foreground",
+          fillClassName,
+        )}
       >
         <Faces committed={committed} confirmLabel={confirmLabel}>
           {children}

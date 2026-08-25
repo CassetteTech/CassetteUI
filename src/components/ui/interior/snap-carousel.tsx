@@ -1,28 +1,12 @@
 "use client";
 
-import {
-  Children,
-  isValidElement,
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   animate,
-  motion,
   useIsomorphicLayoutEffect,
   useMotionValue,
   useReducedMotion,
 } from "framer-motion";
-
-const CELL = {
-  type: "spring",
-  stiffness: 520,
-  damping: 34,
-  mass: 0.45,
-} as const;
 
 const CROSSFADE = {
   type: "spring",
@@ -78,7 +62,6 @@ export function useSnapCarousel({
   const [dragging, setDragging] = useState(false);
 
   const index = clamp(controlled ?? uncontrolled, 0, total - 1);
-  const [target, setTarget] = useState(index);
   const step = slideWidth + gap;
 
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -113,7 +96,6 @@ export function useSnapCarousel({
     (next: number, velocity = 0) => {
       const shelf = metrics.current;
       const to = clamp(Math.round(next), 0, shelf.total - 1);
-      setTarget(to);
       if (to !== live.current) {
         live.current = to;
         setUncontrolled(to);
@@ -204,16 +186,7 @@ export function useSnapCarousel({
   const onDragStart = useCallback(() => {
     anim.current?.stop();
     setDragging(true);
-    setTarget(live.current);
   }, []);
-
-  const onDrag = useCallback(
-    (_event: MouseEvent | TouchEvent | PointerEvent, info: DragInfo) => {
-      const to = pick(info.velocity.x);
-      setTarget((current) => (current === to ? current : to));
-    },
-    [pick],
-  );
 
   const onDragEnd = useCallback(
     (_event: MouseEvent | TouchEvent | PointerEvent, info: DragInfo) => {
@@ -262,7 +235,6 @@ export function useSnapCarousel({
     dragElastic: 0.14,
     dragConstraints: { left: -(total - 1) * step, right: 0 },
     onDragStart,
-    onDrag,
     onDragEnd,
     style: { x, gap: `${gap}px`, touchAction: "pan-y" as const },
   };
@@ -270,10 +242,7 @@ export function useSnapCarousel({
   return {
     index,
     count: total,
-    target,
-    shown: dragging ? target : index,
     dragging,
-    slideWidth,
     step,
     x,
     goTo,
@@ -287,161 +256,3 @@ export function useSnapCarousel({
 
 export type UseSnapCarouselResult = ReturnType<typeof useSnapCarousel>;
 
-const CARET_LEFT = (
-  <svg width="14" height="14" viewBox="0 0 256 256" fill="none" aria-hidden="true">
-    <polyline
-      points="160 208 80 128 160 48"
-      stroke="currentColor"
-      strokeWidth="16"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-const CARET_RIGHT = (
-  <svg width="14" height="14" viewBox="0 0 256 256" fill="none" aria-hidden="true">
-    <polyline
-      points="96 48 176 128 96 208"
-      stroke="currentColor"
-      strokeWidth="16"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-export type SnapCarouselProps = {
-  children: React.ReactNode;
-  label: string;
-  index?: number;
-  defaultIndex?: number;
-  onIndexChange?: (index: number) => void;
-  gap?: number;
-  peek?: number;
-  momentum?: number;
-  maxFlick?: number;
-  prevLabel?: string;
-  nextLabel?: string;
-  className?: string;
-};
-
-export function SnapCarousel({
-  children,
-  label,
-  index,
-  defaultIndex = 0,
-  onIndexChange,
-  gap = 12,
-  peek = 0,
-  momentum = 0.14,
-  maxFlick = 1,
-  prevLabel = "Previous slide",
-  nextLabel = "Next slide",
-  className = "",
-}: SnapCarouselProps) {
-  const slides = Children.toArray(children);
-  const hintId = useId();
-  const reduced = useReducedMotion();
-
-  const car = useSnapCarousel({
-    count: slides.length,
-    index,
-    defaultIndex,
-    onIndexChange,
-    gap,
-    momentum,
-    maxFlick,
-  });
-
-  const button =
-    "grid size-7 place-items-center rounded-[6px] border border-border bg-card text-foreground shadow-[inset_0_1.5px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(28,25,23,0.06),0_1px_2px_rgba(28,25,23,0.08)] outline-none transition-[background-color,border-color,box-shadow,transform] duration-150 hover:bg-muted/50 active:translate-y-px active:shadow-[inset_0_1px_2px_rgba(28,25,23,0.06)] focus-visible:border-primary focus-visible:shadow-[0_1px_2px_rgba(28,25,23,0.08),0_10px_20px_-14px_rgba(69,104,255,0.6)](255,255,255,0.07),0_1px_2px_rgba(0,0,0,0.4)](147,176,255,0.5)]";
-
-  return (
-    <div className={`w-full ${className}`}>
-      <div
-        ref={car.viewportRef}
-        aria-label={label}
-        aria-describedby={hintId}
-        style={{
-          paddingLeft: peek,
-          paddingRight: peek,
-          ...(peek > 0
-            ? {
-                WebkitMaskImage: `linear-gradient(to right, transparent 0, black ${peek + 14}px, black calc(100% - ${peek + 14}px), transparent 100%)`,
-                maskImage: `linear-gradient(to right, transparent 0, black ${peek + 14}px, black calc(100% - ${peek + 14}px), transparent 100%)`,
-              }
-            : {}),
-        }}
-        className="relative overflow-hidden rounded-[14px] py-1.5 outline-none focus-visible:bg-primary/10 focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--primary))]"
-        {...car.viewportProps}
-      >
-        <motion.div
-          {...car.trackProps}
-          className={`flex items-stretch ${
-            car.dragging ? "cursor-grabbing" : "cursor-grab"
-          }`}
-        >
-          {slides.map((slide, i) => (
-            <motion.div
-              key={isValidElement(slide) && slide.key ? slide.key : i}
-              role="group"
-              aria-roledescription="slide"
-              aria-label={`${i + 1} of ${slides.length}`}
-              inert={i !== car.index}
-              initial={false}
-              animate={
-                i === car.shown
-                  ? { scale: 1, opacity: 1 }
-                  : { scale: 0.96, opacity: 0.55 }
-              }
-              transition={reduced ? { duration: 0 } : CROSSFADE}
-              className="w-full shrink-0 select-none"
-            >
-              {slide}
-            </motion.div>
-          ))}
-        </motion.div>
-      </div>
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <span className="flex items-center gap-[3px]">
-          {slides.map((slide, i) => (
-            <button
-              key={isValidElement(slide) && slide.key ? slide.key : i}
-              type="button"
-              onClick={() => car.goTo(i)}
-              aria-label={`Go to slide ${i + 1}`}
-              aria-current={i === car.index ? "true" : undefined}
-              className="grid h-[18px] w-[16px] place-items-center rounded-[5px] outline-none focus-visible:bg-primary/10 focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--primary))]"
-            >
-              <motion.span
-                initial={false}
-                animate={
-                  i === car.shown
-                    ? { scaleX: 1, opacity: 1 }
-                    : { scaleX: 0.36, opacity: 0.26 }
-                }
-                transition={reduced ? { duration: 0 } : CELL}
-                className="block h-[5px] w-[14px] rounded-[1.5px] bg-primary"
-              />
-            </button>
-          ))}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <button type="button" onClick={car.prev} aria-label={prevLabel} className={button}>
-            {CARET_LEFT}
-          </button>
-          <button type="button" onClick={car.next} aria-label={nextLabel} className={button}>
-            {CARET_RIGHT}
-          </button>
-        </span>
-      </div>
-      <span id={hintId} className="sr-only">
-        Left and right arrow keys move between {slides.length} slides.
-      </span>
-      <span aria-live="polite" aria-atomic className="sr-only">
-        Slide {car.index + 1} of {slides.length}
-      </span>
-    </div>
-  );
-}

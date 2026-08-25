@@ -16,6 +16,7 @@ import { AlertTriangle, Camera, Globe2, Lock, Plus, X } from 'lucide-react';
 import { AvatarCropDialog } from '@/components/shared/avatar-crop-dialog';
 import { appLogger } from '@/lib/observability/logger';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
+import { PendingLabel } from '@/components/ui/interior/loading-button';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SOURCE_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -510,7 +511,7 @@ export function EditProfileFormComponent({
               data-testid="profile-save"
               className="flex-1 rounded-md bg-primary px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-primary-foreground elev-1 transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Saving…' : 'Save'}
+              <PendingLabel pending={isLoading} label="Save" pendingLabel="Saving…" />
             </button>
           </div>
         </div>

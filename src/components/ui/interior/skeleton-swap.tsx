@@ -107,7 +107,7 @@ export function SkeletonSwap({
       aria-label={label}
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
       tabIndex={scrollable ? 0 : undefined}
-      style={{ height: box }}
+      style={{ minHeight: box }}
       className={`relative grid overflow-y-auto overscroll-contain text-foreground ${className}`}
     >
       <motion.div

@@ -286,11 +286,12 @@ function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
 }
 
 function FeaturedCurators() {
-  const { data: curators } = useExploreCurators();
+  const { data: curators, isLoading } = useExploreCurators();
 
-  // Promotional section: render nothing (not even a skeleton) until verified
-  // curators actually arrive, so the page is unchanged when there are none.
-  if (!curators || curators.length === 0) {
+  // Promotional section: reserve the space with a skeleton rail immediately so
+  // navigation doesn't pop the section in later; render nothing only once we
+  // know there are no verified curators (or the fetch failed).
+  if (!isLoading && (!curators || curators.length === 0)) {
     return null;
   }
 
@@ -310,14 +311,24 @@ function FeaturedCurators() {
         </p>
       </div>
 
-      <CuratorCoverflow curators={curators} />
+      {curators && curators.length > 0 ? (
+        <CuratorCoverflow curators={curators} />
+      ) : (
+        // Mirrors the coverflow's vertical rhythm (card size and margin/padding
+        // slack) so the real rail mounts without a layout shift.
+        <div className="-mt-8 -mb-12 flex justify-center gap-6 overflow-hidden py-14">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-[4/5] w-[260px] shrink-0 rounded-2xl sm:w-[280px]" />
+          ))}
+        </div>
+      )}
     </motion.section>
   );
 }
 
 /**
  * Coverflow rail: the centered card sits flat and full-size while neighbors
- * fan away with rotateY/scale/opacity based on distance from the viewport
+ * fan away with rotateY/depth based on distance from the viewport
  * center. Native scroll + snap does the driving; transforms are written
  * imperatively on a rAF so scrolling never re-renders React.
  *
@@ -367,7 +378,6 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       // fan opens a gap between them instead of filing back in a stack.
       const depth = -a * 300;
       card.style.transform = `translateZ(${depth.toFixed(1)}px) rotateY(${angle.toFixed(2)}deg)`;
-      card.style.opacity = (1 - Math.min(a * 0.22, 0.5)).toFixed(3);
       // overflow-x-auto forces the track's transform-style back to flat, so the
       // browser paints in DOM order instead of depth-sorting and later cards
       // slice across the centered one. Order the stack by distance ourselves.
@@ -378,7 +388,7 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
   // Lands scroll/transform writes in a single frame by suspending the cards'
   // 200ms ease. The loop teleport is only invisible when it is instant: it
   // swaps every element's role with a clone's, and easing those swaps makes
-  // the whole rail visibly swing and fade after each scroll settles.
+  // the whole rail visibly swing after each scroll settles.
   const applyInstantly = useCallback((write: () => void) => {
     const track = trackRef.current;
     if (!track) return;
@@ -389,7 +399,7 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     }
     for (const card of cards) card.style.transition = 'none';
     write();
-    // Transform/opacity writes don't dirty layout, so no synchronous read can
+    // Transform writes don't dirty layout, so no synchronous read can
     // commit them under transition:none — and rAF callbacks fire BEFORE the
     // frame's style commit, so a single rAF would restore the ease too early.
     // Double rAF guarantees one full rendering update lands with transitions
@@ -507,7 +517,7 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
                 so the raw per-frame transform reads as stepping. A short ease lets
                 the fan glide between positions; longer than this and the cards
                 visibly trail a finger drag. */}
-            <div className="pointer-events-auto transition-[transform,opacity] duration-200 ease-out will-change-transform [transform-style:preserve-3d]">
+            <div className="pointer-events-auto transition-transform duration-200 ease-out will-change-transform [transform-style:preserve-3d]">
               <CuratorCard curator={curator} focusable={copy === midCopy} />
             </div>
           </div>

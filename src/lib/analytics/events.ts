@@ -74,6 +74,8 @@ export type AnalyticsEventName =
   | 'paid_promotion_campaign_submitted'
   | 'paid_promotion_checkout_started'
   | 'paid_promotion_checkout_returned'
+  | 'sponsored_explore_impression'
+  | 'sponsored_explore_opened'
   | 'issue_report_submitted'
   | 'issue_reported'
   | 'issue_report_failed';
@@ -140,6 +142,7 @@ export type AnalyticsBaseProps = {
   tracks_failed?: number;
   total_tracks?: number;
   connection_state?: string;
+  placement_type?: 'sponsored_explore' | string;
 };
 
 export type AnalyticsEventPropsMap = {

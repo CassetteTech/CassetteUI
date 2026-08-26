@@ -203,6 +203,7 @@ export function useExploreData() {
   return {
     allPosts,
     groupedPosts,
+    sponsoredPlacement: exploreData?.sponsoredPlacement,
     visiblePostsBySection,
     sectionHasMorePotential,
     isLoadingPosts,

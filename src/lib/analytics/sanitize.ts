@@ -80,6 +80,7 @@ const ALLOWED_KEYS = new Set<keyof AnalyticsBaseProps>([
   'tracks_failed',
   'total_tracks',
   'connection_state',
+  'placement_type',
 ]);
 
 function isForbiddenKey(key: string): boolean {

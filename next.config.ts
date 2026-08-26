@@ -13,6 +13,7 @@ const NOINDEX_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['local.cassette.tech'],
   distDir,
   turbopack: {
     root: process.cwd(),

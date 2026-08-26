@@ -75,6 +75,13 @@ export interface PaginatedActivityResponse {
   totalPages: number;
   hasNext: boolean;
   hasPrevious: boolean;
+  sponsoredPlacement?: SponsoredExplorePlacement;
+}
+
+export interface SponsoredExplorePlacement {
+  placementType: 'sponsored_explore';
+  label: 'Sponsored';
+  post: ActivityPost;
 }
 
 export interface ExploreUser {

@@ -29,10 +29,11 @@ const DRAFT_PACKAGES = [
     maxWeeks: 8,
     soldFor: 'Tracks and albums',
     discount: '10% off when you buy 4 weeks or more',
-    summary: 'Your music on Cassette’s Instagram, every week you buy.',
+    summary: 'Instagram support plus clearly labeled sponsored discovery on Cassette.',
     deliverables: [
       'At least one story placement on Cassette’s Instagram every paid week',
-      'Better odds of surfacing in the Cassette Explore feed',
+      'A clearly labeled Sponsored placement in a separate Explore discovery surface',
+      'Real listener engagement may help music travel naturally; organic ranking is never for sale',
       'Continuous management of the campaign — creative, timing, and channel choice',
     ],
   },

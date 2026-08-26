@@ -33,6 +33,7 @@ test('sanitizeAnalyticsProps strips forbidden and unknown fields', () => {
     tracks_failed: 20,
     total_tracks: 200,
     connection_state: 'connection_required',
+    placement_type: 'sponsored_explore',
     correlation_id: '44444444-4444-4444-4444-444444444444',
     conversion_job_id: 'cj_123',
     lambda_request_id: 'lambda-request-1',
@@ -74,6 +75,7 @@ test('sanitizeAnalyticsProps strips forbidden and unknown fields', () => {
   assert.equal(result.tracks_failed, 20);
   assert.equal(result.total_tracks, 200);
   assert.equal(result.connection_state, 'connection_required');
+  assert.equal(result.placement_type, 'sponsored_explore');
   assert.equal(result.correlation_id, '44444444-4444-4444-4444-444444444444');
   assert.equal(result.conversion_job_id, 'cj_123');
   assert.equal(result.lambda_request_id, 'lambda-request-1');

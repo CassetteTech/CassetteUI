@@ -205,6 +205,15 @@ Dependencies or Next.js behavior seem stale:
 - Delete `.next` only when a concrete cache issue remains; the launcher does not
   remove build output automatically.
 
+Next.js blocks `/_next/static/chunks` requests from `local.cassette.tech`:
+
+- Confirm the current branch's `next.config.ts` includes
+  `allowedDevOrigins: ['local.cassette.tech']`.
+- Restart the Next.js development server after changing `next.config.ts`; the
+  setting is read only at startup.
+- Keep the browser on `http://local.cassette.tech:3000` for sign-in, Checkout,
+  and the return page. Do not substitute `localhost:3000`.
+
 Port `3000` is occupied:
 
 ```powershell

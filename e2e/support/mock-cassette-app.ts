@@ -75,6 +75,7 @@ type MockCassetteOptions = {
   internalPaidPromotionSubjectsStatus?: number;
   internalPaidPromotionSubjectsDelayMs?: number;
   accountDeleteFailures?: number;
+  exploreResponse?: unknown;
 };
 
 type MockNotification = {
@@ -622,6 +623,33 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         success: true,
         user: toSessionUser(getCurrentUserOrThrow(state)),
       });
+    }
+
+    if (pathname === '/api/v1/social/explore' && method === 'GET') {
+      return json(route, options.exploreResponse ?? {
+        items: [],
+        page: 1,
+        pageSize: 20,
+        totalItems: 0,
+        isOwnProfile: false,
+        sponsoredPlacement: null,
+      });
+    }
+
+    if (pathname === '/api/v1/social/explore/users' && method === 'GET') {
+      return json(route, {
+        users: [],
+        page: 1,
+        pageSize: 20,
+        totalItems: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrevious: false,
+      });
+    }
+
+    if (pathname === '/api/v1/social/explore/curators' && method === 'GET') {
+      return json(route, { curators: [] });
     }
 
     // Both of these clear the session so a follow-up /session call reflects the

@@ -16,7 +16,9 @@ import { BackButton } from '@/components/ui/back-button';
 import { Loader2, Search, X, Star, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
+import type { SponsoredExplorePlacement } from '@/types';
 import { useExploreCurators } from '@/hooks/use-profile';
+import { captureClientEvent } from '@/lib/analytics/client';
 import {
   useExploreData,
   MUSIC_SECTION_ORDER,
@@ -113,6 +115,8 @@ export default function ExplorePage() {
           onLoadMore={data.loadMoreUsers}
         />
 
+        <SponsoredDiscovery placement={data.sponsoredPlacement} />
+
         {isInitialLoading ? (
           <PolaroidSkeleton />
         ) : data.allPosts.length === 0 ? (
@@ -141,6 +145,109 @@ export default function ExplorePage() {
         )}
       </main>
     </div>
+  );
+}
+
+function SponsoredDiscovery({ placement }: { placement?: SponsoredExplorePlacement }) {
+  const cardRef = useRef<HTMLElement>(null);
+  const impressionCaptured = useRef(false);
+
+  useEffect(() => {
+    if (!placement || impressionCaptured.current) return;
+    const node = cardRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      impressionCaptured.current = true;
+      void captureClientEvent('sponsored_explore_impression', {
+        source_surface: 'explore',
+        placement_type: placement.placementType,
+        post_id: placement.post.postId,
+      });
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting) || impressionCaptured.current) return;
+        impressionCaptured.current = true;
+        void captureClientEvent('sponsored_explore_impression', {
+          source_surface: 'explore',
+          placement_type: placement.placementType,
+          post_id: placement.post.postId,
+        });
+        observer.disconnect();
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [placement]);
+
+  if (!placement) return null;
+
+  const post = placement.post;
+  const href = `/post/${post.redirectPostId || post.postId}`;
+  return (
+    <section ref={cardRef} aria-labelledby="sponsored-discovery-heading" data-testid="sponsored-explore">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b-2 border-foreground pb-3">
+        <div>
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-primary">
+            Paid advertising
+          </p>
+          <h2 id="sponsored-discovery-heading" className="font-teko text-5xl font-bold uppercase leading-none">
+            Sponsored discovery
+          </h2>
+        </div>
+        <p className="max-w-sm text-xs leading-5 text-muted-foreground">
+          This placement is paid and separate from Cassette&apos;s organic rankings.
+        </p>
+      </div>
+
+      <Link
+        href={href}
+        onClick={() => {
+          void captureClientEvent('sponsored_explore_opened', {
+            source_surface: 'explore',
+            placement_type: placement.placementType,
+            post_id: post.postId,
+          });
+        }}
+        className="group grid overflow-hidden border-2 border-foreground bg-primary-foreground text-foreground shadow-flat-4 transition-shadow hover:shadow-flat-primary-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[minmax(13rem,18rem)_1fr]"
+      >
+        <div className="relative aspect-square overflow-hidden bg-muted sm:aspect-auto sm:min-h-64">
+          {post.imageUrl ? (
+            <Image
+              src={post.imageUrl}
+              alt={post.title}
+              fill
+              sizes="(max-width: 640px) 100vw, 288px"
+              className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+            />
+          ) : (
+            <div className="flex h-full min-h-64 items-center justify-center">
+              <Image src="/images/ic_music.png" alt="" width={52} height={52} className="opacity-30" />
+            </div>
+          )}
+          <span className="absolute left-3 top-3 border-2 border-foreground bg-warning px-3 py-1 font-mono text-xs font-bold uppercase tracking-[0.2em] text-warning-foreground shadow-flat-2">
+            {placement.label}
+          </span>
+        </div>
+        <div className="flex flex-col justify-center p-6 sm:p-8">
+          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+            {post.elementType}
+          </p>
+          <h3 className="mt-2 font-teko text-4xl font-bold uppercase leading-none group-hover:text-primary sm:text-5xl">
+            {post.title}
+          </h3>
+          {post.subtitle && <p className="mt-2 text-sm italic text-muted-foreground">{post.subtitle}</p>}
+          <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Shared by @{post.username}
+          </p>
+          <span className="mt-6 w-fit border-b-2 border-primary font-mono text-xs font-bold uppercase tracking-[0.2em] text-primary">
+            Open sponsored post
+          </span>
+        </div>
+      </Link>
+    </section>
   );
 }
 

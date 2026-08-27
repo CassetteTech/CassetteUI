@@ -341,6 +341,15 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
   const settle = useRef<number | undefined>(undefined);
+  const running = useRef(false);
+  const lastTick = useRef(0);
+  // Painted pose per card element (WeakMap so poses follow React's element
+  // reuse and vanish with removed cards). Easing lives here in JS: a CSS
+  // transition on the cards would be retargeted by every rAF write, and each
+  // retarget fires transitionrun/start/cancel — hundreds of events per frame
+  // across the clones — which saturates the main thread and reads as low FPS
+  // while swiping.
+  const poses = useRef(new WeakMap<HTMLElement, { angle: number; depth: number; fade: number; z: number }>());
 
   // Duplicate the list until the runway holds at least 75 cards, so even a
   // hard fling stays deep inside rendered content and the rail reads as
@@ -352,26 +361,36 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
   const copies = n > 1 ? rawCopies + (1 - (rawCopies % 2)) : 1;
   const midCopy = (copies - 1) / 2;
 
-  const updateTransforms = useCallback(() => {
+  // Computes every card's coverflow pose from the live scroll position and
+  // eases the painted pose toward it (~60ms time constant, frame-rate
+  // independent), so coarse scroll input (wheel notches, snap landings) still
+  // glides. Returns true once every card has settled. `instant` snaps poses
+  // in one write: the loop teleport swaps every element's role with a
+  // clone's, and the swap is only invisible when nothing eases across it.
+  const render = useCallback((instant: boolean) => {
     const track = trackRef.current;
-    if (!track) return;
-    const items = Array.from(track.children) as HTMLElement[];
+    if (!track) return true;
+    const items = track.children as HTMLCollectionOf<HTMLElement>;
     const mid = track.scrollLeft + track.clientWidth / 2;
     // Cards overlap, so their pitch is narrower than a card. Measuring it makes
     // t == ±1 the immediate neighbor no matter how deep the overlap gets.
-    const step = items.length > 1 ? items[1].offsetLeft - items[0].offsetLeft : 1;
-    for (const item of items) {
+    const pitch = items.length > 1 ? items[1].offsetLeft - items[0].offsetLeft : 1;
+    const now = performance.now();
+    const k = instant ? 1 : 1 - Math.exp(-Math.min(now - lastTick.current, 64) / 60);
+    lastTick.current = now;
+    let settled = true;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       const card = item.firstElementChild as HTMLElement | null;
       if (!card) continue;
-      const t = (item.offsetLeft + item.offsetWidth / 2 - mid) / step;
+      const t = (item.offsetLeft + item.offsetWidth / 2 - mid) / pitch;
       const a = Math.abs(t);
-      const side = Math.sign(t);
       // Coverflow: the angle ramps fast then holds, so off-center cards all
       // "file in" at the same tilt. A positive angle on a right-side card
       // swings its OUTER edge back, so the fan faces inward toward the
       // centered card; the opposite sign faces cards away from center and
       // slices the forward outer edge across the centered card.
-      const angle = side * Math.min(a * 2.5, 1) * 45;
+      const angle = Math.sign(t) * Math.min(a * 2.5, 1) * 45;
       // Depth does all the shrinking — perspective also pulls receding cards
       // toward the centered one, which is what tucks them behind it. It must
       // stay unclamped: two cards at the same depth stop converging and the
@@ -379,7 +398,6 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       // projection is self-limiting — centers asymptote at 4 pitches out — so
       // distant clones pile into the edge stack instead of drifting into view.
       const depth = -a * 300;
-      card.style.transform = `translateZ(${depth.toFixed(1)}px) rotateY(${angle.toFixed(2)}deg)`;
       // The edge stack dissolves instead of piling: full opacity through four
       // neighbors, gone by eight. Mobile never shows past ~1.2 pitches, so the
       // fade only ever engages on wide viewports. Fully faded cards drop hit
@@ -387,40 +405,66 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       // from the tab order and accessibility tree); a keyboard focus on an
       // invisible card natively scrolls it into view, which fades it back in.
       const fade = Math.max(0, Math.min(1, (8 - a) / 4));
-      card.style.opacity = fade.toFixed(3);
-      card.style.pointerEvents = fade === 0 ? 'none' : '';
+      let pose = poses.current.get(card);
+      // A fully faded card's styles are static, so skip it once painted (the
+      // pose keeps its last painted values, so a card scrolling back into
+      // range resumes from exactly what is on screen). Most of the runway is
+      // edge-stack clones; this bounds per-frame work to the visible fan.
+      if (pose && pose.fade === 0 && fade === 0) continue;
+      if (!pose) {
+        pose = { angle, depth, fade, z: NaN };
+        poses.current.set(card, pose);
+      } else if (instant) {
+        pose.angle = angle;
+        pose.depth = depth;
+        pose.fade = fade;
+      } else {
+        pose.angle += (angle - pose.angle) * k;
+        pose.depth += (depth - pose.depth) * k;
+        pose.fade += (fade - pose.fade) * k;
+        if (
+          Math.abs(angle - pose.angle) > 0.1 ||
+          Math.abs(depth - pose.depth) > 0.5 ||
+          Math.abs(fade - pose.fade) > 0.005
+        ) {
+          settled = false;
+        } else {
+          pose.angle = angle;
+          pose.depth = depth;
+          pose.fade = fade;
+        }
+      }
+      card.style.transform = `translateZ(${pose.depth.toFixed(1)}px) rotateY(${pose.angle.toFixed(2)}deg)`;
+      card.style.opacity = pose.fade.toFixed(3);
+      card.style.pointerEvents = pose.fade === 0 ? 'none' : '';
       // overflow-x-auto forces the track's transform-style back to flat, so the
       // browser paints in DOM order instead of depth-sorting and later cards
-      // slice across the centered one. Order the stack by distance ourselves.
-      item.style.zIndex = String(50 - Math.round(a * 10));
+      // slice across the centered one. Order the stack by distance ourselves —
+      // but only on change, so settled cards cost no per-frame style writes.
+      const z = 50 - Math.round(a * 10);
+      if (z !== pose.z) {
+        item.style.zIndex = String(z);
+        pose.z = z;
+      }
     }
+    return settled;
   }, []);
 
-  // Lands scroll/transform writes in a single frame by suspending the cards'
-  // 200ms ease. The loop teleport is only invisible when it is instant: it
-  // swaps every element's role with a clone's, and easing those swaps makes
-  // the whole rail visibly swing after each scroll settles.
-  const applyInstantly = useCallback((write: () => void) => {
-    const track = trackRef.current;
-    if (!track) return;
-    const cards: HTMLElement[] = [];
-    for (const item of Array.from(track.children)) {
-      const card = item.firstElementChild as HTMLElement | null;
-      if (card) cards.push(card);
+  const tick = useCallback(() => {
+    if (render(false)) {
+      running.current = false;
+      return;
     }
-    for (const card of cards) card.style.transition = 'none';
-    write();
-    // Transform writes don't dirty layout, so no synchronous read can
-    // commit them under transition:none — and rAF callbacks fire BEFORE the
-    // frame's style commit, so a single rAF would restore the ease too early.
-    // Double rAF guarantees one full rendering update lands with transitions
-    // off before they come back.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        for (const card of cards) card.style.removeProperty('transition');
-      });
-    });
-  }, []);
+    frame.current = requestAnimationFrame(tick);
+  }, [render]);
+
+  // Runs the easing loop until every pose settles; scroll events keep it fed.
+  const kick = useCallback(() => {
+    if (running.current) return;
+    running.current = true;
+    lastTick.current = performance.now();
+    frame.current = requestAnimationFrame(tick);
+  }, [tick]);
 
   const recenter = useCallback(() => {
     const track = trackRef.current;
@@ -437,28 +481,26 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     while (next < lo) next += copyWidth;
     while (next >= lo + copyWidth) next -= copyWidth;
     if (next !== track.scrollLeft) {
-      applyInstantly(() => {
-        track.scrollLeft = next;
-        updateTransforms();
-      });
+      track.scrollLeft = next;
+      render(true);
     }
-  }, [applyInstantly, copies, midCopy, n, updateTransforms]);
+  }, [copies, midCopy, n, render]);
 
   // Teleporting mid-momentum kills the fling on iOS, so the loop correction
-  // only runs once scrolling has settled.
+  // only runs once scrolling has settled. The kick lets any residual easing
+  // finish when no teleport was needed.
   const onSettle = useCallback(() => {
     recenter();
-    updateTransforms();
-  }, [recenter, updateTransforms]);
+    kick();
+  }, [kick, recenter]);
 
   const onScroll = useCallback(() => {
-    cancelAnimationFrame(frame.current);
-    frame.current = requestAnimationFrame(updateTransforms);
-    // scrollend is not universal; guarantee a final correction frame after the
-    // last scroll event so momentum + snap never leave stale transforms.
+    kick();
+    // scrollend is not universal; guarantee a final correction after the last
+    // scroll event so momentum + snap never leave a stale loop position.
     clearTimeout(settle.current);
     settle.current = window.setTimeout(onSettle, 140);
-  }, [onSettle, updateTransforms]);
+  }, [kick, onSettle]);
 
   // A click on an off-center card means "bring that one to the front", not
   // "open it". Capture phase so the card's own handler (and the platform link
@@ -479,29 +521,39 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
 
   // Start on the first curator of the middle copy so both neighbors are
   // visible immediately; layout effect so neither the jump nor the initial
-  // fan-out paints untransformed first.
+  // fan-out paints untransformed first. Deps deliberately exclude `curators`:
+  // recentering on a data refresh would visibly yank the user's position.
   useLayoutEffect(() => {
     const track = trackRef.current;
     if (!track || copies === 1) return;
-    applyInstantly(() => {
-      const item = (track.children as HTMLCollectionOf<HTMLElement>)[midCopy * n];
-      track.scrollLeft = item.offsetLeft + item.offsetWidth / 2 - track.clientWidth / 2;
-      updateTransforms();
-    });
-  }, [applyInstantly, copies, midCopy, n, updateTransforms]);
+    const item = (track.children as HTMLCollectionOf<HTMLElement>)[midCopy * n];
+    track.scrollLeft = item.offsetLeft + item.offsetWidth / 2 - track.clientWidth / 2;
+    render(true);
+  }, [copies, midCopy, n, render]);
+
+  // A changed featured set swaps card elements under the rail (react-query
+  // keeps `curators` identity stable for equal data). Paint the fresh
+  // elements before the browser shows them — poses are per-element, so
+  // unswapped cards keep easing and the scroll position is untouched.
+  useLayoutEffect(() => {
+    render(false);
+    kick();
+  }, [curators, kick, render]);
 
   useEffect(() => {
     const track = trackRef.current;
-    updateTransforms();
-    window.addEventListener('resize', updateTransforms);
+    window.addEventListener('resize', kick);
     track?.addEventListener('scrollend', onSettle);
     return () => {
-      window.removeEventListener('resize', updateTransforms);
+      window.removeEventListener('resize', kick);
       track?.removeEventListener('scrollend', onSettle);
       cancelAnimationFrame(frame.current);
+      // The canceled frame never runs tick, so it cannot hand the flag back;
+      // clear it or every later kick() no-ops and the easing loop stays dead.
+      running.current = false;
       clearTimeout(settle.current);
     };
-  }, [onSettle, updateTransforms]);
+  }, [kick, onSettle]);
 
   return (
     <div
@@ -524,11 +576,10 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
             aria-hidden={copy !== midCopy || undefined}
             className="pointer-events-none relative shrink-0 snap-center -ml-24 first:ml-0 [transform-style:preserve-3d]"
           >
-            {/* Scroll input arrives in coarse steps (wheel notches, snap landings),
-                so the raw per-frame transform reads as stepping. A short ease lets
-                the fan glide between positions; longer than this and the cards
-                visibly trail a finger drag. */}
-            <div className="pointer-events-auto transition-[transform,opacity] duration-200 ease-out will-change-transform [transform-style:preserve-3d]">
+            {/* Pose easing is JS-driven (see render); a CSS transition here
+                would be retargeted by every rAF write and flood the page with
+                transition events. */}
+            <div className="pointer-events-auto will-change-transform [transform-style:preserve-3d]">
               <CuratorCard curator={curator} focusable={copy === midCopy} />
             </div>
           </div>
@@ -721,7 +772,7 @@ function CreatorsMarquee({
       </div>
 
       {isLoading ? (
-        <div className="flex gap-4 overflow-hidden">
+        <div className="mx-[calc(50%-50vw)] px-4 sm:px-6 lg:px-8 flex gap-4 overflow-hidden">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-52 rounded-2xl shrink-0" />
           ))}
@@ -745,7 +796,7 @@ function CreatorsMarquee({
           — No creators match —
         </p>
       ) : (
-        <div className="-mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 overflow-x-auto no-scrollbar">
+        <div className="mx-[calc(50%-50vw)] px-4 sm:px-6 lg:px-8 py-4 overflow-x-auto no-scrollbar">
           <div className="flex gap-5 snap-x snap-mandatory">
             {users.map((u, i) => (
               <CreatorSticker key={u.userId || u.username} user={u} index={i} />

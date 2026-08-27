@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BackButton } from '@/components/ui/back-button';
-import { Loader2, Search, X, Star, Music2 } from 'lucide-react';
+import { Loader2, Plus, Search, X, Star, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
 import { useExploreCurators } from '@/hooks/use-profile';
@@ -725,6 +725,19 @@ function CuratorCard({
   );
 }
 
+// Alpha fade at the full-bleed rail's viewport edges so cards dissolve
+// instead of clipping hard; alpha masks are theme-agnostic. Percentage stops
+// scale the fade with the viewport but are capped at the rail's sm:px-16
+// end padding, so resting cards and the load-more card sit clear of the
+// fade on any viewport. Inline style because the repo sets mask properties
+// with both prefixes.
+const RAIL_EDGE_FADE_CSS =
+  'linear-gradient(to right, transparent, black min(4%, 64px), black calc(100% - min(4%, 64px)), transparent)';
+const RAIL_EDGE_FADE: React.CSSProperties = {
+  WebkitMaskImage: RAIL_EDGE_FADE_CSS,
+  maskImage: RAIL_EDGE_FADE_CSS,
+};
+
 function CreatorsMarquee({
   users,
   isLoading,
@@ -746,6 +759,65 @@ function CreatorsMarquee({
   isLoadingMore: boolean;
   onLoadMore: () => void;
 }) {
+  const railRef = useRef<HTMLDivElement>(null);
+
+  // Gently pans the rail while nobody interacts with it. Any pointer, wheel,
+  // touch, or focus contact pauses the pan; it resumes a few seconds after
+  // the last contact, and not while the rail is hovered or holds focus.
+  // Ping-pongs at the ends (the list is finite) and respects reduced motion.
+  // Position accumulates in a float because scrollLeft rounds to device
+  // pixels and would swallow sub-pixel steps at this speed.
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let dir = 1;
+    let pos = 0;
+    let raf = 0;
+    let timer = 0;
+    let last = 0;
+    const step = (t: number) => {
+      const dt = Math.min(t - last, 64);
+      last = t;
+      const max = rail.scrollWidth - rail.clientWidth;
+      // Nothing to pan (rail fits) — park on a slow retry instead of a
+      // no-op 60fps loop; load-more or a resize can add overflow later.
+      if (max <= 0) {
+        timer = window.setTimeout(start, 3000);
+        return;
+      }
+      pos = Math.max(0, Math.min(max, pos + dir * dt * 0.024)); // 24px/s
+      if (pos <= 0) dir = 1;
+      else if (pos >= max) dir = -1;
+      rail.scrollLeft = pos;
+      raf = requestAnimationFrame(step);
+    };
+    const start = () => {
+      if (rail.matches(':hover') || rail.contains(document.activeElement)) {
+        timer = window.setTimeout(start, 3000);
+        return;
+      }
+      pos = rail.scrollLeft;
+      last = performance.now();
+      raf = requestAnimationFrame(step);
+    };
+    const pause = () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+      timer = window.setTimeout(start, 3000);
+    };
+    const events = ['pointerdown', 'pointermove', 'wheel', 'touchstart', 'focusin'] as const;
+    for (const e of events) rail.addEventListener(e, pause, { passive: true });
+    timer = window.setTimeout(start, 2000);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+      for (const e of events) rail.removeEventListener(e, pause);
+    };
+    // isLoading/error are deps because they unmount and remount the rail
+    // without changing users.length (e.g. a failed background refetch then
+    // Retry); the remounted rail needs fresh listeners and a fresh loop.
+  }, [users.length, isLoading, error]);
+
   return (
     <section>
       <div className="flex items-end justify-between gap-4 mb-6">
@@ -772,7 +844,10 @@ function CreatorsMarquee({
       </div>
 
       {isLoading ? (
-        <div className="mx-[calc(50%-50vw)] px-4 sm:px-6 lg:px-8 flex gap-4 overflow-hidden">
+        <div
+          className="mx-[calc(50%-50vw)] px-10 sm:px-16 flex gap-4 overflow-hidden"
+          style={RAIL_EDGE_FADE}
+        >
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-52 rounded-2xl shrink-0" />
           ))}
@@ -796,8 +871,12 @@ function CreatorsMarquee({
           — No creators match —
         </p>
       ) : (
-        <div className="mx-[calc(50%-50vw)] px-4 sm:px-6 lg:px-8 py-4 overflow-x-auto no-scrollbar">
-          <div className="flex gap-5 snap-x snap-mandatory">
+        <div
+          ref={railRef}
+          className="mx-[calc(50%-50vw)] px-10 sm:px-16 py-4 overflow-x-auto no-scrollbar"
+          style={RAIL_EDGE_FADE}
+        >
+          <div className="flex gap-5">
             {users.map((u, i) => (
               <CreatorSticker key={u.userId || u.username} user={u} index={i} />
             ))}
@@ -805,9 +884,21 @@ function CreatorsMarquee({
               <button
                 onClick={onLoadMore}
                 disabled={isLoadingMore}
-                className="shrink-0 snap-start w-[200px] rotate-[-2deg] bg-primary-foreground force-light-surface border-2 border-dashed border-foreground/50 hover:border-primary flex items-center justify-center font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 px-4 py-4 rounded-2xl"
+                className="group shrink-0 w-[220px] rotate-[1.5deg] bg-primary-foreground force-light-surface text-foreground border-2 border-foreground rounded-2xl px-4 py-3 shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow disabled:opacity-50"
               >
-                {isLoadingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Load more ✎'}
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-foreground">
+                    {isLoadingMore ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1 text-left">
+                    <p className="text-sm font-semibold transition-colors group-hover:text-primary">Load more</p>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">creators</p>
+                  </div>
+                </div>
               </button>
             )}
           </div>
@@ -825,7 +916,7 @@ function CreatorSticker({ user, index }: { user: ExploreUser; index: number }) {
   return (
     <Link
       href={`/profile/${user.username}`}
-      className="group shrink-0 snap-start w-[220px] bg-primary-foreground force-light-surface text-foreground border-2 border-foreground rounded-2xl px-4 py-3 shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow"
+      className="group shrink-0 w-[220px] bg-primary-foreground force-light-surface text-foreground border-2 border-foreground rounded-2xl px-4 py-3 shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow"
       style={{ transform: `rotate(${rot}deg)` }}
     >
       <div className="flex items-center gap-3">

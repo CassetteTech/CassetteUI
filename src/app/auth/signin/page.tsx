@@ -15,6 +15,7 @@ import { AnimatedBackground } from '@/components/ui/animated-background';
 import { useSignInWithProvider } from '@/hooks/use-auth';
 import Image from 'next/image';
 import { GoogleGIcon } from '@/components/ui/google-g-icon';
+import { PendingLabel } from '@/components/ui/interior/loading-button';
 import { authRedirectService, isPromoteIntentRedirect } from '@/utils/auth-redirect';
 import { pendingActionService } from '@/utils/pending-action';
 
@@ -116,10 +117,19 @@ export default function SignInPage() {
               <Button
                 onClick={handleGoogleSignIn}
                 disabled={isSigningInWithProvider}
+                aria-busy={isSigningInWithProvider}
                 className="w-full h-11 rounded-none border-2 border-foreground bg-[hsl(var(--cassette-white))] dark:bg-background text-foreground font-bold text-sm shadow-flat-3 hover:-translate-y-0.5 hover:shadow-flat-5 transition-[transform,box-shadow]"
               >
-                <GoogleGIcon className="mr-2 h-4 w-4" />
-                Continue with Google
+                <PendingLabel
+                  pending={isSigningInWithProvider}
+                  label={
+                    <>
+                      <GoogleGIcon className="mr-2 h-4 w-4" />
+                      Continue with Google
+                    </>
+                  }
+                  pendingLabel="Connecting to Google…"
+                />
               </Button>
             </div>
 

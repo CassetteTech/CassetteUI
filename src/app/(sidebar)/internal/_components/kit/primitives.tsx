@@ -1,10 +1,11 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Copy, RefreshCw, type LucideIcon } from 'lucide-react';
+import { Check, Copy, RefreshCw, type LucideIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { copyToClipboard } from '../internal-utils';
+import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
 
 /* ───────────────────────────── Tones ─────────────────────────────────── */
 
@@ -232,15 +233,22 @@ export function RefreshButton({ loading, onClick }: { loading: boolean; onClick:
    to show them in full and one click puts them on the clipboard. */
 
 export function CopyId({ value, label }: { value: string; label: string }) {
+  const { copy, copied } = useCopyToClipboard({
+    onError: () => toast.error(`Failed to copy ${label}`),
+  });
   return (
     <button
       type="button"
-      onClick={() => void copyToClipboard(value, label)}
+      onClick={() => void copy(value)}
       title={`Copy ${label}`}
       className="group inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 font-mono text-[10px] tabular-nums text-muted-foreground transition hover:border-domain/50 hover:text-foreground"
     >
       <span className="truncate">{value}</span>
-      <Copy className="h-3 w-3 shrink-0 opacity-50 transition group-hover:opacity-100" />
+      {copied ? (
+        <Check className="h-3 w-3 shrink-0 text-[hsl(var(--success-text))]" />
+      ) : (
+        <Copy className="h-3 w-3 shrink-0 opacity-50 transition group-hover:opacity-100" />
+      )}
     </button>
   );
 }

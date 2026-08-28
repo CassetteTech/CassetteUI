@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Copy, Database, GitMerge, ListChecks, RotateCcw } from 'lucide-react';
+import { Check, Copy, Database, GitMerge, ListChecks, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiService } from '@/services/api';
 import type {
@@ -44,7 +44,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDebounce } from '@/hooks/use-debounce';
-import { PAGE_SIZE, copyToClipboard, formatDate } from './internal-utils';
+import { PAGE_SIZE, formatDate } from './internal-utils';
+import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
 import {
   SectionHeader,
   Panel,
@@ -505,12 +506,15 @@ async function fetchAllActiveFindings(): Promise<InternalSentinelFinding[]> {
 
 function CopyCoordinatorPromptButton() {
   const [pending, setPending] = useState(false);
+  const { copy, copied } = useCopyToClipboard({
+    onError: () => toast.error('Failed to copy coordinator prompt'),
+  });
 
   const copyPrompt = async () => {
     setPending(true);
     try {
       const findings = await fetchAllActiveFindings();
-      await copyToClipboard(buildCoordinatorPrompt(findings), 'Coordinator prompt');
+      await copy(buildCoordinatorPrompt(findings));
     } catch (promptError) {
       toast.error(
         promptError instanceof Error
@@ -532,7 +536,7 @@ function CopyCoordinatorPromptButton() {
       onClick={() => void copyPrompt()}
       title="Copy coordinator prompt for all active findings"
     >
-      <Copy className="h-3 w-3" />
+      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
       {pending ? 'Building...' : 'Coordinator'}
     </Button>
   );
@@ -545,6 +549,9 @@ function CopyFindingPromptButton({
   finding: InternalSentinelFinding;
   note: InternalSentinelInvariantNote | null;
 }) {
+  const { copy, copied } = useCopyToClipboard({
+    onError: () => toast.error('Failed to copy investigation prompt'),
+  });
   return (
     <Button
       type="button"
@@ -552,11 +559,11 @@ function CopyFindingPromptButton({
       size="sm"
       className="h-7 gap-1.5 px-2 text-xs"
       onClick={() =>
-        void copyToClipboard(buildFindingInvestigationPrompt(finding, note), 'Investigation prompt')
+        void copy(buildFindingInvestigationPrompt(finding, note))
       }
       title="Copy AI investigation prompt"
     >
-      <Copy className="h-3 w-3" />
+      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
       Copy prompt
     </Button>
   );

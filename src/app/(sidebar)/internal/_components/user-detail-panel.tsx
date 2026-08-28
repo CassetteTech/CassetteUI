@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { User, Copy, Check, ExternalLink } from 'lucide-react';
+import { User, ExternalLink } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { InternalUserDetail } from '@/types';
-import { Panel, Field, Stat, StatusPill, type Tone } from './kit';
+import { Panel, Field, Stat, StatusPill, CopyId, type Tone } from './kit';
 import { normalizeAccountType, formatDate } from './internal-utils';
 import { UserAccountTypeControls } from './user-account-type-controls';
 
@@ -45,14 +44,6 @@ export function UserDetailPanel({
   updatingAccountType,
   onUpdateAccountType,
 }: UserDetailPanelProps) {
-  const [copied, setCopied] = useState(false);
-
-  const copyId = async (id: string) => {
-    await navigator.clipboard.writeText(id);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-
   if (isLoading) {
     return (
       <Panel title="User">
@@ -133,12 +124,7 @@ export function UserDetailPanel({
       {/* Meta */}
       <div className="border-t border-border px-3 py-1.5">
         <Field label="ID">
-          <span className="inline-flex items-center gap-1">
-            <span className="font-mono text-[11px]">{user.userId}</span>
-            <button type="button" onClick={() => void copyId(user.userId)} className="text-muted-foreground hover:text-foreground">
-              {copied ? <Check className="h-3 w-3 text-[hsl(var(--success-text))]" /> : <Copy className="h-3 w-3" />}
-            </button>
-          </span>
+          <CopyId value={user.userId} label="ID" />
         </Field>
         <Field label="Joined">{formatDate(user.joinDate)}</Field>
         <Field label="Onboarded">

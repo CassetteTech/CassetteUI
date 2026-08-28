@@ -10,6 +10,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { ApiError, apiService } from '@/services/api';
 import type { PostInsightsPlatformBreakdownItem, PostInsightsResponse, PostInsightsTrendPoint } from '@/types';
 import { cn } from '@/lib/utils';
+import { ValueFlash } from '@/components/ui/interior/value-flash';
 
 interface PostInsightsSheetProps {
   open: boolean;
@@ -248,7 +249,7 @@ function Stat({
   infoSide = 'bottom',
 }: {
   label: string;
-  value: string;
+  value: number;
   meta?: string;
   description?: string;
   infoAlign?: 'start' | 'end';
@@ -264,8 +265,8 @@ function Stat({
           <InfoTip label={label} description={description} align={infoAlign} side={infoSide} />
         ) : null}
       </div>
-      <div className="mt-1 text-[26px] font-semibold leading-none tabular-nums tracking-tight text-foreground">
-        {value}
+      <div className="mt-1 text-[26px] font-semibold leading-none tracking-tight text-foreground">
+        <ValueFlash value={value} format={formatMetric} label={label} />
       </div>
       {meta ? (
         <div className="mt-1 text-[11px] tabular-nums text-muted-foreground">{meta}</div>
@@ -280,7 +281,7 @@ function Stat({
  *   • First column: no left border (card border handles it)
  *   • Orphan (odd-count) final cell: spans both columns
  * ───────────────────────────────────────────────────────────────────── */
-type OverviewItem = { label: string; value: string; meta?: string; description?: string };
+type OverviewItem = { label: string; value: number; meta?: string; description?: string };
 
 function Overview({ items }: { items: OverviewItem[] }) {
   if (items.length === 0) return null;
@@ -604,33 +605,33 @@ export function PostInsightsSheet({
     ? [
         {
           label: 'Views',
-          value: formatMetric(insights.lifetime.views),
+          value: insights.lifetime.views,
           description:
             'Total times this post has been viewed, including repeat visits from the same person.',
         },
         {
           label: 'Unique Viewers',
-          value: formatMetric(insights.lifetime.uniqueViewers),
+          value: insights.lifetime.uniqueViewers,
           description:
             'Distinct people who viewed this post. Multiple views from the same person only count once.',
         },
         {
           label: 'Destination Opens',
-          value: formatMetric(insights.lifetime.destinationOpens),
+          value: insights.lifetime.destinationOpens,
           meta: insights.lifetime.views > 0 ? `${formatPercent(insights.lifetime.openRate)} open rate` : undefined,
           description:
             'Times a viewer clicked through to listen on their preferred music platform (Spotify, Apple Music, or Deezer).',
         },
         {
           label: 'Shares',
-          value: formatMetric(insights.lifetime.shares),
+          value: insights.lifetime.shares,
           description:
             'Times this post was shared — via the share button, a copied link, or forwarded to another app.',
         },
         ...(hasConversionCount
           ? [{
               label: 'Conversions',
-              value: formatMetric(Math.max(0, conversionSuccessCount as number)),
+              value: Math.max(0, conversionSuccessCount as number),
               description:
                 'Successful cross-platform matches — times Cassette found this track on a viewer’s preferred service.',
             }]
@@ -639,7 +640,7 @@ export function PostInsightsSheet({
     : hasConversionCount
       ? [{
           label: 'Conversions',
-          value: formatMetric(Math.max(0, conversionSuccessCount as number)),
+          value: Math.max(0, conversionSuccessCount as number),
           description:
             'Successful cross-platform matches — times Cassette found this track on a viewer’s preferred service.',
         }]

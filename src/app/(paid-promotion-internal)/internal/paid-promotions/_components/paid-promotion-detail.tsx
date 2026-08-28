@@ -238,6 +238,24 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
     });
   };
 
+  const publishExplorePlacement = () => {
+    if (!campaign?.suggestedExplorePostId) return;
+    const postId = campaign.suggestedExplorePostId;
+    const now = new Date().toISOString();
+    void runMutation(
+      'Sponsored Explore placement published from the campaign post.',
+      () => internalPaidPromotionsService.createDeliverable(campaignId, {
+        channel: 'explore_boost',
+        status: 'published',
+        postId,
+        subjectElementId: campaign.subject.id,
+        plannedAtUtc: now,
+        publishedAtUtc: now,
+        evidenceUrl: `${window.location.origin}/post/${encodeURIComponent(postId)}`,
+      }),
+    );
+  };
+
   if (loading && !campaign) {
     return <output className="block p-6 text-sm text-muted-foreground">Loading paid-promotion campaign…</output>;
   }
@@ -266,6 +284,11 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
   const canManualQuote = campaign.status === 'pending_payment' &&
     (!campaign.payment || ['expired', 'failed'].includes(campaign.payment.status));
   const refundableRemainderMinor = campaign.payment?.refundableRemainderMinor ?? 0;
+  const hasExplorePlacement = campaign.deliverables.some((deliverable) =>
+    deliverable.channel === 'explore_boost' &&
+    deliverable.status !== 'removed' &&
+    deliverable.status !== 'failed'
+  );
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
@@ -376,6 +399,9 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
       <DeliverablesPanel
         deliverables={campaign.deliverables}
         canMutate={canMutateDeliverables && !busy}
+        suggestedExplorePostId={campaign.suggestedExplorePostId}
+        hasExplorePlacement={hasExplorePlacement}
+        onPublishExplore={publishExplorePlacement}
         onAdd={() => {
           setError(null);
           setSelectedDeliverable(null);

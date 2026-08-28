@@ -24,6 +24,7 @@ import {
   MUSIC_SECTION_ORDER,
   MUSIC_SECTION_LABELS,
   MUSIC_SECTION_EMPTY_COPY,
+  type MusicElementType,
 } from './_shared/use-explore-data';
 
 // Deterministic pseudo-random from string so SSR/CSR stay in sync.
@@ -46,6 +47,8 @@ const TAPE_COLORS = [
 export default function ExplorePage() {
   const data = useExploreData();
   const isInitialLoading = data.isLoadingPosts && data.allPosts.length === 0;
+  const sponsoredSectionType = sponsoredMusicElementType(data.sponsoredPlacement);
+  const hasExploreContent = data.allPosts.length > 0 || sponsoredSectionType !== null;
 
   if (data.postsError) {
     return (
@@ -115,11 +118,9 @@ export default function ExplorePage() {
           onLoadMore={data.loadMoreUsers}
         />
 
-        <SponsoredDiscovery placement={data.sponsoredPlacement} />
-
         {isInitialLoading ? (
           <PolaroidSkeleton />
-        ) : data.allPosts.length === 0 ? (
+        ) : !hasExploreContent ? (
           <div className="mx-auto max-w-md rotate-[-1.5deg] bg-card border-2 border-foreground px-6 py-10 text-center shadow-flat-6">
             <p className="font-teko text-3xl uppercase">Nothing public — yet</p>
             <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
@@ -133,6 +134,7 @@ export default function ExplorePage() {
               title={MUSIC_SECTION_LABELS[type]}
               accentIndex={idx}
               posts={data.groupedPosts[type].slice(0, data.visiblePostsBySection[type])}
+              sponsoredPlacement={sponsoredSectionType === type ? data.sponsoredPlacement : undefined}
               emptyText={MUSIC_SECTION_EMPTY_COPY[type]}
               hasMore={
                 data.groupedPosts[type].length > data.visiblePostsBySection[type] ||
@@ -148,7 +150,12 @@ export default function ExplorePage() {
   );
 }
 
-function SponsoredDiscovery({ placement }: { placement?: SponsoredExplorePlacement }) {
+function sponsoredMusicElementType(placement?: SponsoredExplorePlacement): MusicElementType | null {
+  const type = placement?.post.elementType.toLowerCase();
+  return MUSIC_SECTION_ORDER.includes(type as MusicElementType) ? type as MusicElementType : null;
+}
+
+function SponsoredPolaroid({ placement }: { placement: SponsoredExplorePlacement }) {
   const cardRef = useRef<HTMLElement>(null);
   const impressionCaptured = useRef(false);
 
@@ -182,26 +189,10 @@ function SponsoredDiscovery({ placement }: { placement?: SponsoredExplorePlaceme
     return () => observer.disconnect();
   }, [placement]);
 
-  if (!placement) return null;
-
   const post = placement.post;
   const href = `/post/${post.redirectPostId || post.postId}`;
   return (
-    <section ref={cardRef} aria-labelledby="sponsored-discovery-heading" data-testid="sponsored-explore">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b-2 border-foreground pb-3">
-        <div>
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-primary">
-            Paid advertising
-          </p>
-          <h2 id="sponsored-discovery-heading" className="font-teko text-5xl font-bold uppercase leading-none">
-            Sponsored discovery
-          </h2>
-        </div>
-        <p className="max-w-sm text-xs leading-5 text-muted-foreground">
-          This placement is paid and separate from Cassette&apos;s organic rankings.
-        </p>
-      </div>
-
+    <article ref={cardRef} data-testid="sponsored-explore" className="relative">
       <Link
         href={href}
         onClick={() => {
@@ -211,43 +202,44 @@ function SponsoredDiscovery({ placement }: { placement?: SponsoredExplorePlaceme
             post_id: post.postId,
           });
         }}
-        className="group grid overflow-hidden border-2 border-foreground bg-primary-foreground text-foreground shadow-flat-4 transition-shadow hover:shadow-flat-primary-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[minmax(13rem,18rem)_1fr]"
+        className="group block border-2 border-foreground bg-primary-foreground force-light-surface p-3 pb-4 text-foreground shadow-flat-primary-6 transition-shadow hover:shadow-flat-primary-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="relative aspect-square overflow-hidden bg-muted sm:aspect-auto sm:min-h-64">
+        <div className="mb-3 flex items-center justify-between gap-2 border-b border-foreground/25 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.18em]">
+          <span className="text-primary">{placement.label}</span>
+          <span className="text-muted-foreground">Paid advertising</span>
+        </div>
+        <div data-testid="sponsored-explore-artwork" className="relative aspect-square overflow-hidden bg-muted">
           {post.imageUrl ? (
             <Image
               src={post.imageUrl}
               alt={post.title}
               fill
-              sizes="(max-width: 640px) 100vw, 288px"
-              className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"
             />
           ) : (
-            <div className="flex h-full min-h-64 items-center justify-center">
-              <Image src="/images/ic_music.png" alt="" width={52} height={52} className="opacity-30" />
+            <div className="flex h-full items-center justify-center">
+              <Image src="/images/ic_music.png" alt="" width={40} height={40} className="opacity-30" />
             </div>
           )}
-          <span className="absolute left-3 top-3 border-2 border-foreground bg-warning px-3 py-1 font-mono text-xs font-bold uppercase tracking-[0.2em] text-warning-foreground shadow-flat-2">
-            {placement.label}
-          </span>
         </div>
-        <div className="flex flex-col justify-center p-6 sm:p-8">
-          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-            {post.elementType}
-          </p>
-          <h3 className="mt-2 font-teko text-4xl font-bold uppercase leading-none group-hover:text-primary sm:text-5xl">
+        <div className="pt-3">
+          <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight line-clamp-2 transition-colors group-hover:text-primary">
             {post.title}
           </h3>
-          {post.subtitle && <p className="mt-2 text-sm italic text-muted-foreground">{post.subtitle}</p>}
-          <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-            Shared by @{post.username}
+          {post.subtitle && <p className="mt-1 text-xs italic text-muted-foreground line-clamp-1">{post.subtitle}</p>}
+          <div className="mt-2 flex items-center gap-2">
+            <span className="h-px flex-1 bg-foreground/20" />
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              @{post.username}
+            </span>
+          </div>
+          <p className="mt-3 text-[10px] leading-4 text-muted-foreground">
+            Paid placement. Organic posts keep their existing order.
           </p>
-          <span className="mt-6 w-fit border-b-2 border-primary font-mono text-xs font-bold uppercase tracking-[0.2em] text-primary">
-            Open sponsored post
-          </span>
         </div>
       </Link>
-    </section>
+    </article>
   );
 }
 
@@ -257,6 +249,7 @@ function ZineSection({
   title,
   accentIndex,
   posts,
+  sponsoredPlacement,
   emptyText,
   hasMore,
   isLoadingMore,
@@ -265,12 +258,17 @@ function ZineSection({
   title: string;
   accentIndex: number;
   posts: ActivityPost[];
+  sponsoredPlacement?: SponsoredExplorePlacement;
   emptyText: string;
   hasMore: boolean;
   isLoadingMore: boolean;
   onLoadMore: () => void;
 }) {
   const titleRotate = accentIndex % 2 === 0 ? '-rotate-[2deg]' : 'rotate-[2deg]';
+  const organicPosts = sponsoredPlacement
+    ? posts.filter((post) => post.postId !== sponsoredPlacement.post.postId)
+    : posts;
+  const hasPosts = organicPosts.length > 0 || Boolean(sponsoredPlacement);
   return (
     <motion.section
       initial={{ opacity: 0, y: 16 }}
@@ -288,7 +286,7 @@ function ZineSection({
             />
           </h2>
         </div>
-        {hasMore && posts.length > 0 && (
+        {hasMore && organicPosts.length > 0 && (
           <button
             onClick={onLoadMore}
             disabled={isLoadingMore}
@@ -299,14 +297,15 @@ function ZineSection({
         )}
       </div>
 
-      {posts.length === 0 ? (
+      {!hasPosts ? (
         <p className="font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground border-t-2 border-dashed border-foreground/30 py-4 text-center">
           — {emptyText} —
         </p>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-          {posts.map((post, i) => (
-            <Polaroid key={post.postId} post={post} index={i} />
+          {sponsoredPlacement && <SponsoredPolaroid placement={sponsoredPlacement} />}
+          {organicPosts.map((post, i) => (
+            <Polaroid key={post.postId} post={post} index={i + (sponsoredPlacement ? 1 : 0)} />
           ))}
         </div>
       )}

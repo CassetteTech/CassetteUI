@@ -570,6 +570,7 @@ export interface InternalPaidPromotionCampaignDetail {
   id: string;
   subject: InternalPaidPromotionSubject;
   customer: InternalPaidPromotionCustomer | null;
+  suggestedExplorePostId: string | null;
   sourcePlatform: 'spotify' | 'applemusic' | 'deezer';
   brief: string;
   pricingMode: PaidPromotionPricingMode;

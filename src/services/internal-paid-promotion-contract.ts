@@ -306,6 +306,10 @@ export function parseInternalPaidPromotionCampaignDetail(
     id: string(item.id, 'campaign.id'),
     subject: parseSubject(item.subject, 'campaign.subject'),
     customer: parseCustomer(item.customer, 'campaign.customer'),
+    suggestedExplorePostId: nullableString(
+      item.suggestedExplorePostId,
+      'campaign.suggestedExplorePostId',
+    ),
     sourcePlatform: string(
       item.sourcePlatform,
       'campaign.sourcePlatform',

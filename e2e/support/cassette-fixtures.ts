@@ -193,6 +193,7 @@ export interface FixtureInternalPaidPromotionCustomer {
 export interface FixtureInternalPaidPromotionCampaign {
   id: string;
   customer: FixtureInternalPaidPromotionCustomer | null;
+  suggestedExplorePostId: string | null;
   subject: {
     id: string;
     elementType: 'track' | 'album' | 'artist' | 'playlist';
@@ -587,6 +588,7 @@ export const fixtureInternalPaidPromotionCustomer: FixtureInternalPaidPromotionC
 export const fixtureInternalPaidPromotionCampaign: FixtureInternalPaidPromotionCampaign = {
   id: fixturePaidPromotionCampaign.id,
   customer: fixtureInternalPaidPromotionCustomer,
+  suggestedExplorePostId: 'p_20260824000000_00000000000002',
   subject: {
     id: fixtureConvertTemplates.paidPromotionTrack.musicElementId,
     elementType: 'track',

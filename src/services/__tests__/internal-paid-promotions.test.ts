@@ -20,6 +20,7 @@ function campaignDetail(): Record<string, unknown> {
       coverArtUrl: null,
       subtitleNames: ['Mia Groove'],
     },
+    suggestedExplorePostId: 'p_20260715120000_abcdefghijklmn',
     sourcePlatform: 'spotify',
     brief: 'Internal campaign brief.',
     pricingMode: 'rate_card',
@@ -68,6 +69,7 @@ void test('accepts the complete internal paid-promotion detail contract', () => 
   assert.equal(parsed.id, 'pmc_TestCampaign1');
   assert.equal(parsed.payment?.status, 'paid');
   assert.equal(parsed.attestedRelationship, 'self_artist');
+  assert.equal(parsed.suggestedExplorePostId, 'p_20260715120000_abcdefghijklmn');
 });
 
 void test('parses durable needs-info conversation fields for operators', () => {

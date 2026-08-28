@@ -25,7 +25,7 @@ const sponsoredPost = {
   createdAt: '2026-08-24T11:00:00Z',
 };
 
-test('shows disclosed sponsored discovery outside organic results and measures it once', async ({ page }) => {
+test('shows a disclosed sponsored post in its matching music section and measures it once', async ({ page }) => {
   const analyticsCaptures: Array<Record<string, unknown>> = [];
   await mockCassetteApp(page, {
     analyticsCaptures,
@@ -47,10 +47,14 @@ test('shows disclosed sponsored discovery outside organic results and measures i
 
   const sponsored = page.getByTestId('sponsored-explore');
   await expect(sponsored).toBeVisible();
+  const albums = page.getByRole('heading', { name: 'Albums' }).locator('xpath=ancestor::section');
+  await expect(albums.getByTestId('sponsored-explore')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sponsored discovery' })).toHaveCount(0);
   await expect(sponsored.getByText('Sponsored', { exact: true })).toBeVisible();
   await expect(sponsored).toContainText('Paid advertising');
-  await expect(sponsored).toContainText("separate from Cassette's organic rankings");
+  await expect(sponsored).toContainText('Organic posts keep their existing order');
   await expect(sponsored).toContainText('Signal Fire');
+  await expect(sponsored.getByTestId('sponsored-explore-artwork').getByText('Sponsored')).toHaveCount(0);
   await expect(page.getByText('Organic track', { exact: true })).toBeVisible();
   await expect(page.getByText('Promoted', { exact: true })).toHaveCount(0);
 
@@ -73,7 +77,7 @@ test('shows disclosed sponsored discovery outside organic results and measures i
   )).toBe(true);
 });
 
-test('renders no sponsored section when inventory has no fill', async ({ page }) => {
+test('renders no sponsored card when inventory has no fill', async ({ page }) => {
   await mockCassetteApp(page, {
     exploreResponse: {
       items: [organicPost],
@@ -89,4 +93,27 @@ test('renders no sponsored section when inventory has no fill', async ({ page })
 
   await expect(page.getByTestId('sponsored-explore')).toHaveCount(0);
   await expect(page.getByText('Organic track', { exact: true })).toBeVisible();
+});
+
+test('renders sponsored-only inventory in its matching section', async ({ page }) => {
+  await mockCassetteApp(page, {
+    exploreResponse: {
+      items: [],
+      page: 1,
+      pageSize: 20,
+      totalItems: 0,
+      isOwnProfile: false,
+      sponsoredPlacement: {
+        placementType: 'sponsored_explore',
+        label: 'Sponsored',
+        post: sponsoredPost,
+      },
+    },
+  });
+
+  await page.goto('/explore');
+
+  await expect(page.getByRole('heading', { name: 'Albums' })).toBeVisible();
+  await expect(page.getByTestId('sponsored-explore')).toContainText('Signal Fire');
+  await expect(page.getByText('Nothing public — yet')).toHaveCount(0);
 });

@@ -17,6 +17,7 @@ import { Loader2, Plus, Search, X, Star, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
 import type { SponsoredExplorePlacement } from '@/types';
+import { rememberViewedSponsoredExplorePost } from '@/services/sponsored-explore-rotation';
 import { useExploreCurators } from '@/hooks/use-profile';
 import { captureClientEvent } from '@/lib/analytics/client';
 import {
@@ -158,12 +159,18 @@ function sponsoredMusicElementType(placement?: SponsoredExplorePlacement): Music
 function SponsoredPolaroid({ placement }: { placement: SponsoredExplorePlacement }) {
   const cardRef = useRef<HTMLElement>(null);
   const impressionCaptured = useRef(false);
+  const impressionPostId = useRef<string | null>(null);
 
   useEffect(() => {
+    if (impressionPostId.current !== placement.post.postId) {
+      impressionPostId.current = placement.post.postId;
+      impressionCaptured.current = false;
+    }
     if (!placement || impressionCaptured.current) return;
     const node = cardRef.current;
     if (!node || typeof IntersectionObserver === 'undefined') {
       impressionCaptured.current = true;
+      rememberViewedSponsoredExplorePost(placement.post.postId);
       void captureClientEvent('sponsored_explore_impression', {
         source_surface: 'explore',
         placement_type: placement.placementType,
@@ -176,6 +183,7 @@ function SponsoredPolaroid({ placement }: { placement: SponsoredExplorePlacement
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting) || impressionCaptured.current) return;
         impressionCaptured.current = true;
+        rememberViewedSponsoredExplorePost(placement.post.postId);
         void captureClientEvent('sponsored_explore_impression', {
           source_surface: 'explore',
           placement_type: placement.placementType,

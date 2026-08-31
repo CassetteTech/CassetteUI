@@ -624,10 +624,11 @@ export class ProfileService {
     options: {
       page?: number;
       pageSize?: number;
+      lastSponsoredPostId?: string;
     } = {},
   ): Promise<PaginatedActivityResponse> {
     try {
-      const { page = 1, pageSize = 20 } = options;
+      const { page = 1, pageSize = 20, lastSponsoredPostId } = options;
       const path = '/api/v1/social/explore';
       const url = this.buildApiUrl(path);
 
@@ -635,6 +636,9 @@ export class ProfileService {
         page: page.toString(),
         pageSize: pageSize.toString(),
       });
+      if (page === 1 && lastSponsoredPostId) {
+        queryParams.set('lastSponsoredPostId', lastSponsoredPostId);
+      }
 
       const requestUrl = `${url}?${queryParams}`;
 

@@ -7,6 +7,7 @@ import { applyCachedArtwork } from '@/services/profile-artwork-cache';
 import { useDebounce } from '@/hooks/use-debounce';
 import { ActivityPost, ExploreUser } from '@/types';
 import { appLogger } from '@/lib/observability/logger';
+import { getLastViewedSponsoredExplorePostId } from '@/services/sponsored-explore-rotation';
 
 export const PAGE_SIZE = 20;
 export const SECTION_INCREMENT = 8;
@@ -30,6 +31,7 @@ export const MUSIC_SECTION_EMPTY_COPY: Record<MusicElementType, string> = {
 };
 
 export function useExploreData() {
+  const lastSponsoredPostId = useMemo(() => getLastViewedSponsoredExplorePostId(), []);
   const [additionalPosts, setAdditionalPosts] = useState<ActivityPost[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isFetchingMorePosts, setIsFetchingMorePosts] = useState(false);
@@ -51,7 +53,11 @@ export function useExploreData() {
   const debouncedUserSearch = useDebounce(userSearch, 300);
   const isSearchingUsers = debouncedUserSearch.trim().length > 0;
 
-  const { data: exploreData, isLoading: isLoadingPosts, error: postsError } = useExploreActivity({ page: 1, pageSize: PAGE_SIZE });
+  const { data: exploreData, isLoading: isLoadingPosts, error: postsError } = useExploreActivity({
+    page: 1,
+    pageSize: PAGE_SIZE,
+    lastSponsoredPostId,
+  });
   const {
     data: exploreUsersData,
     isLoading: isLoadingUsers,

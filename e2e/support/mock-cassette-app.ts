@@ -32,6 +32,7 @@ const elementTypeForFixtureId = (
 
 type MockCassetteOptions = {
   analyticsCaptures?: Array<Record<string, unknown>>;
+  exploreRequests?: string[];
   currentUser?: FixtureUser | null;
   googleAuthUser?: FixtureUser | null;
   users?: FixtureUser[];
@@ -626,6 +627,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
     }
 
     if (pathname === '/api/v1/social/explore' && method === 'GET') {
+      options.exploreRequests?.push(request.url());
       return json(route, options.exploreResponse ?? {
         items: [],
         page: 1,

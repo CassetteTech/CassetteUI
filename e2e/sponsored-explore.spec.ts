@@ -117,3 +117,27 @@ test('renders sponsored-only inventory in its matching section', async ({ page }
   await expect(page.getByTestId('sponsored-explore')).toContainText('Signal Fire');
   await expect(page.getByText('Nothing public — yet')).toHaveCount(0);
 });
+
+test('sends the last viewed sponsor as the next Explore rotation cursor', async ({ page }) => {
+  const exploreRequests: string[] = [];
+  await page.addInitScript((postId) => {
+    window.localStorage.setItem('cassette:last-viewed-sponsored-explore-post:v1', postId);
+  }, sponsoredPost.postId);
+  await mockCassetteApp(page, {
+    exploreRequests,
+    exploreResponse: {
+      items: [organicPost],
+      page: 1,
+      pageSize: 20,
+      totalItems: 1,
+      isOwnProfile: false,
+      sponsoredPlacement: null,
+    },
+  });
+
+  await page.goto('/explore');
+
+  await expect.poll(() => exploreRequests.length).toBeGreaterThan(0);
+  const requestUrl = new URL(exploreRequests[0]);
+  expect(requestUrl.searchParams.get('lastSponsoredPostId')).toBe(sponsoredPost.postId);
+});

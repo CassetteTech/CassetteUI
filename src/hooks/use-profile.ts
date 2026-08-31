@@ -14,8 +14,8 @@ export const profileQueryKeys = {
   likedActivity: (userId: string, page?: number) => ['user-liked-activity', userId, page] as const,
   tabProbe: (userIdentifier: string, slot: string) =>
     ['profile-tab-probe', userIdentifier, slot] as const,
-  exploreActivity: (page?: number, pageSize?: number) =>
-    ['explore-activity', page, pageSize] as const,
+  exploreActivity: (page?: number, pageSize?: number, lastSponsoredPostId?: string) =>
+    ['explore-activity', page, pageSize, lastSponsoredPostId ?? ''] as const,
   exploreUsers: (page?: number, pageSize?: number, q?: string) =>
     ['explore-users', page, pageSize, q ?? ''] as const,
   exploreCurators: () => ['explore-curators'] as const,
@@ -144,14 +144,15 @@ interface ExploreQueryOptions {
   pageSize?: number;
   enabled?: boolean;
   q?: string;
+  lastSponsoredPostId?: string;
 }
 
 export const useExploreActivity = (options: ExploreQueryOptions = {}) => {
-  const { page = 1, pageSize = 20, enabled = true } = options;
+  const { page = 1, pageSize = 20, enabled = true, lastSponsoredPostId } = options;
 
   return useQuery<PaginatedActivityResponse, Error>({
-    queryKey: profileQueryKeys.exploreActivity(page, pageSize),
-    queryFn: () => profileService.fetchExploreActivity({ page, pageSize }),
+    queryKey: profileQueryKeys.exploreActivity(page, pageSize, lastSponsoredPostId),
+    queryFn: () => profileService.fetchExploreActivity({ page, pageSize, lastSponsoredPostId }),
     enabled,
     refetchOnMount: 'always',
     staleTime: 1000 * 60 * 2,

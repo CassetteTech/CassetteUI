@@ -49,6 +49,8 @@
     "src/services/__tests__/paid-promotion-subjects.test.ts",
     "src/services/sponsored-explore-contract.ts",
     "src/services/__tests__/sponsored-explore-contract.test.ts",
+    "src/services/sponsored-explore-rotation.ts",
+    "src/services/__tests__/sponsored-explore-rotation.test.ts",
     "src/app/(sidebar)/internal/_components/explore-snapshot-utils.ts",
     "src/app/(sidebar)/internal/_components/__tests__/explore-snapshot-utils.test.ts",
     "src/lib/analytics/events.ts",

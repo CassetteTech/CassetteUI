@@ -6,6 +6,7 @@ import {
   Layers,
   ChartNoAxesCombined,
   Megaphone,
+  Mail,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -98,6 +99,13 @@ export const CONSOLE_NAV: ConsoleNavSection[] = [
         href: '/internal/paid-promotions',
         icon: Megaphone,
         blurb: 'Review, fulfill, and resolve paid-promotion campaigns.',
+      },
+      {
+        key: 'email',
+        label: 'Email',
+        href: '/internal/email',
+        icon: Mail,
+        blurb: 'Delivery health, template previews, and controlled sends.',
       },
     ],
   },

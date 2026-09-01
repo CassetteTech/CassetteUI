@@ -1572,6 +1572,14 @@ export interface InternalExploreSnapshotsResponse {
   items: InternalExploreSnapshotSummary[];
 }
 
+export interface InternalExploreSnapshotGenerationResult {
+  succeeded: boolean;
+  snapshotId?: string | null;
+  candidateCount: number;
+  itemCount: number;
+  failureReason?: string | null;
+}
+
 export interface InternalExploreSnapshotItem {
   rank: number;
   postId: string;

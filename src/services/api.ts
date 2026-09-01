@@ -29,6 +29,7 @@ import {
   InternalSentinelInvariantNotesResponse,
   InternalExploreSnapshotsResponse,
   InternalExploreSnapshotItemsResponse,
+  InternalExploreSnapshotGenerationResult,
   InternalEmailOperationsConfig,
   InternalEmailTemplatesResponse,
   InternalEmailTemplatePreview,
@@ -967,6 +968,13 @@ class ApiService {
     return this.request<InternalExploreSnapshotsResponse>(
       `/api/v1/internal/explore/snapshots?days=${days}`,
       { timeoutMs: 20000 }
+    );
+  }
+
+  async generateInternalExploreSnapshot(): Promise<InternalExploreSnapshotGenerationResult> {
+    return this.request<InternalExploreSnapshotGenerationResult>(
+      '/api/v1/internal/explore/snapshots/generate',
+      { method: 'POST', timeoutMs: 120000 }
     );
   }
 

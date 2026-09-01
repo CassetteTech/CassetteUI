@@ -51,8 +51,8 @@ test('shows a disclosed sponsored post in its matching music section and measure
   await expect(albums.getByTestId('sponsored-explore')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Sponsored discovery' })).toHaveCount(0);
   await expect(sponsored.getByText('Sponsored', { exact: true })).toBeVisible();
-  await expect(sponsored).toContainText('Paid advertising');
-  await expect(sponsored).toContainText('Organic posts keep their existing order');
+  await expect(sponsored).not.toContainText('Paid advertising');
+  await expect(sponsored).not.toContainText('Organic posts keep their existing order');
   await expect(sponsored).toContainText('Signal Fire');
   await expect(sponsored.getByTestId('sponsored-explore-artwork').getByText('Sponsored')).toHaveCount(0);
   await expect(page.getByText('Organic track', { exact: true })).toBeVisible();

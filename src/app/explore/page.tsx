@@ -212,9 +212,8 @@ function SponsoredPolaroid({ placement }: { placement: SponsoredExplorePlacement
         }}
         className="group block border-2 border-foreground bg-primary-foreground force-light-surface p-3 pb-4 text-foreground shadow-flat-primary-6 transition-shadow hover:shadow-flat-primary-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="mb-3 flex items-center justify-between gap-2 border-b border-foreground/25 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.18em]">
+        <div className="mb-3 border-b border-foreground/25 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.18em]">
           <span className="text-primary">{placement.label}</span>
-          <span className="text-muted-foreground">Paid advertising</span>
         </div>
         <div data-testid="sponsored-explore-artwork" className="relative aspect-square overflow-hidden bg-muted">
           {post.imageUrl ? (
@@ -242,9 +241,6 @@ function SponsoredPolaroid({ placement }: { placement: SponsoredExplorePlacement
               @{post.username}
             </span>
           </div>
-          <p className="mt-3 text-[10px] leading-4 text-muted-foreground">
-            Paid placement. Organic posts keep their existing order.
-          </p>
         </div>
       </Link>
     </article>
@@ -371,9 +367,6 @@ function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
               <Image src="/images/ic_music.png" alt="" width={40} height={40} className="opacity-30" />
             </div>
           )}
-          <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 bg-background/90 border border-foreground px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]">
-            {post.elementType}
-          </span>
           {post.isRepost && (
             <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 bg-foreground text-background px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]">
               <Star className="w-2.5 h-2.5" fill="currentColor" />

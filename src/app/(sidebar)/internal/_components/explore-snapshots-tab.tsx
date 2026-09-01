@@ -4,11 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Layers,
   RefreshCw,
+  Play,
   XCircle,
   Hash,
   Database,
   Clock,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { apiService } from '@/services/api';
 import type {
   InternalExploreSnapshotSummary,
@@ -64,6 +66,7 @@ export function ExploreSnapshotsTab() {
   const [days, setDays] = useState(SNAPSHOT_DAYS_DEFAULT);
   const [snapshots, setSnapshots] = useState<InternalExploreSnapshotSummary[]>([]);
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
+  const [snapshotGenerating, setSnapshotGenerating] = useState(false);
   const [snapshotsError, setSnapshotsError] = useState<string | null>(null);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -135,6 +138,22 @@ export function ExploreSnapshotsTab() {
     setSelectedId(snapshotId);
   };
 
+  const handleGenerateSnapshot = async () => {
+    setSnapshotGenerating(true);
+    try {
+      const result = await apiService.generateInternalExploreSnapshot();
+      toast.success(
+        `Explore snapshot generated with ${result.itemCount.toLocaleString()} ranked ${result.itemCount === 1 ? 'post' : 'posts'}.`
+      );
+      setUserPickedId(false);
+      await loadSnapshots();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to generate Explore snapshot');
+    } finally {
+      setSnapshotGenerating(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <SectionHeader
@@ -142,6 +161,21 @@ export function ExploreSnapshotsTab() {
         title="Snapshots"
         actions={
           <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 gap-1.5 px-2 text-[11px]"
+              disabled={snapshotGenerating}
+              onClick={() => void handleGenerateSnapshot()}
+              title="Generate a fresh Explore snapshot"
+            >
+              {snapshotGenerating ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Play className="h-3.5 w-3.5" />
+              )}
+              Generate
+            </Button>
             {DAY_RANGES.map((range) => (
               <Button
                 key={range}
@@ -189,7 +223,7 @@ export function ExploreSnapshotsTab() {
                 <EmptyState
                   icon={Database}
                   title="No snapshots"
-                  description={`No Explore snapshots generated in the last ${days} days.`}
+                  description={`No Explore snapshots generated in the last ${days} days. Generate one to publish eligible organic posts to Explore.`}
                 />
               </div>
             ) : (

@@ -1,4 +1,4 @@
-import { Users, AlertCircle, Link2, AlertTriangle, Layers, ChartNoAxesCombined, type LucideIcon } from 'lucide-react';
+import { Users, AlertCircle, Link2, AlertTriangle, Layers, ChartNoAxesCombined, Mail, type LucideIcon } from 'lucide-react';
 
 export type ConsoleDomain = 'eng' | 'growth';
 
@@ -82,6 +82,13 @@ export const CONSOLE_NAV: ConsoleNavSection[] = [
         href: '/internal/attribution',
         icon: Link2,
         blurb: 'Signup sources, campaign reporting, and link templates.',
+      },
+      {
+        key: 'email',
+        label: 'Email',
+        href: '/internal/email',
+        icon: Mail,
+        blurb: 'Delivery health, template previews, and controlled sends.',
       },
     ],
   },

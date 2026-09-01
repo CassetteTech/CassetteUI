@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "exclude": [
     "node_modules",
+    "tools/oxlint/anti-slop",
     "**/*.test.ts",
     "**/__tests__/**"
   ]

@@ -275,6 +275,9 @@ export interface ConvertLifecycleResponse {
   status: ConvertStatus;
   /** Coarse live progress stage while status is "processing" (ConvertStage on Bridge). */
   stage?: string;
+  /** Playlist tracks mapped so far and the capped total, while stage is matching_tracks. */
+  tracksProcessed?: number;
+  tracksTotal?: number;
   postId?: string;
   jobId?: string;
   retryAfterMs?: number;

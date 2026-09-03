@@ -356,7 +356,9 @@ class ApiService {
 
   private async waitForConvertJob(jobId: string, initialRetryMs?: number, anonymous?: boolean, correlationId?: string): Promise<string> {
     const startedAt = Date.now();
-    const timeoutMs = 45_000;
+    // Bridge answers 202 after a short sync budget and finishes the job detached; long
+    // playlists take a minute or more. Each poll is short, so the proxy's 30 s limit is moot.
+    const timeoutMs = 4 * 60_000;
     let retryMs = initialRetryMs ?? 400;
 
     while (Date.now() - startedAt < timeoutMs) {

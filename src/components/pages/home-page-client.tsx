@@ -68,7 +68,7 @@ export default function HomePageClient() {
   const lastTrackedSearchRef = useRef<string>('');
   const debouncedSearchTerm = useDebounce(musicUrl, 300); // 300ms debounce for better responsiveness
   
-  const { isAuthenticated } = useAuthState();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuthState();
   const linkConversion = useMusicLinkConversion();
   const isConverting = conversionKey != null;
   const { label: conversionStageLabel } = useConversionStage(conversionKey, {
@@ -135,7 +135,9 @@ export default function HomePageClient() {
 
   const handleConvertLink = useCallback(async (url: string, item?: { title: string; type: string }) => {
     const trimmed = normalizeMusicLinkInput(url);
-    if (!trimmed || conversionKey) {
+    // Until the auth store settles, a signed-in user would submit anonymously and the
+    // post would not attach to their profile (and stage polling 404s on scope mismatch).
+    if (!trimmed || conversionKey || isAuthLoading) {
       return;
     }
 
@@ -205,7 +207,7 @@ export default function HomePageClient() {
         'Something went wrong while converting your link. Please try again.',
       ));
     }
-  }, [conversionKey, isAuthenticated, linkConversion, router]);
+  }, [conversionKey, isAuthenticated, isAuthLoading, linkConversion, router]);
 
   // Opening is just a state flip: the same input node stays mounted (so the
   // iOS keyboard stays up) while its container becomes a full-screen sheet

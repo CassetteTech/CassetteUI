@@ -80,38 +80,19 @@ export function SkeletonSwap({
   const { showSkeleton } = useSkeletonSwap({ ready, delay, minVisible });
   const reduced = useReducedMotion();
 
-  const shell = useRef<HTMLDivElement>(null);
-  const body = useRef<HTMLDivElement>(null);
-  const [scrollable, setScrollable] = useState(false);
-
   const box = reserve ?? lines * lineHeight;
 
-  useEffect(() => {
-    const el = shell.current;
-    const inner = body.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-
-    const check = () => setScrollable(el.scrollHeight - el.clientHeight > 1);
-    check();
-
-    const ro = new ResizeObserver(check);
-    ro.observe(el);
-    if (inner) ro.observe(inner);
-    return () => ro.disconnect();
-  }, []);
-
+  // Not a scroll container: an `overflow` + `overscroll-contain` wrapper here
+  // blocks wheel/touch scroll chaining to the parent list even when it has
+  // nothing to scroll. Callers own scrolling.
   return (
     <div
-      ref={shell}
       aria-busy={!ready}
       aria-label={label}
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-      tabIndex={scrollable ? 0 : undefined}
       style={{ minHeight: box }}
-      className={`relative grid overflow-y-auto overscroll-contain text-foreground ${className}`}
+      className={`relative grid text-foreground ${className}`}
     >
       <motion.div
-        ref={body}
         className="col-start-1 row-start-1 min-w-0"
         initial={false}
         animate={

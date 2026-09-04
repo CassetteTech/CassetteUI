@@ -1,11 +1,11 @@
 'use client';
 
-/** Curator Studio: flat, divider-based sections in two modes. Setup mode fronts
-    a numbered "Set up" stepper of only the unfinished steps (finished ones move
-    to "Manage" with full functionality); once everything is complete the page
-    becomes a dashboard ordered by role, with billing settings grouped last. */
+/** Curator Studio: flat, divider-based sections in two modes. Setup mode is a
+    single working column ordered by the numbered "Set up" stepper (finished
+    steps keep full functionality); once everything is complete the page becomes
+    a dashboard ordered by role, with billing settings grouped last. */
 
-import { Fragment, Suspense, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, Suspense, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -212,18 +212,18 @@ function useLaunchSteps(profile: CuratorProfile | null) {
     staleTime: 0,
   });
 
-  // Payouts count as done only once transfers are actually active; a started but
-  // unfinished account renders as the in-progress "Finish payout setup" step.
-  const payoutsActive = payout.data?.transfersCapabilityStatus === 'active';
+  // Accepting members needs payout setup to have started; transfers going
+  // active is payout readiness, which the payout card tracks separately so a
+  // published plan never reads as launch-incomplete because of verification lag.
+  const payoutStarted = payout.data != null;
+  const hasPlan = plans.data?.some((plan) => plan.status !== 'archived') === true;
+  const hasActivePlan = plans.data?.some((plan) => plan.status === 'active') === true;
   const steps = [
     { href: '#studio-profile', label: 'Create your free profile', done: profile?.status === 'active' },
+    { href: '#studio-plan', label: 'Prepare and preview your offer', done: hasPlan },
     { href: '#studio-pro', label: 'Start Curator Pro', done: pro.data?.hasAccess === true },
-    {
-      href: '#studio-payouts',
-      label: payout.data != null && !payoutsActive ? 'Finish payout setup' : 'Set up payouts',
-      done: payoutsActive,
-    },
-    { href: '#studio-plan', label: 'Publish a membership plan', done: plans.data?.some((plan) => plan.status === 'active') === true },
+    { href: '#studio-payouts', label: 'Start payout setup', done: payoutStarted },
+    { href: '#studio-plan', label: 'Publish your membership plan', done: hasActivePlan },
   ];
   const doneCount = steps.filter((step) => step.done).length;
   const nextIndex = steps.findIndex((step) => !step.done);
@@ -256,7 +256,7 @@ function LaunchRail({ launch }: { launch: LaunchState }) {
       />
       <ol className="mt-5 space-y-3">
         {steps.map((step, index) => (
-          <li key={step.href}>
+          <li key={step.label}>
             <a
               href={step.href}
               // Expand the matching accordion step before the anchor scrolls to it.
@@ -421,27 +421,32 @@ function StudioHeader({ profile, launch }: { profile: CuratorProfile | null; lau
           </p>
           {profile && <HeaderStats profile={profile} />}
           <MobileLaunchSummary launch={launch} />
-          <div className="mt-6 flex flex-wrap gap-2">
-            {/* Posting is free in both modes, so this stays the loudest action. */}
-            <Button
-              asChild
-              className="w-full font-mono text-[10px] font-bold uppercase tracking-[0.2em] sm:w-auto"
-            >
-              <Link href="/add-music">New post</Link>
-            </Button>
-            {profile && user?.username && (
-              <Button
-                asChild
-                variant="outline"
-                className="w-full border-section-dark-fg/30 bg-transparent font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-section-dark-fg hover:bg-section-dark-fg/10 hover:text-section-dark-fg sm:w-auto"
-              >
-                <Link href={`/profile/${encodeURIComponent(user.username)}`}>
-                  View profile
-                  <ArrowUpRight aria-hidden />
-                </Link>
-              </Button>
-            )}
-          </div>
+          {(!setupMode || profile && user?.username) && (
+            <div className="mt-6 flex flex-wrap gap-2">
+              {/* During setup the checklist's next step is the one primary action;
+                  posting becomes the loudest action once the studio is launched. */}
+              {!setupMode && (
+                <Button
+                  asChild
+                  className="w-full font-mono text-[10px] font-bold uppercase tracking-[0.2em] sm:w-auto"
+                >
+                  <Link href="/add-music">New post</Link>
+                </Button>
+              )}
+              {profile && user?.username && (
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full border-section-dark-fg/30 bg-transparent font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-section-dark-fg hover:bg-section-dark-fg/10 hover:text-section-dark-fg sm:w-auto"
+                >
+                  <Link href={`/profile/${encodeURIComponent(user.username)}`}>
+                    View profile
+                    <ArrowUpRight aria-hidden />
+                  </Link>
+                </Button>
+              )}
+            </div>
+          )}
         </motion.div>
 
         {/* Full checklist card is desktop-only and setup-mode-only; mobile gets
@@ -494,13 +499,20 @@ function ProfileSectionSkeleton() {
   );
 }
 
-/** Role label per launch step; setup mode prefixes these with "Step n". */
-function stepRole(id: string) {
-  if (id === 'studio-profile') return 'Identity';
-  if (id === 'studio-pro') return 'Subscription';
-  if (id === 'studio-payouts') return 'Get paid';
-  return 'Monetize';
-}
+/** Fixed setup-mode eyebrows per section. The plan section serves steps 2
+    (prepare) and 5 (publish) and keeps the earlier number; the checklist rail
+    carries both labels. */
+const setupEyebrows: Record<string, ReactNode> = Object.fromEntries((
+  [
+    ['studio-profile', 1, 'Identity'],
+    ['studio-plan', 2, 'Monetize'],
+    ['studio-pro', 3, 'Subscription'],
+    ['studio-payouts', 4, 'Get paid'],
+  ] as const
+).map(([id, number, role]) => [
+  id,
+  <Fragment key={id}><span className="text-primary">Step {number}</span> · {role}</Fragment>,
+]));
 
 function CuratorStudio() {
   const profile = useQuery({
@@ -515,7 +527,6 @@ function CuratorStudio() {
   else if (profile.isPending || launch.isPending) defaultStepId = null;
   else defaultStepId = launch.steps[launch.nextIndex]?.href.slice(1) ?? 'studio-earnings';
   const setupMode = launch.nextIndex !== -1;
-  const incompleteIds = launch.steps.filter((step) => !step.done).map((step) => step.href.slice(1));
 
   const [openId, setOpenId] = useState<string | null>(null);
   // Once the curator toggles a step themselves, the default never overrides them.
@@ -527,8 +538,8 @@ function CuratorStudio() {
     setReady(true);
   }, [defaultStepId, ready]);
 
-  // Setup-mode stepper eyebrows, numbered by position among the unfinished steps.
-  const incompleteKey = incompleteIds.join('|');
+  // Setup-mode stepper eyebrows use fixed numbers, so finishing a step never
+  // renumbers the rest.
   const stepsValue = useMemo(() => ({
     openId,
     toggle: (id: string) => {
@@ -539,13 +550,8 @@ function CuratorStudio() {
       touched.current = true;
       setOpenId(id);
     },
-    eyebrows: incompleteKey === ''
-      ? undefined
-      : Object.fromEntries(incompleteKey.split('|').map((id, index) => [
-          id,
-          <Fragment key={id}><span className="text-primary">Step {index + 1}</span> · {stepRole(id)}</Fragment>,
-        ])),
-  }), [openId, incompleteKey]);
+    eyebrows: setupMode ? setupEyebrows : undefined,
+  }), [openId, setupMode]);
 
   const profileSection = profile.isPending ? (
     <ProfileSectionSkeleton />
@@ -573,18 +579,40 @@ function CuratorStudio() {
       >
         <StudioHeader profile={profile.data ?? null} launch={launch} />
 
-        <div className="mt-10 grid grid-cols-1 gap-x-14 lg:grid-cols-2 lg:items-start">
-          {/* Setup: the account/setup chain leads on mobile; dashboard: money leads. */}
-          <div className={cn('min-w-0', setupMode && 'order-last lg:order-none')}>
-            {profile.data && <CuratorEarningsCard profile={profile.data} />}
-            {profile.data && <CuratorPlanCard profile={profile.data} />}
+        {/* One stable tree for both modes so cards keep their local state
+            (notices, draft edits) when a step completes or reopens. Setup mode
+            dissolves the two column wrappers (`contents`) and orders the cards
+            into one working column; dashboard mode keeps the two columns. The
+            plan section is always mounted so every checklist anchor resolves,
+            even before a profile exists. */}
+        <div
+          className={cn(
+            'mt-10 grid grid-cols-1 gap-x-14',
+            setupMode ? 'mx-auto max-w-3xl' : 'lg:grid-cols-2 lg:items-start',
+          )}
+        >
+          <div className={setupMode ? 'contents' : 'min-w-0'}>
+            {profile.data && (
+              <div className={cn('min-w-0', setupMode && 'order-5')}>
+                <CuratorEarningsCard profile={profile.data} />
+              </div>
+            )}
+            <div className={cn('min-w-0', setupMode && 'order-2')}>
+              <CuratorPlanCard profile={profile.data ?? null} />
+            </div>
           </div>
-          <div className={cn('min-w-0', setupMode && 'order-first lg:order-none')}>
-            {setupMode && <GroupHeading eyebrow="Set up" />}
-            {profileSection}
+          <div className={setupMode ? 'contents' : 'min-w-0'}>
+            <div className={cn('min-w-0', setupMode && 'order-1')}>
+              {setupMode && <GroupHeading eyebrow="Set up" />}
+              {profileSection}
+            </div>
             {!setupMode && <GroupHeading eyebrow="Settings" title="Billing & payouts" />}
-            <CuratorProCard />
-            <CuratorPayoutCard />
+            <div className={cn('min-w-0', setupMode && 'order-3')}>
+              <CuratorProCard />
+            </div>
+            <div className={cn('min-w-0', setupMode && 'order-4')}>
+              <CuratorPayoutCard />
+            </div>
           </div>
         </div>
       </div>

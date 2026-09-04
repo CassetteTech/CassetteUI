@@ -196,6 +196,27 @@ test('reflects cancellation and reactivation only after Billing Portal mirror ch
   await expect(page.getByTestId('curator-pro-notice')).toContainText(/continue|active/i);
 });
 
+test('treats an unchanged Billing Portal return as success without polling', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProStatus: fixtureCuratorProActiveStatus,
+  });
+
+  await page.goto(STUDIO_PATH);
+  await returnFromProvider(page, PORTAL_URL, `${STUDIO_PATH}?pro=portal-return`);
+  await openStudioStep(page, 'studio-pro');
+  const card = page.getByTestId('curator-pro-card');
+  await expect(card).toContainText('no new paid joins');
+  await page.getByTestId('curator-pro-manage').click();
+
+  await expect(page.getByTestId('curator-pro-notice')).toContainText('unchanged', { timeout: 5_000 });
+  await expect(page).not.toHaveURL(/pro=/);
+  const requestsAfterReturn = state.curatorProStatusRequests;
+  await page.waitForTimeout(2_500);
+  expect(state.curatorProStatusRequests).toBe(requestsAfterReturn);
+  await expect(page.getByRole('button', { name: 'Check again' })).toHaveCount(0);
+});
+
 test('leaves the free profile editor usable when Pro status fails', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,

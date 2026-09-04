@@ -21,6 +21,7 @@ interface ChooseHandleStepProps {
   onNext: () => void;
   onBack: () => void;
   isFirstStep: boolean;
+  nextLabel?: string;
 }
 
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
@@ -31,6 +32,7 @@ export function ChooseHandleStep({
   onNext,
   onBack,
   isFirstStep,
+  nextLabel = 'Next',
 }: ChooseHandleStepProps) {
   const apiUrl = getBrowserApiBaseUrl();
   const [errors, setErrors] = useState<{ username?: string; displayName?: string }>({});
@@ -240,7 +242,7 @@ export function ChooseHandleStep({
           data-testid="onboarding-handle-next"
           className="px-8"
         >
-          Next
+          {nextLabel}
         </Button>
       </div>
     </motion.div>

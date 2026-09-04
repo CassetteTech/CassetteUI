@@ -42,6 +42,7 @@ import { openKoFiSupport } from '@/lib/ko-fi';
 import { KofiIcon } from '@/components/ui/kofi-icon';
 import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { getDeviceCategory, getUserCohort } from '@/lib/analytics/audience';
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 import { buildAttributedPostPath } from '@/lib/attribution/attribution-links';
 import { toast } from 'sonner';
@@ -947,6 +948,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         post_id: resolvedPostId,
         curator_id: postData.curatorId,
         is_member_view: true,
+        user_cohort: getUserCohort(user?.id),
+        device_category: getDeviceCategory(),
       });
     }
   }, [isLoading, isAuthenticated, postData, postId, user?.id]);

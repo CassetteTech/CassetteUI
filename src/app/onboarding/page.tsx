@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
 import { useAuthStore } from '@/stores/auth-store';
@@ -17,8 +17,19 @@ import { CompletionStep } from '@/components/onboarding/CompletionStep';
 import { authService } from '@/services/auth';
 import { pendingActionService } from '@/utils/pending-action';
 import { captureClientEvent } from '@/lib/analytics/client';
+import type { AnalyticsBaseProps } from '@/lib/analytics/events';
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
-import { authRedirectService, isPromoteIntentRedirect } from '@/utils/auth-redirect';
+import {
+  authRedirectService,
+  isPromoteIntentRedirect,
+  parseMembershipIntentRedirect,
+  type MembershipIntent,
+} from '@/utils/auth-redirect';
+import { getDeviceCategory, getUserCohort } from '@/lib/analytics/audience';
+import {
+  MembershipPurchaseSummary,
+  useMembershipPurchaseContext,
+} from '@/components/features/auth/membership-purchase-summary';
 import { appLogger } from '@/lib/observability/logger';
 
 // Step definitions (excluding welcome and completion which are special)
@@ -28,10 +39,10 @@ const STEPS = [
   { id: 'music', title: 'Connect Music', subtitle: 'Link your services' },
 ];
 
-// Promote-intent signups (auth redirect aimed at /promote*) only need the
-// required handle step; avatar and music-connect are fan steps that read as
-// drop-off friction in the middle of a purchase.
-const PROMOTE_STEPS = [STEPS[0]];
+// Purchase-intent signups (auth redirect aimed at /promote* or a membership
+// join) only need the required handle step; avatar and music-connect are fan
+// steps that read as drop-off friction in the middle of a purchase.
+const REQUIRED_STEPS = [STEPS[0]];
 
 type OnboardingPhase = 'welcome' | 'steps' | 'submitting' | 'complete';
 
@@ -41,16 +52,36 @@ export default function OnboardingPage() {
   const setUser = useAuthStore((state) => state.setUser);
   const apiUrl = getBrowserApiBaseUrl();
 
+  // Stored auth intent is browser-only, so it is resolved after mount into an
+  // explicit unresolved (null) state; the page shows its loader until then so
+  // server and first client render agree and the membership variant never
+  // flashes a welcome screen.
+  const [intent, setIntent] = useState<{ promote: boolean; membership: MembershipIntent | null } | null>(null);
   const [phase, setPhase] = useState<OnboardingPhase>('welcome');
+  useEffect(() => {
+    const stored = authRedirectService.get();
+    const membership = parseMembershipIntentRedirect(stored);
+    setIntent({ promote: isPromoteIntentRedirect(stored), membership });
+    // Membership buyers skip the welcome screen: the purchase summary is the
+    // context, and the handle form is the only thing between them and payment.
+    if (membership) setPhase('steps');
+  }, []);
+  const isPromoteIntent = intent?.promote === true;
+  const membershipIntent = intent?.membership ?? null;
   const [currentStep, setCurrentStep] = useState(0);
-  // Resolved once on mount; the stored redirect is only consumed later, on
-  // completion. The page renders a loader during SSR/auth resolution, so the
-  // client-only read cannot cause a visible hydration mismatch.
-  const [isPromoteIntent] = useState(
-    () => typeof window !== 'undefined' && isPromoteIntentRedirect(authRedirectService.get()),
-  );
-  const steps = isPromoteIntent ? PROMOTE_STEPS : STEPS;
-  const onboardingVariant = isPromoteIntent ? 'promote' : 'default';
+  const steps = isPromoteIntent || membershipIntent ? REQUIRED_STEPS : STEPS;
+  const onboardingVariant = membershipIntent ? 'membership' : isPromoteIntent ? 'promote' : 'default';
+  const purchaseContext = useMembershipPurchaseContext(membershipIntent);
+  const funnelProps = useCallback((): AnalyticsBaseProps => ({
+    route: '/onboarding',
+    source_surface: 'onboarding',
+    onboarding_variant: onboardingVariant,
+    user_id: user?.id,
+    is_authenticated: true,
+    billing_interval: membershipIntent?.interval,
+    user_cohort: getUserCohort(user?.id),
+    device_category: getDeviceCategory(),
+  }), [onboardingVariant, user, membershipIntent]);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     username: '',
@@ -113,27 +144,23 @@ export default function OnboardingPage() {
   }, [isLoading, user, router, consumeOnboardingDestination]);
 
   const handleStartOnboarding = () => {
-    void captureClientEvent('onboarding_started', {
-      route: '/onboarding',
-      source_surface: 'onboarding',
-      onboarding_variant: onboardingVariant,
-      user_id: user?.id,
-      is_authenticated: true,
-    });
+    void captureClientEvent('onboarding_started', funnelProps());
     setPhase('steps');
   };
+
+  // The membership variant never shows the welcome screen, so its start is
+  // the first render with a resolved, not-yet-onboarded user.
+  const membershipStarted = useRef(false);
+  useEffect(() => {
+    if (!membershipIntent || membershipStarted.current || !user || user.isOnboarded) return;
+    membershipStarted.current = true;
+    void captureClientEvent('onboarding_started', funnelProps());
+  }, [membershipIntent, user, funnelProps]);
 
   const handleNext = () => {
     const currentStepId = steps[currentStep]?.id;
     if (phase === 'steps' && (currentStepId === 'handle' || currentStepId === 'avatar' || currentStepId === 'music')) {
-      void captureClientEvent('onboarding_step_completed', {
-        route: '/onboarding',
-        source_surface: 'onboarding',
-        step: currentStepId,
-        onboarding_variant: onboardingVariant,
-        user_id: user?.id,
-        is_authenticated: true,
-      });
+      void captureClientEvent('onboarding_step_completed', { ...funnelProps(), step: currentStepId });
     }
 
     if (currentStep < steps.length - 1) {
@@ -260,8 +287,8 @@ export default function OnboardingPage() {
     setFormData(prev => ({ ...prev, ...updates }));
   };
 
-  // Loading state
-  if (isLoading) {
+  // Loading state (auth resolution or stored intent not yet read)
+  if (isLoading || intent === null) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -285,7 +312,12 @@ export default function OnboardingPage() {
 
     switch (steps[currentStep].id) {
       case 'handle':
-        return <ChooseHandleStep {...commonProps} />;
+        return (
+          <ChooseHandleStep
+            {...commonProps}
+            nextLabel={membershipIntent ? 'Save and continue to payment' : undefined}
+          />
+        );
       case 'avatar':
         return <AvatarStep {...commonProps} avatarPreview={avatarPreview} />;
       case 'music':
@@ -311,7 +343,7 @@ export default function OnboardingPage() {
               <WelcomeStep
                 onNext={handleStartOnboarding}
                 displayName={user?.displayName}
-                variant={onboardingVariant}
+                variant={isPromoteIntent ? 'promote' : 'default'}
               />
             </motion.div>
           )}
@@ -407,9 +439,17 @@ export default function OnboardingPage() {
                 className="text-center mb-6"
               >
                 <h1 className="text-2xl font-bold text-foreground font-teko tracking-wide">
-                  {steps[currentStep].title}
+                  {membershipIntent ? 'Finish your free account' : steps[currentStep].title}
                 </h1>
               </motion.div>
+
+              {membershipIntent && (
+                <MembershipPurchaseSummary
+                  intent={membershipIntent}
+                  context={purchaseContext}
+                  nextStep="Save your username and you will return to the curator's page to pay securely."
+                />
+              )}
 
               {/* Step Content */}
               <AnimatePresence mode="wait">

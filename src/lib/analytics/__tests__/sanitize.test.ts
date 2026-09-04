@@ -130,3 +130,26 @@ test('sanitizeAnalyticsProps keeps only opaque bounded curator membership ids', 
     undefined,
   );
 });
+
+test('sanitizeAnalyticsProps keeps membership funnel dimensions only from their closed vocabularies', () => {
+  const kept = sanitizeAnalyticsProps({
+    billing_interval: 'year',
+    user_cohort: 'new',
+    device_category: 'mobile',
+    onboarding_variant: 'membership',
+  });
+  assert.deepEqual(kept, {
+    billing_interval: 'year',
+    user_cohort: 'new',
+    device_category: 'mobile',
+    onboarding_variant: 'membership',
+  });
+
+  const dropped = sanitizeAnalyticsProps({
+    billing_interval: 'weekly',
+    user_cohort: 'matt@example.com',
+    device_category: 'tablet',
+    onboarding_variant: 'https://evil.example',
+  } as unknown as Partial<AnalyticsBaseProps>);
+  assert.deepEqual(dropped, {});
+});

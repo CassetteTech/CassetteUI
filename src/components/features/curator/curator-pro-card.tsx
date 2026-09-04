@@ -111,12 +111,15 @@ function discountCopy(status: CuratorProStatus) {
   return 'Full price.';
 }
 
+/** What ending Curator Pro means, shown before the billing handoff and on scheduled cancellations. */
+const endOfProCopy = 'After that, no new paid joins and no member-only publishing; each existing member is scheduled to end at the close of their own paid period. Your free profile and earned balances stay yours.';
+
 function lifecycleCopy(status: CuratorProStatus) {
   if (status.cancelAtPeriodEnd) {
     const end = status.paidThroughUtc
       ? ` on ${dateFormatter.format(new Date(status.paidThroughUtc))}`
       : ' at the end of the current billing period';
-    return `Curator Pro is canceling${end}. Your free curator profile stays available.`;
+    return `Curator Pro is canceling${end}. Until then you keep every Pro capability. ${endOfProCopy}`;
   }
   if (status.hasAccess) {
     return 'Curator Pro is active. Paid plan and payout requirements still apply before membership monetization.';
@@ -138,7 +141,7 @@ export function CuratorProCard() {
   const userId = user?.id ?? null;
   const [flow, setFlow] = useState<ProFlow>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  // Set when the 30s poll gives up, so the curator can restart it themselves.
+  // Set when the checkout poll gives up, so the curator can restart it themselves.
   const [timedOutFlow, setTimedOutFlow] = useState<ProFlow>(null);
   const flowInitialized = useRef(false);
   const flowHandled = useRef(false);
@@ -148,7 +151,9 @@ export function CuratorProCard() {
     queryFn: ({ signal }) => apiService.getCuratorProStatus(signal),
     enabled: Boolean(userId),
     staleTime: 0,
-    refetchInterval: flow ? 1_000 : false,
+    // Only a checkout return waits on the payment mirror; a portal return
+    // resolves on the first fresh status read.
+    refetchInterval: flow === 'return' ? 1_000 : false,
   });
   const status = statusQuery.data;
   const checkout = useMutation({
@@ -197,21 +202,19 @@ export function CuratorProCard() {
   }, [userId]);
 
   useEffect(() => {
-    if (!flow) return;
+    if (flow !== 'return') return;
     const timeout = window.setTimeout(() => {
       setTimedOutFlow(flow);
-      finishFlow(
-        flow === 'return'
-          ? 'Curator Pro activation is still processing. Refresh in a moment.'
-          : 'We could not confirm a billing change yet. Refresh in a moment.',
-      );
+      finishFlow('Curator Pro activation is still processing. Refresh in a moment.');
     }, 30_000);
     return () => window.clearTimeout(timeout);
   }, [finishFlow, flow]);
 
+  const fetchedAfterMount = statusQuery.isFetchedAfterMount;
   useEffect(() => {
-    if (!flow || !status || flowHandled.current) return;
-
+    // Only a status read completed by this page load counts; a cached entry
+    // from before the provider handoff must not resolve the flow.
+    if (!flow || !status || !fetchedAfterMount || flowHandled.current) return;
     if (flow === 'return') {
       if (status.hasAccess) {
         finishFlow('Curator Pro is active. Paid plan and payout requirements still apply before membership monetization.');
@@ -223,26 +226,28 @@ export function CuratorProCard() {
       return;
     }
 
+    // Portal return: an unchanged status is the normal outcome (the curator
+    // looked or updated a card), so it succeeds immediately rather than waiting.
     const baseline = portalBaseline.current;
-    if (baseline === null) return;
-
-    const canceled = baseline.status !== 'canceled' && status.status === 'canceled';
-    const canceling = !baseline.cancelAtPeriodEnd && status.cancelAtPeriodEnd;
+    const canceled = baseline !== null && baseline.status !== 'canceled' && status.status === 'canceled';
+    const canceling = baseline !== null && !baseline.cancelAtPeriodEnd && status.cancelAtPeriodEnd;
     const current = status.status === 'active' || status.status === 'trialing';
-    const reactivated = current && (
+    const reactivated = baseline !== null && current && (
       baseline.status === 'canceled' ||
       (baseline.cancelAtPeriodEnd && !status.cancelAtPeriodEnd)
     );
     if (canceled) {
       finishFlow('Curator Pro is canceled. Your free curator profile stays available.');
     } else if (canceling) {
-      finishFlow('Curator Pro will end after the current billing period.');
+      finishFlow(`Curator Pro will end${status.paidThroughUtc ? ` on ${dateFormatter.format(new Date(status.paidThroughUtc))}` : ' after the current billing period'}. ${endOfProCopy}`);
     } else if (reactivated) {
       finishFlow('Your Curator Pro subscription will continue.');
-    } else if (baseline.status !== status.status) {
+    } else if (baseline !== null && baseline.status !== status.status) {
       finishFlow('Your Curator Pro billing status changed. Review the current status below.');
+    } else {
+      finishFlow('Billing settings are up to date. Your Curator Pro status is unchanged.');
     }
-  }, [finishFlow, flow, status]);
+  }, [fetchedAfterMount, finishFlow, flow, status]);
 
   const actionError = checkout.isError
     ? `${getUserFacingApiErrorMessage(checkout.error, 'We could not start secure Checkout.')} Try again.`
@@ -322,6 +327,12 @@ export function CuratorProCard() {
             </dl>
 
             <p className="text-sm leading-relaxed">{lifecycleCopy(status)}</p>
+            {status.canManage && status.hasAccess && !status.cancelAtPeriodEnd && (
+              <p className="text-xs text-muted-foreground">
+                Canceling in billing settings ends Curator Pro on the effective date shown there, which may be
+                immediate. {endOfProCopy}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               Promotional codes are entered in secure Stripe Checkout.
             </p>

@@ -76,10 +76,12 @@ import {
   parseMembershipCheckout,
   parseMembershipPortal,
   parseMembershipStatus,
+  parseMyMemberships,
   type MembershipCheckout,
   type MembershipInterval,
   type MembershipPortal,
   type MembershipStatusView,
+  type MyMembership,
 } from './membership';
 import {
   parseCuratorProCheckout,
@@ -455,6 +457,11 @@ class ApiService {
       { signal },
     );
     return parseMembershipStatus(response);
+  }
+
+  async getMyMemberships(signal?: AbortSignal): Promise<MyMembership[]> {
+    const response = await this.request<unknown>('/api/v1/memberships/me', { signal });
+    return parseMyMemberships(response);
   }
 
   async createMembershipCheckout(

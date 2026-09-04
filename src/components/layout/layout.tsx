@@ -36,11 +36,12 @@ useEffect(() => {
   };
 }, []);
 
-
   const isAuthPage = pathname?.startsWith('/auth');
-  const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/curator') || pathname?.startsWith('/studio') || pathname?.startsWith('/add-music') || pathname?.startsWith('/internal');
+  const isOnboardingPage = pathname?.startsWith('/onboarding');
+  const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/curator') || pathname?.startsWith('/studio') || pathname?.startsWith('/memberships') || pathname?.startsWith('/add-music') || pathname?.startsWith('/internal');
   const isProfileRoute = pathname?.startsWith('/profile');
-  const isStudioRoute = pathname?.startsWith('/studio');
+  // Studio and My memberships are money surfaces: sidebar on desktop, no marketing footer or donation ask.
+  const isStudioRoute = pathname?.startsWith('/studio') || pathname?.startsWith('/memberships');
   const isHomePage = pathname === '/';
   const isPostPage = pathname?.startsWith('/post');
   // /about and /team render their own MarketingFooter inside the curtain sheet
@@ -70,8 +71,8 @@ useEffect(() => {
           <Footer />
         </div>
       )}
-      {/* Ko-fi button stays off post/conversion pages and money/content surfaces (profile, studio) */}
-      {!isPostPage && !isProfileRoute && !isStudioRoute && (
+      {/* Ko-fi button stays off post/conversion pages, money/content surfaces (profile, studio), and account creation (auth, onboarding) */}
+      {!isPostPage && !isProfileRoute && !isStudioRoute && !isAuthPage && !isOnboardingPage && (
         <div className={isProfilePage ? 'lg:hidden' : ''}>
           <SupportFloatingButton />
         </div>

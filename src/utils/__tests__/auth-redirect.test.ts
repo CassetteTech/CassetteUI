@@ -5,6 +5,7 @@ import {
   authRedirectService,
   isPromoteIntentRedirect,
   normalizeAuthRedirect,
+  parseMembershipIntentRedirect,
 } from '../auth-redirect';
 
 test('accepts internal auth return routes', () => {
@@ -38,6 +39,26 @@ test('detects promote-intent redirects without over-matching', () => {
   assert.equal(isPromoteIntentRedirect('//promote'), false);
   assert.equal(isPromoteIntentRedirect(null), false);
   assert.equal(isPromoteIntentRedirect(undefined), false);
+});
+
+test('parses membership-intent redirects and rejects malformed or unsafe ones', () => {
+  assert.deepEqual(
+    parseMembershipIntentRedirect('/profile/dj_matt?membership=join&interval=year'),
+    { username: 'dj_matt', interval: 'year' },
+  );
+  assert.deepEqual(
+    parseMembershipIntentRedirect('/profile/dj_matt?interval=month&membership=join'),
+    { username: 'dj_matt', interval: 'month' },
+  );
+  assert.equal(parseMembershipIntentRedirect('/profile/dj_matt?membership=join&interval=week'), null);
+  assert.equal(parseMembershipIntentRedirect('/profile/dj_matt?membership=join'), null);
+  assert.equal(parseMembershipIntentRedirect('/profile/dj_matt?membership=canceled&interval=year'), null);
+  assert.equal(parseMembershipIntentRedirect('/profile/dj_matt/posts?membership=join&interval=year'), null);
+  assert.equal(parseMembershipIntentRedirect('/profile/dj%2Fmatt?membership=join&interval=year'), null);
+  assert.equal(parseMembershipIntentRedirect('//evil.example/profile/x?membership=join&interval=year'), null);
+  assert.equal(parseMembershipIntentRedirect('https://evil.example/profile/x?membership=join&interval=year'), null);
+  assert.equal(parseMembershipIntentRedirect('/promote/new'), null);
+  assert.equal(parseMembershipIntentRedirect(null), null);
 });
 
 // The service persists to localStorage so the redirect survives resuming in

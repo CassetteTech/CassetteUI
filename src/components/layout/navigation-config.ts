@@ -1,6 +1,7 @@
 // Defines the primary user navigation groups and their route metadata.
 
 import {
+  BadgeCheck,
   Compass,
   Edit,
   FileText,
@@ -43,6 +44,7 @@ export const primaryNavItems: NavigationItemDefinition[] = [
 export const accountNavItems: NavigationItemDefinition[] = [
   { key: 'profile', label: 'Profile', icon: User, href: '/profile', authRequired: true },
   { key: 'edit-profile', label: 'Edit Profile', icon: Edit, href: '/profile/edit', authRequired: true },
+  { key: 'memberships', label: 'My Memberships', icon: BadgeCheck, href: '/memberships', authRequired: true },
   { key: 'curator-studio', label: 'Curator Studio', icon: LayoutDashboard, href: '/studio/curator', authRequired: true },
   { key: 'campaigns', label: 'Your Campaigns', icon: Megaphone, href: '/promote', authRequired: true },
   { key: 'internal', label: 'Internal', icon: Shield, href: '/internal', authRequired: true, internalOnly: true },

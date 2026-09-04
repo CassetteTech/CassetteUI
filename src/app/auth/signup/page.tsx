@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -16,7 +15,9 @@ import { MailCheck } from 'lucide-react';
 import { useSignUp, useSignInWithProvider } from '@/hooks/use-auth';
 import Image from 'next/image';
 import { GoogleGIcon } from '@/components/ui/google-g-icon';
-import { authRedirectService, isPromoteIntentRedirect } from '@/utils/auth-redirect';
+import { authRedirectService } from '@/utils/auth-redirect';
+import { useAuthIntent } from '@/hooks/use-auth-intent';
+import { MembershipPurchaseSummary } from '@/components/features/auth/membership-purchase-summary';
 
 export default function SignUpPage() {
   const searchParams = useSearchParams();
@@ -31,16 +32,7 @@ export default function SignUpPage() {
     ? `/auth/signin?redirect=${encodeURIComponent(redirect)}`
     : '/auth/signin';
 
-  // The ?redirect param covers the direct funnel; the stored fallback covers
-  // resumed flows (e.g. an email-verification tab with no params), applied
-  // after mount so server and first client render agree.
-  const [storedPromoteIntent, setStoredPromoteIntent] = useState(false);
-  const isPromoteIntent = isPromoteIntentRedirect(redirect) || storedPromoteIntent;
-
-  useEffect(() => {
-    authRedirectService.save(redirect);
-    setStoredPromoteIntent(isPromoteIntentRedirect(authRedirectService.get()));
-  }, [redirect]);
+  const { isPromoteIntent, membershipIntent, purchaseContext } = useAuthIntent(redirect, '/auth/signup');
 
   const handleGoogleSignIn = () => {
     authRedirectService.save(redirect);
@@ -132,17 +124,26 @@ export default function SignUpPage() {
                 />
                 Join Cassette
               </p>
-              <CardTitle className="text-2xl font-semibold tracking-tight">
-                Create your account
-              </CardTitle>
+              <h1 className="text-2xl font-semibold tracking-tight leading-none">
+                {membershipIntent ? 'Create a free account' : 'Create your account'}
+              </h1>
               <CardDescription className="font-roboto italic mt-2">
-                {isPromoteIntent
-                  ? 'Create your Cassette account to manage your campaign, payment, and receipts.'
-                  : 'Share your favorite music with the world.'}
+                {membershipIntent
+                  ? 'Your account is free. Payment for the membership comes next, on the curator\u2019s page.'
+                  : isPromoteIntent
+                    ? 'Create your Cassette account to manage your campaign, payment, and receipts.'
+                    : 'Share your favorite music with the world.'}
               </CardDescription>
             </CardHeader>
             <CardContent>
 
+            {membershipIntent && (
+              <MembershipPurchaseSummary
+                intent={membershipIntent}
+                context={purchaseContext}
+                nextStep="Next step: pick a username, then pay securely on the curator's page."
+              />
+            )}
             {providerSignInError && (
               <p role="alert" className="mb-4 text-sm text-destructive">
                 We could not start Google sign-in. Please try again.
@@ -159,6 +160,9 @@ export default function SignUpPage() {
                 <GoogleGIcon className="mr-2 h-4 w-4" />
                 Continue with Google
               </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Google is currently the only sign-up option. No password to remember.
+              </p>
             </div>
 
             {/* EMAIL AUTH - TEMPORARILY DISABLED

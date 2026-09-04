@@ -3,6 +3,7 @@
   "exclude": [
     "node_modules",
     "tools/oxlint/anti-slop",
+    ".next*/dev/types/**/*.ts",
     "**/*.test.ts",
     "**/__tests__/**"
   ]

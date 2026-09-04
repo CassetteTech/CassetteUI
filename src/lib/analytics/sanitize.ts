@@ -77,6 +77,10 @@ const ALLOWED_KEYS = new Set<keyof AnalyticsBaseProps>([
   'platform_count',
   'result_count',
   'step',
+  'onboarding_variant',
+  'billing_interval',
+  'user_cohort',
+  'device_category',
   'service',
   'account_type',
   'internal_actor',
@@ -86,6 +90,14 @@ const ALLOWED_KEYS = new Set<keyof AnalyticsBaseProps>([
   'total_tracks',
   'connection_state',
 ]);
+
+// Closed vocabularies: any value outside the list is dropped, never truncated.
+const ENUM_KEYS: Partial<Record<keyof AnalyticsBaseProps, readonly string[]>> = {
+  onboarding_variant: ['default', 'promote', 'membership'],
+  billing_interval: ['month', 'year'],
+  user_cohort: ['new', 'existing'],
+  device_category: ['mobile', 'desktop'],
+};
 
 function isForbiddenKey(key: string): boolean {
   return FORBIDDEN_KEY_PATTERNS.some((pattern) => pattern.test(key));
@@ -251,6 +263,14 @@ export function sanitizeAnalyticsProps(input: Partial<AnalyticsBaseProps>): Part
     if (key === 'element_type_guess') {
       const elementType = normalizeElementType(rawValue);
       if (elementType) sanitized.element_type_guess = elementType;
+      continue;
+    }
+
+    const allowed = ENUM_KEYS[key];
+    if (allowed) {
+      if (typeof rawValue === 'string' && allowed.includes(rawValue)) {
+        (sanitized as Record<string, unknown>)[key] = rawValue;
+      }
       continue;
     }
 

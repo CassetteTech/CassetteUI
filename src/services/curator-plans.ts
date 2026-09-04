@@ -197,18 +197,41 @@ export async function fetchCuratorPricing(signal?: AbortSignal): Promise<Curator
   return parseResponse(response, 'Failed to load membership pricing', curatorPricingSchema);
 }
 
+const planIdSchema = z.string().regex(/^mpl_[0-9A-Za-z]+$/).max(40);
+
+const jsonHeaders = { 'Content-Type': 'application/json' };
+
 export async function createCuratorPlan(request: CuratorPlanRequest): Promise<CuratorPlan> {
   const response = await fetch('/api/v1/curators/plans', {
     method: 'POST',
     body: JSON.stringify(curatorPlanRequestSchema.parse(request)),
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonHeaders,
   });
   return parseResponse(response, 'Failed to create membership plan', curatorPlanSchema);
 }
 
+/** Drafts only; Bridge answers 409 once the plan is published. */
+export async function updateCuratorPlan(id: string, request: CuratorPlanRequest): Promise<CuratorPlan> {
+  const response = await fetch(`/api/v1/curators/plans/${encodeURIComponent(planIdSchema.parse(id))}`, {
+    method: 'PUT',
+    body: JSON.stringify(curatorPlanRequestSchema.parse(request)),
+    credentials: 'include',
+    headers: jsonHeaders,
+  });
+  return parseResponse(response, 'Failed to update membership plan', curatorPlanSchema);
+}
+
+/** Drafts only; Bridge answers 409 once the plan is published. */
+export async function deleteCuratorPlan(id: string): Promise<void> {
+  const response = await fetch(`/api/v1/curators/plans/${encodeURIComponent(planIdSchema.parse(id))}`, {
+    method: 'DELETE', credentials: 'include',
+  });
+  if (!response.ok) throw new CuratorPageError('Failed to delete membership plan', response.status);
+}
+
 async function changeCuratorPlan(id: string, action: 'publish' | 'archive'): Promise<CuratorPlan> {
-  const planId = z.string().regex(/^mpl_[0-9A-Za-z]+$/).max(40).parse(id);
+  const planId = planIdSchema.parse(id);
   const response = await fetch(`/api/v1/curators/plans/${encodeURIComponent(planId)}/${action}`, {
     method: 'POST', credentials: 'include',
   });

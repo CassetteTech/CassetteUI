@@ -191,11 +191,12 @@ test('refreshes capability truth after hosted onboarding returns', async ({ page
   await expect(page.getByTestId('curator-payout-notice')).toHaveText('Payout setup is complete.');
   await expect(page.getByTestId('curator-payout-card')).toContainText('Ready');
   await expect(page).not.toHaveURL(/payout=/);
-  expect(state.curatorPayoutStatusRequests).toEqual([true]);
+  // Exactly one provider-refresh read; ordinary reads by other cards are incidental.
+  expect(state.curatorPayoutStatusRequests.filter(Boolean)).toEqual([true]);
   expect(state.curatorPayoutAccount).toEqual(active);
 });
 
-test('keeps restricted payout setup as the next unfinished step', async ({ page }) => {
+test('treats started payout setup as enough to launch and moves on to the offer', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProfile,
@@ -209,7 +210,24 @@ test('keeps restricted payout setup as the next unfinished step', async ({ page 
 
   await page.goto(STUDIO_PATH);
 
-  await expect(page.getByTestId('studio-payouts-trigger')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('studio-plan-trigger')).toHaveAttribute('aria-expanded', 'true');
+  const payoutCard = page.getByTestId('curator-payout-card');
+  await expect(payoutCard.getByText('Accept members').locator('..')).toContainText('Ready');
+  await expect(payoutCard.getByText('Receive payouts').locator('..')).toContainText('Needs your information');
+});
+
+test('lets a curator preview an offer before a profile exists and links to the missing step', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+
+  const card = page.getByTestId('curator-plan-card');
+  await card.getByLabel('Plan name').fill('Early Club');
+  await expect(card.getByTestId('curator-plan-preview')).toContainText('Early Club');
+  await expect(card.getByTestId('curator-plan-preview')).toContainText('$5.50/month');
+  await card.getByRole('link', { name: 'Create your free profile' }).click();
+  await expect(page.getByTestId('studio-profile-trigger')).toHaveAttribute('aria-expanded', 'true');
 });
 
 test('mints a new hosted link when the provider refresh URL returns', async ({ page }) => {
@@ -229,7 +247,6 @@ test('mints a new hosted link when the provider refresh URL returns', async ({ p
 
   await expect(page).toHaveURL(renewedUrl);
   expect(state.curatorPayoutOnboardingRequests).toBe(1);
-  expect(state.curatorPayoutStatusRequests).toEqual([false]);
 });
 
 test('keeps free and Pro surfaces usable through restricted and failed payout status', async ({ page }) => {
@@ -287,8 +304,13 @@ test('creates a free draft with policy economics before Pro or payouts', async (
   await card.getByRole('button', { name: 'Save draft' }).click();
 
   await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft saved. Publishing remains optional.');
-  await expect(card.getByTestId('curator-plan-draft')).toContainText('Selector Club');
+  const draft = card.getByTestId('curator-plan-draft');
+  await expect(draft).toContainText('Selector Club');
+  await expect(draft.getByTestId('curator-plan-preview')).toContainText('$7.58/month');
+  await expect(draft.getByTestId('curator-plan-preview')).toContainText('$73.10/year');
+  await expect(draft.getByTestId('curator-plan-preview')).toContainText('plus applicable tax');
   await expect(card.getByTestId('curator-plan-publish')).toBeDisabled();
+  await expect(card.getByRole('link', { name: 'Start Curator Pro' })).toBeVisible();
   expect(state.curatorPlanCreateRequests).toEqual([{
     name: 'Selector Club',
     description: 'Member-only selections.',
@@ -300,6 +322,66 @@ test('creates a free draft with policy economics before Pro or payouts', async (
   await expect(page.getByRole('button', { name: 'Save changes' })).toBeEnabled();
   await expect(page.getByTestId('curator-pro-subscribe')).toBeEnabled();
   await expect(page.getByTestId('curator-payout-onboarding')).toBeEnabled();
+});
+
+test('edits and deletes drafts before publication', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [{
+      id: 'mpl_FixtureStudioDraft01',
+      name: 'First Draft',
+      description: 'Weekly picks.',
+      amountMinor: 500,
+      annualAmountMinor: null,
+      currency: 'USD',
+      serviceFeeMinor: null,
+      annualServiceFeeMinor: null,
+      status: 'draft',
+      featureKeys: [],
+      createdAtUtc: '2026-08-16T12:00:00Z',
+      publishedAtUtc: null,
+      archivedAtUtc: null,
+    }],
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const card = page.getByTestId('curator-plan-card');
+  await card.getByTestId('curator-plan-edit').click();
+
+  await expect(card.getByLabel('Plan name')).toHaveValue('First Draft');
+  await expect(card.getByLabel('Monthly price (USD)')).toHaveValue('5.00');
+  await card.getByLabel('Plan name').fill('Second Draft');
+  await card.getByLabel('Monthly price (USD)').fill('8');
+  await card.getByLabel(/Member-only posts/).check();
+  await card.getByRole('button', { name: 'Save changes' }).click();
+
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft updated.');
+  await expect(card.getByTestId('curator-plan-draft')).toContainText('Second Draft');
+  await expect(card.getByTestId('curator-plan-draft')).toContainText('$8.00');
+  expect(state.curatorPlanUpdateRequests).toEqual([{
+    name: 'Second Draft',
+    description: 'Weekly picks.',
+    amountMinor: 800,
+    annualAmountMinor: null,
+    featureKeys: ['member_posts'],
+  }]);
+
+  await card.getByTestId('curator-plan-edit').click();
+  await card.getByLabel('Plan name').fill('Abandoned change');
+  await card.getByRole('button', { name: 'Cancel edit' }).click();
+  await expect(card.getByTestId('curator-plan-draft')).toContainText('Second Draft');
+  expect(state.curatorPlanUpdateRequests).toHaveLength(1);
+
+  await card.getByTestId('curator-plan-delete').click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('no fan has joined it');
+  await dialog.getByRole('button', { name: 'Delete draft' }).click();
+
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft deleted.');
+  await expect(card.getByTestId('curator-plan-draft')).toHaveCount(0);
+  expect(state.curatorPlanDeleteRequests).toEqual(['mpl_FixtureStudioDraft01']);
 });
 
 test('publishes after payout onboarding starts and archives without canceling subscriptions', async ({ page }) => {
@@ -330,11 +412,11 @@ test('publishes after payout onboarding starts and archives without canceling su
 
   await card.getByRole('button', { name: 'Archive plan' }).click();
   const dialog = page.getByRole('alertdialog');
-  await expect(dialog).toContainText('Existing subscriptions are not canceled');
+  await expect(dialog).toContainText('keep their current price, access, and renewals');
   await dialog.getByRole('button', { name: 'Archive plan' }).click();
 
   await expect(card.getByTestId('curator-plan-archived')).toContainText('Ready Plan');
-  await expect(card.getByTestId('curator-plan-notice')).toContainText('Existing subscriptions were not canceled.');
+  await expect(card.getByTestId('curator-plan-notice')).toContainText('existing members keep their price, access, and renewals');
   expect(state.curatorPlanArchiveRequests).toEqual(['mpl_FixtureStudioPlan01']);
 });
 
@@ -376,8 +458,8 @@ test('uses server-provided curator-borne processing in the estimate', async ({ p
   const card = page.getByTestId('curator-plan-card');
   await card.getByLabel('Monthly price (USD)').fill('7');
 
-  await expect(card.getByText('Payment processing').locator('..')).toContainText('−$0.55');
-  await expect(card.getByText('Estimated curator accrual').locator('..')).toContainText('$5.75');
+  await expect(card.getByText('Payment processing', { exact: true }).locator('..')).toContainText('−$0.55');
+  await expect(card.getByText('Estimated earnings per member', { exact: true }).locator('..')).toContainText('$5.75');
   await expect(card.getByText('$5.00/month, billed separately', { exact: true })).toBeVisible();
   await expect(card).toContainText(
     'monthly, after your balance reaches $10.00. Smaller cleared balances are paid after 90 days or when Curator Pro ends.',

@@ -118,11 +118,8 @@ const curatorPageSchema = z.object({
     pageSize: z.number().int().min(1).max(50),
   }),
 }).refine(
-  (page) => page.membership !== null || page.posts.items.every(
-    (item) => item.kind === 'post' && item.post.privacy === 'public',
-  ),
-  { message: 'Subscriber posts require an active membership plan' },
-).refine(
+  // A retained member on an archived plan sees member content with no public offer;
+  // the privacy boundary is the viewer entitlement, not the offer's presence.
   (page) => page.viewer.isOwner || page.viewer.isMember || page.posts.items.every(
     (item) => item.kind === 'locked' || item.post.privacy === 'public',
   ),

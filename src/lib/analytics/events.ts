@@ -78,8 +78,9 @@ export type AnalyticsEventName =
   | 'paid_promotion_checkout_started'
   | 'paid_promotion_checkout_returned'
   | 'curator_page_viewed'
+  | 'membership_join_clicked'
+  | 'membership_auth_started'
   | 'membership_checkout_started'
-  | 'membership_started'
   | 'membership_canceled'
   | 'member_post_viewed'
   | 'issue_report_submitted'
@@ -142,7 +143,10 @@ export type AnalyticsBaseProps = {
   platform_count?: number;
   result_count?: number;
   step?: 'handle' | 'avatar' | 'music';
-  onboarding_variant?: 'default' | 'promote';
+  onboarding_variant?: 'default' | 'promote' | 'membership';
+  billing_interval?: 'month' | 'year';
+  user_cohort?: 'new' | 'existing';
+  device_category?: 'mobile' | 'desktop';
   service?: 'spotify' | 'apple' | 'deezer' | 'unknown';
   account_type?: 'Regular' | 'Verified' | 'CassetteTeam' | string;
   internal_actor?: boolean;

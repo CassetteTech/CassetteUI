@@ -485,7 +485,8 @@ const fixtureCuratorSubscriberPost = {
     title: CURATOR_SUBSCRIBER_SENTINEL,
     subtitle: null,
     description: 'Private notes for active members.',
-    imageUrl: '/images/cassette_logo.png?subscriber-secret-artwork',
+    // Query strings are rejected by next/image local rules; keep the private marker in the path.
+    imageUrl: '/images/subscriber-secret-artwork/private-cover.png',
     username: fixtureUsers.playlistCurator.username,
     createdAt: FIXTURE_TIMESTAMP,
     privacy: 'subscriber',
@@ -562,6 +563,10 @@ export const fixtureIncompleteMembershipStatus: FixtureMembershipStatusView = {
     canManage: false,
     cancelAtPeriodEnd: false,
     paidThroughUtc: null,
+    faceAmountMinor: 500,
+    serviceFeeMinor: 50,
+    totalAmountMinor: 550,
+    currency: 'USD',
   },
 };
 

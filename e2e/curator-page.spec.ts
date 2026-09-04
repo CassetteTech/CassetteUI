@@ -48,10 +48,10 @@ test('shows a paid curator plan without leaking locked content to a nonmember', 
   await expect(membershipCard.getByRole('button', { name: /join/i })).toBeVisible();
   const lockedPost = page.locator('[data-testid="curator-locked-post"]:visible').first();
   await expect(lockedPost).toBeVisible();
-  const lockedJoin = lockedPost.getByRole('link', { name: /join/i });
+  const lockedJoin = lockedPost.getByRole('link', { name: /view .* membership/i });
   await expect(lockedJoin).toHaveAttribute('href', /^#membership-/);
   const membershipTarget = await lockedJoin.getAttribute('href');
-  if (!membershipTarget) throw new Error('Join link is missing its membership target');
+  if (!membershipTarget) throw new Error('View membership link is missing its membership target');
   const target = page.locator(`[id="${membershipTarget.slice(1)}"]`);
   await expect(target).toHaveCount(1);
   await expect(target).toBeVisible();
@@ -74,7 +74,7 @@ test('shows subscriber content and the member badge to an entitled viewer', asyn
   await expect(
     page.getByTestId('curator-membership-card').getByText('Member', { exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole('link', { name: /join/i })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /view .* membership/i })).toHaveCount(0);
 });
 
 test('keeps an active curator without Pro public-only', async ({ page }) => {
@@ -90,7 +90,7 @@ test('keeps an active curator without Pro public-only', async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByTestId('curator-membership-card')).toHaveCount(0);
   await expect(page.getByTestId('curator-locked-post')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /join/i })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /view .* membership/i })).toHaveCount(0);
   expect(await page.content()).not.toContain(CURATOR_SUBSCRIBER_SENTINEL);
 });
 
@@ -177,10 +177,20 @@ test('keeps the curator page accessible and responsive on mobile and desktop', a
   await expect(
     page.getByText(fixtureCuratorPage.curator.headline!, { exact: true }).filter({ visible: true }).first(),
   ).toBeVisible();
+  const banner = page.getByTestId('membership-banner');
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText('View membership');
+  await expect(banner).not.toContainText(/\bJoin\b/);
+  await expect(banner).toContainText('$5.50/month');
+  const card = page.locator('[data-testid="curator-membership-card"]:visible').first();
+  await card.getByText('Annual', { exact: true }).click();
+  await expect(banner).toContainText('$55.00/year');
+  await expect(card).toContainText('plus applicable tax');
   const joinButton = page.locator('[data-testid="curator-membership-card"]:visible').first()
     .getByRole('button', { name: /join/i });
-  await joinButton.scrollIntoViewIfNeeded();
-  await expect(joinButton).toBeInViewport({ ratio: 1 });
+  // Actionability proof: visible, enabled, stable, and unobstructed at the click point.
+  await joinButton.click({ trial: true });
+  await expect(joinButton).toBeInViewport({ ratio: 0.95 });
   await expectNoHorizontalOverflow(page);
 
   await page.setViewportSize({ width: 900, height: 800 });

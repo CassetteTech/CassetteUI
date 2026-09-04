@@ -2,6 +2,7 @@
 
 /** Renders a fan's server-authorized membership offer and current billing actions. */
 
+import Link from 'next/link';
 import { Check } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,27 +13,45 @@ import {
   formatCuratorPlanPrice,
   type CuratorPage,
 } from '@/services/curator';
-import type {
-  MembershipInterval,
-  MembershipStatus,
-  MembershipStatusView,
+import {
+  describeMembershipBilling,
+  describeMembershipStanding,
+  type MembershipInterval,
+  type MembershipStatus,
+  type MembershipStatusView,
 } from '@/services/membership';
 import { cn } from '@/lib/utils';
 
-const membershipEndFormatter = new Intl.DateTimeFormat('en-US', {
-  dateStyle: 'medium',
-  timeZone: 'UTC',
-});
+function BenefitList({ benefits }: { benefits: NonNullable<CuratorPage['membership']>['benefits'] }) {
+  if (benefits.length === 0) return null;
+  return (
+    <ul className="mt-5 space-y-3" aria-label="Membership benefits">
+      {benefits.map((benefit) => (
+        <li key={benefit.featureKey} className="flex gap-2 text-sm">
+          <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+          <span>
+            <span className="font-semibold">{benefit.name}</span>
+            {benefit.description && (
+              <span className="mt-0.5 block text-muted-foreground">{benefit.description}</span>
+            )}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function CuratorMembershipCard({
   page,
   displayName,
   membershipId,
+  feedHeadingId,
   interval,
   status,
   statusLoading,
   statusUnavailable,
   authenticated,
+  activated,
   notice,
   error,
   checkoutPending,
@@ -43,15 +62,18 @@ export function CuratorMembershipCard({
   onJoin,
   onManage,
   onCheckStatus,
+  onViewMemberPosts,
 }: {
   page: CuratorPage;
   displayName: string;
   membershipId: string;
+  feedHeadingId: string;
   interval: MembershipInterval;
   status: MembershipStatusView | null;
   statusLoading: boolean;
   statusUnavailable: boolean;
   authenticated: boolean;
+  activated: boolean;
   notice: string | null;
   error: string | null;
   checkoutPending: boolean;
@@ -66,10 +88,12 @@ export function CuratorMembershipCard({
     status: MembershipStatus,
   ) => void;
   onCheckStatus: () => void;
+  onViewMemberPosts: () => void;
 }) {
   const plan = page.membership;
   const membership = status?.membership;
   const planMatchesMembership = !membership || membership.planId === plan?.planId;
+  // Never present the current public offer as an existing member's price.
   const displayedPlan = status?.canSubscribe === false && !planMatchesMembership ? null : plan;
   const annualAvailable = displayedPlan?.annualAmountMinor != null &&
     displayedPlan.annualServiceFeeMinor != null;
@@ -88,17 +112,13 @@ export function CuratorMembershipCard({
     ? formatCuratorPlanPrice(selectedFace, selectedFee, displayedPlan.currency)
     : null;
   const canJoin = Boolean(plan) && (!authenticated || status?.canSubscribe === true);
-  const statusNotice = membership?.cancelAtPeriodEnd
-    ? membership.paidThroughUtc
-      ? `Your membership will end on ${membershipEndFormatter.format(new Date(membership.paidThroughUtc))}.`
-      : 'Your membership will end after the current billing period.'
-    : membership?.status === 'canceled'
-      ? 'Your membership is canceled.'
-      : null;
+  const statusNotice = membership ? describeMembershipStanding(membership) : null;
+  const planName = displayedPlan?.name ?? `${displayName} membership`;
+  const paymentProblem = membership?.status === 'past_due' || membership?.status === 'unpaid';
 
   const manageButton = !page.viewer.isOwner && membership?.canManage ? (
     <Button
-      variant="outline"
+      variant={paymentProblem ? 'default' : 'outline'}
       className="w-full"
       onClick={() => onManage(
         membership.membershipSubscriptionId,
@@ -111,17 +131,27 @@ export function CuratorMembershipCard({
       {portalPending ? (
         <>
           <Spinner size="sm" />
-          Opening management…
+          Opening billing settings…
         </>
-      ) : 'Manage membership'}
+      ) : paymentProblem
+        ? 'Update payment method'
+        : 'Manage membership'}
     </Button>
   ) : null;
 
   const noticeBlock = (
     <>
-      {(notice ?? statusNotice) && (
+      {statusNotice && (
+        <output
+          className={cn('mt-4 block text-sm', paymentProblem ? 'font-medium text-destructive' : 'text-muted-foreground')}
+          data-testid="membership-standing"
+        >
+          {statusNotice}
+        </output>
+      )}
+      {notice && (
         <output className="mt-4 block text-sm text-muted-foreground" data-testid="membership-notice">
-          {notice ?? statusNotice}
+          {notice}
         </output>
       )}
       {notice && noticeAction && (
@@ -133,22 +163,46 @@ export function CuratorMembershipCard({
     </>
   );
 
-  // Active member: collapse to a slim confirmation row — no pitch, no pricing.
+  // Entitled member: welcome, what they unlocked, and the billing they actually pay — no pitch.
   if (page.viewer.isMember) {
     return (
       <aside className="lg:sticky lg:top-6" aria-label="Membership">
         <Card id={membershipId} data-testid="curator-membership-card" className="border-foreground/30 elev-1">
-          <CardContent>
+          <CardHeader>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <Badge variant="secondary" className="px-3 py-1.5">
                 <Check aria-hidden />
                 Member
               </Badge>
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                {displayedPlan?.name ?? `${displayName} membership`}
-              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{planName}</span>
             </div>
-            {manageButton && <div className="mt-4">{manageButton}</div>}
+            {activated && (
+              <h2 className="text-balance break-words pt-2 font-teko text-2xl font-semibold uppercase leading-none">
+                Welcome to {displayName}&apos;s membership
+              </h2>
+            )}
+          </CardHeader>
+          <CardContent>
+            {displayedPlan && <BenefitList benefits={displayedPlan.benefits} />}
+            <div className="mt-5 space-y-2">
+              <Button asChild className="w-full">
+                <a href={`#${feedHeadingId}`} onClick={onViewMemberPosts} data-testid="membership-view-posts">
+                  View member posts
+                </a>
+              </Button>
+              {manageButton}
+            </div>
+            {membership && (
+              <p className="mt-4 text-sm tabular-nums text-muted-foreground" data-testid="membership-billing">
+                {describeMembershipBilling(membership)}
+              </p>
+            )}
+            <nav className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm" aria-label="Membership links">
+              <Link href="/memberships" className="underline underline-offset-4">My memberships</Link>
+              {activated && (
+                <Link href="/profile/edit" className="underline underline-offset-4">Set up your profile</Link>
+              )}
+            </nav>
             {noticeBlock}
           </CardContent>
         </Card>
@@ -164,12 +218,13 @@ export function CuratorMembershipCard({
             Membership
           </p>
           <h2 className="text-balance break-words font-teko text-2xl font-semibold uppercase leading-none">
-            {displayedPlan?.name ?? `${displayName} membership`}
+            {planName}
           </h2>
           {selectedPrice && (
             <div className="pt-2">
               <span className="font-teko text-3xl font-bold tabular-nums">{selectedPrice}</span>
               <span className="text-sm text-muted-foreground">/{displayedInterval}</span>
+              <span className="block text-xs text-muted-foreground">plus applicable tax</span>
             </div>
           )}
         </CardHeader>
@@ -206,37 +261,35 @@ export function CuratorMembershipCard({
               ))}
             </RadioGroup>
           )}
-          {displayedPlan && selectedFace != null && selectedFee != null && selectedFee > 0 && canJoin && (
-            <dl className="mt-4 space-y-1 border-y py-3 text-sm tabular-nums">
-              <div className="flex justify-between gap-3">
-                <dt>Membership</dt>
-                <dd>{formatCuratorPlanPrice(selectedFace, 0, displayedPlan.currency)}</dd>
-              </div>
-              <div className="flex justify-between gap-3 text-muted-foreground">
-                <dt>Service fee</dt>
-                <dd>{formatCuratorPlanPrice(selectedFee, 0, displayedPlan.currency)}</dd>
-              </div>
+          {displayedPlan && selectedFace != null && selectedFee != null && canJoin && (
+            <dl className="mt-4 space-y-1 border-y py-3 text-sm tabular-nums" data-testid="membership-summary">
+              {selectedFee > 0 && (
+                <>
+                  <div className="flex justify-between gap-3">
+                    <dt>Membership</dt>
+                    <dd>{formatCuratorPlanPrice(selectedFace, 0, displayedPlan.currency)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3 text-muted-foreground">
+                    <dt>Service fee</dt>
+                    <dd>{formatCuratorPlanPrice(selectedFee, 0, displayedPlan.currency)}</dd>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between gap-3 font-semibold">
-                <dt>Total</dt>
+                <dt>Total per {displayedInterval}</dt>
                 <dd>{selectedPrice}</dd>
               </div>
+              <div className="flex justify-between gap-3 text-muted-foreground">
+                <dt>Tax</dt>
+                <dd>Added at Checkout where applicable</dd>
+              </div>
+              <p className="pt-2 text-xs leading-5 text-muted-foreground">
+                Renews {displayedInterval === 'year' ? 'annually' : 'monthly'}. Manage or cancel renewal in
+                billing settings; confirm the effective date there.
+              </p>
             </dl>
           )}
-          {displayedPlan && displayedPlan.benefits.length > 0 && (
-            <ul className="mt-5 space-y-3" aria-label="Membership benefits">
-              {displayedPlan.benefits.map((benefit) => (
-                <li key={benefit.featureKey} className="flex gap-2 text-sm">
-                  <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-                  <span>
-                    <span className="font-semibold">{benefit.name}</span>
-                    {benefit.description && (
-                      <span className="mt-0.5 block text-muted-foreground">{benefit.description}</span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          {displayedPlan && <BenefitList benefits={displayedPlan.benefits} />}
 
           <div className="mt-6 space-y-2">
             {page.viewer.isOwner ? (
@@ -283,6 +336,16 @@ export function CuratorMembershipCard({
             ) : null}
 
             {manageButton}
+            {membership?.canManage && (
+              <p className="text-sm tabular-nums text-muted-foreground" data-testid="membership-billing">
+                {describeMembershipBilling(membership)}
+              </p>
+            )}
+            {membership?.canManage && (
+              <Link href="/memberships" className="block text-sm underline underline-offset-4">
+                My memberships
+              </Link>
+            )}
           </div>
           {noticeBlock}
         </CardContent>

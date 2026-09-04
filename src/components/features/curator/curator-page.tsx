@@ -29,6 +29,7 @@ import {
   type MembershipStatus,
 } from '@/services/membership';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { getDeviceCategory, getUserCohort } from '@/lib/analytics/audience';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -52,9 +53,7 @@ function getPostIcon(elementType: string) {
 
 type MembershipFlow = 'join' | 'return' | 'canceled' | 'portal-return' | null;
 const joinIntentPrefix = 'cassette:membership-join-intent:';
-const checkoutReturnPrefix = 'cassette:membership-checkout-return:';
 const joinIntentLifetimeMs = 10 * 60 * 1_000;
-const checkoutReturnLifetimeMs = (2 * 60 + 5) * 60 * 1_000;
 const portalBaselinePrefix = 'cassette:membership-portal-baseline:';
 
 function removeMembershipQuery(...keys: string[]) {
@@ -87,9 +86,7 @@ export function PublicCuratorPage({
   const query = useCuratorPage(username, viewerKey);
   const page = query.data?.pages[0];
   const [interval, setBillingInterval] = useState(initialInterval);
-  const [pollStatus, setPollStatus] = useState(
-    membershipFlow === 'return' || membershipFlow === 'portal-return',
-  );
+  const [pollStatus, setPollStatus] = useState(membershipFlow === 'return');
   const [notice, setNotice] = useState<string | null>(
     membershipFlow === 'canceled' ? 'Checkout was canceled. You were not charged.' : null,
   );
@@ -97,9 +94,10 @@ export function PublicCuratorPage({
   const [checkoutPending, setCheckoutPending] = useState(false);
   const [portalPending, setPortalPending] = useState(false);
   const [pollTimedOut, setPollTimedOut] = useState(false);
+  const [activated, setActivated] = useState(false);
+  const [membersOnly, setMembersOnly] = useState(false);
   const pageViewCaptured = useRef(false);
   const flowHandled = useRef(false);
-  const portalBaseline = useRef<{ cancelAtPeriodEnd: boolean; canceled: boolean } | null>(null);
   const statusQuery = useMembershipStatus(
     page?.curator.id ?? '',
     isAuthenticated && user?.id ? user.id : null,
@@ -114,6 +112,7 @@ export function PublicCuratorPage({
     page?.membership?.annualAmountMinor != null &&
     page.membership.annualServiceFeeMinor != null
   );
+  const userCohort = getUserCohort(user?.id);
   const startCheckout = useCallback(async (
     planId: string,
     curatorProfileId: string,
@@ -123,27 +122,22 @@ export function PublicCuratorPage({
     setActionError(null);
     try {
       const checkout = await apiService.createMembershipCheckout(planId, selectedInterval);
-      try {
-        sessionStorage.setItem(
-          `${checkoutReturnPrefix}${curatorProfileId}:${checkout.membershipSubscriptionId}`,
-          String(Date.now()),
-        );
-      } catch {
-        // Checkout still works; analytics attribution stays fail-closed.
-      }
       void captureClientEvent('membership_checkout_started', {
         route: '/profile/[username]',
         source_surface: 'curator',
         curator_id: curatorProfileId,
         membership_plan_id: checkout.planId,
+        billing_interval: checkout.billingInterval,
         is_member_view: false,
+        user_cohort: userCohort,
+        device_category: getDeviceCategory(),
       });
       window.location.assign(checkout.checkoutUrl);
     } catch {
       setActionError('We could not start secure Checkout. Try again.');
       setCheckoutPending(false);
     }
-  }, []);
+  }, [userCohort]);
   async function manage(
     membershipSubscriptionId: string,
     cancelAtPeriodEnd: boolean,
@@ -221,117 +215,90 @@ export function PublicCuratorPage({
 
   useEffect(() => {
     const status = statusQuery.data;
-    const membership = status?.membership;
-    if (!status || !membership || flowHandled.current) return;
+    if (!status || flowHandled.current) return;
+    const membership = status.membership;
 
-    if (membershipFlow === 'return' && grantsMembershipAccess(membership.status)) {
-      flowHandled.current = true;
-      setPollStatus(false);
-      setNotice('Your membership is active.');
-      removeMembershipQuery('membership', 'interval');
-      void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
-      let checkoutStarted = false;
-      try {
-        const key = `${checkoutReturnPrefix}${status.curatorProfileId}:${membership.membershipSubscriptionId}`;
-        const createdAt = Number(sessionStorage.getItem(key));
-        sessionStorage.removeItem(key);
-        const age = Date.now() - createdAt;
-        checkoutStarted = Number.isFinite(createdAt) && age >= 0 && age <= checkoutReturnLifetimeMs;
-      } catch {
-        // Server truth still renders; analytics attribution stays fail-closed.
+    if (membershipFlow === 'return') {
+      if (!membership) return;
+      if (grantsMembershipAccess(membership.status)) {
+        flowHandled.current = true;
+        setPollStatus(false);
+        setActivated(true);
+        setNotice('Your membership is active.');
+        removeMembershipQuery('membership', 'interval');
+        void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
+        return;
       }
-      if (checkoutStarted) {
-        void captureClientEvent('membership_started', {
-          route: '/profile/[username]',
-          source_surface: 'curator',
-          curator_id: status.curatorProfileId,
-          membership_plan_id: membership.planId,
-          is_member_view: true,
-        });
+      if (membership.status !== 'incomplete') {
+        flowHandled.current = true;
+        setPollStatus(false);
+        toast.info('Checkout did not activate this membership. You can try again.');
+        removeMembershipQuery('membership', 'interval');
       }
-      return;
-    }
-
-    if (membershipFlow === 'return' && membership.status !== 'incomplete') {
-      flowHandled.current = true;
-      setPollStatus(false);
-      toast.info('Checkout did not activate this membership. You can try again.');
-      removeMembershipQuery('membership', 'interval');
       return;
     }
 
     if (membershipFlow !== 'portal-return') return;
+    // Settle only on a status read completed after this mount, never on a cached snapshot.
+    // One fresh read is the Portal outcome; an unchanged membership is the normal case.
+    if (!statusQuery.isFetchedAfterMount || statusQuery.isFetching) return;
 
-    if (portalBaseline.current === null) {
+    flowHandled.current = true;
+    removeMembershipQuery('membership', 'interval');
+    let baseline: { cancelAtPeriodEnd: boolean; canceled: boolean } | null = null;
+    if (membership) {
       try {
         const key = `${portalBaselinePrefix}${membership.membershipSubscriptionId}`;
         const stored = sessionStorage.getItem(key);
         sessionStorage.removeItem(key);
         if (['false:false', 'false:true', 'true:false', 'true:true'].includes(stored ?? '')) {
           const [cancelAtPeriodEnd, canceled] = stored!.split(':');
-          portalBaseline.current = {
-            cancelAtPeriodEnd: cancelAtPeriodEnd === 'true',
-            canceled: canceled === 'true',
-          };
+          baseline = { cancelAtPeriodEnd: cancelAtPeriodEnd === 'true', canceled: canceled === 'true' };
         }
       } catch {
-        // Fall back to the first server response below.
+        // Without a baseline the fresh status renders as-is below.
       }
     }
-
-    const baseline = portalBaseline.current;
-    const cancellationObserved = baseline !== null && (
+    const cancellationObserved = membership !== null && baseline !== null && (
       (!baseline.canceled && membership.status === 'canceled') ||
       (!baseline.cancelAtPeriodEnd && membership.cancelAtPeriodEnd)
     );
+    const continuationObserved = membership !== null && baseline !== null && (
+      (baseline.cancelAtPeriodEnd && !membership.cancelAtPeriodEnd) ||
+      (baseline.canceled && membership.status !== 'canceled')
+    );
     if (cancellationObserved) {
-      flowHandled.current = true;
-      setPollStatus(false);
-      if (membership.status === 'canceled') {
-        // Transient toast; the persistent canceled state stays inline via statusNotice.
-        toast.info('Your membership is canceled.');
-      } else {
-        setNotice('Your membership will end after the current billing period.');
-      }
-      removeMembershipQuery('membership', 'interval');
-      void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
+      // The persistent state (ends on date / canceled) renders inline via the standing notice.
+      toast.info(membership.status === 'canceled'
+        ? 'Your membership is canceled.'
+        : 'Your membership renewal is canceled.');
       void captureClientEvent('membership_canceled', {
         route: '/profile/[username]',
         source_surface: 'curator',
         curator_id: status.curatorProfileId,
         membership_plan_id: membership.planId,
+        billing_interval: membership.billingInterval,
         is_member_view: grantsMembershipAccess(membership.status),
+        user_cohort: userCohort,
+        device_category: getDeviceCategory(),
       });
-      return;
-    }
-
-    if (baseline === null) {
-      portalBaseline.current = {
-        cancelAtPeriodEnd: membership.cancelAtPeriodEnd,
-        canceled: membership.status === 'canceled',
-      };
-      return;
-    }
-
-    if (baseline.canceled && membership.status === 'canceled') {
-      flowHandled.current = true;
-      setPollStatus(false);
-      setNotice('Membership management is up to date.');
-      removeMembershipQuery('membership', 'interval');
-      return;
-    }
-
-    if (
-      (baseline.cancelAtPeriodEnd && !membership.cancelAtPeriodEnd) ||
-      (baseline.canceled && membership.status !== 'canceled')
-    ) {
-      flowHandled.current = true;
-      setPollStatus(false);
+    } else if (continuationObserved) {
       setNotice('Your membership will continue.');
-      removeMembershipQuery('membership', 'interval');
+    } else {
+      setNotice('Membership management is up to date.');
+    }
+    if (cancellationObserved || continuationObserved) {
       void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
     }
-  }, [membershipFlow, queryClient, statusQuery.data, username]);
+  }, [
+    membershipFlow,
+    queryClient,
+    statusQuery.data,
+    statusQuery.isFetchedAfterMount,
+    statusQuery.isFetching,
+    userCohort,
+    username,
+  ]);
 
   useEffect(() => {
     if (membershipFlow !== 'canceled') return;
@@ -403,6 +370,17 @@ export function PublicCuratorPage({
       setActionError('Annual billing is not available. Review the monthly option before joining.');
       return;
     }
+    void captureClientEvent('membership_join_clicked', {
+      route: '/profile/[username]',
+      source_surface: 'curator',
+      curator_id: page.curator.id,
+      membership_plan_id: page.membership.planId,
+      billing_interval: checkoutInterval,
+      is_authenticated: isAuthenticated,
+      is_member_view: false,
+      user_cohort: userCohort,
+      device_category: getDeviceCategory(),
+    });
     if (!isAuthenticated) {
       try {
         sessionStorage.setItem(
@@ -422,6 +400,18 @@ export function PublicCuratorPage({
   const posts = query.data.pages.flatMap((result) => result.posts.items);
   const displayName = page.curator.displayName?.trim() || page.curator.username;
   const showMembership = Boolean(page.membership || statusQuery.data?.membership?.canManage);
+  const bannerInterval = checkoutIntervalAvailable ? checkoutInterval : 'month';
+  const bannerPrice = page.membership && (bannerInterval === 'year'
+    ? formatCuratorPlanPrice(
+        page.membership.annualAmountMinor ?? 0,
+        page.membership.annualServiceFeeMinor ?? 0,
+        page.membership.currency,
+      )
+    : formatCuratorPlanPrice(
+        page.membership.amountMinor,
+        page.membership.serviceFeeMinor,
+        page.membership.currency,
+      ));
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:max-w-none lg:px-8 lg:py-10">
@@ -431,25 +421,23 @@ export function PublicCuratorPage({
         'grid gap-6',
         showMembership && 'lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start',
       )}>
-        {/* Compact membership banner: mobile-only, the single Join CTA above the feed */}
+        {/* Compact membership summary: mobile-only, sits under the identity header and scrolls to
+            the full offer. Join is reserved for the actual checkout control in the card. */}
         {page.membership && !page.viewer.isMember && !page.viewer.isOwner && (
           <a
             href={`#${membershipId}`}
+            data-testid="membership-banner"
             className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2.5 transition-colors hover:bg-primary/15 lg:hidden"
           >
             <span className="min-w-0 truncate text-sm font-semibold">
               {page.membership.name}
               <span className="font-normal tabular-nums text-muted-foreground">
                 {' · '}
-                {formatCuratorPlanPrice(
-                  page.membership.amountMinor,
-                  page.membership.serviceFeeMinor,
-                  page.membership.currency,
-                )}/mo
+                {bannerPrice}/{bannerInterval}
               </span>
             </span>
             <span className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">
-              Join
+              View membership
             </span>
           </a>
         )}
@@ -459,6 +447,8 @@ export function PublicCuratorPage({
           headingId={feedHeadingId}
           membershipId={membershipId}
           showMembership={showMembership}
+          memberFilter={page.viewer.isMember ? membersOnly : null}
+          onMemberFilterChange={setMembersOnly}
           hasNextPage={query.hasNextPage}
           isFetchingNextPage={query.isFetchingNextPage}
           onLoadMore={() => void query.fetchNextPage()}
@@ -468,11 +458,13 @@ export function PublicCuratorPage({
             page={page}
             displayName={displayName}
             membershipId={membershipId}
-            interval={checkoutIntervalAvailable ? checkoutInterval : 'month'}
+            feedHeadingId={feedHeadingId}
+            interval={bannerInterval}
             status={statusQuery.data ?? null}
             statusLoading={statusQuery.isPending}
             statusUnavailable={statusQuery.isError}
             authenticated={isAuthenticated}
+            activated={activated}
             notice={notice}
             error={actionError}
             checkoutPending={checkoutPending}
@@ -490,6 +482,7 @@ export function PublicCuratorPage({
             onJoin={join}
             onManage={(id, cancelAtPeriodEnd, status) => void manage(id, cancelAtPeriodEnd, status)}
             onCheckStatus={() => void statusQuery.refetch()}
+            onViewMemberPosts={() => setMembersOnly(true)}
           />
         )}
       </div>
@@ -503,6 +496,8 @@ function CuratorFeed({
   headingId,
   membershipId,
   showMembership,
+  memberFilter,
+  onMemberFilterChange,
   hasNextPage,
   isFetchingNextPage,
   onLoadMore,
@@ -512,26 +507,57 @@ function CuratorFeed({
   headingId: string;
   membershipId: string;
   showMembership: boolean;
+  memberFilter: boolean | null;
+  onMemberFilterChange: (membersOnly: boolean) => void;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
 }) {
+  // Client-side filter over the pages loaded so far; Load more keeps extending it.
+  const visible = memberFilter
+    ? items.filter((item) => item.kind === 'locked' || item.post.privacy === 'subscriber')
+    : items;
   return (
     <section data-testid="curator-feed" aria-labelledby={headingId} className="min-w-0 max-w-2xl">
-      <h2 id={headingId} className="text-balance font-teko text-3xl font-bold uppercase">Latest posts</h2>
-      {items.length === 0 ? (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id={headingId} className="text-balance font-teko text-3xl font-bold uppercase">
+          {memberFilter ? 'Member posts' : 'Latest posts'}
+        </h2>
+        {memberFilter !== null && (
+          <fieldset className="flex gap-1">
+            <legend className="sr-only">Post filter</legend>
+            {([['All', false], ['Members only', true]] as const).map(([label, membersOnly]) => (
+              <Button
+                key={label}
+                size="sm"
+                variant={memberFilter === membersOnly ? 'default' : 'outline'}
+                aria-pressed={memberFilter === membersOnly}
+                onClick={() => onMemberFilterChange(membersOnly)}
+                data-testid={membersOnly ? 'feed-filter-members' : 'feed-filter-all'}
+              >
+                {label}
+              </Button>
+            ))}
+          </fieldset>
+        )}
+      </div>
+      {visible.length === 0 ? (
         <Empty className="mt-3">
-          <EmptyTitle>No posts yet</EmptyTitle>
+          <EmptyTitle>{memberFilter ? 'No member posts yet' : 'No posts yet'}</EmptyTitle>
           <EmptyDescription>
-            {displayName} has not shared any posts. Explore music from other curators in the meantime.
+            {memberFilter
+              ? `${displayName} has not shared any members-only posts yet. You will see them here first.`
+              : `${displayName} has not shared any posts. Explore music from other curators in the meantime.`}
           </EmptyDescription>
-          <Button asChild variant="outline">
-            <Link href="/explore">Explore music</Link>
-          </Button>
+          {!memberFilter && (
+            <Button asChild variant="outline">
+              <Link href="/explore">Explore music</Link>
+            </Button>
+          )}
         </Empty>
       ) : (
         <div className="mt-3 grid gap-3">
-          {items.map((item) => item.kind === 'locked'
+          {visible.map((item) => item.kind === 'locked'
             ? (
                 <LockedPost
                   key={item.postId}
@@ -597,7 +623,7 @@ function LockedPost({
       {showMembership ? (
         <a
           href={`#${membershipId}`}
-          aria-label={`Join ${displayName}`}
+          aria-label={`View ${displayName} membership`}
           className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           {card}

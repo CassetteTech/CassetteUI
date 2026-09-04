@@ -30,6 +30,9 @@ type MembershipAnalyticsProperties = {
   curator_id?: string;
   membership_plan_id?: string;
   is_member_view?: boolean;
+  billing_interval?: string;
+  device_category?: string;
+  user_cohort?: string;
 };
 type MembershipAnalyticsCapture = {
   [key: string]: string | MembershipAnalyticsProperties | undefined;
@@ -114,7 +117,12 @@ for (const price of [
       interval: price.interval,
     });
     await expectMembershipEvent(captures, 'curator_page_viewed', false);
+    await expectMembershipEvent(captures, 'membership_join_clicked', false);
     await expectMembershipEvent(captures, 'membership_checkout_started', false);
+    const checkoutStarted = captures.find((capture) => capture.event === 'membership_checkout_started');
+    expect(checkoutStarted?.properties?.billing_interval).toBe(price.interval);
+    expect(['mobile', 'desktop']).toContain(checkoutStarted?.properties?.device_category);
+    expect(['new', 'existing']).toContain(checkoutStarted?.properties?.user_cohort);
     await expect(page.getByTestId('membership-notice')).toHaveText(
       'Checkout was canceled. You were not charged.',
     );
@@ -150,7 +158,16 @@ test('unlocks subscriber content only after the polled membership becomes active
   ).toBeVisible();
   await expect.poll(() => state.membershipStatusRequests.length).toBeGreaterThanOrEqual(2);
   await expect(page).not.toHaveURL(/session_id=/);
-  await expectMembershipEvent(captures, 'membership_started', true);
+  await expect(page.getByTestId('membership-notice')).toHaveText('Your membership is active.');
+  await page.getByTestId('membership-view-posts').click();
+  await expect(page.getByTestId('feed-filter-members')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-testid="curator-feed"] h3:visible')).toHaveCount(1);
+  await expect(page.getByTestId('membership-billing')).toContainText('$5.50/month');
+  await expect(
+    page.getByTestId('curator-membership-card').getByRole('link', { name: 'My memberships' }),
+  ).toBeVisible();
+  // Conversion is confirmed by the backend from paid subscriptions, never by the client return.
+  expect(captures.some((capture) => capture.event === 'membership_started')).toBe(false);
 });
 
 test('opens the owned Billing Portal membership and trusts its cancellation webhook state', async ({ page }) => {
@@ -171,8 +188,8 @@ test('opens the owned Billing Portal membership and trusts its cancellation webh
     membershipSubscriptionId:
       fixtureActiveMembershipStatus.membership!.membershipSubscriptionId,
   });
-  await expect(page.getByTestId('membership-notice')).toHaveText(
-    'Your membership will end after the current billing period.',
+  await expect(page.getByTestId('membership-standing')).toContainText(
+    'Your membership will end on Sep 16, 2026.',
   );
   await expect(page.getByText('Member', { exact: true }).first()).toBeVisible();
   await expectMembershipEvent(captures, 'membership_canceled', true);
@@ -221,12 +238,14 @@ test('renders scheduled cancellation from status on an ordinary visit', async ({
 
   await page.goto(CURATOR_PATH);
 
-  await expect(page.getByTestId('membership-notice')).toHaveText(
+  await expect(page.getByTestId('membership-standing')).toContainText(
     'Your membership will end on Sep 16, 2026.',
   );
+  await expect(page.getByTestId('membership-notice')).toHaveCount(0);
+  await expect(page.getByTestId('membership-billing')).toHaveText('$5.50/month · ends Sep 16, 2026');
 });
 
-test('keeps polling when Portal reactivates a canceling membership', async ({ page }) => {
+test('reports a continued membership from one fresh status read after Portal reactivation', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorPage: fixtureMemberCuratorPage,
@@ -276,30 +295,136 @@ test('does not attribute a crafted return URL to a new membership', async ({ pag
   await page.goto(`${CURATOR_PATH}?membership=return`);
 
   await expect(page.getByTestId('membership-notice')).toHaveText('Your membership is active.');
-  expect(captures.some((capture) => capture.event === 'membership_started')).toBe(false);
+  expect(captures.some((capture) =>
+    capture.event === 'membership_started' || capture.event === 'membership_checkout_started',
+  )).toBe(false);
 });
 
-test('keeps Checkout return attribution through the server session window', async ({ page }) => {
-  const captures: MembershipAnalyticsCapture[] = [];
-  await page.addInitScript(({ curatorId, membershipId }) => {
-    sessionStorage.setItem(
-      `cassette:membership-checkout-return:${curatorId}:${membershipId}`,
-      String(Date.now() - (2 * 60 + 1) * 60 * 1_000),
-    );
-  }, {
-    curatorId: fixtureCuratorPage.curator.id,
-    membershipId: fixtureActiveMembershipStatus.membership!.membershipSubscriptionId,
-  });
-  await mockCassetteApp(page, {
-    analyticsCaptures: captures,
+test('treats an unchanged membership after a Portal visit as up to date without waiting', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorPage: fixtureMemberCuratorPage,
     membershipStatus: fixtureActiveMembershipStatus,
+    membershipPollSequence: [fixtureActiveMembershipStatus],
   });
 
-  await page.goto(`${CURATOR_PATH}?membership=return`);
+  await page.goto(CURATOR_PATH);
+  await returnFromProvider(page, PORTAL_URL, `${CURATOR_PATH}?membership=portal-return`);
+  await manageControl(page).click();
 
-  await expectMembershipEvent(captures, 'membership_started', true);
+  await expect(page.getByTestId('membership-notice')).toHaveText('Membership management is up to date.');
+  await expect(page).not.toHaveURL(/membership=/);
+  await page.waitForTimeout(2_500);
+  expect(state.membershipStatusRequests.length).toBeLessThanOrEqual(3);
+});
+
+test('guides a past-due member to update payment while access continues', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorPage: fixtureMemberCuratorPage,
+    membershipStatus: {
+      ...fixtureActiveMembershipStatus,
+      membership: { ...fixtureActiveMembershipStatus.membership!, status: 'past_due' },
+    },
+  });
+
+  await page.goto(CURATOR_PATH);
+  await page.route(PORTAL_URL, (route) => route.fulfill({ status: 200, body: '' }));
+
+  await expect(page.getByTestId('membership-standing')).toContainText('Update your payment method');
+  await expect(manageControl(page)).toHaveText('Update payment method');
+  await manageControl(page).click();
+  await expect.poll(() => state.membershipPortalRequests).toHaveLength(1);
+});
+
+test('keeps a retained member on an archived plan in control without a public offer', async ({ page }) => {
+  const archivedPlanPage = { ...fixtureMemberCuratorPage, membership: null };
+  const retainedStatus = {
+    ...fixtureActiveMembershipStatus,
+    membership: {
+      ...fixtureActiveMembershipStatus.membership!,
+      planId: 'mpl_FixtureArchivedPlan01',
+      faceAmountMinor: 300,
+      serviceFeeMinor: 30,
+      totalAmountMinor: 330,
+    },
+  };
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorPage: archivedPlanPage,
+    membershipStatus: retainedStatus,
+  });
+
+  await page.goto(CURATOR_PATH);
+
+  await expect(
+    page.locator('h3:visible').filter({ hasText: CURATOR_SUBSCRIBER_SENTINEL }).first(),
+  ).toBeVisible();
+  await expect(page.getByText('Member', { exact: true }).first()).toBeVisible();
+  await expect(page.getByTestId('membership-billing')).toContainText('$3.30/month');
+  await expect(manageControl(page)).toBeVisible();
+  await expect(joinControl(page)).toHaveCount(0);
+});
+
+test('lists the fan’s own memberships at their retained prices', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    myMemberships: [
+      {
+        curatorProfileId: fixtureCuratorPage.curator.id,
+        curatorUsername: fixtureCuratorPage.curator.username,
+        curatorDisplayName: fixtureCuratorPage.curator.displayName ?? '',
+        membership: fixtureActiveMembershipStatus.membership!,
+      },
+      {
+        curatorProfileId: 'cpr_FixtureCurator02',
+        curatorUsername: 'second_curator',
+        curatorDisplayName: 'Second Curator',
+        membership: {
+          ...fixtureCancelingMembershipStatus.membership!,
+          membershipSubscriptionId: 'msb_FixtureMembership02',
+          planId: 'mpl_FixtureArchivedPlan01',
+          billingInterval: 'year',
+          faceAmountMinor: 3000,
+          serviceFeeMinor: 300,
+          totalAmountMinor: 3300,
+        },
+      },
+    ],
+  });
+
+  await page.goto('/memberships');
+  await page.route(PORTAL_URL, (route) => route.fulfill({ status: 200, body: '' }));
+
+  const rows = page.getByTestId('my-membership');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0).getByTestId('my-membership-billing')).toHaveText(
+    '$5.50/month · renews Sep 16, 2026 · tax extra',
+  );
+  await expect(rows.nth(1).getByTestId('my-membership-billing')).toHaveText('$33.00/year · ends Sep 16, 2026');
+  await expect(rows.nth(1).getByRole('link', { name: 'Second Curator' })).toHaveAttribute(
+    'href',
+    '/profile/second_curator',
+  );
+  await rows.nth(1).getByTestId('my-membership-manage').click();
+  await expect.poll(() => state.membershipPortalRequests.at(-1)).toEqual({
+    membershipSubscriptionId: 'msb_FixtureMembership02',
+  });
+});
+
+test('shows an empty state when the fan has no memberships', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+  await page.goto('/memberships');
+  await expect(page.getByTestId('my-memberships-empty')).toBeVisible();
+});
+
+test('shows a retryable error when memberships cannot load', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, { currentUser: fixtureUsers.member, myMembershipsStatus: 503 });
+  await page.goto('/memberships');
+  await expect(page.getByRole('heading', { name: 'Could not load memberships' })).toBeVisible();
+  state.myMembershipsStatus = 200;
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByTestId('my-memberships-empty')).toBeVisible();
 });
 
 test('does not display a replacement plan as an existing membership price', async ({ page }) => {

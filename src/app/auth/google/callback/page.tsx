@@ -6,8 +6,11 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useRouter } from 'next/navigation';
 import { pendingActionService } from '@/utils/pending-action';
 import { PageLoader } from '@/components/ui/page-loader';
-import { authRedirectService } from '@/utils/auth-redirect';
+import { authRedirectService, parseMembershipIntentRedirect } from '@/utils/auth-redirect';
 import { appLogger } from '@/lib/observability/logger';
+import { captureClientEvent } from '@/lib/analytics/client';
+import { getDeviceCategory, rememberUserCohort } from '@/lib/analytics/audience';
+import type { AuthUser } from '@/types';
 
 export default function GoogleCallbackPage() {
   const router = useRouter();
@@ -26,11 +29,26 @@ export default function GoogleCallbackPage() {
         return `/auth/signin?${params.toString()}`;
       };
 
-      const redirectToDestination = (isOnboarded: boolean) => {
+      const redirectToDestination = (user: AuthUser) => {
         if (cancelled) {
           return;
         }
 
+        const isOnboarded = user.isOnboarded;
+        // A sign-in that lands on onboarding created the account: that is the
+        // new-vs-existing split for this purchase journey, kept for the tab.
+        const cohort = isOnboarded ? 'existing' : 'new';
+        rememberUserCohort(user.id, cohort);
+        void captureClientEvent('auth_google_oauth_completed', {
+          route: '/auth/google/callback',
+          source_surface: 'auth',
+          is_authenticated: true,
+          user_id: user.id,
+          auth_provider: 'google',
+          user_cohort: cohort,
+          billing_interval: parseMembershipIntentRedirect(authRedirectService.get())?.interval,
+          device_category: getDeviceCategory(),
+        });
         if (!isOnboarded) {
           appLogger.debug('google_callback_redirect_onboarding');
           router.push('/onboarding');
@@ -68,7 +86,7 @@ export default function GoogleCallbackPage() {
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
           useAuthStore.getState().setUser(currentUser);
-          redirectToDestination(currentUser.isOnboarded);
+          redirectToDestination(currentUser);
         } else {
           appLogger.warn('google_callback_session_missing');
           retryTimeout = window.setTimeout(async () => {
@@ -83,7 +101,7 @@ export default function GoogleCallbackPage() {
 
             if (retryUser) {
               useAuthStore.getState().setUser(retryUser);
-              redirectToDestination(retryUser.isOnboarded);
+              redirectToDestination(retryUser);
             } else {
               appLogger.error('google_callback_session_missing_after_retry');
               pendingActionService.clear();

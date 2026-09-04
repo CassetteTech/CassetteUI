@@ -125,13 +125,20 @@ void test('rejects a partial annual price', () => {
   }), /Annual amount and service fee/);
 });
 
-void test('rejects subscriber post state without an active membership plan', () => {
+void test('accepts member content for a retained member when no public plan is offered', () => {
   const payload = pagePayload();
 
-  assert.throws(() => parseCuratorPage({
+  const parsed = parseCuratorPage({
     ...payload,
     membership: null,
-  }), /Subscriber posts require an active membership plan/);
+    viewer: { isOwner: false, isMember: true, hasMemberBadge: true },
+    posts: {
+      ...payload.posts,
+      items: [{ kind: 'post', post: { ...fullPost(), privacy: 'subscriber' } }],
+    },
+  });
+  assert.equal(parsed.membership, null);
+  assert.equal(parsed.posts.items[0]?.kind, 'post');
 });
 
 void test('rejects subscriber post bodies for an unentitled viewer', () => {

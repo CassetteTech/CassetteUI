@@ -24,8 +24,8 @@ import type {
   CuratorPlanRequest,
   CuratorPricing,
 } from '../../src/services/curator-plans';
-import {
-  FIXTURE_TIMESTAMP,
+import type { MyMembership } from '../../src/services/membership';
+import type {
   FixturePost,
   FixtureInternalPaidPromotionCampaign,
   FixtureMembershipStatusView,
@@ -33,6 +33,9 @@ import {
   FixturePaidPromotionRateCard,
   FixtureSearchResults,
   FixtureUser,
+} from './cassette-fixtures';
+import {
+  FIXTURE_TIMESTAMP,
   fixtureConvertTemplates,
   fixtureCuratorProDefaultStatus,
   fixtureInternalPaidPromotionCampaign,
@@ -79,6 +82,8 @@ type MockCassetteOptions = {
   membershipStatus?: FixtureMembershipStatusView;
   membershipPollSequence?: FixtureMembershipStatusView[];
   membershipActiveCuratorPage?: CuratorPage;
+  myMemberships?: MyMembership[];
+  myMembershipsStatus?: number;
   googleAuthUser?: FixtureUser | null;
   users?: FixtureUser[];
   posts?: FixturePost[];
@@ -172,6 +177,8 @@ type MockState = {
   curatorPlanCreateRequests: CuratorPlanRequest[];
   curatorPlanPublishRequests: string[];
   curatorPlanArchiveRequests: string[];
+  curatorPlanUpdateRequests: CuratorPlanRequest[];
+  curatorPlanDeleteRequests: string[];
   curatorPlanToolsStatus: number;
   curatorFeatures: CuratorFeature[];
   curatorPricing: CuratorPricing;
@@ -189,6 +196,8 @@ type MockState = {
   membershipCheckoutRequests: Array<{ planId: string; interval: 'month' | 'year' }>;
   membershipPortalRequests: Array<{ membershipSubscriptionId: string }>;
   membershipStatusRequests: string[];
+  myMemberships: MyMembership[];
+  myMembershipsStatus: number;
   googleAuthUser: FixtureUser | null;
   usersById: Map<string, FixtureUser>;
   usernamesToIds: Map<string, string>;
@@ -330,6 +339,10 @@ const defaultMembershipStatus = (
           canManage: true,
           cancelAtPeriodEnd: false,
           paidThroughUtc: '2026-09-16T12:00:00Z',
+          faceAmountMinor: page.membership?.amountMinor ?? 500,
+          serviceFeeMinor: page.membership?.serviceFeeMinor ?? 50,
+          totalAmountMinor: (page.membership?.amountMinor ?? 500) + (page.membership?.serviceFeeMinor ?? 50),
+          currency: page.membership?.currency ?? 'USD',
         }
       : null,
   };
@@ -604,6 +617,8 @@ const buildState = (options: MockCassetteOptions): MockState => {
     curatorPlanCreateRequests: [],
     curatorPlanPublishRequests: [],
     curatorPlanArchiveRequests: [],
+    curatorPlanUpdateRequests: [],
+    curatorPlanDeleteRequests: [],
     curatorPlanToolsStatus: options.curatorPlanToolsStatus ?? 200,
     curatorFeatures: clone(options.curatorFeatures || defaultCuratorFeatures),
     curatorPricing: clone(options.curatorPricing || defaultCuratorPricing),
@@ -625,6 +640,8 @@ const buildState = (options: MockCassetteOptions): MockState => {
     membershipCheckoutRequests: [],
     membershipPortalRequests: [],
     membershipStatusRequests: [],
+    myMemberships: clone(options.myMemberships || []),
+    myMembershipsStatus: options.myMembershipsStatus ?? 200,
     googleAuthUser: options.googleAuthUser ? clone(options.googleAuthUser) : null,
     usersById: new Map<string, FixtureUser>(),
     usernamesToIds: new Map<string, string>(),
@@ -1048,6 +1065,31 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       return json(route, plan);
     }
 
+    const curatorPlanDraft = pathname.match(/^\/api\/v1\/curators\/plans\/(mpl_[0-9A-Za-z]+)$/);
+    if (curatorPlanDraft && (method === 'PUT' || method === 'DELETE')) {
+      getCurrentUserOrThrow(state);
+      const planId = curatorPlanDraft[1];
+      const plan = state.curatorPlans.find((candidate) => candidate.id === planId);
+      if (!plan) return json(route, { message: 'Membership plan not found.' }, 404);
+
+      if (method === 'DELETE') {
+        if (plan.status !== 'draft') {
+          return json(route, { message: 'Only draft plans can be deleted.' }, 409);
+        }
+        state.curatorPlanDeleteRequests.push(planId);
+        state.curatorPlans = state.curatorPlans.filter((candidate) => candidate.id !== planId);
+        return route.fulfill({ status: 204, body: '' });
+      }
+
+      const payload = curatorPlanRequestSchema.parse(request.postDataJSON());
+      if (plan.status !== 'draft') {
+        return json(route, { message: 'Only draft plans can be edited.' }, 409);
+      }
+      state.curatorPlanUpdateRequests.push(clone(payload));
+      Object.assign(plan, payload);
+      return json(route, plan);
+    }
+
     if (pathname === '/api/v1/curators/payout-account' && method === 'GET') {
       getCurrentUserOrThrow(state);
       const refresh = url.searchParams.get('refresh') === 'true';
@@ -1192,6 +1234,19 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       });
     }
 
+    if (pathname === '/api/v1/memberships/me' && method === 'GET') {
+      if (!state.currentUser) {
+        return json(route, {
+          errorCode: 'curator_invalid_user_session',
+          message: 'The authenticated Cassette user could not be resolved.',
+        }, 401);
+      }
+      if (state.myMembershipsStatus !== 200) {
+        return json(route, { message: 'Memberships are unavailable.' }, state.myMembershipsStatus);
+      }
+      return json(route, state.myMemberships);
+    }
+
     const membershipStatusMatch = pathname.match(
       /^\/api\/v1\/memberships\/status\/([^/]+)$/,
     );
@@ -1277,6 +1332,10 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
           canManage: false,
           cancelAtPeriodEnd: false,
           paidThroughUtc: null,
+          faceAmountMinor,
+          serviceFeeMinor,
+          totalAmountMinor: faceAmountMinor + serviceFeeMinor,
+          currency: plan.currency,
         },
       };
       state.membershipPollSequenceActive = true;
@@ -1397,7 +1456,8 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         username: username ? normalizeUsername(username) : currentUser.username,
         displayName: displayName || currentUser.displayName,
         bio: bio ?? currentUser.bio,
-        avatarUrl: hasAvatarUpload ? `/images/cassette_logo.png?avatar=${currentUser.id}` : currentUser.avatarUrl,
+        // Query strings are rejected by next/image local rules; keep the per-user marker in the path.
+        avatarUrl: hasAvatarUpload ? `/images/avatars/${currentUser.id}/cassette_logo.png` : currentUser.avatarUrl,
         likedPostsPrivacy: likedPostsPrivacy || currentUser.likedPostsPrivacy || 'public',
         isOnboarded: isOnboarded === 'true' ? true : currentUser.isOnboarded,
       });

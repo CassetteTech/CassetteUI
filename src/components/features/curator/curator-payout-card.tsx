@@ -37,42 +37,36 @@ function removePayoutQuery() {
   );
 }
 
+function needsAttention(account: CuratorPayoutAccount) {
+  return account.onboardingStatus === 'restricted' || account.requirementsDue;
+}
+
 function payoutLabel(account: CuratorPayoutAccount | null) {
   if (!account) return 'Not started';
   if (account.transfersCapabilityStatus === 'active') return 'Ready';
-  if (account.onboardingStatus === 'restricted' || account.requirementsDue) return 'Needs attention';
-  return 'In progress';
+  if (needsAttention(account)) return 'Needs attention';
+  return 'Verifying';
 }
 
 function payoutTone(account: CuratorPayoutAccount | null): StudioChipTone {
   if (!account) return 'neutral';
   if (account.transfersCapabilityStatus === 'active') return 'positive';
-  if (account.onboardingStatus === 'restricted' || account.requirementsDue) return 'warning';
+  if (needsAttention(account)) return 'warning';
   return 'neutral';
 }
 
-function capabilityLabel(status: string | null) {
-  switch (status) {
-    case 'active': return 'Ready';
-    case 'pending': return 'Pending';
-    case 'restricted': return 'Restricted';
-    case 'unsupported': return 'Unavailable';
-    case null: return 'Not checked';
-    default: return 'Not ready';
-  }
-}
-
+/** Plain-language status plus what the curator should do next. */
 function statusCopy(account: CuratorPayoutAccount | null) {
   if (!account) {
-    return 'Set up secure payouts when you are ready to receive membership earnings.';
+    return 'Start payout setup to accept paying members. Starting it is enough to publish a plan; payouts begin once your account is fully verified.';
   }
   if (account.transfersCapabilityStatus === 'active') {
-    return 'Your payout account is ready to receive transfers.';
+    return 'Your payout account is verified. Members can join and earnings are paid out on your payout schedule.';
   }
-  if (account.onboardingStatus === 'restricted' || account.requirementsDue) {
-    return 'Your payout account needs more information before it can receive transfers.';
+  if (needsAttention(account)) {
+    return 'Your payout account needs more information before earnings can be paid out. Members can still join; continue setup to provide what is missing.';
   }
-  return 'Your payout account is not ready to receive transfers yet.';
+  return 'Your payout account is being verified. Members can join in the meantime; earnings are held until verification completes.';
 }
 
 export function CuratorPayoutCard() {
@@ -133,7 +127,7 @@ export function CuratorPayoutCard() {
       title="Payouts"
       headingId="curator-payout-title"
       testId="curator-payout-card"
-      description="Payout setup is free and does not require Curator Pro."
+      description="Payout setup is free and does not require Curator Pro. Starting it lets fans join; verification lets earnings be paid out."
       chip={!loading && !status.isError && (
         <StudioChip tone={payoutTone(account)}>{payoutLabel(account)}</StudioChip>
       )}
@@ -142,7 +136,7 @@ export function CuratorPayoutCard() {
         {flow === 'return' && !loading && !status.isError
           ? payoutsActive
             ? 'Payout setup is complete.'
-            : 'Payout setup is not complete yet. Review the current status below.'
+            : 'Payout setup started. Verification is still in progress; see the status below.'
           : linkExpired
             ? 'Your secure payout setup link expired. Open a new link to continue.'
             : null}
@@ -168,22 +162,19 @@ export function CuratorPayoutCard() {
               <dl className="divide-y divide-border/70 text-sm">
                 <ReceiptRow
                   className="py-2.5"
-                  label="Onboarding"
-                  value={<span className="capitalize">{account.onboardingStatus}</span>}
+                  label="Accept members"
+                  value={<span className="text-success-text">Ready</span>}
                 />
                 <ReceiptRow
                   className="py-2.5"
-                  label="Transfers"
-                  value={capabilityLabel(account.transfersCapabilityStatus)}
+                  label="Receive payouts"
+                  value={payoutsActive
+                    ? <span className="text-success-text">Ready</span>
+                    : needsAttention(account) ? 'Needs your information' : 'Waiting for verification'}
                 />
                 <ReceiptRow
                   className="py-2.5"
-                  label="Information required"
-                  value={account.requirementsDue ? 'Yes' : 'No'}
-                />
-                <ReceiptRow
-                  className="py-2.5"
-                  label="Status checked"
+                  label="Last checked"
                   value={account.capabilityCheckedAtUtc
                     ? checkedAtFormatter.format(new Date(account.capabilityCheckedAtUtc))
                     : 'Not yet'}

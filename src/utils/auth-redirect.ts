@@ -51,6 +51,24 @@ export const isPromoteIntentRedirect = (value: string | null | undefined) => {
   return normalized != null && /^\/promote($|[/?])/.test(normalized);
 };
 
+export type MembershipIntent = { username: string; interval: 'month' | 'year' };
+
+// A redirect back to a curator page with ?membership=join marks the auth as
+// mid-purchase. Only the curator handle and billing interval are trusted from
+// the URL; the offer itself is always fetched from the public curator page.
+export const parseMembershipIntentRedirect = (
+  value: string | null | undefined,
+): MembershipIntent | null => {
+  const normalized = normalizeAuthRedirect(value);
+  if (!normalized) return null;
+  const url = new URL(normalized, REDIRECT_BASE_URL);
+  const match = /^\/profile\/([A-Za-z0-9_]{1,50})$/.exec(url.pathname);
+  if (!match || url.searchParams.get('membership') !== 'join') return null;
+  const interval = url.searchParams.get('interval');
+  if (interval !== 'month' && interval !== 'year') return null;
+  return { username: match[1], interval };
+};
+
 function readStoredRedirect(): string | null {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;

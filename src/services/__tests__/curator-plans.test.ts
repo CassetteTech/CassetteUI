@@ -6,6 +6,7 @@ import {
   archiveCuratorPlan,
   calculateCuratorPlanEconomics,
   createCuratorPlan,
+  deleteCuratorPlan,
   fetchCuratorFeatures,
   fetchCuratorPlans,
   fetchCuratorPricing,
@@ -13,6 +14,7 @@ import {
   parseCuratorPlan,
   parseCuratorPricing,
   publishCuratorPlan,
+  updateCuratorPlan,
   type CuratorPricing,
 } from '../curator-plans';
 
@@ -150,6 +152,7 @@ void test('plan client uses only the authenticated public lifecycle routes', asy
         archivedAtUtc: '2026-08-16T14:00:00Z',
       }));
     }
+    if (init?.method === 'DELETE') return new Response(null, { status: 204 });
     return new Response(JSON.stringify(url.endsWith('/plans') && init?.method !== 'POST'
       ? [draft]
       : draft));
@@ -165,6 +168,14 @@ void test('plan client uses only the authenticated public lifecycle routes', asy
     annualAmountMinor: 7000,
     featureKeys: ['member_posts'],
   });
+  await updateCuratorPlan(draft.id, {
+    name: 'Selector Club',
+    description: 'Member-only selections.',
+    amountMinor: 800,
+    annualAmountMinor: null,
+    featureKeys: [],
+  });
+  await deleteCuratorPlan(draft.id);
   await publishCuratorPlan(draft.id);
   await archiveCuratorPlan(draft.id);
 
@@ -191,6 +202,20 @@ void test('plan client uses only the authenticated public lifecycle routes', asy
       method: 'POST',
       url: '/api/v1/curators/plans',
     },
+    {
+      body: JSON.stringify({
+        name: 'Selector Club',
+        description: 'Member-only selections.',
+        amountMinor: 800,
+        annualAmountMinor: null,
+        featureKeys: [],
+      }),
+      cache: undefined,
+      credentials: 'include',
+      method: 'PUT',
+      url: `/api/v1/curators/plans/${draft.id}`,
+    },
+    { body: undefined, cache: undefined, credentials: 'include', method: 'DELETE', url: `/api/v1/curators/plans/${draft.id}` },
     { body: undefined, cache: undefined, credentials: 'include', method: 'POST', url: `${'/api/v1/curators/plans'}/${draft.id}/publish` },
     { body: undefined, cache: undefined, credentials: 'include', method: 'POST', url: `${'/api/v1/curators/plans'}/${draft.id}/archive` },
   ]);

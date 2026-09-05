@@ -39,6 +39,7 @@
     "node_modules/**",
     "out/**",
     "playwright-report/**",
+    "src/components/dither-kit/**",
     "test-results/**",
     "tools/oxlint/anti-slop/**"
   ],

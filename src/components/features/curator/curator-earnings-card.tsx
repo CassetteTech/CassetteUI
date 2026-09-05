@@ -26,6 +26,7 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   timeStyle: 'short',
   timeZone: 'UTC',
 });
+const dayFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
 const allocationStatus = {
   accrued: 'Accrued',
   payable: 'Ready for payout',
@@ -62,9 +63,11 @@ function eventTitle(item: CuratorEarningsHistoryItem) {
   return 'New member earning';
 }
 
-function HistoryItem({ item }: { item: CuratorEarningsHistoryItem }) {
-  const showPayableAt = item.kind === 'allocation' &&
+/** `compact` drops the time, the earned line, and the eligibility note for overview lists. */
+export function HistoryItem({ item, compact = false }: { item: CuratorEarningsHistoryItem; compact?: boolean }) {
+  const showPayableAt = !compact && item.kind === 'allocation' &&
     item.status !== 'transferred' && item.status !== 'forfeited' && item.status !== 'reversed';
+  const when = compact ? dayFormatter : dateFormatter;
   const KindIcon = item.kind === 'allocation' ? HandCoins : Banknote;
   // Structure note: the amount's parent div and grandparent li are how tests
   // associate an amount with its label and status. Keep both wrappers.
@@ -76,13 +79,13 @@ function HistoryItem({ item }: { item: CuratorEarningsHistoryItem }) {
         </span>
         <div>
           <p className="font-medium leading-tight">{eventTitle(item)}</p>
-          {item.kind === 'allocation' && item.status === 'accrued' && (
+          {!compact && item.kind === 'allocation' && item.status === 'accrued' && (
             <p className="mt-0.5 text-sm text-muted-foreground">
               You earned {formatPaidPromotionMinorAmount(item.amountMinor, item.currency, 'en-US')}
             </p>
           )}
           <p className="mt-0.5 text-sm text-muted-foreground">
-            <time dateTime={item.occurredAtUtc}>{dateFormatter.format(new Date(item.occurredAtUtc))}</time>
+            <time dateTime={item.occurredAtUtc}>{when.format(new Date(item.occurredAtUtc))}</time>
           </p>
         </div>
       </div>
@@ -90,9 +93,7 @@ function HistoryItem({ item }: { item: CuratorEarningsHistoryItem }) {
         <p className="font-mono font-semibold tabular-nums">
           {formatPaidPromotionMinorAmount(item.amountMinor, item.currency, 'en-US')}
         </p>
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
-          {statusLabel(item)}
-        </p>
+        <p className="text-xs text-muted-foreground">{statusLabel(item)}</p>
         {showPayableAt && (
           <p className="mt-0.5 text-xs text-muted-foreground">
             Payout eligibility{' '}
@@ -160,14 +161,12 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-4 bg-muted/30 px-5 py-4">
+          <div className="flex items-center gap-4 rounded-lg bg-muted/40 px-5 py-4">
             <span aria-hidden className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
               <Users className="size-5" />
             </span>
             <dl>
-              <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                Active members
-              </dt>
+              <dt className="text-xs text-muted-foreground">Active members</dt>
               <dd
                 className="mt-0.5 font-teko text-4xl font-bold leading-none tabular-nums"
                 data-testid="curator-active-member-count"
@@ -178,7 +177,7 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
           </div>
 
           <section className="mt-7" aria-labelledby="curator-earnings-history-title">
-            <h3 id="curator-earnings-history-title" className="font-teko text-xl font-semibold uppercase tracking-tight">
+            <h3 id="curator-earnings-history-title" className="text-sm font-semibold">
               Recent activity
             </h3>
             {earnings.items.length === 0 ? (
@@ -224,7 +223,7 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
               >
                 Previous
               </Button>
-              <span className="font-mono text-xs uppercase tracking-[0.15em] text-muted-foreground" aria-live="polite">
+              <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
                 Page {earnings.page} of {totalPages}
               </span>
               <Button

@@ -3,12 +3,12 @@
 /** Renders the canonical public profile, enriching it with curator membership content when active. */
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
 import { useUserBio, useUserActivity, useUserLikedPosts, profileQueryKeys } from '@/hooks/use-profile';
 import { ProfileHeader } from '@/components/features/profile/profile-header';
+import { ProfileOwnerBar } from '@/components/features/profile/profile-owner-bar';
 import { NotificationMenu } from '@/components/layout/notification-menu';
 import { ProfileHeaderSkeleton } from '@/components/features/profile/profile-header-skeleton';
 import { ProfileTabs, TabType } from '@/components/features/profile/profile-tabs';
@@ -457,19 +457,7 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
-        {isCurrentUser && (
-          <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-muted/40 px-4 py-2 sm:px-6 lg:px-8">
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              This is your public page
-            </p>
-            <Link
-              href="/studio/curator"
-              className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-primary underline-offset-4 hover:underline"
-            >
-              Manage in Curator Studio
-            </Link>
-          </div>
-        )}
+        {isCurrentUser && <ProfileOwnerBar username={userBio.username} />}
         <PublicCuratorPage
           username={userBio.username}
           membershipFlow={membership}
@@ -514,6 +502,7 @@ export default function ProfilePage() {
                 likedTabVisibility={likedTabVisibility}
               />
             </div>
+            {isCurrentUser && userBio && <ProfileOwnerBar username={userBio.username} />}
             {showActivitySkeleton ? (
               <div className="p-3 sm:p-4 md:p-6 lg:p-8">
                 <ActivitySkeleton count={6} />
@@ -558,6 +547,7 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+          {isCurrentUser && userBio && <ProfileOwnerBar username={userBio.username} />}
           <div className="flex-1 overflow-y-auto" data-testid="profile-content-pane">
             {showActivitySkeleton ? (
               <div className="p-3 sm:p-4 md:p-6 lg:p-8">

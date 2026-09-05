@@ -1,29 +1,46 @@
 'use client';
 
-/** Shared Curator Studio chrome: accordion steps, status chips, notices, and receipt rows. */
+/** Shared Curator Studio chrome: the view context, soft section cards, status chips, notices, and receipt rows. */
 
-import { createContext, useContext, type ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { createContext, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-/** Single-open accordion state shared by the studio page and its step sections.
-    Collapsed steps stay mounted (only visually folded) so their queries keep running.
-    `eyebrows` lets the page override a section's eyebrow by id (e.g. numbered
-    "Step n" labels while that section sits in the setup stepper). */
-export const StudioStepsContext = createContext<{
-  openId: string | null;
-  toggle: (id: string) => void;
-  open: (id: string) => void;
-  eyebrows?: Record<string, ReactNode>;
-} | null>(null);
+export type StudioView =
+  | 'studio-overview'
+  | 'studio-profile'
+  | 'studio-plan'
+  | 'studio-earnings'
+  | 'studio-billing';
+
+/** Resolves a section anchor (e.g. "#studio-pro") or a view id to the dashboard view that hosts it. */
+export function studioViewOf(sectionId: string): StudioView {
+  switch (sectionId) {
+    case 'studio-overview':
+    case 'studio-profile':
+    case 'studio-plan':
+    case 'studio-earnings':
+    case 'studio-billing':
+      return sectionId;
+    case 'studio-pro':
+    case 'studio-payouts':
+      return 'studio-billing';
+    default:
+      return 'studio-overview';
+  }
+}
+
+/** Lets any section link switch the dashboard to the view that holds its target.
+    Every view stays mounted (hidden when inactive) so queries and provider
+    return flows keep running regardless of which view is showing. */
+export const StudioStepsContext = createContext<{ open: (sectionId: string) => void } | null>(null);
 
 export type StudioChipTone = 'neutral' | 'positive' | 'warning' | 'danger';
 
 const chipTones = {
-  neutral: 'border-border text-muted-foreground',
-  positive: 'border-success-text/40 text-success-text',
-  warning: 'border-warning-text/40 text-warning-text',
-  danger: 'border-destructive/40 text-destructive',
+  neutral: 'text-muted-foreground',
+  positive: 'text-success-text',
+  warning: 'text-warning-text',
+  danger: 'text-destructive',
 } satisfies Record<StudioChipTone, string>;
 
 export function StudioChip({
@@ -35,7 +52,7 @@ export function StudioChip({
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 rounded-none border bg-transparent px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.15em]',
+        'inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium leading-none',
         chipTones[tone],
         className,
       )}
@@ -48,9 +65,9 @@ export function StudioChip({
   );
 }
 
-/** One studio step. Renders as an accordion item when a StudioStepsContext is
-    present: the header row is always visible (eyebrow, title, status chip); the
-    body folds shut but stays in the DOM so queries and form state survive. */
+/** One studio section: a soft card with a sentence-case label, title, optional
+    status chip, and description. Sections are always expanded; the dashboard
+    decides which view (and therefore which sections) is visible. */
 export function StudioSection({
   id,
   eyebrow,
@@ -70,71 +87,29 @@ export function StudioSection({
   testId?: string;
   children: ReactNode;
 }) {
-  const steps = useContext(StudioStepsContext);
-  // Without a provider (storybook-style usage) the section is simply open.
-  const open = steps ? steps.openId === id : true;
-  // The page can override the eyebrow by id (e.g. numbered setup steps).
-  const eyebrowNode = steps?.eyebrows?.[id] ?? eyebrow;
-
   return (
     <section
       id={id}
       data-testid={testId}
       aria-labelledby={headingId}
       // scroll-mt keeps anchored jumps clear of any sticky chrome above.
-      // Flat language: full-width block, strong top rule, no card chrome.
-      className="scroll-mt-24 rounded-none border-t-2 border-foreground/15 bg-transparent"
+      className="scroll-mt-24 rounded-xl border border-border bg-card elev-soft"
     >
-      <h2 id={headingId} className="m-0">
-        <button
-          type="button"
-          data-testid={`${id}-trigger`}
-          aria-expanded={open}
-          aria-controls={`${id}-body`}
-          onClick={() => steps?.toggle(id)}
-          className={cn(
-            'group flex w-full items-center gap-4 py-6 text-left transition-colors sm:py-7',
-            !open && 'hover:bg-muted/30',
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-border/70 px-5 py-4 sm:px-6">
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">{eyebrow}</p>
+          <h2 id={headingId} className="mt-0.5 text-lg font-semibold leading-tight tracking-tight">
+            {title}
+          </h2>
+          {description && (
+            <p className="mt-1.5 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground">
+              {description}
+            </p>
           )}
-        >
-          {/* Chip stacks under the title on narrow screens so they never fight for one row */}
-          <span className="flex min-w-0 flex-1 flex-col items-start gap-2.5 sm:flex-row sm:items-center sm:gap-4">
-            <span className="min-w-0 flex-1">
-              {/* short red rule echoes the hero's brand-red top bar */}
-              <span aria-hidden className="mb-2.5 block h-0.5 w-8 bg-primary" />
-              <span className="block font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-                {eyebrowNode}
-              </span>
-              <span className="mt-1.5 block text-balance break-words font-teko text-2xl font-semibold uppercase leading-none tracking-tight sm:text-3xl">
-                {title}
-              </span>
-            </span>
-            {chip}
-          </span>
-          <ChevronDown
-            aria-hidden
-            className={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-300 motion-reduce:transition-none', open && 'rotate-180')}
-          />
-        </button>
-      </h2>
-      {/* 0fr -> 1fr grid rows animate the fold without measuring content height */}
-      <div
-        id={`${id}-body`}
-        className={cn(
-          'grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none',
-          open ? 'grid-rows-[1fr]' : 'invisible grid-rows-[0fr]',
-        )}
-      >
-        <div className="min-h-0 overflow-hidden">
-          <div className="pb-8 sm:pb-10">
-            {description && (
-              <p className="max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground">{description}</p>
-            )}
-            <div className={cn('editorial-rule-dashed', description && 'mt-4')} />
-            <div className="pt-6">{children}</div>
-          </div>
         </div>
+        {chip}
       </div>
+      <div className="px-5 py-5 sm:px-6 sm:py-6">{children}</div>
     </section>
   );
 }
@@ -158,7 +133,7 @@ export function StudioNotice({
       data-testid={testId}
       aria-live="polite"
       className={hasContent
-        ? cn('block rounded-none border border-primary/25 border-l-2 border-l-primary bg-primary/5 px-4 py-3 text-sm', className)
+        ? cn('block rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm', className)
         : 'sr-only'}
     >
       {children}

@@ -23,7 +23,7 @@ export function EconomicsBreakdown({
   interval: 'month' | 'year';
 }) {
   return (
-    <div className="bg-muted/30 p-4 sm:p-5">
+    <div className="rounded-lg bg-muted/40 p-4 sm:p-5">
       <h4 className="text-sm font-semibold">Per {interval}</h4>
       <dl className="mt-4 space-y-2 text-sm">
         <ReceiptRow label="Your price" value={money(economics.faceMinor, currency)} />
@@ -76,7 +76,7 @@ export function FanPreview({
   const line = (price: PreviewPrice, interval: 'month' | 'year') =>
     `${money(price.faceMinor + price.serviceFeeMinor, currency)}/${interval}`;
   return (
-    <div className="rounded-none border border-border p-4 sm:p-5" data-testid="curator-plan-preview">
+    <div className="rounded-lg border border-border bg-card p-4 elev-soft sm:p-5" data-testid="curator-plan-preview">
       <p className="text-sm font-semibold">What fans see</p>
       <h5 className="mt-3 break-words font-teko text-2xl font-semibold uppercase leading-none">
         {name.trim() || 'Your plan name'}

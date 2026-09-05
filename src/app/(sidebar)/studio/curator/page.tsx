@@ -1,34 +1,47 @@
 'use client';
 
-/** Curator Studio: flat, divider-based sections in two modes. Setup mode is a
-    single working column ordered by the numbered "Set up" stepper (finished
-    steps keep full functionality); once everything is complete the page becomes
-    a dashboard ordered by role, with billing settings grouped last. */
+/** Curator Studio: a dashboard with a view rail (Overview, Profile, Membership
+    plan, Members & earnings, Billing & payouts). Every view stays mounted so
+    section queries dedupe and Stripe return flows resolve whichever view is
+    showing. Before launch the page opens on the next checklist step; after
+    launch it opens on the overview. */
 
-import { Fragment, Suspense, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpRight, Check } from 'lucide-react';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  CreditCard,
+  HandCoins,
+  LayoutDashboard,
+  Ticket,
+  UserRound,
+} from 'lucide-react';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { CuratorEarningsCard } from '@/components/features/curator/curator-earnings-card';
 import { CuratorPayoutCard } from '@/components/features/curator/curator-payout-card';
 import { CuratorPlanCard } from '@/components/features/curator/curator-plan-card';
 import { CuratorProCard } from '@/components/features/curator/curator-pro-card';
+import { StudioOverview, type LaunchStep } from '@/components/features/curator/studio-overview';
 import {
   StudioChip,
   StudioNotice,
   StudioSection,
   StudioStepsContext,
+  studioViewOf,
   type StudioChipTone,
+  type StudioView,
 } from '@/components/features/curator/studio-shell';
+import { CopyButton } from '@/components/interior/copy-button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuthState } from '@/hooks/use-auth';
 import { apiService } from '@/services/api';
@@ -40,14 +53,19 @@ import {
   type CuratorProfile,
   type CuratorProfileRequest,
 } from '@/services/curator';
-import { fetchCuratorEarnings } from '@/services/curator-earnings';
 import { fetchCuratorPlans } from '@/services/curator-plans';
-import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 import { cn } from '@/lib/utils';
 
 const profileQueryKey = ['curator-profile', 'me'] as const;
-const memberCountFormatter = new Intl.NumberFormat('en-US');
+
+const views: ReadonlyArray<{ id: StudioView; label: string; icon: typeof LayoutDashboard }> = [
+  { id: 'studio-overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'studio-profile', label: 'Profile', icon: UserRound },
+  { id: 'studio-plan', label: 'Membership plan', icon: Ticket },
+  { id: 'studio-earnings', label: 'Members & earnings', icon: HandCoins },
+  { id: 'studio-billing', label: 'Billing & payouts', icon: CreditCard },
+];
 
 function formText(data: FormData, name: string): string {
   // SAFETY: every requested name belongs to a text input in this form.
@@ -101,7 +119,7 @@ function CuratorProfileForm({ profile }: { profile: CuratorProfile | null }) {
       <StudioNotice testId="curator-profile-notice" className="mb-6">{notice}</StudioNotice>
 
       <form
-        className="space-y-6"
+        className="max-w-2xl space-y-6"
         onSubmit={(event) => {
           event.preventDefault();
           setNotice(null);
@@ -181,9 +199,9 @@ function CuratorProfileForm({ profile }: { profile: CuratorProfile | null }) {
   );
 }
 
-/** Launch-checklist state shared by the desktop rail and the mobile summary.
-    Reads the same query keys the section cards use, so React Query dedupes
-    the requests and both surfaces stay in sync. */
+/** Launch-checklist state shared by the header, the overview, and the default
+    view. Reads the same query keys the section cards use, so React Query
+    dedupes the requests and every surface stays in sync. */
 function useLaunchSteps(profile: CuratorProfile | null) {
   const { user } = useAuthState();
   const searchParams = useSearchParams();
@@ -218,7 +236,7 @@ function useLaunchSteps(profile: CuratorProfile | null) {
   const payoutStarted = payout.data != null;
   const hasPlan = plans.data?.some((plan) => plan.status !== 'archived') === true;
   const hasActivePlan = plans.data?.some((plan) => plan.status === 'active') === true;
-  const steps = [
+  const steps: LaunchStep[] = [
     { href: '#studio-profile', label: 'Create your free profile', done: profile?.status === 'active' },
     { href: '#studio-plan', label: 'Prepare and preview your offer', done: hasPlan },
     { href: '#studio-pro', label: 'Start Curator Pro', done: pro.data?.hasAccess === true },
@@ -231,288 +249,80 @@ function useLaunchSteps(profile: CuratorProfile | null) {
     !payoutFlowActive && payout.isPending ||
     profile !== null && plans.isPending;
 
-  return { steps, doneCount, nextIndex, isPending, flowStep };
+  return {
+    steps,
+    doneCount,
+    nextIndex,
+    isPending,
+    flowStep,
+    pro: pro.data,
+    payout: payoutFlowActive ? undefined : payout.data,
+    plans: profile ? plans.data : [],
+  };
 }
 
 type LaunchState = ReturnType<typeof useLaunchSteps>;
 
-/** Patreon-style launch checklist card (desktop header rail, setup mode only). */
-function LaunchRail({ launch }: { launch: LaunchState }) {
-  const { steps, doneCount, nextIndex } = launch;
-  const stepsAccordion = useContext(StudioStepsContext);
-
-  return (
-    <div className="rounded-none border border-section-dark-fg/15 bg-section-dark-fg/5 p-5 sm:p-6">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em]">Launch checklist</p>
-        <p className="font-mono text-[10px] font-bold tabular-nums opacity-70" aria-hidden>
-          {doneCount}/{steps.length}
-        </p>
-      </div>
-      <Progress
-        value={(doneCount / steps.length) * 100}
-        aria-label={`Launch progress: ${doneCount} of ${steps.length} steps complete`}
-        className="mt-3 h-1.5 bg-section-dark-fg/15"
-      />
-      <ol className="mt-5 space-y-3">
-        {steps.map((step, index) => (
-          <li key={step.label}>
-            <a
-              href={step.href}
-              // Expand the matching accordion step before the anchor scrolls to it.
-              onClick={() => stepsAccordion?.open(step.href.slice(1))}
-              className="group flex items-center gap-3"
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  'flex size-6 shrink-0 items-center justify-center rounded-full border font-mono text-[11px] font-bold',
-                  step.done
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : index === nextIndex
-                      ? 'border-section-dark-fg/70'
-                      : 'border-section-dark-fg/25 opacity-50',
-                )}
-              >
-                {step.done ? <Check className="size-3.5" /> : index + 1}
-              </span>
-              <span
-                className={cn(
-                  'text-sm underline-offset-4 group-hover:underline',
-                  !step.done && index !== nextIndex && 'opacity-60',
-                )}
-              >
-                {step.label}
-                {step.done && <span className="sr-only"> (complete)</span>}
-              </span>
-              {index === nextIndex && (
-                <span className="ml-auto font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
-                  Next
-                </span>
-              )}
-            </a>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-/** Compact mobile launch summary: a thin progress bar plus one next-step action.
-    The step accordion below is the checklist itself on mobile, so the full
-    checklist card stays desktop-only. */
-function MobileLaunchSummary({ launch }: { launch: LaunchState }) {
-  const { steps, doneCount, nextIndex } = launch;
-  const stepsAccordion = useContext(StudioStepsContext);
+function StudioHeader({ launch, onOpen }: { launch: LaunchState; onOpen: (sectionId: string) => void }) {
+  const { user } = useAuthState();
+  const { steps, doneCount, nextIndex, pro } = launch;
   const next = steps[nextIndex] ?? null;
-
-  // Dashboard mode: the compact hero shows just the stats row.
-  if (nextIndex === -1) return null;
-
-  return (
-    <div className="mt-6 lg:hidden">
-      <div className="flex items-center gap-3">
-        <Progress
-          value={(doneCount / steps.length) * 100}
-          aria-label={`Launch progress: ${doneCount} of ${steps.length} steps complete`}
-          className="h-1 flex-1 bg-section-dark-fg/15"
-        />
-        <p className="font-mono text-[10px] font-bold tabular-nums opacity-70" aria-hidden>
-          {doneCount}/{steps.length}
-        </p>
-      </div>
-      {next && (
-        <Button asChild size="sm" className="mt-4 w-full rounded-full">
-          {/* Expands the matching accordion step before the anchor scrolls to it. */}
-          <a href={next.href} onClick={() => stepsAccordion?.open(next.href.slice(1))}>
-            Next: {next.label}
-          </a>
-        </Button>
-      )}
-    </div>
-  );
-}
-
-/** At-a-glance numbers in the header band. Shares the earnings and plans query
-    keys with the sections below, so the requests are deduped. */
-function HeaderStats({ profile }: { profile: CuratorProfile }) {
-  const { user } = useAuthState();
-  const earnings = useQuery({
-    queryKey: ['curator-earnings', user?.id ?? null, 1, 10],
-    queryFn: ({ signal }) => fetchCuratorEarnings(1, 10, signal),
-    enabled: Boolean(user?.id),
-    staleTime: 0,
-  });
-  const plans = useQuery({
-    queryKey: ['curator-plans', profile.id],
-    queryFn: ({ signal }) => fetchCuratorPlans(signal),
-    staleTime: 0,
-  });
-  const activePlan = plans.data?.find((plan) => plan.status === 'active') ?? null;
+  const username = user?.username ?? null;
+  const publicPath = username ? `/profile/${encodeURIComponent(username)}` : null;
 
   return (
-    <dl className="mt-5 flex flex-wrap gap-x-8 gap-y-4 lg:mt-7 lg:gap-x-10">
-      <div>
-        <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] opacity-70">
-          Active members
-        </dt>
-        <dd className="mt-1 font-teko text-3xl font-bold leading-none tabular-nums lg:text-4xl">
-          {earnings.data ? memberCountFormatter.format(earnings.data.activeMemberCount) : '—'}
-        </dd>
-      </div>
-      <div>
-        <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] opacity-70">
-          Live plan
-        </dt>
-        <dd className="mt-1 font-teko text-3xl font-bold leading-none tabular-nums lg:text-4xl">
-          {plans.isPending
-            ? '—'
-            : activePlan
-              ? `${formatPaidPromotionMinorAmount(activePlan.amountMinor, activePlan.currency, 'en-US')}/mo`
-              : 'None yet'}
-        </dd>
-      </div>
-    </dl>
-  );
-}
-
-function StudioHeader({ profile, launch }: { profile: CuratorProfile | null; launch: LaunchState }) {
-  const { user } = useAuthState();
-  const setupMode = launch.nextIndex !== -1;
-  const reduceMotion = useReducedMotion();
-  // One orchestrated entrance; disabled entirely under prefers-reduced-motion.
-  const entrance = (delay: number) => reduceMotion
-    ? {}
-    : {
-        initial: { opacity: 0, y: 14 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] as const },
-      };
-
-  return (
-    <header className="relative overflow-hidden rounded-none section-dark elev-3">
-      {/* brand-red spine along the top edge */}
-      <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-primary" />
-      {/* oversized watermark anchors the band without adding content */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute -bottom-12 -right-4 select-none font-teko text-[11rem] font-bold uppercase leading-none text-section-dark-fg/5"
-      >
-        Studio
-      </span>
-
-      <div
-        className={cn(
-          'relative grid gap-8 p-5 sm:p-9 lg:items-center',
-          setupMode && 'lg:grid-cols-[minmax(0,1fr)_21rem]',
-        )}
-      >
-        <motion.div {...entrance(0)}>
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] opacity-70">
-            Curator tools
-          </p>
-          <h1 className="mt-2 text-balance font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-6xl">
+    <header>
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+        <div className="min-w-0">
+          <h1 className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">
             Curator Studio
           </h1>
-          {/* Intro copy is desktop-only; the mobile header stays compact. */}
-          <p className="mt-4 hidden max-w-md text-pretty text-sm leading-relaxed opacity-80 sm:text-base lg:block">
-            Set up your curator identity while keeping every regular Cassette feature. A paid
-            subscription is only needed to lock posts or earn membership revenue.
-          </p>
-          {profile && <HeaderStats profile={profile} />}
-          <MobileLaunchSummary launch={launch} />
-          {(!setupMode || profile && user?.username) && (
-            <div className="mt-6 flex flex-wrap gap-2">
-              {/* During setup the checklist's next step is the one primary action;
-                  posting becomes the loudest action once the studio is launched. */}
-              {!setupMode && (
-                <Button
-                  asChild
-                  className="w-full font-mono text-[10px] font-bold uppercase tracking-[0.2em] sm:w-auto"
-                >
-                  <Link href="/add-music">New post</Link>
-                </Button>
-              )}
-              {profile && user?.username && (
-                <Button
-                  asChild
-                  variant="outline"
-                  className="w-full border-section-dark-fg/30 bg-transparent font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-section-dark-fg hover:bg-section-dark-fg/10 hover:text-section-dark-fg sm:w-auto"
-                >
-                  <Link href={`/profile/${encodeURIComponent(user.username)}`}>
-                    View profile
-                    <ArrowUpRight aria-hidden />
-                  </Link>
-                </Button>
-              )}
-            </div>
-          )}
-        </motion.div>
-
-        {/* Full checklist card is desktop-only and setup-mode-only; mobile gets
-            the compact summary above. */}
-        {setupMode && (
-          <motion.div {...entrance(0.12)} className="hidden lg:block">
-            <LaunchRail launch={launch} />
-          </motion.div>
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+            {pro && (
+              <StudioChip tone={pro.hasAccess ? (pro.cancelAtPeriodEnd ? 'warning' : 'positive') : 'neutral'}>
+                {pro.hasAccess ? 'Curator Pro' : 'Free profile'}
+              </StudioChip>
+            )}
+            {username && <span className="truncate">@{username}</span>}
+          </div>
+        </div>
+        {publicPath && (
+          <div className="flex flex-wrap gap-2">
+            <CopyButton
+              label="Copy page link"
+              copiedLabel="Link copied"
+              value={() => `${window.location.origin}${publicPath}`}
+            />
+            <Button asChild variant="outline" size="sm">
+              <Link href={publicPath}>
+                View public page
+                <ArrowUpRight aria-hidden />
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
+
+      {/* Compact launch progress rides along on every view until setup is complete. */}
+      {next && (
+        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-border bg-card px-4 py-3 elev-soft">
+          <div className="flex min-w-0 flex-1 basis-56 items-center gap-3">
+            <Progress
+              value={(doneCount / steps.length) * 100}
+              aria-label={`Launch progress: ${doneCount} of ${steps.length} steps complete`}
+              className="h-1.5 flex-1"
+            />
+            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{doneCount}/{steps.length}</span>
+          </div>
+          <Button size="sm" className="w-full sm:w-auto" onClick={() => onOpen(next.href.slice(1))}>
+            Next: {next.label}
+            <ArrowRight aria-hidden />
+          </Button>
+        </div>
+      )}
     </header>
   );
 }
-
-/** Group label between section stacks: mono eyebrow plus an optional Teko title. */
-function GroupHeading({ eyebrow, title }: { eyebrow: string; title?: string }) {
-  return (
-    <div className="pb-4 pt-12 first:pt-0">
-      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-        {eyebrow}
-      </p>
-      {title && (
-        <h2 className="mt-1.5 font-teko text-3xl font-bold uppercase leading-none tracking-tight">
-          {title}
-        </h2>
-      )}
-    </div>
-  );
-}
-
-function ProfileSectionSkeleton() {
-  return (
-    <StudioSection
-      id="studio-profile"
-      eyebrow="Identity"
-      title="Your free curator profile"
-      headingId="curator-profile-title"
-    >
-      <output className="sr-only">Loading curator profile…</output>
-      <div className="space-y-6" aria-hidden>
-        <Skeleton className="h-9 w-full" />
-        <Skeleton className="h-24 w-full" />
-        <div className="grid gap-6 sm:grid-cols-2">
-          <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-9 w-full" />
-        </div>
-        <Skeleton className="h-10 w-40" />
-      </div>
-    </StudioSection>
-  );
-}
-
-/** Fixed setup-mode eyebrows per section. The plan section serves steps 2
-    (prepare) and 5 (publish) and keeps the earlier number; the checklist rail
-    carries both labels. */
-const setupEyebrows: Record<string, ReactNode> = Object.fromEntries((
-  [
-    ['studio-profile', 1, 'Identity'],
-    ['studio-plan', 2, 'Monetize'],
-    ['studio-pro', 3, 'Subscription'],
-    ['studio-payouts', 4, 'Get paid'],
-  ] as const
-).map(([id, number, role]) => [
-  id,
-  <Fragment key={id}><span className="text-primary">Step {number}</span> · {role}</Fragment>,
-]));
 
 function CuratorStudio() {
   const profile = useQuery({
@@ -521,37 +331,29 @@ function CuratorStudio() {
     staleTime: 0,
   });
   const launch = useLaunchSteps(profile.data ?? null);
-  let defaultStepId: string | null;
-  if (launch.flowStep) defaultStepId = launch.flowStep;
-  else if (profile.isError || !profile.isPending && !profile.data) defaultStepId = 'studio-profile';
-  else if (profile.isPending || launch.isPending) defaultStepId = null;
-  else defaultStepId = launch.steps[launch.nextIndex]?.href.slice(1) ?? 'studio-earnings';
-  const setupMode = launch.nextIndex !== -1;
+  let defaultView: StudioView | null;
+  if (launch.flowStep) defaultView = studioViewOf(launch.flowStep);
+  else if (profile.isError || !profile.isPending && !profile.data) defaultView = 'studio-profile';
+  else if (profile.isPending || launch.isPending) defaultView = null;
+  else if (launch.nextIndex !== -1) defaultView = studioViewOf(launch.steps[launch.nextIndex].href.slice(1));
+  else defaultView = 'studio-overview';
 
-  const [openId, setOpenId] = useState<string | null>(null);
-  // Once the curator toggles a step themselves, the default never overrides them.
+  const [view, setView] = useState<StudioView>('studio-overview');
+  // Once the curator picks a view themselves, the default never overrides them.
   const touched = useRef(false);
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    if (ready || defaultStepId === null) return;
-    if (!touched.current) setOpenId(defaultStepId);
+    if (ready || defaultView === null) return;
+    if (!touched.current) setView(defaultView);
     setReady(true);
-  }, [defaultStepId, ready]);
+  }, [defaultView, ready]);
 
-  // Setup-mode stepper eyebrows use fixed numbers, so finishing a step never
-  // renumbers the rest.
-  const stepsValue = useMemo(() => ({
-    openId,
-    toggle: (id: string) => {
+  const open = useMemo(() => ({
+    open: (sectionId: string) => {
       touched.current = true;
-      setOpenId((current) => (current === id ? null : id));
+      setView(studioViewOf(sectionId));
     },
-    open: (id: string) => {
-      touched.current = true;
-      setOpenId(id);
-    },
-    eyebrows: setupMode ? setupEyebrows : undefined,
-  }), [openId, setupMode]);
+  }), []);
 
   const profileSection = profile.isPending ? (
     <ProfileSectionSkeleton />
@@ -572,64 +374,136 @@ function CuratorStudio() {
   );
 
   return (
-    <StudioStepsContext.Provider value={stepsValue}>
+    <StudioStepsContext.Provider value={open}>
       <div
-        className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 lg:max-w-6xl lg:py-10"
+        className="studio-surface mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-10"
         data-studio-steps-ready={ready ? 'true' : undefined}
       >
-        <StudioHeader profile={profile.data ?? null} launch={launch} />
+        <StudioHeader launch={launch} onOpen={open.open} />
 
-        {/* One stable tree for both modes so cards keep their local state
-            (notices, draft edits) when a step completes or reopens. Setup mode
-            dissolves the two column wrappers (`contents`) and orders the cards
-            into one working column; dashboard mode keeps the two columns. The
-            plan section is always mounted so every checklist anchor resolves,
-            even before a profile exists. */}
-        <div
-          className={cn(
-            'mt-10 grid grid-cols-1 gap-x-14',
-            setupMode ? 'mx-auto max-w-3xl' : 'lg:grid-cols-2 lg:items-start',
-          )}
+        <Tabs
+          value={view}
+          onValueChange={(next) => open.open(next)}
+          orientation="vertical"
+          className="mt-8 gap-6 lg:flex-row lg:items-start"
         >
-          <div className={setupMode ? 'contents' : 'min-w-0'}>
-            {profile.data && (
-              <div className={cn('min-w-0', setupMode && 'order-5')}>
-                <CuratorEarningsCard profile={profile.data} />
-              </div>
-            )}
-            <div className={cn('min-w-0', setupMode && 'order-2')}>
-              <CuratorPlanCard profile={profile.data ?? null} />
-            </div>
-          </div>
-          <div className={setupMode ? 'contents' : 'min-w-0'}>
-            <div className={cn('min-w-0', setupMode && 'order-1')}>
-              {setupMode && <GroupHeading eyebrow="Set up" />}
+          {/* Rail: horizontal scroller on small screens, vertical list on desktop. */}
+          <TabsList
+            aria-label="Studio views"
+            className="tab-scroll-fade -mx-4 flex h-auto w-auto justify-start gap-1 overflow-x-auto rounded-none bg-transparent px-4 py-0 sm:-mx-6 sm:px-6 lg:[mask-image:none] lg:sticky lg:top-6 lg:mx-0 lg:w-56 lg:shrink-0 lg:flex-col lg:items-stretch lg:border-r lg:border-border lg:px-0 lg:pr-4"
+          >
+            {views.map((item) => (
+              <TabsTrigger
+                key={item.id}
+                value={item.id}
+                data-testid={`${item.id}-trigger`}
+                className="h-9 flex-none justify-start gap-2.5 rounded-lg border-0 px-3 text-sm font-normal text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-card data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:elev-soft lg:w-full"
+              >
+                <item.icon aria-hidden className="size-4 shrink-0 data-[state=active]:text-primary" />
+                {item.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <div className="min-w-0 flex-1">
+            <TabsContent value="studio-overview" forceMount className="data-[state=inactive]:hidden">
+              {profile.isPending ? (
+                <OverviewSkeleton />
+              ) : (
+                <StudioOverview
+                  profile={profile.data ?? null}
+                  steps={launch.steps}
+                  doneCount={launch.doneCount}
+                  nextIndex={launch.nextIndex}
+                  pro={launch.pro}
+                  payout={launch.payout}
+                  plans={launch.plans}
+                />
+              )}
+            </TabsContent>
+            <TabsContent value="studio-profile" forceMount className="data-[state=inactive]:hidden">
               {profileSection}
-            </div>
-            {!setupMode && <GroupHeading eyebrow="Settings" title="Billing & payouts" />}
-            <div className={cn('min-w-0', setupMode && 'order-3')}>
+            </TabsContent>
+            {/* Always mounted so every checklist anchor resolves, even before a profile exists. */}
+            <TabsContent value="studio-plan" forceMount className="data-[state=inactive]:hidden">
+              <CuratorPlanCard profile={profile.data ?? null} />
+            </TabsContent>
+            <TabsContent value="studio-earnings" forceMount className="data-[state=inactive]:hidden">
+              {profile.data ? (
+                <CuratorEarningsCard profile={profile.data} />
+              ) : (
+                <StudioSection
+                  id="studio-earnings"
+                  eyebrow="Performance"
+                  title="Members & earnings"
+                  headingId="curator-earnings-title"
+                  description="Membership activity and payout history appear here once you have a curator profile."
+                >
+                  <Button variant="outline" onClick={() => open.open('studio-profile')}>
+                    Create your free profile
+                  </Button>
+                </StudioSection>
+              )}
+            </TabsContent>
+            <TabsContent value="studio-billing" forceMount className="space-y-6 data-[state=inactive]:hidden">
               <CuratorProCard />
-            </div>
-            <div className={cn('min-w-0', setupMode && 'order-4')}>
               <CuratorPayoutCard />
-            </div>
+            </TabsContent>
           </div>
-        </div>
+        </Tabs>
       </div>
     </StudioStepsContext.Provider>
   );
 }
 
+function ProfileSectionSkeleton() {
+  return (
+    <div aria-hidden className="rounded-xl border border-border bg-card p-6 elev-soft">
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="mt-3 h-6 w-64" />
+      <div className="mt-8 space-y-4">
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-9 w-1/2" />
+      </div>
+    </div>
+  );
+}
+
+/** Mirrors the Pro overview layout so the page does not reflow when data lands. */
+function OverviewSkeleton() {
+  return (
+    <div aria-hidden className="space-y-6">
+      <div className="flex flex-wrap divide-y divide-border rounded-xl border border-border bg-card elev-soft sm:divide-x sm:divide-y-0">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="min-w-0 flex-1 basis-40 px-4 py-3.5">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="mt-2 h-7 w-16" />
+            <Skeleton className="mt-2 h-3 w-24" />
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Skeleton className="h-64 w-full rounded-xl" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
 function StudioPageSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 lg:py-10">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-10">
       <output className="sr-only">Loading Curator Studio…</output>
       <div aria-hidden>
-        <Skeleton className="h-64 w-full rounded-none" />
-        <div className="mt-10 space-y-3">
-          <Skeleton className="h-24 w-full rounded-none" />
-          <Skeleton className="h-24 w-full rounded-none" />
-          <Skeleton className="h-24 w-full rounded-none" />
+        <Skeleton className="h-12 w-72" />
+        <div className="mt-8 grid gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+          <Skeleton className="h-80 w-full rounded-xl" />
         </div>
       </div>
     </div>

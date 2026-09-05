@@ -36,16 +36,19 @@ test('shows default economics without taking away the free profile editor', asyn
 
   await page.goto(STUDIO_PATH);
 
+  // A curator without a profile lands on the profile view; billing is one rail click away.
+  await expect(page.getByRole('heading', { name: 'Your free curator profile' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Create curator profile' })).toBeVisible();
+  await openStudioStep(page, 'studio-pro');
   const card = page.getByTestId('curator-pro-card');
   await expect(card).toBeVisible();
   await expect(card).toContainText('$5.00');
   await expect(card).toContainText('10%');
   await expect(page.getByTestId('curator-pro-subscribe')).toHaveText('Start Curator Pro');
-  await expect(page.getByRole('heading', { name: 'Your free curator profile' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Create curator profile' })).toBeVisible();
 
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(card).toBeVisible();
+  await openStudioStep(page, 'studio-profile');
   await expect(page.getByLabel('Headline')).toBeVisible();
   const pageWidths = await page.evaluate(() => [
     document.documentElement.scrollWidth,

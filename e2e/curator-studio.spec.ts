@@ -210,7 +210,7 @@ test('treats started payout setup as enough to launch and moves on to the offer'
 
   await page.goto(STUDIO_PATH);
 
-  await expect(page.getByTestId('studio-plan-trigger')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('studio-plan-trigger')).toHaveAttribute('aria-selected', 'true');
   const payoutCard = page.getByTestId('curator-payout-card');
   await expect(payoutCard.getByText('Accept members').locator('..')).toContainText('Ready');
   await expect(payoutCard.getByText('Receive payouts').locator('..')).toContainText('Needs your information');
@@ -227,7 +227,7 @@ test('lets a curator preview an offer before a profile exists and links to the m
   await expect(card.getByTestId('curator-plan-preview')).toContainText('Early Club');
   await expect(card.getByTestId('curator-plan-preview')).toContainText('$5.50/month');
   await card.getByRole('link', { name: 'Create your free profile' }).click();
-  await expect(page.getByTestId('studio-profile-trigger')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('studio-profile-trigger')).toHaveAttribute('aria-selected', 'true');
 });
 
 test('mints a new hosted link when the provider refresh URL returns', async ({ page }) => {

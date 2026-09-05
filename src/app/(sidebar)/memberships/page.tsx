@@ -6,8 +6,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/auth/RequireAuth';
+import { StudioChip, type StudioChipTone } from '@/components/features/curator/studio-shell';
+import { DitherAvatar } from '@/components/dither-kit/avatar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
@@ -16,14 +17,40 @@ import { apiService } from '@/services/api';
 import {
   describeMembershipBilling,
   describeMembershipStanding,
+  grantsMembershipAccess,
+  type MembershipSubscription,
   type MyMembership,
 } from '@/services/membership';
+import { cn } from '@/lib/utils';
+
+type StandingChip = { label: string; tone: StudioChipTone };
+
+/** Cassette red; the pattern still varies per curator, the color stays on brand. */
+const brandHue = 350;
+
+function standingChip(membership: MembershipSubscription): StandingChip {
+  switch (membership.status) {
+    case 'past_due':
+    case 'unpaid':
+      return { label: 'Payment needed', tone: 'danger' };
+    case 'paused':
+      return { label: 'Paused', tone: 'warning' };
+    case 'canceled':
+      return { label: 'Canceled', tone: 'neutral' };
+    default:
+      if (membership.cancelAtPeriodEnd) return { label: 'Ending', tone: 'warning' };
+      return grantsMembershipAccess(membership.status)
+        ? { label: 'Active', tone: 'positive' }
+        : { label: 'Pending', tone: 'neutral' };
+  }
+}
 
 function MembershipRow({ entry }: { entry: MyMembership }) {
   const [portalPending, setPortalPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { membership } = entry;
   const standing = describeMembershipStanding(membership);
+  const chip = standingChip(membership);
   const paymentProblem = membership.status === 'past_due' || membership.status === 'unpaid';
   const curatorName = entry.curatorDisplayName.trim() || entry.curatorUsername;
 
@@ -40,41 +67,56 @@ function MembershipRow({ entry }: { entry: MyMembership }) {
   }
 
   return (
-    <Card data-testid="my-membership" className="elev-1">
-      <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
+    <article
+      data-testid="my-membership"
+      className={cn(
+        'flex flex-col gap-4 rounded-xl border border-border bg-card p-4 elev-soft sm:flex-row sm:items-start sm:p-5',
+        membership.status === 'canceled' && 'opacity-80',
+      )}
+    >
+      {/* Curators have no avatar in this payload; a name-seeded dither mark stays stable per curator. */}
+      <DitherAvatar name={entry.curatorUsername} hue={brandHue} size={44} className="shrink-0 rounded-lg" />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <Link
             href={`/profile/${encodeURIComponent(entry.curatorUsername)}`}
-            className="break-words text-lg font-semibold underline-offset-4 hover:underline"
+            className="break-words text-base font-semibold leading-tight underline-offset-4 hover:underline"
           >
             {curatorName}
           </Link>
-          <p className="mt-1 text-sm tabular-nums text-muted-foreground" data-testid="my-membership-billing">
-            {describeMembershipBilling(membership)}
-          </p>
-          {standing && (
-            <p className="mt-2 text-sm text-muted-foreground" data-testid="my-membership-standing">{standing}</p>
-          )}
-          {error && <p className="mt-2 text-sm text-destructive" role="alert">{error}</p>}
+          <StudioChip tone={chip.tone}>{chip.label}</StudioChip>
         </div>
-        {membership.canManage && (
-          <Button
-            variant={paymentProblem ? 'default' : 'outline'}
-            className="shrink-0"
-            onClick={() => void manage()}
-            disabled={portalPending}
-            data-testid="my-membership-manage"
+        <p className="mt-1 text-sm tabular-nums text-muted-foreground" data-testid="my-membership-billing">
+          {describeMembershipBilling(membership)}
+        </p>
+        {standing && (
+          <p
+            className={cn('mt-2 text-sm', paymentProblem ? 'text-destructive' : 'text-muted-foreground')}
+            data-testid="my-membership-standing"
           >
-            {portalPending ? (
-              <>
-                <Spinner size="sm" />
-                Opening billing settings…
-              </>
-            ) : paymentProblem ? 'Update payment method' : 'Manage membership'}
-          </Button>
+            {standing}
+          </p>
         )}
-      </CardContent>
-    </Card>
+        {error && <p className="mt-2 text-sm text-destructive" role="alert">{error}</p>}
+      </div>
+      {membership.canManage && (
+        <Button
+          variant={paymentProblem ? 'default' : 'outline'}
+          size="sm"
+          className="w-full shrink-0 sm:w-auto"
+          onClick={() => void manage()}
+          disabled={portalPending}
+          data-testid="my-membership-manage"
+        >
+          {portalPending ? (
+            <>
+              <Spinner size="sm" />
+              Opening billing settings…
+            </>
+          ) : paymentProblem ? 'Update payment method' : 'Manage membership'}
+        </Button>
+      )}
+    </article>
   );
 }
 
@@ -87,13 +129,25 @@ function MyMemberships() {
     staleTime: 0,
     retry: 1,
   });
+  const activeCount = query.data?.filter((entry) => grantsMembershipAccess(entry.membership.status)).length ?? 0;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:py-10">
-      <h1 className="text-balance font-teko text-4xl font-bold uppercase">My memberships</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Prices shown are what you pay for each membership; tax is added where applicable.
-      </p>
+    <div className="studio-surface mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:py-10">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">
+            My memberships
+          </h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            The price shown is what you pay for each membership. Tax is added where it applies.
+          </p>
+        </div>
+        {query.data && query.data.length > 0 && (
+          <p className="text-sm tabular-nums text-muted-foreground">
+            {activeCount} active of {query.data.length}
+          </p>
+        )}
+      </header>
       <div className="mt-6 grid gap-3">
         {query.isPending ? (
           <>

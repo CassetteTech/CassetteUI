@@ -322,7 +322,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
             {plansData.length > 0 && (
             <section aria-labelledby="saved-plans-title" className="space-y-4">
               <div>
-                <h3 id="saved-plans-title" className="font-teko text-xl font-semibold uppercase tracking-tight">Your plans</h3>
+                <h3 id="saved-plans-title" className="text-sm font-semibold">Your plans</h3>
                 <p className="mt-1 text-sm text-muted-foreground">Published fan charges are frozen. Exact future earnings can change with your effective policy.</p>
               </div>
               {/* Requirements surface only while an unpublishable draft is waiting */}
@@ -402,15 +402,15 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                     key={plan.id}
                     data-testid={`curator-plan-${plan.status}`}
                     className={cn(
-                      'border-t-2',
-                      plan.status === 'active' ? 'border-primary/60' : 'border-foreground/15',
+                      'rounded-lg border border-border bg-background/50 px-4 sm:px-5',
+                      plan.status === 'active' && 'border-primary/40',
                       plan.status === 'archived' && 'opacity-70',
                     )}
                   >
                     {/* Tier header: reads like the card a fan would see */}
                     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 py-4">
                       <div className="min-w-0">
-                        <h4 className="break-words font-teko text-2xl font-semibold uppercase leading-none">{plan.name}</h4>
+                        <h4 className="break-words text-base font-semibold leading-tight">{plan.name}</h4>
                         <p className="mt-1.5 text-sm text-muted-foreground">{plan.description || 'No description.'}</p>
                       </div>
                       <StudioChip tone={planChipTone[plan.status]} className="capitalize">
@@ -581,11 +581,11 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                   className="group flex w-full items-center justify-between gap-4 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   <span className="flex items-start gap-3">
-                    <span aria-hidden className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary">
+                    <span aria-hidden className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
                       <Plus className="size-4 transition-transform group-data-[state=open]:rotate-45 motion-reduce:transition-none" />
                     </span>
                     <span>
-                      <span className="block font-teko text-xl font-semibold uppercase tracking-tight">
+                      <span className="block text-sm font-semibold">
                         {editingPlan ? `Edit draft: ${editingPlan.name}` : 'Create a draft'}
                       </span>
                       <span className="mt-0.5 block text-sm text-muted-foreground">
@@ -718,7 +718,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                           htmlFor={`curator-feature-${feature.featureKey}`}
                           key={feature.featureKey}
                           // data-state highlights the row when its checkbox is on
-                          className="flex items-start gap-3 rounded-none border border-border/70 p-3.5 text-sm font-normal transition-colors has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5"
+                          className="flex items-start gap-3 rounded-lg border border-border p-3.5 text-sm font-normal transition-colors has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5"
                         >
                           <Checkbox
                             id={`curator-feature-${feature.featureKey}`}
@@ -779,7 +779,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                       annual={annualEconomics && { faceMinor: annualEconomics.faceMinor, serviceFeeMinor: annualEconomics.serviceFeeMinor }}
                     />
                     <div>
-                      <h3 id="economics-title" className="font-teko text-xl font-semibold uppercase tracking-tight">
+                      <h3 id="economics-title" className="text-sm font-semibold">
                         What you earn
                       </h3>
                       <p className="mt-1 text-sm text-muted-foreground">

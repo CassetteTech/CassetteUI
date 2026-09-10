@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,8 +12,9 @@ import { useInvalidateProfileQueries } from '@/hooks/use-profile';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { TextField } from '@/components/ui/text-field';
 import { DeleteAccountModal } from './delete-account-modal';
-import { AlertTriangle, Camera, Globe2, Lock, Plus, X } from 'lucide-react';
+import { AlertTriangle, Globe2, Lock, Plus, X } from 'lucide-react';
 import { AvatarCropDialog } from '@/components/shared/avatar-crop-dialog';
+import { FileDropField } from '@/components/ui/file-drop-field';
 import { appLogger } from '@/lib/observability/logger';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
@@ -97,7 +98,6 @@ export function EditProfileFormComponent({
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const [links, setLinks] = useState<string[]>(initialData?.profileLinks ?? []);
   const [linksError, setLinksError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -258,47 +258,24 @@ export function EditProfileFormComponent({
     }
   };
 
-  const handleImageUpload = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    fileInputRef.current?.click();
-  };
-
-  const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
-
+  const handleAvatarFile = (file: File | null) => {
     if (!file) {
       setAvatarError(null);
       return;
     }
-
     if (!ALLOWED_TYPES.includes(file.type)) {
       setAvatarError('Please use a JPEG, PNG, or WebP image.');
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
       return;
     }
-
     if (file.size > MAX_SOURCE_FILE_SIZE) {
       setAvatarError('Please choose an image smaller than 20MB.');
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
       return;
     }
-
     setAvatarError(null);
     setPendingAvatarFile(file);
   };
 
-  const handleAvatarCropCancel = () => {
-    setPendingAvatarFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
+  const handleAvatarCropCancel = () => setPendingAvatarFile(null);
 
   const handleAvatarCropApply = async (croppedFile: File) => {
     if (croppedFile.size > MAX_UPLOAD_FILE_SIZE) {
@@ -324,39 +301,24 @@ export function EditProfileFormComponent({
     <div className="max-w-lg mx-auto p-4 sm:p-6 w-full">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Avatar */}
-        <div className="flex items-center gap-4 pb-5 border-b border-border/70">
-          <div className="relative shrink-0">
+        <FileDropField
+          className="pb-5 border-b border-border/70"
+          dropLabel="Drop a new photo here"
+          browseLabel="Change photo"
+          browseTestId="profile-avatar-choose"
+          hint="JPEG, PNG, or WebP. Max 5MB."
+          error={avatarError}
+          onFile={handleAvatarFile}
+          inputProps={{ accept: 'image/jpeg,image/png,image/webp', 'data-testid': 'profile-avatar-file-input' }}
+          preview={
             <Avatar className="w-16 h-16 border border-border">
               <AvatarImage src={activeAvatarUrl} alt="Profile" />
               <AvatarFallback className="text-lg">
                 {(initialData?.displayName || initialData?.username || 'P').slice(0, 1).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handleAvatarFileChange}
-              data-testid="profile-avatar-file-input"
-              className="hidden"
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <button
-              type="button"
-              onClick={handleImageUpload}
-              data-testid="profile-avatar-choose"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground border border-border rounded-md px-3 py-1.5 hover:bg-muted transition-colors"
-            >
-              <Camera className="h-3.5 w-3.5" />
-              Change photo
-            </button>
-            <p className="text-xs text-muted-foreground mt-1.5">JPEG, PNG, or WebP. Max 5MB.</p>
-            {avatarError && (
-              <p className="text-xs text-destructive mt-1">{avatarError}</p>
-            )}
-          </div>
-        </div>
+          }
+        />
 
         {/* Identity */}
         <div className="space-y-4">

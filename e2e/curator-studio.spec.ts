@@ -104,7 +104,7 @@ test('redirects anonymous visitors away from the curator studio', async ({ page 
   await expect(page.getByRole('link', { name: 'Curator Studio' })).toHaveCount(0);
 });
 
-test('lets a signed-in user create and edit a free curator profile', async ({ page }) => {
+test('lets a signed-in user create a free curator profile with one click', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
   });
@@ -113,37 +113,22 @@ test('lets a signed-in user create and edit a free curator profile', async ({ pa
 
   await expect(page.getByRole('heading', { level: 1, name: 'Curator Studio' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Curator Studio' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Your free curator profile' })).toBeVisible();
-  await expect(page.getByText('Not created', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
 
-  await page.getByLabel('Headline').fill('Weekly finds for open ears');
-  await page.getByLabel('About').fill('Independent picks from across the platform.');
-  await page.getByLabel('Genres').fill('Electronic, Jazz');
-  await page.getByLabel('Platforms').fill('Spotify, Apple Music');
-  await page.getByRole('button', { name: 'Create curator profile' }).click();
+  await page.getByRole('button', { name: 'Next: Create your free profile' }).first().click();
 
-  await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
-  await expect(page.getByText('active', { exact: true })).toBeVisible();
   await expect.poll(() => state.curatorProfile).toMatchObject({
     status: 'active',
-    headline: 'Weekly finds for open ears',
-    about: 'Independent picks from across the platform.',
-    declaredGenres: ['Electronic', 'Jazz'],
-    declaredPlatforms: ['Spotify', 'Apple Music'],
+    headline: null,
+    declaredGenres: [],
+    declaredPlatforms: [],
   });
-
-  await page.getByLabel('Headline').fill('Fresh finds every Friday');
-  await page.getByLabel('Genres').fill('Electronic, Soul');
-  await page.getByRole('button', { name: 'Save changes' }).click();
-
-  await expect.poll(() => state.curatorProfile?.headline).toBe('Fresh finds every Friday');
-  await expect.poll(() => state.curatorProfile?.declaredGenres).toEqual(['Electronic', 'Soul']);
+  await expect(page.getByRole('button', { name: 'Next: Create your free profile' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Next: Prepare and preview your offer' }).first()).toBeVisible();
 
   await page.reload();
-  // After reload the accordion opens the next unfinished step, not the profile.
-  await openStudioStep(page, 'studio-profile');
-  await expect(page.getByLabel('Headline')).toHaveValue('Fresh finds every Friday');
-  await expect(page.getByLabel('Genres')).toHaveValue('Electronic, Soul');
+  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByRole('button', { name: 'Next: Create your free profile' })).toHaveCount(0);
 });
 
 test('hands a user with no payout account to secure onboarding', async ({ page }) => {
@@ -157,15 +142,14 @@ test('hands a user with no payout account to secure onboarding', async ({ page }
   const card = page.getByTestId('curator-payout-card');
   await expect(card).toContainText('Not started');
   await expect(page.getByTestId('curator-pro-subscribe')).toBeEnabled();
-  await expect(page.getByRole('button', { name: 'Create curator profile' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Next: Create your free profile' }).first()).toBeEnabled();
 
   state.curatorPayoutOnboardingFailuresRemaining = 1;
   await openStudioStep(page, 'studio-payouts');
   await page.getByTestId('curator-payout-onboarding').click();
   await expect(card.getByRole('alert')).toBeVisible();
-  // Onboarding auto-created the free profile; its editor is on the profile step.
-  await openStudioStep(page, 'studio-profile');
-  await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
+  // Onboarding auto-created the free profile, so the checklist moves past that step.
+  await expect(page.getByRole('button', { name: 'Next: Create your free profile' })).toHaveCount(0);
 
   await openStudioStep(page, 'studio-payouts');
   await page.getByTestId('curator-payout-onboarding').click();
@@ -210,14 +194,14 @@ test('treats started payout setup as enough to launch and moves on to the offer'
 
   await page.goto(STUDIO_PATH);
 
-  await expect(page.getByTestId('studio-plan-trigger')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-selected', 'true');
   const payoutCard = page.getByTestId('curator-payout-card');
   await expect(payoutCard.getByText('Accept members').locator('..')).toContainText('Ready');
   await expect(payoutCard.getByText('Receive payouts').locator('..')).toContainText('Needs your information');
 });
 
-test('lets a curator preview an offer before a profile exists and links to the missing step', async ({ page }) => {
-  await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+test('lets a curator preview an offer before a profile exists and creates the profile inline', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, { currentUser: fixtureUsers.member });
 
   await page.goto(STUDIO_PATH);
   await openStudioStep(page, 'studio-plan');
@@ -227,7 +211,9 @@ test('lets a curator preview an offer before a profile exists and links to the m
   await expect(card.getByTestId('curator-plan-preview')).toContainText('Early Club');
   await expect(card.getByTestId('curator-plan-preview')).toContainText('$5.50/month');
   await card.getByRole('link', { name: 'Create your free profile' }).click();
-  await expect(page.getByTestId('studio-profile-trigger')).toHaveAttribute('aria-selected', 'true');
+  await expect.poll(() => state.curatorProfile?.status).toBe('active');
+  await expect(card.getByRole('link', { name: 'Create your free profile' })).toHaveCount(0);
+  await expect(card.getByTestId('curator-plan-preview')).toContainText('Early Club');
 });
 
 test('mints a new hosted link when the provider refresh URL returns', async ({ page }) => {
@@ -271,11 +257,10 @@ test('keeps free and Pro surfaces usable through restricted and failed payout st
   await openStudioStep(page, 'studio-payouts');
   await expect(card.getByRole('alert')).toBeVisible({ timeout: 10_000 });
 
-  await openStudioStep(page, 'studio-profile');
-  await page.getByLabel('Headline').fill('Free profile survives payout errors');
-  await page.getByRole('button', { name: 'Create curator profile' }).click();
+  await openStudioStep(page, 'studio-overview');
+  await page.getByRole('button', { name: 'Next: Create your free profile' }).first().click();
 
-  await expect.poll(() => state.curatorProfile?.headline).toBe('Free profile survives payout errors');
+  await expect.poll(() => state.curatorProfile?.status).toBe('active');
   await expect(page.getByTestId('curator-pro-subscribe')).toBeEnabled();
 });
 
@@ -318,8 +303,6 @@ test('creates a free draft with policy economics before Pro or payouts', async (
     annualAmountMinor: 7000,
     featureKeys: ['member_posts'],
   }]);
-  await openStudioStep(page, 'studio-profile');
-  await expect(page.getByRole('button', { name: 'Save changes' })).toBeEnabled();
   await expect(page.getByTestId('curator-pro-subscribe')).toBeEnabled();
   await expect(page.getByTestId('curator-payout-onboarding')).toBeEnabled();
 });
@@ -469,7 +452,6 @@ test('uses server-provided curator-borne processing in the estimate', async ({ p
 test('isolates plan-tool failures from profile, Pro, and payout controls', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
-    curatorProfile,
     curatorPlanToolsStatus: 503,
   });
 
@@ -480,11 +462,9 @@ test('isolates plan-tool failures from profile, Pro, and payout controls', async
     'Your free profile, Curator Pro, and payout controls still work.',
     { timeout: 10_000 },
   );
-  await openStudioStep(page, 'studio-profile');
-  await page.getByLabel('Headline').fill('Free profile survives plan errors');
-  await page.getByRole('button', { name: 'Save changes' }).click();
+  await page.getByRole('button', { name: 'Next: Create your free profile' }).first().click();
 
-  await expect.poll(() => state.curatorProfile?.headline).toBe('Free profile survives plan errors');
+  await expect.poll(() => state.curatorProfile?.status).toBe('active');
   await expect(page.getByTestId('curator-pro-subscribe')).toBeEnabled();
   await expect(page.getByTestId('curator-payout-onboarding')).toBeEnabled();
 });

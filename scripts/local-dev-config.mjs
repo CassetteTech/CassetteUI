@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { createPrivateKey } from 'node:crypto';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
 
@@ -130,4 +131,49 @@ export function fetchHostedSupabaseFromAws(settings, run = spawnSync) {
   } catch {
     return { ok: false, reason: `${settings.secretId} did not return a valid JSON secret.` };
   }
+}
+
+export function fetchMusicCredentialsFromAws(settings, run = spawnSync) {
+  const values = {};
+  for (const [secretId, fields] of [
+    ['AppleMusicLambdaSecrets', {
+      am_secret_key: 'APPLE_MUSIC_PRIVATE_KEY',
+      am_key_id: 'APPLE_MUSIC_KEY_ID',
+      am_team_id: 'APPLE_MUSIC_TEAM_ID',
+    }],
+    ['SpotifyLambdaSecrets', {
+      spotify_client_id: 'SPOTIFY_CLIENT_ID',
+      spotify_client_secret: 'SPOTIFY_CLIENT_SECRET',
+    }],
+  ]) {
+    const result = run(process.platform === 'win32' ? 'aws.exe' : 'aws', [
+      'secretsmanager', 'get-secret-value', '--secret-id', secretId,
+      '--profile', settings.profile, '--region', settings.region,
+      '--query', 'SecretString', '--output', 'text',
+    ], { encoding: 'utf8', shell: false, windowsHide: true });
+    if (result.error || result.status !== 0) {
+      return { ok: false, reason: `AWS profile ${settings.profile} could not read ${secretId}.` };
+    }
+    try {
+      const secret = JSON.parse(result.stdout);
+      for (const [source, target] of Object.entries(fields)) {
+        if (typeof secret?.[source] !== 'string' || !secret[source].trim()) {
+          return { ok: false, reason: `${secretId} is missing: ${source}.` };
+        }
+        values[target] = secret[source];
+      }
+    } catch {
+      return { ok: false, reason: `${secretId} did not return a valid JSON secret.` };
+    }
+  }
+  try {
+    values.APPLE_MUSIC_PRIVATE_KEY = values.APPLE_MUSIC_PRIVATE_KEY.replaceAll('\\n', '\n').trim();
+    const key = createPrivateKey(values.APPLE_MUSIC_PRIVATE_KEY);
+    if (key.asymmetricKeyType !== 'ec' || key.asymmetricKeyDetails?.namedCurve !== 'prime256v1') {
+      throw new Error('Invalid signing key');
+    }
+  } catch {
+    return { ok: false, reason: 'AppleMusicLambdaSecrets does not contain a valid ES256 private key.' };
+  }
+  return { ok: true, values };
 }

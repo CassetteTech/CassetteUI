@@ -99,6 +99,18 @@
       0 8px 16px rgba(0, 0, 0, 0.25);
   }
 
+  /* ─── Cards ────────────────────────────────────────────────────────────────
+     No drop shadows. `card-ink` is the content card: a single hairline and
+     8px radius. `card-quiet` is the dashboard panel: a muted tonal fill with
+     no outline, so studio sections read as regions, not boxes. */
+  .card-ink {
+    @apply rounded-lg border border-border/70 bg-card;
+  }
+
+  .card-quiet {
+    @apply rounded-xl bg-card/65 backdrop-blur-sm;
+  }
+
   /* ─── Surface Layers ───────────────────────────────────────────────────── */
   .surface-bottom {
     background: hsl(var(--background));

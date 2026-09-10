@@ -20,6 +20,7 @@ import {
   type MembershipStatus,
   type MembershipStatusView,
 } from '@/services/membership';
+import { MembershipReceipt } from '@/components/features/membership/membership-receipt';
 import { cn } from '@/lib/utils';
 
 function BenefitList({ benefits }: { benefits: NonNullable<CuratorPage['membership']>['benefits'] }) {
@@ -167,7 +168,7 @@ export function CuratorMembershipCard({
   if (page.viewer.isMember) {
     return (
       <aside className="lg:sticky lg:top-6" aria-label="Membership">
-        <Card id={membershipId} data-testid="curator-membership-card" className="border-foreground/30 elev-1">
+        <Card id={membershipId} data-testid="curator-membership-card">
           <CardHeader>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <Badge variant="secondary" className="px-3 py-1.5">
@@ -212,7 +213,7 @@ export function CuratorMembershipCard({
 
   return (
     <aside className="lg:sticky lg:top-6" aria-label="Membership">
-      <Card id={membershipId} data-testid="curator-membership-card" className="border-foreground/30 elev-2">
+      <Card id={membershipId} data-testid="curator-membership-card">
         <CardHeader>
           <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
             Membership
@@ -262,32 +263,16 @@ export function CuratorMembershipCard({
             </RadioGroup>
           )}
           {displayedPlan && selectedFace != null && selectedFee != null && canJoin && (
-            <dl className="mt-4 space-y-1 border-y py-3 text-sm tabular-nums" data-testid="membership-summary">
-              {selectedFee > 0 && (
-                <>
-                  <div className="flex justify-between gap-3">
-                    <dt>Membership</dt>
-                    <dd>{formatCuratorPlanPrice(selectedFace, 0, displayedPlan.currency)}</dd>
-                  </div>
-                  <div className="flex justify-between gap-3 text-muted-foreground">
-                    <dt>Service fee</dt>
-                    <dd>{formatCuratorPlanPrice(selectedFee, 0, displayedPlan.currency)}</dd>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-between gap-3 font-semibold">
-                <dt>Total per {displayedInterval}</dt>
-                <dd>{selectedPrice}</dd>
-              </div>
-              <div className="flex justify-between gap-3 text-muted-foreground">
-                <dt>Tax</dt>
-                <dd>Added at Checkout where applicable</dd>
-              </div>
-              <p className="pt-2 text-xs leading-5 text-muted-foreground">
-                Renews {displayedInterval === 'year' ? 'annually' : 'monthly'}. Manage or cancel renewal in
-                billing settings; confirm the effective date there.
-              </p>
-            </dl>
+            <MembershipReceipt
+              className="mt-5"
+              data-testid="membership-summary"
+              title={planName}
+              faceAmountMinor={selectedFace}
+              serviceFeeMinor={selectedFee}
+              currency={displayedPlan.currency}
+              interval={displayedInterval}
+              footer={`Renews ${displayedInterval === 'year' ? 'annually' : 'monthly'}. Manage or cancel renewal in billing settings; confirm the effective date there.`}
+            />
           )}
           {displayedPlan && <BenefitList benefits={displayedPlan.benefits} />}
 

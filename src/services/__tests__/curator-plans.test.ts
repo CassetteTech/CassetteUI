@@ -10,6 +10,7 @@ import {
   fetchCuratorFeatures,
   fetchCuratorPlans,
   fetchCuratorPricing,
+  memberPostAccessState,
   parseCuratorFeatures,
   parseCuratorPlan,
   parseCuratorPricing,
@@ -52,6 +53,24 @@ function requestUrl(input: string | URL | Request): string {
   // SAFETY: every client function under test calls fetch with a string path.
   return input as string;
 }
+
+void test('members-only access state follows Pro access, then a published member-post plan', () => {
+  const active = parseCuratorPlan({
+    ...draft,
+    status: 'active',
+    serviceFeeMinor: 58,
+    annualServiceFeeMinor: 310,
+    publishedAtUtc: '2026-08-16T13:00:00Z',
+  });
+  const otherFeature = { ...active, featureKeys: ['early_access'] };
+
+  assert.equal(memberPostAccessState(undefined, undefined), 'loading');
+  assert.equal(memberPostAccessState(false, [active]), 'needs-pro');
+  assert.equal(memberPostAccessState(true, undefined), 'loading');
+  assert.equal(memberPostAccessState(true, []), 'needs-plan');
+  assert.equal(memberPostAccessState(true, [parseCuratorPlan(draft), otherFeature]), 'needs-plan');
+  assert.equal(memberPostAccessState(true, [otherFeature, active]), 'ready');
+});
 
 void test('plan and feature parsers enforce the public contract and published evidence', () => {
   assert.equal(parseCuratorPlan(draft).status, 'draft');

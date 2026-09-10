@@ -36,7 +36,7 @@ export const ConversionSteps: React.FC<ConversionStepsProps> = ({
 
   return (
     <div
-      className={`rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm p-5 sm:p-6 ${className}`}
+      className={`card-quiet p-5 sm:p-6 ${className}`}
     >
       <div className="text-center mb-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">

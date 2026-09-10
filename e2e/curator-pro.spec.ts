@@ -36,9 +36,9 @@ test('shows default economics without taking away the free profile editor', asyn
 
   await page.goto(STUDIO_PATH);
 
-  // A curator without a profile lands on the profile view; billing is one rail click away.
-  await expect(page.getByRole('heading', { name: 'Your free curator profile' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Create curator profile' })).toBeVisible();
+  // A curator without a profile lands on the overview checklist; billing is one rail click away.
+  await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Next: Create your free profile' }).first()).toBeVisible();
   await openStudioStep(page, 'studio-pro');
   const card = page.getByTestId('curator-pro-card');
   await expect(card).toBeVisible();
@@ -48,8 +48,8 @@ test('shows default economics without taking away the free profile editor', asyn
 
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(card).toBeVisible();
-  await openStudioStep(page, 'studio-profile');
-  await expect(page.getByLabel('Headline')).toBeVisible();
+  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
   const pageWidths = await page.evaluate(() => [
     document.documentElement.scrollWidth,
     document.body.scrollWidth,
@@ -232,10 +232,9 @@ test('leaves the free profile editor usable when Pro status fails', async ({ pag
   await expect(page.getByTestId('curator-pro-card').getByRole('alert')).toBeVisible({
     timeout: 10_000,
   });
-  await openStudioStep(page, 'studio-profile');
-  await page.getByLabel('Headline').fill('Free profile still works');
-  await page.getByRole('button', { name: 'Create curator profile' }).click();
+  await openStudioStep(page, 'studio-overview');
+  await page.getByRole('button', { name: 'Next: Create your free profile' }).first().click();
 
-  await expect.poll(() => state.curatorProfile?.headline).toBe('Free profile still works');
-  await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
+  await expect.poll(() => state.curatorProfile?.status).toBe('active');
+  await expect(page.getByRole('button', { name: 'Next: Create your free profile' })).toHaveCount(0);
 });

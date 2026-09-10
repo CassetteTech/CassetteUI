@@ -42,7 +42,7 @@ export function MusicServicesConnection() {
 
   if (isLoading) {
     return (
-      <Card className="w-full max-w-md bg-card/50 backdrop-blur-sm border-muted/50">
+      <Card className="w-full max-w-md">
         <CardContent className="p-4">
           <div className="flex items-center justify-center">
             <Spinner size="md" variant="primary" />
@@ -56,7 +56,7 @@ export function MusicServicesConnection() {
     <div className="space-y-4">
       {/* Connected Services Display */}
       {connectedServices.length > 0 && (
-        <Card className="w-full max-w-md bg-card/50 backdrop-blur-sm border-muted/50 shadow-sm">
+        <Card className="w-full max-w-md">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">

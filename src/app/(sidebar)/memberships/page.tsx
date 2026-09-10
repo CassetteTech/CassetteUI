@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { StudioChip, type StudioChipTone } from '@/components/features/curator/studio-shell';
 import { DitherAvatar } from '@/components/dither-kit/avatar';
+import { MembershipReceipt } from '@/components/features/membership/membership-receipt';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,16 +18,32 @@ import { apiService } from '@/services/api';
 import {
   describeMembershipBilling,
   describeMembershipStanding,
+  formatMembershipDate,
   grantsMembershipAccess,
   type MembershipSubscription,
   type MyMembership,
 } from '@/services/membership';
+import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { cn } from '@/lib/utils';
 
 type StandingChip = { label: string; tone: StudioChipTone };
 
 /** Cassette red; the pattern still varies per curator, the color stays on brand. */
 const brandHue = 350;
+
+/** A membership renews when it is in good standing and no cancellation is scheduled. */
+const renews = (membership: MembershipSubscription) =>
+  (membership.status === 'active' || membership.status === 'trialing') && !membership.cancelAtPeriodEnd;
+
+/** Monthly spend across renewing memberships, in minor units; null when nothing renews.
+    ponytail: sums in the first membership's currency; group per currency if fans ever pay in more than one. */
+function monthlySpend(entries: MyMembership[]) {
+  const renewing = entries.filter(({ membership }) => renews(membership));
+  if (renewing.length === 0) return null;
+  const total = renewing.reduce((sum, { membership }) =>
+    sum + (membership.billingInterval === 'year' ? membership.totalAmountMinor / 12 : membership.totalAmountMinor), 0);
+  return { amountMinor: Math.round(total), currency: renewing[0].membership.currency };
+}
 
 function standingChip(membership: MembershipSubscription): StandingChip {
   switch (membership.status) {
@@ -70,7 +87,7 @@ function MembershipRow({ entry }: { entry: MyMembership }) {
     <article
       data-testid="my-membership"
       className={cn(
-        'flex flex-col gap-4 rounded-xl border border-border bg-card p-4 elev-soft sm:flex-row sm:items-start sm:p-5',
+        'flex flex-col gap-4 card-ink p-4 sm:flex-row sm:items-start sm:p-5',
         membership.status === 'canceled' && 'opacity-80',
       )}
     >
@@ -89,6 +106,17 @@ function MembershipRow({ entry }: { entry: MyMembership }) {
         <p className="mt-1 text-sm tabular-nums text-muted-foreground" data-testid="my-membership-billing">
           {describeMembershipBilling(membership)}
         </p>
+        <MembershipReceipt
+          className="mt-4 max-w-xs"
+          title={curatorName}
+          meta={renews(membership) && membership.paidThroughUtc
+            ? `Next charge ${formatMembershipDate(membership.paidThroughUtc)}`
+            : undefined}
+          faceAmountMinor={membership.faceAmountMinor}
+          serviceFeeMinor={membership.serviceFeeMinor}
+          currency={membership.currency}
+          interval={membership.billingInterval}
+        />
         {standing && (
           <p
             className={cn('mt-2 text-sm', paymentProblem ? 'text-destructive' : 'text-muted-foreground')}
@@ -130,6 +158,7 @@ function MyMemberships() {
     retry: 1,
   });
   const activeCount = query.data?.filter((entry) => grantsMembershipAccess(entry.membership.status)).length ?? 0;
+  const spend = query.data ? monthlySpend(query.data) : null;
 
   return (
     <div className="studio-surface mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:py-10">
@@ -143,9 +172,19 @@ function MyMemberships() {
           </p>
         </div>
         {query.data && query.data.length > 0 && (
-          <p className="text-sm tabular-nums text-muted-foreground">
-            {activeCount} active of {query.data.length}
-          </p>
+          <div className="text-sm text-muted-foreground sm:text-right">
+            <p className="tabular-nums">{activeCount} active of {query.data.length}</p>
+            {spend && (
+              <p className="mt-1">
+                Renewing spend{' '}
+                <span className="font-mono tabular-nums text-foreground">
+                  {formatPaidPromotionMinorAmount(spend.amountMinor, spend.currency)}/month
+                  {' · '}
+                  {formatPaidPromotionMinorAmount(spend.amountMinor * 12, spend.currency)}/year
+                </span>
+              </p>
+            )}
+          </div>
         )}
       </header>
       <div className="mt-6 grid gap-3">

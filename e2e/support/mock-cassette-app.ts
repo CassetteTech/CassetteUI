@@ -2315,6 +2315,20 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       });
     }
 
+    if (/^\/api\/v1\/social\/posts\/[^/]+\/insights$/.test(pathname) && method === 'GET') {
+      const postId = pathname.split('/')[5];
+      if (!state.postsById.has(postId)) {
+        return json(route, { message: 'Post not found' }, 404);
+      }
+      return json(route, {
+        postId,
+        generatedAt: '2026-08-20T00:00:00Z',
+        lifetime: { views: 0, uniqueViewers: 0, destinationOpens: 0, shares: 0, openRate: 0 },
+        platformBreakdown: [],
+        trend: [],
+      });
+    }
+
     if (/^\/api\/v1\/social\/posts\/[^/]+\/like$/.test(pathname)) {
       const postId = pathname.split('/')[5];
       const post = state.postsById.get(postId);
@@ -2395,6 +2409,11 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
           commentsEnabled: payload.commentsEnabled ?? post.commentsEnabled,
         };
         upsertPost(state, updatedPost);
+        // Keep the curator feed in step, as Bridge reads both from the same post row.
+        const feedPrivacy = updatedPost.privacy === 'subscriber' ? 'subscriber' : 'public';
+        for (const item of state.curatorPage?.posts.items ?? []) {
+          if (item.kind === 'post' && item.post.postId === postId) item.post.privacy = feedPrivacy;
+        }
         return json(route, {
           postId,
           description: updatedPost.description,

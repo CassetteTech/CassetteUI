@@ -1,4 +1,5 @@
-/** Parses and requests the curator's paginated membership earnings ledger view. */
+/** Parses and requests the curator's paginated membership earnings ledger view,
+    and derives the balance and period figures the Studio shows from it. */
 
 import { z } from 'zod';
 import { CuratorPageError } from './curator';
@@ -66,4 +67,77 @@ export async function fetchCuratorEarnings(
     throw new CuratorPageError('Failed to load membership earnings', response.status);
   }
   return parseCuratorEarnings(await response.json());
+}
+
+type Allocation = Extract<CuratorEarningsHistoryItem, { kind: 'allocation' }>;
+
+/** First day (UTC) of the month `monthsAgo` months before `now`. */
+export function monthStart(monthsAgo: number, now = new Date()): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsAgo, 1));
+}
+
+const earned = (item: CuratorEarningsHistoryItem): item is Allocation =>
+  item.kind === 'allocation' && item.status !== 'forfeited' && item.status !== 'reversed';
+const paidOut = (item: CuratorEarningsHistoryItem) => item.kind === 'transfer' && item.status === 'succeeded';
+const sum = (items: CuratorEarningsHistoryItem[]) => items.reduce((total, item) => total + item.amountMinor, 0);
+
+/** Balance figures from a newest-first ledger slice, in minor units.
+    `currency` falls back to USD on an empty ledger. */
+export function ledgerBalances(items: CuratorEarningsHistoryItem[], now = new Date()) {
+  const thisMonth = monthStart(0, now);
+  const allocations = items.filter(earned);
+  // Earliest future clearing date among earnings still accruing.
+  const nextPayableAt = allocations.reduce<string | null>(
+    (earliest, item) => item.status === 'accrued' && new Date(item.payableAtUtc) >= now &&
+      (earliest === null || new Date(item.payableAtUtc) < new Date(earliest))
+      ? item.payableAtUtc
+      : earliest,
+    null,
+  );
+  return {
+    currency: items[0]?.currency ?? 'USD',
+    earnedThisMonth: sum(allocations.filter((item) => new Date(item.occurredAtUtc) >= thisMonth)),
+    accrued: sum(allocations.filter((item) => item.status === 'accrued')),
+    payable: sum(allocations.filter((item) => item.status === 'payable')),
+    blocked: sum(allocations.filter((item) => item.status === 'blocked')),
+    paidOut: sum(items.filter(paidOut)),
+    nextPayableAt,
+  };
+}
+
+const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
+const monthKey = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
+
+/** Earned versus paid out per calendar month for the trailing `months`, plus
+    the period's totals by outcome. Earned follows the allocation date; paid
+    out follows the transfer date. `complete` is false when the loaded slice
+    (of `totalItems`) does not reach back to the period start. */
+export function periodSummary(
+  items: CuratorEarningsHistoryItem[],
+  totalItems: number,
+  months: number,
+  now = new Date(),
+) {
+  const start = monthStart(months - 1, now);
+  const rows = Array.from({ length: months }, (_, i) => {
+    const d = monthStart(months - 1 - i, now);
+    return { key: monthKey(d), label: monthFormatter.format(d), earned: 0, paid: 0 };
+  });
+  const byKey = new Map(rows.map((row) => [row.key, row]));
+  const inPeriod = items.filter((item) => new Date(item.occurredAtUtc) >= start);
+  for (const item of inPeriod) {
+    const row = byKey.get(monthKey(new Date(item.occurredAtUtc)));
+    if (!row) continue;
+    if (earned(item)) row.earned += item.amountMinor;
+    else if (paidOut(item)) row.paid += item.amountMinor;
+  }
+  const allocations = inPeriod.filter(earned);
+  return {
+    rows,
+    earned: sum(allocations),
+    pending: sum(allocations.filter((item) => item.status !== 'transferred')),
+    paid: sum(inPeriod.filter(paidOut)),
+    forfeited: sum(inPeriod.filter((item) => item.kind === 'allocation' && item.status === 'forfeited')),
+    complete: items.length >= totalItems || items.some((item) => new Date(item.occurredAtUtc) < start),
+  };
 }

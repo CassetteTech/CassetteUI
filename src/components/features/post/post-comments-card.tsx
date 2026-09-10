@@ -583,7 +583,7 @@ export function PostCommentsCard({
   if (!isVisible) return null;
 
   return (
-    <div className={cn('w-full rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-lg', className)}>
+    <div className={cn('w-full card-ink p-3 sm:p-5', className)}>
       <div className="flex items-center gap-3 mb-3 sm:mb-5">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4.5 w-4.5 text-foreground" />

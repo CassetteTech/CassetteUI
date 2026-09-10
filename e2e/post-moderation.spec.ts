@@ -20,6 +20,27 @@ test('lets a post owner edit and delete a post', async ({ page }) => {
   });
 
   await page.goto('/post/post-owner-track');
+
+  // Owners land with the post studio docked open on the Access tab.
+  const studio = page.getByTestId('post-studio-panel');
+  await expect(studio).toBeVisible();
+  await expect(studio).toContainText('Member posts');
+  // The radio is controlled by the saved post, so it flips only after the PATCH lands.
+  await studio.getByRole('radio', { name: 'Members only' }).click();
+  await expect(studio.getByRole('radio', { name: 'Members only' })).toBeChecked();
+  await studio.getByRole('radio', { name: 'Insights' }).click();
+  await expect(studio).toContainText('Views');
+  await page.getByRole('button', { name: 'Close post studio' }).click();
+
+  // Right-click anywhere on the post for quick actions; owners get their tools too.
+  await page.getByRole('heading', { name: 'Paper Hearts' }).click({ button: 'right' });
+  const quickActions = page.getByTestId('post-context-menu');
+  await expect(quickActions).toBeVisible();
+  await expect(quickActions.getByRole('menuitem', { name: 'Listen on Spotify' })).toBeVisible();
+  await quickActions.getByRole('menuitem', { name: 'Access & insights' }).click();
+  await expect(studio).toBeVisible();
+  await page.getByRole('button', { name: 'Close post studio' }).click();
+
   await page.getByTestId('post-actions-trigger').click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();
 

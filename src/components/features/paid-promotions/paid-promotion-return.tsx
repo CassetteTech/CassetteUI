@@ -224,7 +224,7 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
         {/* Persistent escape hatch in every state, including errors. */}
         <BackButton route="/promote" label="Promotion home" className="mb-4" />
 
-        <Card className="border-2 border-foreground shadow-flat-6">
+        <Card>
           <CardHeader className="text-center">
             <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-foreground">
               Paid-promotion checkout

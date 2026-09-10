@@ -5,11 +5,12 @@
 import { useContext, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Banknote, HandCoins, Users } from 'lucide-react';
+import { Banknote, ChevronLeft, ChevronRight, HandCoins, Users } from 'lucide-react';
 import { StudioSection, StudioStepsContext } from '@/components/features/curator/studio-shell';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { useAuthState } from '@/hooks/use-auth';
+import { cn } from '@/lib/utils';
 import type { CuratorProfile } from '@/services/curator';
 import {
   fetchCuratorEarnings,
@@ -35,7 +36,7 @@ const allocationStatus = {
   forfeited: 'Not earned',
   reversed: 'Reversed',
 } satisfies Record<Extract<CuratorEarningsHistoryItem, { kind: 'allocation' }>['status'], string>;
-const transferStatus = {
+export const transferStatus = {
   created: 'Processing',
   succeeded: 'Paid',
   failed: 'Failed',
@@ -56,7 +57,7 @@ const transferEventTitle = {
 } satisfies Record<Extract<CuratorEarningsHistoryItem, { kind: 'transfer' }>['status'], string>;
 
 /** Activity-stream event name per history item. */
-function eventTitle(item: CuratorEarningsHistoryItem) {
+export function eventTitle(item: CuratorEarningsHistoryItem) {
   if (item.kind === 'transfer') return transferEventTitle[item.status];
   if (item.status === 'forfeited') return 'Earning forfeited';
   if (item.status === 'reversed') return 'Earning reversed';
@@ -69,41 +70,44 @@ export function HistoryItem({ item, compact = false }: { item: CuratorEarningsHi
     item.status !== 'transferred' && item.status !== 'forfeited' && item.status !== 'reversed';
   const when = compact ? dayFormatter : dateFormatter;
   const KindIcon = item.kind === 'allocation' ? HandCoins : Banknote;
+  const outgoing = item.kind === 'transfer' || item.status === 'forfeited' || item.status === 'reversed';
+  const amount = formatPaidPromotionMinorAmount(item.amountMinor, item.currency, 'en-US');
   // Structure note: the amount's parent div and grandparent li are how tests
   // associate an amount with its label and status. Keep both wrappers.
   return (
-    <li className="flex flex-col gap-2 py-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="flex items-start gap-3">
-        <span aria-hidden className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border border-border/70 bg-muted/30 text-muted-foreground">
-          <KindIcon className="size-4" />
+    <li className={cn(ledgerRow, 'transition-colors hover:bg-muted/40')}>
+      <div className="flex min-w-0 items-start gap-3">
+        <span aria-hidden className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
+          <KindIcon className="size-3.5" />
         </span>
-        <div>
-          <p className="font-medium leading-tight">{eventTitle(item)}</p>
+        <div className="min-w-0">
+          <p className="truncate font-medium leading-tight">{eventTitle(item)}</p>
           {!compact && item.kind === 'allocation' && item.status === 'accrued' && (
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              You earned {formatPaidPromotionMinorAmount(item.amountMinor, item.currency, 'en-US')}
+            <p className="mt-0.5 text-xs text-muted-foreground">You earned {amount}</p>
+          )}
+          {showPayableAt && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Payout eligibility{' '}
+              <time dateTime={item.payableAtUtc}>{dateFormatter.format(new Date(item.payableAtUtc))}</time>
             </p>
           )}
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            <time dateTime={item.occurredAtUtc}>{when.format(new Date(item.occurredAtUtc))}</time>
-          </p>
         </div>
       </div>
-      <div className="pl-11 sm:pl-0 sm:text-right">
-        <p className="font-mono font-semibold tabular-nums">
-          {formatPaidPromotionMinorAmount(item.amountMinor, item.currency, 'en-US')}
+      <p className="pl-10 text-xs text-muted-foreground sm:pl-0 sm:text-sm">
+        <time dateTime={item.occurredAtUtc}>{when.format(new Date(item.occurredAtUtc))}</time>
+      </p>
+      <div className="pl-10 sm:pl-0 sm:text-right">
+        <p className={cn('font-mono font-semibold tabular-nums', outgoing && 'text-muted-foreground')}>
+          {amount}
         </p>
         <p className="text-xs text-muted-foreground">{statusLabel(item)}</p>
-        {showPayableAt && (
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Payout eligibility{' '}
-            <time dateTime={item.payableAtUtc}>{dateFormatter.format(new Date(item.payableAtUtc))}</time>
-          </p>
-        )}
       </div>
     </li>
   );
 }
+
+/** Three-column ledger row: description, date, amount. Stacks under `sm`. */
+const ledgerRow = 'grid gap-1 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_11rem_8rem] sm:items-start sm:gap-3';
 
 export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
   const { user } = useAuthState();
@@ -176,12 +180,15 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
             </dl>
           </div>
 
-          <section className="mt-7" aria-labelledby="curator-earnings-history-title">
-            <h3 id="curator-earnings-history-title" className="text-sm font-semibold">
-              Recent activity
-            </h3>
+          <section className="card-ink mt-7 overflow-hidden" aria-labelledby="curator-earnings-history-title">
+            <div className="border-b border-border/70 px-4 py-3">
+              <h3 id="curator-earnings-history-title" className="text-sm font-semibold">
+                Recent activity
+              </h3>
+              <p className="text-xs text-muted-foreground">Membership earnings and payouts</p>
+            </div>
             {earnings.items.length === 0 ? (
-              <Empty className="mt-3">
+              <Empty className="my-3">
                 <EmptyTitle>No membership earnings yet</EmptyTitle>
                 <EmptyDescription>
                   Earnings appear here as fans join your plan.
@@ -201,42 +208,50 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
                 )}
               </Empty>
             ) : (
-              <ul className="mt-2 divide-y divide-border/70" data-testid="curator-earnings-history">
-                {earnings.items.map((item, index) => (
-                  <HistoryItem
-                    key={`${item.kind}-${item.occurredAtUtc}-${index}`}
-                    item={item}
-                  />
-                ))}
-              </ul>
+              <>
+                <div aria-hidden className={cn(ledgerRow, 'hidden text-xs font-medium text-muted-foreground sm:grid')}>
+                  <span>Description</span>
+                  <span>Date</span>
+                  <span className="text-right">Amount</span>
+                </div>
+                <ul className="divide-y divide-border/70 border-t border-border/70" data-testid="curator-earnings-history">
+                  {earnings.items.map((item, index) => (
+                    <HistoryItem
+                      key={`${item.kind}-${item.occurredAtUtc}-${index}`}
+                      item={item}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
+            {showPagination && (
+              <nav className="flex items-center justify-between gap-3 border-t border-border/70 px-2 py-1.5" aria-label="Earnings history pages">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={page <= 1 || query.isFetching}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                >
+                  <ChevronLeft className="size-4" />
+                  Previous
+                </Button>
+                <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
+                  Page {earnings.page} of {totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={!hasNextPage || query.isFetching}
+                  onClick={() => setPage((current) => current + 1)}
+                >
+                  Next
+                  <ChevronRight className="size-4" />
+                </Button>
+              </nav>
             )}
           </section>
-
-          {showPagination && (
-            <nav className="mt-5 flex items-center justify-between gap-3 border-t border-dashed border-border pt-4" aria-label="Earnings history pages">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page <= 1 || query.isFetching}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-              >
-                Previous
-              </Button>
-              <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
-                Page {earnings.page} of {totalPages}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!hasNextPage || query.isFetching}
-                onClick={() => setPage((current) => current + 1)}
-              >
-                Next
-              </Button>
-            </nav>
-          )}
         </>
       )}
     </StudioSection>

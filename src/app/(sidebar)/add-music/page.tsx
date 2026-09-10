@@ -245,7 +245,7 @@ const AddMusicForm = ({
                 {/* Selected Item Display — swaps to beam-friendly chrome while
                     converting, mirroring UrlBar's beamActive treatment */}
                 <ConversionBeam active={isConverting}>
-                <div className={`p-4 rounded-lg border bg-card transition-[border-color,box-shadow] duration-300 ${
+                <div className={`p-4 card-quiet transition-[border-color,box-shadow] duration-300 ${
                   isConverting
                     ? 'border-border/70 shadow-[0_2px_6px_rgba(0,0,0,0.05),0_4px_42px_rgba(0,0,0,0.06)]'
                     : 'border-border elev-2'
@@ -292,7 +292,7 @@ const AddMusicForm = ({
               >
                 {/* Pasted Link Display */}
                 <ConversionBeam active={isConverting}>
-                <div className={`p-4 rounded-lg border bg-card transition-[border-color,box-shadow] duration-300 ${
+                <div className={`p-4 card-quiet transition-[border-color,box-shadow] duration-300 ${
                   isConverting
                     ? 'border-border/70 shadow-[0_2px_6px_rgba(0,0,0,0.05),0_4px_42px_rgba(0,0,0,0.06)]'
                     : 'border-border elev-2'

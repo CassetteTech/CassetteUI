@@ -2,12 +2,18 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Card({ className, ...props }: React.ComponentProps<"div">) {
+/** `quiet` swaps the ink outline and offset shadow for a hairline dashboard panel. */
+function Card({
+  className,
+  quiet = false,
+  ...props
+}: React.ComponentProps<"div"> & { quiet?: boolean }) {
   return (
     <div
       data-slot="card"
       className={cn(
-        "bg-card text-card-foreground flex flex-col gap-4 sm:gap-6 rounded-xl border py-4 sm:py-6 shadow-sm",
+        quiet ? "card-quiet" : "card-ink",
+        "text-card-foreground flex flex-col gap-4 sm:gap-6 py-4 sm:py-6",
         className
       )}
       {...props}

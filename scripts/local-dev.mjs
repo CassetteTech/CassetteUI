@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   fetchHostedBridgeFromAmplify,
+  fetchMusicCredentialsFromAws,
   fetchHostedSupabaseFromAws,
   hasHostedBridgeEnvironment,
   hasHostedSupabaseEnvironment,
@@ -161,7 +162,7 @@ async function secretValue(label, existing, required = true) {
 }
 
 function useful(value) {
-  return Boolean(value && !value.includes('your-') && !value.includes('placeholder') && value !== 'undefined' && value !== 'null');
+  return Boolean(value && !/your[-_]/i.test(value) && !value.includes('placeholder') && value !== 'undefined' && value !== 'null');
 }
 
 async function configure() {
@@ -260,20 +261,10 @@ async function configure() {
   };
   if (bridgeMode === 'hosted') updates.NEXT_PUBLIC_API_URL = bridgeUrl.replace(/\/$/, '');
 
-  const directKeys = [
-    ['SPOTIFY_CLIENT_ID', 'Spotify client ID', false],
-    ['SPOTIFY_CLIENT_SECRET', 'Spotify client secret', true],
-    ['APPLE_MUSIC_KEY_ID', 'Apple Music key ID', false],
-    ['APPLE_MUSIC_TEAM_ID', 'Apple Music team ID', false],
-    ['APPLE_MUSIC_PRIVATE_KEY', 'Apple Music private key (use \\n for newlines)', true],
-  ];
-  const allDirectPresent = directKeys.every(([key]) => useful(current[key]));
-  if (await yesNo('Configure credentials for the UI-owned charts/search API routes?', allDirectPresent)) {
-    for (const [key, label, secret] of directKeys) {
-      updates[key] = secret
-        ? await secretValue(label, current[key])
-        : await promptText(label, useful(current[key]) ? current[key] : '');
-    }
+  if (await yesNo('Fetch Apple Music and Spotify credentials from AWS Secrets Manager?', true)) {
+    const fetched = fetchMusicCredentialsFromAws(hostedAwsSettings);
+    if (!fetched.ok) throw new Error(fetched.reason);
+    Object.assign(updates, fetched.values);
   }
 
   writeEnv(updates);
@@ -427,10 +418,11 @@ function resetState() {
 }
 
 function usage() {
-  console.log('Usage: npm run local -- [run|rerun|configure|check|reset|help]');
+  console.log('Usage: npm run local -- [run|rerun|configure|music|check|reset|help]');
   console.log('  run        choose a configuration and start the UI');
   console.log('  rerun      reuse the last configuration and start the UI');
   console.log('  configure  update .env.local and save choices without starting');
+  console.log('  music      refresh local Apple Music and Spotify credentials from AWS');
   console.log('  check      validate prerequisites and the saved configuration');
   console.log('  reset      forget saved choices but preserve .env.local');
 }
@@ -448,6 +440,13 @@ async function interactiveAction() {
 async function main() {
   const action = (process.argv[2] ?? await interactiveAction()).toLowerCase();
   if (['help', '-h', '--help'].includes(action)) { usage(); return 0; }
+  if (action === 'music') {
+    const settings = resolveHostedAwsSettings(loadState() ?? {}, loadJsonObject(BRIDGE_STATE_FILE));
+    const fetched = fetchMusicCredentialsFromAws(settings);
+    if (!fetched.ok) throw new Error(fetched.reason);
+    writeEnv(fetched.values);
+    return 0;
+  }
   if (action === 'reset') return resetState();
   if (action === 'configure') { await configure(); return 0; }
   if (action === 'run') return runUi(await configure());

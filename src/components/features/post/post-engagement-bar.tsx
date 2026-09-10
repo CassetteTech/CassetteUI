@@ -1,6 +1,6 @@
 'use client';
 
-import { Heart, Repeat2, MessageSquare, BarChart3 } from 'lucide-react';
+import { Heart, Repeat2, MessageSquare, SlidersHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -20,8 +20,8 @@ interface PostEngagementBarProps {
   commentsEnabled?: boolean;
   onOpenComments?: () => void;
 
-  canViewInsights?: boolean;
-  onOpenInsights?: () => void;
+  canManage?: boolean;
+  onOpenStudio?: () => void;
 
   className?: string;
   compact?: boolean;
@@ -39,8 +39,8 @@ export function PostEngagementBar({
   commentCount,
   commentsEnabled = true,
   onOpenComments,
-  canViewInsights = false,
-  onOpenInsights,
+  canManage = false,
+  onOpenStudio,
   className,
   compact = false,
 }: PostEngagementBarProps) {
@@ -152,27 +152,30 @@ export function PostEngagementBar({
         </>
       )}
 
-      {/* Insights (owner only) */}
-      {canViewInsights && (
+      {/* Post studio (owner only): access settings + insights */}
+      {canManage && (
         <>
           <span className="h-4 w-px bg-border/40" aria-hidden />
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                data-insights-trigger
-                onClick={onOpenInsights}
-                disabled={!onOpenInsights}
-                aria-label="Open post insights"
+                data-studio-trigger
+                onClick={onOpenStudio}
+                disabled={!onOpenStudio}
+                aria-label="Open post studio"
                 className={cn(
-                  'inline-flex items-center justify-center rounded-full p-1.5 transition-[color,background-color,transform] duration-200 active:scale-[0.96]',
+                  'inline-flex items-center rounded-full font-atkinson text-xs font-bold tracking-wide transition-[color,background-color,transform] duration-200 active:scale-[0.96]',
+                  btnGap,
+                  btnPadding,
                   'text-muted-foreground hover:text-foreground hover:bg-muted/60',
                 )}
               >
-                <BarChart3 className="size-3.5" />
+                <SlidersHorizontal className="size-3.5" />
+                <span>Manage</span>
               </button>
             </TooltipTrigger>
-            <TooltipContent>Insights</TooltipContent>
+            <TooltipContent>Access &amp; insights</TooltipContent>
           </Tooltip>
         </>
       )}

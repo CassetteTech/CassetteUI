@@ -7,6 +7,8 @@ import type { Page } from '@playwright/test';
 
 /** Section ids resolve to the dashboard view that hosts them. */
 const viewOf = new Map([
+  ['studio-profile', 'studio-overview'],
+  ['studio-plan', 'studio-overview'],
   ['studio-pro', 'studio-billing'],
   ['studio-payouts', 'studio-billing'],
 ]);

@@ -231,7 +231,7 @@ export const TrackList: React.FC<TrackListProps> = ({
     return (
       <div
         className={cn(
-          'rounded-xl border border-border/60 bg-card overflow-hidden elev-1 relative',
+          'card-quiet overflow-hidden relative',
           className
         )}
       >
@@ -344,7 +344,7 @@ export const TrackList: React.FC<TrackListProps> = ({
     <div
       ref={rootRef}
       className={cn(
-        'rounded-xl border border-border/60 bg-card overflow-hidden elev-1',
+        'card-quiet overflow-hidden',
         'relative',
         isScrollMode && scrollFill && 'flex flex-col',
         className

@@ -195,7 +195,7 @@ export const useUpdatePost = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (params: { postId: string; description: string; privacy?: string; commentsEnabled?: boolean }) => {
+    mutationFn: (params: { postId: string; description?: string; privacy?: string; commentsEnabled?: boolean }) => {
       appLogger.debug('post_update_submitted', { post_id: params.postId });
       return apiService.updatePost(params.postId, {
         description: params.description,
@@ -208,6 +208,8 @@ export const useUpdatePost = () => {
       queryClient.invalidateQueries({ queryKey: ['user-activity'] });
       queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
+      // Privacy changes move posts between public and locked rows on curator pages.
+      queryClient.invalidateQueries({ queryKey: ['curator-page'] });
     },
     onError: (error) => {
       appLogger.error('post_update_failed', { error });

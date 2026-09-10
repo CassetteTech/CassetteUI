@@ -131,9 +131,7 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
     ),
     user,
   );
-  const accountItems = getVisibleNavItems(accountNavItems, user).filter(
-    (item) => item.key !== 'edit-profile',
-  );
+  const accountItems = getVisibleNavItems(accountNavItems, user);
   const companyItems = getVisibleNavItems(companyNavItems, user);
 
   const handleSignOut = () => {

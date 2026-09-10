@@ -326,7 +326,7 @@ const DesktopLayout: React.FC<LayoutProps> = ({ progressState, progressPercent, 
                 </AnimatePresence>
 
                 {/* Track Information Card Skeleton */}
-                <div className="p-5 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
+                <div className="p-5 card-quiet">
                   <div className="space-y-3">
                     <Skeleton className="h-6 w-48 mx-auto" />
                     <Skeleton className="h-4 w-32 mx-auto" />
@@ -346,7 +346,7 @@ const DesktopLayout: React.FC<LayoutProps> = ({ progressState, progressPercent, 
                 </div>
 
                 {/* Streaming Links Skeleton */}
-                <div className="p-5 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm relative z-10">
+                <div className="p-5 card-ink relative z-10">
                   <Skeleton className="h-5 w-24 mb-4" />
                   <div className="grid grid-cols-3 gap-4">
                     {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -442,7 +442,7 @@ const MobileLayout: React.FC<LayoutProps> = ({ progressState, progressPercent, c
         </AnimatePresence>
 
         {/* Track Information Card - Mobile */}
-        <div className="p-6 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
+        <div className="p-6 card-quiet">
           <div className="space-y-4">
             {/* Title */}
             <Skeleton className="h-7 w-48 mx-auto" />
@@ -473,7 +473,7 @@ const MobileLayout: React.FC<LayoutProps> = ({ progressState, progressPercent, c
         </div>
 
         {/* Streaming Links Container */}
-        <div className="p-6 bg-card/50 rounded-2xl border border-border/30 shadow-sm backdrop-blur-sm relative z-10">
+        <div className="p-6 card-ink relative z-10">
           <Skeleton className="h-5 w-24 mx-auto mb-4" />
           <div className="grid grid-cols-3 gap-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (

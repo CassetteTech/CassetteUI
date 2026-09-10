@@ -5,19 +5,13 @@
 import { createContext, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-export type StudioView =
-  | 'studio-overview'
-  | 'studio-profile'
-  | 'studio-plan'
-  | 'studio-earnings'
-  | 'studio-billing';
+export type StudioView = 'studio-overview' | 'studio-earnings' | 'studio-billing';
 
-/** Resolves a section anchor (e.g. "#studio-pro") or a view id to the dashboard view that hosts it. */
+/** Resolves a section anchor (e.g. "#studio-pro") or a view id to the dashboard view that hosts it.
+    The profile step and the membership plan both live on the overview. */
 export function studioViewOf(sectionId: string): StudioView {
   switch (sectionId) {
     case 'studio-overview':
-    case 'studio-profile':
-    case 'studio-plan':
     case 'studio-earnings':
     case 'studio-billing':
       return sectionId;
@@ -93,7 +87,7 @@ export function StudioSection({
       data-testid={testId}
       aria-labelledby={headingId}
       // scroll-mt keeps anchored jumps clear of any sticky chrome above.
-      className="scroll-mt-24 rounded-xl border border-border bg-card elev-soft"
+      className="scroll-mt-24 card-quiet"
     >
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-border/70 px-5 py-4 sm:px-6">
         <div className="min-w-0">

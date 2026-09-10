@@ -15,18 +15,18 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { LogOut, AlertCircle } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, LogOut } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/layout/theme-switcher';
 import { SidebarProfileCard, SidebarProfileCardSkeleton } from '@/components/features/profile/sidebar-profile-card';
+import { useUserBio } from '@/hooks/use-profile';
+import { useCuratorPage } from '@/hooks/use-curator';
 import { usePathname } from 'next/navigation';
 import { KOFI_SUPPORT_URL } from '@/lib/ko-fi';
 import { KofiIcon } from '@/components/ui/kofi-icon';
 import { useReportIssue } from '@/providers/report-issue-provider';
-import { useUserBio } from '@/hooks/use-profile';
-import { useCuratorPage } from '@/hooks/use-curator';
 import {
   accountNavItems,
   getVisibleNavItems,
@@ -38,11 +38,13 @@ import {
 } from './navigation-config';
 
 // Interleaved sidebar ordering across primary + account groups.
-const SIDEBAR_NAV_ORDER = ['profile', 'add-music', 'edit-profile', 'memberships', 'curator-studio', 'explore', 'promote', 'internal'] as const;
+const SIDEBAR_NAV_ORDER = ['profile', 'add-music', 'memberships', 'curator-studio', 'internal'] as const;
+// Pages outside the sidebar shell; shown in the footer with an exit marker.
+const SIDEBAR_EXIT_ORDER = ['explore', 'promote'] as const;
 
-function getSidebarNavItems(user: NavUser): NavigationItemDefinition[] {
+function getSidebarNavItems(user: NavUser, order: readonly string[] = SIDEBAR_NAV_ORDER): NavigationItemDefinition[] {
   const all = [...primaryNavItems, ...accountNavItems];
-  const ordered = SIDEBAR_NAV_ORDER
+  const ordered = order
     .map((key) => all.find((item) => item.key === key))
     .filter((item): item is NavigationItemDefinition => Boolean(item));
   return getVisibleNavItems(ordered, user);
@@ -58,33 +60,21 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const { openReportModal } = useReportIssue();
   const pathname = usePathname();
 
-  // Extract username from /profile/[username] routes.
-  const rawProfileSegment = pathname?.startsWith('/profile/')
-    ? pathname.split('/')[2]
-    : undefined;
-  const profileUsername = rawProfileSegment && rawProfileSegment !== 'edit'
-    ? rawProfileSegment
-    : undefined;
-  const sidebarUserIdentifier = profileUsername ?? user?.username;
-  const isViewingProfileRoute = Boolean(profileUsername);
-
-  // Keep a short-lived cached copy (1 minute TTL) for likes + profile card data in the sidebar.
-  const { data: sidebarUserBio, isLoading: isSidebarUserLoading } = useUserBio(sidebarUserIdentifier, {
+  // The identity card is persistent: on /profile/[username] it shows the viewed
+  // profile; everywhere else in the sidebar layout it shows the signed-in user,
+  // loaded through the same bio + curator queries so the card never loses data.
+  const rawProfileSegment = pathname?.startsWith('/profile/') ? pathname.split('/')[2] : undefined;
+  const profileUsername =
+    (rawProfileSegment && rawProfileSegment !== 'edit' ? rawProfileSegment : undefined) ?? user?.username;
+  const { data: profileBio, isLoading: profileLoading } = useUserBio(profileUsername, {
     staleTime: 1000 * 60,
     gcTime: 1000 * 60 * 10,
   });
-
-  // Curator identity (headline/genres) rides the profile page's cached query.
   const curatorQuery = useCuratorPage(
     profileUsername ?? '',
     profileUsername && !authLoading ? (user?.id ?? 'anonymous') : null,
   );
-  const sidebarCurator = curatorQuery.data?.pages[0]?.curator;
-
-  // Determine which user to display in the profile card
-  // If viewing a profile page, avoid showing the wrong user while loading.
-  const displayUser = sidebarUserBio ?? (isViewingProfileRoute ? undefined : user);
-  const isViewingOwnProfile = Boolean(user && displayUser && displayUser.username === user.username);
+  const profileCurator = curatorQuery.data?.pages[0]?.curator;
   const contentRef = useRef<HTMLDivElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState<{
     top: number;
@@ -94,12 +84,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
   }>({ top: 0, height: 0, opacity: 0, hasPositioned: false });
   const sidebarNavItems = getSidebarNavItems(user);
 
-  // Update indicator position when pathname changes or when user/profile data loads
-  // (menu items are conditionally rendered based on user state, and profile card affects layout)
+  // Update indicator position when pathname changes or when auth resolves
+  // (menu items are conditionally rendered based on user state, and the user menu affects layout)
   useEffect(() => {
     const updateIndicator = () => {
       if (!contentRef.current) return;
 
+      // SAFETY: data-active is only set on rendered menu buttons, which are HTMLElements.
       const activeButton = contentRef.current.querySelector(
         '[data-active="true"]'
       ) as HTMLElement | null;
@@ -126,13 +117,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
       }
     };
 
-    // Don't calculate position while profile section is loading (layout can shift)
-    if (isSidebarUserLoading) return;
+    // Don't calculate position while auth or the profile card is loading (layout can shift)
+    if (authLoading || profileLoading) return;
 
     // Delay to ensure DOM has fully settled after layout changes
     const timeoutId = setTimeout(updateIndicator, 100);
     return () => clearTimeout(timeoutId);
-  }, [pathname, user, displayUser, isSidebarUserLoading]);
+  }, [pathname, user, authLoading, profileLoading]);
 
   return (
     <Sidebar collapsible="none" className={`h-screen border-r border-sidebar-border/50 ${className}`}>
@@ -169,27 +160,38 @@ export function AppSidebar({ className }: AppSidebarProps) {
               : 'none',
           }}
         />
-        {/* User Profile Section */}
-        {isSidebarUserLoading && !displayUser ? (
+        {/* Persistent identity card */}
+        {profileUsername ? (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              {profileBio ? (
+                <SidebarProfileCard
+                  user={profileBio}
+                  isCurrentUser={profileBio.username === user?.username}
+                  curatorGenres={profileCurator?.declaredGenres}
+                  curatorAbout={profileCurator?.about}
+                  curatorPlatforms={profileCurator?.declaredPlatforms}
+                />
+              ) : profileLoading ? (
+                <SidebarProfileCardSkeleton />
+              ) : null}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : authLoading && !user ? (
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarProfileCardSkeleton />
             </SidebarGroupContent>
           </SidebarGroup>
-        ) : displayUser ? (
+        ) : user ? (
           <SidebarGroup>
             <SidebarGroupContent>
-              <SidebarProfileCard
-                user={displayUser}
-                isCurrentUser={isViewingOwnProfile ?? false}
-                curatorHeadline={sidebarCurator?.headline}
-                curatorGenres={sidebarCurator?.declaredGenres}
-                curatorAbout={sidebarCurator?.about}
-                curatorPlatforms={sidebarCurator?.declaredPlatforms}
-              />
+              <SidebarProfileCard user={user} isCurrentUser />
             </SidebarGroupContent>
           </SidebarGroup>
-        ) : (
+        ) : null}
+
+        {!authLoading && !user && (
           /* Auth Options for non-authenticated users */
           <SidebarGroup>
             <SidebarGroupContent>
@@ -229,6 +231,23 @@ export function AppSidebar({ className }: AppSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4 space-y-2">
+        {/* Pages that leave the sidebar shell */}
+        {getSidebarNavItems(user, SIDEBAR_EXIT_ORDER).map((item) => (
+          <Button
+            key={item.key}
+            asChild
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-muted-foreground hover:text-foreground"
+          >
+            <Link href={resolveNavHref(item, user)}>
+              <item.icon className="mr-2 h-4 w-4" />
+              <span>{item.label}</span>
+              <ArrowUpRight aria-hidden className="ml-auto h-3 w-3 opacity-40" />
+            </Link>
+          </Button>
+        ))}
+
         {/* Support Us */}
         <Button
           asChild
@@ -257,7 +276,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
           <span>Report a Problem</span>
         </Button>
 
-        {/* Sign Out */}
         {user && (
           <Button
             variant="ghost"
@@ -277,7 +295,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
 // Skeleton version for loading states
 export function AppSidebarSkeleton({ className }: { className?: string }) {
   const { user } = useAuthState();
-  const { mutate: signOut } = useSignOut();
   const { openReportModal } = useReportIssue();
   const pathname = usePathname();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -294,6 +311,7 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
     const updateIndicator = () => {
       if (!contentRef.current) return;
 
+      // SAFETY: data-active is only set on rendered menu buttons, which are HTMLElements.
       const activeButton = contentRef.current.querySelector(
         '[data-active="true"]'
       ) as HTMLElement | null;
@@ -411,18 +429,6 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
           <AlertCircle className="mr-2 h-4 w-4" />
           <span>Report a Problem</span>
         </Button>
-
-        {user && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-muted-foreground hover:text-foreground"
-            onClick={() => signOut()}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Sign Out</span>
-          </Button>
-        )}
       </SidebarFooter>
     </Sidebar>
   );

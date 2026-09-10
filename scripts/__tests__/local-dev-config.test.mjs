@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { generateKeyPairSync } from 'node:crypto';
 
 import {
   fetchHostedBridgeFromAmplify,
+  fetchMusicCredentialsFromAws,
   fetchHostedSupabaseFromAws,
   hasHostedBridgeEnvironment,
   hasHostedSupabaseEnvironment,
@@ -117,4 +119,39 @@ test('AWS secret retrieval fails without exposing partial secret values', () => 
   assert.equal(result.ok, false);
   assert.match(result.reason, /SUPABASE_ANON_KEY/);
   assert.doesNotMatch(result.reason, /project\.supabase\.co/);
+});
+
+test('music secrets map required credentials and reject invalid input without exposing values', () => {
+  const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const pem = privateKey.export({ type: 'pkcs8', format: 'pem' });
+  const settings = { profile: 'cassette-dev', region: 'us-east-1' };
+  const secrets = {
+    AppleMusicLambdaSecrets: { am_secret_key: pem, am_key_id: 'key-id', am_team_id: 'team-id' },
+    SpotifyLambdaSecrets: {
+      spotify_client_id: 'client-id', spotify_client_secret: 'client-secret',
+      cassette_spotify_refresh_token: 'must-not-copy',
+    },
+  };
+  const run = (command, args, options) => {
+    assert.equal(options.shell, false);
+    assert.equal(args[args.indexOf('--profile') + 1], 'cassette-dev');
+    return { status: 0, stdout: JSON.stringify(secrets[args[args.indexOf('--secret-id') + 1]]) };
+  };
+  for (const encoded of [pem, pem.replaceAll('\n', '\\n')]) {
+    secrets.AppleMusicLambdaSecrets.am_secret_key = encoded;
+    assert.deepEqual(fetchMusicCredentialsFromAws(settings, run), { ok: true, values: {
+      APPLE_MUSIC_PRIVATE_KEY: pem.trim(), APPLE_MUSIC_KEY_ID: 'key-id', APPLE_MUSIC_TEAM_ID: 'team-id',
+      SPOTIFY_CLIENT_ID: 'client-id', SPOTIFY_CLIENT_SECRET: 'client-secret',
+    } });
+  }
+  secrets.AppleMusicLambdaSecrets.am_secret_key = 'invalid-private-key';
+  const invalid = fetchMusicCredentialsFromAws(settings, run);
+  assert.equal(invalid.ok, false);
+  assert.doesNotMatch(invalid.reason, /invalid-private-key/);
+  delete secrets.SpotifyLambdaSecrets.spotify_client_secret;
+  assert.match(fetchMusicCredentialsFromAws(settings, run).reason, /spotify_client_secret/);
+  const failed = fetchMusicCredentialsFromAws(settings, () => ({ status: 1, stderr: 'sensitive-output' }));
+  assert.equal(failed.ok, false);
+  assert.doesNotMatch(failed.reason, /sensitive-output/);
+  assert.equal(fetchMusicCredentialsFromAws(settings, () => ({ status: 0, stdout: '{' })).ok, false);
 });

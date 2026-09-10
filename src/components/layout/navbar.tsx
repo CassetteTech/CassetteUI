@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserMenu } from '@/components/layout/user-menu';
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import { ChevronDown, AlertCircle, LogOut } from 'lucide-react';
 import { ThemeSwitcher } from './theme-switcher';
@@ -34,9 +35,7 @@ export function Navbar() {
   const { openReportModal } = useReportIssue();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const visibleCompanyItems = getVisibleNavItems(companyNavItems, user);
-  const visibleAccountItems = getVisibleNavItems(accountNavItems, user).filter(
-    (item) => item.key !== 'edit-profile',
-  );
+  const visibleAccountItems = getVisibleNavItems(accountNavItems, user);
 
   // Lock body scroll while the mobile menu is open so the panel feels modal.
   useEffect(() => {
@@ -144,53 +143,7 @@ export function Navbar() {
                 <NotificationMenu />
 
                 <div className="hidden md:block">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                        aria-label="Open account menu"
-                      >
-                        <Avatar className="h-8 w-8 border-2 border-primary cursor-pointer">
-                          <AvatarImage src={user?.profilePicture} alt={user?.username} />
-                          <AvatarFallback className="bg-primary text-white font-atkinson font-bold">
-                            {user?.username?.charAt(0).toUpperCase() || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 bg-background border border-border/20 rounded-lg shadow-main">
-                      <DropdownMenuLabel className="font-atkinson">
-                        {user?.displayName || user?.username}
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator className="bg-border/20" />
-                      {visibleAccountItems.map((item) => (
-                        <DropdownMenuItem key={item.key} asChild>
-                          <Link
-                            href={resolveNavHref(item, user)}
-                            className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors cursor-pointer"
-                          >
-                            <item.icon className="h-4 w-4" />
-                            <span>{item.label}</span>
-                          </Link>
-                        </DropdownMenuItem>
-                      ))}
-                      <DropdownMenuSeparator className="bg-border/20" />
-                      <DropdownMenuItem
-                        onClick={() => openReportModal()}
-                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors cursor-pointer"
-                      >
-                        <AlertCircle className="h-4 w-4" />
-                        <span>Report a Problem</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => signOut()}
-                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors cursor-pointer"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        <span>Sign Out</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <UserMenu align="end" />
                 </div>
               </>
             ) : (

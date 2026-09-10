@@ -163,7 +163,7 @@ export function MusicConnectionsStatus({
   // Profile variant - compact card display
   if (variant === 'profile') {
     const containerClass = hasConnections
-      ? `bg-card/20 backdrop-blur-md border border-border/20 rounded-xl p-3 ${className}`
+      ? `card-quiet p-3 ${className}`
       : `rounded-xl py-2 ${className}`;
 
     return (

@@ -59,7 +59,7 @@ export default function SignUpPage() {
               </Link>
             </div>
 
-            <Card className="bg-[hsl(var(--cassette-white))] dark:bg-[hsl(var(--secondary))] text-foreground border-2 border-foreground rounded-none shadow-flat-6 dark:shadow-none">
+            <Card className="dark:bg-[hsl(var(--secondary))]">
               <CardHeader className="text-center flex flex-col items-center gap-3">
                 <div className="h-14 w-14 border-2 border-foreground bg-background flex items-center justify-center shadow-flat-3">
                   <MailCheck className="h-7 w-7 text-primary" aria-hidden />
@@ -112,7 +112,7 @@ export default function SignUpPage() {
             </Link>
           </div>
 
-          <Card className="bg-[hsl(var(--cassette-white))] dark:bg-[hsl(var(--secondary))] text-foreground border-2 border-foreground rounded-none shadow-flat-6 dark:shadow-none">
+          <Card className="dark:bg-[hsl(var(--secondary))]">
             <CardHeader className="text-center">
               <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2 flex items-center justify-center gap-1.5">
                 <Image

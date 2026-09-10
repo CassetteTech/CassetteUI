@@ -243,3 +243,20 @@ export const publishCuratorPlan = (id: string): Promise<CuratorPlan> =>
 
 export const archiveCuratorPlan = (id: string): Promise<CuratorPlan> =>
   changeCuratorPlan(id, 'archive');
+
+/** Published plans whose members can open members-only posts. */
+export const memberPostPlans = (plans: CuratorPlan[]): CuratorPlan[] =>
+  plans.filter((plan) => plan.status === 'active' && plan.featureKeys.includes('member_posts'));
+
+export type MemberPostAccessState = 'loading' | 'needs-pro' | 'needs-plan' | 'ready';
+
+/** What still stands between a curator and publishing a members-only post. */
+export function memberPostAccessState(
+  hasProAccess: boolean | undefined,
+  plans: CuratorPlan[] | undefined,
+): MemberPostAccessState {
+  if (hasProAccess === undefined) return 'loading';
+  if (!hasProAccess) return 'needs-pro';
+  if (plans === undefined) return 'loading';
+  return memberPostPlans(plans).length > 0 ? 'ready' : 'needs-plan';
+}

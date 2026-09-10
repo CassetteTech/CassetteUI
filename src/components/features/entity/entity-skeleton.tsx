@@ -261,7 +261,7 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
             <div className="py-8 pb-16 min-h-[calc(100vh-144px)] flex flex-col justify-center">
               <div className="space-y-6">
                 {/* Track Information Card */}
-                <div className="p-5 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
+                <div className="p-5 card-quiet">
                   <div className="space-y-3">
                     {/* Title */}
                     <Skeleton className="h-6 w-48 mx-auto" />
@@ -290,7 +290,7 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
                 </div>
 
                 {/* Streaming Links Container */}
-                <div className="p-5 bg-card/50 rounded-2xl border border-border shadow-sm backdrop-blur-sm relative z-10">
+                <div className="p-5 card-ink relative z-10">
                   <Skeleton className="h-5 w-24 mb-4" />
                   <div className="grid grid-cols-3 gap-4">
                     {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -371,7 +371,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
         </div>
 
         {/* Track Information Card - Mobile */}
-        <div className="p-4 sm:p-5 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">
+        <div className="p-4 sm:p-5 card-quiet">
           <div className="space-y-4">
             {/* Title */}
             <Skeleton className="h-7 w-48 mx-auto" />
@@ -402,7 +402,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
         </div>
 
         {/* Streaming Links Container */}
-        <div className="p-4 sm:p-5 bg-card/50 rounded-2xl border border-border/30 shadow-sm backdrop-blur-sm relative z-10">
+        <div className="p-4 sm:p-5 card-ink relative z-10">
           <Skeleton className="h-5 w-24 mx-auto mb-4" />
           <div className="grid grid-cols-3 gap-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (

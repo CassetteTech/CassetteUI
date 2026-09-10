@@ -3,7 +3,7 @@
 // Renders a public post, enforces viewer-state presentation, and emits sanitized interaction analytics.
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTemplate, PostByIdResponse, PublicPostPageMetadata } from '@/types';
+import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTemplate, PostByIdResponse, PostPrivacy, PublicPostPageMetadata } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
 import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
@@ -12,11 +12,12 @@ import { TrackList, formatTrackListStats } from '@/components/features/entity/tr
 import { PostAuthorHeader } from '@/components/features/post/post-author-header';
 import { PostEngagementBar } from '@/components/features/post/post-engagement-bar';
 import { PostCommentsSheet } from '@/components/features/post/post-comments-sheet';
-import { PostInsightsSheet } from '@/components/features/post/post-insights-sheet';
+import { PostStudioPanel } from '@/components/features/post/post-studio-panel';
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
 import { PostShareMenu } from '@/components/features/post/post-share-menu';
+import { PostContextMenu } from '@/components/features/post/post-context-menu';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { takePrefetchedPost } from '@/lib/post-prefetch';
 import { handleStreamingLinkClick } from '@/utils/deep-link';
@@ -37,7 +38,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError, apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
-import { AlertCircle, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { AlertCircle, ExternalLink, MoreVertical, Pencil, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { openKoFiSupport } from '@/lib/ko-fi';
 import { KofiIcon } from '@/components/ui/kofi-icon';
 import { detectContentType } from '@/utils/content-type-detection';
@@ -273,7 +274,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const [likeAuthPromptOpen, setLikeAuthPromptOpen] = useState(false);
   const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
   const [commentCount, setCommentCount] = useState<number | undefined>(undefined);
-  const [insightsSheetOpen, setInsightsSheetOpen] = useState(false);
+  const [studioPanelOpen, setStudioPanelOpen] = useState(false);
   const panelSwitchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Roughly matches the sheet's `data-[state=closed]:duration-300` slide-out
@@ -290,8 +291,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       setCommentsSheetOpen(false);
       return;
     }
-    if (insightsSheetOpen) {
-      setInsightsSheetOpen(false);
+    if (studioPanelOpen) {
+      setStudioPanelOpen(false);
       panelSwitchTimeoutRef.current = setTimeout(() => {
         setCommentsSheetOpen(true);
         panelSwitchTimeoutRef.current = null;
@@ -299,27 +300,27 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       return;
     }
     setCommentsSheetOpen(true);
-  }, [commentsSheetOpen, insightsSheetOpen]);
+  }, [commentsSheetOpen, studioPanelOpen]);
 
-  const handleOpenInsights = useCallback(() => {
+  const handleOpenStudio = useCallback(() => {
     if (panelSwitchTimeoutRef.current) {
       clearTimeout(panelSwitchTimeoutRef.current);
       panelSwitchTimeoutRef.current = null;
     }
-    if (insightsSheetOpen) {
-      setInsightsSheetOpen(false);
+    if (studioPanelOpen) {
+      setStudioPanelOpen(false);
       return;
     }
     if (commentsSheetOpen) {
       setCommentsSheetOpen(false);
       panelSwitchTimeoutRef.current = setTimeout(() => {
-        setInsightsSheetOpen(true);
+        setStudioPanelOpen(true);
         panelSwitchTimeoutRef.current = null;
       }, PANEL_SWITCH_DELAY_MS);
       return;
     }
-    setInsightsSheetOpen(true);
-  }, [commentsSheetOpen, insightsSheetOpen]);
+    setStudioPanelOpen(true);
+  }, [commentsSheetOpen, studioPanelOpen]);
 
   useEffect(() => {
     return () => {
@@ -542,7 +543,12 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const isOwnPost = isOwnPostById || isOwnPostByUsername;
   const hasOwner = Boolean(postData?.userId || postData?.username?.trim());
   const showAddToProfile = isAuthenticated && !hasOwner;
-  const isPublicPost = (postData?.privacy || 'public').toLowerCase() !== 'private';
+  const normalizedPrivacy = (postData?.privacy || 'public').toLowerCase();
+  const isPublicPost = normalizedPrivacy !== 'private';
+  const studioPrivacy: PostPrivacy =
+    normalizedPrivacy === 'private' || normalizedPrivacy === 'subscriber' || normalizedPrivacy === 'friends'
+      ? normalizedPrivacy
+      : 'public';
   const canRepost = Boolean(isAuthenticated && hasOwner && !isOwnPost && isPublicPost);
 
   const handleToggleLike = useCallback(async () => {
@@ -978,6 +984,17 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     return () => window.removeEventListener('resize', checkDesktop);
   }, []);
 
+  // Owners land with the studio panel open on desktop, where it docks beside the
+  // post. On mobile it is a modal sheet, so it stays closed until asked for.
+  // Once per post: closing it is a choice the page should not undo.
+  const autoOpenedStudioRef = useRef<string | null>(null);
+  useEffect(() => {
+    const resolvedPostId = postData?.postId || postId;
+    if (!isOwnPost || !isDesktop || autoOpenedStudioRef.current === resolvedPostId) return;
+    autoOpenedStudioRef.current = resolvedPostId;
+    setStudioPanelOpen(true);
+  }, [isDesktop, isOwnPost, postData?.postId, postId]);
+
   // Show skeleton while loading
   if (!postData && !error) {
     return (
@@ -1044,6 +1061,27 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
 
   const { metadata, convertedUrls } = postData as MusicLinkConversion;
 
+  // Owner menu, shared by the three layout branches.
+  const ownerMenuItems = (
+    <>
+      <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
+        <Pencil className="mr-2 h-4 w-4" />
+        Edit
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => { setDropdownOpen(false); if (!studioPanelOpen) handleOpenStudio(); }}>
+        <SlidersHorizontal className="mr-2 h-4 w-4" />
+        Access &amp; insights
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
+        className="text-destructive focus:text-destructive"
+      >
+        <Trash2 className="mr-2 h-4 w-4" />
+        Delete
+      </DropdownMenuItem>
+    </>
+  );
+
   // Derive clear flags for how to render the page based on content type
   const detectedTypeFromUrl = detectContentType(postData?.originalUrl || sourceUrlRef.current || '').type;
   const isTrack = metadata.type === ElementType.TRACK;
@@ -1107,8 +1145,51 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         }}
       />
 
+      <PostContextMenu
+        title={metadata.title}
+        links={convertedUrls}
+        onListen={(url, platform) => {
+          void captureClientEvent('streaming_link_opened', {
+            route: `/post/${postData?.postId || postId}`,
+            source_surface: 'post',
+            source_platform: platform === 'appleMusic' ? 'apple' : platform,
+            source_domain: url,
+            post_id: postData?.postId || postId,
+            element_type: metadata.type,
+            is_authenticated: isAuthenticated,
+            paid_promotion_campaign_id: postData?.paidPromotionCampaignId ?? undefined,
+            curator_id: postData?.curatorId ?? undefined,
+            is_member_view: postData?.isMemberView === true,
+            source_context: 'context_menu',
+          });
+        }}
+        onShare={() => void handleShare()}
+        liked={Boolean(postData?.likedByCurrentUser)}
+        onToggleLike={() => void handleToggleLike()}
+        onOpenComments={postData?.username && hasPostOwner ? handleOpenComments : undefined}
+        canRepost={canRepost}
+        hasReposted={hasReposted}
+        onRepost={() => void handleRepost()}
+        canAddToProfile={showAddToProfile && addStatus !== 'added'}
+        onAddToProfile={handleAddToProfile}
+        onReport={() => openReportModal({
+          sourceContext: 'post_view',
+          sourceLink: postData?.originalUrl || sourceUrlRef.current || '',
+          conversionData: {
+            elementType: metadata.type,
+            title: metadata.title,
+            artist: metadata.artist,
+            platforms: postData?.convertedUrls,
+            postId: postData?.postId || postId,
+          },
+        })}
+        isOwner={isOwnPost}
+        onEdit={() => setEditModalOpen(true)}
+        onOpenStudio={() => { if (!studioPanelOpen) handleOpenStudio(); }}
+        onDelete={() => setDeleteModalOpen(true)}
+      >
       <div
-        className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"} transition-[padding] duration-450 ease-out-quart ${commentsSheetOpen || insightsSheetOpen ? "md:pr-[512px]" : ""}`}
+        className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"} transition-[padding] duration-450 ease-out-quart ${commentsSheetOpen || studioPanelOpen ? "md:pr-[512px]" : ""}`}
       >
         {isDesktop ? (
           useSplitScrollLayout ? (
@@ -1141,21 +1222,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {isOwnPost && (
-                          <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                        )}
-                        {isOwnPost && (
-                          <DropdownMenuItem
-                            onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        )}
+                        {ownerMenuItems}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
@@ -1213,7 +1280,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   </div>
                   {/* Info Card (moved from right) */}
                   {(isAlbum || isPlaylist) && (
-                    <div className="p-8 rounded-lg border border-border bg-card elev-2 w-full max-w-xl">
+                    <div className="p-8 card-ink w-full max-w-xl">
                       <div className="space-y-6">
                         {/* Title block: title (with inline source badge for playlist) + artist (album) */}
                         <div className="space-y-2">
@@ -1332,8 +1399,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                 commentCount={commentCount}
                                 commentsEnabled={postData?.commentsEnabled ?? true}
                                 onOpenComments={handleOpenComments}
-                                canViewInsights={isOwnPost}
-                                onOpenInsights={handleOpenInsights}
+                                canManage={isOwnPost}
+                                onOpenStudio={handleOpenStudio}
                                 className="self-start"
                                 compact
                               />
@@ -1390,7 +1457,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                 <div className="h-full pt-8 pb-12 max-w-2xl flex flex-col min-h-0">
                   {/* Track list for album/playlist */}
                   {showTracks && (
-                    <div className="rounded-lg border border-border bg-card overflow-hidden elev-2 flex flex-col min-h-0">
+                    <div className="card-ink overflow-hidden flex flex-col min-h-0">
                       <div className="px-5 py-4 border-b border-border flex items-baseline justify-between gap-3 shrink-0">
                         <h3 className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-foreground">
                           Tracklist
@@ -1446,21 +1513,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {isOwnPost && (
-                            <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                          )}
-                          {isOwnPost && (
-                            <DropdownMenuItem
-                              onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          )}
+                          {ownerMenuItems}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -1527,7 +1580,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     <div className="max-w-xl w-full mx-auto">
                       <div className="space-y-6">
                         {/* Info Card */}
-                        <div className="p-6 rounded-lg border border-border bg-card elev-2">
+                        <div className="p-6 card-ink">
                           <div className="space-y-3">
                             <HeadlineText className="text-3xl sm:text-4xl uppercase leading-[0.95] tracking-tight text-foreground text-center">
                               {metadata.title}
@@ -1622,8 +1675,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                     commentCount={commentCount}
                                     commentsEnabled={postData?.commentsEnabled ?? true}
                                     onOpenComments={handleOpenComments}
-                                    canViewInsights={isOwnPost}
-                                    onOpenInsights={handleOpenInsights}
+                                    canManage={isOwnPost}
+                                    onOpenStudio={handleOpenStudio}
                                     className="self-start"
                                   />
                                 </div>
@@ -1712,21 +1765,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {isOwnPost && (
-                          <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                        )}
-                        {isOwnPost && (
-                          <DropdownMenuItem
-                            onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        )}
+                        {ownerMenuItems}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   ) : null}
@@ -1793,7 +1832,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
               </div>
 
               {/* Track Information Card - Mobile */}
-              <div className="p-3 sm:p-5 rounded-lg border border-border bg-card elev-2">
+              <div className="p-3 sm:p-5 card-ink">
                 <div className="space-y-2 sm:space-y-4">
                   {/* Title (with source badge right-aligned for playlist) */}
                   <div className="relative flex justify-center items-center">
@@ -1931,7 +1970,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
               {/* Social: author header + engagement bar — part of the fold so
                   attribution is visible without scrolling */}
               {postData?.username && hasPostOwner && (
-                <div className="px-3 py-2.5 sm:p-4 rounded-lg border border-border bg-card elev-2 flex flex-col gap-1.5 sm:gap-2.5 text-left relative z-20">
+                <div className="px-3 py-2.5 sm:p-4 card-ink flex flex-col gap-1.5 sm:gap-2.5 text-left relative z-20">
                   <PostAuthorHeader
                     username={postData.username}
                     description={postData?.description || ''}
@@ -1949,8 +1988,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     commentCount={commentCount}
                     commentsEnabled={postData?.commentsEnabled ?? true}
                     onOpenComments={handleOpenComments}
-                    canViewInsights={isOwnPost}
-                    onOpenInsights={handleOpenInsights}
+                    canManage={isOwnPost}
+                    onOpenStudio={handleOpenStudio}
                     className="self-start"
                   />
                 </div>
@@ -2029,6 +2068,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
           </div>
         )}
       </div>
+      </PostContextMenu>
 
       {/* Edit Modal - always render to allow Radix UI animations */}
       <EditPostModal
@@ -2070,11 +2110,13 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       )}
 
       {isOwnPost && (
-        <PostInsightsSheet
+        <PostStudioPanel
           key={postData?.postId || postId}
-          open={insightsSheetOpen}
-          onOpenChange={setInsightsSheetOpen}
+          open={studioPanelOpen}
+          onOpenChange={setStudioPanelOpen}
           postId={postData?.postId || postId}
+          privacy={studioPrivacy}
+          onPrivacyChange={(privacy) => setPostData((prev) => (prev ? { ...prev, privacy } : prev))}
           conversionSuccessCount={ownerVisibleConversionCount}
         />
       )}

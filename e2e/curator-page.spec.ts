@@ -142,7 +142,9 @@ test('keeps the ordinary profile visible when curator monetization is unavailabl
   });
 
   await page.goto(`/profile/${suspendedCurator.username}`);
-  await expect(page.getByText(suspendedCurator.displayName, { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText(suspendedCurator.displayName, { exact: true }).filter({ visible: true }).first(),
+  ).toBeVisible();
   await expect(page.getByTestId('curator-membership-card')).toHaveCount(0);
 
   await page.goto('/profile/missing-curator');

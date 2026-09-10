@@ -42,7 +42,8 @@ test('keeps core beta surfaces within a narrow mobile viewport', async ({ page }
     },
     {
       path: '/profile/miagroove',
-      ready: () => page.getByText(`@${fixtureUsers.member.username}`, { exact: true }).first(),
+      // The navbar account pill also carries the handle but stays hidden below md.
+      ready: () => page.getByText(`@${fixtureUsers.member.username}`, { exact: true }).locator('visible=true').first(),
     },
   ];
 

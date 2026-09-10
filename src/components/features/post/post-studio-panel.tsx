@@ -1,24 +1,26 @@
 'use client';
 
+/** Owner-only post studio: an Access tab to gate the post for members, and an Insights tab for its performance. */
+
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import Link from 'next/link';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Info, XIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SegmentedControl } from '@/components/interior/segmented-control';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useMemberPostAccess } from '@/hooks/use-curator';
+import { useUpdatePost } from '@/hooks/use-music';
 import { ApiError, apiService } from '@/services/api';
-import type { PostInsightsPlatformBreakdownItem, PostInsightsResponse, PostInsightsTrendPoint } from '@/types';
+import type { CuratorPlan } from '@/services/curator-plans';
+import { money } from '@/components/features/curator/curator-plan-preview';
+import type { PostInsightsPlatformBreakdownItem, PostInsightsResponse, PostInsightsTrendPoint, PostPrivacy } from '@/types';
 import { cn } from '@/lib/utils';
 
-interface PostInsightsSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  postId: string;
-  conversionSuccessCount?: number;
-}
-
-type InsightsStatus = 'idle' | 'loading' | 'success' | 'error';
+type InsightsStatus = 'loading' | 'success' | 'error';
 
 /* ─── Number formatters ─────────────────────────────────────────────── */
 const compactNumberFormatter = new Intl.NumberFormat('en-US', {
@@ -288,7 +290,7 @@ function Overview({ items }: { items: OverviewItem[] }) {
   return (
     <section>
       <SectionHeading>Overview</SectionHeading>
-      <div className="mt-3 grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-card">
+      <div className="mt-3 grid grid-cols-2 overflow-hidden card-quiet">
         {items.map((item, i) => {
           const isLast = i === items.length - 1;
           const isOrphan = isLast && items.length % 2 === 1;
@@ -460,7 +462,7 @@ function InsightsLoadingState() {
     <div className="space-y-6">
       <div>
         <Skeleton className="h-3 w-20" />
-        <div className="mt-3 rounded-lg border border-border bg-card">
+        <div className="mt-3 card-quiet">
           <div className="grid grid-cols-2 divide-x divide-y divide-border [&>*:nth-child(-n+2)]:border-t-0 [&>*:nth-child(2n+1)]:border-l-0">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="p-4">
@@ -508,7 +510,7 @@ function InsightsEmptyState() {
 
 function InsightsErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-6 text-center">
+    <div className="card-quiet p-6 text-center">
       <p className="text-sm font-medium text-foreground">Unable to load insights</p>
       <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">{message}</p>
       <Button type="button" variant="outline" size="sm" onClick={onRetry} className="mt-4">
@@ -518,53 +520,19 @@ function InsightsErrorState({ message, onRetry }: { message: string; onRetry: ()
   );
 }
 
+
 /* ─────────────────────────────────────────────────────────────────────
- * MAIN SHEET
+ * Insights tab — fetches on mount, so the request only fires once the
+ * owner actually opens this tab.
  * ───────────────────────────────────────────────────────────────────── */
-export function PostInsightsSheet({
-  open,
-  onOpenChange,
-  postId,
-  conversionSuccessCount,
-}: PostInsightsSheetProps) {
-  const isMobile = useIsMobile();
-  const [status, setStatus] = useState<InsightsStatus>('idle');
+function InsightsTab({ postId, conversionSuccessCount }: { postId: string; conversionSuccessCount?: number }) {
+  const [status, setStatus] = useState<InsightsStatus>('loading');
   const [insights, setInsights] = useState<PostInsightsResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const contentClasses = isMobile
-    ? cn(
-        'fixed inset-x-0 bottom-0 z-50 flex flex-col gap-0 h-[85vh] overflow-hidden rounded-t-xl border-t border-border bg-background elev-3',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full',
-        'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
-        'data-[state=open]:duration-400 data-[state=closed]:duration-280',
-        'data-[state=open]:ease-out-quart',
-        'data-[state=closed]:ease-in-quart',
-        'will-change-transform',
-      )
-    : cn(
-        'fixed inset-y-0 right-0 z-50 flex h-full w-full flex-col gap-0 overflow-hidden border-l border-border bg-background elev-3',
-        'sm:max-w-md md:max-w-lg',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=open]:slide-in-from-right-full data-[state=closed]:slide-out-to-right-full',
-        'data-[state=open]:duration-450 data-[state=closed]:duration-300',
-        'data-[state=open]:ease-out-quart',
-        'data-[state=closed]:ease-in-quart',
-        'will-change-transform',
-      );
-
   useEffect(() => {
-    if (!open) {
-      setStatus('idle');
-      setErrorMessage(null);
-      setInsights(null);
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open || !postId) return;
+    if (!postId) return;
 
     const controller = new AbortController();
     let cancelled = false;
@@ -595,10 +563,16 @@ export function PostInsightsSheet({
       cancelled = true;
       controller.abort();
     };
-  }, [open, postId, reloadKey]);
+  }, [postId, reloadKey]);
 
-  /* ─── Derived stat grid ───────────────────────────────────────────── */
-  const hasConversionCount = typeof conversionSuccessCount === 'number';
+  const conversions: OverviewItem[] = conversionSuccessCount !== undefined
+    ? [{
+        label: 'Conversions',
+        value: formatMetric(Math.max(0, conversionSuccessCount)),
+        description:
+          'Successful cross-platform matches — times Cassette found this track on a viewer’s preferred service.',
+      }]
+    : [];
 
   const overviewItems: OverviewItem[] = insights
     ? [
@@ -627,29 +601,223 @@ export function PostInsightsSheet({
           description:
             'Times this post was shared — via the share button, a copied link, or forwarded to another app.',
         },
-        ...(hasConversionCount
-          ? [{
-              label: 'Conversions',
-              value: formatMetric(Math.max(0, conversionSuccessCount as number)),
-              description:
-                'Successful cross-platform matches — times Cassette found this track on a viewer’s preferred service.',
-            }]
-          : []),
+        ...conversions,
       ]
-    : hasConversionCount
-      ? [{
-          label: 'Conversions',
-          value: formatMetric(Math.max(0, conversionSuccessCount as number)),
-          description:
-            'Successful cross-platform matches — times Cassette found this track on a viewer’s preferred service.',
-        }]
-      : [];
+    : conversions;
 
   const showEmptyState = status === 'success' && !hasAudienceActivity(insights);
   const showPlatformBreakdown = (insights?.platformBreakdown.length ?? 0) > 0;
   const showTrend = (insights?.trend ?? []).some(
     (point) => point.views > 0 || point.destinationOpens > 0,
   );
+
+  if (status === 'error') {
+    return (
+      <InsightsErrorState
+        message={errorMessage || 'Unable to load insights.'}
+        onRetry={() => setReloadKey((c) => c + 1)}
+      />
+    );
+  }
+  if (status !== 'success') return <InsightsLoadingState />;
+
+  return (
+    <>
+      {overviewItems.length > 0 ? <Overview items={overviewItems} /> : null}
+      {showEmptyState ? <InsightsEmptyState /> : null}
+      {showPlatformBreakdown && insights ? (
+        <PlatformBreakdown items={insights.platformBreakdown} />
+      ) : null}
+      {showTrend && insights ? <TrendChart points={insights.trend} /> : null}
+    </>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Access tab — who can open this post, and what unlocks members-only.
+ * ───────────────────────────────────────────────────────────────────── */
+/** The visibilities an owner can pick here; a legacy value simply leaves no radio checked. */
+type AccessPrivacy = Extract<PostPrivacy, 'public' | 'subscriber' | 'private'>;
+
+const accessOptions: ReadonlyArray<{ value: AccessPrivacy; label: string; description: string }> = [
+  { value: 'public', label: 'Public', description: 'Anyone can open it from your profile or the link.' },
+  {
+    value: 'subscriber',
+    label: 'Members only',
+    description: 'Locked on your curator page. Only fans with an active membership can open it.',
+  },
+  { value: 'private', label: 'Private', description: 'Hidden from your profile for everyone but you. Anyone with the link can still open it.' },
+];
+
+const formatPlanPrice = (plan: CuratorPlan): string => `${money(plan.amountMinor, plan.currency)}/mo`;
+
+function AccessTab({
+  postId,
+  privacy,
+  onPrivacyChange,
+}: {
+  postId: string;
+  privacy: PostPrivacy;
+  onPrivacyChange: (privacy: AccessPrivacy) => void;
+}) {
+  const access = useMemberPostAccess();
+  const updatePost = useUpdatePost();
+  const canLock = access.state === 'ready' || privacy === 'subscriber';
+
+  const choose = (next: AccessPrivacy) => {
+    if (next === privacy || updatePost.isPending) return;
+    updatePost.mutate({ postId, privacy: next }, {
+      onSuccess: () => {
+        onPrivacyChange(next);
+        toast.success(next === 'subscriber' ? 'Post locked for members.' : 'Post visibility updated.');
+      },
+      onError: () => toast.error('Failed to update post visibility. Please try again.'),
+    });
+  };
+
+  return (
+    <>
+      <section>
+        <SectionHeading>Who can open it</SectionHeading>
+        <fieldset className="mt-3 overflow-hidden card-quiet" disabled={updatePost.isPending}>
+          <legend className="sr-only">Post visibility</legend>
+          {accessOptions.map((option) => {
+            const disabled = option.value === 'subscriber' && !canLock;
+            return (
+              <label
+                key={option.value}
+                className={cn(
+                  'flex cursor-pointer items-start gap-3 border-t border-border p-4 first:border-t-0',
+                  disabled ? 'cursor-not-allowed opacity-60' : 'hover:bg-muted/40',
+                )}
+              >
+                <input
+                  type="radio"
+                  name="post-access"
+                  value={option.value}
+                  checked={privacy === option.value}
+                  disabled={disabled}
+                  onChange={() => choose(option.value)}
+                  className="mt-0.5 size-4 shrink-0 accent-primary"
+                />
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-semibold text-foreground">{option.label}</span>
+                  <span className="mt-0.5 block text-[12px] leading-relaxed text-muted-foreground">
+                    {option.description}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </fieldset>
+      </section>
+
+      <section>
+        <SectionHeading>What unlocks members-only</SectionHeading>
+        <div className="mt-3">
+          {access.state === 'loading' ? (
+            <div className="space-y-2.5">
+              <Skeleton className="h-3 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          ) : access.state === 'error' ? (
+            <div className="card-quiet p-4">
+              <p className="text-[12px] leading-relaxed text-muted-foreground">Could not load your membership setup.</p>
+              <Button type="button" variant="outline" size="sm" onClick={access.refetch} className="mt-3">
+                Try again
+              </Button>
+            </div>
+          ) : access.state === 'ready' ? (
+            <ul className="divide-y divide-border overflow-hidden card-quiet">
+              {access.plans.map((plan) => (
+                <li key={plan.id} className="flex items-baseline justify-between gap-3 p-4 text-[13px]">
+                  <span className="truncate font-medium text-foreground">{plan.name}</span>
+                  <span className="shrink-0 font-mono text-[12px] tabular-nums text-muted-foreground">
+                    {formatPlanPrice(plan)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border bg-muted/20 p-5">
+              <p className="text-sm font-medium text-foreground">
+                {access.state === 'needs-pro' ? 'Monetize your music' : 'Publish a member-posts plan'}
+              </p>
+              <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
+                {access.state === 'needs-pro'
+                  ? 'Curator Pro lets you lock posts like this one for paying members and earn membership revenue.'
+                  : 'Members-only posts open for fans on a published plan that includes member posts.'}
+              </p>
+              <Button asChild size="sm" className="mt-4">
+                <Link href="/studio/curator" prefetch={false}>
+                  {access.state === 'needs-pro' ? 'Start Curator Pro' : 'Open Curator Studio'}
+                </Link>
+              </Button>
+            </div>
+          )}
+        </div>
+      </section>
+    </>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * PANEL — owner-only side panel: Access first, Insights one tap away.
+ * ───────────────────────────────────────────────────────────────────── */
+type StudioTab = 'access' | 'insights';
+
+interface PostStudioPanelProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  postId: string;
+  privacy: PostPrivacy;
+  onPrivacyChange: (privacy: AccessPrivacy) => void;
+  conversionSuccessCount?: number;
+}
+
+export function PostStudioPanel({
+  open,
+  onOpenChange,
+  postId,
+  privacy,
+  onPrivacyChange,
+  conversionSuccessCount,
+}: PostStudioPanelProps) {
+  const isMobile = useIsMobile();
+  const [tab, setTab] = useState<StudioTab>('access');
+  // Insights mounts on first visit (gating its request) and then stays mounted
+  // while the panel is open, so tab switches do not refetch either tab.
+  const [insightsVisited, setInsightsVisited] = useState(false);
+
+  // The page also closes the panel by prop, so reset from `open` rather than the close handler.
+  useEffect(() => {
+    if (!open) {
+      setTab('access');
+      setInsightsVisited(false);
+    }
+  }, [open]);
+
+  const contentClasses = isMobile
+    ? cn(
+        'fixed inset-x-0 bottom-0 z-50 flex flex-col gap-0 h-[85vh] overflow-hidden rounded-t-xl border-t border-border bg-background elev-3',
+        'data-[state=open]:animate-in data-[state=closed]:animate-out',
+        'data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full',
+        'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
+        'data-[state=open]:duration-400 data-[state=closed]:duration-280',
+        'data-[state=open]:ease-out-quart',
+        'data-[state=closed]:ease-in-quart',
+        'will-change-transform',
+      )
+    : cn(
+        'fixed inset-y-0 right-0 z-50 flex h-full w-full flex-col gap-0 overflow-hidden border-l border-border bg-background elev-3',
+        'sm:max-w-md md:max-w-lg',
+        'data-[state=open]:animate-in data-[state=closed]:animate-out',
+        'data-[state=open]:slide-in-from-right-full data-[state=closed]:slide-out-to-right-full',
+        'data-[state=open]:duration-450 data-[state=closed]:duration-300',
+        'data-[state=open]:ease-out-quart',
+        'data-[state=closed]:ease-in-quart',
+        'will-change-transform',
+      );
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} modal={isMobile}>
@@ -666,6 +834,11 @@ export function PostInsightsSheet({
         )}
         <DialogPrimitive.Content
           className={contentClasses}
+          data-testid="post-studio-panel"
+          // Docked beside the post on desktop, often auto-opened: keep focus on the page.
+          onOpenAutoFocus={(event) => {
+            if (!isMobile) event.preventDefault();
+          }}
           onInteractOutside={(event) => {
             if (!isMobile) event.preventDefault();
           }}
@@ -673,43 +846,49 @@ export function PostInsightsSheet({
             if (!isMobile) event.preventDefault();
           }}
         >
-          <DialogPrimitive.Title className="sr-only">Insights</DialogPrimitive.Title>
+          <DialogPrimitive.Title className="sr-only">Post studio</DialogPrimitive.Title>
 
           {/* Header */}
-          <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
-            <div className="min-w-0">
-              <div className="text-[15px] font-semibold leading-tight text-foreground">Insights</div>
-              <div className="mt-0.5 text-[12px] text-muted-foreground">Post performance</div>
+          <div className="border-b border-border px-5 pt-4 pb-3 sm:px-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Your post</div>
+                <div className="mt-0.5 text-[15px] font-semibold leading-tight text-foreground">
+                  {tab === 'access' ? 'Access' : 'Insights'}
+                </div>
+              </div>
+              <DialogPrimitive.Close
+                className="-mr-1 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="Close post studio"
+              >
+                <XIcon className="size-4" />
+              </DialogPrimitive.Close>
             </div>
-            <DialogPrimitive.Close
-              className="-mr-1 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Close insights"
-            >
-              <XIcon className="size-4" />
-            </DialogPrimitive.Close>
+            <SegmentedControl
+              label="Post studio sections"
+              className="mt-3 w-full"
+              value={tab}
+              onValueChange={(next) => {
+                if (next === 'insights') setInsightsVisited(true);
+                setTab(next === 'insights' ? 'insights' : 'access');
+              }}
+              options={[
+                { value: 'access', label: 'Access' },
+                { value: 'insights', label: 'Insights' },
+              ]}
+            />
           </div>
 
           {/* Body */}
-          <div className="flex-1 space-y-7 overflow-y-auto px-5 py-5 sm:px-6">
-            {status === 'loading' ? <InsightsLoadingState /> : null}
-
-            {status === 'error' ? (
-              <InsightsErrorState
-                message={errorMessage || 'Unable to load insights.'}
-                onRetry={() => setReloadKey((c) => c + 1)}
-              />
-            ) : null}
-
-            {status === 'success' ? (
-              <>
-                {overviewItems.length > 0 ? <Overview items={overviewItems} /> : null}
-                {showEmptyState ? <InsightsEmptyState /> : null}
-                {showPlatformBreakdown && insights ? (
-                  <PlatformBreakdown items={insights.platformBreakdown} />
-                ) : null}
-                {showTrend && insights ? <TrendChart points={insights.trend} /> : null}
-              </>
-            ) : null}
+          <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+            <div className="space-y-7" hidden={tab !== 'access'}>
+              <AccessTab postId={postId} privacy={privacy} onPrivacyChange={onPrivacyChange} />
+            </div>
+            {insightsVisited && (
+              <div className="space-y-7" hidden={tab !== 'insights'}>
+                <InsightsTab postId={postId} conversionSuccessCount={conversionSuccessCount} />
+              </div>
+            )}
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

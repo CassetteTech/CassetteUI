@@ -155,6 +155,8 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   const [createOpen, setCreateOpen] = useState<boolean | null>(null);
   // Draft currently loaded into the form; the form remounts (key) when this changes.
   const [editingId, setEditingId] = useState<string | null>(null);
+  // With a live plan the card folds to a summary; the curator opens the tools on demand.
+  const [expanded, setExpanded] = useState(false);
   const plansKey = ['curator-plans', profile?.id ?? 'none'] as const;
   const proKey = ['curator-pro-status', user?.id ?? null] as const;
   const plans = useQuery({
@@ -224,6 +226,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
       : archiveCuratorPlan(planId),
     onSuccess: (saved, action) => {
       queryClient.setQueryData<CuratorPlan[]>(plansKey, (current) => replacePlan(current, saved));
+      setExpanded(true);
       setNotice(action.kind === 'publish'
         ? 'Membership plan published. Fans can join from your public page.'
         : 'Plan archived. New fans can no longer join; existing members keep their price, access, and renewals.');
@@ -286,6 +289,54 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
     setCreateOpen(true);
     formRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
+
+  if (activePlan && !expanded) {
+    const fanMonthly = activePlan.serviceFeeMinor === null
+      ? null
+      : money(activePlan.amountMinor + activePlan.serviceFeeMinor, activePlan.currency);
+    return (
+      <StudioSection
+        id="studio-plan"
+        eyebrow="Monetize"
+        title="Fan membership plan"
+        headingId="curator-plan-title"
+        testId="curator-plan-card"
+        chip={<StudioChip tone="positive">Active</StudioChip>}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
+          <div className="min-w-0">
+            <p className="break-words text-base font-semibold leading-tight">{activePlan.name}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {activePlan.description || 'Fans join from your public page.'}
+            </p>
+          </div>
+          <dl className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
+            <div>
+              <dt className="text-xs text-muted-foreground">Monthly price</dt>
+              <dd className="mt-0.5 font-mono font-semibold tabular-nums">{money(activePlan.amountMinor, activePlan.currency)}</dd>
+            </div>
+            {fanMonthly && (
+              <div>
+                <dt className="text-xs text-muted-foreground">Fans pay</dt>
+                <dd className="mt-0.5 font-mono tabular-nums">{fanMonthly}</dd>
+              </div>
+            )}
+            {activePlan.annualAmountMinor !== null && (
+              <div>
+                <dt className="text-xs text-muted-foreground">Annual price</dt>
+                <dd className="mt-0.5 font-mono font-semibold tabular-nums">{money(activePlan.annualAmountMinor, activePlan.currency)}</dd>
+              </div>
+            )}
+            <div>
+              <dt className="text-xs text-muted-foreground">Features</dt>
+              <dd className="mt-0.5">{activePlan.featureKeys.length === 0 ? 'None' : namesFor(activePlan.featureKeys).join(', ')}</dd>
+            </div>
+          </dl>
+          <Button type="button" variant="outline" onClick={() => setExpanded(true)}>Manage plan</Button>
+        </div>
+      </StudioSection>
+    );
+  }
 
   return (
     <StudioSection

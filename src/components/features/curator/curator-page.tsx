@@ -35,6 +35,12 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArtworkImage } from '@/components/ui/artwork-image';
 import { CuratorMembershipCard } from '@/components/features/curator/curator-membership-card';
+import { PostQuickActions } from '@/components/features/post/post-quick-actions';
+import { EditPostModal } from '@/components/features/post/edit-post-modal';
+import { DeletePostModal } from '@/components/features/post/delete-post-modal';
+import { useSubscriberPostEligibility } from '@/hooks/use-curator';
+import { appLogger } from '@/lib/observability/logger';
+import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
@@ -443,6 +449,7 @@ export function PublicCuratorPage({
         )}
         <CuratorFeed
           items={posts}
+          isOwner={page.viewer.isOwner}
           displayName={displayName}
           headingId={feedHeadingId}
           membershipId={membershipId}
@@ -492,6 +499,7 @@ export function PublicCuratorPage({
 
 function CuratorFeed({
   items,
+  isOwner,
   displayName,
   headingId,
   membershipId,
@@ -503,6 +511,7 @@ function CuratorFeed({
   onLoadMore,
 }: {
   items: CuratorPostItem[];
+  isOwner: boolean;
   displayName: string;
   headingId: string;
   membershipId: string;
@@ -513,6 +522,8 @@ function CuratorFeed({
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
 }) {
+  // One shared read for the whole feed; React Query dedupes it across cards.
+  const canLockPosts = useSubscriberPostEligibility(isOwner);
   // Client-side filter over the pages loaded so far; Load more keeps extending it.
   const visible = memberFilter
     ? items.filter((item) => item.kind === 'locked' || item.post.privacy === 'subscriber')
@@ -567,7 +578,7 @@ function CuratorFeed({
                   showMembership={showMembership}
                 />
               )
-            : <CuratorPost key={item.post.postId} post={item.post} />)}
+            : <CuratorPost key={item.post.postId} post={item.post} isOwner={isOwner} canLockPosts={canLockPosts} />)}
         </div>
       )}
 
@@ -595,7 +606,7 @@ function LockedPost({
   showMembership: boolean;
 }) {
   const card = (
-    <Card className="flex-row gap-0 overflow-hidden p-0 elev-1 sm:gap-0 sm:py-0">
+    <Card className="flex-row gap-0 overflow-hidden p-0 sm:gap-0 sm:py-0">
       {/* Obscured artwork slot, flush to the card's left edge */}
       <div className="relative flex size-24 shrink-0 items-center justify-center bg-gradient-to-br from-primary/15 via-primary/5 to-transparent sm:size-28">
         <LockKeyhole className="size-8 text-primary/60" aria-hidden />
@@ -633,14 +644,52 @@ function LockedPost({
   );
 }
 
-function CuratorPost({ post }: { post: Extract<CuratorPostItem, { kind: 'post' }>['post'] }) {
+function CuratorPost({
+  post,
+  isOwner,
+  canLockPosts,
+}: {
+  post: Extract<CuratorPostItem, { kind: 'post' }>['post'];
+  isOwner: boolean;
+  canLockPosts: boolean;
+}) {
   const TypeIcon = getPostIcon(post.elementType);
   const targetPostId = post.redirectPostId || post.postId;
   const title = post.title.trim() || `${post.elementType} post`;
   const detail = post.description?.trim() || post.subtitle?.trim();
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const share = async () => {
+    const url = `${window.location.origin}/post/${targetPostId}`;
+    try {
+      if (canShareWebContent()) {
+        await shareWebContent({ title, text: `Check out "${title}" on Cassette`, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success('Link copied.');
+      }
+    } catch (error) {
+      appLogger.warn('curator_post_share_failed', { error, route: '/profile/[username]' });
+    }
+  };
 
   return (
-    <Card className="gap-0 overflow-hidden p-0 elev-1 sm:gap-0 sm:py-0">
+    <>
+    <PostQuickActions
+      postId={post.postId}
+      title={title}
+      href={`/post/${targetPostId}`}
+      onShare={() => void share()}
+      isOwner={isOwner}
+      privacy={post.privacy}
+      // The curator feed contract only carries public and members-only rows.
+      visibilities={['public', 'subscriber']}
+      canLockPosts={canLockPosts}
+      onEdit={() => setEditOpen(true)}
+      onDelete={() => setDeleteOpen(true)}
+    >
+    <Card className="gap-0 overflow-hidden p-0 sm:gap-0 sm:py-0">
       <Link href={`/post/${targetPostId}`} prefetch={false} className="flex gap-3 sm:gap-4">
         {/* Artwork flush to the card's left edge; outer card corners do the rounding */}
         <div className="relative size-24 shrink-0 sm:size-28">
@@ -679,6 +728,25 @@ function CuratorPost({ post }: { post: Extract<CuratorPostItem, { kind: 'post' }
         </div>
       </Link>
     </Card>
+    </PostQuickActions>
+    {isOwner && (
+      <>
+        <EditPostModal
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          postId={post.postId}
+          currentDescription={post.description ?? ''}
+          currentPrivacy={post.privacy}
+        />
+        <DeletePostModal
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          postId={post.postId}
+          postTitle={title}
+        />
+      </>
+    )}
+    </>
   );
 }
 

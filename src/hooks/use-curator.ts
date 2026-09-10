@@ -5,7 +5,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
 import { apiService } from '@/services/api';
-import { fetchCuratorPlans } from '@/services/curator-plans';
+import { fetchCuratorPlans, memberPostAccessState, memberPostPlans } from '@/services/curator-plans';
 import { fetchCuratorPage } from '@/services/curator';
 
 const PAGE_SIZE = 20;
@@ -24,7 +24,8 @@ export function useCuratorPage(username: string, viewerKey: string | null) {
   });
 }
 
-export function useSubscriberPostEligibility(enabled = true): boolean {
+/** The signed-in curator's Pro access and the published plans that unlock members-only posts. */
+export function useMemberPostAccess(enabled = true) {
   const { user } = useAuthState();
   const pro = useQuery({
     queryKey: ['curator-pro-status', user?.id ?? null],
@@ -39,6 +40,19 @@ export function useSubscriberPostEligibility(enabled = true): boolean {
     staleTime: 0,
   });
 
-  return pro.data?.hasAccess === true && plans.data?.some((plan) =>
-    plan.status === 'active' && plan.featureKeys.includes('member_posts')) === true;
+  return {
+    state: pro.isError || plans.isError
+      ? 'error' as const
+      : memberPostAccessState(pro.data?.hasAccess, plans.data),
+    plans: memberPostPlans(plans.data ?? []),
+    // Both explicitly: a settled Pro read does not re-run an errored plans query.
+    refetch: () => {
+      void pro.refetch();
+      void plans.refetch();
+    },
+  };
+}
+
+export function useSubscriberPostEligibility(enabled = true): boolean {
+  return useMemberPostAccess(enabled).state === 'ready';
 }

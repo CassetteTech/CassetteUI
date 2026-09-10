@@ -3,7 +3,6 @@
 import {
   BadgeCheck,
   Compass,
-  Edit,
   FileText,
   Heart,
   Home,
@@ -43,7 +42,6 @@ export const primaryNavItems: NavigationItemDefinition[] = [
 
 export const accountNavItems: NavigationItemDefinition[] = [
   { key: 'profile', label: 'Profile', icon: User, href: '/profile', authRequired: true },
-  { key: 'edit-profile', label: 'Edit Profile', icon: Edit, href: '/profile/edit', authRequired: true },
   { key: 'memberships', label: 'My Memberships', icon: BadgeCheck, href: '/memberships', authRequired: true },
   { key: 'curator-studio', label: 'Curator Studio', icon: LayoutDashboard, href: '/studio/curator', authRequired: true },
   { key: 'campaigns', label: 'Your Campaigns', icon: Megaphone, href: '/promote', authRequired: true },
@@ -77,10 +75,6 @@ export function resolveNavHref(item: NavigationItemDefinition, user: NavUser) {
     return `/profile/${user.username}`;
   }
 
-  if (item.key === 'edit-profile') {
-    return `/profile/${user.username}/edit`;
-  }
-
   return item.href;
 }
 
@@ -104,9 +98,7 @@ export function isNavItemActive(
     case 'home':
       return pathname === '/';
     case 'profile':
-      return isOwnProfilePath(pathname, user) && !pathname.endsWith('/edit');
-    case 'edit-profile':
-      return isOwnProfilePath(pathname, user) && pathname.endsWith('/edit');
+      return isOwnProfilePath(pathname, user);
     default:
       return pathname.startsWith(item.href);
   }

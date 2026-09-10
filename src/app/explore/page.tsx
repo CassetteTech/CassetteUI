@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BackButton } from '@/components/ui/back-button';
-import { Loader2, Search, X, Star, Music2 } from 'lucide-react';
+import { ArrowRight, Loader2, Search, X, Star, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
 import { useExploreCurators } from '@/hooks/use-profile';
@@ -434,7 +434,8 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
   const router = useRouter();
   const displayName = curator.displayName?.trim() || curator.username;
   const artwork = curator.recentArtworkUrls.slice(0, 4);
-  const tagline = curator.bio?.trim() || (curator.topGenres ?? []).slice(0, 3).join(' · ');
+  const genres = (curator.topGenres ?? []).slice(0, 2).join(' · ');
+  const tagline = curator.bio?.trim() || null;
   const links = (curator.profileLinks ?? [])
     .map(parseProfileLink)
     .filter((l): l is ParsedProfileLink => l !== null)
@@ -456,7 +457,7 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
           openProfile();
         }
       }}
-      className="group relative block w-[260px] cursor-pointer overflow-hidden rounded-2xl bg-card shadow-[0_8px_30px_hsl(var(--foreground)/0.12)] ring-1 ring-foreground/10 transition-colors duration-300 hover:ring-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[280px]"
+      className="group relative block w-[260px] cursor-pointer overflow-hidden card-ink transition-colors duration-300 hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[280px]"
     >
       <div className="relative aspect-[4/5] overflow-hidden bg-muted">
         {/* The curator themself is the hero; recent artwork fills in when they
@@ -504,22 +505,34 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
           </div>
         )}
 
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
-          Music Curator
+        {/* Magazine cover: full-bleed photo, dark scrim, frosted badge, masthead strap. */}
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-section-dark/90 via-section-dark/25 to-transparent" />
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-section-dark-fg/20 bg-section-dark-fg/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-section-dark-fg backdrop-blur-md">
+          Featured
           <VerificationBadge
             accountType={curator.accountType}
             size="sm"
             showTooltip={false}
-            className="[&_svg]:text-white"
+            className="[&_svg]:text-section-dark-fg"
           />
         </span>
 
-        {/* Scrim carries the identity so the photo runs edge to edge */}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-4 pb-4 pt-16">
-          <p className="truncate text-xl font-bold leading-tight text-white">{displayName}</p>
+        <div className="absolute inset-x-0 bottom-0 px-4 pb-4 text-section-dark-fg">
+          <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.25em] text-section-dark-fg/60">
+            Curator{genres && ` · ${genres}`}
+          </p>
+          <p className="truncate text-xl font-semibold leading-tight tracking-tight">{displayName}</p>
           {tagline && (
-            <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-white/80">{tagline}</p>
+            <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-section-dark-fg/80">{tagline}</p>
           )}
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <p className="truncate text-xs text-section-dark-fg/60">
+              @{curator.username} · {curator.publicPostCount} {curator.publicPostCount === 1 ? 'post' : 'posts'}
+            </p>
+            <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full border border-section-dark-fg/20 bg-section-dark-fg/15 backdrop-blur-md transition-colors duration-300 group-hover:bg-section-dark-fg group-hover:text-section-dark">
+              <ArrowRight className="size-3.5" />
+            </span>
+          </div>
           {links.length > 0 && (
             <div className="mt-3 flex items-center gap-2">
               {links.map((link) => (
@@ -531,7 +544,7 @@ function CuratorCard({ curator }: { curator: ExploreCurator }) {
                   onClick={(e) => e.stopPropagation()}
                   aria-label={`${displayName} on ${link.platform} (${link.label})`}
                   title={`${link.platform}: ${link.label}`}
-                  className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-white/60 px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-section-dark-fg/60 px-3 py-1.5 text-[13px] font-medium transition-colors hover:bg-section-dark-fg hover:text-section-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <ProfileLinkIcon link={link} className="shrink-0" />
                   <span className="truncate">{link.platform}</span>
@@ -598,7 +611,7 @@ function CreatorsMarquee({
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-2xl border-2 border-destructive/30 bg-card px-5 py-4">
+        <div className="card-quiet border-destructive/40 px-5 py-4">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-destructive">
             Unable to load creators right now.
           </p>

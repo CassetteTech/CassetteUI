@@ -19,7 +19,6 @@ interface SidebarProfileCardProps {
   /** Whether this is the current logged-in user's own profile */
   isCurrentUser?: boolean;
   className?: string;
-  curatorHeadline?: string | null;
   curatorGenres?: string[];
   curatorAbout?: string | null;
   curatorPlatforms?: string[];
@@ -87,7 +86,6 @@ export function SidebarProfileCard({
   user,
   isCurrentUser = false,
   className = '',
-  curatorHeadline,
   curatorGenres,
   curatorAbout,
   curatorPlatforms,
@@ -99,115 +97,91 @@ export function SidebarProfileCard({
   const bio = user.bio || '';
   const initial = user.username?.charAt(0)?.toUpperCase() || 'U';
   const totalLikesReceived = getTotalLikesReceived(user);
+  const links = getProfileLinks(user) ?? [];
   const curatorInterests = [...new Set([
     ...(curatorGenres ?? []),
     ...(curatorPlatforms ?? []),
   ])];
 
+  const hasDetails = Boolean(bio || curatorAbout) || curatorInterests.length > 0 || links.length > 0;
+
+  // Photo-album card: the portrait fills the top edge to edge, a ruled strip
+  // carries the name and handle with the service marks where the album dots
+  // would sit, and the bio copy hangs below.
   return (
-    <div className={`mx-2 p-4 rounded-lg bg-background border border-border/50 transition-colors min-h-[156px] ${className}`}>
-      <div className="flex flex-col gap-3">
-        {/* Top row: Avatar left, Connected services top right */}
-        <div className="flex items-start justify-between">
-          <AvatarPreviewDialog
-            avatarUrl={avatarUrl}
-            username={user.username}
-            displayName={user.displayName ?? undefined}
-            isCurrentUser={isCurrentUser}
-          >
-            <button
-              type="button"
-              aria-label={`View ${displayName}'s profile picture`}
-              className="flex-shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:opacity-90 transition-opacity"
-            >
-              <Avatar className="h-14 w-14 border-2 border-foreground/80">
-                <AvatarImage src={avatarUrl} alt={`@${user.username}`} />
-                <AvatarFallback className="bg-primary text-white font-atkinson font-bold text-lg">
-                  {initial}
-                </AvatarFallback>
-              </Avatar>
-            </button>
-          </AvatarPreviewDialog>
+    <article className={`mx-2 card-ink overflow-hidden ${className}`}>
+      <AvatarPreviewDialog
+        avatarUrl={avatarUrl}
+        username={user.username}
+        displayName={user.displayName ?? undefined}
+        isCurrentUser={isCurrentUser}
+      >
+        <button
+          type="button"
+          aria-label={`View ${displayName}'s profile picture`}
+          className="block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring hover:opacity-90 transition-opacity"
+        >
+          <Avatar className="aspect-square h-auto w-full rounded-none bg-muted">
+            <AvatarImage src={avatarUrl} alt={`@${user.username}`} className="object-cover" />
+            <AvatarFallback className="rounded-none bg-primary font-teko text-6xl font-bold text-white">
+              {initial}
+            </AvatarFallback>
+          </Avatar>
+        </button>
+      </AvatarPreviewDialog>
 
-          {/* Likes + connected services - top right */}
-          <div className="flex flex-col items-end gap-2">
-            {typeof totalLikesReceived === 'number' && totalLikesReceived > 0 && (
-              <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                <span className="font-bold text-foreground">
-                  {Math.max(0, totalLikesReceived).toLocaleString()}
-                </span>
-                <span>{totalLikesReceived === 1 ? 'like' : 'likes'}</span>
-              </div>
-            )}
-            <MusicConnectionsStatus
-              variant="sidebar-enhanced"
-              platformPreferencesOverride={platformPreferences}
-              connectedServicesOverride={connectedServices}
-            />
-          </div>
-        </div>
-
-        {/* Name + username - left aligned */}
-        <div className="space-y-1">
+      <div className="flex items-center justify-between gap-3 border-t border-border/70 px-4 py-3">
+        <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <p className="font-teko font-bold text-2xl text-foreground truncate leading-none">
-              {displayName}
-            </p>
+            <p className="truncate text-sm font-semibold leading-tight text-foreground">{displayName}</p>
             <VerificationBadge accountType={getAccountType(user)} size="sm" />
           </div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground leading-none">
+          <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
             @{user.username}
+            {(totalLikesReceived ?? 0) > 0 && ` · ${(totalLikesReceived ?? 0).toLocaleString()} ${totalLikesReceived === 1 ? 'like' : 'likes'}`}
           </p>
         </div>
-
-        {/* Curator headline — tagline under the identity block */}
-        {curatorHeadline && (
-          <p className="text-pretty text-xs font-semibold leading-snug text-foreground">
-            {curatorHeadline}
-          </p>
-        )}
-
-        {/* Bio with tooltip for long text - left aligned */}
-        {bio && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed cursor-default">
-                {bio}
-              </p>
-            </TooltipTrigger>
-            {bio.length > 80 && (
-              <TooltipContent side="bottom" className="max-w-[280px] text-sm">
-                {bio}
-              </TooltipContent>
-            )}
-          </Tooltip>
-        )}
-        {curatorAbout && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <p className="line-clamp-3 cursor-default text-xs leading-relaxed text-muted-foreground">
-                {curatorAbout}
-              </p>
-            </TooltipTrigger>
-            {curatorAbout.length > 120 && (
-              <TooltipContent side="bottom" className="max-w-[280px] whitespace-pre-wrap text-sm">
-                {curatorAbout}
-              </TooltipContent>
-            )}
-          </Tooltip>
-        )}
-
-        {curatorInterests.length > 0 && (
-          <div className="flex flex-wrap gap-1.5" aria-label="Curator interests">
-            {curatorInterests.map((interest) => (
-              <Badge key={interest} variant="outline" className="text-[10px]">{interest}</Badge>
-            ))}
-          </div>
-        )}
-
-        <ProfileLinksRow links={getProfileLinks(user)} />
+        <MusicConnectionsStatus
+          variant="sidebar-enhanced"
+          className="shrink-0"
+          platformPreferencesOverride={platformPreferences}
+          connectedServicesOverride={connectedServices}
+        />
       </div>
-    </div>
+
+      {hasDetails && (
+        <div className="space-y-2.5 border-t border-border/70 px-4 py-3">
+          {bio && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="line-clamp-3 cursor-default text-xs leading-relaxed text-muted-foreground">{bio}</p>
+              </TooltipTrigger>
+              {bio.length > 100 && (
+                <TooltipContent side="bottom" className="max-w-[280px] text-sm">{bio}</TooltipContent>
+              )}
+            </Tooltip>
+          )}
+          {curatorAbout && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="line-clamp-3 cursor-default text-xs leading-relaxed text-muted-foreground">{curatorAbout}</p>
+              </TooltipTrigger>
+              {curatorAbout.length > 120 && (
+                <TooltipContent side="bottom" className="max-w-[280px] whitespace-pre-wrap text-sm">{curatorAbout}</TooltipContent>
+              )}
+            </Tooltip>
+          )}
+          {curatorInterests.length > 0 && (
+            <div className="flex flex-wrap gap-1.5" aria-label="Curator interests">
+              {curatorInterests.map((interest) => (
+                <Badge key={interest} variant="outline" className="text-[10px]">{interest}</Badge>
+              ))}
+            </div>
+          )}
+          <ProfileLinksRow links={links} />
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -216,28 +190,14 @@ export function SidebarProfileCard({
  */
 export function SidebarProfileCardSkeleton({ className = '' }: { className?: string }) {
   return (
-    <div className={`mx-2 p-4 rounded-lg bg-background border border-border/50 min-h-[156px] ${className}`}>
-      <div className="flex flex-col gap-3">
-        {/* Top row: Avatar left, services top right */}
-        <div className="flex items-start justify-between">
-          <div className="h-14 w-14 rounded-full bg-muted animate-pulse flex-shrink-0" />
-          <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 bg-muted rounded-md animate-pulse" />
-            <div className="w-6 h-6 bg-muted rounded-md animate-pulse" />
-          </div>
-        </div>
-
-        {/* Name + username skeleton - left aligned */}
+    <div className={`mx-2 card-ink overflow-hidden ${className}`}>
+      <div className="aspect-square w-full bg-muted animate-pulse" />
+      <div className="flex items-center justify-between border-t border-border/70 px-4 py-3">
         <div className="space-y-1.5">
-          <div className="h-5 w-28 bg-muted rounded animate-pulse" />
-          <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+          <div className="h-3.5 w-24 bg-muted rounded animate-pulse" />
+          <div className="h-2.5 w-16 bg-muted rounded animate-pulse" />
         </div>
-
-        {/* Bio skeleton - left aligned */}
-        <div className="space-y-1">
-          <div className="h-3 w-full bg-muted rounded animate-pulse" />
-          <div className="h-3 w-3/4 bg-muted rounded animate-pulse" />
-        </div>
+        <div className="h-6 w-6 bg-muted rounded-md animate-pulse" />
       </div>
     </div>
   );

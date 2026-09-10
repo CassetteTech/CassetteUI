@@ -1147,7 +1147,7 @@ export function PaidPromotionIntake({ repeatElementId }: { repeatElementId?: str
                 {/* The attestation is the legally load-bearing control on this
                     page, so it keeps the one heavy border in the flow. */}
                 {attestation && (
-                  <div className="flex items-start gap-3 rounded-lg border-2 border-foreground bg-card p-4">
+                  <div className="flex items-start gap-3 card-ink shadow-none p-4">
                     <input
                       id="paid-promotion-attestation"
                       type="checkbox"
@@ -1175,7 +1175,7 @@ export function PaidPromotionIntake({ repeatElementId }: { repeatElementId?: str
             {isReviewingOrder && !createdCampaignId && resolvedSubject && selectedRateCard && pricing && (
               <div
                 data-testid="paid-promotion-review-panel"
-                className="space-y-4 rounded-lg border-2 border-foreground bg-card p-5 shadow-flat-4"
+                className="space-y-4 card-ink p-5"
               >
                 <div>
                   <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
@@ -1314,7 +1314,7 @@ export function PaidPromotionIntake({ repeatElementId }: { repeatElementId?: str
           <aside
             className="sticky bottom-0 z-30 self-start max-lg:-mx-4 max-lg:mt-2 lg:bottom-auto lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain"
           >
-            <div className="space-y-5 border-border bg-card p-5 max-lg:border-t max-lg:shadow-[0_-4px_16px_hsl(var(--foreground)/0.08)] lg:rounded-lg lg:border">
+            <div className="space-y-5 border-border bg-card p-5 max-lg:border-t max-lg:shadow-[0_-4px_16px_hsl(var(--foreground)/0.08)] lg:card-quiet">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground max-lg:hidden">
                 Your order
               </p>

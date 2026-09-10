@@ -51,9 +51,7 @@ export function PostDescriptionCard({
   return (
     <div
       className={cn(
-        'p-3 sm:p-4 md:p-5 rounded-xl',
-        'border border-border',
-        'bg-card',
+        'p-3 sm:p-4 md:p-5 card-ink',
         className
       )}
     >
@@ -169,9 +167,7 @@ export function PostDescriptionCardSkeleton({ className }: { className?: string 
   return (
     <div
       className={cn(
-        'p-3 sm:p-4 md:p-5 rounded-xl',
-        'border border-border',
-        'bg-card',
+        'p-3 sm:p-4 md:p-5 card-ink',
         className
       )}
     >

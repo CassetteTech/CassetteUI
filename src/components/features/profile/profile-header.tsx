@@ -13,6 +13,9 @@ import { getDisplayPlatformDefinition, isAppleMusicPlatform } from '@/lib/platfo
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
 import { Badge } from '@/components/ui/badge';
 
+/** Organic blob silhouette for the avatar; overrides the primitive's circle. */
+const avatarBlob = { borderRadius: '60% 40% 55% 45% / 55% 45% 55% 45%' } as const;
+
 interface ProfileHeaderProps {
   userBio: UserBio;
   isCurrentUser: boolean;
@@ -76,9 +79,10 @@ export function ProfileHeader({
             <button
               type="button"
               aria-label={`View ${userBio.displayName || userBio.username}'s profile picture`}
-              className="flex-shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:opacity-90 transition-opacity"
+              className="flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:opacity-90 transition-opacity"
+              style={avatarBlob}
             >
-              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 border-2 border-foreground/80">
+              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 border-2 border-foreground/80" style={avatarBlob}>
                 <AvatarImage
                   src={userBio.avatarUrl}
                   alt={`@${userBio.username}`}

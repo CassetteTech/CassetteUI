@@ -16,6 +16,7 @@ import { ProfileActivity, ActivitySkeleton } from '@/components/features/profile
 import { profileService } from '@/services/profile';
 import { applyCachedArtwork } from '@/services/profile-artwork-cache';
 import { ActivityPost } from '@/types';
+import { Button } from '@/components/ui/button';
 import { Container } from '@/components/ui/container';
 import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
@@ -351,12 +352,7 @@ export default function ProfilePage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
           <p className="text-muted-foreground mb-4">You must be logged in to edit your profile</p>
-          <button
-            onClick={() => router.push('/auth/login')}
-            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2 rounded-lg font-medium"
-          >
-            Log In
-          </button>
+          <Button onClick={() => router.push('/auth/login')}>Log in</Button>
         </div>
       </div>
     );
@@ -419,7 +415,7 @@ export default function ProfilePage() {
   // once — a single responsive branch instead of the CSS-split double layout.
   if (isPostsTab && userBio) {
     return (
-      <div className="min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
+      <div className="studio-surface min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
         <div className="bg-background lg:hidden">
           <Container className="bg-transparent p-0">
             <div className="mx-auto max-w-4xl">
@@ -441,7 +437,7 @@ export default function ProfilePage() {
             </div>
           </Container>
         </div>
-        <div className="sticky top-0 z-10 flex items-center border-b bg-background/80 backdrop-blur-sm">
+        <div className="sticky top-0 z-10 flex items-center bg-background/80 backdrop-blur-sm">
           <div className="min-w-0 flex-1">
             <ProfileTabs
               activeTab={activeTab}
@@ -470,7 +466,7 @@ export default function ProfilePage() {
   return (
     <>
       {/* --- MOBILE & TABLET LAYOUT --- */}
-      <div className="bg-background lg:hidden">
+      <div className="studio-surface bg-background lg:hidden">
         <Container className="bg-transparent p-0">
           <div className="max-w-4xl mx-auto">
             {/* Back button — only for other users' profiles */}
@@ -493,7 +489,7 @@ export default function ProfilePage() {
                 curatorPlatforms={curatorInfo?.declaredPlatforms}
               />
             ) : null}
-            <div className="sticky top-0 z-10">
+            <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm">
               <ProfileTabs
                 activeTab={activeTab}
                 onTabChange={filterByElementType}
@@ -529,9 +525,9 @@ export default function ProfilePage() {
       </div>
 
       {/* --- DESKTOP LAYOUT --- */}
-      <div className="hidden lg:flex lg:flex-1 lg:min-h-0">
+      <div className="studio-surface hidden lg:flex lg:flex-1 lg:min-h-0">
         <div className="min-w-0 flex-1 flex flex-col">
-          <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b flex items-center">
+          <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10 flex items-center">
             <div className="flex-1 min-w-0">
               <ProfileTabs
                 activeTab={activeTab}

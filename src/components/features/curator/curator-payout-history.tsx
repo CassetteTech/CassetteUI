@@ -3,7 +3,7 @@
 /** Balance breakdown and transfer history from the curator's earnings ledger.
     Sits beside the payout account card; only shows once payout setup started. */
 
-import { useContext, useMemo } from 'react';
+import { useContext } from 'react';
 import { transferStatus } from '@/components/features/curator/curator-earnings-card';
 import { ReceiptRow, StudioChip, StudioSection, StudioStepsContext, type StudioChipTone } from '@/components/features/curator/studio-shell';
 import { useCuratorLedger } from '@/components/features/curator/use-curator-ledger';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ledgerBalances, type CuratorEarningsHistoryItem } from '@/services/curator-earnings';
+import type { CuratorEarningsHistoryItem } from '@/services/curator-earnings';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
@@ -31,7 +31,7 @@ export function CuratorPayoutHistory({ enabled }: { enabled: boolean }) {
   const views = useContext(StudioStepsContext);
   const query = useCuratorLedger(enabled);
   const ledger = query.data;
-  const balances = useMemo(() => ledger ? ledgerBalances(ledger.items) : null, [ledger]);
+  const balances = ledger?.balances;
   const transfers = ledger?.items.filter((item): item is Transfer => item.kind === 'transfer') ?? [];
 
   return (
@@ -74,11 +74,6 @@ export function CuratorPayoutHistory({ enabled }: { enabled: boolean }) {
             )}
             <ReceiptRow className="py-2.5" label="Paid out" value={money(balances.paidOut, balances.currency)} emphasized />
           </dl>
-          {!ledger.coversWindow && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Figures cover your latest {ledger.items.length} ledger events. Load more to include older ones.
-            </p>
-          )}
 
           <h3 className="mt-7 text-sm font-semibold">Payouts</h3>
           {transfers.length === 0 ? (

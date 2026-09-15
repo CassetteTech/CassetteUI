@@ -473,7 +473,11 @@ test('shows private paginated earnings without Curator Pro', async ({ page }) =>
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProfile,
-    curatorEarnings: { activeMemberCount: 3, items: earningsItems },
+    curatorEarnings: {
+      activeMemberCount: 3, items: earningsItems,
+      balances: { currency: 'USD', earnedThisMonth: 0, accrued: 2053, payable: 0,
+        blocked: 0, paidOut: 900, nextPayableAt: null },
+    },
   });
   const firstPageResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
@@ -511,4 +515,47 @@ test('shows private paginated earnings without Curator Pro', async ({ page }) =>
     { page: 1, pageSize: 10 },
     { page: 2, pageSize: 10 },
   ]);
+});
+
+
+test('shows old outstanding balances even when the chart window is fully loaded', async ({ page }) => {
+  const oldDate = new Date();
+  oldDate.setUTCFullYear(oldDate.getUTCFullYear() - 2);
+  const oldItems: CuratorEarningsHistoryItem[] = Array.from({ length: 51 }, () => ({
+    kind: 'allocation', amountMinor: 1000, currency: 'USD', status: 'blocked',
+    occurredAtUtc: oldDate.toISOString(), payableAtUtc: oldDate.toISOString(),
+  }));
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorProStatus: fixtureCuratorProActiveStatus,
+    curatorPayoutAccount: payoutAccount({ onboardingStatus: 'active', transfersCapabilityStatus: 'active' }),
+    curatorEarnings: {
+      activeMemberCount: 0, items: oldItems,
+      balances: { currency: 'USD', earnedThisMonth: 0, accrued: 0, payable: 0,
+        blocked: 51000, paidOut: 0, nextPayableAt: null },
+    },
+  });
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-payouts');
+  const history = page.locator('#studio-payout-history');
+  await expect(history.getByText('On hold', { exact: true }).locator('..')).toContainText('$510.00');
+  expect(state.curatorEarningsRequests.some((request) => request.page === 2)).toBe(false);
+});
+
+
+test('opens Stripe for payout updates after onboarding is complete', async ({ page }) => {
+  await hostPayoutPage(page);
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorProStatus: fixtureCuratorProActiveStatus,
+    curatorPayoutAccount: payoutAccount({ onboardingStatus: 'active', transfersCapabilityStatus: 'active' }),
+    curatorPayoutOnboardingUrl: PAYOUT_URL,
+  });
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-payouts');
+  await page.getByRole('button', { name: 'Update payout details' }).click();
+  await expect(page).toHaveURL(PAYOUT_URL);
+  expect(state.curatorPayoutOnboardingRequests).toBe(1);
 });

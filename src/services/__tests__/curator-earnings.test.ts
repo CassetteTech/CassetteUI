@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   fetchCuratorEarnings,
-  ledgerBalances,
   parseCuratorEarnings,
   periodSummary,
   type CuratorEarningsHistoryItem,
@@ -12,6 +11,8 @@ import {
 
 const payload = {
   activeMemberCount: 3,
+  balances: { currency: 'USD', earnedThisMonth: 425, accrued: 425, payable: 0,
+    blocked: 1000, paidOut: 900, nextPayableAt: '2026-08-30T12:00:00Z' },
   items: [
     {
       kind: 'allocation',
@@ -61,7 +62,7 @@ void test('loads one authenticated no-store earnings page', async (t) => {
 
   assert.deepEqual(await fetchCuratorEarnings(1, 20, controller.signal), payload);
   assert.deepEqual(calls, [{
-    input: '/api/v1/curators/me/earnings?page=1&pageSize=20',
+    input: '/api/v1/curators/me/earnings?page=1&pageSize=20&includeBalances=true',
     init: {
       cache: 'no-store',
       credentials: 'include',
@@ -88,16 +89,13 @@ const ledger = [
   { kind: 'allocation', amountMinor: 450, currency: 'USD', status: 'transferred', occurredAtUtc: '2026-05-18T12:00:00Z', payableAtUtc: '2026-05-28T12:00:00Z' },
 ] satisfies CuratorEarningsHistoryItem[];
 
-void test('derives balances from the ledger and only counts future clearing dates', () => {
-  const balances = ledgerBalances(ledger, now);
-  assert.equal(balances.earnedThisMonth, 450);
-  assert.equal(balances.accrued, 450);
-  assert.equal(balances.payable, 450);
-  assert.equal(balances.paidOut, 2700);
-  assert.equal(balances.nextPayableAt, '2026-09-28T12:00:00Z');
-  // A payable item whose clearing date has passed is not "next"; an empty ledger has nothing next.
-  assert.equal(ledgerBalances(ledger.slice(2), now).nextPayableAt, null);
-  assert.equal(ledgerBalances([], now).currency, 'USD');
+void test('keeps full balances when the history page omits old earnings', () => {
+  const page = parseCuratorEarnings({ ...payload, items: [], totalItems: 500, page: 10 });
+  assert.equal(page.balances.blocked, 1000);
+  assert.equal(page.balances.paidOut, 900);
+  assert.throws(() => parseCuratorEarnings({
+    ...payload, balances: { ...payload.balances, blocked: -1 },
+  }));
 });
 
 void test('buckets earned and paid out by month and flags incomplete windows', () => {

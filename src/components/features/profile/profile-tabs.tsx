@@ -1,7 +1,10 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback } from 'react';
-import { Globe, Lock } from 'lucide-react';
+/** Profile content tabs in the Curator Studio underline style: Radix tabs, lucide icons, sentence case. */
+
+import { Disc3, FileText, Globe, Heart, ListMusic, Lock, Music, User } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export type TabType = 'posts' | 'playlists' | 'tracks' | 'artists' | 'albums' | 'liked';
 
@@ -12,6 +15,15 @@ interface ProfileTabsProps {
   showLikedTab?: boolean;
   likedTabVisibility?: 'public' | 'private';
 }
+
+const TAB_ICONS = {
+  posts: FileText,
+  playlists: ListMusic,
+  tracks: Music,
+  artists: User,
+  albums: Disc3,
+  liked: Heart,
+} satisfies Record<TabType, LucideIcon>;
 
 export function ProfileTabs({
   activeTab,
@@ -30,77 +42,35 @@ export function ProfileTabs({
   );
   if (showLikedTab) tabs.push({ key: 'liked', label: 'Liked' });
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const tabRefs = useRef<Map<TabType, HTMLButtonElement>>(new Map());
-  const [sliderStyle, setSliderStyle] = useState({ left: 0, width: 0 });
-
-  const updateSlider = useCallback(() => {
-    const activeTabEl = tabRefs.current.get(activeTab);
-    if (activeTabEl) {
-      // offsetLeft is relative to the scroll container's content, so the
-      // slider stays aligned regardless of horizontal scroll position.
-      setSliderStyle({ left: activeTabEl.offsetLeft, width: activeTabEl.offsetWidth });
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    updateSlider();
-    tabRefs.current.get(activeTab)?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
-    window.addEventListener('resize', updateSlider);
-    return () => window.removeEventListener('resize', updateSlider);
-  }, [updateSlider, activeTab]);
-
-  const setTabRef = (key: TabType) => (el: HTMLButtonElement | null) => {
-    if (el) {
-      tabRefs.current.set(key, el);
-    }
-  };
+  const LikedVisibilityIcon = likedTabVisibility === 'private' ? Lock : Globe;
 
   return (
-    <div className="bg-background/95 backdrop-blur-sm px-3 pt-3 sm:px-4 sm:pt-4 lg:px-6 lg:pt-5">
-      <div className="w-full border-b-2 border-border/70 lg:w-fit">
-        <div
-          ref={containerRef}
-          className="tab-scroll-fade relative flex items-center overflow-x-auto"
-        >
-          {/* Sliding underline indicator */}
-          <div
-            className="absolute bottom-0 left-0 h-0.5 w-px origin-left bg-primary transition-transform duration-300 ease-out-quart"
-            style={{
-              transform: `translateX(${sliderStyle.left}px) scaleX(${sliderStyle.width})`,
-            }}
-          />
-
-          {/* Tab buttons */}
-          {tabs.map((tab) => (
-            <button
+    // SAFETY: every trigger value below is a TabType, so Radix only ever reports one.
+    <Tabs value={activeTab} onValueChange={(next) => onTabChange(next as TabType)} className="gap-0 px-3 pt-3 sm:px-4 sm:pt-4 lg:px-6 lg:pt-5">
+      <TabsList
+        aria-label="Profile content"
+        className="tab-scroll-fade -mx-3 flex h-auto w-auto justify-start gap-1 overflow-x-auto rounded-none border-b border-border bg-transparent px-3 py-0 sm:-mx-4 sm:px-4 lg:-mx-6 lg:px-6"
+      >
+        {tabs.map((tab) => {
+          const Icon = TAB_ICONS[tab.key];
+          return (
+            <TabsTrigger
               key={tab.key}
-              ref={setTabRef(tab.key)}
-              onClick={() => onTabChange(tab.key)}
-              className={`
-                relative z-10 shrink-0
-                inline-flex items-center justify-center whitespace-nowrap
-                px-3 lg:px-4 py-2.5
-                font-mono text-[11px] sm:text-xs uppercase tracking-[0.15em]
-                transition-colors duration-200
-                ${activeTab === tab.key
-                  ? 'font-bold text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-                }
-              `}
+              value={tab.key}
+              className="-mb-px h-10 flex-none gap-2 rounded-none border-0 border-b-2 border-transparent px-3 text-sm font-normal text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none"
             >
-              <span className="inline-flex items-center gap-1 sm:gap-1.5">
-                <span>{tab.label}</span>
-                {tab.key === 'liked' && (
-                  likedTabVisibility === 'private'
-                    ? <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                    : <Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                )}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
+              <Icon aria-hidden className="size-4 shrink-0" />
+              {tab.label}
+              {tab.key === 'liked' && (
+                <LikedVisibilityIcon
+                  aria-label={likedTabVisibility === 'private' ? 'Private' : 'Public'}
+                  className="size-3 shrink-0 text-muted-foreground/70"
+                />
+              )}
+            </TabsTrigger>
+          );
+        })}
+      </TabsList>
+    </Tabs>
   );
 }

@@ -1,6 +1,8 @@
 'use client';
 
-import { Music } from 'lucide-react';
+/** Connected platform marks with a live dot, for the sidebar profile card.
+    Platform preferences win over the legacy connected-services list. */
+
 import Image from 'next/image';
 import { useAuthStore } from '@/stores/auth-store';
 import {
@@ -12,7 +14,6 @@ import { PlatformPreferenceInfo } from '@/types';
 import { getDisplayPlatformDefinition } from '@/lib/platforms';
 
 interface MusicConnectionsStatusProps {
-  variant?: 'sidebar' | 'sidebar-enhanced' | 'profile' | 'compact';
   className?: string;
   /** Optional external user's platform preferences (for viewing other profiles) */
   platformPreferencesOverride?: PlatformPreferenceInfo[];
@@ -21,231 +22,54 @@ interface MusicConnectionsStatusProps {
 }
 
 export function MusicConnectionsStatus({
-  variant = 'sidebar',
-  className = "",
+  className = '',
   platformPreferencesOverride,
-  connectedServicesOverride
+  connectedServicesOverride,
 }: MusicConnectionsStatusProps) {
   const { user, isLoading } = useAuthStore();
-  // When override is provided, we have the data - don't use auth store loading state
+  // When an override is provided we already have the data, so the auth store's loading state does not apply.
   const hasOverride = platformPreferencesOverride !== undefined || connectedServicesOverride !== undefined;
 
-  // Get platforms to display - prefer platformPreferences, fall back to connectedServices for backward compatibility
-  let displayPlatforms: Array<{ platform: string; name: string; iconSrc: string }> = [];
+  const types = platformPreferencesOverride?.length
+    ? platformPreferencesOverride.map((pref) => pref.platform)
+    : (connectedServicesOverride ?? user?.connectedServices ?? []).map((service) => service.serviceType);
+  const displayPlatforms = types.flatMap((type) => {
+    const config = getDisplayPlatformDefinition(type);
+    return config ? [{ platform: config.uiKey, name: config.displayName, iconSrc: config.logoSrc }] : [];
+  });
 
-  if (platformPreferencesOverride && platformPreferencesOverride.length > 0) {
-    // Use platform preferences (new system)
-    displayPlatforms = platformPreferencesOverride
-      .map(pref => {
-        const config = getDisplayPlatformDefinition(pref.platform);
-        if (config) {
-          return { platform: config.uiKey, name: config.displayName, iconSrc: config.logoSrc };
-        }
-        return null;
-      })
-      .filter((p): p is NonNullable<typeof p> => p !== null);
-  } else if (connectedServicesOverride && connectedServicesOverride.length > 0) {
-    // Fall back to connected services (legacy)
-    displayPlatforms = connectedServicesOverride
-      .map(service => {
-        const config = getDisplayPlatformDefinition(service.serviceType);
-        if (config) {
-          return { platform: config.uiKey, name: config.displayName, iconSrc: config.logoSrc };
-        }
-        return null;
-      })
-      .filter((p): p is NonNullable<typeof p> => p !== null);
-  } else if (user?.connectedServices) {
-    // Use auth store data
-    displayPlatforms = user.connectedServices
-      .map(service => {
-        const config = getDisplayPlatformDefinition(service.serviceType);
-        if (config) {
-          return { platform: config.uiKey, name: config.displayName, iconSrc: config.logoSrc };
-        }
-        return null;
-      })
-      .filter((p): p is NonNullable<typeof p> => p !== null);
-  }
-
-  const hasConnections = displayPlatforms.length > 0;
-
-  // Only show loading state if we're using auth store data (no override) and it's loading
   if (isLoading && !hasOverride) {
     return (
-      <div className={`${className}`}>
-        {variant === 'sidebar' && (
-          <div className="flex items-center gap-2 p-2">
-            <div className="w-4 h-4 bg-muted rounded animate-pulse"></div>
-            <div className="h-3 bg-muted rounded flex-1 animate-pulse"></div>
-          </div>
-        )}
-        {variant === 'profile' && (
-          <div className="flex items-center gap-3 p-4 bg-muted rounded-lg animate-pulse">
-            <div className="w-8 h-8 bg-muted-foreground/20 rounded"></div>
-            <div className="flex-1">
-              <div className="h-4 bg-muted-foreground/20 rounded mb-1"></div>
-              <div className="h-3 bg-muted-foreground/20 rounded w-2/3"></div>
+      <div className={`flex items-center justify-center gap-2.5 ${className}`}>
+        <div className="w-6 h-6 bg-muted rounded-md animate-pulse" />
+        <div className="w-6 h-6 bg-muted rounded-md animate-pulse" />
+      </div>
+    );
+  }
+
+  if (displayPlatforms.length === 0) return null;
+
+  return (
+    <div className={`flex items-center gap-2.5 ${className}`}>
+      {displayPlatforms.map(platform => (
+        <Tooltip key={platform.platform}>
+          <TooltipTrigger asChild>
+            <div className="relative group cursor-default">
+              <Image
+                src={platform.iconSrc}
+                alt={platform.name}
+                width={24}
+                height={24}
+                className="rounded-md transition-transform group-hover:scale-110"
+              />
+              <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border border-card" />
             </div>
-          </div>
-        )}
-        {variant === 'compact' && (
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-muted rounded animate-pulse"></div>
-            <div className="h-3 bg-muted rounded w-16 animate-pulse"></div>
-          </div>
-        )}
-        {variant === 'sidebar-enhanced' && (
-          <div className="flex items-center justify-center gap-2.5">
-            <div className="w-6 h-6 bg-muted rounded-md animate-pulse"></div>
-            <div className="w-6 h-6 bg-muted rounded-md animate-pulse"></div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Sidebar variant - compact inline display
-  if (variant === 'sidebar') {
-    if (!hasConnections) {
-      return null; // Don't show anything if no connections
-    }
-
-    return (
-      <div className={`flex items-center gap-2 ${className}`}>
-        {displayPlatforms.map(platform => (
-          <div key={platform.platform} className="relative">
-            <Image
-              src={platform.iconSrc}
-              alt={platform.name}
-              width={20}
-              height={20}
-              className="rounded"
-            />
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Sidebar-enhanced variant - larger icons with tooltips for redesigned sidebar
-  if (variant === 'sidebar-enhanced') {
-    // Hide completely if no connections
-    if (!hasConnections) {
-      return null;
-    }
-
-    return (
-      <div className={`flex items-center gap-2.5 ${className}`}>
-        {displayPlatforms.map(platform => (
-          <Tooltip key={platform.platform}>
-            <TooltipTrigger asChild>
-              <div className="relative group cursor-default">
-                <Image
-                  src={platform.iconSrc}
-                  alt={platform.name}
-                  width={24}
-                  height={24}
-                  className="rounded-md transition-transform group-hover:scale-110"
-                />
-                <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border border-card" />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={4}>
-              {platform.name}
-            </TooltipContent>
-          </Tooltip>
-        ))}
-      </div>
-    );
-  }
-
-  // Profile variant - compact card display
-  if (variant === 'profile') {
-    const containerClass = hasConnections
-      ? `card-quiet p-3 ${className}`
-      : `rounded-xl py-2 ${className}`;
-
-    return (
-      <div className={containerClass}>
-        {hasConnections ? (
-          <>
-            {/* Desktop version - with text */}
-            <div className="hidden md:flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                {displayPlatforms.map(platform => (
-                  <Image
-                    key={platform.platform}
-                    src={platform.iconSrc}
-                    alt={platform.name}
-                    width={24}
-                    height={24}
-                    className="rounded-sm"
-                  />
-                ))}
-              </div>
-              <span className="text-sm text-muted-foreground">
-                {displayPlatforms.length === 1 ? displayPlatforms[0].name : 'Connected'}
-              </span>
-            </div>
-
-            {/* Mobile version - only icons */}
-            <div className="flex md:hidden items-center gap-2">
-              {displayPlatforms.map(platform => (
-                <Image
-                  key={platform.platform}
-                  src={platform.iconSrc}
-                  alt={platform.name}
-                  width={28}
-                  height={28}
-                  className="rounded-md"
-                />
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="flex items-center gap-2">
-            <Music className="h-3.5 w-3.5 text-muted-foreground/70" />
-            <span className="text-xs text-muted-foreground/80">No music services connected</span>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Compact variant - inline display
-  if (variant === 'compact') {
-    return (
-      <div className={`flex items-center gap-2 ${className}`}>
-        {hasConnections ? (
-          <>
-            <div className="flex items-center gap-1">
-              {displayPlatforms.map(platform => (
-                <div key={platform.platform} className="relative">
-                  <Image
-                    src={platform.iconSrc}
-                    alt={platform.name}
-                    width={14}
-                    height={14}
-                    className="rounded-sm"
-                  />
-                  <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-success rounded-full"></div>
-                </div>
-              ))}
-            </div>
-            <span className="text-xs text-muted-foreground">
-              {displayPlatforms.length} selected
-            </span>
-          </>
-        ) : (
-          <>
-            <Music className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">No services</span>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  return null;
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={4}>
+            {platform.name}
+          </TooltipContent>
+        </Tooltip>
+      ))}
+    </div>
+  );
 }

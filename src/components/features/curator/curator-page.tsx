@@ -40,6 +40,7 @@ import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { useSubscriberPostEligibility } from '@/hooks/use-curator';
 import { appLogger } from '@/lib/observability/logger';
+import { removeQueryParameters } from '@/utils/remove-query-parameters';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -61,16 +62,6 @@ type MembershipFlow = 'join' | 'return' | 'canceled' | 'portal-return' | null;
 const joinIntentPrefix = 'cassette:membership-join-intent:';
 const joinIntentLifetimeMs = 10 * 60 * 1_000;
 const portalBaselinePrefix = 'cassette:membership-portal-baseline:';
-
-function removeMembershipQuery(...keys: string[]) {
-  const url = new URL(window.location.href);
-  for (const key of keys) url.searchParams.delete(key);
-  window.history.replaceState(
-    window.history.state,
-    '',
-    `${url.pathname}${url.search}${url.hash}`,
-  );
-}
 
 export function PublicCuratorPage({
   username,
@@ -169,7 +160,7 @@ export function PublicCuratorPage({
   }
 
   useEffect(() => {
-    removeMembershipQuery('session_id');
+    removeQueryParameters('session_id');
   }, []);
 
   useEffect(() => {
@@ -214,7 +205,7 @@ export function PublicCuratorPage({
       setPollStatus(false);
       setPollTimedOut(true);
       setNotice('Your membership update is still processing.');
-      removeMembershipQuery('membership', 'interval');
+      removeQueryParameters('membership', 'interval');
     }, 30_000);
     return () => window.clearTimeout(timeout);
   }, [pollStatus]);
@@ -231,7 +222,7 @@ export function PublicCuratorPage({
         setPollStatus(false);
         setActivated(true);
         setNotice('Your membership is active.');
-        removeMembershipQuery('membership', 'interval');
+        removeQueryParameters('membership', 'interval');
         void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
         return;
       }
@@ -239,7 +230,7 @@ export function PublicCuratorPage({
         flowHandled.current = true;
         setPollStatus(false);
         toast.info('Checkout did not activate this membership. You can try again.');
-        removeMembershipQuery('membership', 'interval');
+        removeQueryParameters('membership', 'interval');
       }
       return;
     }
@@ -250,7 +241,7 @@ export function PublicCuratorPage({
     if (!statusQuery.isFetchedAfterMount || statusQuery.isFetching) return;
 
     flowHandled.current = true;
-    removeMembershipQuery('membership', 'interval');
+    removeQueryParameters('membership', 'interval');
     let baseline: { cancelAtPeriodEnd: boolean; canceled: boolean } | null = null;
     if (membership) {
       try {
@@ -308,7 +299,7 @@ export function PublicCuratorPage({
 
   useEffect(() => {
     if (membershipFlow !== 'canceled') return;
-    removeMembershipQuery('membership', 'interval');
+    removeQueryParameters('membership', 'interval');
   }, [membershipFlow]);
 
   useEffect(() => {
@@ -321,7 +312,7 @@ export function PublicCuratorPage({
     ) return;
 
     flowHandled.current = true;
-    removeMembershipQuery('membership', 'interval');
+    removeQueryParameters('membership', 'interval');
     let intentCreatedAt = Number.NaN;
     try {
       const key = `${joinIntentPrefix}${page.membership.planId}:${checkoutInterval}`;

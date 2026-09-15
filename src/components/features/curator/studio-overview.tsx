@@ -26,7 +26,7 @@ import { TaskSteps } from '@/components/interior/task-steps';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import type { CuratorProfile } from '@/services/curator';
-import { ledgerBalances, monthStart, periodSummary } from '@/services/curator-earnings';
+import { monthStart, periodSummary, type CuratorEarningsBalances } from '@/services/curator-earnings';
 import type { CuratorProStatus } from '@/services/curator-pro';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { AnnotatedText } from '@/components/ui/annotated-text';
@@ -53,7 +53,7 @@ const chartConfig: ChartConfig = {
 const axisMoney = (currency: string) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 });
 
-function nextPayout(balances: ReturnType<typeof ledgerBalances>) {
+function nextPayout(balances: CuratorEarningsBalances) {
   if (balances.payable > 0) return { value: 'Ready', hint: 'Sent on your payout schedule' };
   if (balances.nextPayableAt) {
     return { value: dayFormatter.format(new Date(balances.nextPayableAt)), hint: 'When accrued earnings clear' };
@@ -195,7 +195,7 @@ export function StudioOverview({
     () => ledger ? periodSummary(ledger.items, ledger.totalItems, Number(months)) : null,
     [ledger, months],
   );
-  const balances = useMemo(() => ledger ? ledgerBalances(ledger.items) : null, [ledger]);
+  const balances = ledger?.balances;
   const currency = balances?.currency ?? 'USD';
   const axis = useMemo(() => axisMoney(currency), [currency]);
   const setupIncomplete = nextIndex !== -1;
@@ -208,15 +208,15 @@ export function StudioOverview({
         {
           label: 'Earned this month',
           value: money(balances.earnedThisMonth, currency),
-          hint: windowHint ?? `Since ${dayFormatter.format(monthStart(0))}`,
+          hint: `Since ${dayFormatter.format(monthStart(0))}`,
           target: 'studio-earnings',
         },
         {
           label: 'Payable balance',
           value: money(balances.payable, currency),
-          hint: windowHint ?? (balances.accrued > 0
+          hint: balances.accrued > 0
             ? `${money(balances.accrued, currency)} more still accruing`
-            : 'Cleared and waiting to be sent'),
+            : 'Cleared and waiting to be sent',
           target: 'studio-payouts',
         },
         { label: 'Next payout', target: 'studio-payouts', ...nextPayout(balances) },

@@ -117,23 +117,23 @@ test.describe('profile tabs', () => {
     const playlistOverflow = await getProfileContentOverflow(page);
     expect(playlistOverflow.scrollHeight).toBeLessThanOrEqual(playlistOverflow.clientHeight + 1);
 
-    await page.getByRole('button', { name: 'Tracks' }).click();
+    await page.getByRole('tab', { name: 'Tracks' }).click();
     await expect(page).toHaveURL(/\/profile\/miagroove\?tab=tracks$/);
     await expect(page.getByRole('main').last()).toContainText('Signal Fade');
 
-    await page.getByRole('button', { name: 'Albums' }).click();
+    await page.getByRole('tab', { name: 'Albums' }).click();
     await expect(page).toHaveURL(/\/profile\/miagroove\?tab=albums$/);
     await expect(page.getByRole('main').last()).toContainText('Night Engine');
 
-    await page.getByRole('button', { name: 'Artists' }).click();
+    await page.getByRole('tab', { name: 'Artists' }).click();
     await expect(page).toHaveURL(/\/profile\/miagroove\?tab=artists$/);
     await expect(page.getByRole('main').last()).toContainText('Circuit Bloom');
 
-    await page.getByRole('button', { name: 'Playlists' }).click();
+    await page.getByRole('tab', { name: 'Playlists' }).click();
     await expect(page).toHaveURL(/\/profile\/miagroove\?tab=playlists$/);
     await expect(page.getByRole('main').last()).toContainText('Night Tape');
 
-    await page.getByRole('button', { name: /Liked/ }).click();
+    await page.getByRole('tab', { name: /Liked/ }).click();
     await expect(page).toHaveURL(/\/profile\/miagroove\?tab=liked$/);
     await expect(page.getByRole('main').last()).toContainText('No liked posts yet');
   });

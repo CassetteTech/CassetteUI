@@ -1,5 +1,5 @@
 /** Parses and requests the curator's paginated membership earnings ledger view,
-    and derives the balance and period figures the Studio shows from it. */
+    and derives the period figures the Studio shows from it. */
 
 import { z } from 'zod';
 import { CuratorPageError } from './curator';
@@ -30,6 +30,15 @@ const transferSchema = z.object({
 
 const curatorEarningsSchema = z.object({
   activeMemberCount: int32Schema,
+  balances: z.object({
+    currency: currencySchema,
+    earnedThisMonth: moneyMinorSchema,
+    accrued: moneyMinorSchema,
+    payable: moneyMinorSchema,
+    blocked: moneyMinorSchema,
+    paidOut: moneyMinorSchema,
+    nextPayableAt: timestampSchema.nullable(),
+  }).strict(),
   items: z.array(z.discriminatedUnion('kind', [allocationSchema, transferSchema])).max(50),
   totalItems: int32Schema,
   page: pageSchema,
@@ -41,6 +50,7 @@ const curatorEarningsSchema = z.object({
 });
 
 export type CuratorEarnings = z.infer<typeof curatorEarningsSchema>;
+export type CuratorEarningsBalances = CuratorEarnings['balances'];
 export type CuratorEarningsHistoryItem = CuratorEarnings['items'][number];
 
 // oxlint-disable-next-line anti-slop/no-unknown-parameters
@@ -56,6 +66,7 @@ export async function fetchCuratorEarnings(
   const query = new URLSearchParams({
     page: String(pagination.page),
     pageSize: String(pagination.pageSize),
+    includeBalances: 'true',
   });
   const response = await fetch(`/api/v1/curators/me/earnings?${query}`, {
     cache: 'no-store',
@@ -80,30 +91,6 @@ const earned = (item: CuratorEarningsHistoryItem): item is Allocation =>
   item.kind === 'allocation' && item.status !== 'forfeited' && item.status !== 'reversed';
 const paidOut = (item: CuratorEarningsHistoryItem) => item.kind === 'transfer' && item.status === 'succeeded';
 const sum = (items: CuratorEarningsHistoryItem[]) => items.reduce((total, item) => total + item.amountMinor, 0);
-
-/** Balance figures from a newest-first ledger slice, in minor units.
-    `currency` falls back to USD on an empty ledger. */
-export function ledgerBalances(items: CuratorEarningsHistoryItem[], now = new Date()) {
-  const thisMonth = monthStart(0, now);
-  const allocations = items.filter(earned);
-  // Earliest future clearing date among earnings still accruing.
-  const nextPayableAt = allocations.reduce<string | null>(
-    (earliest, item) => item.status === 'accrued' && new Date(item.payableAtUtc) >= now &&
-      (earliest === null || new Date(item.payableAtUtc) < new Date(earliest))
-      ? item.payableAtUtc
-      : earliest,
-    null,
-  );
-  return {
-    currency: items[0]?.currency ?? 'USD',
-    earnedThisMonth: sum(allocations.filter((item) => new Date(item.occurredAtUtc) >= thisMonth)),
-    accrued: sum(allocations.filter((item) => item.status === 'accrued')),
-    payable: sum(allocations.filter((item) => item.status === 'payable')),
-    blocked: sum(allocations.filter((item) => item.status === 'blocked')),
-    paidOut: sum(items.filter(paidOut)),
-    nextPayableAt,
-  };
-}
 
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
 const monthKey = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;

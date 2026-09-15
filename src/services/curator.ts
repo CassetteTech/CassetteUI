@@ -20,7 +20,7 @@ const curatorPayoutAccountSchema = z.object({
 
 const curatorPayoutOnboardingSchema = z.object({
   onboardingUrl: httpsUrlSchema,
-  expiresAtUtc: timestamp,
+  expiresAtUtc: timestamp.nullable(),
   account: curatorPayoutAccountSchema,
   correlationId: correlationIdSchema,
 }).strict().transform(({ correlationId: _correlationId, ...onboarding }) => onboarding);

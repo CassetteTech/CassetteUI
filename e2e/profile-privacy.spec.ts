@@ -16,7 +16,7 @@ test('keeps the liked tab available to the profile owner even when it is private
 
   await page.goto('/profile/miagroove?tab=liked');
   await expect(page).toHaveURL(/\/profile\/miagroove\?tab=liked$/);
-  await expect(page.getByRole('button', { name: /Liked/ })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Liked/ })).toBeVisible();
 });
 
 test('hides the liked tab from other viewers when the profile owner marks it private', async ({
@@ -29,5 +29,5 @@ test('hides the liked tab from other viewers when the profile owner marks it pri
 
   await page.goto('/profile/miagroove?tab=liked');
   await expect(page).toHaveURL(/\/profile\/miagroove\?tab=playlists$/);
-  await expect(page.getByRole('button', { name: /Liked/ })).toHaveCount(0);
+  await expect(page.getByRole('tab', { name: /Liked/ })).toHaveCount(0);
 });

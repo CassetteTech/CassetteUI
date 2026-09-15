@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
+import { CoralGlow } from '@/components/ui/coral-glow';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
 import type { UserBio, AuthUser, ConnectedService, AccountType, PlatformPreferenceInfo } from '@/types';
@@ -109,7 +110,7 @@ export function SidebarProfileCard({
   // carries the name and handle with the service marks where the album dots
   // would sit, and the bio copy hangs below.
   return (
-    <article className={`mx-2 card-ink overflow-hidden ${className}`}>
+    <CoralGlow className={`mx-2 card-ink overflow-hidden ${className}`}>
       <AvatarPreviewDialog
         avatarUrl={avatarUrl}
         username={user.username}
@@ -136,13 +137,18 @@ export function SidebarProfileCard({
             <p className="truncate text-sm font-semibold leading-tight text-foreground">{displayName}</p>
             <VerificationBadge accountType={getAccountType(user)} size="sm" />
           </div>
-          <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
             @{user.username}
-            {(totalLikesReceived ?? 0) > 0 && ` · ${(totalLikesReceived ?? 0).toLocaleString()} ${totalLikesReceived === 1 ? 'like' : 'likes'}`}
+            {(totalLikesReceived ?? 0) > 0 && (
+              <>
+                {' · '}
+                <span className="font-semibold text-foreground tabular-nums">{(totalLikesReceived ?? 0).toLocaleString()}</span>
+                {totalLikesReceived === 1 ? ' like' : ' likes'}
+              </>
+            )}
           </p>
         </div>
         <MusicConnectionsStatus
-          variant="sidebar-enhanced"
           className="shrink-0"
           platformPreferencesOverride={platformPreferences}
           connectedServicesOverride={connectedServices}
@@ -181,7 +187,7 @@ export function SidebarProfileCard({
           <ProfileLinksRow links={links} />
         </div>
       )}
-    </article>
+    </CoralGlow>
   );
 }
 

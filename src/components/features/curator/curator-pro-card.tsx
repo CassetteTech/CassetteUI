@@ -17,6 +17,7 @@ import {
   type StudioChipTone,
 } from '@/components/features/curator/studio-shell';
 import { Button } from '@/components/ui/button';
+import { removeQueryParameters } from '@/utils/remove-query-parameters';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 type ProFlow = 'return' | 'portal-return' | null;
@@ -37,16 +38,6 @@ const dateFormatter = new Intl.DateTimeFormat(priceLocale, {
   dateStyle: 'medium',
   timeZone: 'UTC',
 });
-
-function removeQuery(...keys: string[]) {
-  const url = new URL(window.location.href);
-  for (const key of keys) url.searchParams.delete(key);
-  window.history.replaceState(
-    window.history.state,
-    '',
-    `${url.pathname}${url.search}${url.hash}`,
-  );
-}
 
 function readPortalBaseline(userId: string): PortalBaseline | null {
   const key = `${portalBaselinePrefix}${userId}`;
@@ -174,18 +165,18 @@ export function CuratorProCard() {
     flowHandled.current = true;
     setFlow(null);
     setNotice(message);
-    removeQuery('pro', 'session_id');
+    removeQueryParameters('pro', 'session_id');
   }, []);
 
   useEffect(() => {
     if (flowInitialized.current) return;
 
     const requestedFlow = new URL(window.location.href).searchParams.get('pro');
-    removeQuery('session_id');
+    removeQueryParameters('session_id');
     if (requestedFlow === 'canceled') {
       flowInitialized.current = true;
       setNotice('Checkout was canceled. You were not charged.');
-      removeQuery('pro');
+      removeQueryParameters('pro');
       return;
     }
     if (requestedFlow !== 'return' && requestedFlow !== 'portal-return') {

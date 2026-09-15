@@ -66,7 +66,7 @@ type MockCassetteOptions = {
   internalCurators?: InternalCurator[];
   internalPricingPolicies?: PricingPolicy[];
   internalPricingAssignments?: PricingAssignment[];
-  curatorEarnings?: Pick<CuratorEarnings, 'activeMemberCount' | 'items'>;
+  curatorEarnings?: Pick<CuratorEarnings, 'activeMemberCount' | 'balances' | 'items'>;
   curatorPage?: CuratorPage;
   curatorPayoutAccount?: CuratorPayoutAccount | null;
   curatorPayoutRefreshAccount?: CuratorPayoutAccount;
@@ -163,7 +163,7 @@ type MockState = {
   internalPricingPolicyCreateRequests: PricingPolicyRequest[];
   internalPricingPolicyDefaultRequests: string[];
   internalPricingAssignmentRequests: PricingAssignmentRequest[];
-  curatorEarnings: Pick<CuratorEarnings, 'activeMemberCount' | 'items'>;
+  curatorEarnings: Pick<CuratorEarnings, 'activeMemberCount' | 'balances' | 'items'>;
   curatorEarningsRequests: Array<{ page: number; pageSize: number }>;
   curatorPage?: CuratorPage;
   curatorPayoutAccount: CuratorPayoutAccount | null;
@@ -598,7 +598,7 @@ const buildState = (options: MockCassetteOptions): MockState => {
     internalPricingPolicyCreateRequests: [],
     internalPricingPolicyDefaultRequests: [],
     internalPricingAssignmentRequests: [],
-    curatorEarnings: clone(options.curatorEarnings || { activeMemberCount: 0, items: [] }),
+    curatorEarnings: clone(options.curatorEarnings || { activeMemberCount: 0, items: [], balances: { currency: 'USD', earnedThisMonth: 0, accrued: 0, payable: 0, blocked: 0, paidOut: 0, nextPayableAt: null } }),
     curatorEarningsRequests: [],
     curatorPage,
     curatorPayoutAccount: options.curatorPayoutAccount
@@ -961,6 +961,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       state.curatorEarningsRequests.push({ page: requestedPage, pageSize: requestedPageSize });
       return json(route, {
         activeMemberCount: state.curatorEarnings.activeMemberCount,
+        balances: url.searchParams.get('includeBalances') === 'true' ? state.curatorEarnings.balances : undefined,
         items: state.curatorEarnings.items.slice(offset, offset + requestedPageSize),
         totalItems: state.curatorEarnings.items.length,
         page: requestedPage,
@@ -1144,7 +1145,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       };
       return json(route, {
         onboardingUrl: state.curatorPayoutOnboardingUrl,
-        expiresAtUtc: '2026-08-16T13:00:00Z',
+        expiresAtUtc: state.curatorPayoutAccount?.onboardingStatus === 'active' ? null : '2026-08-16T13:00:00Z',
         account: state.curatorPayoutAccount,
       });
     }

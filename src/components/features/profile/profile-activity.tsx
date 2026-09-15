@@ -85,11 +85,9 @@ export function ProfileActivity({
       <div className="lg:h-full">
         <div className="flex flex-col items-center justify-center p-4 sm:p-8 md:p-12 text-center h-full">
           <div className="w-full max-w-sm">
-            <div className="border-t-2 border-dashed border-foreground/20 py-5">
-              <p className="font-mono text-xs font-bold uppercase tracking-[0.25em] text-foreground">
-                {title}
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+            <div className="rounded-xl border border-dashed border-border/70 px-5 py-6">
+              <p className="text-lg font-semibold leading-tight tracking-tight">{title}</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
             </div>
           </div>
         </div>
@@ -99,8 +97,8 @@ export function ProfileActivity({
 
   return (
     <div>
-      <div className="p-3 sm:p-4 md:p-6 lg:p-8">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+      <div className="p-3 sm:p-4 lg:p-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {posts.map((post) => (
             <ActivityPostItem
               key={post.postId}
@@ -120,14 +118,9 @@ export function ProfileActivity({
         
         {hasMore && onLoadMore && (
           <div className="flex justify-center mt-6">
-            <button
-              type="button"
-              onClick={onLoadMore}
-              disabled={isLoading}
-              className="rounded-md border border-border bg-transparent px-6 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-            >
-              {isLoading ? 'Loading…' : 'Load more +'}
-            </button>
+            <Button type="button" variant="outline" onClick={onLoadMore} disabled={isLoading}>
+              {isLoading ? 'Loading…' : 'Load more'}
+            </Button>
           </div>
         )}
       </div>
@@ -287,7 +280,7 @@ function ActivityPostItem({
       >
       {isAlbum ? (
       /* Gallery wall: the album cover hangs matted in a frame with a museum caption. */
-      <Card className="group relative w-full max-w-sm gap-0 sm:gap-0 p-3 sm:p-3 font-atkinson transition-shadow duration-200 hover:border-foreground/30">
+      <Card quiet className="group relative w-full max-w-sm gap-0 sm:gap-0 p-3 sm:p-3 font-atkinson transition-colors duration-200 hover:bg-muted/40">
         <Link href={getNavigationPath(post)} prefetch={false} className="block">
           <div className="border border-border/60 bg-muted/40 p-3">
             <div className="relative aspect-[4/5] overflow-hidden bg-muted">
@@ -325,7 +318,7 @@ function ActivityPostItem({
         </Link>
       </Card>
       ) : (
-      <Card className="group relative gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden font-atkinson transition-shadow duration-200 hover:border-foreground/30">
+      <Card quiet className="group relative gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden font-atkinson transition-colors duration-200 hover:bg-muted/40">
         {/* prefetch={false}: viewport prefetch runs /post/[id] generateMetadata on the
             server, bursting one Bridge GetPost per visible card (see 2026-07-08 prod
             latency investigation). Cards navigate fine without route prefetch. */}
@@ -433,7 +426,7 @@ export function ActivitySkeleton({ count = 3 }: { count?: number }) {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
       {Array.from({ length: count }).map((_, index) => (
-        <Card key={index} className="gap-0 sm:gap-0 p-0 sm:p-0">
+        <Card key={index} quiet className="gap-0 sm:gap-0 p-0 sm:p-0">
           <div className="flex gap-3 sm:gap-4 items-start px-3 sm:px-4 py-3 animate-pulse">
             <div className="w-24 h-24 sm:w-28 sm:h-28 bg-muted/50 rounded-md flex-shrink-0" />
             <div className="flex-1 min-w-0 space-y-2">

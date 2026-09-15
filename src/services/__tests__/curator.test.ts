@@ -261,6 +261,7 @@ void test('parses payout status and secure onboarding without provider identifie
     correlationId: '55555555-5555-4555-8555-555555555555',
   });
   assert.equal(onboarding.onboardingUrl, 'https://connect.stripe.test/setup');
+  assert.equal(parseCuratorPayoutOnboarding({ ...onboarding, expiresAtUtc: null }).expiresAtUtc, null);
   assert.throws(() => parseCuratorPayoutOnboarding({
     onboardingUrl: 'http://connect.stripe.test/setup',
     expiresAtUtc: '2026-08-16T13:00:00Z',

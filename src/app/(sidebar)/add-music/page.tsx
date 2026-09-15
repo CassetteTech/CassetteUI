@@ -5,6 +5,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { UrlBar } from '@/components/ui/url-bar';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { StudioChip } from '@/components/features/curator/studio-shell';
 import { Music2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTopCharts, useMusicSearch, useMusicLinkConversion } from '@/hooks/use-music';
@@ -175,9 +178,9 @@ const AddMusicForm = ({
         }
       >
         {!isSearchActive && (
-          <label htmlFor="add-music-search-input" className="block font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2 animate-in fade-in duration-300">
+          <Label htmlFor="add-music-search-input" className="mb-2 animate-in fade-in duration-300">
             Music link or search
-          </label>
+          </Label>
         )}
 
         {/* Converting: kicker + headline narrate above the beamed card */}
@@ -242,13 +245,13 @@ const AddMusicForm = ({
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15, ease: 'easeOut' }}
               >
-                {/* Selected Item Display — swaps to beam-friendly chrome while
-                    converting, mirroring UrlBar's beamActive treatment */}
+                {/* Selected Item Display — a tilted ticket that straightens while
+                    converting so the beam's clip matches the card's corners */}
                 <ConversionBeam active={isConverting}>
-                <div className={`p-4 card-quiet transition-[border-color,box-shadow] duration-300 ${
+                <div className={`card-ink p-4 transition-[transform,box-shadow] duration-300 ${
                   isConverting
-                    ? 'border-border/70 shadow-[0_2px_6px_rgba(0,0,0,0.05),0_4px_42px_rgba(0,0,0,0.06)]'
-                    : 'border-border elev-2'
+                    ? 'shadow-[0_2px_6px_rgba(0,0,0,0.05),0_4px_42px_rgba(0,0,0,0.06)]'
+                    : '-rotate-1 elev-soft'
                 }`}>
                   <div className="flex items-center gap-3">
                     {selectedItem.coverArtUrl ? (
@@ -270,9 +273,7 @@ const AddMusicForm = ({
                       {isConverting ? (
                         <ConversionStageLabel label={conversionStageLabel} className="mt-1 block" />
                       ) : (
-                        <span className="mt-1 inline-block rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-primary">
-                          {selectedItem.type}
-                        </span>
+                        <StudioChip tone="positive" className="mt-1.5 capitalize">{selectedItem.type}</StudioChip>
                       )}
                     </div>
                     <button onClick={clearSelection} disabled={isConverting} aria-label="Clear selection" className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:pointer-events-none disabled:opacity-40">
@@ -292,10 +293,10 @@ const AddMusicForm = ({
               >
                 {/* Pasted Link Display */}
                 <ConversionBeam active={isConverting}>
-                <div className={`p-4 card-quiet transition-[border-color,box-shadow] duration-300 ${
+                <div className={`card-ink p-4 transition-[transform,box-shadow] duration-300 ${
                   isConverting
-                    ? 'border-border/70 shadow-[0_2px_6px_rgba(0,0,0,0.05),0_4px_42px_rgba(0,0,0,0.06)]'
-                    : 'border-border elev-2'
+                    ? 'shadow-[0_2px_6px_rgba(0,0,0,0.05),0_4px_42px_rgba(0,0,0,0.06)]'
+                    : '-rotate-1 elev-soft'
                 }`}>
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 shrink-0 bg-success/10 rounded-full flex items-center justify-center">
@@ -362,9 +363,7 @@ const AddMusicForm = ({
       <div className={`transition-opacity duration-500 ${isConverting ? 'opacity-25 pointer-events-none select-none' : ''}`}>
         {/* Description Field */}
         <div className="mb-4 sm:mb-6 md:mb-8">
-          <label htmlFor="add-music-description" className="block font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
-            Description
-          </label>
+          <Label htmlFor="add-music-description" className="mb-2">Description</Label>
           <textarea
             id="add-music-description"
             value={description}
@@ -379,9 +378,7 @@ const AddMusicForm = ({
         </div>
 
         <div className="mb-4 sm:mb-6 md:mb-8">
-          <label htmlFor="add-music-privacy" className="block font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
-            Post visibility
-          </label>
+          <Label htmlFor="add-music-privacy" className="mb-2">Post visibility</Label>
           <select
             id="add-music-privacy"
             value={privacy}
@@ -404,15 +401,16 @@ const AddMusicForm = ({
 
         {/* Add to Profile Button */}
         <div className="text-center">
-          <button
+          <Button
             type="button"
+            size="lg"
             onClick={handleAddToProfile}
             disabled={isConverting || (!selectedItem && !musicUrl.trim())}
             data-testid="add-music-submit"
-            className="inline-flex h-12 w-full max-w-[280px] items-center justify-center rounded-md bg-primary px-8 font-mono text-xs font-bold uppercase tracking-[0.2em] text-primary-foreground elev-2 transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="h-12 w-full max-w-[280px]"
           >
-            {isConverting ? 'Adding to your profile…' : 'Add to Profile'}
-          </button>
+            {isConverting ? 'Adding to your profile…' : 'Add to profile'}
+          </Button>
 
           {errorMessage && (
             <p className="mt-4 text-destructive font-atkinson text-sm">{errorMessage}</p>
@@ -874,7 +872,7 @@ export default function AddMusicPage() {
     <>
       {/* Mobile Layout */}
       <div className="lg:hidden">
-        <div className="min-h-screen relative bg-background">
+        <div className="studio-surface min-h-screen relative bg-background">
           {/* Subtle dotted paper — same texture as Explore */}
           <div
             aria-hidden
@@ -958,7 +956,7 @@ export default function AddMusicPage() {
       </div>
 
       {/* Desktop Layout - content only (sidebar handled by parent layout) */}
-      <div className="hidden lg:flex lg:flex-col lg:h-screen lg:overflow-hidden p-6 relative bg-background">
+      <div className="studio-surface hidden lg:flex lg:flex-col lg:h-screen lg:overflow-hidden p-6 relative bg-background">
         {/* Subtle dotted paper — same texture as Explore */}
         <div
           aria-hidden
@@ -973,7 +971,7 @@ export default function AddMusicPage() {
           {/* Header */}
           <div className={`text-center mb-8 transition-opacity duration-500 ${isConverting ? 'opacity-25 pointer-events-none select-none' : ''}`}>
             <h1 className="font-teko text-5xl font-bold uppercase leading-none tracking-tight text-foreground mb-2">Add Music</h1>
-            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Search or paste a link to add music to your profile</p>
+            <p className="text-sm text-muted-foreground">Search or paste a link to add music to your profile</p>
           </div>
 
           {/* Add Music Form */}

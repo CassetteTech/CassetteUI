@@ -17,6 +17,7 @@ import {
   startCuratorPayoutOnboarding,
   type CuratorPayoutAccount,
 } from '@/services/curator';
+import { removeQueryParameters } from '@/utils/remove-query-parameters';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 type PayoutFlow = 'checking' | 'status' | 'return';
@@ -26,16 +27,6 @@ const checkedAtFormatter = new Intl.DateTimeFormat('en-US', {
   timeStyle: 'short',
   timeZone: 'UTC',
 });
-
-function removePayoutQuery() {
-  const url = new URL(window.location.href);
-  url.searchParams.delete('payout');
-  window.history.replaceState(
-    window.history.state,
-    '',
-    `${url.pathname}${url.search}${url.hash}`,
-  );
-}
 
 function needsAttention(account: CuratorPayoutAccount) {
   return account.onboardingStatus === 'restricted' || account.requirementsDue;
@@ -96,7 +87,7 @@ export function CuratorPayoutCard() {
     const requestedFlow = new URL(window.location.href).searchParams.get('payout');
     if (requestedFlow === 'refresh') {
       setLinkExpired(true);
-      removePayoutQuery();
+      removeQueryParameters('payout');
       setFlow('status');
       return;
     }
@@ -107,7 +98,7 @@ export function CuratorPayoutCard() {
     if (flow !== 'return' || !status.isSuccess || returnHandled.current) return;
     returnHandled.current = true;
     queryClient.setQueryData(['curator-payout-account', 'current'], status.data ?? null);
-    removePayoutQuery();
+    removeQueryParameters('payout');
   }, [flow, queryClient, status.data, status.isSuccess]);
 
   const account = status.data ?? null;
@@ -189,30 +180,16 @@ export function CuratorPayoutCard() {
               </p>
             )}
 
-            {payoutsActive ? (
-              // Bridge only exposes the onboarding-link endpoint; Stripe hosted
-              // onboarding also serves as the update surface for active accounts.
-              <Button
-                type="button"
-                variant="outline"
-                data-testid="curator-payout-onboarding"
-                className="w-full sm:w-auto"
-                disabled={onboardingBusy}
-                onClick={() => onboarding.mutate()}
-              >
-                {onboardingBusy ? 'Opening…' : 'Update payout details'}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                data-testid="curator-payout-onboarding"
-                className="w-full sm:w-auto"
-                disabled={onboardingBusy}
-                onClick={() => onboarding.mutate()}
-              >
-                {onboardingBusy ? 'Opening…' : actionLabel}
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant={payoutsActive ? 'outline' : 'default'}
+              data-testid="curator-payout-onboarding"
+              className="w-full sm:w-auto"
+              disabled={onboardingBusy}
+              onClick={() => onboarding.mutate()}
+            >
+              {onboardingBusy ? 'Opening…' : payoutsActive ? 'Update payout details' : actionLabel}
+            </Button>
           </>
         )}
       </div>

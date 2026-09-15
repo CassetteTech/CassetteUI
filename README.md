@@ -59,6 +59,9 @@ npm run test:e2e
 TypeScript 7 is the project's only TypeScript compiler. The pinned Next.js 16
 canary uses its TypeScript CLI integration during production builds, while linting
 uses Oxlint's TypeScript Go engine instead of the legacy JavaScript compiler API.
+`npm run lint:anti-slop` runs the same lint checks, including all 15 anti-slop
+rules in `tools/oxlint/anti-slop`. Violations fail the command. To check one file,
+run `npm run lint:anti-slop -- path/to/file.ts`.
 The targeted Sentry override opts its documented Next 16 peer into this explicit
 Next prerelease; do not replace it with a broad peer-dependency bypass.
 Run `npm run test:analytics` for analytics changes and targeted Playwright specs

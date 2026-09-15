@@ -27,7 +27,6 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   timeStyle: 'short',
   timeZone: 'UTC',
 });
-const dayFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
 const allocationStatus = {
   accrued: 'Accrued',
   payable: 'Ready for payout',
@@ -64,11 +63,9 @@ export function eventTitle(item: CuratorEarningsHistoryItem) {
   return 'New member earning';
 }
 
-/** `compact` drops the time, the earned line, and the eligibility note for overview lists. */
-export function HistoryItem({ item, compact = false }: { item: CuratorEarningsHistoryItem; compact?: boolean }) {
-  const showPayableAt = !compact && item.kind === 'allocation' &&
+export function HistoryItem({ item }: { item: CuratorEarningsHistoryItem }) {
+  const showPayableAt = item.kind === 'allocation' &&
     item.status !== 'transferred' && item.status !== 'forfeited' && item.status !== 'reversed';
-  const when = compact ? dayFormatter : dateFormatter;
   const KindIcon = item.kind === 'allocation' ? HandCoins : Banknote;
   const outgoing = item.kind === 'transfer' || item.status === 'forfeited' || item.status === 'reversed';
   const amount = formatPaidPromotionMinorAmount(item.amountMinor, item.currency, 'en-US');
@@ -82,7 +79,7 @@ export function HistoryItem({ item, compact = false }: { item: CuratorEarningsHi
         </span>
         <div className="min-w-0">
           <p className="truncate font-medium leading-tight">{eventTitle(item)}</p>
-          {!compact && item.kind === 'allocation' && item.status === 'accrued' && (
+          {item.kind === 'allocation' && item.status === 'accrued' && (
             <p className="mt-0.5 text-xs text-muted-foreground">You earned {amount}</p>
           )}
           {showPayableAt && (
@@ -94,7 +91,7 @@ export function HistoryItem({ item, compact = false }: { item: CuratorEarningsHi
         </div>
       </div>
       <p className="pl-10 text-xs text-muted-foreground sm:pl-0 sm:text-sm">
-        <time dateTime={item.occurredAtUtc}>{when.format(new Date(item.occurredAtUtc))}</time>
+        <time dateTime={item.occurredAtUtc}>{dateFormatter.format(new Date(item.occurredAtUtc))}</time>
       </p>
       <div className="pl-10 sm:pl-0 sm:text-right">
         <p className={cn('font-mono font-semibold tabular-nums', outgoing && 'text-muted-foreground')}>

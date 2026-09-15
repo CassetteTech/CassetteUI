@@ -173,7 +173,10 @@ function MyMemberships() {
         </div>
         {query.data && query.data.length > 0 && (
           <div className="text-sm text-muted-foreground sm:text-right">
-            <p className="tabular-nums">{activeCount} active of {query.data.length}</p>
+            <p className="flex items-baseline gap-1.5 sm:justify-end">
+              <span className="font-teko text-4xl font-bold leading-none tabular-nums text-foreground">{activeCount}</span>
+              <span className="text-xs">active of {query.data.length}</span>
+            </p>
             {spend && (
               <p className="mt-1">
                 Renewing spend{' '}

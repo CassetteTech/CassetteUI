@@ -1,5 +1,8 @@
 'use client';
 
+/** Profile settings: one responsive column of sections. The sidebar shell
+    scrolls on desktop; the document scrolls on phones. */
+
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
@@ -8,16 +11,16 @@ import { EditProfileSkeleton } from '@/components/features/profile/edit-profile-
 import { MusicConnectionsFlow } from '@/components/features/music/music-connections-flow';
 import { profileService } from '@/services/profile';
 import { UserBio } from '@/types';
-import { Container } from '@/components/ui/container';
 import { BackButton } from '@/components/ui/back-button';
 import { appLogger } from '@/lib/observability/logger';
 import { EmailPreferencesSettings } from '@/components/features/profile/email-preferences-settings';
+import { StudioSection } from '@/components/features/curator/studio-shell';
 
 export default function EditProfilePage() {
   const { username } = useParams();
   const router = useRouter();
   const { user } = useAuthState();
-  
+
   const [userBio, setUserBio] = useState<UserBio | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +43,7 @@ export default function EditProfilePage() {
         const userIdToFetch = isEditRoute ? user.id : userIdentifier;
 
         // Check if the current user can edit this profile
-        const canEdit = user.id === userIdToFetch || 
+        const canEdit = user.id === userIdToFetch ||
                        user.username?.toLowerCase() === userIdToFetch?.toLowerCase() ||
                        isEditRoute;
 
@@ -76,142 +79,59 @@ export default function EditProfilePage() {
   // Show skeleton while loading, actual content when ready
   const showSkeleton = isLoading && !userBio;
 
-  if (error) {
+  if (error || (!isLoading && !userBio)) {
     return (
-      <>
-        {/* Mobile Error */}
-        <div className="bg-background lg:hidden">
-          <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
-              <p className="text-muted-foreground mb-4">{error}</p>
-              <BackButton variant="button" fallbackRoute="/" />
-            </div>
-          </Container>
+      <div className="flex min-h-[60vh] flex-1 items-center justify-center px-6">
+        <div className="text-center">
+          <h1 className="mb-4 text-2xl font-bold text-foreground">{error ? 'Error' : 'Profile Not Found'}</h1>
+          <p className="mb-4 text-muted-foreground">
+            {error ?? 'The profile you’re trying to edit doesn’t exist.'}
+          </p>
+          <BackButton variant="button" fallbackRoute="/" />
         </div>
-
-        {/* Desktop Error - sidebar provided by layout */}
-        <div className="hidden lg:flex items-center justify-center flex-1">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <BackButton variant="button" fallbackRoute="/" />
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  // Show "not found" only after loading completes
-  if (!isLoading && !userBio) {
-    return (
-      <>
-        {/* Mobile Not Found */}
-        <div className="bg-background lg:hidden">
-          <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-foreground mb-4">Profile Not Found</h1>
-              <p className="text-muted-foreground mb-4">The profile you&apos;re trying to edit doesn&apos;t exist.</p>
-              <BackButton variant="button" fallbackRoute="/" />
-            </div>
-          </Container>
-        </div>
-
-        {/* Desktop Not Found - sidebar provided by layout */}
-        <div className="hidden lg:flex items-center justify-center flex-1">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-4">Profile Not Found</h1>
-            <p className="text-muted-foreground mb-4">The profile you&apos;re trying to edit doesn&apos;t exist.</p>
-            <BackButton variant="button" fallbackRoute="/" />
-          </div>
-        </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
-      {/* Mobile Layout */}
-      <div className="bg-background lg:hidden">
-        <Container className="min-h-screen bg-transparent p-0">
-          <div className="py-4 sm:py-6 md:py-8 px-4">
-            {/* Back to profile */}
-            <div className="mb-4">
-              <BackButton route={`/profile/${user?.username || userIdentifier}`} />
-            </div>
-            {showSkeleton ? (
-              <EditProfileSkeleton />
-            ) : userBio ? (
+    <div className="studio-surface mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 lg:py-10">
+      <div className="mb-4 lg:hidden">
+        <BackButton route={`/profile/${user?.username || userIdentifier}`} />
+      </div>
+      {showSkeleton ? (
+        <EditProfileSkeleton />
+      ) : userBio ? (
+        <>
+          <header className="mb-6">
+            <p className="text-sm text-muted-foreground">Profile settings</p>
+            <h1 className="mt-1 font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">
+              Edit profile
+            </h1>
+            <p className="mt-2 max-w-prose text-sm text-muted-foreground">
+              What visitors see on your public page, plus your email and connected services.
+            </p>
+          </header>
+          <EditProfileFormComponent
+            initialData={userBio}
+            onSuccess={handleSuccess}
+            onCancel={handleCancel}
+            footerContent={
               <>
-                {/* Header */}
-                <div className="max-w-lg mx-auto mb-4 sm:mb-6 px-4 sm:px-6">
-                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                    Profile settings
-                  </p>
-                  <h1 className="mt-1.5 font-teko text-4xl sm:text-5xl font-bold uppercase leading-none tracking-tight text-foreground">
-                    Edit profile
-                  </h1>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Update your profile information and connected services.
-                  </p>
-                </div>
-
-                {/* Edit Form */}
-                <EditProfileFormComponent
-                  initialData={userBio}
-                  onSuccess={handleSuccess}
-                  onCancel={handleCancel}
-                  footerContent={
-                    <>
-                      <EmailPreferencesSettings />
-                      <div className="mt-6 sm:mt-8">
-                        <MusicConnectionsFlow />
-                      </div>
-                    </>
-                  }
-                />
-              </>
-            ) : null}
-          </div>
-        </Container>
-      </div>
-
-      {/* Desktop Layout - sidebar provided by layout */}
-      <div className="hidden lg:flex lg:flex-col lg:flex-1 p-6 overflow-y-auto">
-        {showSkeleton ? (
-          <EditProfileSkeleton />
-        ) : userBio ? (
-          <>
-            {/* Header */}
-            <div className="max-w-lg mx-auto mb-6 px-4 sm:px-6 w-full">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                Profile settings
-              </p>
-              <h1 className="mt-1.5 font-teko text-5xl font-bold uppercase leading-none tracking-tight text-foreground">
-                Edit profile
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Update your profile information and connected services.
-              </p>
-            </div>
-
-            {/* Edit Form */}
-            <EditProfileFormComponent
-              initialData={userBio}
-              onSuccess={handleSuccess}
-              onCancel={handleCancel}
-              footerContent={
-                <>
+                <StudioSection
+                  id="profile-email"
+                  eyebrow="Account"
+                  title="Email"
+                  headingId="profile-email-title"
+                  description="Which Cassette emails reach your account address."
+                >
                   <EmailPreferencesSettings />
-                  <div className="mt-8">
-                    <MusicConnectionsFlow />
-                  </div>
-                </>
-              }
-            />
-          </>
-        ) : null}
-      </div>
-    </>
+                </StudioSection>
+                <MusicConnectionsFlow className="mt-6" />
+              </>
+            }
+          />
+        </>
+      ) : null}
+    </div>
   );
 }

@@ -1,5 +1,8 @@
 'use client';
 
+/** Profile settings form: photo, identity, links, privacy, account, and the
+    danger zone as Studio-style sections, with one sticky save bar. */
+
 import { useState, useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,8 +12,11 @@ import { profileService } from '@/services/profile';
 import { authService } from '@/services/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { useInvalidateProfileQueries } from '@/hooks/use-profile';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { TextField } from '@/components/ui/text-field';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { StudioChip, StudioSection } from '@/components/features/curator/studio-shell';
 import { DeleteAccountModal } from './delete-account-modal';
 import { AlertTriangle, Globe2, Lock, Plus, X } from 'lucide-react';
 import { AvatarCropDialog } from '@/components/shared/avatar-crop-dialog';
@@ -62,17 +68,9 @@ const editProfileSchema = z.object({
 type EditProfileForm = z.infer<typeof editProfileSchema>;
 type UsernameAvailabilityStatus = 'idle' | 'checking' | 'available' | 'taken' | 'error';
 
-// Mono annotation label — the form's editorial voice; shared TextField keeps its
-// own label style for auth flows, so fields here pass `id` and label locally.
-function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: React.ReactNode }) {
-  return (
-    <label
-      htmlFor={htmlFor}
-      className="block font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1.5"
-    >
-      {children}
-    </label>
-  );
+/** Field error line, linked to its control through aria-describedby. */
+function FieldError({ id, children }: { id: string; children: React.ReactNode }) {
+  return <p id={id} role="alert" className="text-xs text-destructive">{children}</p>;
 }
 
 interface EditProfileFormProps {
@@ -82,9 +80,9 @@ interface EditProfileFormProps {
   footerContent?: React.ReactNode;
 }
 
-export function EditProfileFormComponent({ 
-  initialData, 
-  onSuccess, 
+export function EditProfileFormComponent({
+  initialData,
+  onSuccess,
   onCancel,
   footerContent,
 }: EditProfileFormProps) {
@@ -237,6 +235,7 @@ export function EditProfileFormComponent({
         avatarUrl: avatarFile ? undefined : data.avatarUrl,
         avatarFile,
         likedPostsPrivacy: data.likedPostsPrivacy,
+        // SAFETY: the null check above returned early, so every entry is a string.
         profileLinks: normalizedLinks as string[],
       });
 
@@ -246,8 +245,8 @@ export function EditProfileFormComponent({
         useAuthStore.getState().setUser(updatedUser);
       }
 
-      if (initialData?.id) invalidateBio(initialData.id);
-      if (initialData?.username) invalidateBio(initialData.username);
+      if (initialData?.id) void invalidateBio(initialData.id);
+      if (initialData?.username) void invalidateBio(initialData.username);
 
       onSuccess(normalizedUsername);
     } catch (error) {
@@ -296,92 +295,116 @@ export function EditProfileFormComponent({
 
 
   const bioValue = watch('bio') || '';
+  const fullNameError = errors.fullName?.message;
+  const usernameFieldError = errors.username?.message || usernameError || undefined;
+  const bioError = errors.bio?.message;
+  const usernameChip = usernameStatus === 'checking'
+    ? <StudioChip tone="neutral">Checking…</StudioChip>
+    : usernameStatus === 'available'
+      ? <StudioChip tone="positive">Available</StudioChip>
+      : null;
 
   return (
-    <div className="max-w-lg mx-auto p-4 sm:p-6 w-full">
+    <div className="w-full">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Avatar */}
-        <FileDropField
-          className="pb-5 border-b border-border/70"
-          dropLabel="Drop a new photo here"
-          browseLabel="Change photo"
-          browseTestId="profile-avatar-choose"
-          hint="JPEG, PNG, or WebP. Max 5MB."
-          error={avatarError}
-          onFile={handleAvatarFile}
-          inputProps={{ accept: 'image/jpeg,image/png,image/webp', 'data-testid': 'profile-avatar-file-input' }}
-          preview={
-            <Avatar className="w-16 h-16 border border-border">
-              <AvatarImage src={activeAvatarUrl} alt="Profile" />
-              <AvatarFallback className="text-lg">
-                {(initialData?.displayName || initialData?.username || 'P').slice(0, 1).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          }
-        />
+        <StudioSection
+          id="profile-photo"
+          eyebrow="Profile"
+          title="Photo"
+          headingId="profile-photo-title"
+          description="Shown on your page, your posts, and comments."
+        >
+          <FileDropField
+            dropLabel="Drop a photo here"
+            browseLabel="Choose photo"
+            replaceLabel="Replace photo"
+            browseTestId="profile-avatar-choose"
+            hint="JPEG, PNG, or WebP up to 5 MB. You can crop it before it uploads."
+            error={avatarError}
+            onFile={handleAvatarFile}
+            inputProps={{ accept: 'image/jpeg,image/png,image/webp', 'data-testid': 'profile-avatar-file-input' }}
+            previewUrl={activeAvatarUrl || null}
+            previewAlt="Your current profile photo"
+          />
+        </StudioSection>
 
-        {/* Identity */}
-        <div className="space-y-4">
-          <div className="w-full">
-            <FieldLabel htmlFor="profile-full-name">Full name</FieldLabel>
-            <TextField
-              id="profile-full-name"
-              {...register('fullName')}
-              maxLength={MAX_DISPLAY_NAME_LENGTH}
-              error={errors.fullName?.message}
-              className="w-full bg-field text-foreground"
-            />
-          </div>
-
-          <div className="w-full">
-            <FieldLabel htmlFor="profile-username">Username</FieldLabel>
-            <TextField
-              id="profile-username"
-              {...register('username')}
-              maxLength={MAX_USERNAME_LENGTH}
-              error={errors.username?.message || usernameError || undefined}
-              className="w-full bg-field text-foreground"
-            />
-            {(usernameStatus === 'checking' || usernameStatus === 'available') && (
-              <p className="mt-1 text-xs text-muted-foreground" aria-live="polite">
-                {usernameStatus === 'checking' ? 'Checking availability…' : 'Username is available.'}
-              </p>
-            )}
-          </div>
-
-          <div className="w-full">
-            <div className="flex items-baseline justify-between">
-              <FieldLabel htmlFor="profile-bio">Bio</FieldLabel>
-              <span className="font-mono text-[10px] tracking-[0.15em] text-muted-foreground">
-                {bioValue.length}/{MAX_BIO_LENGTH}
-              </span>
+        <StudioSection
+          id="profile-identity"
+          eyebrow="Profile"
+          title="Identity"
+          headingId="profile-identity-title"
+          description="Your name and handle appear on every post. The bio sits under your photo."
+        >
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="profile-full-name">Full name</Label>
+              <Input
+                id="profile-full-name"
+                {...register('fullName')}
+                maxLength={MAX_DISPLAY_NAME_LENGTH}
+                autoComplete="name"
+                aria-invalid={fullNameError ? true : undefined}
+                aria-describedby={fullNameError ? 'profile-full-name-error' : undefined}
+              />
+              {fullNameError && <FieldError id="profile-full-name-error">{fullNameError}</FieldError>}
             </div>
-            <textarea
-              id="profile-bio"
-              {...register('bio')}
-              rows={3}
-              maxLength={MAX_BIO_LENGTH}
-              className="w-full rounded-md border border-border bg-field px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-none"
-              placeholder="Tell us about yourself"
-            />
-            {errors.bio && (
-              <p className="mt-1 text-xs text-destructive">{errors.bio.message}</p>
-            )}
-          </div>
-        </div>
 
-        {/* Links */}
-        <div className="w-full border-t border-border/70 pt-5">
-          <div className="flex items-baseline justify-between">
-            <FieldLabel>Links</FieldLabel>
-            <span className="font-mono text-[10px] tracking-[0.15em] text-muted-foreground">
-              {links.length}/{MAX_PROFILE_LINKS}
-            </span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="profile-username">Username</Label>
+                <span aria-live="polite">{usernameChip}</span>
+              </div>
+              <Input
+                id="profile-username"
+                {...register('username')}
+                maxLength={MAX_USERNAME_LENGTH}
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                className="font-mono"
+                aria-invalid={usernameFieldError ? true : undefined}
+                aria-describedby={usernameFieldError ? 'profile-username-error profile-username-help' : 'profile-username-help'}
+              />
+              {usernameFieldError && <FieldError id="profile-username-error">{usernameFieldError}</FieldError>}
+              <p id="profile-username-help" className="text-xs text-muted-foreground">
+                Letters, numbers, and underscores. Your page lives at cassette.tech/profile/your-username.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-3">
+                <Label htmlFor="profile-bio">Bio</Label>
+                <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                  {bioValue.length}/{MAX_BIO_LENGTH}
+                </span>
+              </div>
+              <Textarea
+                id="profile-bio"
+                {...register('bio')}
+                rows={3}
+                maxLength={MAX_BIO_LENGTH}
+                className="resize-none"
+                placeholder="Tell us about yourself"
+                aria-invalid={bioError ? true : undefined}
+                aria-describedby={bioError ? 'profile-bio-error' : undefined}
+              />
+              {bioError && <FieldError id="profile-bio-error">{bioError}</FieldError>}
+            </div>
           </div>
-          <div className="space-y-2">
+        </StudioSection>
+
+        <StudioSection
+          id="profile-links"
+          eyebrow="Profile"
+          title="Links"
+          headingId="profile-links-title"
+          description="Instagram, TikTok, Spotify, or anywhere else. Shown on your page and your curator card."
+          chip={<span className="font-mono text-xs tabular-nums text-muted-foreground">{links.length}/{MAX_PROFILE_LINKS}</span>}
+        >
+          <div className="space-y-3">
             {links.map((link, index) => (
               <div key={index} className="flex items-center gap-2">
-                <input
+                <Input
                   type="url"
                   value={link}
                   onChange={(e) => {
@@ -392,110 +415,114 @@ export function EditProfileFormComponent({
                   maxLength={MAX_PROFILE_LINK_LENGTH}
                   placeholder="https://instagram.com/yourname"
                   aria-label={`Link ${index + 1}`}
-                  className="flex-1 min-w-0 rounded-md border border-border bg-field px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  aria-describedby={linksError ? 'profile-links-error' : undefined}
+                  className="min-w-0 flex-1"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setLinks(links.filter((_, i) => i !== index))}
                   aria-label={`Remove link ${index + 1}`}
-                  className="shrink-0 p-2 text-muted-foreground hover:text-destructive transition-colors"
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
                 >
-                  <X className="h-4 w-4" />
-                </button>
+                  <X aria-hidden />
+                </Button>
               </div>
             ))}
+            {links.length === 0 && (
+              <p className="text-sm text-muted-foreground">No links yet.</p>
+            )}
+            {links.length < MAX_PROFILE_LINKS && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setLinks([...links, ''])}>
+                <Plus aria-hidden />
+                Add link
+              </Button>
+            )}
+            {linksError && <FieldError id="profile-links-error">{linksError}</FieldError>}
           </div>
-          {links.length < MAX_PROFILE_LINKS && (
-            <button
-              type="button"
-              onClick={() => setLinks([...links, ''])}
-              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-foreground border border-border rounded-md px-3 py-1.5 hover:bg-muted transition-colors"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add link
-            </button>
-          )}
-          {linksError && (
-            <p className="mt-1.5 text-xs text-destructive" role="alert">{linksError}</p>
-          )}
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            Shown on your profile and curator card — Instagram, TikTok, Spotify, or anywhere else.
-          </p>
-        </div>
+        </StudioSection>
 
-        {/* Privacy */}
-        <div className="w-full border-t border-border/70 pt-5">
-          <FieldLabel>Liked posts visibility</FieldLabel>
-          <div className="grid grid-cols-2 gap-2" role="radiogroup">
-            {[
-              { value: 'public', label: 'Public', Icon: Globe2 },
-              { value: 'private', label: 'Private', Icon: Lock },
-            ].map(({ value, label, Icon }) => (
-              <label
-                key={value}
-                className="relative flex cursor-pointer items-center justify-center gap-2 rounded-md border border-border bg-field px-3 py-2 text-sm text-foreground hover:border-foreground/40 has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:checked]:text-primary transition-colors"
+        <StudioSection
+          id="profile-privacy"
+          eyebrow="Profile"
+          title="Privacy"
+          headingId="profile-privacy-title"
+          description="Controls whether other users can see your Liked tab."
+        >
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium">Liked posts visibility</legend>
+            <div className="grid max-w-sm grid-cols-2 gap-2">
+              {[
+                { value: 'public', label: 'Public', Icon: Globe2 },
+                { value: 'private', label: 'Private', Icon: Lock },
+              ].map(({ value, label, Icon }) => (
+                <label
+                  key={value}
+                  className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm transition-colors hover:border-foreground/40 has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:checked]:font-semibold has-[:checked]:text-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2"
+                >
+                  <input
+                    type="radio"
+                    value={value}
+                    {...register('likedPostsPrivacy')}
+                    className="sr-only"
+                  />
+                  <Icon aria-hidden className="size-4" />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </StudioSection>
+
+        {/* Save bar: sticks to the bottom so the action stays in reach of every section. */}
+        <div className="sticky bottom-0 z-10 -mx-4 border-t border-border/70 bg-background/85 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            {saveError ? (
+              <p className="text-sm text-destructive" role="alert">{saveError}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Changes show on your page as soon as you save.</p>
+            )}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onCancel} className="flex-1 sm:flex-none">
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isLoading || usernameStatus === 'checking' || usernameStatus === 'taken'}
+                data-testid="profile-save"
+                className="flex-1 sm:flex-none"
               >
-                <input
-                  type="radio"
-                  value={value}
-                  {...register('likedPostsPrivacy')}
-                  className="sr-only"
-                />
-                <Icon className="h-3.5 w-3.5" />
-                <span className="font-medium">{label}</span>
-              </label>
-            ))}
-          </div>
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            Controls whether other users can see your Liked tab.
-          </p>
-        </div>
-
-        {/* Actions */}
-        <div className="flex flex-col gap-3 border-t border-border/70 pt-5">
-          {saveError && (
-            <p className="text-sm text-destructive" role="alert">
-              {saveError}
-            </p>
-          )}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="flex-1 rounded-md border border-border bg-transparent px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading || usernameStatus === 'checking' || usernameStatus === 'taken'}
-              data-testid="profile-save"
-              className="flex-1 rounded-md bg-primary px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-primary-foreground elev-1 transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Saving…' : 'Save'}
-            </button>
+                {isLoading ? 'Saving…' : 'Save'}
+              </Button>
+            </div>
           </div>
         </div>
 
         {footerContent}
 
-        {/* Danger Zone */}
-        <div className="mt-8 pt-6 border-t border-border/70">
-          <h3 className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-destructive mb-1.5">
-            Danger zone
-          </h3>
-          <p className="text-xs text-muted-foreground mb-3">
+        <section
+          aria-labelledby="profile-danger-title"
+          className="rounded-lg border border-destructive/40 px-5 py-4 sm:px-6"
+        >
+          <p className="text-xs text-destructive">Danger zone</p>
+          <h2 id="profile-danger-title" className="mt-0.5 text-lg font-semibold leading-tight tracking-tight">
+            Delete account
+          </h2>
+          <p className="mt-1.5 max-w-prose text-sm text-muted-foreground">
             Permanently delete your account and all associated data. This cannot be undone.
           </p>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setShowDeleteModal(true)}
-            className="inline-flex items-center gap-1.5 border border-destructive/50 text-destructive py-1.5 px-3 rounded-md text-sm font-medium hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
+            className="mt-4 border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
           >
-            <AlertTriangle className="h-3.5 w-3.5" />
+            <AlertTriangle aria-hidden />
             Delete account
-          </button>
-        </div>
+          </Button>
+        </section>
       </form>
 
       <DeleteAccountModal

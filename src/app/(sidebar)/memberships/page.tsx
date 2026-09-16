@@ -1,19 +1,19 @@
 'use client';
 
-/** Lists the signed-in fan's own memberships at their retained prices, with curator and billing links. */
+/** The fan's memberships as wallet passes: a hub for reaching their curators, with billing tucked behind a disclosure. */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
+import { ChevronDown } from 'lucide-react';
 import { RequireAuth } from '@/components/auth/RequireAuth';
-import { StudioChip, type StudioChipTone } from '@/components/features/curator/studio-shell';
-import { DitherAvatar } from '@/components/dither-kit/avatar';
-import { MembershipReceipt } from '@/components/features/membership/membership-receipt';
+import { WalletPass } from '@/components/features/curator/wallet-pass';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuthState } from '@/hooks/use-auth';
+import { useSharedPosition } from '@/hooks/use-shared-position';
 import { apiService } from '@/services/api';
 import {
   describeMembershipBilling,
@@ -26,50 +26,34 @@ import {
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { cn } from '@/lib/utils';
 
-type StandingChip = { label: string; tone: StudioChipTone };
-
-/** Cassette red; the pattern still varies per curator, the color stays on brand. */
-const brandHue = 350;
-
-/** A membership renews when it is in good standing and no cancellation is scheduled. */
-const renews = (membership: MembershipSubscription) =>
-  (membership.status === 'active' || membership.status === 'trialing') && !membership.cancelAtPeriodEnd;
-
-/** Monthly spend across renewing memberships, in minor units; null when nothing renews.
-    ponytail: sums in the first membership's currency; group per currency if fans ever pay in more than one. */
-function monthlySpend(entries: MyMembership[]) {
-  const renewing = entries.filter(({ membership }) => renews(membership));
-  if (renewing.length === 0) return null;
-  const total = renewing.reduce((sum, { membership }) =>
-    sum + (membership.billingInterval === 'year' ? membership.totalAmountMinor / 12 : membership.totalAmountMinor), 0);
-  return { amountMinor: Math.round(total), currency: renewing[0].membership.currency };
-}
-
-function standingChip(membership: MembershipSubscription): StandingChip {
+/** Short state printed on the pass head. */
+function tier(membership: MembershipSubscription) {
   switch (membership.status) {
     case 'past_due':
     case 'unpaid':
-      return { label: 'Payment needed', tone: 'danger' };
+      return 'Payment needed';
     case 'paused':
-      return { label: 'Paused', tone: 'warning' };
+      return 'Paused';
     case 'canceled':
-      return { label: 'Canceled', tone: 'neutral' };
+      return 'Canceled';
     default:
-      if (membership.cancelAtPeriodEnd) return { label: 'Ending', tone: 'warning' };
-      return grantsMembershipAccess(membership.status)
-        ? { label: 'Active', tone: 'positive' }
-        : { label: 'Pending', tone: 'neutral' };
+      if (membership.cancelAtPeriodEnd) return 'Ending';
+      return grantsMembershipAccess(membership.status) ? 'Member' : 'Pending';
   }
 }
 
-function MembershipRow({ entry }: { entry: MyMembership }) {
+function MembershipPass({ entry }: { entry: MyMembership }) {
   const [portalPending, setPortalPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { membership } = entry;
   const standing = describeMembershipStanding(membership);
-  const chip = standingChip(membership);
   const paymentProblem = membership.status === 'past_due' || membership.status === 'unpaid';
   const curatorName = entry.curatorDisplayName.trim() || entry.curatorUsername;
+  const money = (minor: number) => formatPaidPromotionMinorAmount(minor, membership.currency);
+  const end = membership.paidThroughUtc ? formatMembershipDate(membership.paidThroughUtc) : null;
+  // The same key on the curator's profile pass lets this card slide into the rail on navigation, and back.
+  const passRef = useRef<HTMLDivElement>(null);
+  useSharedPosition(passRef, `membership-pass:${entry.curatorUsername}`);
 
   async function manage() {
     setPortalPending(true);
@@ -84,67 +68,68 @@ function MembershipRow({ entry }: { entry: MyMembership }) {
   }
 
   return (
-    <article
+    <WalletPass
+      ref={passRef}
       data-testid="my-membership"
-      className={cn(
-        'flex flex-col gap-4 card-ink p-4 sm:flex-row sm:items-start sm:p-5',
-        membership.status === 'canceled' && 'opacity-80',
-      )}
+      className={cn(membership.status === 'canceled' && 'opacity-80')}
+      product="Membership"
+      tier={tier(membership)}
+      holderName={curatorName}
+      holderHandle={entry.curatorUsername}
+      holderHref={`/profile/${encodeURIComponent(entry.curatorUsername)}`}
+      // Canceled passes lose the brand head; every other state is still a live pass.
+      active={membership.status !== 'canceled'}
+      validityLabel={!end ? 'Status' : membership.status === 'canceled' ? 'Ended' : membership.cancelAtPeriodEnd ? 'Ends' : 'Renews'}
+      validityValue={end ?? tier(membership)}
     >
-      {/* Curators have no avatar in this payload; a name-seeded dither mark stays stable per curator. */}
-      <DitherAvatar name={entry.curatorUsername} hue={brandHue} size={44} className="shrink-0 rounded-lg" />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <Link
-            href={`/profile/${encodeURIComponent(entry.curatorUsername)}`}
-            className="break-words text-base font-semibold leading-tight underline-offset-4 hover:underline"
-          >
-            {curatorName}
-          </Link>
-          <StudioChip tone={chip.tone}>{chip.label}</StudioChip>
-        </div>
-        <p className="mt-1 text-sm tabular-nums text-muted-foreground" data-testid="my-membership-billing">
+      {/* Standing is status, not money: a scheduled end or a failed payment reads without opening anything. */}
+      {standing && (
+        <p
+          className={cn('text-sm', paymentProblem ? 'font-medium text-destructive' : 'text-muted-foreground')}
+          data-testid="my-membership-standing"
+        >
+          {standing}
+        </p>
+      )}
+      {/* Billing stays folded so the pass reads as the curator, not the charge; a payment problem unfolds it. */}
+      <details className={cn('group relative z-20', standing && 'mt-3')} open={paymentProblem || undefined}>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 py-1 text-sm text-muted-foreground [&::-webkit-details-marker]:hidden">
+          Billing
+          <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
+        </summary>
+        <dl className="mt-2 space-y-1 text-sm tabular-nums text-muted-foreground">
+          <div className="flex justify-between gap-3">
+            <dt>Membership</dt>
+            <dd>{money(membership.faceAmountMinor)}</dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt>Service fee</dt>
+            <dd>{money(membership.serviceFeeMinor)}</dd>
+          </div>
+        </dl>
+        <p className="mt-2 text-sm tabular-nums text-muted-foreground" data-testid="my-membership-billing">
           {describeMembershipBilling(membership)}
         </p>
-        <MembershipReceipt
-          className="mt-4 max-w-xs"
-          title={curatorName}
-          meta={renews(membership) && membership.paidThroughUtc
-            ? `Next charge ${formatMembershipDate(membership.paidThroughUtc)}`
-            : undefined}
-          faceAmountMinor={membership.faceAmountMinor}
-          serviceFeeMinor={membership.serviceFeeMinor}
-          currency={membership.currency}
-          interval={membership.billingInterval}
-        />
-        {standing && (
-          <p
-            className={cn('mt-2 text-sm', paymentProblem ? 'text-destructive' : 'text-muted-foreground')}
-            data-testid="my-membership-standing"
-          >
-            {standing}
-          </p>
-        )}
         {error && <p className="mt-2 text-sm text-destructive" role="alert">{error}</p>}
-      </div>
-      {membership.canManage && (
-        <Button
-          variant={paymentProblem ? 'default' : 'outline'}
-          size="sm"
-          className="w-full shrink-0 sm:w-auto"
-          onClick={() => void manage()}
-          disabled={portalPending}
-          data-testid="my-membership-manage"
-        >
-          {portalPending ? (
-            <>
-              <Spinner size="sm" />
-              Opening billing settings…
-            </>
-          ) : paymentProblem ? 'Update payment method' : 'Manage membership'}
-        </Button>
-      )}
-    </article>
+        {membership.canManage && (
+          <Button
+            variant={paymentProblem ? 'default' : 'outline'}
+            size="sm"
+            className="mt-3 w-full"
+            onClick={() => void manage()}
+            disabled={portalPending}
+            data-testid="my-membership-manage"
+          >
+            {portalPending ? (
+              <>
+                <Spinner size="sm" />
+                Opening billing settings…
+              </>
+            ) : paymentProblem ? 'Update payment method' : 'Manage membership'}
+          </Button>
+        )}
+      </details>
+    </WalletPass>
   );
 }
 
@@ -158,7 +143,6 @@ function MyMemberships() {
     retry: 1,
   });
   const activeCount = query.data?.filter((entry) => grantsMembershipAccess(entry.membership.status)).length ?? 0;
-  const spend = query.data ? monthlySpend(query.data) : null;
 
   return (
     <div className="studio-surface mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:py-10">
@@ -168,43 +152,31 @@ function MyMemberships() {
             My memberships
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            The price shown is what you pay for each membership. Tax is added where it applies.
+            The curators you support. Open a pass to visit their page.
           </p>
         </div>
         {query.data && query.data.length > 0 && (
-          <div className="text-sm text-muted-foreground sm:text-right">
-            <p className="flex items-baseline gap-1.5 sm:justify-end">
-              <span className="font-teko text-4xl font-bold leading-none tabular-nums text-foreground">{activeCount}</span>
-              <span className="text-xs">active of {query.data.length}</span>
-            </p>
-            {spend && (
-              <p className="mt-1">
-                Renewing spend{' '}
-                <span className="font-mono tabular-nums text-foreground">
-                  {formatPaidPromotionMinorAmount(spend.amountMinor, spend.currency)}/month
-                  {' · '}
-                  {formatPaidPromotionMinorAmount(spend.amountMinor * 12, spend.currency)}/year
-                </span>
-              </p>
-            )}
-          </div>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-teko text-3xl font-bold leading-none tabular-nums text-foreground">{activeCount}</span>
+            {' '}active of {query.data.length}
+          </p>
         )}
       </header>
-      <div className="mt-6 grid gap-3">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 sm:items-start">
         {query.isPending ? (
           <>
             <output className="sr-only">Loading memberships…</output>
-            <Skeleton className="h-24 w-full rounded-xl" aria-hidden />
-            <Skeleton className="h-24 w-full rounded-xl" aria-hidden />
+            <Skeleton className="h-52 w-full rounded-lg" aria-hidden />
+            <Skeleton className="h-52 w-full rounded-lg" aria-hidden />
           </>
         ) : query.isError ? (
-          <Empty>
+          <Empty className="sm:col-span-2">
             <EmptyTitle>Could not load memberships</EmptyTitle>
             <EmptyDescription>Try again in a moment.</EmptyDescription>
             <Button onClick={() => void query.refetch()} className="mt-3">Try again</Button>
           </Empty>
         ) : query.data.length === 0 ? (
-          <Empty data-testid="my-memberships-empty">
+          <Empty className="sm:col-span-2" data-testid="my-memberships-empty">
             <EmptyTitle>No memberships yet</EmptyTitle>
             <EmptyDescription>
               Join a curator to unlock members-only posts. Your memberships will show up here.
@@ -215,7 +187,7 @@ function MyMemberships() {
           </Empty>
         ) : (
           query.data.map((entry) => (
-            <MembershipRow key={entry.membership.membershipSubscriptionId} entry={entry} />
+            <MembershipPass key={entry.membership.membershipSubscriptionId} entry={entry} />
           ))
         )}
       </div>

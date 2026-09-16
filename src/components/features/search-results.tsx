@@ -6,6 +6,7 @@ import { Track, Album, Artist, Playlist } from '@/types';
 import { rankSearchResults, RankedItem } from '@/utils/search-ranking';
 import { Spinner } from '@/components/ui/spinner';
 import { appLogger } from '@/lib/observability/logger';
+import { cn } from '@/lib/utils';
 
 interface SearchResultsProps {
   results?: {
@@ -21,6 +22,8 @@ interface SearchResultsProps {
   onSelectItem: (url: string, title: string, type: string) => void;
   onClose: () => void;
   SkeletonComponent?: React.ComponentType<{ className?: string }>;
+  /** Overrides the root inset so the panel can sit flush with the bar above it. */
+  className?: string;
   /**
    * Card treatment. `retro` keeps the offset-shadow brutalist card for
    * standalone placements; `flat` drops to a hairline border and defers
@@ -40,6 +43,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   onClose,
   SkeletonComponent,
   chrome = 'retro',
+  className,
 }) => {
   // Combine all results into a single array with intelligent ranking
   const allResults = React.useMemo(() => {
@@ -163,7 +167,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
       data-testid="search-results"
       // force-light: the results panel keeps its light-mode (white) surface in
       // dark mode, matching the search bar it hangs from.
-      className="force-light w-full max-w-4xl mx-auto px-3 sm:px-6 md:px-4 mb-4 sm:mb-8 animate-in fade-in duration-200"
+      className={cn('force-light w-full max-w-4xl mx-auto px-3 sm:px-6 md:px-4 mb-4 sm:mb-8 animate-in fade-in duration-200', className)}
     >
       {/* Search Results Container with retro shadow effect */}
       <div className="relative">

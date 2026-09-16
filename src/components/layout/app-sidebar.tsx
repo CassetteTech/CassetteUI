@@ -38,7 +38,7 @@ import {
 } from './navigation-config';
 
 // Interleaved sidebar ordering across primary + account groups.
-const SIDEBAR_NAV_ORDER = ['profile', 'add-music', 'memberships', 'curator-studio', 'internal'] as const;
+const SIDEBAR_NAV_ORDER = ['profile', 'curator-studio', 'add-music', 'memberships', 'internal'] as const;
 // Pages outside the sidebar shell; shown in the footer with an exit marker.
 const SIDEBAR_EXIT_ORDER = ['explore', 'promote'] as const;
 

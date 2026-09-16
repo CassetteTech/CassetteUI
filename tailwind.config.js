@@ -189,20 +189,27 @@ module.exports = {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(100%)" },
         },
-        // Radix Collapsible open/close — animate to the measured content height.
+        // Radix Collapsible open/close — animate to the measured content height
+        // with the accordion recipe's cross-fade and blur.
         "collapsible-down": {
-          from: { height: "0" },
-          to: { height: "var(--radix-collapsible-content-height)" },
+          from: { height: "0", opacity: "0", filter: "blur(2px)" },
+          to: { height: "var(--radix-collapsible-content-height)", opacity: "1", filter: "blur(0)" },
         },
         "collapsible-up": {
-          from: { height: "var(--radix-collapsible-content-height)" },
-          to: { height: "0" },
+          from: { height: "var(--radix-collapsible-content-height)", opacity: "1", filter: "blur(0)" },
+          to: { height: "0", opacity: "0", filter: "blur(2px)" },
+        },
+        // Loaded content replacing a skeleton: fade in and un-blur in place.
+        reveal: {
+          from: { opacity: "0", filter: "blur(2px)" },
+          to: { opacity: "1", filter: "blur(0)" },
         },
       },
       animation: {
         shimmer: "shimmer 2s infinite",
-        "collapsible-down": "collapsible-down 200ms ease-out",
-        "collapsible-up": "collapsible-up 200ms ease-out",
+        "collapsible-down": "collapsible-down 250ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "collapsible-up": "collapsible-up 250ms cubic-bezier(0.22, 1, 0.36, 1)",
+        reveal: "reveal 400ms ease-in-out",
       },
     },
   },

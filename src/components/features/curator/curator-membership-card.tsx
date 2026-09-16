@@ -2,45 +2,26 @@
 
 /** Renders a fan's server-authorized membership offer and current billing actions. */
 
+import { useRef } from 'react';
 import Link from 'next/link';
-import { Check } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Spinner } from '@/components/ui/spinner';
-import {
-  formatCuratorPlanPrice,
-  type CuratorPage,
-} from '@/services/curator';
+import type { CuratorPage } from '@/services/curator';
 import {
   describeMembershipBilling,
   describeMembershipStanding,
+  formatMembershipDate,
   type MembershipInterval,
   type MembershipStatus,
   type MembershipStatusView,
 } from '@/services/membership';
-import { MembershipReceipt } from '@/components/features/membership/membership-receipt';
+import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
+import { BenefitList, MembershipOffer } from '@/components/features/membership/membership-offer';
+import { WalletPass } from '@/components/features/curator/wallet-pass';
+import { StudioNotice } from '@/components/features/curator/studio-shell';
+import { useSharedPosition } from '@/hooks/use-shared-position';
 import { cn } from '@/lib/utils';
-
-function BenefitList({ benefits }: { benefits: NonNullable<CuratorPage['membership']>['benefits'] }) {
-  if (benefits.length === 0) return null;
-  return (
-    <ul className="mt-5 space-y-3" aria-label="Membership benefits">
-      {benefits.map((benefit) => (
-        <li key={benefit.featureKey} className="flex gap-2 text-sm">
-          <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-          <span>
-            <span className="font-semibold">{benefit.name}</span>
-            {benefit.description && (
-              <span className="mt-0.5 block text-muted-foreground">{benefit.description}</span>
-            )}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 export function CuratorMembershipCard({
   page,
@@ -93,25 +74,20 @@ export function CuratorMembershipCard({
 }) {
   const plan = page.membership;
   const membership = status?.membership;
+  // Keyed per curator so the matching pass on My memberships slides into this rail slot, and back.
+  const memberPassRef = useRef<HTMLDivElement>(null);
+  useSharedPosition(memberPassRef, `membership-pass:${page.curator.username}`);
   const planMatchesMembership = !membership || membership.planId === plan?.planId;
   // Never present the current public offer as an existing member's price.
   const displayedPlan = status?.canSubscribe === false && !planMatchesMembership ? null : plan;
-  const annualAvailable = displayedPlan?.annualAmountMinor != null &&
-    displayedPlan.annualServiceFeeMinor != null;
+  const annual = displayedPlan?.annualAmountMinor != null && displayedPlan.annualServiceFeeMinor != null
+    ? { faceMinor: displayedPlan.annualAmountMinor, serviceFeeMinor: displayedPlan.annualServiceFeeMinor }
+    : null;
   const displayedInterval = membership &&
     planMatchesMembership &&
     (status?.canSubscribe === false || membership.status === 'incomplete')
     ? membership.billingInterval
     : interval;
-  const selectedFace = displayedInterval === 'year'
-    ? displayedPlan?.annualAmountMinor
-    : displayedPlan?.amountMinor;
-  const selectedFee = displayedInterval === 'year'
-    ? displayedPlan?.annualServiceFeeMinor
-    : displayedPlan?.serviceFeeMinor;
-  const selectedPrice = displayedPlan && selectedFace != null && selectedFee != null
-    ? formatCuratorPlanPrice(selectedFace, selectedFee, displayedPlan.currency)
-    : null;
   const canJoin = Boolean(plan) && (!authenticated || status?.canSubscribe === true);
   const statusNotice = membership ? describeMembershipStanding(membership) : null;
   const planName = displayedPlan?.name ?? `${displayName} membership`;
@@ -150,10 +126,9 @@ export function CuratorMembershipCard({
           {statusNotice}
         </output>
       )}
+      {/* The outer guard keeps the notice out of the DOM when empty; tests count zero elements. */}
       {notice && (
-        <output className="mt-4 block text-sm text-muted-foreground" data-testid="membership-notice">
-          {notice}
-        </output>
+        <StudioNotice testId="membership-notice" className="mt-4 px-3 py-2">{notice}</StudioNotice>
       )}
       {notice && noticeAction && (
         <Button variant="outline" size="sm" className="mt-2 w-full" onClick={noticeAction.onClick}>
@@ -164,79 +139,78 @@ export function CuratorMembershipCard({
     </>
   );
 
+  // The curator is the holder on every pass; the head is always brand red on the public page.
+  const pass = {
+    id: membershipId,
+    'data-testid': 'curator-membership-card',
+    product: 'Membership',
+    holderName: displayName,
+    holderHandle: page.curator.username,
+    avatarUrl: page.curator.avatarUrl ?? undefined,
+    active: true,
+  } as const;
+
   // Entitled member: welcome, what they unlocked, and the billing they actually pay — no pitch.
   if (page.viewer.isMember) {
     return (
-      <aside className="lg:sticky lg:top-6" aria-label="Membership">
-        <Card id={membershipId} data-testid="curator-membership-card">
-          <CardHeader>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <Badge variant="secondary" className="px-3 py-1.5">
-                <Check aria-hidden />
-                Member
-              </Badge>
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{planName}</span>
-            </div>
+        <WalletPass
+          ref={memberPassRef}
+          {...pass}
+          tier="Member"
+          price={membership ? formatPaidPromotionMinorAmount(membership.totalAmountMinor, membership.currency) : undefined}
+          priceUnit={membership ? `/${membership.billingInterval}` : undefined}
+          validityLabel={membership?.paidThroughUtc ? (membership.cancelAtPeriodEnd ? 'Ends' : 'Renews') : 'Plan'}
+          validityValue={membership?.paidThroughUtc ? formatMembershipDate(membership.paidThroughUtc) : planName}
+        >
+          {activated && (
+            <h2 className="text-balance break-words font-teko text-2xl font-semibold uppercase leading-none">
+              Welcome to {displayName}&apos;s membership
+            </h2>
+          )}
+          {/* Standing first: what the member pays and any scheduled change, then the actions that answer it. */}
+          {membership && (
+            <p className={cn('text-sm tabular-nums text-muted-foreground', activated && 'mt-3')} data-testid="membership-billing">
+              {describeMembershipBilling(membership)}
+            </p>
+          )}
+          {noticeBlock}
+          <div className="mt-5 space-y-2">
+            <Button asChild className="w-full">
+              <a href={`#${feedHeadingId}`} onClick={onViewMemberPosts} data-testid="membership-view-posts">
+                View member posts
+              </a>
+            </Button>
+            {manageButton}
+          </div>
+          {displayedPlan && <BenefitList benefits={displayedPlan.benefits} />}
+          <nav className="mt-5 flex flex-wrap gap-x-4 gap-y-1 text-sm" aria-label="Membership links">
+            <Link href="/memberships" className="underline underline-offset-4">My memberships</Link>
             {activated && (
-              <h2 className="text-balance break-words pt-2 font-teko text-2xl font-semibold uppercase leading-none">
-                Welcome to {displayName}&apos;s membership
-              </h2>
+              <Link href="/profile/edit" className="underline underline-offset-4">Set up your profile</Link>
             )}
-          </CardHeader>
-          <CardContent>
-            {displayedPlan && <BenefitList benefits={displayedPlan.benefits} />}
-            <div className="mt-5 space-y-2">
-              <Button asChild className="w-full">
-                <a href={`#${feedHeadingId}`} onClick={onViewMemberPosts} data-testid="membership-view-posts">
-                  View member posts
-                </a>
-              </Button>
-              {manageButton}
-            </div>
-            {membership && (
-              <p className="mt-4 text-sm tabular-nums text-muted-foreground" data-testid="membership-billing">
-                {describeMembershipBilling(membership)}
-              </p>
-            )}
-            <nav className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm" aria-label="Membership links">
-              <Link href="/memberships" className="underline underline-offset-4">My memberships</Link>
-              {activated && (
-                <Link href="/profile/edit" className="underline underline-offset-4">Set up your profile</Link>
-              )}
-            </nav>
-            {noticeBlock}
-          </CardContent>
-        </Card>
-      </aside>
+          </nav>
+        </WalletPass>
     );
   }
 
   return (
-    <aside className="lg:sticky lg:top-6" aria-label="Membership">
-      <Card id={membershipId} data-testid="curator-membership-card">
-        <CardHeader>
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-            Membership
-          </p>
-          <h2 className="text-balance break-words font-teko text-2xl font-semibold uppercase leading-none">
-            {planName}
-          </h2>
-          {selectedPrice && (
-            <div className="pt-2">
-              <span className="font-teko text-3xl font-bold tabular-nums">{selectedPrice}</span>
-              <span className="text-sm text-muted-foreground">/{displayedInterval}</span>
-              <span className="block text-xs text-muted-foreground">plus applicable tax</span>
-            </div>
-          )}
-        </CardHeader>
-        <CardContent>
-          {displayedPlan?.description && (
-            <p className="whitespace-pre-line text-pretty break-words text-sm leading-relaxed text-muted-foreground">
-              {displayedPlan.description}
-            </p>
-          )}
-          {displayedPlan && annualAvailable && canJoin && !page.viewer.isOwner &&
-            !(membership?.status === 'incomplete' && planMatchesMembership) && (
+    <MembershipOffer
+      id={membershipId}
+      data-testid="curator-membership-card"
+      tier={displayedInterval === 'year' ? 'Per year' : 'Per month'}
+      curatorName={displayName}
+      curatorHandle={page.curator.username}
+      curatorAvatarUrl={page.curator.avatarUrl ?? undefined}
+      name={planName}
+      description={displayedPlan?.description ?? ''}
+      benefits={displayedPlan?.benefits ?? []}
+      monthly={displayedPlan ? { faceMinor: displayedPlan.amountMinor, serviceFeeMinor: displayedPlan.serviceFeeMinor } : null}
+      annual={annual}
+      currency={displayedPlan?.currency ?? 'USD'}
+      interval={displayedInterval}
+      controls={
+        displayedPlan && annual && canJoin && !page.viewer.isOwner &&
+          !(membership?.status === 'incomplete' && planMatchesMembership) && (
             <RadioGroup
               value={interval}
               // SAFETY: the only rendered items are 'month' and 'year', both MembershipInterval.
@@ -261,80 +235,71 @@ export function CuratorMembershipCard({
                 </label>
               ))}
             </RadioGroup>
-          )}
-          {displayedPlan && selectedFace != null && selectedFee != null && canJoin && (
-            <MembershipReceipt
-              className="mt-5"
-              data-testid="membership-summary"
-              title={planName}
-              faceAmountMinor={selectedFace}
-              serviceFeeMinor={selectedFee}
-              currency={displayedPlan.currency}
-              interval={displayedInterval}
-              footer={`Renews ${displayedInterval === 'year' ? 'annually' : 'monthly'}. Manage or cancel renewal in billing settings; confirm the effective date there.`}
-            />
-          )}
-          {displayedPlan && <BenefitList benefits={displayedPlan.benefits} />}
-
-          <div className="mt-6 space-y-2">
-            {page.viewer.isOwner ? (
-              <p className="text-sm font-medium text-muted-foreground">Your published membership plan</p>
-            ) : statusLoading && authenticated ? (
-              <p className="text-sm text-muted-foreground">Checking membership…</p>
-            ) : statusUnavailable && authenticated ? (
-              <>
-                <p className="text-sm text-muted-foreground">Membership status is temporarily unavailable.</p>
-                <Button variant="outline" className="w-full" onClick={onCheckStatus}>
-                  Try again
-                </Button>
-              </>
-            ) : canJoin ? (
-              <>
-                <Button
-                  className="w-full"
-                  onClick={onJoin}
-                  disabled={checkoutPending}
-                  data-testid="membership-join"
-                >
-                  {checkoutPending ? (
-                    <>
-                      <Spinner size="sm" />
-                      Opening secure Checkout…
-                    </>
-                  ) : checkoutCanceled && membership?.status === 'incomplete'
-                    ? 'Retry Checkout'
-                    : `Join ${displayName}`}
-                </Button>
-                {!authenticated && (
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    You will be asked to sign in or create a free account first.
-                  </p>
-                )}
-              </>
-            ) : membership?.status === 'incomplete' ? (
-              <>
-                <p className="text-sm text-muted-foreground">Checkout confirmation is pending.</p>
-                <Button variant="outline" className="w-full" onClick={onCheckStatus}>
-                  Check status
-                </Button>
-              </>
-            ) : null}
-
-            {manageButton}
-            {membership?.canManage && (
-              <p className="text-sm tabular-nums text-muted-foreground" data-testid="membership-billing">
-                {describeMembershipBilling(membership)}
+          )
+      }
+    >
+      <div className="mt-6 space-y-2">
+        {page.viewer.isOwner ? (
+          <div className="rounded-lg border border-dashed border-border/70 px-3 py-2.5 text-sm text-muted-foreground">
+            <p>This is your published plan. Visitors see it like this.</p>
+            <Link href="/studio/curator" className="mt-1 inline-block font-medium text-primary underline-offset-4 hover:underline">
+              Manage in Curator Studio
+            </Link>
+          </div>
+        ) : statusLoading && authenticated ? (
+          <p className="text-sm text-muted-foreground">Checking membership…</p>
+        ) : statusUnavailable && authenticated ? (
+          <>
+            <p className="text-sm text-muted-foreground">Membership status is temporarily unavailable.</p>
+            <Button variant="outline" className="w-full" onClick={onCheckStatus}>
+              Try again
+            </Button>
+          </>
+        ) : canJoin ? (
+          <>
+            <Button
+              className="w-full"
+              onClick={onJoin}
+              disabled={checkoutPending}
+              data-testid="membership-join"
+            >
+              {checkoutPending ? (
+                <>
+                  <Spinner size="sm" />
+                  Opening secure Checkout…
+                </>
+              ) : checkoutCanceled && membership?.status === 'incomplete'
+                ? 'Retry Checkout'
+                : `Join ${displayName}`}
+            </Button>
+            {!authenticated && (
+              <p className="text-sm leading-6 text-muted-foreground">
+                You will be asked to sign in or create a free account first.
               </p>
             )}
-            {membership?.canManage && (
-              <Link href="/memberships" className="block text-sm underline underline-offset-4">
-                My memberships
-              </Link>
-            )}
-          </div>
-          {noticeBlock}
-        </CardContent>
-      </Card>
-    </aside>
+          </>
+        ) : membership?.status === 'incomplete' ? (
+          <>
+            <p className="text-sm text-muted-foreground">Checkout confirmation is pending.</p>
+            <Button variant="outline" className="w-full" onClick={onCheckStatus}>
+              Check status
+            </Button>
+          </>
+        ) : null}
+
+        {manageButton}
+        {membership?.canManage && (
+          <p className="text-sm tabular-nums text-muted-foreground" data-testid="membership-billing">
+            {describeMembershipBilling(membership)}
+          </p>
+        )}
+        {membership?.canManage && (
+          <Link href="/memberships" className="block text-sm underline underline-offset-4">
+            My memberships
+          </Link>
+        )}
+      </div>
+      {noticeBlock}
+    </MembershipOffer>
   );
 }

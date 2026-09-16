@@ -208,12 +208,12 @@ test('lets a curator preview an offer before a profile exists and creates the pr
 
   const card = page.getByTestId('curator-plan-card');
   await card.getByLabel('Plan name').fill('Early Club');
-  await expect(card.getByTestId('curator-plan-preview')).toContainText('Early Club');
-  await expect(card.getByTestId('curator-plan-preview')).toContainText('$5.50/month');
+  await expect(page.getByTestId('curator-plan-preview')).toContainText('Early Club');
+  await expect(page.getByTestId('curator-plan-preview')).toContainText('$5.50/month');
   await card.getByRole('link', { name: 'Create your free profile' }).click();
   await expect.poll(() => state.curatorProfile?.status).toBe('active');
   await expect(card.getByRole('link', { name: 'Create your free profile' })).toHaveCount(0);
-  await expect(card.getByTestId('curator-plan-preview')).toContainText('Early Club');
+  await expect(page.getByTestId('curator-plan-preview')).toContainText('Early Club');
 });
 
 test('mints a new hosted link when the provider refresh URL returns', async ({ page }) => {
@@ -291,9 +291,9 @@ test('creates a free draft with policy economics before Pro or payouts', async (
   await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft saved. Publishing remains optional.');
   const draft = card.getByTestId('curator-plan-draft');
   await expect(draft).toContainText('Selector Club');
-  await expect(draft.getByTestId('curator-plan-preview')).toContainText('$7.58/month');
-  await expect(draft.getByTestId('curator-plan-preview')).toContainText('$73.10/year');
-  await expect(draft.getByTestId('curator-plan-preview')).toContainText('plus applicable tax');
+  await expect(page.getByTestId('curator-plan-preview')).toContainText('$7.58/month');
+  await expect(page.getByTestId('curator-plan-preview')).toContainText('$73.10/year');
+  await expect(page.getByTestId('curator-plan-preview')).toContainText('plus applicable tax');
   await expect(card.getByTestId('curator-plan-publish')).toBeDisabled();
   await expect(card.getByRole('link', { name: 'Start Curator Pro' })).toBeVisible();
   expect(state.curatorPlanCreateRequests).toEqual([{

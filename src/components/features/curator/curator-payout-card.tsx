@@ -2,16 +2,12 @@
 
 /** Manages Stripe Connect onboarding and renders only the payout status confirmed by Bridge. */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ReceiptRow,
-  StudioChip,
-  StudioNotice,
-  StudioSection,
-  type StudioChipTone,
-} from '@/components/features/curator/studio-shell';
+import { Check, Clock } from 'lucide-react';
+import { StudioNotice, StudioSection } from '@/components/features/curator/studio-shell';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   fetchCuratorPayoutAccount,
   startCuratorPayoutOnboarding,
@@ -32,32 +28,59 @@ function needsAttention(account: CuratorPayoutAccount) {
   return account.onboardingStatus === 'restricted' || account.requirementsDue;
 }
 
-function payoutLabel(account: CuratorPayoutAccount | null) {
-  if (!account) return 'Not started';
-  if (account.transfersCapabilityStatus === 'active') return 'Ready';
-  if (needsAttention(account)) return 'Needs attention';
-  return 'Verifying';
-}
-
-function payoutTone(account: CuratorPayoutAccount | null): StudioChipTone {
-  if (!account) return 'neutral';
-  if (account.transfersCapabilityStatus === 'active') return 'positive';
-  if (needsAttention(account)) return 'warning';
-  return 'neutral';
-}
-
-/** Plain-language status plus what the curator should do next. */
+/** One line that names the state and the next step; the state word leads. */
 function statusCopy(account: CuratorPayoutAccount | null) {
-  if (!account) {
-    return 'Start payout setup to accept paying members. Starting it is enough to publish a plan; payouts begin once your account is fully verified.';
-  }
-  if (account.transfersCapabilityStatus === 'active') {
-    return 'Your payout account is verified. Members can join and earnings are paid out on your payout schedule.';
-  }
-  if (needsAttention(account)) {
-    return 'Your payout account needs more information before earnings can be paid out. Members can still join; continue setup to provide what is missing.';
-  }
-  return 'Your payout account is being verified. Members can join in the meantime; earnings are held until verification completes.';
+  if (!account) return 'Not started. Set up payouts to accept paying members; payouts begin once you are verified.';
+  if (account.transfersCapabilityStatus === 'active') return 'Ready. Earnings go out on your payout schedule.';
+  if (needsAttention(account)) return 'Needs attention. Stripe needs more information before payouts can start; members can still join.';
+  return 'Verifying. Members can join; earnings are held until verification completes.';
+}
+
+const ringRadius = 40;
+const ringCircumference = 2 * Math.PI * ringRadius;
+
+/** Payout readiness as a ring: setup started, fans can join, account verified.
+    Ring math after opensourceui.in's progress-ring (MIT); the arc draws in on
+    mount and snaps under reduced motion. */
+function ReadinessRing({ done, total }: { done: number; total: number }) {
+  const gradientId = useId();
+  const [drawn, setDrawn] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setDrawn(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  const progress = drawn ? done / total : 0;
+  return (
+    <div className="relative mx-auto size-28 sm:mx-0">
+      {/* An inline SVG is the drawing itself; role="img" names it for assistive technology. */}
+      {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role */}
+      <svg role="img" aria-label={`${done} of ${total} payout steps ready`} viewBox="0 0 100 100" className="size-full -rotate-90">
+        <circle cx="50" cy="50" r={ringRadius} fill="none" className="stroke-border/70" strokeWidth="6" />
+        <circle
+          cx="50"
+          cy="50"
+          r={ringRadius}
+          fill="none"
+          stroke={`url(#${gradientId})`}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={ringCircumference}
+          strokeDashoffset={ringCircumference - progress * ringCircumference}
+          className="transition-[stroke-dashoffset] duration-700 ease-out-quart motion-reduce:transition-none"
+        />
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="hsl(var(--primary))" />
+            <stop offset="100%" stopColor="hsl(var(--success))" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div aria-hidden className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-teko text-3xl font-bold leading-none tabular-nums">{done}/{total}</span>
+        <span className="mt-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">ready</span>
+      </div>
+    </div>
+  );
 }
 
 export function CuratorPayoutCard() {
@@ -118,10 +141,7 @@ export function CuratorPayoutCard() {
       title="Payouts"
       headingId="curator-payout-title"
       testId="curator-payout-card"
-      description="Payout setup is free and does not require Curator Pro. Starting it lets fans join; verification lets earnings be paid out."
-      chip={!loading && !status.isError && (
-        <StudioChip tone={payoutTone(account)}>{payoutLabel(account)}</StudioChip>
-      )}
+      description="Free, and not tied to Curator Pro."
     >
       <StudioNotice testId="curator-payout-notice" className="mb-5">
         {flow === 'return' && !loading && !status.isError
@@ -147,30 +167,45 @@ export function CuratorPayoutCard() {
           </div>
         ) : (
           <>
-            <p className="text-sm leading-relaxed">{statusCopy(account)}</p>
+            <p className="max-w-prose text-sm leading-relaxed">{statusCopy(account)}</p>
 
-            {account && (
-              <dl className="divide-y divide-border/70 text-sm">
-                <ReceiptRow
-                  className="py-2.5"
-                  label="Accept members"
-                  value={<span className="text-success-text">Ready</span>}
-                />
-                <ReceiptRow
-                  className="py-2.5"
-                  label="Receive payouts"
-                  value={payoutsActive
-                    ? <span className="text-success-text">Ready</span>
-                    : needsAttention(account) ? 'Needs your information' : 'Waiting for verification'}
-                />
-                <ReceiptRow
-                  className="py-2.5"
-                  label="Last checked"
-                  value={account.capabilityCheckedAtUtc
-                    ? checkedAtFormatter.format(new Date(account.capabilityCheckedAtUtc))
-                    : 'Not yet'}
-                />
+            {account && payoutsActive && account.capabilityCheckedAtUtc && (
+              <p className="font-mono text-xs tabular-nums text-muted-foreground">
+                Last checked {checkedAtFormatter.format(new Date(account.capabilityCheckedAtUtc))}
+              </p>
+            )}
+            {account && !payoutsActive && (
+              /* Setup in progress: the ring counts the steps, and each tile is the parent of its label and state. */
+              <div className="grid gap-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
+              <ReadinessRing done={2} total={3} />
+              <dl className="grid gap-3 md:grid-cols-3">
+                <div className="card-quiet px-4 py-3.5">
+                  <dt className="text-xs text-muted-foreground">Accept members</dt>
+                  <dd className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-success-text">
+                    <Check aria-hidden className="size-4" />
+                    Ready
+                  </dd>
+                </div>
+                <div className="card-quiet px-4 py-3.5">
+                  <dt className="text-xs text-muted-foreground">Receive payouts</dt>
+                  <dd className={cn(
+                    'mt-1 flex items-center gap-1.5 text-sm font-semibold',
+                    payoutsActive ? 'text-success-text' : needsAttention(account) ? 'text-warning-text' : 'text-foreground',
+                  )}>
+                    {payoutsActive ? <Check aria-hidden className="size-4" /> : <Clock aria-hidden className="size-4" />}
+                    {payoutsActive ? 'Ready' : needsAttention(account) ? 'Needs your information' : 'Waiting for verification'}
+                  </dd>
+                </div>
+                <div className="card-quiet px-4 py-3.5">
+                  <dt className="text-xs text-muted-foreground">Last checked</dt>
+                  <dd className="mt-1 font-mono text-sm tabular-nums">
+                    {account.capabilityCheckedAtUtc
+                      ? checkedAtFormatter.format(new Date(account.capabilityCheckedAtUtc))
+                      : 'Not yet'}
+                  </dd>
+                </div>
               </dl>
+              </div>
             )}
 
             {onboarding.isError && (

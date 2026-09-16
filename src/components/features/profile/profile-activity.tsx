@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { ActivityPost, AccountType } from '@/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import {
   DropdownMenu,
@@ -82,15 +83,11 @@ export function ProfileActivity({
         : `@${ownerUsername || 'this user'} has not shared any ${label} yet.`;
 
     return (
-      <div className="lg:h-full">
-        <div className="flex flex-col items-center justify-center p-4 sm:p-8 md:p-12 text-center h-full">
-          <div className="w-full max-w-sm">
-            <div className="rounded-xl border border-dashed border-border/70 px-5 py-6">
-              <p className="text-lg font-semibold leading-tight tracking-tight">{title}</p>
-              <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
-            </div>
-          </div>
-        </div>
+      <div className="p-3 sm:p-4 md:p-6">
+        <Empty className="motion-safe:animate-reveal">
+          <EmptyTitle>{title}</EmptyTitle>
+          <EmptyDescription>{description}</EmptyDescription>
+        </Empty>
       </div>
     );
   }
@@ -98,7 +95,8 @@ export function ProfileActivity({
   return (
     <div>
       <div className="p-3 sm:p-4 lg:p-6">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {/* The grid mounts after the skeleton, so it reveals in place. */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 motion-safe:animate-reveal">
           {posts.map((post) => (
             <ActivityPostItem
               key={post.postId}
@@ -206,7 +204,6 @@ function ActivityPostItem({
   // Only use description if it's a non-empty user-provided value
   const hasDescription = post.description && post.description.trim().length > 0;
   const detailText = hasDescription ? post.description : post.subtitle;
-  const isAlbum = post.elementType.toLowerCase() === 'album';
 
   const actions = (
     <div className="flex items-center -mt-1 -mr-1.5 flex-shrink-0">
@@ -278,46 +275,6 @@ function ActivityPostItem({
         onEdit={() => setEditModalOpen(true)}
         onDelete={() => setDeleteModalOpen(true)}
       >
-      {isAlbum ? (
-      /* Gallery wall: the album cover hangs matted in a frame with a museum caption. */
-      <Card quiet className="group relative w-full max-w-sm gap-0 sm:gap-0 p-3 sm:p-3 font-atkinson transition-colors duration-200 hover:bg-muted/40">
-        <Link href={getNavigationPath(post)} prefetch={false} className="block">
-          <div className="border border-border/60 bg-muted/40 p-3">
-            <div className="relative aspect-[4/5] overflow-hidden bg-muted">
-              <ArtworkImage
-                src={post.imageUrl}
-                alt={post.title}
-                width={480}
-                height={600}
-                className="h-full w-full object-cover"
-                fallbackClassName="h-full w-full bg-muted/60"
-                fallbackIconClassName="size-10 text-muted-foreground/50"
-              />
-            </div>
-          </div>
-          <div className="mt-4 px-1">
-            <div className="flex items-start justify-between gap-2">
-              <p className="flex min-w-0 items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                <span className="truncate">@{sourceUsername}</span>
-                <VerificationBadge accountType={displayedAccountType} size="sm" />
-              </p>
-              {actions}
-            </div>
-            <h3 className="mt-1 text-base italic leading-snug text-foreground line-clamp-2">{post.title}</h3>
-            <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span className="truncate">{post.subtitle || 'Album'}</span>
-              {post.createdAt && <span className="flex-shrink-0">{formatRelativeTime(post.createdAt)}</span>}
-            </div>
-            {isOwnPost && post.privacy?.toLowerCase() === 'private' && (
-              <span className="mt-2 inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground ring-1 ring-border/40">
-                <Lock className="h-2.5 w-2.5" aria-hidden="true" />
-                Private
-              </span>
-            )}
-          </div>
-        </Link>
-      </Card>
-      ) : (
       <Card quiet className="group relative gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden font-atkinson transition-colors duration-200 hover:bg-muted/40">
         {/* prefetch={false}: viewport prefetch runs /post/[id] generateMetadata on the
             server, bursting one Bridge GetPost per visible card (see 2026-07-08 prod
@@ -399,7 +356,6 @@ function ActivityPostItem({
           </div>
         </Link>
       </Card>
-      )}
       </PostQuickActions>
 
       {/* Edit Modal - always render to allow Radix UI animations */}

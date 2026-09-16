@@ -110,7 +110,9 @@ export function SidebarProfileCard({
   // carries the name and handle with the service marks where the album dots
   // would sit, and the bio copy hangs below.
   return (
-    <CoralGlow className={`mx-2 card-ink overflow-hidden ${className}`}>
+    // The article landmark lets screen-reader users jump straight to the identity card.
+    <article className={`mx-2 ${className}`}>
+    <CoralGlow vivid className="card-ink">
       <AvatarPreviewDialog
         avatarUrl={avatarUrl}
         username={user.username}
@@ -178,16 +180,17 @@ export function SidebarProfileCard({
             </Tooltip>
           )}
           {curatorInterests.length > 0 && (
-            <div className="flex flex-wrap gap-1.5" aria-label="Curator interests">
+            <ul className="flex flex-wrap gap-1.5" aria-label="Curator interests">
               {curatorInterests.map((interest) => (
-                <Badge key={interest} variant="outline" className="text-[10px]">{interest}</Badge>
+                <li key={interest}><Badge variant="outline" className="text-[10px]">{interest}</Badge></li>
               ))}
-            </div>
+            </ul>
           )}
           <ProfileLinksRow links={links} />
         </div>
       )}
     </CoralGlow>
+    </article>
   );
 }
 

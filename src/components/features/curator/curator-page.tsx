@@ -3,6 +3,7 @@
 /** Coordinates the public curator feed, fan entitlement state, and Stripe handoff flows. */
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -46,7 +47,6 @@ import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Empty, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
-import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
 
 function getPostIcon(elementType: string) {
@@ -67,10 +67,13 @@ export function PublicCuratorPage({
   username,
   membershipFlow,
   initialInterval,
+  membershipSlot,
 }: {
   username: string;
   membershipFlow: MembershipFlow;
   initialInterval: MembershipInterval;
+  /** Page rail the membership card renders into; the same rail Curator Studio uses. */
+  membershipSlot: HTMLElement | null;
 }) {
   const instanceId = useId();
   const curatorNameId = `curator-name-${instanceId}`;
@@ -411,13 +414,10 @@ export function PublicCuratorPage({
       ));
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:max-w-none lg:px-8 lg:py-10">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:max-w-none lg:px-0 lg:pb-0 lg:pt-6">
       <h1 className="sr-only" id={curatorNameId}>{displayName}</h1>
 
-      <div className={cn(
-        'grid gap-6',
-        showMembership && 'lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start',
-      )}>
+      <div className="grid gap-6">
         {/* Compact membership summary: mobile-only, sits under the identity header and scrolls to
             the full offer. Join is reserved for the actual checkout control in the card. */}
         {page.membership && !page.viewer.isMember && !page.viewer.isOwner && (
@@ -451,7 +451,7 @@ export function PublicCuratorPage({
           isFetchingNextPage={query.isFetchingNextPage}
           onLoadMore={() => void query.fetchNextPage()}
         />
-        {showMembership && (
+        {showMembership && membershipSlot && createPortal(
           <CuratorMembershipCard
             page={page}
             displayName={displayName}
@@ -481,7 +481,8 @@ export function PublicCuratorPage({
             onManage={(id, cancelAtPeriodEnd, status) => void manage(id, cancelAtPeriodEnd, status)}
             onCheckStatus={() => void statusQuery.refetch()}
             onViewMemberPosts={() => setMembersOnly(true)}
-          />
+          />,
+          membershipSlot,
         )}
       </div>
     </div>
@@ -558,7 +559,7 @@ function CuratorFeed({
           )}
         </Empty>
       ) : (
-        <div className="mt-3 grid gap-3">
+        <div className="mt-3 grid gap-3 motion-safe:animate-reveal">
           {visible.map((item) => item.kind === 'locked'
             ? (
                 <LockedPost

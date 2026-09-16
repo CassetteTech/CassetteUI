@@ -809,7 +809,9 @@ export function PostStudioPanel({
         'will-change-transform',
       )
     : cn(
-        'fixed inset-y-0 right-0 z-50 flex h-full w-full flex-col gap-0 overflow-hidden border-l border-border bg-background elev-3',
+        // Docked beside the page, below the fixed navbar (h-16, z-50): no shadow, so it
+        // reads as the same layer as the content it pushes aside, not a sheet over it.
+        'fixed top-16 right-0 bottom-0 z-40 flex w-full flex-col gap-0 overflow-hidden border-l border-border bg-background',
         'sm:max-w-md md:max-w-lg',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=open]:slide-in-from-right-full data-[state=closed]:slide-out-to-right-full',
@@ -848,25 +850,14 @@ export function PostStudioPanel({
         >
           <DialogPrimitive.Title className="sr-only">Post studio</DialogPrimitive.Title>
 
-          {/* Header */}
-          <div className="border-b border-border px-5 pt-4 pb-3 sm:px-6">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Your post</div>
-                <div className="mt-0.5 text-[15px] font-semibold leading-tight text-foreground">
-                  {tab === 'access' ? 'Access' : 'Insights'}
-                </div>
-              </div>
-              <DialogPrimitive.Close
-                className="-mr-1 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Close post studio"
-              >
-                <XIcon className="size-4" />
-              </DialogPrimitive.Close>
-            </div>
+          {/* Header: one bar, tabs left and close right */}
+          <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border/60 px-4 sm:px-5">
+            <span className="hidden shrink-0 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground sm:inline">
+              Your post
+            </span>
             <SegmentedControl
               label="Post studio sections"
-              className="mt-3 w-full"
+              className="w-full max-w-[220px]"
               value={tab}
               onValueChange={(next) => {
                 if (next === 'insights') setInsightsVisited(true);
@@ -877,10 +868,16 @@ export function PostStudioPanel({
                 { value: 'insights', label: 'Insights' },
               ]}
             />
+            <DialogPrimitive.Close
+              className="ml-auto -mr-1.5 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              aria-label="Close post studio"
+            >
+              <XIcon className="size-4" />
+            </DialogPrimitive.Close>
           </div>
 
           {/* Body */}
-          <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+          <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-5">
             <div className="space-y-7" hidden={tab !== 'access'}>
               <AccessTab postId={postId} privacy={privacy} onPrivacyChange={onPrivacyChange} />
             </div>

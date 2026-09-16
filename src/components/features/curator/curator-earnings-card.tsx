@@ -5,8 +5,14 @@
 import { useContext, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Banknote, ChevronLeft, ChevronRight, HandCoins, Users } from 'lucide-react';
-import { StudioSection, StudioStepsContext } from '@/components/features/curator/studio-shell';
+import { Banknote, ChevronLeft, ChevronRight, HandCoins } from 'lucide-react';
+import {
+  StudioChip,
+  StudioSection,
+  StudioStat,
+  StudioStepsContext,
+  type StudioChipTone,
+} from '@/components/features/curator/studio-shell';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { useAuthState } from '@/hooks/use-auth';
@@ -22,11 +28,8 @@ import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 const pageSize = 10;
 const countFormatter = new Intl.NumberFormat('en-US');
-const dateFormatter = new Intl.DateTimeFormat('en-US', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-  timeZone: 'UTC',
-});
+/** Day precision: the ledger reads as a statement, and times added noise to every row. */
+const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
 const allocationStatus = {
   accrued: 'Accrued',
   payable: 'Ready for payout',
@@ -48,6 +51,28 @@ function statusLabel(item: CuratorEarningsHistoryItem) {
     : transferStatus[item.status];
 }
 
+const allocationTone = {
+  accrued: 'neutral',
+  payable: 'positive',
+  blocked: 'warning',
+  transferred: 'positive',
+  forfeited: 'neutral',
+  reversed: 'danger',
+} satisfies Record<Extract<CuratorEarningsHistoryItem, { kind: 'allocation' }>['status'], StudioChipTone>;
+const transferTone = {
+  created: 'neutral',
+  succeeded: 'positive',
+  failed: 'danger',
+  reversed: 'warning',
+} satisfies Record<Extract<CuratorEarningsHistoryItem, { kind: 'transfer' }>['status'], StudioChipTone>;
+
+function statusTone(item: CuratorEarningsHistoryItem): StudioChipTone {
+  return item.kind === 'allocation' ? allocationTone[item.status] : transferTone[item.status];
+}
+
+const money = (amountMinor: number, currency: string) =>
+  formatPaidPromotionMinorAmount(amountMinor, currency, 'en-US');
+
 const transferEventTitle = {
   created: 'Payout pending',
   succeeded: 'Payout sent',
@@ -68,7 +93,7 @@ export function HistoryItem({ item }: { item: CuratorEarningsHistoryItem }) {
     item.status !== 'transferred' && item.status !== 'forfeited' && item.status !== 'reversed';
   const KindIcon = item.kind === 'allocation' ? HandCoins : Banknote;
   const outgoing = item.kind === 'transfer' || item.status === 'forfeited' || item.status === 'reversed';
-  const amount = formatPaidPromotionMinorAmount(item.amountMinor, item.currency, 'en-US');
+  const amount = money(item.amountMinor, item.currency);
   // Structure note: the amount's parent div and grandparent li are how tests
   // associate an amount with its label and status. Keep both wrappers.
   return (
@@ -79,9 +104,6 @@ export function HistoryItem({ item }: { item: CuratorEarningsHistoryItem }) {
         </span>
         <div className="min-w-0">
           <p className="truncate font-medium leading-tight">{eventTitle(item)}</p>
-          {item.kind === 'allocation' && item.status === 'accrued' && (
-            <p className="mt-0.5 text-xs text-muted-foreground">You earned {amount}</p>
-          )}
           {showPayableAt && (
             <p className="mt-0.5 text-xs text-muted-foreground">
               Payout eligibility{' '}
@@ -93,11 +115,11 @@ export function HistoryItem({ item }: { item: CuratorEarningsHistoryItem }) {
       <p className="pl-10 text-xs text-muted-foreground sm:pl-0 sm:text-sm">
         <time dateTime={item.occurredAtUtc}>{dateFormatter.format(new Date(item.occurredAtUtc))}</time>
       </p>
-      <div className="pl-10 sm:pl-0 sm:text-right">
+      <div className="flex items-center gap-3 pl-10 sm:flex-col sm:items-end sm:gap-1.5 sm:pl-0">
         <p className={cn('font-mono font-semibold tabular-nums', outgoing && 'text-muted-foreground')}>
           {amount}
         </p>
-        <p className="text-xs text-muted-foreground">{statusLabel(item)}</p>
+        <StudioChip tone={statusTone(item)} className="whitespace-nowrap">{statusLabel(item)}</StudioChip>
       </div>
     </li>
   );
@@ -139,7 +161,7 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
       title="Members & earnings"
       headingId="curator-earnings-title"
       testId="curator-earnings-card"
-      description="View membership activity and payout history. This history stays available without Curator Pro."
+      description="Membership activity and payouts."
     >
       {query.isPending ? (
         <output className="text-sm text-muted-foreground">Loading members and earnings…</output>
@@ -162,27 +184,24 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-4 rounded-lg bg-muted/40 px-5 py-4">
-            <span aria-hidden className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Users className="size-5" />
-            </span>
-            <dl>
-              <dt className="text-xs text-muted-foreground">Active members</dt>
-              <dd
-                className="mt-0.5 font-teko text-4xl font-bold leading-none tabular-nums"
-                data-testid="curator-active-member-count"
-              >
-                {countFormatter.format(earnings.activeMemberCount)}
-              </dd>
-            </dl>
-          </div>
+          {/* Who is paying and what this month brought in; balances live under Payouts & billing. */}
+          <dl className="grid gap-3 sm:grid-cols-2">
+            <StudioStat
+              label="Active members"
+              value={countFormatter.format(earnings.activeMemberCount)}
+              valueTestId="curator-active-member-count"
+            />
+            <StudioStat
+              label="Earned this month"
+              value={money(earnings.balances.earnedThisMonth, earnings.balances.currency)}
+            />
+          </dl>
 
           <section className="card-ink mt-7 overflow-hidden" aria-labelledby="curator-earnings-history-title">
             <div className="border-b border-border/70 px-4 py-3">
               <h3 id="curator-earnings-history-title" className="text-sm font-semibold">
                 Recent activity
               </h3>
-              <p className="text-xs text-muted-foreground">Membership earnings and payouts</p>
             </div>
             {earnings.items.length === 0 ? (
               <Empty className="my-3">

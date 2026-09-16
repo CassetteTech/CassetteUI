@@ -32,39 +32,39 @@ export function UserMenu({ align = 'start' }: { align?: 'start' | 'end' }) {
       <DropdownMenuTrigger
         aria-label={`Account menu for ${name}`}
         data-testid="user-menu-trigger"
-        className="group flex h-10 items-center gap-3 rounded-full border border-border/70 bg-card pl-1.5 pr-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-muted/40"
+        className="group flex h-10 items-center gap-2.5 rounded-full border border-border/70 bg-card pl-2 pr-3.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-muted/40"
       >
-        <Avatar className="size-9 border border-border/70">
+        <Avatar className="size-7 border border-border/70">
           <AvatarImage src={user.profilePicture} alt="" />
-          <AvatarFallback className="bg-primary font-atkinson text-sm font-bold text-white">
+          <AvatarFallback className="bg-primary font-atkinson text-xs font-bold text-white">
             {user.username.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium leading-none">{name}</span>
-          <span className="mt-1 block truncate font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          <span className="block truncate text-[13px] font-medium leading-none">{name}</span>
+          <span className="mt-1 block truncate font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
             @{user.username}
           </span>
         </span>
-        <ChevronDown aria-hidden className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+        <ChevronDown aria-hidden className="size-3 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align={align} sideOffset={8} className="w-56">
+      <DropdownMenuContent align={align} sideOffset={8} className="w-60 p-1.5">
         {items.map((item) => (
           <DropdownMenuItem key={item.key} asChild>
-            <Link href={resolveNavHref(item, user)} className="gap-2">
+            <Link href={resolveNavHref(item, user)} className="gap-2.5 px-2.5 py-2">
               <item.icon className="size-4 text-muted-foreground" />
               {item.label}
             </Link>
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => openReportModal()} className="gap-2">
+        <DropdownMenuItem onSelect={() => openReportModal()} className="gap-2.5 px-2.5 py-2">
           <AlertCircle className="size-4 text-muted-foreground" />
           Report a Problem
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => signOut()}
-          className="gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
+          className="gap-2.5 px-2.5 py-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
         >
           <LogOut className="size-4" />
           Sign Out

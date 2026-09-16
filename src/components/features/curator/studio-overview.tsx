@@ -7,7 +7,7 @@
 
 import { useContext, useMemo, useState, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CuratorPlanCard } from '@/components/features/curator/curator-plan-card';
 import { Area } from '@/components/dither-kit/area';
@@ -99,8 +99,13 @@ function StatTile({ label, value, hint, onClick }: {
         <button
           type="button"
           onClick={onClick}
-          className={cn(shell, 'transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')}
+          className={cn(shell, 'group relative transition-colors hover:bg-muted/40 active:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')}
         >
+          {/* Corner arrow marks the tile as a way into the view behind the number. */}
+          <ArrowUpRight
+            aria-hidden
+            className="absolute right-4 top-4 size-4 text-muted-foreground/60 transition-colors group-hover:text-foreground group-focus-visible:text-foreground"
+          />
           {body}
         </button>
       ) : (
@@ -149,9 +154,10 @@ function ProUpsellCard({ pro }: { pro: CuratorProStatus | undefined }) {
   return (
     // Stacked deck: two tilted panes fan out behind the card and spread on hover.
     <div className="group relative">
-      <div aria-hidden className="absolute inset-x-4 bottom-0 top-6 -rotate-2 rounded-xl bg-muted transition-transform duration-500 group-hover:-rotate-3 motion-reduce:transition-none" />
-      <div aria-hidden className="absolute inset-x-2 bottom-0 top-3 rotate-1 rounded-xl border border-border bg-muted/70 transition-transform duration-500 group-hover:rotate-2 motion-reduce:transition-none" />
-    <Card title="What Curator Pro unlocks" className="relative bg-card transition-transform duration-500 group-hover:-translate-y-0.5 motion-reduce:transition-none">
+      {/* Hover is frequent, so the fan-out stays under 300ms on the smooth-out curve. */}
+      <div aria-hidden className="absolute inset-x-4 bottom-0 top-6 -rotate-2 rounded-xl bg-muted transition-transform duration-280 ease-out-quart group-hover:-rotate-3 motion-reduce:transition-none" />
+      <div aria-hidden className="absolute inset-x-2 bottom-0 top-3 rotate-1 rounded-xl border border-border bg-muted/70 transition-transform duration-280 ease-out-quart group-hover:rotate-2 motion-reduce:transition-none" />
+    <Card title="What Curator Pro unlocks" className="relative bg-card transition-transform duration-280 ease-out-quart group-hover:-translate-y-0.5 motion-reduce:transition-none">
       <ul className="space-y-2.5 text-sm">
         {unlocks.map((line) => (
           <li key={line} className="flex gap-2.5">
@@ -354,13 +360,9 @@ export function StudioOverview({
           <Card
             title="Latest activity"
             action={
-              <button
-                type="button"
-                className="text-xs font-medium text-primary underline-offset-4 hover:underline"
-                onClick={() => views?.open('studio-earnings')}
-              >
+              <Button variant="link" size="xs" className="-mr-2" onClick={() => views?.open('studio-earnings')}>
                 View all
-              </button>
+              </Button>
             }
           >
             {earnings.isPending ? (

@@ -27,6 +27,7 @@ import { CopyButton } from '@/components/interior/copy-button';
 import { CoralGlow } from '@/components/ui/coral-glow';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TabUnderline } from '@/components/ui/tab-underline';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthState } from '@/hooks/use-auth';
 import { apiService } from '@/services/api';
@@ -139,30 +140,31 @@ function StudioHeader({ pro }: { pro: LaunchState['pro'] }) {
         <h1 className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">
           Curator Studio
         </h1>
+        {/* Plan tier and handle read as one identity line; the actions wrap as a unit. */}
+        <p className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-muted-foreground">
+          {pro && (
+            <StudioChip tone={pro.hasAccess ? (pro.cancelAtPeriodEnd ? 'warning' : 'positive') : 'neutral'}>
+              {pro.hasAccess ? 'Curator Pro' : 'Free profile'}
+            </StudioChip>
+          )}
+          {username && <span className="truncate font-mono text-xs">@{username}</span>}
+        </p>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        {pro && (
-          <StudioChip tone={pro.hasAccess ? (pro.cancelAtPeriodEnd ? 'warning' : 'positive') : 'neutral'}>
-            {pro.hasAccess ? 'Curator Pro' : 'Free profile'}
-          </StudioChip>
-        )}
-        {username && <span className="mr-2 truncate text-sm text-muted-foreground">@{username}</span>}
-        {publicPath && (
-          <>
-            <CopyButton
-              label="Copy page link"
-              copiedLabel="Link copied"
-              value={() => `${window.location.origin}${publicPath}`}
-            />
-            <Button asChild variant="outline" size="sm">
-              <Link href={publicPath}>
-                View public page
-                <ArrowUpRight aria-hidden />
-              </Link>
-            </Button>
-          </>
-        )}
-      </div>
+      {publicPath && (
+        <div className="flex flex-wrap items-center gap-2">
+          <CopyButton
+            label="Copy page link"
+            copiedLabel="Link copied"
+            value={() => `${window.location.origin}${publicPath}`}
+          />
+          <Button asChild variant="outline" size="sm">
+            <Link href={publicPath}>
+              View public page
+              <ArrowUpRight aria-hidden />
+            </Link>
+          </Button>
+        </div>
+      )}
     </header>
   );
 }
@@ -191,6 +193,7 @@ function CuratorStudio() {
   // Once the curator picks a view themselves, the default never overrides them.
   const touched = useRef(false);
   const [ready, setReady] = useState(false);
+  const [passSlot, setPassSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
     if (ready || defaultView === null) return;
     if (!touched.current) setView(defaultView);
@@ -204,7 +207,8 @@ function CuratorStudio() {
       setView(studioViewOf(sectionId));
       if (sectionId === 'studio-profile' && !queryClient.getQueryData(profileQueryKey)) createProfileNow();
     },
-  }), [createProfileNow, queryClient]);
+    passSlot,
+  }), [createProfileNow, queryClient, passSlot]);
 
   return (
     <StudioStepsContext.Provider value={open}>
@@ -215,75 +219,81 @@ function CuratorStudio() {
         <StudioHeader pro={launch.pro} />
 
         <Tabs value={view} onValueChange={(next) => open.open(next)} className="mt-6 gap-6">
-          {/* Underline tabs across the top; content takes the full width below. */}
-          <TabsList
-            aria-label="Studio views"
-            className="tab-scroll-fade -mx-4 flex h-auto w-auto justify-start gap-1 overflow-x-auto rounded-none border-b border-border bg-transparent px-4 py-0 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
-          >
-            {views.map((item) => (
-              <TabsTrigger
-                key={item.id}
-                value={item.id}
-                data-testid={`${item.id}-trigger`}
-                className="-mb-px h-10 flex-none gap-2 rounded-none border-0 border-b-2 border-transparent px-3 text-sm font-normal text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none"
-              >
-                <item.icon aria-hidden className="size-4 shrink-0" />
-                {item.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          <div className="min-w-0">
-            <TabsContent value="studio-overview" forceMount tabIndex={-1} className="space-y-6 data-[state=inactive]:hidden">
-              {createProfile.isPending && (
-                <output className="block text-sm text-muted-foreground">Creating your free profile…</output>
-              )}
-              {createProfile.isError && (
-                <p role="alert" className="text-sm text-destructive">
-                  {getUserFacingApiErrorMessage(createProfile.error, 'Your free profile was not created. Try again.')}
-                </p>
-              )}
-              {profile.isPending ? (
-                <OverviewSkeleton />
-              ) : profile.isError ? (
-                <StudioSection id="studio-overview-error" eyebrow="Overview" title="Curator Studio" headingId="studio-overview-error-title">
-                  <div className="space-y-4">
-                    <p role="alert">Could not load your curator profile.</p>
-                    <Button variant="outline" onClick={() => profile.refetch()}>Try again</Button>
-                  </div>
-                </StudioSection>
-              ) : (
-                <StudioOverview
-                  profile={profile.data ?? null}
-                  steps={launch.steps}
-                  doneCount={launch.doneCount}
-                  nextIndex={launch.nextIndex}
-                  pro={launch.pro}
-                />
-              )}
-            </TabsContent>
-            <TabsContent value="studio-earnings" forceMount tabIndex={-1} className="data-[state=inactive]:hidden">
-              {profile.data ? (
-                <CuratorEarningsCard profile={profile.data} />
-              ) : (
-                <StudioSection
-                  id="studio-earnings"
-                  eyebrow="Performance"
-                  title="Members & earnings"
-                  headingId="curator-earnings-title"
-                  description="Membership activity and payout history appear here once you have a curator profile."
+            {/* Underline tabs across the top; content takes the full width below. */}
+            <TabsList
+              aria-label="Studio views"
+              className="tab-scroll-fade relative -mx-4 flex h-auto w-auto justify-start gap-1 overflow-x-auto rounded-none border-b border-border bg-transparent px-4 py-0 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
+            >
+              <TabUnderline value={view} />
+              {views.map((item) => (
+                <TabsTrigger
+                  key={item.id}
+                  value={item.id}
+                  data-testid={`${item.id}-trigger`}
+                  className="h-10 flex-none gap-2 rounded-none border-0 px-3 text-sm font-normal text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent"
                 >
-                  <Button variant="outline" onClick={() => open.open('studio-profile')}>
-                    Create your free profile
-                  </Button>
-                </StudioSection>
-              )}
-            </TabsContent>
-            <TabsContent value="studio-billing" forceMount tabIndex={-1} className="space-y-6 data-[state=inactive]:hidden">
-              <CuratorProCard />
-              <CuratorPayoutCard />
-              <CuratorPayoutHistory enabled={launch.payoutStarted && Boolean(profile.data)} />
-            </TabsContent>
+                  {/* Icons drop out on phones so all three views fit without scrolling. */}
+                  <item.icon aria-hidden className="hidden size-4 shrink-0 sm:block" />
+                  {item.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+          {/* Below the tabs line, the membership pass takes the same right rail as on the public page and stays put across views. */}
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+            <div className="min-w-0">
+              <TabsContent value="studio-overview" forceMount tabIndex={-1} className="space-y-6 data-[state=inactive]:hidden">
+                {createProfile.isPending && (
+                  <output className="block text-sm text-muted-foreground">Creating your free profile…</output>
+                )}
+                {createProfile.isError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {getUserFacingApiErrorMessage(createProfile.error, 'Your free profile was not created. Try again.')}
+                  </p>
+                )}
+                {profile.isPending ? (
+                  <OverviewSkeleton />
+                ) : profile.isError ? (
+                  <StudioSection id="studio-overview-error" eyebrow="Overview" title="Curator Studio" headingId="studio-overview-error-title">
+                    <div className="space-y-4">
+                      <p role="alert">Could not load your curator profile.</p>
+                      <Button variant="outline" onClick={() => profile.refetch()}>Try again</Button>
+                    </div>
+                  </StudioSection>
+                ) : (
+                  <StudioOverview
+                    profile={profile.data ?? null}
+                    steps={launch.steps}
+                    doneCount={launch.doneCount}
+                    nextIndex={launch.nextIndex}
+                    pro={launch.pro}
+                  />
+                )}
+              </TabsContent>
+              <TabsContent value="studio-earnings" forceMount tabIndex={-1} className="data-[state=inactive]:hidden">
+                {profile.data ? (
+                  <CuratorEarningsCard profile={profile.data} />
+                ) : (
+                  <StudioSection
+                    id="studio-earnings"
+                    eyebrow="Performance"
+                    title="Members & earnings"
+                    headingId="curator-earnings-title"
+                    description="Membership activity and payout history appear here once you have a curator profile."
+                  >
+                    <Button variant="outline" onClick={() => open.open('studio-profile')}>
+                      Create your free profile
+                    </Button>
+                  </StudioSection>
+                )}
+              </TabsContent>
+              <TabsContent value="studio-billing" forceMount tabIndex={-1} className="space-y-6 data-[state=inactive]:hidden">
+                <CuratorProCard />
+                <CuratorPayoutCard />
+                <CuratorPayoutHistory enabled={launch.payoutStarted && Boolean(profile.data)} />
+              </TabsContent>
+            </div>
+            <aside ref={setPassSlot} aria-label="Membership plan" className="empty:hidden lg:sticky lg:top-6" />
           </div>
         </Tabs>
       </CoralGlow>

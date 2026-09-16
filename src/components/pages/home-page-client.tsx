@@ -13,7 +13,7 @@ import { ConversionBeam } from '@/components/features/conversion/conversion-beam
 import { SearchResults } from '@/components/features/search-results';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronDown, Play } from 'lucide-react';
-import Image from 'next/image';
+import { HomeWordmark } from '@/components/pages/home-wordmark';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { HomeDemoSection } from '@/components/demo/home-demo-section';
 import { AppleMusicHelpModal } from '@/components/features/apple-music-help-modal';
@@ -57,7 +57,6 @@ export default function HomePageClient() {
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   
   // Animation states
-  const [logoVisible, setLogoVisible] = useState(false);
   const [taglineVisible, setTaglineVisible] = useState(false);
   const [searchBarVisible, setSearchBarVisible] = useState(false);
   const [bottomVisible, setBottomVisible] = useState(false);
@@ -91,16 +90,11 @@ export default function HomePageClient() {
     ? searchResultsData 
     : topCharts;
 
-  // Initial animation sequence (matching Flutter's 6-second timeline)
+  // Reveal supporting content while the wordmark settles.
   useEffect(() => {
     const timeline = [
-      // Logo fade in (15% delay, then 45% duration)
-      { delay: 900, action: () => setLogoVisible(true) },
-      // Tagline fade in (10% into logo animation)
       { delay: 1500, action: () => setTaglineVisible(true) },
-      // Search bar appears earlier
       { delay: 1500, action: () => setSearchBarVisible(true) },
-      // Bottom graphics appear 1s after search bar completes (2400 + 300 + 1000)
       { delay: 1575, action: () => setBottomVisible(true) },
     ];
 
@@ -108,7 +102,7 @@ export default function HomePageClient() {
       setTimeout(action, delay)
     );
     
-    // Mark initial load as complete after all animations
+    // Reveal the scroll indicator after the supporting content.
     timeouts.push(setTimeout(() => setIsInitialLoad(false), 2100));
 
     return () => timeouts.forEach(clearTimeout);
@@ -396,10 +390,6 @@ export default function HomePageClient() {
   // Calculate animation classes. These only track the initial-load reveal —
   // the search sheet is an opaque overlay, so the hero no longer needs to
   // hide itself while search is open.
-  const logoClasses = `transition-[opacity,transform] ${isInitialLoad ? 'duration-1100' : 'duration-300'} ease-out ${
-    logoVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-16'
-  }`;
-
   const taglineClasses = `transition-opacity duration-1000 ease-out ${
     taglineVisible ? 'opacity-100' : 'opacity-0'
   }`;
@@ -447,22 +437,15 @@ export default function HomePageClient() {
               style={{overscrollBehavior: 'contain'}}
             >
               {/* Logo Section */}
-              <div className={`${logoClasses} relative w-full lg:min-h-[calc(100vh-4rem)] lg:flex lg:flex-col lg:items-center`}>
+              <div className="relative w-full lg:min-h-[calc(100vh-4rem)] lg:flex lg:flex-col lg:items-center">
               {/* Top spacer — pushes content to center */}
               <div className="hidden lg:block lg:flex-1" />
 
               <div className="text-center mb-6 sm:mb-8 lg:text-center lg:mb-0 lg:-mt-[25px]">
-                {/* Logo + alpha layout (stacked on mobile, inline on desktop) */}
+                {/* Logo + beta layout (stacked on mobile, inline on desktop) */}
                 <div className="flex w-[85%] lg:w-[600px] mx-auto mb-3 sm:mb-5 flex-col items-center lg:flex-row lg:items-end">
                   <div className="w-full lg:flex-1 lg:min-w-0 -mb-[clamp(1.5rem,6vw,3.5rem)] lg:mb-0">
-                    <Image
-                      src="/images/cassette_words_logo.png"
-                      alt="Cassette"
-                      width={2612}
-                      height={1123}
-                      className="block h-auto w-full"
-                      priority
-                    />
+                    <HomeWordmark />
                   </div>
                   <div className="mt-0 shrink-0 lg:mt-0 lg:-ml-3 lg:mb-[8%]">
                     <StageHoverCard>

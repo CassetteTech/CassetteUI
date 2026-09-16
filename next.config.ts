@@ -27,7 +27,11 @@ const nextConfig: NextConfig = {
   },
   images: {
     qualities: [75, 80],
+    dangerouslyAllowLocalIP: process.env.NODE_ENV === 'development',
     remotePatterns: [
+      ...(process.env.NODE_ENV === 'development' ? [new URL(
+        'http://127.0.0.1:55321/storage/v1/object/public/profile-pictures/**',
+      )] : []),
       {
         protocol: 'https',
         hostname: 'is1-ssl.mzstatic.com',

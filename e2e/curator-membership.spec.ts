@@ -80,20 +80,10 @@ async function returnFromProvider(page: Page, providerUrl: string, returnPath: s
 }
 
 for (const price of [
-  {
-    interval: 'month' as const,
-    face: '$5.00',
-    fee: '$0.50',
-    total: '$5.50',
-  },
-  {
-    interval: 'year' as const,
-    face: '$50.00',
-    fee: '$5.00',
-    total: '$55.00',
-  },
+  { interval: 'month' as const, total: '$5.50' },
+  { interval: 'year' as const, total: '$55.00' },
 ]) {
-  test(`shows the ${price.interval} fee breakdown and sends only the selected interval`, async ({ page }) => {
+  test(`shows the fee-inclusive ${price.interval} price and sends only the selected interval`, async ({ page }) => {
     const captures: MembershipAnalyticsCapture[] = [];
     const { state } = await mockCassetteApp(page, {
       analyticsCaptures: captures,
@@ -107,9 +97,7 @@ for (const price of [
 
     const card = page.getByTestId('curator-membership-card');
     await intervalControl(card, price.interval).click();
-    await expect(card).toContainText(price.face);
-    await expect(card).toContainText(price.fee);
-    await expect(card).toContainText(price.total);
+    await expect(card).toContainText(`${price.total}/${price.interval}`);
     await joinControl(page).click();
 
     await expect.poll(() => state.membershipCheckoutRequests.at(-1)).toEqual({
@@ -406,10 +394,40 @@ test('lists the fan’s own memberships at their retained prices', async ({ page
     'href',
     '/profile/second_curator',
   );
+  // Billing is folded by default; the manage action lives inside it.
+  await expect(rows.nth(1).getByTestId('my-membership-manage')).toBeHidden();
+  await rows.nth(1).locator('summary').click();
   await rows.nth(1).getByTestId('my-membership-manage').click();
   await expect.poll(() => state.membershipPortalRequests.at(-1)).toEqual({
     membershipSubscriptionId: 'msb_FixtureMembership02',
   });
+});
+
+test('slides a membership pass into the curator profile rail on navigation', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorPage: fixtureMemberCuratorPage,
+    membershipStatus: fixtureActiveMembershipStatus,
+    myMemberships: [
+      {
+        curatorProfileId: fixtureCuratorPage.curator.id,
+        curatorUsername: fixtureCuratorPage.curator.username,
+        curatorDisplayName: fixtureCuratorPage.curator.displayName ?? '',
+        membership: fixtureActiveMembershipStatus.membership!,
+      },
+    ],
+  });
+  // The shared mock asks for reduced motion, which the handoff honours by not animating.
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/memberships');
+  await page.getByTestId('my-membership').getByRole('link').click();
+
+  const pass = page.getByTestId('curator-membership-card');
+  await expect(pass).toBeVisible();
+  // The shared-position handoff plays a transform animation on the freshly mounted pass.
+  await expect
+    .poll(() => pass.evaluate((node) => node.getAnimations().some((animation) => animation.playState === 'running')))
+    .toBe(true);
 });
 
 test('shows an empty state when the fan has no memberships', async ({ page }) => {

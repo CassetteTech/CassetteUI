@@ -3,6 +3,7 @@
 /** Creates, edits, and manages curator membership plans from server-provided pricing policy. */
 
 import { useContext, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
@@ -23,11 +24,13 @@ import {
   updateCuratorPlan,
   type CuratorPlan,
   type CuratorPlanRequest,
+  type CuratorPricing,
 } from '@/services/curator-plans';
 import { cn } from '@/lib/utils';
 import {
   EconomicsBreakdown,
   FanPreview,
+  type PreviewPrice,
   money,
 } from '@/components/features/curator/curator-plan-preview';
 import {
@@ -35,6 +38,7 @@ import {
   StudioChip,
   StudioNotice,
   StudioSection,
+  StudioStat,
   StudioStepsContext,
   type StudioChipTone,
 } from '@/components/features/curator/studio-shell';
@@ -66,6 +70,8 @@ const payoutQueryKey = ['curator-payout-account', 'current'] as const;
 const monthlyMinMinor = 500;
 const monthlyMaxMinor = 10_000;
 const defaultMonthlyPrice = '5.00';
+// Common price points inside the contract bounds; one tap sets the field.
+const suggestedMonthlyMinor = [500, 1000, 1500, 2500] as const;
 
 function priceMinor(value: string): number | null {
   const amount = Number(value);
@@ -88,6 +94,14 @@ function replacePlan(plans: CuratorPlan[] | undefined, saved: CuratorPlan): Cura
   return plans.some((plan) => plan.id === saved.id)
     ? plans.map((plan) => plan.id === saved.id ? saved : plan)
     : [saved, ...plans];
+}
+
+/** A saved plan's fan price: the frozen fee when published, else today's policy. */
+function planPrice(faceMinor: number, serviceFeeMinor: number | null, pricing: CuratorPricing): PreviewPrice {
+  return {
+    faceMinor,
+    serviceFeeMinor: serviceFeeMinor ?? calculateCuratorPlanEconomics(faceMinor, pricing).serviceFeeMinor,
+  };
 }
 
 const planChipTone = {
@@ -134,8 +148,25 @@ function RequirementValue({ met, pending, onRetry, metLabel, unmetLabel, href }:
   return <StepLink href={href}>{unmetLabel}</StepLink>;
 }
 
+/** Text price field framed by a currency sign and the billing interval. */
+function PriceField({ unit, className, ...props }: React.ComponentProps<typeof Input> & { unit: string }) {
+  return (
+    <div className="relative">
+      <span aria-hidden className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-sm text-muted-foreground">$</span>
+      <Input
+        type="text"
+        inputMode="decimal"
+        className={cn('pl-7 pr-16 font-mono tabular-nums', className)}
+        {...props}
+      />
+      <span aria-hidden className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">{unit}</span>
+    </div>
+  );
+}
+
 export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null }) {
   const { user } = useAuthState();
+  const passSlot = useContext(StudioStepsContext)?.passSlot ?? null;
   // During a payout provider return the payout card owns the single refresh
   // request and seeds this key; an ordinary read here would race it with stale data.
   const payoutFlowActive = useSearchParams().has('payout');
@@ -258,6 +289,12 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
       : 'Annual price can be at most 12 monthly payments.';
   const showMonthlyError = monthlyError !== null && (submitAttempted || monthlyPrice.trim() !== '');
   const showAnnualError = annualError !== null;
+  const annualSavingsMinor = validAnnual ? monthlyMinor * 12 - annualMinor : null;
+  const annualHelp = annualSavingsMinor === null
+    ? 'Optional. At most 12 monthly payments.'
+    : annualSavingsMinor === 0
+      ? 'Same as 12 monthly payments.'
+      : `Fans save ${money(annualSavingsMinor, priceCurrency)} a year (${Math.round((annualSavingsMinor / (annualSavingsMinor + (annualMinor ?? 0))) * 100)}%).`;
   const monthlyEconomics = validMonthly && pricing.data
     ? calculateCuratorPlanEconomics(monthlyMinor, pricing.data)
     : null;
@@ -270,12 +307,51 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   const payoutStarted = payout.data != null;
   const gatesConfirmed = profileReady && proReady && payoutStarted &&
     !pro.isPending && !pro.isError && !payout.isPending && !payout.isError;
-  const featureNames = new Map(features.data?.map((feature) => [feature.featureKey, feature.displayName]));
-  const namesFor = (keys: string[]) => keys.map((key) => featureNames.get(key) ?? key);
+  const featureByKey = new Map(features.data?.map((feature) => [feature.featureKey, feature]));
+  const namesFor = (keys: string[]) => keys.map((key) => featureByKey.get(key)?.displayName ?? key);
+  const benefitsFor = (keys: string[]) => keys.map((key) => ({
+    featureKey: key,
+    name: featureByKey.get(key)?.displayName ?? key,
+    description: featureByKey.get(key)?.description ?? '',
+  }));
   const curatorName = user?.displayName || 'you';
   const corePending = (profile !== null && plans.isPending) || features.isPending || pricing.isPending;
   const coreError = plans.isError || features.isError || pricing.isError;
   const busy = save.isPending || remove.isPending;
+
+  // One membership pass for the whole Studio, portaled into the page rail: the
+  // form's live estimate while it is open, else the active plan, else the draft.
+  const passPlan = activePlan ?? plansData?.find((plan) => plan.status === 'draft') ?? null;
+  const formOpen = createOpen ?? plansData?.length === 0;
+  const curatorPass = {
+    curatorName,
+    curatorHandle: user?.username ?? '',
+    curatorAvatarUrl: user?.profilePicture,
+  };
+  const pass = !pricing.data ? null : formOpen ? (
+    <FanPreview
+      {...curatorPass}
+      name={previewName}
+      description={previewDescription}
+      benefits={benefitsFor(previewFeatures)}
+      currency={pricing.data.currency}
+      frozen={false}
+      monthly={monthlyEconomics && { faceMinor: monthlyEconomics.faceMinor, serviceFeeMinor: monthlyEconomics.serviceFeeMinor }}
+      annual={annualEconomics && { faceMinor: annualEconomics.faceMinor, serviceFeeMinor: annualEconomics.serviceFeeMinor }}
+    />
+  ) : passPlan && (
+    <FanPreview
+      {...curatorPass}
+      name={passPlan.name}
+      description={passPlan.description}
+      benefits={benefitsFor(passPlan.featureKeys)}
+      currency={passPlan.currency}
+      frozen={passPlan.status === 'active'}
+      monthly={planPrice(passPlan.amountMinor, passPlan.serviceFeeMinor, pricing.data)}
+      annual={passPlan.annualAmountMinor === null ? null : planPrice(passPlan.annualAmountMinor, passPlan.annualServiceFeeMinor, pricing.data)}
+    />
+  );
+  const rail = passSlot && pass ? createPortal(pass, passSlot) : null;
 
   const startEditing = (plan: CuratorPlan) => {
     setEditingId(plan.id);
@@ -301,38 +377,35 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
         title="Fan membership plan"
         headingId="curator-plan-title"
         testId="curator-plan-card"
-        chip={<StudioChip tone="positive">Active</StudioChip>}
       >
-        <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
-          <div className="min-w-0">
-            <p className="break-words text-base font-semibold leading-tight">{activePlan.name}</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {activePlan.description || 'Fans join from your public page.'}
-            </p>
+        {rail}
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+            <div className="min-w-0">
+              <p className="break-words text-base font-semibold leading-tight">{activePlan.name}</p>
+              <p className="mt-1 text-pretty text-sm text-muted-foreground">
+                {activePlan.description || 'Fans join from your public page.'}
+              </p>
+            </div>
+            <Button type="button" variant="outline" onClick={() => setExpanded(true)}>Manage plan</Button>
           </div>
-          <dl className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
-            <div>
-              <dt className="text-xs text-muted-foreground">Monthly price</dt>
-              <dd className="mt-0.5 font-mono font-semibold tabular-nums">{money(activePlan.amountMinor, activePlan.currency)}</dd>
-            </div>
-            {fanMonthly && (
-              <div>
-                <dt className="text-xs text-muted-foreground">Fans pay</dt>
-                <dd className="mt-0.5 font-mono tabular-nums">{fanMonthly}</dd>
-              </div>
-            )}
-            {activePlan.annualAmountMinor !== null && (
-              <div>
-                <dt className="text-xs text-muted-foreground">Annual price</dt>
-                <dd className="mt-0.5 font-mono font-semibold tabular-nums">{money(activePlan.annualAmountMinor, activePlan.currency)}</dd>
-              </div>
-            )}
-            <div>
-              <dt className="text-xs text-muted-foreground">Features</dt>
-              <dd className="mt-0.5">{activePlan.featureKeys.length === 0 ? 'None' : namesFor(activePlan.featureKeys).join(', ')}</dd>
-            </div>
+          <dl className="grid gap-3 sm:grid-cols-3">
+            <StudioStat
+              label="Monthly price"
+              value={money(activePlan.amountMinor, activePlan.currency)}
+              hint={fanMonthly && `Fans pay ${fanMonthly}`}
+            />
+            <StudioStat
+              label="Annual price"
+              value={activePlan.annualAmountMinor === null ? '—' : money(activePlan.annualAmountMinor, activePlan.currency)}
+              hint={activePlan.annualAmountMinor === null ? 'Not offered' : 'Billed once a year'}
+            />
+            <StudioStat
+              label="Included features"
+              value={activePlan.featureKeys.length}
+              hint={activePlan.featureKeys.length === 0 ? 'None' : namesFor(activePlan.featureKeys).join(', ')}
+            />
           </dl>
-          <Button type="button" variant="outline" onClick={() => setExpanded(true)}>Manage plan</Button>
         </div>
       </StudioSection>
     );
@@ -345,8 +418,9 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
       title="Fan membership plan"
       headingId="curator-plan-title"
       testId="curator-plan-card"
-      description="Drafting is free and drafts stay editable until you publish. Active Curator Pro and started payout setup are required only when you publish."
+      description="Drafts are free and stay editable. Publishing needs active Curator Pro and started payout setup."
     >
+      {rail}
       <StudioNotice testId="curator-plan-notice" className="mb-8">{notice}</StudioNotice>
       <div className="space-y-8">
         {corePending ? (
@@ -374,7 +448,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
             <section aria-labelledby="saved-plans-title" className="space-y-4">
               <div>
                 <h3 id="saved-plans-title" className="text-sm font-semibold">Your plans</h3>
-                <p className="mt-1 text-sm text-muted-foreground">Published fan charges are frozen. Exact future earnings can change with your effective policy.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Published fan charges are frozen. Your cut can still change with policy.</p>
               </div>
               {/* Requirements surface only while an unpublishable draft is waiting */}
               {!gatesConfirmed && plansData.some((plan) => plan.status === 'draft') && (
@@ -442,18 +516,12 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                 const canPublish = plan.status === 'draft' && gatesConfirmed && !blockedByActivePlan;
                 const changing = change.isPending && change.variables?.planId === plan.id;
                 const editing = editingPlan?.id === plan.id;
-                const monthlyEstimate = plan.serviceFeeMinor === null
-                  ? calculateCuratorPlanEconomics(plan.amountMinor, pricing.data)
-                  : null;
-                const annualEstimate = plan.annualAmountMinor !== null && plan.annualServiceFeeMinor === null
-                  ? calculateCuratorPlanEconomics(plan.annualAmountMinor, pricing.data)
-                  : null;
                 return (
                   <article
                     key={plan.id}
                     data-testid={`curator-plan-${plan.status}`}
                     className={cn(
-                      'rounded-lg border border-border bg-background/50 px-4 sm:px-5',
+                      'card-ink px-4 sm:px-5',
                       plan.status === 'active' && 'border-primary/40',
                       plan.status === 'archived' && 'opacity-70',
                     )}
@@ -570,22 +638,6 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                         {blockedByActivePlan && <p id={`plan-${plan.id}-blocked`} className="text-xs text-muted-foreground">Archive the active plan before publishing this draft.</p>}
                       </div>
                     )}
-                    {plan.status !== 'archived' && !editing && (
-                      <FanPreview
-                        name={plan.name}
-                        description={plan.description}
-                        featureNames={namesFor(plan.featureKeys)}
-                        curatorName={curatorName}
-                        currency={plan.currency}
-                        frozen={plan.status === 'active'}
-                        monthly={plan.serviceFeeMinor !== null
-                          ? { faceMinor: plan.amountMinor, serviceFeeMinor: plan.serviceFeeMinor }
-                          : monthlyEstimate && { faceMinor: monthlyEstimate.faceMinor, serviceFeeMinor: monthlyEstimate.serviceFeeMinor }}
-                        annual={plan.annualAmountMinor !== null && plan.annualServiceFeeMinor !== null
-                          ? { faceMinor: plan.annualAmountMinor, serviceFeeMinor: plan.annualServiceFeeMinor }
-                          : annualEstimate && { faceMinor: annualEstimate.faceMinor, serviceFeeMinor: annualEstimate.serviceFeeMinor }}
-                      />
-                    )}
                     {plan.status === 'active' && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -622,7 +674,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
             {/* Creating a plan is opt-in once plans exist; it opens automatically
                 for first-time curators so the next step is obvious. */}
             <Collapsible
-              open={createOpen ?? plansData.length === 0}
+              open={formOpen}
               onOpenChange={setCreateOpen}
               className={cn(plansData.length > 0 && 'border-t border-dashed border-border pt-6')}
             >
@@ -640,7 +692,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                         {editingPlan ? `Edit draft: ${editingPlan.name}` : 'Create a draft'}
                       </span>
                       <span className="mt-0.5 block text-sm text-muted-foreground">
-                        Preview what fans will see as you type. Drafts can be changed or deleted until you publish.
+                        The pass in the rail updates as you type.
                       </span>
                     </span>
                   </span>
@@ -710,18 +762,18 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                         onChange={(event) => setPreviewDescription(event.target.value)}
                       />
                       <p id="curator-plan-description-help" className="text-xs text-muted-foreground">
-                        Say what members get and how often. Fans read this before they join, so only promise what you will deliver.
+                        What members get and how often. Promise only what you will deliver.
                       </p>
                     </div>
                     <div className="grid gap-5 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="curator-plan-monthly">Monthly price (USD)</Label>
-                        <Input
+                        {/* The field shows the currency itself; the parenthetical stays in the accessible name. */}
+                        <Label htmlFor="curator-plan-monthly">Monthly price<span className="sr-only"> (USD)</span></Label>
+                        <PriceField
                           ref={monthlyRef}
                           id="curator-plan-monthly"
                           name="monthlyPrice"
-                          type="text"
-                          inputMode="decimal"
+                          unit="/month"
                           aria-required="true"
                           aria-invalid={showMonthlyError || undefined}
                           aria-describedby={showMonthlyError ? 'curator-plan-monthly-error' : undefined}
@@ -733,15 +785,30 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                             {monthlyError}
                           </p>
                         )}
+                        <fieldset className="flex flex-wrap gap-1.5 pt-0.5">
+                          <legend className="sr-only">Suggested monthly prices</legend>
+                          {suggestedMonthlyMinor.map((minor) => (
+                            <Button
+                              key={minor}
+                              type="button"
+                              variant="outline"
+                              size="xs"
+                              aria-pressed={monthlyMinor === minor}
+                              className="rounded-full font-mono tabular-nums aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:text-foreground"
+                              onClick={() => setMonthlyPrice(priceText(minor))}
+                            >
+                              ${minor / 100}
+                            </Button>
+                          ))}
+                        </fieldset>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="curator-plan-annual">Annual price (USD, optional)</Label>
-                        <Input
+                        <Label htmlFor="curator-plan-annual">Annual price<span className="sr-only"> (USD, optional)</span></Label>
+                        <PriceField
                           ref={annualRef}
                           id="curator-plan-annual"
                           name="annualPrice"
-                          type="text"
-                          inputMode="decimal"
+                          unit="/year"
                           aria-invalid={showAnnualError || undefined}
                           aria-describedby={showAnnualError
                             ? 'curator-plan-annual-error curator-plan-annual-help'
@@ -754,13 +821,13 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                             {annualError}
                           </p>
                         )}
-                        <p id="curator-plan-annual-help" className="text-xs text-muted-foreground">At most 12 monthly payments.</p>
+                        <p id="curator-plan-annual-help" className="text-xs text-muted-foreground">{annualHelp}</p>
                       </div>
                     </div>
 
                     <fieldset className="space-y-2.5">
                       <legend className="pb-1 text-sm font-semibold">
-                        Included Cassette features
+                        Included features
                       </legend>
                       {features.data.length === 0 ? (
                         <p className="text-sm text-muted-foreground">No gated features are available.</p>
@@ -819,37 +886,28 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
 
                   {/* Live preview and estimate beside the form */}
                   <aside aria-labelledby="economics-title" className="space-y-4 lg:sticky lg:top-24">
-                    <FanPreview
-                      name={previewName}
-                      description={previewDescription}
-                      featureNames={namesFor(previewFeatures)}
-                      curatorName={curatorName}
-                      currency={pricing.data.currency}
-                      frozen={false}
-                      monthly={monthlyEconomics && { faceMinor: monthlyEconomics.faceMinor, serviceFeeMinor: monthlyEconomics.serviceFeeMinor }}
-                      annual={annualEconomics && { faceMinor: annualEconomics.faceMinor, serviceFeeMinor: annualEconomics.serviceFeeMinor }}
-                    />
                     <div>
                       <h3 id="economics-title" className="text-sm font-semibold">
                         What you earn
                       </h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Estimated under today’s pricing policy after Cassette’s platform fee, payout operations, and payment processing.
-                        Fan charges freeze when you publish; later policy changes can change what you earn per member.
+                      <p className="mt-1 text-pretty text-sm text-muted-foreground">
+                        Estimated under today’s policy. Fan charges freeze when you publish; your cut can still change with policy.
                       </p>
                     </div>
-                    {monthlyEconomics && <EconomicsBreakdown economics={monthlyEconomics} currency={pricing.data.currency} interval="month" />}
+                    {monthlyEconomics
+                      ? <EconomicsBreakdown economics={monthlyEconomics} currency={pricing.data.currency} interval="month" />
+                      : <p className="text-sm text-muted-foreground">Enter a monthly price to see the estimate.</p>}
                     {annualEconomics && <EconomicsBreakdown economics={annualEconomics} currency={pricing.data.currency} interval="year" />}
-                    <dl className="divide-y divide-border/70 text-sm">
+                    <dl className="divide-y divide-border/70 text-xs">
                       <div className="py-2.5">
-                        <dt className="text-muted-foreground">Current Curator Pro base price</dt>
-                        <dd className="mt-1">
+                        <dt className="text-muted-foreground">Curator Pro, not subtracted above</dt>
+                        <dd className="mt-1 text-sm">
                           <span className="font-mono tabular-nums">{money(pricing.data.curatorProMonthlyPriceMinor, pricing.data.currency)}</span>/month, billed separately
                         </dd>
                       </div>
                       <div className="py-2.5">
-                        <dt className="text-muted-foreground">Payout schedule</dt>
-                        <dd className="mt-1 text-pretty">
+                        <dt className="text-muted-foreground">Payouts</dt>
+                        <dd className="mt-1 text-pretty text-sm">
                           {/* capitalize only the cadence word, not the whole sentence */}
                           <span className="capitalize">{pricing.data.payoutCadence}</span>
                           , after your balance reaches{' '}
@@ -857,7 +915,6 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                         </dd>
                       </div>
                     </dl>
-                    <p className="text-xs text-muted-foreground">Curator Pro is not subtracted from the estimated earnings.</p>
                   </aside>
                 </form>
               </CollapsibleContent>

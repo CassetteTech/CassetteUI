@@ -31,7 +31,8 @@ test('creates a post from add-music search and shows it on the profile', async (
     .fill(
       'A permanent resident in my rotation.',
     );
-  await page.locator('#add-music-privacy:visible').selectOption('subscriber');
+  await page.locator('#add-music-privacy:visible').click();
+  await page.getByRole('option', { name: 'Members only', exact: true }).click();
   const conversionRequest = page.waitForRequest((request) =>
     new URL(request.url()).pathname === '/api/v1/convert' && request.method() === 'POST');
   await page.locator('[data-testid="add-music-submit"]:not([disabled])').last().click();

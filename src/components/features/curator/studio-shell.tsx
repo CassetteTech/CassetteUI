@@ -26,7 +26,11 @@ export function studioViewOf(sectionId: string): StudioView {
 /** Lets any section link switch the dashboard to the view that holds its target.
     Every view stays mounted (hidden when inactive) so queries and provider
     return flows keep running regardless of which view is showing. */
-export const StudioStepsContext = createContext<{ open: (sectionId: string) => void } | null>(null);
+export const StudioStepsContext = createContext<{
+  open: (sectionId: string) => void;
+  /** Rail element the plan card portals the membership pass into; one fixed spot across every view. */
+  passSlot: HTMLElement | null;
+} | null>(null);
 
 export type StudioChipTone = 'neutral' | 'positive' | 'warning' | 'danger';
 
@@ -127,11 +131,39 @@ export function StudioNotice({
       data-testid={testId}
       aria-live="polite"
       className={hasContent
-        ? cn('block rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm', className)
+        ? cn(
+            // A short rise explains that the banner is new; reduced motion gets the static cue alone.
+            'block rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-280 motion-safe:ease-out',
+            className,
+          )
         : 'sr-only'}
     >
       {children}
     </output>
+  );
+}
+
+/** One figure on a quiet tile: small label, big Teko number, optional hint.
+    Rendered as dt/dd, so the tile's div is the parent of both label and value. */
+export function StudioStat({
+  label,
+  value,
+  hint,
+  valueTestId,
+  className,
+}: {
+  label: string;
+  value: ReactNode;
+  hint?: ReactNode;
+  valueTestId?: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn('card-quiet px-4 py-3.5', className)}>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-1 font-teko text-3xl font-bold leading-none tabular-nums" data-testid={valueTestId}>{value}</dd>
+      {hint && <dd className="mt-1.5 text-xs text-muted-foreground">{hint}</dd>}
+    </div>
   );
 }
 

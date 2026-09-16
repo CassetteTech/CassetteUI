@@ -9,13 +9,7 @@ import { useAuthState } from '@/hooks/use-auth';
 import { apiService } from '@/services/api';
 import type { CuratorProStatus } from '@/services/curator-pro';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
-import {
-  ReceiptRow,
-  StudioChip,
-  StudioNotice,
-  StudioSection,
-  type StudioChipTone,
-} from '@/components/features/curator/studio-shell';
+import { StudioNotice, StudioSection, StudioStat } from '@/components/features/curator/studio-shell';
 import { Button } from '@/components/ui/button';
 import { removeQueryParameters } from '@/utils/remove-query-parameters';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
@@ -70,13 +64,6 @@ function formatMoney(amountMinor: number, currency: string) {
   return formatPaidPromotionMinorAmount(amountMinor, currency, priceLocale);
 }
 
-function statusTone(status: CuratorProStatus): StudioChipTone {
-  if (status.cancelAtPeriodEnd) return 'warning';
-  if (status.hasAccess) return 'positive';
-  if (status.status === 'past_due' || status.status === 'unpaid') return 'danger';
-  return 'neutral';
-}
-
 function statusLabel(status: CuratorProStatus) {
   if (status.cancelAtPeriodEnd) return 'Canceling';
   if (status.hasAccess) return 'Active';
@@ -105,26 +92,23 @@ function discountCopy(status: CuratorProStatus) {
 /** What ending Curator Pro means, shown before the billing handoff and on scheduled cancellations. */
 const endOfProCopy = 'After that, no new paid joins and no member-only publishing; each existing member is scheduled to end at the close of their own paid period. Your free profile and earned balances stay yours.';
 
-function lifecycleCopy(status: CuratorProStatus) {
+/** One line on the current state; null when the pass already says it all. */
+function lifecycleCopy(status: CuratorProStatus): string | null {
   if (status.cancelAtPeriodEnd) {
     const end = status.paidThroughUtc
-      ? ` on ${dateFormatter.format(new Date(status.paidThroughUtc))}`
-      : ' at the end of the current billing period';
-    return `Curator Pro is canceling${end}. Until then you keep every Pro capability. ${endOfProCopy}`;
+      ? `on ${dateFormatter.format(new Date(status.paidThroughUtc))}`
+      : 'after the current billing period';
+    return `Curator Pro is canceling ${end}. Until then you keep every Pro capability; members finish their own paid periods.`;
   }
-  if (status.hasAccess) {
-    return 'Curator Pro is active. Paid plan and payout requirements still apply before membership monetization.';
-  }
+  if (status.hasAccess) return null;
   if (status.status === 'trialing' || status.status === 'active') {
-    return 'Your Curator Pro subscription is current, but access is unavailable.';
+    return 'Your subscription is current, but access is unavailable.';
   }
   if (status.status === 'past_due' || status.status === 'unpaid') {
-    return 'Payment needs attention. Manage billing to restore Curator Pro access.';
+    return 'Payment needs attention. Manage billing to restore access.';
   }
-  if (status.status === 'canceled') {
-    return 'Curator Pro is canceled. Your free curator profile stays available.';
-  }
-  return 'Your free curator profile stays available. Curator Pro is required only to lock posts or earn membership revenue.';
+  if (status.status === 'canceled') return 'Curator Pro is canceled. Your free curator profile stays available.';
+  return 'Your free profile stays free. Pro adds locked posts and membership revenue.';
 }
 
 export function CuratorProCard() {
@@ -257,8 +241,7 @@ export function CuratorProCard() {
       title="Curator Pro"
       headingId="curator-pro-title"
       testId="curator-pro-card"
-      description="Curator Pro is required before locked posts and fan membership revenue. Regular Cassette features stay free."
-      chip={status && <StudioChip tone={statusTone(status)}>{statusLabel(status)}</StudioChip>}
+      description="Required for locked posts and membership revenue."
     >
       <StudioNotice testId="curator-pro-notice" className="mb-5">{notice}</StudioNotice>
       <div className="space-y-5">
@@ -292,42 +275,39 @@ export function CuratorProCard() {
           </div>
         ) : status ? (
           <>
-            <dl className="divide-y divide-border/70 text-sm">
-              <ReceiptRow
-                className="py-2.5"
-                label="Base monthly price"
-                value={formatMoney(status.monthlyPriceMinor, status.currency)}
-              />
-              <ReceiptRow
-                className="py-2.5"
+            <dl className="grid gap-4 sm:grid-cols-3">
+              <StudioStat
                 label="Your monthly price"
-                value={
-                  <span className="font-semibold text-primary">
-                    {formatMoney(status.discountKind === 'none' ? status.monthlyPriceMinor : 0, status.currency)}
-                  </span>
-                }
+                value={formatMoney(status.discountKind === 'none' ? status.monthlyPriceMinor : 0, status.currency)}
+                hint={status.discountKind !== 'none' && (
+                  <>
+                    <s className="font-mono tabular-nums">{formatMoney(status.monthlyPriceMinor, status.currency)}</s>
+                    {' '}{discountCopy(status)}
+                  </>
+                )}
               />
-              {status.discountKind !== 'none' && (
-                <ReceiptRow className="py-2.5" label="Offer" value={discountCopy(status)} />
-              )}
-              <ReceiptRow
-                className="py-2.5"
-                label="Fan membership platform fee"
+              <StudioStat
+                label={status.hasAccess ? (status.cancelAtPeriodEnd ? 'Ends' : 'Renews') : 'Status'}
+                value={status.hasAccess
+                  ? (status.paidThroughUtc ? dateFormatter.format(new Date(status.paidThroughUtc)) : 'Current period')
+                  : statusLabel(status)}
+              />
+              <StudioStat
+                label="Platform fee on fan payments"
                 value={feeFormatter.format(status.platformFeeBps / 10_000)}
               />
             </dl>
-
-            <p className="text-sm leading-relaxed">{lifecycleCopy(status)}</p>
+            {lifecycleCopy(status) && (
+              <p className="max-w-prose text-sm leading-relaxed">{lifecycleCopy(status)}</p>
+            )}
             {status.canManage && status.hasAccess && !status.cancelAtPeriodEnd && (
-              <p className="text-xs text-muted-foreground">
-                Canceling in billing settings ends Curator Pro on the effective date shown there, which may be
-                immediate. {endOfProCopy}
+              <p className="max-w-prose text-xs text-muted-foreground">
+                Cancel in billing settings. Pro ends on the date shown there. {endOfProCopy}
               </p>
             )}
-            <p className="text-xs text-muted-foreground">
-              Promotional codes are entered in secure Stripe Checkout.
-            </p>
-
+            {status.canSubscribe && (
+              <p className="text-xs text-muted-foreground">Promo codes go in at Checkout.</p>
+            )}
             {actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}
 
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">

@@ -134,15 +134,12 @@ export function EmailPreferencesSettings() {
   const controlId = `${id}-product-updates`;
 
   return (
-    <section className="border-t border-border/70 pt-5" aria-labelledby={headingId}>
-      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-        Email preferences
-      </p>
-      <div className="mt-2 flex items-start justify-between gap-4">
+    <section aria-labelledby={headingId}>
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 id={headingId} className="text-sm font-medium text-foreground">
+          <h3 id={headingId} className="text-sm font-medium text-foreground">
             Product updates and releases
-          </h2>
+          </h3>
           <label htmlFor={controlId} className="mt-1 block text-xs text-muted-foreground">
             Cassette sends occasional product and release update emails to your account address by default. Turn this off any time to stop them.
           </label>

@@ -24,6 +24,7 @@ import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { PublicCuratorPage } from '@/components/features/curator/curator-page';
 import { useCuratorPage } from '@/hooks/use-curator';
+import { cn } from '@/lib/utils';
 
 const TAB_ELEMENT_TYPE: Partial<Record<TabType, string>> = {
   playlists: 'Playlist',
@@ -42,11 +43,12 @@ export default function ProfilePage() {
   const queryClient = useQueryClient();
   const { user, isLoading: authLoading } = useAuthState();
 
-  const [activeTab, setActiveTab] = useState<TabType>('playlists');
+  const [chosenTab, setActiveTab] = useState<TabType>('playlists');
   const [hasResolvedInitialTab, setHasResolvedInitialTab] = useState(false);
   const [additionalPosts, setAdditionalPosts] = useState<ActivityPost[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [membershipSlot, setMembershipSlot] = useState<HTMLElement | null>(null);
 
   const userIdentifier = Array.isArray(username) ? username[0] : username;
 
@@ -58,6 +60,12 @@ export default function ProfilePage() {
     isEditMode || authLoading ? null : (user?.id ?? 'anonymous'),
   );
   const hasCuratorPage = Boolean(curatorQuery.data?.pages[0]);
+  // A cached curator page resolves to the posts feed on first paint, so the
+  // membership rail does not flash in after the playlists layout.
+  const tabParam = searchParams.get('tab');
+  const activeTab: TabType = !hasResolvedInitialTab && hasCuratorPage && (tabParam === null || tabParam === 'posts')
+    ? 'posts'
+    : chosenTab;
   const membership = membershipFlows.find(
     (flow) => flow === searchParams.get('membership'),
   ) ?? null;
@@ -139,7 +147,6 @@ export default function ProfilePage() {
     if (hasResolvedInitialTab || !userIdToFetch) return;
     if (!isEditMode && curatorQuery.isPending) return;
 
-    const tabParam = searchParams.get('tab');
     const validTabs: TabType[] = [
       ...(hasCuratorPage ? ['posts' as TabType] : []),
       'playlists', 'tracks', 'artists', 'albums', 'liked',
@@ -228,7 +235,7 @@ export default function ProfilePage() {
     return () => {
       isCancelled = true;
     };
-  }, [curatorQuery.isPending, hasCuratorPage, hasResolvedInitialTab, isEditMode, isLoadingBio, likedPostsUserId, likedSectionVisible, membership, queryClient, searchParams, updateUrlForTab, userBio, userIdToFetch]);
+  }, [curatorQuery.isPending, hasCuratorPage, hasResolvedInitialTab, isEditMode, isLoadingBio, likedPostsUserId, likedSectionVisible, membership, queryClient, tabParam, updateUrlForTab, userBio, userIdToFetch]);
 
   useEffect(() => {
     if (!likedSectionVisible && activeTab === 'liked') {
@@ -410,33 +417,35 @@ export default function ProfilePage() {
 
   const curatorInfo = curatorQuery.data?.pages[0]?.curator;
   const isPostsTab = activeTab === 'posts' && hasCuratorPage;
+  const showRail = Boolean(curatorQuery.data?.pages[0]?.membership);
 
   // The curator posts pane owns Stripe flow effects, so it must mount exactly
   // once — a single responsive branch instead of the CSS-split double layout.
   if (isPostsTab && userBio) {
     return (
       <div className="studio-surface min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
-        <div className="bg-background lg:hidden">
-          <Container className="bg-transparent p-0">
-            <div className="mx-auto max-w-4xl">
-              {!isCurrentUser && (
-                <div className="px-4 pt-4">
-                  <BackButton fallbackRoute="/explore" />
-                </div>
-              )}
-              <ProfileHeader
-                userBio={userBio}
-                isCurrentUser={isCurrentUser}
-                onShare={handleShare}
-                onAddMusic={isCurrentUser ? handleAddMusic : undefined}
-                curatorHeadline={curatorInfo?.headline}
-                curatorGenres={curatorInfo?.declaredGenres}
-                curatorAbout={curatorInfo?.about}
-                curatorPlatforms={curatorInfo?.declaredPlatforms}
-              />
+          <div className="bg-background lg:hidden">
+            <div>
+              <div className="mx-auto max-w-4xl">
+                {!isCurrentUser && (
+                  <div className="px-4 pt-4">
+                    <BackButton fallbackRoute="/explore" />
+                  </div>
+                )}
+                <ProfileHeader
+                  userBio={userBio}
+                  isCurrentUser={isCurrentUser}
+                  onShare={handleShare}
+                  onAddMusic={isCurrentUser ? handleAddMusic : undefined}
+                  curatorHeadline={curatorInfo?.headline}
+                  curatorGenres={curatorInfo?.declaredGenres}
+                  curatorAbout={curatorInfo?.about}
+                  curatorPlatforms={curatorInfo?.declaredPlatforms}
+                />
+              </div>
             </div>
-          </Container>
-        </div>
+          </div>
+        {/* Tab strip and owner bar run edge to edge, above the content and the membership rail alike. */}
         <div className="sticky top-0 z-10 flex items-center bg-background/80 backdrop-blur-sm">
           <div className="min-w-0 flex-1">
             <ProfileTabs
@@ -454,11 +463,26 @@ export default function ProfilePage() {
           )}
         </div>
         {isCurrentUser && <ProfileOwnerBar username={userBio.username} />}
-        <PublicCuratorPage
-          username={userBio.username}
-          membershipFlow={membership}
-          initialInterval={membershipInterval}
-        />
+        {/* Same right rail as Curator Studio; the membership pass slides between the two pages' spots. */}
+        <div className={cn(
+          'lg:px-8 lg:py-10',
+          showRail && 'grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6',
+        )}>
+          <div className="min-w-0">
+            <PublicCuratorPage
+              username={userBio.username}
+              membershipFlow={membership}
+              initialInterval={membershipInterval}
+              membershipSlot={membershipSlot}
+            />
+          </div>
+          {/* top offset clears the sticky tab strip. */}
+          <aside
+            ref={setMembershipSlot}
+            aria-label="Membership"
+            className="empty:hidden px-4 pb-6 sm:px-6 sm:pb-8 lg:sticky lg:top-[5.5rem] lg:p-0"
+          />
+        </div>
       </div>
     );
   }
@@ -467,7 +491,7 @@ export default function ProfilePage() {
     <>
       {/* --- MOBILE & TABLET LAYOUT --- */}
       <div className="studio-surface bg-background lg:hidden">
-        <Container className="bg-transparent p-0">
+        <div>
           <div className="max-w-4xl mx-auto">
             {/* Back button — only for other users' profiles */}
             {!isCurrentUser && userBio && (
@@ -521,7 +545,7 @@ export default function ProfilePage() {
               />
             )}
           </div>
-        </Container>
+        </div>
       </div>
 
       {/* --- DESKTOP LAYOUT --- */}

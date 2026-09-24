@@ -1,4 +1,4 @@
-import { Users, AlertCircle, Link2, AlertTriangle, Layers, ChartNoAxesCombined, Mail, type LucideIcon } from 'lucide-react';
+import { Users, AlertCircle, Link2, AlertTriangle, Layers, ChartNoAxesCombined, Mail, Megaphone, type LucideIcon } from 'lucide-react';
 
 export type ConsoleDomain = 'eng' | 'growth';
 
@@ -69,6 +69,13 @@ export const CONSOLE_NAV: ConsoleNavSection[] = [
     label: 'Product & Growth',
     caption: 'Accounts & acquisition',
     items: [
+      {
+        key: 'marketing',
+        label: 'Marketing',
+        href: '/internal/marketing',
+        icon: Megaphone,
+        blurb: 'Manage marketing automations and review scheduled content.',
+      },
       {
         key: 'users',
         label: 'Users',

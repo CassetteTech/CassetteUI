@@ -20,6 +20,7 @@ import {
   describeMembershipStanding,
   formatMembershipDate,
   grantsMembershipAccess,
+  membershipEndOrRenewalUtc,
   type MembershipSubscription,
   type MyMembership,
 } from '@/services/membership';
@@ -37,7 +38,7 @@ function tier(membership: MembershipSubscription) {
     case 'canceled':
       return 'Canceled';
     default:
-      if (membership.cancelAtPeriodEnd) return 'Ending';
+      if (membership.cancelAtPeriodEnd || membership.accessEndsAtUtc) return 'Ending';
       return grantsMembershipAccess(membership.status) ? 'Member' : 'Pending';
   }
 }
@@ -50,7 +51,9 @@ function MembershipPass({ entry }: { entry: MyMembership }) {
   const paymentProblem = membership.status === 'past_due' || membership.status === 'unpaid';
   const curatorName = entry.curatorDisplayName.trim() || entry.curatorUsername;
   const money = (minor: number) => formatPaidPromotionMinorAmount(minor, membership.currency);
-  const end = membership.paidThroughUtc ? formatMembershipDate(membership.paidThroughUtc) : null;
+  const endUtc = membershipEndOrRenewalUtc(membership);
+  const end = endUtc ? formatMembershipDate(endUtc) : null;
+  const ending = membership.cancelAtPeriodEnd || Boolean(membership.accessEndsAtUtc);
   // The same key on the curator's profile pass lets this card slide into the rail on navigation, and back.
   const passRef = useRef<HTMLDivElement>(null);
   useSharedPosition(passRef, `membership-pass:${entry.curatorUsername}`);
@@ -79,7 +82,7 @@ function MembershipPass({ entry }: { entry: MyMembership }) {
       holderHref={`/profile/${encodeURIComponent(entry.curatorUsername)}`}
       // Canceled passes lose the brand head; every other state is still a live pass.
       active={membership.status !== 'canceled'}
-      validityLabel={!end ? 'Status' : membership.status === 'canceled' ? 'Ended' : membership.cancelAtPeriodEnd ? 'Ends' : 'Renews'}
+      validityLabel={!end ? 'Status' : membership.status === 'canceled' ? 'Ended' : ending ? 'Ends' : 'Renews'}
       validityValue={end ?? tier(membership)}
     >
       {/* Standing is status, not money: a scheduled end or a failed payment reads without opening anything. */}

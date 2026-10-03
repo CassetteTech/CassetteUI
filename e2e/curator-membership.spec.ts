@@ -403,6 +403,48 @@ test('lists the fan’s own memberships at their retained prices', async ({ page
   });
 });
 
+test('explains curator-side endings with the access end date and refund state', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    myMemberships: [
+      {
+        curatorProfileId: fixtureCuratorPage.curator.id,
+        curatorUsername: fixtureCuratorPage.curator.username,
+        curatorDisplayName: fixtureCuratorPage.curator.displayName ?? '',
+        membership: {
+          ...fixtureCancelingMembershipStatus.membership!,
+          endReason: 'curator_pro_ended',
+          accessEndsAtUtc: fixtureCancelingMembershipStatus.membership!.paidThroughUtc,
+        },
+      },
+      {
+        curatorProfileId: 'cpr_FixtureCurator02',
+        curatorUsername: 'second_curator',
+        curatorDisplayName: 'Second Curator',
+        membership: {
+          ...fixtureCanceledMembershipStatus.membership!,
+          membershipSubscriptionId: 'msb_FixtureMembership02',
+          canManage: false,
+          endReason: 'curator_suspended',
+          accessEndsAtUtc: '2026-08-20T00:00:00Z',
+          refundStatus: 'refunded',
+        },
+      },
+    ],
+  });
+
+  await page.goto('/memberships');
+  const rows = page.getByTestId('my-membership');
+  await expect(rows.nth(0).getByTestId('my-membership-standing')).toHaveText(
+    'This curator stopped offering this membership. It ends on Sep 16, 2026, and you keep member access until then.',
+  );
+  await expect(rows.nth(1).getByTestId('my-membership-standing')).toHaveText(
+    'This membership ended on Aug 20, 2026 because the curator can no longer offer it. Your unused paid time was refunded.',
+  );
+  await expect(rows.nth(1)).toContainText('Aug 20, 2026');
+  await expect(rows.nth(1)).not.toContainText('suspend');
+});
+
 test('slides a membership pass into the curator profile rail on navigation', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,

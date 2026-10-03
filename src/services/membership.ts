@@ -40,6 +40,10 @@ const statusSubscriptionSchema = z.object({
   serviceFeeMinor: moneyMinorSchema,
   totalAmountMinor: moneyMinorSchema,
   currency: currencySchema,
+  // Optional so a response from a Bridge without the ending fields still parses.
+  endReason: z.string().min(1).max(30).nullable().optional(),
+  accessEndsAtUtc: z.string().datetime({ offset: true }).nullable().optional(),
+  refundStatus: z.enum(['pending', 'refunded', 'none']).nullable().optional(),
 }).strict().refine(
   (subscription) => Number.isSafeInteger(subscription.faceAmountMinor + subscription.serviceFeeMinor) &&
     subscription.faceAmountMinor + subscription.serviceFeeMinor === subscription.totalAmountMinor,
@@ -123,13 +127,20 @@ export const formatMembershipPrice = (
 ): string =>
   `${formatPaidPromotionMinorAmount(subscription.totalAmountMinor, subscription.currency)}/${subscription.billingInterval}`;
 
+/** When access ends or ended if an ending applies, otherwise when the membership renews. */
+export const membershipEndOrRenewalUtc = (subscription: MembershipSubscription): string | null =>
+  subscription.accessEndsAtUtc ?? subscription.paidThroughUtc;
+
 /** Compact billing line: what renews or ends, and when. Tax is charged on top of any amount still chargeable. */
 export function describeMembershipBilling(subscription: MembershipSubscription): string {
   const price = formatMembershipPrice(subscription);
-  const end = subscription.paidThroughUtc ? formatMembershipDate(subscription.paidThroughUtc) : null;
+  const endUtc = membershipEndOrRenewalUtc(subscription);
+  const end = endUtc ? formatMembershipDate(endUtc) : null;
   switch (subscription.status) {
     case 'canceled':
-      return `${price} · canceled`;
+      return subscription.accessEndsAtUtc
+        ? `${price} · ended ${formatMembershipDate(subscription.accessEndsAtUtc)}`
+        : `${price} · canceled`;
     case 'past_due':
       return `${price} · payment overdue · tax extra`;
     case 'unpaid':
@@ -148,8 +159,39 @@ export function describeMembershipBilling(subscription: MembershipSubscription):
   }
 }
 
+// Curator-side endings. A scheduled ending keeps access to the paid-through date; an
+// immediate one ends access at once and refunds unused paid time. The reason code itself
+// is never shown, and an unknown code falls back to the ordinary standing copy.
+const scheduledEndReasons = new Set(['curator_pro_ended', 'plan_archived']);
+const immediateEndReasons = new Set(['curator_suspended', 'curator_retired', 'account_deleted']);
+const refundCopy = {
+  pending: 'A refund for your unused paid time is on its way.',
+  refunded: 'Your unused paid time was refunded.',
+  none: 'There was no unused paid time to refund.',
+} as const;
+
+function describeCuratorSideEnding(subscription: MembershipSubscription): string | null {
+  const reason = subscription.endReason ?? '';
+  const endUtc = subscription.accessEndsAtUtc ?? subscription.paidThroughUtc;
+  if (immediateEndReasons.has(reason)) {
+    const ended = endUtc
+      ? `This membership ended on ${formatMembershipDate(endUtc)} because the curator can no longer offer it.`
+      : 'This membership ended because the curator can no longer offer it.';
+    const refund = subscription.refundStatus ? refundCopy[subscription.refundStatus] : null;
+    return refund ? `${ended} ${refund}` : ended;
+  }
+  if (scheduledEndReasons.has(reason)) {
+    return endUtc
+      ? `This curator stopped offering this membership. It ends on ${formatMembershipDate(endUtc)}, and you keep member access until then.`
+      : 'This curator stopped offering this membership. It ends after the current billing period, and you keep member access until then.';
+  }
+  return null;
+}
+
 /** Actionable state guidance; null when the membership is in good standing with no scheduled change. */
 export function describeMembershipStanding(subscription: MembershipSubscription): string | null {
+  const curatorSideEnding = describeCuratorSideEnding(subscription);
+  if (curatorSideEnding) return curatorSideEnding;
   switch (subscription.status) {
     case 'past_due':
       return 'Your last payment failed. Update your payment method in billing settings to keep access.';
@@ -159,10 +201,12 @@ export function describeMembershipStanding(subscription: MembershipSubscription)
       return 'Your membership is paused. Resume it from billing settings to restore access.';
     case 'canceled':
       return 'Your membership is canceled.';
-    default:
+    default: {
       if (!subscription.cancelAtPeriodEnd) return null;
-      return subscription.paidThroughUtc
-        ? `Your membership will end on ${formatMembershipDate(subscription.paidThroughUtc)}. You keep member access until then.`
+      const endUtc = membershipEndOrRenewalUtc(subscription);
+      return endUtc
+        ? `Your membership will end on ${formatMembershipDate(endUtc)}. You keep member access until then.`
         : 'Your membership will end after the current billing period. You keep member access until then.';
+    }
   }
 }

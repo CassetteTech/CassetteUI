@@ -12,6 +12,7 @@ import {
   describeMembershipBilling,
   describeMembershipStanding,
   formatMembershipDate,
+  membershipEndOrRenewalUtc,
   type MembershipInterval,
   type MembershipStatus,
   type MembershipStatusView,
@@ -90,6 +91,7 @@ export function CuratorMembershipCard({
     : interval;
   const canJoin = Boolean(plan) && (!authenticated || status?.canSubscribe === true);
   const statusNotice = membership ? describeMembershipStanding(membership) : null;
+  const memberEndUtc = membership ? membershipEndOrRenewalUtc(membership) : null;
   const planName = displayedPlan?.name ?? `${displayName} membership`;
   const paymentProblem = membership?.status === 'past_due' || membership?.status === 'unpaid';
 
@@ -159,8 +161,8 @@ export function CuratorMembershipCard({
           tier="Member"
           price={membership ? formatPaidPromotionMinorAmount(membership.totalAmountMinor, membership.currency) : undefined}
           priceUnit={membership ? `/${membership.billingInterval}` : undefined}
-          validityLabel={membership?.paidThroughUtc ? (membership.cancelAtPeriodEnd ? 'Ends' : 'Renews') : 'Plan'}
-          validityValue={membership?.paidThroughUtc ? formatMembershipDate(membership.paidThroughUtc) : planName}
+          validityLabel={memberEndUtc ? (membership?.cancelAtPeriodEnd || membership?.accessEndsAtUtc ? 'Ends' : 'Renews') : 'Plan'}
+          validityValue={memberEndUtc ? formatMembershipDate(memberEndUtc) : planName}
         >
           {activated && (
             <h2 className="text-balance break-words font-teko text-2xl font-semibold uppercase leading-none">

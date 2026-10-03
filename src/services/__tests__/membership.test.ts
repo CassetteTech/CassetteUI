@@ -129,3 +129,55 @@ void test('Portal parser requires HTTPS and standing access follows the backend 
   assert.equal(grantsMembershipAccess('unpaid'), false);
   assert.equal(grantsMembershipAccess('canceled'), false);
 });
+
+void test('ending fields parse when present or absent and reject unknown refund states', () => {
+  assert.equal(parseMembershipStatus(statusView).membership?.endReason, undefined);
+  const ending = parseMembershipStatus({
+    ...statusView,
+    membership: {
+      ...subscription,
+      endReason: 'curator_suspended',
+      accessEndsAtUtc: '2026-08-20T00:00:00Z',
+      refundStatus: 'pending',
+    },
+  });
+  assert.equal(ending.membership?.refundStatus, 'pending');
+  assert.throws(() => parseMembershipStatus({
+    ...statusView,
+    membership: { ...subscription, refundStatus: 'partial' },
+  }));
+});
+
+void test('curator-side endings explain the access end date and any refund', () => {
+  const scheduled = {
+    ...subscription,
+    cancelAtPeriodEnd: true,
+    endReason: 'curator_pro_ended',
+    accessEndsAtUtc: '2026-09-01T00:00:00Z',
+  };
+  assert.match(describeMembershipStanding(scheduled) ?? '', /stopped offering.*Sep 1, 2026.*keep member access/);
+  assert.doesNotMatch(describeMembershipStanding(scheduled) ?? '', /curator_pro_ended|Curator Pro/);
+
+  const immediate = {
+    ...subscription,
+    status: 'canceled',
+    canManage: false,
+    endReason: 'curator_suspended',
+    accessEndsAtUtc: '2026-08-20T00:00:00Z',
+  } as const;
+  assert.equal(
+    describeMembershipStanding({ ...immediate, refundStatus: 'refunded' }),
+    'This membership ended on Aug 20, 2026 because the curator can no longer offer it. Your unused paid time was refunded.',
+  );
+  assert.match(describeMembershipStanding({ ...immediate, refundStatus: 'pending' }) ?? '', /refund .* on its way/);
+  assert.match(describeMembershipStanding({ ...immediate, refundStatus: 'none' }) ?? '', /no unused paid time/);
+  assert.doesNotMatch(describeMembershipStanding(immediate) ?? '', /suspend/);
+  // The billing line dates the ending by the cutoff, not the paid-through date.
+  assert.equal(describeMembershipBilling(immediate), '$5.50/month · ended Aug 20, 2026');
+
+  // An unknown reason falls back to the ordinary standing copy.
+  assert.equal(
+    describeMembershipStanding({ ...subscription, status: 'canceled', endReason: 'future_reason' }),
+    'Your membership is canceled.',
+  );
+});

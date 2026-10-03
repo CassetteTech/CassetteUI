@@ -8,7 +8,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Badge } from '@/components/ui/badge';
 import { CoralGlow } from '@/components/ui/coral-glow';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
@@ -20,9 +19,6 @@ interface SidebarProfileCardProps {
   /** Whether this is the current logged-in user's own profile */
   isCurrentUser?: boolean;
   className?: string;
-  curatorGenres?: string[];
-  curatorAbout?: string | null;
-  curatorPlatforms?: string[];
 }
 
 /**
@@ -87,9 +83,6 @@ export function SidebarProfileCard({
   user,
   isCurrentUser = false,
   className = '',
-  curatorGenres,
-  curatorAbout,
-  curatorPlatforms,
 }: SidebarProfileCardProps) {
   const avatarUrl = getAvatarUrl(user);
   const connectedServices = getConnectedServices(user);
@@ -99,12 +92,7 @@ export function SidebarProfileCard({
   const initial = user.username?.charAt(0)?.toUpperCase() || 'U';
   const totalLikesReceived = getTotalLikesReceived(user);
   const links = getProfileLinks(user) ?? [];
-  const curatorInterests = [...new Set([
-    ...(curatorGenres ?? []),
-    ...(curatorPlatforms ?? []),
-  ])];
-
-  const hasDetails = Boolean(bio || curatorAbout) || curatorInterests.length > 0 || links.length > 0;
+  const hasDetails = Boolean(bio) || links.length > 0;
 
   // Photo-album card: the portrait fills the top edge to edge, a ruled strip
   // carries the name and handle with the service marks where the album dots
@@ -168,23 +156,6 @@ export function SidebarProfileCard({
                 <TooltipContent side="bottom" className="max-w-[280px] text-sm">{bio}</TooltipContent>
               )}
             </Tooltip>
-          )}
-          {curatorAbout && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <p className="line-clamp-3 cursor-default text-xs leading-relaxed text-muted-foreground">{curatorAbout}</p>
-              </TooltipTrigger>
-              {curatorAbout.length > 120 && (
-                <TooltipContent side="bottom" className="max-w-[280px] whitespace-pre-wrap text-sm">{curatorAbout}</TooltipContent>
-              )}
-            </Tooltip>
-          )}
-          {curatorInterests.length > 0 && (
-            <ul className="flex flex-wrap gap-1.5" aria-label="Curator interests">
-              {curatorInterests.map((interest) => (
-                <li key={interest}><Badge variant="outline" className="text-[10px]">{interest}</Badge></li>
-              ))}
-            </ul>
           )}
           <ProfileLinksRow links={links} />
         </div>

@@ -14,7 +14,6 @@ import {
   parseCuratorPayoutOnboarding,
   parseCuratorProfile,
   startCuratorPayoutOnboarding,
-  updateCuratorProfile,
   type CuratorProfileRequest,
 } from '../curator';
 
@@ -194,7 +193,7 @@ void test('returns null when the authenticated user has no curator profile', asy
   assert.equal(await fetchOwnCuratorProfile(), null);
 });
 
-void test('creates and updates the authenticated curator profile with the public request only', async (t) => {
+void test('creates the authenticated curator profile with the public request only', async (t) => {
   const calls: Array<{ init?: RequestInit; input: string | URL | Request }> = [];
   t.mock.method(
     globalThis,
@@ -215,7 +214,6 @@ void test('creates and updates the authenticated curator profile with the public
   };
 
   await createCuratorProfile(request);
-  await updateCuratorProfile(request);
 
   assert.deepEqual(
     calls.map(({ init, input }) => ({
@@ -230,12 +228,6 @@ void test('creates and updates the authenticated curator profile with the public
         credentials: 'include',
         method: 'POST',
         url: '/api/v1/curators',
-      },
-      {
-        body: JSON.stringify(request),
-        credentials: 'include',
-        method: 'PUT',
-        url: '/api/v1/curators/me',
       },
     ],
   );

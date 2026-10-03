@@ -234,12 +234,6 @@ export function createCuratorProfile(
   return saveCuratorProfile('/api/v1/curators', 'POST', request);
 }
 
-export function updateCuratorProfile(
-  request: CuratorProfileRequest,
-): Promise<CuratorProfile> {
-  return saveCuratorProfile('/api/v1/curators/me', 'PUT', request);
-}
-
 export async function fetchCuratorPayoutAccount(
   refresh = false,
   signal?: AbortSignal,

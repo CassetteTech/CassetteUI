@@ -22,7 +22,6 @@ import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/layout/theme-switcher';
 import { SidebarProfileCard, SidebarProfileCardSkeleton } from '@/components/features/profile/sidebar-profile-card';
 import { useUserBio } from '@/hooks/use-profile';
-import { useCuratorPage } from '@/hooks/use-curator';
 import { usePathname } from 'next/navigation';
 import { KOFI_SUPPORT_URL } from '@/lib/ko-fi';
 import { KofiIcon } from '@/components/ui/kofi-icon';
@@ -62,7 +61,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
 
   // The identity card is persistent: on /profile/[username] it shows the viewed
   // profile; everywhere else in the sidebar layout it shows the signed-in user,
-  // loaded through the same bio + curator queries so the card never loses data.
+  // loaded through the same bio query so the card never loses data.
   const rawProfileSegment = pathname?.startsWith('/profile/') ? pathname.split('/')[2] : undefined;
   const profileUsername =
     (rawProfileSegment && rawProfileSegment !== 'edit' ? rawProfileSegment : undefined) ?? user?.username;
@@ -70,11 +69,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
     staleTime: 1000 * 60,
     gcTime: 1000 * 60 * 10,
   });
-  const curatorQuery = useCuratorPage(
-    profileUsername ?? '',
-    profileUsername && !authLoading ? (user?.id ?? 'anonymous') : null,
-  );
-  const profileCurator = curatorQuery.data?.pages[0]?.curator;
   const contentRef = useRef<HTMLDivElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState<{
     top: number;
@@ -168,9 +162,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
                 <SidebarProfileCard
                   user={profileBio}
                   isCurrentUser={profileBio.username === user?.username}
-                  curatorGenres={profileCurator?.declaredGenres}
-                  curatorAbout={profileCurator?.about}
-                  curatorPlatforms={profileCurator?.declaredPlatforms}
                 />
               ) : profileLoading ? (
                 <SidebarProfileCardSkeleton />

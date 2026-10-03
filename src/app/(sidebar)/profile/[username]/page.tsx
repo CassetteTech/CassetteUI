@@ -415,7 +415,6 @@ export default function ProfilePage() {
     );
   }
 
-  const curatorInfo = curatorQuery.data?.pages[0]?.curator;
   const isPostsTab = activeTab === 'posts' && hasCuratorPage;
   const showRail = Boolean(curatorQuery.data?.pages[0]?.membership);
 
@@ -437,10 +436,6 @@ export default function ProfilePage() {
                   isCurrentUser={isCurrentUser}
                   onShare={handleShare}
                   onAddMusic={isCurrentUser ? handleAddMusic : undefined}
-                  curatorHeadline={curatorInfo?.headline}
-                  curatorGenres={curatorInfo?.declaredGenres}
-                  curatorAbout={curatorInfo?.about}
-                  curatorPlatforms={curatorInfo?.declaredPlatforms}
                 />
               </div>
             </div>
@@ -507,10 +502,6 @@ export default function ProfilePage() {
                 isCurrentUser={isCurrentUser}
                 onShare={handleShare}
                 onAddMusic={isCurrentUser ? handleAddMusic : undefined}
-                curatorHeadline={curatorInfo?.headline}
-                curatorGenres={curatorInfo?.declaredGenres}
-                curatorAbout={curatorInfo?.about}
-                curatorPlatforms={curatorInfo?.declaredPlatforms}
               />
             ) : null}
             <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm">

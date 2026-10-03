@@ -17,7 +17,6 @@ import { StudioChip } from '@/components/features/curator/studio-shell';
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 import { getDisplayPlatformDefinition, isAppleMusicPlatform } from '@/lib/platforms';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
-import { Badge } from '@/components/ui/badge';
 
 /** Organic blob silhouette for the avatar; overrides the primitive's circle. */
 const avatarBlob = { borderRadius: '60% 40% 55% 45% / 55% 45% 55% 45%' } as const;
@@ -30,10 +29,6 @@ interface ProfileHeaderProps {
   isCurrentUser: boolean;
   onShare: () => void;
   onAddMusic?: () => void;
-  curatorHeadline?: string | null;
-  curatorGenres?: string[];
-  curatorAbout?: string | null;
-  curatorPlatforms?: string[];
 }
 
 export function ProfileHeader({
@@ -41,17 +36,9 @@ export function ProfileHeader({
   isCurrentUser,
   onShare,
   onAddMusic,
-  curatorHeadline,
-  curatorGenres,
-  curatorAbout,
-  curatorPlatforms,
 }: ProfileHeaderProps) {
   const reduceMotion = useReducedMotion();
   const totalLikesReceived = Number(userBio.totalLikesReceived ?? 0);
-  const curatorInterests = [...new Set([
-    ...(curatorGenres ?? []),
-    ...(curatorPlatforms ?? []),
-  ])];
   const showActions = isCurrentUser && (onAddMusic || isCassetteInternalAccount(userBio.accountType));
 
   return (
@@ -129,29 +116,10 @@ export function ProfileHeader({
         platformPreferences={userBio.platformPreferences}
       />
 
-      {curatorHeadline && (
-        <p className="text-pretty text-base font-semibold leading-snug sm:text-lg">
-          {curatorHeadline}
-        </p>
-      )}
-
       {userBio.bio && (
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90 sm:text-base">
           {userBio.bio}
         </p>
-      )}
-      {curatorAbout && (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90 sm:text-base">
-          {curatorAbout}
-        </p>
-      )}
-
-      {curatorInterests.length > 0 && (
-        <ul className="flex flex-wrap gap-2" aria-label="Curator interests">
-          {curatorInterests.map((interest) => (
-            <li key={interest}><Badge variant="outline">{interest}</Badge></li>
-          ))}
-        </ul>
       )}
 
       <ProfileLinksRow links={userBio.profileLinks} />

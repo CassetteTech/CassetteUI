@@ -1,0 +1,44 @@
+[
+  {
+    "name": "curator-portrait",
+    "prompt": "Editorial portrait of a music curator in her late twenties in a small home studio, seated, turned slightly toward the camera, calm natural expression, warm tungsten lamp light, shelves of cassette tapes and records softly out of focus behind her, 35mm film grain, muted palette of cream, coral and charcoal, no text, no logos",
+    "files": [
+      "public/images/home-concepts/curator-portrait.png"
+    ]
+  },
+  {
+    "name": "cover-after-dark",
+    "prompt": "Album cover artwork, abstract: a city window at night reflected in wet glass, deep navy with a single coral neon streak, heavy film grain, risograph print texture, generous empty space, no text, no letters, no people",
+    "files": [
+      "public/images/home-concepts/cover-after-dark.png"
+    ]
+  },
+  {
+    "name": "cover-slow-burn",
+    "prompt": "Album cover artwork: sunlit dust drifting in an empty room, cream and amber tones, soft focus, halftone print texture, quiet and warm, no text, no letters, no people",
+    "files": [
+      "public/images/home-concepts/cover-slow-burn.png"
+    ]
+  },
+  {
+    "name": "cover-deep-cuts",
+    "prompt": "Album cover artwork: macro photograph of a cassette tape reel, warm paper tones with one coral red accent, grainy risograph style, shallow depth of field, no text, no letters",
+    "files": [
+      "public/images/home-concepts/cover-deep-cuts.png"
+    ]
+  },
+  {
+    "name": "cover-windows-down",
+    "prompt": "Album cover artwork: a highway at golden hour seen from a moving car window, slight motion blur, faded warm film stock, wide empty sky, no text, no letters, no people",
+    "files": [
+      "public/images/home-concepts/cover-windows-down.png"
+    ]
+  },
+  {
+    "name": "hero-paper-light",
+    "prompt": "Abstract background photograph: warm cream paper with soft coral and amber light leaks across it, subtle halftone grain, very minimal, mostly empty, no objects, no text, no letters",
+    "files": [
+      "public/images/home-concepts/hero-paper-light.png"
+    ]
+  }
+]

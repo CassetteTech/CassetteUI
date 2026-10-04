@@ -567,6 +567,72 @@
   }
 }
 
+/* Home wordmark: the lettering drops a short distance into place while a
+   soft-edged mask washes it in from the top on an even curve, and its colored extrusion
+   unfolds from behind the white face, front layer first. Each layer sets
+   --wordmark-depth (its resting offset in SVG units) and --wordmark-index
+   (0 = front), so travel and stagger both follow depth. The mask lives only
+   in the keyframes, so the settled wordmark carries no mask.
+   The home page mounts client-side, so this starts with the page reveal. */
+@keyframes home-wordmark-drop {
+  from { transform: translateY(-5%); }
+  to   { transform: none; }
+}
+
+@keyframes home-wordmark-wash {
+  from {
+    mask-image: linear-gradient(to bottom, #000 40%, transparent 60%);
+    mask-size: 100% 300%;
+    mask-position: 0 100%;
+  }
+  to {
+    mask-image: linear-gradient(to bottom, #000 40%, transparent 60%);
+    mask-size: 100% 300%;
+    mask-position: 0 0;
+  }
+}
+
+@keyframes home-wordmark-unfold {
+  from { transform: translateY(calc(var(--wordmark-depth) * -1)); }
+  to   { transform: none; }
+}
+
+@keyframes home-wordmark-badge {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home-wordmark {
+    animation:
+      home-wordmark-drop 900ms var(--ease-out-quart) backwards,
+      home-wordmark-wash 650ms cubic-bezier(0.45, 0, 0.25, 1) backwards;
+  }
+
+  .home-wordmark-layer {
+    animation: home-wordmark-unfold 1100ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation-delay: calc(90ms + 40ms * var(--wordmark-index));
+  }
+
+  .home-wordmark-badge {
+    animation: home-wordmark-badge 400ms var(--ease-out-quart) 550ms backwards;
+  }
+
+  /* Home search bar and results: drop into place from above with the
+     wordmark's wash, one after the other (--home-search-delay). */
+  .home-search-in {
+    animation:
+      home-search-drop 600ms var(--ease-out-quart) backwards,
+      home-wordmark-wash 500ms cubic-bezier(0.45, 0, 0.25, 1) backwards;
+    animation-delay: var(--home-search-delay, 0ms);
+  }
+}
+
+@keyframes home-search-drop {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: none; }
+}
+
 /* ─── Paid-promotion tape-deck hero ────────────────────────────────────────
    Three loops drive the /promote hero: the spectrum bars, the spotlight
    sweep that crosses them, and the two cassette reels. Everything animates
@@ -699,4 +765,31 @@
 .squircle {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath d='M100 0C30 0 0 30 0 100s30 100 100 100 100-30 100-100S170 0 100 0Z'/%3E%3C/svg%3E");
   mask-size: 100% 100%;
+}
+
+/* ─── Home concept: artwork wall ─────────────────────────────────────────
+   Each column of chart artwork drifts one full copy of itself and loops,
+   so the wall reads as slow tape motion behind the frosted hero card. */
+@keyframes home-wall-drift {
+  to { transform: translateY(-50%); }
+}
+
+.home-wall-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home-wall-column {
+    animation: home-wall-drift 80s linear infinite;
+  }
+}
+
+/* Paper dots punched over the artwork wall, so the covers read as a
+   halftone print rather than a photo grid. */
+.home-halftone-screen {
+  background-image: radial-gradient(circle at center, hsl(var(--background)) 0.9px, transparent 1.1px);
+  background-size: 4px 4px;
 }

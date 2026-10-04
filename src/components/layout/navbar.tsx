@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { isHeroRoute } from './hero-routes';
 import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserMenu } from '@/components/layout/user-menu';
@@ -34,6 +36,10 @@ export function Navbar() {
   const { mutate: signOut } = useSignOut();
   const { openReportModal } = useReportIssue();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // Hero routes paint their own backdrop, so the bar goes transparent there:
+  // a veil of blurred paper that fades out under the bar lets content slide
+  // beneath it instead of stopping at a solid band over the backdrop.
+  const isHero = isHeroRoute(usePathname());
   const visibleCompanyItems = getVisibleNavItems(companyNavItems, user);
   const visibleAccountItems = getVisibleNavItems(accountNavItems, user);
 
@@ -58,7 +64,18 @@ export function Navbar() {
   }, [isMobileMenuOpen]);
 
   return (
-    <nav className="bg-background/95 backdrop-blur border-b border-border/20 fixed top-0 left-0 right-0 z-50">
+    <nav
+      className={cn(
+        'fixed top-0 left-0 right-0 z-50',
+        !isHero && 'bg-background/95 backdrop-blur border-b border-border/20',
+      )}
+    >
+      {isHero && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-24 bg-gradient-to-b from-background/85 via-background/50 to-transparent backdrop-blur-md [mask-image:linear-gradient(to_bottom,black_45%,transparent)]"
+        />
+      )}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-8">
@@ -239,6 +256,7 @@ export function Navbar() {
             <div
               className="mb-4 flex items-center gap-3 border-b border-border/40 pb-4"
               data-menu-reveal
+              // SAFETY: CSSProperties has no custom-property keys; the value is a plain index.
               style={{ '--reveal-index': 1 } as React.CSSProperties}
             >
               <Avatar className="h-10 w-10 ring-2 ring-primary ring-offset-2 ring-offset-card">

@@ -10,15 +10,15 @@ for (const width of [1280, 390]) {
 
     const logo = page.getByTestId('home-wordmark');
     await expect(logo).toHaveAccessibleName('Cassette');
-    await expect(logo.locator('use')).toHaveCount(8);
+    await expect(logo.locator('image')).toHaveCount(8);
     await expect.poll(() => logo.evaluate(element =>
       element.getAnimations({ subtree: true }).length,
-    )).toBe(8);
+    )).toBe(10);
 
     await expect.poll(() => logo.evaluate(element =>
       element.getAnimations({ subtree: true }).length,
     )).toBe(0);
-    await expect.poll(() => logo.locator('use').evaluateAll(elements =>
+    await expect.poll(() => logo.locator('image').evaluateAll(elements =>
       elements.every(element => getComputedStyle(element).transform === 'none'),
     )).toBe(true);
 
@@ -45,7 +45,7 @@ for (const width of [1280, 390]) {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect.poll(() => logo.evaluate(element =>
       element.getAnimations({ subtree: true }).length,
-    )).toBe(8);
+    )).toBe(10);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect.poll(() => logo.evaluate(element =>
       element.getAnimations({ subtree: true }).length,

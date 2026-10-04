@@ -12,6 +12,7 @@ import { Footer } from './footer';
 import { SupportFloatingButton } from './support-floating-button';
 import { PageLoader } from '@/components/ui/page-loader';
 import { appLogger } from '@/lib/observability/logger';
+import { isHeroRoute } from './hero-routes';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -42,7 +43,8 @@ useEffect(() => {
   const isProfileRoute = pathname?.startsWith('/profile');
   // Studio and My memberships are money surfaces: sidebar on desktop, no marketing footer or donation ask.
   const isStudioRoute = pathname?.startsWith('/studio') || pathname?.startsWith('/memberships');
-  const isHomePage = pathname === '/';
+  // The home page and its concepts at /1 … /11 own their hero and footer.
+  const isHomePage = isHeroRoute(pathname);
   const isPostPage = pathname?.startsWith('/post');
   // /about and /team render their own MarketingFooter inside the curtain sheet
   const isStoryPage = pathname === '/about' || pathname === '/team';

@@ -28,11 +28,14 @@ interface SearchResultsProps {
   className?: string;
   /**
    * Card treatment. `retro` keeps the offset-shadow brutalist card for
-   * standalone placements; `flat` drops to a hairline border and defers
-   * scrolling to the parent — for the full-screen search sheet, where the
-   * bar above is already the focal element.
+   * standalone placements; `ink` is the hairline card (the add-music rail's
+   * treatment) with its own scroll; `flat` is the same hairline card that
+   * defers scrolling to the parent — for the full-screen search sheet, where
+   * the bar above is already the focal element; `bare` drops the card
+   * entirely (no border, radius, or fill) for a panel that already has one,
+   * and leaves scrolling to that panel too.
    */
-  chrome?: 'retro' | 'flat';
+  chrome?: 'retro' | 'ink' | 'flat' | 'bare';
 }
 
 // Row-shaped placeholders matching the result-row geometry below:
@@ -204,7 +207,9 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           className={
             chrome === 'retro'
               ? 'relative bg-field text-card-foreground rounded-lg border-2 border-foreground'
-              : 'relative bg-field text-card-foreground rounded-lg border border-border'
+              : chrome === 'bare'
+                ? 'relative text-card-foreground'
+                : 'relative bg-field text-card-foreground rounded-lg border border-border'
           }
         >
           {/* Header */}
@@ -237,12 +242,12 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             </button>
           </div>
 
-          {/* Results List — flat chrome defers scrolling to the parent sheet */}
+          {/* Results List — flat and bare chrome defer scrolling to the parent */}
           <div
             className={
-              chrome === 'retro'
-                ? 'max-h-[calc(100vh-10rem)] lg:max-h-[calc(100vh-20rem)] overflow-y-auto'
-                : undefined
+              chrome === 'flat' || chrome === 'bare'
+                ? undefined
+                : 'max-h-[calc(100vh-10rem)] lg:max-h-[calc(100vh-20rem)] overflow-y-auto'
             }
           >
             <SkeletonSwap

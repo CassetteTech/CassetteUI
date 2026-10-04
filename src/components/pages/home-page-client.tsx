@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { UrlBar } from '@/components/ui/url-bar';
 import { Button } from '@/components/ui/button';
 import { UIText } from '@/components/ui/typography';
-import { AnimatedBackground } from '@/components/ui/animated-background';
+import { CoralGlow } from '@/components/ui/coral-glow';
 import { useTopCharts, useMusicSearch, useMusicLinkConversion } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -14,6 +14,7 @@ import { SearchResults } from '@/components/features/search-results';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronDown, Play } from 'lucide-react';
 import { HomeWordmark } from '@/components/pages/home-wordmark';
+import { HomeDitherField } from '@/components/pages/home-dither-field';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { HomeDemoSection } from '@/components/demo/home-demo-section';
 import { AppleMusicHelpModal } from '@/components/features/apple-music-help-modal';
@@ -93,9 +94,9 @@ export default function HomePageClient() {
   // Reveal supporting content while the wordmark settles.
   useEffect(() => {
     const timeline = [
-      { delay: 1500, action: () => setTaglineVisible(true) },
-      { delay: 1500, action: () => setSearchBarVisible(true) },
-      { delay: 1575, action: () => setBottomVisible(true) },
+      { delay: 250, action: () => setTaglineVisible(true) },
+      { delay: 300, action: () => setSearchBarVisible(true) },
+      { delay: 400, action: () => setBottomVisible(true) },
     ];
 
     const timeouts = timeline.map(({ delay, action }) => 
@@ -103,7 +104,7 @@ export default function HomePageClient() {
     );
     
     // Reveal the scroll indicator after the supporting content.
-    timeouts.push(setTimeout(() => setIsInitialLoad(false), 2100));
+    timeouts.push(setTimeout(() => setIsInitialLoad(false), 1400));
 
     return () => timeouts.forEach(clearTimeout);
   }, []);
@@ -413,11 +414,23 @@ export default function HomePageClient() {
   // waiting until unmount would let router.push snapshot the home history
   // entry at Safari's keyboard-era scroll offset, which is what Back restores.
   const sheetRef = useSheetViewportPin(isSearchActive);
+  // The dither sun centres on the wordmark row and ends above the tagline.
+  const wordmarkRef = useRef<HTMLDivElement>(null);
+  const taglineRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className="min-h-screen relative">
-      {/* Animated Background */}
-      <AnimatedBackground className="fixed inset-0 z-0" />
+      {/* Coral glow (ember in dark) under a dither sun that prints it onto
+          the paper. The sun rises behind the navbar (the canvas starts under
+          it) and scrolls with the hero, so it never sits under content that
+          scrolls up; the glow stays fixed beneath everything. */}
+      <CoralGlow aria-hidden className="pointer-events-none fixed inset-0 z-0" />
+      <HomeDitherField
+        wordmarkRef={wordmarkRef}
+        taglineRef={taglineRef}
+        searchRef={sheetRef}
+        className="pointer-events-none absolute left-0 -top-16 z-0 text-primary opacity-35 dark:opacity-45 dark:[--dither-peak:0.34]"
+      />
       
       {/* The search/converting sheet lives inside this wrapper, so during a
           takeover the wrapper itself must rise above the fixed navbar (z-50)
@@ -445,11 +458,11 @@ export default function HomePageClient() {
 
               <div className="text-center mb-6 sm:mb-8 lg:text-center lg:mb-0 lg:-mt-[25px]">
                 {/* Logo + beta layout (stacked on mobile, inline on desktop) */}
-                <div className="flex w-[85%] lg:w-[600px] mx-auto mb-3 sm:mb-5 flex-col items-center lg:flex-row lg:items-end">
+                <div ref={wordmarkRef} className="flex w-[85%] lg:w-[600px] mx-auto mb-3 sm:mb-5 flex-col items-center lg:flex-row lg:items-end">
                   <div className="w-full lg:flex-1 lg:min-w-0 -mb-[clamp(1.5rem,6vw,3.5rem)] lg:mb-0">
                     <HomeWordmark />
                   </div>
-                  <div className="mt-0 shrink-0 lg:mt-0 lg:-ml-3 lg:mb-[8%]">
+                  <div className="home-wordmark-badge mt-0 shrink-0 lg:mt-0 lg:-ml-3 lg:mb-[8%]">
                     <StageHoverCard>
                       <span className="font-teko font-black text-base sm:text-lg lg:text-xl tracking-wide [-webkit-text-fill-color:#FFFFFF] [-webkit-text-stroke:3.5px_#3B3E41] [paint-order:stroke_fill] cursor-pointer">
                         beta.
@@ -459,10 +472,13 @@ export default function HomePageClient() {
                 </div>
 
                 {/* Tagline */}
-                <div className={taglineClasses}>
+                <div ref={taglineRef} className={taglineClasses}>
                   <div className="max-w-2xl mx-auto px-6 sm:px-8 md:px-10 lg:mx-auto lg:px-0 lg:max-w-[600px]">
-                    <UIText className="text-center text-foreground font-bold leading-relaxed text-xs sm:text-sm md:text-base lg:text-xl lg:text-center">
-                      Express yourself through your favorite songs and playlists - wherever you stream them
+                    <UIText as="p" className="text-center text-foreground font-bold leading-relaxed text-base sm:text-lg md:text-xl lg:text-2xl text-balance">
+                      Share music with anyone, on any app.
+                    </UIText>
+                    <UIText as="p" className="mt-2 text-center text-muted-foreground font-normal leading-relaxed text-xs sm:text-sm md:text-base text-pretty">
+                      Paste a Spotify, Apple Music, or Deezer link and get one link that opens in every app.
                     </UIText>
                     <div className="mt-5 flex justify-center">
                       <DemoVideoDialog
@@ -554,14 +570,8 @@ export default function HomePageClient() {
                     : 'w-[85vw] mx-auto mb-6 sm:mb-8'
                 } lg:w-full lg:mx-0 lg:px-0 lg:pt-0 lg:pb-0 lg:mb-4`}
               >
-              <motion.div
-                initial={{ opacity: 0, y: 32 }}
-                animate={{ opacity: searchBarVisible ? 1 : 0, y: searchBarVisible ? 0 : 32 }}
-                transition={{
-                  opacity: { duration: 0.3, ease: 'easeOut' },
-                  y: { duration: 0.5, ease: 'easeOut' },
-                }}
-              >
+              {/* Drops in from above with the wordmark's wash (see globals.css). */}
+              <div className={searchBarVisible ? 'home-search-in' : 'opacity-0'}>
                 <AnimatePresence>
                   {isConverting && convertingMeta && (
                     <ConversionHeading
@@ -648,12 +658,13 @@ export default function HomePageClient() {
                     </p>
                   )}
                 </div>
-              </motion.div>
+              </div>
               </motion.div>
 
               {/* Search Results Container - Desktop only in right column.
-                  Removed from flow while converting so the bar can center. */}
-              <div className={`${isConverting ? 'lg:hidden' : 'lg:block'} hidden search-container transition-opacity duration-300 ease-out w-full ${searchBarVisible ? 'opacity-100' : 'opacity-0'} flex-1 overflow-hidden pb-8`} style={{overscrollBehavior: 'contain'}}>
+                  Removed from flow while converting so the bar can center.
+                  Follows the bar's entrance one stagger step later. */}
+              <div className={`${isConverting ? 'lg:hidden' : 'lg:block'} hidden search-container w-full ${searchBarVisible ? 'home-search-in [--home-search-delay:80ms]' : 'opacity-0'} flex-1 overflow-hidden pb-8`} style={{overscrollBehavior: 'contain'}}>
                 <SearchResults
                   results={displayData}
                   query={debouncedSearchTerm}
@@ -663,6 +674,7 @@ export default function HomePageClient() {
                   onSelectItem={handleSelectItem}
                   onClose={closeSearch}
                   SkeletonComponent={Skeleton}
+                  chrome="ink"
                 />
               </div>
 

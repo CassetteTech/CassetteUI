@@ -222,7 +222,7 @@ export function HomeDemoSection({ isAuthenticated }: HomeDemoSectionProps) {
             Your Music, On Display
           </h2>
           <p className="font-roboto italic mt-4 text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
-            Playlists, tracks, artists, and albums—organized in one place.
+            Every link you share builds your profile—playlists, tracks, artists, and albums in one place.
           </p>
         </motion.div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { useTheme } from 'next-themes';
 import { BorderBeam } from 'border-beam';
 
@@ -36,16 +36,21 @@ export const ConversionBeam: React.FC<ConversionBeamProps> = ({
   className,
 }) => {
   const { resolvedTheme } = useTheme();
+  // next-themes resolves the theme on the client before hydration but not on
+  // the server, so the beam keeps its dark default until hydrated; the light
+  // styles would otherwise mismatch the server HTML.
+  const hydrated = useSyncExternalStore(() => () => {}, () => true, () => false);
 
   return (
     <BorderBeam
       size="md"
       colorVariant="sunset"
-      theme={resolvedTheme === 'light' ? 'light' : 'dark'}
+      theme={hydrated && resolvedTheme === 'light' ? 'light' : 'dark'}
       active={active}
       borderRadius={borderRadius}
       onDeactivate={onDeactivate}
       className={className}
+      // SAFETY: CSSProperties has no custom-property keys; the value is a plain CSS angle.
       style={{ '--beam-hue-base': '-12deg' } as React.CSSProperties}
     >
       {children}

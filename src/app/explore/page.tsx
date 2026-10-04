@@ -16,12 +16,16 @@ import { BackButton } from '@/components/ui/back-button';
 import { ArrowRight, Loader2, Plus, Search, X, Star, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
+import type { SponsoredExplorePlacement } from '@/types';
+import { rememberViewedSponsoredExplorePost } from '@/services/sponsored-explore-rotation';
 import { useExploreCurators } from '@/hooks/use-profile';
+import { captureClientEvent } from '@/lib/analytics/client';
 import {
   useExploreData,
   MUSIC_SECTION_ORDER,
   MUSIC_SECTION_LABELS,
   MUSIC_SECTION_EMPTY_COPY,
+  type MusicElementType,
 } from './_shared/use-explore-data';
 
 // Deterministic pseudo-random from string so SSR/CSR stay in sync.
@@ -44,6 +48,8 @@ const TAPE_COLORS = [
 export default function ExplorePage() {
   const data = useExploreData();
   const isInitialLoading = data.isLoadingPosts && data.allPosts.length === 0;
+  const sponsoredSectionType = sponsoredMusicElementType(data.sponsoredPlacement);
+  const hasExploreContent = data.allPosts.length > 0 || sponsoredSectionType !== null;
 
   if (data.postsError) {
     return (
@@ -115,7 +121,7 @@ export default function ExplorePage() {
 
         {isInitialLoading ? (
           <PolaroidSkeleton />
-        ) : data.allPosts.length === 0 ? (
+        ) : !hasExploreContent ? (
           <div className="mx-auto max-w-md rotate-[-1.5deg] bg-card border-2 border-foreground px-6 py-10 text-center shadow-flat-6">
             <p className="font-teko text-3xl uppercase">Nothing public — yet</p>
             <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
@@ -129,6 +135,7 @@ export default function ExplorePage() {
               title={MUSIC_SECTION_LABELS[type]}
               accentIndex={idx}
               posts={data.groupedPosts[type].slice(0, data.visiblePostsBySection[type])}
+              sponsoredPlacement={sponsoredSectionType === type ? data.sponsoredPlacement : undefined}
               emptyText={MUSIC_SECTION_EMPTY_COPY[type]}
               hasMore={
                 data.groupedPosts[type].length > data.visiblePostsBySection[type] ||
@@ -144,12 +151,109 @@ export default function ExplorePage() {
   );
 }
 
+function sponsoredMusicElementType(placement?: SponsoredExplorePlacement): MusicElementType | null {
+  const type = placement?.post.elementType.toLowerCase();
+  return MUSIC_SECTION_ORDER.includes(type as MusicElementType) ? type as MusicElementType : null;
+}
+
+function SponsoredPolaroid({ placement }: { placement: SponsoredExplorePlacement }) {
+  const cardRef = useRef<HTMLElement>(null);
+  const impressionCaptured = useRef(false);
+  const impressionPostId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (impressionPostId.current !== placement.post.postId) {
+      impressionPostId.current = placement.post.postId;
+      impressionCaptured.current = false;
+    }
+    if (!placement || impressionCaptured.current) return;
+    const node = cardRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      impressionCaptured.current = true;
+      rememberViewedSponsoredExplorePost(placement.post.postId);
+      void captureClientEvent('sponsored_explore_impression', {
+        source_surface: 'explore',
+        placement_type: placement.placementType,
+        post_id: placement.post.postId,
+      });
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting) || impressionCaptured.current) return;
+        impressionCaptured.current = true;
+        rememberViewedSponsoredExplorePost(placement.post.postId);
+        void captureClientEvent('sponsored_explore_impression', {
+          source_surface: 'explore',
+          placement_type: placement.placementType,
+          post_id: placement.post.postId,
+        });
+        observer.disconnect();
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [placement]);
+
+  const post = placement.post;
+  const href = `/post/${post.redirectPostId || post.postId}`;
+  return (
+    <article ref={cardRef} data-testid="sponsored-explore" className="relative">
+      <Link
+        href={href}
+        onClick={() => {
+          void captureClientEvent('sponsored_explore_opened', {
+            source_surface: 'explore',
+            placement_type: placement.placementType,
+            post_id: post.postId,
+          });
+        }}
+        className="group block border-2 border-foreground bg-primary-foreground force-light-surface p-3 pb-4 text-foreground shadow-flat-primary-6 transition-shadow hover:shadow-flat-primary-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <div className="mb-3 border-b border-foreground/25 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.18em]">
+          <span className="text-primary">{placement.label}</span>
+        </div>
+        <div data-testid="sponsored-explore-artwork" className="relative aspect-square overflow-hidden bg-muted">
+          {post.imageUrl ? (
+            <Image
+              src={post.imageUrl}
+              alt={post.title}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <Image src="/images/ic_music.png" alt="" width={40} height={40} className="opacity-30" />
+            </div>
+          )}
+        </div>
+        <div className="pt-3">
+          <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight line-clamp-2 transition-colors group-hover:text-primary">
+            {post.title}
+          </h3>
+          {post.subtitle && <p className="mt-1 text-xs italic text-muted-foreground line-clamp-1">{post.subtitle}</p>}
+          <div className="mt-2 flex items-center gap-2">
+            <span className="h-px flex-1 bg-foreground/20" />
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              @{post.username}
+            </span>
+          </div>
+        </div>
+      </Link>
+    </article>
+  );
+}
+
 /* ─── Sections ────────────────────────────────────────────────────────────── */
 
 function ZineSection({
   title,
   accentIndex,
   posts,
+  sponsoredPlacement,
   emptyText,
   hasMore,
   isLoadingMore,
@@ -158,12 +262,17 @@ function ZineSection({
   title: string;
   accentIndex: number;
   posts: ActivityPost[];
+  sponsoredPlacement?: SponsoredExplorePlacement;
   emptyText: string;
   hasMore: boolean;
   isLoadingMore: boolean;
   onLoadMore: () => void;
 }) {
   const titleRotate = accentIndex % 2 === 0 ? '-rotate-[2deg]' : 'rotate-[2deg]';
+  const organicPosts = sponsoredPlacement
+    ? posts.filter((post) => post.postId !== sponsoredPlacement.post.postId)
+    : posts;
+  const hasPosts = organicPosts.length > 0 || Boolean(sponsoredPlacement);
   return (
     <motion.section
       initial={{ opacity: 0, y: 16 }}
@@ -181,7 +290,7 @@ function ZineSection({
             />
           </h2>
         </div>
-        {hasMore && posts.length > 0 && (
+        {hasMore && organicPosts.length > 0 && (
           <button
             onClick={onLoadMore}
             disabled={isLoadingMore}
@@ -192,14 +301,15 @@ function ZineSection({
         )}
       </div>
 
-      {posts.length === 0 ? (
+      {!hasPosts ? (
         <p className="font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground border-t-2 border-dashed border-foreground/30 py-4 text-center">
           — {emptyText} —
         </p>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-          {posts.map((post, i) => (
-            <Polaroid key={post.postId} post={post} index={i} />
+          {sponsoredPlacement && <SponsoredPolaroid placement={sponsoredPlacement} />}
+          {organicPosts.map((post, i) => (
+            <Polaroid key={post.postId} post={post} index={i + (sponsoredPlacement ? 1 : 0)} />
           ))}
         </div>
       )}
@@ -257,9 +367,6 @@ function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
               <Image src="/images/ic_music.png" alt="" width={40} height={40} className="opacity-30" />
             </div>
           )}
-          <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 bg-background/90 border border-foreground px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]">
-            {post.elementType}
-          </span>
           {post.isRepost && (
             <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 bg-foreground text-background px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]">
               <Star className="w-2.5 h-2.5" fill="currentColor" />

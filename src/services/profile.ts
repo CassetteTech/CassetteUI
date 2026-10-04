@@ -5,6 +5,7 @@ import {
   PaginatedActivityResponse,
   PaginatedExploreUsersResponse,
   PostPrivacy,
+  SponsoredExplorePlacement,
   UserBio,
 } from '@/types';
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
@@ -13,6 +14,7 @@ import {
   normalizeConnectedServicePayload,
   normalizeStreamingServiceType,
 } from '@/utils/platform-normalization';
+import { normalizeSponsoredExplorePlacementEnvelope } from './sponsored-explore-contract';
 
 interface ActivityItemPayload {
   postId: string;
@@ -88,6 +90,8 @@ interface ActivityApiResponse {
   hasPrevious?: boolean;
   HasNext?: boolean;
   HasPrevious?: boolean;
+  sponsoredPlacement?: unknown;
+  SponsoredPlacement?: unknown;
 }
 
 interface ExploreUserPayload {
@@ -496,6 +500,32 @@ export class ProfileService {
     };
   }
 
+  private mapSponsoredExplorePlacement(
+    json: ActivityApiResponse,
+  ): SponsoredExplorePlacement | undefined {
+    const envelope = normalizeSponsoredExplorePlacementEnvelope(
+      json.sponsoredPlacement ?? json.SponsoredPlacement,
+    );
+    if (!envelope) {
+      return undefined;
+    }
+
+    const post = this.mapActivityResponse(
+      { items: [envelope.postPayload as ActivityItemPayload] },
+      1,
+      1,
+    ).items[0];
+    if (!post?.postId) {
+      return undefined;
+    }
+
+    return {
+      placementType: 'sponsored_explore',
+      label: envelope.label,
+      post,
+    };
+  }
+
   async fetchUserBio(userIdentifier: string): Promise<UserBio> {
     try {
       const path =
@@ -594,10 +624,11 @@ export class ProfileService {
     options: {
       page?: number;
       pageSize?: number;
+      lastSponsoredPostId?: string;
     } = {},
   ): Promise<PaginatedActivityResponse> {
     try {
-      const { page = 1, pageSize = 20 } = options;
+      const { page = 1, pageSize = 20, lastSponsoredPostId } = options;
       const path = '/api/v1/social/explore';
       const url = this.buildApiUrl(path);
 
@@ -605,6 +636,9 @@ export class ProfileService {
         page: page.toString(),
         pageSize: pageSize.toString(),
       });
+      if (page === 1 && lastSponsoredPostId) {
+        queryParams.set('lastSponsoredPostId', lastSponsoredPostId);
+      }
 
       const requestUrl = `${url}?${queryParams}`;
 
@@ -620,7 +654,10 @@ export class ProfileService {
 
       if (response.status === 200) {
         const json = (await response.json()) as ActivityApiResponse;
-        return this.mapActivityResponse(json, page, pageSize);
+        return {
+          ...this.mapActivityResponse(json, page, pageSize),
+          sponsoredPlacement: this.mapSponsoredExplorePlacement(json),
+        };
       }
 
       appLogger.warn('explore_activity_fetch_failed', { status: response.status });

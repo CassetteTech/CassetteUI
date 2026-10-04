@@ -36,6 +36,7 @@ function campaign(paymentStatus: PaidPromotionPaymentStatus | null): PaidPromoti
     refundableRemainderMinor: 25000,
     requestedWindowStart: null,
     requestedWindowEnd: null,
+    needsInfo: null,
     deliverables: [],
     createdAtUtc: '2026-07-15T12:00:00Z',
     updatedAtUtc: '2026-07-15T12:00:00Z',
@@ -152,6 +153,23 @@ void test('passes rejection reason and hold kind through the boundary', () => {
   });
   assert.equal(parsed.rejectionReason, 'Track rights could not be verified.');
   assert.equal(parsed.holdKind, 'payment_dispute');
+});
+
+void test('parses the current needs-info request and customer response', () => {
+  const parsed = parsePaidPromotionCampaign({
+    ...campaign('paid'),
+    status: 'needs_info',
+    needsInfo: {
+      id: 'pmr_ReviewRequest1',
+      requestMessage: 'Please confirm who controls the recording rights.',
+      customerResponse: null,
+      requestedAtUtc: '2026-08-17T12:00:00Z',
+      respondedAtUtc: null,
+    },
+  });
+
+  assert.equal(parsed.needsInfo?.requestMessage, 'Please confirm who controls the recording rights.');
+  assert.equal(parsed.needsInfo?.customerResponse, null);
 });
 
 void test('parses only customer-safe published deliverables', () => {

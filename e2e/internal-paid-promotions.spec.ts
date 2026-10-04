@@ -79,6 +79,27 @@ test('manual quote submits only a server rate-card id', async ({ page }) => {
   await expect(page.getByText('pmq_FixtureSnapshot01', { exact: true })).toBeVisible();
 });
 
+test('requests customer information and renders the durable review conversation', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.team });
+  await page.goto('/internal/paid-promotions/' + fixturePaidPromotionCampaign.id);
+
+  await page.getByRole('button', { name: 'Request information' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Request more information' });
+  const message = 'Please confirm who controls the master recording rights.';
+  await dialog.getByLabel('Information needed').fill(message);
+  const requestPromise = page.waitForRequest((request) =>
+    request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/needs-info'),
+  );
+  await dialog.getByRole('button', { name: 'Send request' }).click();
+
+  expect((await requestPromise).postDataJSON()).toEqual({ message });
+  await expect(page.getByText('Needs Info', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Latest review conversation' })).toBeVisible();
+  await expect(page.getByText(message, { exact: true })).toBeVisible();
+  await expect(page.getByText('Waiting for the customer to respond.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Approve' })).toHaveCount(0);
+});
+
 test('reviews and refunds an album campaign the same way as a track', async ({ page }) => {
   const albumCampaign = {
     ...fixtureInternalPaidPromotionCampaign,
@@ -147,7 +168,7 @@ test('supports rejection and deliverable CRUD without bypassing server refresh',
   await page.goto('/internal/paid-promotions/' + fixturePaidPromotionCampaign.id);
   const canonicalPostId = 'p_20260715120000_abcdefghijklmn';
 
-  await page.getByRole('button', { name: 'Add' }).click();
+  await page.getByRole('button', { name: 'Add other' }).click();
   let dialog = page.getByRole('dialog', { name: 'Add deliverable' });
   await dialog.getByLabel('Deliverable channel').selectOption('tiktok');
   await dialog.getByLabel('Canonical post ID').fill(canonicalPostId);
@@ -192,11 +213,36 @@ test('supports rejection and deliverable CRUD without bypassing server refresh',
   await expect(page.getByText('Rejected', { exact: true }).first()).toBeVisible();
 });
 
+test('publishes the matching customer post to Explore without manual IDs or timestamps', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.team });
+  await page.goto('/internal/paid-promotions/' + fixturePaidPromotionCampaign.id);
+
+  const createRequest = page.waitForRequest((request) =>
+    request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/deliverables'),
+  );
+  await page.getByRole('button', { name: 'Publish to Explore' }).click();
+
+  const payload = (await createRequest).postDataJSON() as Record<string, unknown>;
+  expect(payload).toMatchObject({
+    channel: 'explore_boost',
+    status: 'published',
+    postId: fixtureInternalPaidPromotionCampaign.suggestedExplorePostId,
+    subjectElementId: fixtureInternalPaidPromotionCampaign.subject.id,
+  });
+  expect(payload.plannedAtUtc).toEqual(expect.any(String));
+  expect(payload.publishedAtUtc).toEqual(expect.any(String));
+  expect(payload.evidenceUrl).toContain(
+    `/post/${fixtureInternalPaidPromotionCampaign.suggestedExplorePostId}`,
+  );
+  await expect(page.getByRole('button', { name: 'Explore published' })).toBeDisabled();
+  await expect(page.getByRole('cell', { name: 'Explore Boost', exact: true })).toBeVisible();
+});
+
 test('records the exact focus track for playlist-shaped deliverables', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: fixtureUsers.team });
   await page.goto('/internal/paid-promotions/' + fixturePaidPromotionCampaign.id);
 
-  await page.getByRole('button', { name: 'Add' }).click();
+  await page.getByRole('button', { name: 'Add other' }).click();
   const dialog = page.getByRole('dialog', { name: 'Add deliverable' });
   await dialog.getByLabel('Deliverable channel').selectOption('curator_playlist_placement');
   await dialog.getByLabel('Placed subject element ID (required)')

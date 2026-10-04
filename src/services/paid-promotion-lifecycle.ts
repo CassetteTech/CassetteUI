@@ -4,6 +4,7 @@ import type {
   PaidPromotionCampaignStatus,
   PaidPromotionPaymentStatus,
   PaidPromotionRateCard,
+  PaidPromotionNeedsInfo,
 } from '@/types';
 
 /**
@@ -79,6 +80,23 @@ function parseDeliverables(value: unknown): PaidPromotionCampaignDeliverable[] {
   });
 }
 
+function parseNeedsInfo(value: unknown): PaidPromotionNeedsInfo | null {
+  if (value === null || value === undefined) return null;
+  const item = record(value, 'campaign.needsInfo');
+  return {
+    id: string(item.id, 'campaign.needsInfo.id'),
+    requestMessage: string(item.requestMessage, 'campaign.needsInfo.requestMessage'),
+    customerResponse: nullableString(
+      item.customerResponse,
+      'campaign.needsInfo.customerResponse',
+    ),
+    requestedAtUtc: dateTimeString(item.requestedAtUtc, 'campaign.needsInfo.requestedAtUtc'),
+    respondedAtUtc: item.respondedAtUtc === null || item.respondedAtUtc === undefined
+      ? null
+      : dateTimeString(item.respondedAtUtc, 'campaign.needsInfo.respondedAtUtc'),
+  };
+}
+
 export function parsePaidPromotionCampaign(value: unknown): PaidPromotionCampaign {
   const item = record(value, 'campaign');
 
@@ -117,6 +135,7 @@ export function parsePaidPromotionCampaign(value: unknown): PaidPromotionCampaig
     ),
     requestedWindowStart: nullableString(item.requestedWindowStart, 'campaign.requestedWindowStart'),
     requestedWindowEnd: nullableString(item.requestedWindowEnd, 'campaign.requestedWindowEnd'),
+    needsInfo: parseNeedsInfo(item.needsInfo),
     deliverables: parseDeliverables(item.deliverables),
     createdAtUtc: string(item.createdAtUtc, 'campaign.createdAtUtc'),
     updatedAtUtc: string(item.updatedAtUtc, 'campaign.updatedAtUtc'),

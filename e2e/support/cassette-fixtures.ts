@@ -203,6 +203,13 @@ export interface FixturePaidPromotionCampaign {
   refundableRemainderMinor: number | null;
   requestedWindowStart: string | null;
   requestedWindowEnd: string | null;
+  needsInfo: {
+    id: string;
+    requestMessage: string;
+    customerResponse: string | null;
+    requestedAtUtc: string;
+    respondedAtUtc: string | null;
+  } | null;
   deliverables: Array<{
     channel: string;
     publishedAtUtc: string;
@@ -251,6 +258,7 @@ export interface FixtureInternalPaidPromotionCustomer {
 export interface FixtureInternalPaidPromotionCampaign {
   id: string;
   customer: FixtureInternalPaidPromotionCustomer | null;
+  suggestedExplorePostId: string | null;
   subject: {
     id: string;
     elementType: 'track' | 'album' | 'artist' | 'playlist';
@@ -277,6 +285,7 @@ export interface FixtureInternalPaidPromotionCampaign {
   attestedAtUtc: string | null;
   attestationVersion: string | null;
   attestedRelationship: string | null;
+  needsInfo: FixturePaidPromotionCampaign['needsInfo'];
   payment: {
     id: string;
     amountMinor: number;
@@ -768,6 +777,7 @@ export const fixturePaidPromotionCampaign: FixturePaidPromotionCampaign = {
   refundableRemainderMinor: null,
   requestedWindowStart: null,
   requestedWindowEnd: null,
+  needsInfo: null,
   deliverables: [],
   createdAtUtc: FIXTURE_TIMESTAMP,
   updatedAtUtc: FIXTURE_TIMESTAMP,
@@ -807,6 +817,7 @@ export const fixtureInternalPaidPromotionCustomer: FixtureInternalPaidPromotionC
 export const fixtureInternalPaidPromotionCampaign: FixtureInternalPaidPromotionCampaign = {
   id: fixturePaidPromotionCampaign.id,
   customer: fixtureInternalPaidPromotionCustomer,
+  suggestedExplorePostId: 'p_20260824000000_00000000000002',
   subject: {
     id: fixtureConvertTemplates.paidPromotionTrack.musicElementId,
     elementType: 'track',
@@ -834,6 +845,7 @@ export const fixtureInternalPaidPromotionCampaign: FixtureInternalPaidPromotionC
   attestedAtUtc: FIXTURE_TIMESTAMP,
   attestationVersion: 'paid-promotion-authority-v1',
   attestedRelationship: 'self_artist',
+  needsInfo: null,
   payment: {
     id: 'pmp_FixturePayment01',
     amountMinor: 9000,

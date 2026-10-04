@@ -83,6 +83,8 @@ export type AnalyticsEventName =
   | 'membership_checkout_started'
   | 'membership_canceled'
   | 'member_post_viewed'
+  | 'sponsored_explore_impression'
+  | 'sponsored_explore_opened'
   | 'issue_report_submitted'
   | 'issue_reported'
   | 'issue_report_failed';
@@ -155,6 +157,7 @@ export type AnalyticsBaseProps = {
   tracks_failed?: number;
   total_tracks?: number;
   connection_state?: string;
+  placement_type?: 'sponsored_explore' | string;
 };
 
 export type AnalyticsEventPropsMap = {

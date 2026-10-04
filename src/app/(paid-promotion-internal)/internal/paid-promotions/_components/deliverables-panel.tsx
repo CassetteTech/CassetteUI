@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ExternalLink, Megaphone, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -17,6 +17,9 @@ import { formatDate, formatState, statusTone } from './paid-promotion-utils';
 interface DeliverablesPanelProps {
   deliverables: InternalPaidPromotionDeliverable[];
   canMutate: boolean;
+  suggestedExplorePostId: string | null;
+  hasExplorePlacement: boolean;
+  onPublishExplore: () => void;
   onAdd: () => void;
   onEdit: (deliverable: InternalPaidPromotionDeliverable) => void;
   onRemove: (deliverable: InternalPaidPromotionDeliverable) => void;
@@ -25,6 +28,9 @@ interface DeliverablesPanelProps {
 export function DeliverablesPanel({
   deliverables,
   canMutate,
+  suggestedExplorePostId,
+  hasExplorePlacement,
+  onPublishExplore,
   onAdd,
   onEdit,
   onRemove,
@@ -34,12 +40,28 @@ export function DeliverablesPanel({
       title="Deliverables"
       className="overflow-hidden"
       actions={(
-        <Button type="button" size="sm" variant="outline" disabled={!canMutate} onClick={onAdd}>
-          <Plus aria-hidden="true" />
-          Add
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            disabled={!canMutate || !suggestedExplorePostId || hasExplorePlacement}
+            onClick={onPublishExplore}
+          >
+            <Megaphone aria-hidden="true" />
+            {hasExplorePlacement ? 'Explore published' : 'Publish to Explore'}
+          </Button>
+          <Button type="button" size="sm" variant="outline" disabled={!canMutate} onClick={onAdd}>
+            <Plus aria-hidden="true" />
+            Add other
+          </Button>
+        </div>
       )}
     >
+      {!suggestedExplorePostId && !hasExplorePlacement && (
+        <p className="border-b border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
+          One-click Explore publishing becomes available when the customer has a public original Cassette post for this release.
+        </p>
+      )}
       {deliverables.length === 0 ? (
         <p className="p-4 text-sm text-muted-foreground">No deliverables recorded.</p>
       ) : (

@@ -31,6 +31,7 @@ import {
   InternalSentinelInvariantNotesResponse,
   InternalExploreSnapshotsResponse,
   InternalExploreSnapshotItemsResponse,
+  InternalExploreSnapshotGenerationResult,
   InternalEmailOperationsConfig,
   InternalEmailTemplatesResponse,
   InternalEmailTemplatePreview,
@@ -561,6 +562,20 @@ class ApiService {
     return parsePaidPromotionCampaign(response);
   }
 
+  async respondToPaidPromotionNeedsInfo(
+    campaignId: string,
+    responseText: string
+  ): Promise<PaidPromotionCampaign> {
+    const response = await this.request<unknown>(
+      `/api/v1/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/needs-info-response`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ response: responseText }),
+      }
+    );
+    return parsePaidPromotionCampaign(response);
+  }
+
   async getPaidPromotionSubjects(): Promise<unknown> {
     return this.request<unknown>('/api/v1/paid-promotions/subjects');
   }
@@ -619,6 +634,20 @@ class ApiService {
     return this.request<InternalPaidPromotionActionResponse>(
       `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/approve`,
       { method: 'POST', timeoutMs: 20000 }
+    );
+  }
+
+  async requestInternalPaidPromotionInfo(
+    campaignId: string,
+    message: string
+  ): Promise<InternalPaidPromotionActionResponse> {
+    return this.request<InternalPaidPromotionActionResponse>(
+      `/api/v1/internal/paid-promotions/campaigns/${encodeURIComponent(campaignId)}/needs-info`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ message }),
+        timeoutMs: 20000,
+      }
     );
   }
 
@@ -1021,6 +1050,13 @@ class ApiService {
     return this.request<InternalExploreSnapshotsResponse>(
       `/api/v1/internal/explore/snapshots?days=${days}`,
       { timeoutMs: 20000 }
+    );
+  }
+
+  async generateInternalExploreSnapshot(): Promise<InternalExploreSnapshotGenerationResult> {
+    return this.request<InternalExploreSnapshotGenerationResult>(
+      '/api/v1/internal/explore/snapshots/generate',
+      { method: 'POST', timeoutMs: 120000 }
     );
   }
 

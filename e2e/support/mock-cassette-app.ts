@@ -62,6 +62,7 @@ const elementTypeForFixtureId = (
 
 type MockCassetteOptions = {
   analyticsCaptures?: Array<Record<string, unknown>>;
+  exploreRequests?: string[];
   currentUser?: FixtureUser | null;
   internalCurators?: InternalCurator[];
   internalPricingPolicies?: PricingPolicy[];
@@ -126,6 +127,7 @@ type MockCassetteOptions = {
   internalPaidPromotionSubjectsStatus?: number;
   internalPaidPromotionSubjectsDelayMs?: number;
   accountDeleteFailures?: number;
+  exploreResponse?: unknown;
 };
 
 type MockNotification = {
@@ -861,6 +863,34 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         success: true,
         user: toSessionUser(getCurrentUserOrThrow(state)),
       });
+    }
+
+    if (pathname === '/api/v1/social/explore' && method === 'GET') {
+      options.exploreRequests?.push(request.url());
+      return json(route, options.exploreResponse ?? {
+        items: [],
+        page: 1,
+        pageSize: 20,
+        totalItems: 0,
+        isOwnProfile: false,
+        sponsoredPlacement: null,
+      });
+    }
+
+    if (pathname === '/api/v1/social/explore/users' && method === 'GET') {
+      return json(route, {
+        users: [],
+        page: 1,
+        pageSize: 20,
+        totalItems: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrevious: false,
+      });
+    }
+
+    if (pathname === '/api/v1/social/explore/curators' && method === 'GET') {
+      return json(route, { curators: [] });
     }
 
     // Both of these clear the session so a follow-up /session call reflects the
@@ -1804,7 +1834,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
     }
 
     const internalPaidPromotionActionMatch = pathname.match(
-      /^\/api\/v1\/internal\/paid-promotions\/campaigns\/([^/]+)\/(quote|approve|reject|fulfillment|refund)$/,
+      /^\/api\/v1\/internal\/paid-promotions\/campaigns\/([^/]+)\/(quote|approve|reject|needs-info|fulfillment|refund)$/,
     );
     if (internalPaidPromotionActionMatch && method === 'POST') {
       getCurrentUserOrThrow(state);
@@ -1839,6 +1869,20 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
 
       if (action === 'approve') campaign.status = 'scheduled';
       if (action === 'reject') campaign.status = 'rejected';
+      if (action === 'needs-info') {
+        const payload = request.postDataJSON() as { message?: string };
+        if (!payload.message?.trim()) {
+          return json(route, { message: 'An information request is required.' }, 400);
+        }
+        campaign.status = 'needs_info';
+        campaign.needsInfo = {
+          id: 'pmr_FixtureReview01',
+          requestMessage: payload.message.trim(),
+          customerResponse: null,
+          requestedAtUtc: FIXTURE_TIMESTAMP,
+          respondedAtUtc: null,
+        };
+      }
       if (action === 'fulfillment') {
         const payload = request.postDataJSON() as { status?: string };
         campaign.status = payload.status || campaign.status;
@@ -2118,6 +2162,34 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       };
       state.paidPromotionCampaignsById.set(campaignId, canceledCampaign);
       return json(route, canceledCampaign);
+    }
+
+    const paidPromotionNeedsInfoMatch = pathname.match(
+      /^\/api\/v1\/paid-promotions\/campaigns\/([^/]+)\/needs-info-response$/,
+    );
+    if (paidPromotionNeedsInfoMatch && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      const campaignId = decodeURIComponent(paidPromotionNeedsInfoMatch[1]);
+      const campaign = state.paidPromotionCampaignsById.get(campaignId);
+      const payload = request.postDataJSON() as { response?: string };
+      if (!campaign || campaign.status !== 'needs_info' || !campaign.needsInfo) {
+        return json(route, { message: 'This campaign is not waiting for information.' }, 409);
+      }
+      if (!payload.response?.trim()) {
+        return json(route, { message: 'A response is required.' }, 400);
+      }
+      const nextCampaign: FixturePaidPromotionCampaign = {
+        ...campaign,
+        status: 'in_review',
+        needsInfo: {
+          ...campaign.needsInfo,
+          customerResponse: payload.response.trim(),
+          respondedAtUtc: FIXTURE_TIMESTAMP,
+        },
+        updatedAtUtc: FIXTURE_TIMESTAMP,
+      };
+      state.paidPromotionCampaignsById.set(campaignId, nextCampaign);
+      return json(route, nextCampaign);
     }
 
     const paidPromotionCampaignMatch = pathname.match(

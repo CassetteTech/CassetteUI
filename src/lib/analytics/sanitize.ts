@@ -89,6 +89,7 @@ const ALLOWED_KEYS = new Set<keyof AnalyticsBaseProps>([
   'tracks_failed',
   'total_tracks',
   'connection_state',
+  'placement_type',
 ]);
 
 // Closed vocabularies: any value outside the list is dropped, never truncated.

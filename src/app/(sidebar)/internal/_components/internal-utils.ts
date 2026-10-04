@@ -1,4 +1,3 @@
-import { toast } from 'sonner';
 import type { Tone } from './kit/primitives';
 
 export const PAGE_SIZE = 25;
@@ -50,15 +49,6 @@ export function statusTone(status: string): Tone {
   if (status === 'failing' || status === 'failed') return 'critical';
   if (status === 'insufficient_data') return 'info';
   return 'neutral';
-}
-
-export async function copyToClipboard(text: string, label: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.success(`${label} copied`);
-  } catch {
-    toast.error('Failed to copy');
-  }
 }
 
 export function accountTypeBadgeVariant(

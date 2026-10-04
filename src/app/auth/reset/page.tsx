@@ -8,7 +8,21 @@ import { useUpdatePassword } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AuthInput } from '@/components/ui/auth-input';
+import { PendingLabel } from '@/components/ui/interior/loading-button';
+import {
+  PasswordStrength,
+  defaultPasswordRules,
+} from '@/components/ui/interior/password-strength';
 import { appLogger } from '@/lib/observability/logger';
+
+const passwordRules = [
+  {
+    id: 'length',
+    label: '8 characters or more',
+    test: (value: string) => value.length >= 8,
+  },
+  ...defaultPasswordRules.filter((rule) => rule.id !== 'length'),
+];
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -155,6 +169,11 @@ export default function ResetPasswordPage() {
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                   />
+                  <PasswordStrength
+                    value={password}
+                    rules={passwordRules}
+                    className="pt-1"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -177,8 +196,17 @@ export default function ResetPasswordPage() {
                   </p>
                 )}
 
-                <Button type="submit" className="w-full" disabled={isPending || !sessionReady}>
-                  {isPending ? 'Updating password…' : 'Update password'}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isPending || !sessionReady}
+                  aria-busy={isPending}
+                >
+                  <PendingLabel
+                    pending={isPending}
+                    label="Update password"
+                    pendingLabel="Updating password…"
+                  />
                 </Button>
               </form>
             )}

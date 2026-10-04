@@ -9,6 +9,9 @@ export const CONVERSION_STAGE_LABELS: Record<string, string> = {
   parsing_source: 'Reading your link',
   matching_platforms: 'Matching across services',
   importing_playlist: 'Importing playlist tracks',
+  fetching_source: 'Fetching playlist tracks',
+  matching_tracks: 'Matching tracks',
+  saving_playlist: 'Saving your playlist',
   finalizing: 'Finalizing your post',
 };
 
@@ -29,6 +32,8 @@ export interface ConversionStageState {
   stage: string | null;
   /** Display label: the real stage's label once known, else a time-based fallback. */
   label: string;
+  /** Playlist track progress reported by Bridge, or null when not applicable. */
+  progress: { processed: number; total: number } | null;
 }
 
 /**
@@ -43,6 +48,7 @@ export function useConversionStage(
   options?: { anonymous?: boolean; intervalMs?: number }
 ): ConversionStageState {
   const [stage, setStage] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const startedAtRef = useRef<number>(0);
   const anonymous = options?.anonymous;
@@ -51,6 +57,7 @@ export function useConversionStage(
   useEffect(() => {
     if (!idempotencyKey) {
       setStage(null);
+      setProgress(null);
       setElapsedMs(0);
       return;
     }
@@ -73,6 +80,12 @@ export function useConversionStage(
         consecutiveMisses = 0;
         if (job.stage) {
           setStage((prev) => (prev === job.stage ? prev : job.stage ?? prev));
+        }
+        if (job.tracksTotal) {
+          const next = { processed: job.tracksProcessed ?? 0, total: job.tracksTotal };
+          setProgress((prev) =>
+            prev && prev.processed === next.processed && prev.total === next.total ? prev : next
+          );
         }
       } else {
         consecutiveMisses += 1;
@@ -103,7 +116,12 @@ export function useConversionStage(
     FALLBACK_LABELS[0].label
   );
 
-  const label = (stage && CONVERSION_STAGE_LABELS[stage]) || fallback;
+  const stageLabel = (stage && CONVERSION_STAGE_LABELS[stage]) || fallback;
+  // The counter only means something while tracks are being matched.
+  const label =
+    stage === 'matching_tracks' && progress
+      ? `${stageLabel} · ${progress.processed} of ${progress.total}`
+      : stageLabel;
 
-  return { stage, label };
+  return { stage, label, progress };
 }

@@ -1,11 +1,12 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Copy, RefreshCw, type LucideIcon } from 'lucide-react';
+import { Check, Copy, RefreshCw, type LucideIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { copyToClipboard } from '../internal-utils';
+import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
 
 /* ───────────────────────────── Tones ─────────────────────────────────── */
 
@@ -238,16 +239,23 @@ export function RefreshButton({ loading, onClick }: { loading: boolean; onClick:
    to show them in full and one click puts them on the clipboard. */
 
 export function CopyId({ value, label }: { value: string; label: string }) {
+  const { copy, copied } = useCopyToClipboard({
+    onError: () => toast.error(`Failed to copy ${label}`),
+  });
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
-          onClick={() => void copyToClipboard(value, label)}
+          onClick={() => void copy(value)}
           className="group inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 font-mono text-[10px] tabular-nums text-muted-foreground transition-colors hover:border-domain/50 hover:text-foreground"
         >
           <span className="truncate">{value}</span>
-          <Copy className="h-3 w-3 shrink-0 opacity-50 transition-opacity group-hover:opacity-100" />
+          {copied ? (
+            <Check className="h-3 w-3 shrink-0 text-[hsl(var(--success-text))]" />
+          ) : (
+            <Copy className="h-3 w-3 shrink-0 opacity-50 transition-opacity group-hover:opacity-100" />
+          )}
         </button>
       </TooltipTrigger>
       <TooltipContent className="break-all font-mono text-[10px]">{value}</TooltipContent>

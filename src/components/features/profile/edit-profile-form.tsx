@@ -23,6 +23,7 @@ import { AvatarCropDialog } from '@/components/shared/avatar-crop-dialog';
 import { FileDropField } from '@/components/ui/file-drop-field';
 import { appLogger } from '@/lib/observability/logger';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
+import { PendingLabel } from '@/components/ui/interior/loading-button';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SOURCE_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -493,7 +494,7 @@ export function EditProfileFormComponent({
                 data-testid="profile-save"
                 className="flex-1 sm:flex-none"
               >
-                {isLoading ? 'Saving…' : 'Save'}
+                <PendingLabel pending={isLoading} label="Save" pendingLabel="Saving…" />
               </Button>
             </div>
           </div>

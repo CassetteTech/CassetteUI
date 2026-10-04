@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Layers,
   ChartNoAxesCombined,
+  Mail,
   UserRoundCog,
   Megaphone,
   type LucideIcon,
@@ -82,6 +83,13 @@ export const CONSOLE_NAV: ConsoleNavSection[] = [
     caption: 'Accounts & acquisition',
     items: [
       {
+        key: 'marketing',
+        label: 'Marketing',
+        href: '/internal/marketing',
+        icon: Megaphone,
+        blurb: 'Manage marketing automations and review scheduled content.',
+      },
+      {
         key: 'users',
         label: 'Users',
         href: '/internal/users',
@@ -108,6 +116,13 @@ export const CONSOLE_NAV: ConsoleNavSection[] = [
         href: '/internal/paid-promotions',
         icon: Megaphone,
         blurb: 'Review, fulfill, and resolve paid-promotion campaigns.',
+      },
+      {
+        key: 'email',
+        label: 'Email',
+        href: '/internal/email',
+        icon: Mail,
+        blurb: 'Delivery health, template previews, and controlled sends.',
       },
     ],
   },

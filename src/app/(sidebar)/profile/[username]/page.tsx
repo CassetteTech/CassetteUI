@@ -25,6 +25,8 @@ import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { PublicCuratorPage } from '@/components/features/curator/curator-page';
 import { useCuratorPage } from '@/hooks/use-curator';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
 
 const TAB_ELEMENT_TYPE: Partial<Record<TabType, string>> = {
   playlists: 'Playlist',
@@ -297,6 +299,13 @@ export default function ProfilePage() {
     updateUrlForTab(type);
   }, [activeTab, hasResolvedInitialTab, updateUrlForTab]);
 
+  const { copy: copyShareLink, copied: shareLinkCopied } = useCopyToClipboard({
+    onError: (error) => {
+      appLogger.warn('profile_share_copy_failed', { error, route: '/profile/[username]' });
+      toast.error('Could not copy the profile link');
+    },
+  });
+
   const handleShare = useCallback(async () => {
     void captureClientEvent('profile_shared', {
       route: `/profile/${userBio?.username || ''}`,
@@ -318,13 +327,9 @@ export default function ProfilePage() {
         appLogger.warn('profile_share_failed', { error, route: '/profile/[username]' });
       }
     } else {
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-      } catch (error) {
-        appLogger.warn('profile_share_copy_failed', { error, route: '/profile/[username]' });
-      }
+      await copyShareLink(shareUrl);
     }
-  }, [userBio, user]);
+  }, [userBio, user, copyShareLink]);
 
   useEffect(() => {
     if (!userBio) return;
@@ -501,6 +506,7 @@ export default function ProfilePage() {
                 userBio={userBio}
                 isCurrentUser={isCurrentUser}
                 onShare={handleShare}
+                shareCopied={shareLinkCopied}
                 onAddMusic={isCurrentUser ? handleAddMusic : undefined}
               />
             ) : null}

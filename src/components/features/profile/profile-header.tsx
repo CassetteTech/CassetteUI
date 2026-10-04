@@ -3,10 +3,11 @@
 /** Mobile/tablet profile identity card: a quiet panel with the warm wash
     behind the avatar, bio, genres, and links. Desktop uses SidebarProfileCard. */
 
+import { useId } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Plus, Settings, Share2, Shield } from 'lucide-react';
+import { Check, Plus, Settings, Share2, Shield } from 'lucide-react';
 import { UserBio, ConnectedService, PlatformPreferenceInfo } from '@/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import { StudioChip } from '@/components/features/curator/studio-shell';
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 import { getDisplayPlatformDefinition, isAppleMusicPlatform } from '@/lib/platforms';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
+import { useShowMore } from '@/components/ui/interior/show-more';
 
 /** Organic blob silhouette for the avatar; overrides the primitive's circle. */
 const avatarBlob = { borderRadius: '60% 40% 55% 45% / 55% 45% 55% 45%' } as const;
@@ -28,6 +30,7 @@ interface ProfileHeaderProps {
   userBio: UserBio;
   isCurrentUser: boolean;
   onShare: () => void;
+  shareCopied?: boolean;
   onAddMusic?: () => void;
 }
 
@@ -35,6 +38,7 @@ export function ProfileHeader({
   userBio,
   isCurrentUser,
   onShare,
+  shareCopied = false,
   onAddMusic,
 }: ProfileHeaderProps) {
   const reduceMotion = useReducedMotion();
@@ -89,8 +93,15 @@ export function ProfileHeader({
             {/* 40px targets with a visible focus ring; the icons stay 20px. */}
             <div className="-mr-2 -mt-1 flex shrink-0 items-center">
               <button type="button" onClick={onShare} aria-label="Share profile" className={iconControl}>
-                <Share2 className="h-5 w-5" />
+                {shareCopied ? (
+                  <Check className="h-5 w-5" aria-hidden="true" />
+                ) : (
+                  <Share2 className="h-5 w-5" aria-hidden="true" />
+                )}
               </button>
+              <output aria-live="polite" className="sr-only">
+                {shareCopied ? 'Profile link copied' : ''}
+              </output>
               {isCurrentUser && (
                 <Link href={`/profile/${userBio.username}/edit`} aria-label="Edit profile" className={iconControl}>
                   <Settings className="h-5 w-5" />
@@ -116,11 +127,8 @@ export function ProfileHeader({
         platformPreferences={userBio.platformPreferences}
       />
 
-      {userBio.bio && (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90 sm:text-base">
-          {userBio.bio}
-        </p>
-      )}
+      {/* Long bios clamp at about four lines behind a show-more toggle. */}
+      {userBio.bio && <ProfileBio bio={userBio.bio} />}
 
       <ProfileLinksRow links={userBio.profileLinks} />
 
@@ -144,6 +152,42 @@ export function ProfileHeader({
       )}
     </CoralGlow>
     </motion.header>
+  );
+}
+
+/* Long bios collapse to ~4 lines; the interior hook measures line height and
+   only surfaces the toggle when the text actually overflows. */
+function ProfileBio({ bio }: { bio: string }) {
+  const reduced = useReducedMotion();
+  const regionId = useId();
+  const { contentRef, open, toggle, height, expandable } = useShowMore({ lines: 4 });
+
+  return (
+    <div className="min-w-0">
+      <motion.div
+        id={regionId}
+        initial={false}
+        animate={height === null ? {} : { height }}
+        transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 190, damping: 30, mass: 1 }}
+        style={{ maxHeight: height === null ? '4lh' : undefined }}
+        className="overflow-hidden"
+      >
+        <div ref={contentRef} className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90 sm:text-base">
+          {bio}
+        </div>
+      </motion.div>
+      {expandable && (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-controls={regionId}
+          className="mt-1 rounded-sm font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {open ? 'Show less' : 'Show more'}
+        </button>
+      )}
+    </div>
   );
 }
 

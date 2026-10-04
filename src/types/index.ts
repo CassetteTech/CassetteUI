@@ -275,6 +275,9 @@ export interface ConvertLifecycleResponse {
   status: ConvertStatus;
   /** Coarse live progress stage while status is "processing" (ConvertStage on Bridge). */
   stage?: string;
+  /** Playlist tracks mapped so far and the capped total, while stage is matching_tracks. */
+  tracksProcessed?: number;
+  tracksTotal?: number;
   postId?: string;
   jobId?: string;
   retryAfterMs?: number;
@@ -1596,4 +1599,107 @@ export interface InternalExploreSnapshotItemsResponse {
   returnedItemCount: number;
   limit: number;
   items: InternalExploreSnapshotItem[];
+}
+
+// ─── Internal email operations ──────────────────────────────────────────
+export interface InternalEmailOperationsConfig {
+  environment: string;
+  isProduction: boolean;
+  emailEnabled: boolean;
+  productUpdatesEnabled: boolean;
+  transport: string;
+  allowedRecipientCount: number;
+  postalAddressConfigured: boolean;
+  testSendAvailable: boolean;
+  controlledSweepAvailable: boolean;
+}
+
+export interface InternalEmailTemplateSummary {
+  eventId: string;
+  category: string;
+  name: string;
+}
+
+export interface InternalEmailTemplatesResponse {
+  templates: InternalEmailTemplateSummary[];
+}
+
+export interface InternalEmailTemplatePreview {
+  eventId: string;
+  subject: string;
+  htmlBody: string;
+  textBody: string;
+}
+
+export interface InternalEmailTestSendResponse {
+  outboxId: string;
+}
+
+export interface InternalEmailOutboxFollowStatus {
+  outboxId: string;
+  eventId: string;
+  status: string;
+  attemptCount: number;
+  createdAtUtc: string;
+  lastAttemptAtUtc?: string | null;
+  completedAtUtc?: string | null;
+  lastErrorSummary?: string | null;
+}
+
+export interface InternalEmailOutboxStatusCounts {
+  pending: number;
+  processing: number;
+  sent: number;
+  failed: number;
+  dead: number;
+  skipped: number;
+}
+
+export interface InternalEmailAttemptAggregates {
+  totalAttempts: number;
+  maximumAttempts: number;
+  averageAttempts: number;
+  rowsWithAttempts: number;
+}
+
+export interface InternalEmailRecentFeedbackCounts {
+  windowHours: number;
+  bounces: number;
+  complaints: number;
+  subscriptionEvents: number;
+}
+
+export interface InternalEmailOperationsSnapshot {
+  generatedAtUtc: string;
+  statusCounts: InternalEmailOutboxStatusCounts;
+  oldestActionableAgeSeconds?: number | null;
+  oldestPendingAgeSeconds?: number | null;
+  attempts: InternalEmailAttemptAggregates;
+  recentFeedback: InternalEmailRecentFeedbackCounts;
+}
+
+export interface InternalEmailTypeSweepResult {
+  eventType: string;
+  preferenceExcluded: number;
+  suppressionExcluded: number;
+  alreadyEnqueued: number;
+  enqueued: number;
+}
+
+export interface InternalEmailLifecycleSweepResult {
+  productUpdatesEnabled: boolean;
+  budgetExpired: boolean;
+  recipientSnapshotsReleased: number;
+  recipientSnapshotsDeleted: number;
+  emailTypes: InternalEmailTypeSweepResult[];
+}
+
+export interface InternalEmailOutboxReplayRequest {
+  reviewReason: string;
+  providerNonAcceptanceConfirmed: boolean;
+}
+
+export interface InternalEmailOutboxReplayResult {
+  replayed: boolean;
+  queuedAtUtc: string;
 }

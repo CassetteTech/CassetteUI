@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AuthInput } from '@/components/ui/auth-input';
+import { PendingLabel } from '@/components/ui/interior/loading-button';
 import { useResetPassword } from '@/hooks/use-auth';
 
 export default function ForgotPasswordPage() {
@@ -65,8 +66,12 @@ export default function ForgotPasswordPage() {
                   </p>
                 )}
 
-                <Button type="submit" className="w-full" disabled={isPending}>
-                  {isPending ? 'Sending reset link…' : 'Send reset link'}
+                <Button type="submit" className="w-full" disabled={isPending} aria-busy={isPending}>
+                  <PendingLabel
+                    pending={isPending}
+                    label="Send reset link"
+                    pendingLabel="Sending reset link…"
+                  />
                 </Button>
               </form>
             )}

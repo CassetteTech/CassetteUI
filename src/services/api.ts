@@ -31,6 +31,15 @@ import {
   InternalSentinelInvariantNotesResponse,
   InternalExploreSnapshotsResponse,
   InternalExploreSnapshotItemsResponse,
+  InternalEmailOperationsConfig,
+  InternalEmailTemplatesResponse,
+  InternalEmailTemplatePreview,
+  InternalEmailTestSendResponse,
+  InternalEmailOutboxFollowStatus,
+  InternalEmailOperationsSnapshot,
+  InternalEmailLifecycleSweepResult,
+  InternalEmailOutboxReplayRequest,
+  InternalEmailOutboxReplayResult,
   InternalSignupAttributionOverview,
   InternalSignupAttributionBreakdownResponse,
   InternalSignupAttributionUsersResponse,
@@ -391,7 +400,9 @@ class ApiService {
 
   private async waitForConvertJob(jobId: string, initialRetryMs?: number, anonymous?: boolean, correlationId?: string): Promise<string> {
     const startedAt = Date.now();
-    const timeoutMs = 45_000;
+    // Bridge answers 202 after a short sync budget and finishes the job detached; long
+    // playlists take a minute or more. Each poll is short, so the proxy's 30 s limit is moot.
+    const timeoutMs = 4 * 60_000;
     let retryMs = initialRetryMs ?? 400;
 
     while (Date.now() - startedAt < timeoutMs) {
@@ -1212,6 +1223,83 @@ class ApiService {
       `/api/v1/internal/signup-link-templates/${templateId}`,
       {
         method: 'DELETE',
+        timeoutMs: 20000,
+      }
+    );
+  }
+
+  // Internal email operations
+  async getInternalEmailOperationsConfig(): Promise<InternalEmailOperationsConfig> {
+    return this.request<InternalEmailOperationsConfig>(
+      '/api/v1/internal/email/operations/config',
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async getInternalEmailOperationsSnapshot(): Promise<InternalEmailOperationsSnapshot> {
+    return this.request<InternalEmailOperationsSnapshot>(
+      '/api/v1/internal/email/operations/snapshot',
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async getInternalEmailTemplates(): Promise<InternalEmailTemplatesResponse> {
+    return this.request<InternalEmailTemplatesResponse>(
+      '/api/v1/internal/email/templates',
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async getInternalEmailTemplatePreview(eventId: string): Promise<InternalEmailTemplatePreview> {
+    return this.request<InternalEmailTemplatePreview>(
+      `/api/v1/internal/email/templates/${encodeURIComponent(eventId)}/preview`,
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async sendInternalEmailTestSend(
+    eventId: string,
+    payload: { reason: string }
+  ): Promise<InternalEmailTestSendResponse> {
+    return this.request<InternalEmailTestSendResponse>(
+      `/api/v1/internal/email/templates/${encodeURIComponent(eventId)}/test-send`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        timeoutMs: 20000,
+      }
+    );
+  }
+
+  async getInternalEmailOutboxStatus(outboxId: string): Promise<InternalEmailOutboxFollowStatus> {
+    return this.request<InternalEmailOutboxFollowStatus>(
+      `/api/v1/internal/email/operations/outbox/${encodeURIComponent(outboxId)}`,
+      { timeoutMs: 20000 }
+    );
+  }
+
+  async runInternalEmailControlledSweep(
+    payload: { reason: string }
+  ): Promise<InternalEmailLifecycleSweepResult> {
+    return this.request<InternalEmailLifecycleSweepResult>(
+      '/api/v1/internal/email/lifecycle/controlled-sweep',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        timeoutMs: 60000,
+      }
+    );
+  }
+
+  async replayInternalEmailOutbox(
+    outboxId: string,
+    payload: InternalEmailOutboxReplayRequest
+  ): Promise<InternalEmailOutboxReplayResult> {
+    return this.request<InternalEmailOutboxReplayResult>(
+      `/api/v1/internal/email/operations/outbox/${encodeURIComponent(outboxId)}/replay`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
         timeoutMs: 20000,
       }
     );

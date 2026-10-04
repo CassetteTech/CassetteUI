@@ -45,6 +45,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { HoldToConfirm } from '@/components/ui/interior/hold-to-confirm';
 import { ErrorState } from './error-state';
 import { PAGE_SIZE, formatDate } from './internal-utils';
 import {
@@ -397,8 +398,6 @@ export function AttributionTab() {
   };
 
   const handleDeleteTemplate = async (template: InternalSignupLinkTemplate) => {
-    const confirmed = window.confirm(`Delete "${template.name}"?`);
-    if (!confirmed) return;
     setDeletingTemplateId(template.id);
     try {
       await apiService.deleteInternalSignupLinkTemplate(template.id);
@@ -929,20 +928,19 @@ export function AttributionTab() {
                               </TooltipTrigger>
                               <TooltipContent side="bottom"><p className="text-xs">Duplicate</p></TooltipContent>
                             </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 text-destructive hover:text-destructive"
-                                  disabled={deletingTemplateId === template.id}
-                                  onClick={() => void handleDeleteTemplate(template)}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom"><p className="text-xs">Delete</p></TooltipContent>
-                            </Tooltip>
+                            <HoldToConfirm
+                              onConfirm={() => void handleDeleteTemplate(template)}
+                              disabled={deletingTemplateId === template.id}
+                              confirmLabel="Deleted"
+                              duration={1200}
+                              className="h-6 rounded-md border-destructive/40 px-2 text-[11px] text-destructive"
+                              fillClassName="bg-destructive px-2 text-destructive-foreground"
+                            >
+                              <span className="inline-flex items-center gap-1">
+                                <Trash2 className="h-3 w-3" />
+                                Hold to delete
+                              </span>
+                            </HoldToConfirm>
                           </div>
                         </TooltipProvider>
                       </div>

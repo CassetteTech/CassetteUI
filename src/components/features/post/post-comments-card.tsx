@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { DeleteCommentDialog } from './delete-comment-dialog';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
 import { Heart, Pencil, Trash2, X, Check, MessageCircle, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
@@ -47,6 +48,7 @@ export function PostCommentsCard({
   const [replyContent, setReplyContent] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [pendingLikeIds, setPendingLikeIds] = useState<Record<string, boolean>>({});
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
   const [visibleRepliesCount, setVisibleRepliesCount] = useState<Record<string, number>>({});
@@ -469,7 +471,7 @@ export function PostCommentsCard({
                       <button
                         type="button"
                         disabled={pendingDeleteId === comment.commentId}
-                        onClick={() => void handleDelete(comment.commentId)}
+                        onClick={() => setConfirmDeleteId(comment.commentId)}
                         className="rounded-full p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                         aria-label="Delete comment"
                       >
@@ -645,6 +647,16 @@ export function PostCommentsCard({
         )}
         {thread.roots.map((comment) => renderCommentNode(comment))}
       </div>
+
+      <DeleteCommentDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setConfirmDeleteId(null);
+        }}
+        onConfirm={() => {
+          if (confirmDeleteId) void handleDelete(confirmDeleteId);
+        }}
+      />
     </div>
   );
 }

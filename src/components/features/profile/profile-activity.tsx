@@ -25,6 +25,7 @@ import type { TabType } from './profile-tabs';
 import { ArtworkImage } from '@/components/ui/artwork-image';
 import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
+import { PendingLabel } from '@/components/ui/interior/loading-button';
 
 interface ProfileActivityProps {
   posts: ActivityPost[];
@@ -117,7 +118,7 @@ export function ProfileActivity({
         {hasMore && onLoadMore && (
           <div className="flex justify-center mt-6">
             <Button type="button" variant="outline" onClick={onLoadMore} disabled={isLoading}>
-              {isLoading ? 'Loading…' : 'Load more'}
+              <PendingLabel pending={isLoading} label="Load more" pendingLabel="Loading…" />
             </Button>
           </div>
         )}

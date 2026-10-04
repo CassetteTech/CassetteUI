@@ -17,7 +17,7 @@ CassetteUI is the Next.js frontend for Cassette. It owns the web user experience
 
 - `main` is the default branch and staging trunk: PRs land here; AWS Amplify builds `main` on the staging app.
 - `prod` is a merge-only production pointer: Amplify builds it on the production app, which serves cassette.tech. Promote by merging `main` → `prod`. Never commit work directly to `prod`.
-- The old `production` branch is retired (CAS-406, 2026-07-21) and pending deletion; do not branch from or target it.
+- The old `production` branch is retired and deleted from GitHub. Its Amplify branch entry on the production app still exists. Do not branch from, target, or recreate it.
 
 ## Design System
 

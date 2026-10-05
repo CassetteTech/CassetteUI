@@ -7,12 +7,23 @@
 
     Default is the pane tuning: half-strength washes in a top strip that fade
     to paper, so a full-height surface stays a low glow. `vivid` is the card
-    tuning: the source's own blob geometry and opacities over the whole box. */
+    tuning: the source's own blob geometry and opacities over the whole box.
+
+    `afterglow` swaps the dark treatment for the brand's quiet Afterglow field
+    (`.afterglow-field` in globals.css): the same top strip as the light pane
+    tuning, with broad rose-coral light in warm charcoal and wine that fades
+    into the page background. Light mode is unchanged. */
 
 import type { ComponentProps } from 'react';
 import { cn } from '@/lib/utils';
 
-export function CoralGlow({ vivid = false, className, children, ...props }: ComponentProps<'div'> & { vivid?: boolean }) {
+export function CoralGlow({
+  vivid = false,
+  afterglow = false,
+  className,
+  children,
+  ...props
+}: ComponentProps<'div'> & { vivid?: boolean; afterglow?: boolean }) {
   return (
     // overflow-clip trims the blurred layers without becoming a scroll container,
     // so a sticky bar inside still tracks the page scroll.
@@ -35,18 +46,25 @@ export function CoralGlow({ vivid = false, className, children, ...props }: Comp
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
         </div>
       )}
-      {/* Dark: ember base and low embers. The literal colors are the vendored palette at the
-          source opacities; the pane tuning dims the group by a third so it stays a low glow. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 hidden bg-[radial-gradient(circle_at_50%_120%,#1A1210_0%,#100C0A_48%,#080605_100%)] dark:block"
-      />
-      <div aria-hidden className={cn('pointer-events-none absolute -inset-8 -z-10 hidden blur-2xl dark:block', !vivid && 'opacity-[0.65]')}>
-        <div className="absolute -left-[8%] bottom-[6%] h-[64%] w-[64%] rounded-full bg-[#F59E0B] opacity-[0.22] blur-3xl" />
-        <div className="absolute bottom-[12%] left-[32%] h-[52%] w-[52%] rounded-full bg-[#FB923C] opacity-[0.17] blur-3xl" />
-        <div className="absolute -right-[6%] top-[18%] h-[58%] w-[58%] rounded-full bg-[#F43F5E] opacity-[0.15] blur-3xl" />
-        <div className="absolute left-[14%] top-[4%] h-[44%] w-[44%] rounded-full bg-[#FBBF24] opacity-[0.12] blur-3xl" />
-      </div>
+      {/* Dark, Afterglow: a gradient strip across the top, fading to the page background. */}
+      {afterglow ? (
+        <div aria-hidden className="afterglow-field pointer-events-none absolute inset-x-0 top-0 -z-10 hidden h-[42rem] dark:block" />
+      ) : (
+        <>
+          {/* Dark: ember base and low embers. The literal colors are the vendored palette at the
+              source opacities; the pane tuning dims the group by a third so it stays a low glow. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10 hidden bg-[radial-gradient(circle_at_50%_120%,#1A1210_0%,#100C0A_48%,#080605_100%)] dark:block"
+          />
+          <div aria-hidden className={cn('pointer-events-none absolute -inset-8 -z-10 hidden blur-2xl dark:block', !vivid && 'opacity-[0.65]')}>
+            <div className="absolute -left-[8%] bottom-[6%] h-[64%] w-[64%] rounded-full bg-[#F59E0B] opacity-[0.22] blur-3xl" />
+            <div className="absolute bottom-[12%] left-[32%] h-[52%] w-[52%] rounded-full bg-[#FB923C] opacity-[0.17] blur-3xl" />
+            <div className="absolute -right-[6%] top-[18%] h-[58%] w-[58%] rounded-full bg-[#F43F5E] opacity-[0.15] blur-3xl" />
+            <div className="absolute left-[14%] top-[4%] h-[44%] w-[44%] rounded-full bg-[#FBBF24] opacity-[0.12] blur-3xl" />
+          </div>
+        </>
+      )}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 opacity-[0.03] [background-image:radial-gradient(circle_at_center,currentColor_1px,transparent_1px)] [background-size:4px_4px]"

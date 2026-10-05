@@ -362,6 +362,25 @@
     --input: 213 7% 25%;
   }
 
+  /* ─── Afterglow field ────────────────────────────────────────────────────
+     Curator Studio's dark surface, the counterpart of CoralGlow's light pane
+     tuning: a strip across the top where broad rose-coral light and a small
+     peach accent sit in warm charcoal with wine tones, then fade into the
+     page background. Gradients only; CoralGlow's dot grain supplies the
+     texture. Tuned against the brand guideline's Afterglow reference, then
+     dimmed so the header's muted text keeps AA contrast. Rendered by
+     CoralGlow `afterglow`. */
+  .afterglow-field {
+    background-image:
+      linear-gradient(180deg, transparent 50%, hsl(var(--background)) 100%),
+      radial-gradient(22% 30% at 92% 10%, theme(colors.orange.300 / 20%), theme(colors.orange.400 / 6%) 45%, transparent 75%),
+      radial-gradient(34% 32% at 0% 10%, hsl(var(--primary) / 0.2), transparent 70%),
+      radial-gradient(36% 30% at 48% 18%, hsl(var(--primary) / 0.26), transparent 70%),
+      radial-gradient(40% 36% at 100% 36%, hsl(var(--primary) / 0.34), transparent 70%),
+      radial-gradient(90% 60% at 50% 2%, hsl(var(--accent) / 0.5), transparent 72%),
+      linear-gradient(180deg, hsl(var(--accent) / 0.22), hsl(var(--accent) / 0.08));
+  }
+
   /* ─── Console surface ────────────────────────────────────────────────────
      The /internal back office re-tokens the warm brand paper to a cool
      neutral: telemetry and tables read on quiet gray, not tan-on-tan, while

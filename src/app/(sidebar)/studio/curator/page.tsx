@@ -192,6 +192,7 @@ function CuratorStudio() {
   return (
     <StudioStepsContext.Provider value={open}>
       <CoralGlow
+        afterglow
         className="studio-surface min-h-full w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-10"
         data-studio-steps-ready={ready ? 'true' : undefined}
       >

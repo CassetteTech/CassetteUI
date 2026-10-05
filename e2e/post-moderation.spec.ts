@@ -4,7 +4,6 @@ import { expect, test } from '@playwright/test';
 import {
   fixtureActiveCuratorProfile,
   fixtureActiveMemberPostPlan,
-  fixtureCuratorProActiveStatus,
   fixturePosts,
   fixtureUsers,
 } from './support/cassette-fixtures';
@@ -15,7 +14,6 @@ test('lets a post owner edit and delete a post', async ({ page }) => {
     currentUser: fixtureUsers.owner,
     posts: [fixturePosts.ownerTrack],
     curatorProfile: fixtureActiveCuratorProfile,
-    curatorProStatus: fixtureCuratorProActiveStatus,
     curatorPlans: [fixtureActiveMemberPostPlan],
   });
 

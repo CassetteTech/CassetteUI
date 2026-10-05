@@ -1,13 +1,13 @@
 'use client';
 
-/** Curator Studio landing view. Once Curator Pro is active: stat cards, a
+/** Curator Studio landing view. Once a plan has been published: stat cards, a
     dithered earned-versus-paid chart with a running activity feed beside it,
-    and the membership plan card. Before that: the launch checklist, the Pro
-    upsell, and the plan editor. */
+    and the membership plan card. Before that: the launch checklist and the
+    plan editor. */
 
 import { useContext, useMemo, useState, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, ArrowUpRight, Check } from 'lucide-react';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CuratorPlanCard } from '@/components/features/curator/curator-plan-card';
 import { Area } from '@/components/dither-kit/area';
@@ -27,7 +27,6 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import type { CuratorProfile } from '@/services/curator';
 import { monthStart, periodSummary, type CuratorEarningsBalances } from '@/services/curator-earnings';
-import type { CuratorProStatus } from '@/services/curator-pro';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { AnnotatedText } from '@/components/ui/annotated-text';
 import { cn } from '@/lib/utils';
@@ -144,57 +143,21 @@ function LaunchCard({ steps, doneCount, nextIndex }: { steps: LaunchStep[]; done
   );
 }
 
-function ProUpsellCard({ pro }: { pro: CuratorProStatus | undefined }) {
-  const views = useContext(StudioStepsContext);
-  const unlocks = [
-    'Publish a membership plan fans can join',
-    'Lock posts so only members can open them',
-    'Get membership earnings paid out on schedule',
-  ];
-  return (
-    // Stacked deck: two tilted panes fan out behind the card and spread on hover.
-    <div className="group relative">
-      {/* Hover is frequent, so the fan-out stays under 300ms on the smooth-out curve. */}
-      <div aria-hidden className="absolute inset-x-4 bottom-0 top-6 -rotate-2 rounded-xl bg-muted transition-transform duration-280 ease-out-quart group-hover:-rotate-3 motion-reduce:transition-none" />
-      <div aria-hidden className="absolute inset-x-2 bottom-0 top-3 rotate-1 rounded-xl border border-border bg-muted/70 transition-transform duration-280 ease-out-quart group-hover:rotate-2 motion-reduce:transition-none" />
-    <Card title="What Curator Pro unlocks" className="relative bg-card transition-transform duration-280 ease-out-quart group-hover:-translate-y-0.5 motion-reduce:transition-none">
-      <ul className="space-y-2.5 text-sm">
-        {unlocks.map((line) => (
-          <li key={line} className="flex gap-2.5">
-            <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />
-            {line}
-          </li>
-        ))}
-      </ul>
-      <p className="mt-4 text-sm text-muted-foreground">
-        {pro
-          ? `${money(pro.monthlyPriceMinor, pro.currency)} per month. Your free profile and regular Cassette features stay free.`
-          : 'Your free profile and regular Cassette features stay free.'}
-      </p>
-      <Button variant="outline" className="mt-4 w-full sm:w-auto" onClick={() => views?.open('studio-pro')}>
-        See Curator Pro
-      </Button>
-    </Card>
-    </div>
-  );
-}
-
 export function StudioOverview({
   profile,
   steps,
   doneCount,
   nextIndex,
-  pro,
+  hasPublished,
 }: {
   profile: CuratorProfile | null;
   steps: LaunchStep[];
   doneCount: number;
   nextIndex: number;
-  pro: CuratorProStatus | undefined;
+  hasPublished: boolean;
 }) {
   const views = useContext(StudioStepsContext);
-  const proActive = pro?.hasAccess === true;
-  const earnings = useCuratorLedger(proActive && profile !== null);
+  const earnings = useCuratorLedger(hasPublished && profile !== null);
   const ledger = earnings.data;
   const [months, setMonths] = useState('6');
   const period = useMemo(
@@ -255,22 +218,6 @@ export function StudioOverview({
     </Alert>
   );
 
-  // Starting Curator Pro is itself a launch step, so a free curator is always mid-setup.
-  if (!proActive) {
-    return (
-      <div className="space-y-6">
-        {suspended}
-        <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
-          <div className="lg:col-span-2">
-            <LaunchCard steps={steps} doneCount={doneCount} nextIndex={nextIndex} />
-          </div>
-          <ProUpsellCard pro={pro} />
-        </div>
-        <CuratorPlanCard profile={profile} />
-      </div>
-    );
-  }
-
   const summary = period
     ? [
         { label: 'Earned', value: money(period.earned, currency) },
@@ -280,10 +227,16 @@ export function StudioOverview({
       ]
     : [];
 
+  // The plan card keeps its position in both layouts so publishing does not remount it.
   return (
     <div className="space-y-6">
       {suspended}
 
+      {/* Nothing has been earned before the first publish, so setup leads. */}
+      {!hasPublished ? (
+        <LaunchCard steps={steps} doneCount={doneCount} nextIndex={nextIndex} />
+      ) : (
+      <>
       <motion.dl {...rise(0)} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {tiles.map((tile) => (
           <StatTile key={tile.label} {...tile} onClick={() => views?.open(tile.target)} />
@@ -389,6 +342,8 @@ export function StudioOverview({
           </Card>
         </motion.div>
       </div>
+      </>
+      )}
 
       <CuratorPlanCard profile={profile} />
     </div>

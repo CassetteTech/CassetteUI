@@ -75,7 +75,7 @@ test('shows subscriber content and the member badge to an entitled viewer', asyn
   await expect(page.getByRole('link', { name: /view .* membership/i })).toHaveCount(0);
 });
 
-test('keeps an active curator without Pro public-only', async ({ page }) => {
+test('keeps an active curator without a published plan public-only', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.viewer,
     curatorPage: fixtureFreeCuratorPage,

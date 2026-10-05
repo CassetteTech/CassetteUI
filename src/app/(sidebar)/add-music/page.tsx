@@ -376,7 +376,7 @@ const PostDetails = ({
         ? 'Only active members can open it.'
         : subscriberAllowed
           ? 'Anyone can see it.'
-          : 'Anyone can see it. Members-only posts need Curator Pro and a published plan.';
+          : 'Anyone can see it. Members-only posts need a published membership plan.';
 
   return (
     <motion.div

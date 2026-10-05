@@ -20,6 +20,7 @@ const status = {
   canManage: false,
   cancelAtPeriodEnd: false,
   paidThroughUtc: null,
+  available: true,
 };
 
 void test('status parser accepts the public contract and strips correlation metadata', () => {

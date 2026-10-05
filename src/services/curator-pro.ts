@@ -22,6 +22,7 @@ const curatorProStatusSchema = z.object({
   canManage: z.boolean(),
   cancelAtPeriodEnd: z.boolean(),
   paidThroughUtc: timestampSchema.nullable(),
+  available: z.boolean(),
   correlationId: correlationIdSchema,
 }).strict().refine(
   (status) => (status.discountKind === 'temporary') === (status.discountEndsAtUtc !== null),

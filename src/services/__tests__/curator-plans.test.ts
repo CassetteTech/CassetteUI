@@ -54,7 +54,7 @@ function requestUrl(input: string | URL | Request): string {
   return input as string;
 }
 
-void test('members-only access state follows Pro access, then a published member-post plan', () => {
+void test('members-only access state follows the curator profile, then a published member-post plan', () => {
   const active = parseCuratorPlan({
     ...draft,
     status: 'active',
@@ -65,7 +65,7 @@ void test('members-only access state follows Pro access, then a published member
   const otherFeature = { ...active, featureKeys: ['early_access'] };
 
   assert.equal(memberPostAccessState(undefined, undefined), 'loading');
-  assert.equal(memberPostAccessState(false, [active]), 'needs-pro');
+  assert.equal(memberPostAccessState(false, undefined), 'needs-plan');
   assert.equal(memberPostAccessState(true, undefined), 'loading');
   assert.equal(memberPostAccessState(true, []), 'needs-plan');
   assert.equal(memberPostAccessState(true, [parseCuratorPlan(draft), otherFeature]), 'needs-plan');

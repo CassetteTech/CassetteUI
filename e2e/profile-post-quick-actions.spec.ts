@@ -5,7 +5,6 @@ import {
   fixtureActiveCuratorProfile,
   fixtureActiveMemberPostPlan,
   fixtureCuratorPage,
-  fixtureCuratorProActiveStatus,
   fixturePosts,
   fixtureUsers,
 } from './support/cassette-fixtures';
@@ -31,7 +30,6 @@ test('locks a post for members from the curator feed right-click menu', async ({
       posts: { ...fixtureCuratorPage.posts, items: [feedPost], totalItems: 1 },
     },
     curatorProfile: fixtureActiveCuratorProfile,
-    curatorProStatus: fixtureCuratorProActiveStatus,
     curatorPlans: [fixtureActiveMemberPostPlan],
   });
 
@@ -52,7 +50,6 @@ test('makes a post private from the profile grid right-click menu', async ({ pag
     currentUser: fixtureUsers.owner,
     posts: [fixturePosts.ownerTrack],
     curatorProfile: fixtureActiveCuratorProfile,
-    curatorProStatus: fixtureCuratorProActiveStatus,
     curatorPlans: [fixtureActiveMemberPostPlan],
   });
 

@@ -179,6 +179,7 @@ type MockState = {
   curatorPlanCreateRequests: CuratorPlanRequest[];
   curatorPlanPublishRequests: string[];
   curatorPlanArchiveRequests: string[];
+  curatorPlanEndMembershipsRequests: string[];
   curatorPlanUpdateRequests: CuratorPlanRequest[];
   curatorPlanDeleteRequests: string[];
   curatorPlanToolsStatus: number;
@@ -619,6 +620,7 @@ const buildState = (options: MockCassetteOptions): MockState => {
     curatorPlanCreateRequests: [],
     curatorPlanPublishRequests: [],
     curatorPlanArchiveRequests: [],
+    curatorPlanEndMembershipsRequests: [],
     curatorPlanUpdateRequests: [],
     curatorPlanDeleteRequests: [],
     curatorPlanToolsStatus: options.curatorPlanToolsStatus ?? 200,
@@ -1054,7 +1056,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
     }
 
     const curatorPlanAction = pathname.match(
-      /^\/api\/v1\/curators\/plans\/(mpl_[0-9A-Za-z]+)\/(publish|archive)$/,
+      /^\/api\/v1\/curators\/plans\/(mpl_[0-9A-Za-z]+)\/(publish|archive|end-memberships)$/,
     );
     if (curatorPlanAction && method === 'POST') {
       getCurrentUserOrThrow(state);
@@ -1066,8 +1068,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         state.curatorPlanPublishRequests.push(planId);
         if (plan.status === 'active') return json(route, plan);
         if (plan.status === 'archived' || state.curatorProfile?.status !== 'active' ||
-            !state.curatorProStatus.hasAccess ||
-            !state.curatorPayoutAccount ||
+            state.curatorPayoutAccount?.transfersCapabilityStatus !== 'active' ||
             state.curatorPlans.some((candidate) =>
               candidate.id !== planId && candidate.status === 'active')) {
           return json(route, { message: 'Membership plan cannot be published.' }, 409);
@@ -1083,15 +1084,19 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         return json(route, plan);
       }
 
-      state.curatorPlanArchiveRequests.push(planId);
+      (action === 'archive' ? state.curatorPlanArchiveRequests : state.curatorPlanEndMembershipsRequests).push(planId);
       if (plan.status === 'draft') {
         return json(route, { message: 'Draft plans cannot be archived.' }, 409);
       }
-      if (plan.status === 'active') {
-        Object.assign(plan, {
-          status: 'archived',
-          archivedAtUtc: FIXTURE_TIMESTAMP,
-        } satisfies Partial<CuratorPlan>);
+      // Ending memberships is curator-wide: the live offer stops selling too.
+      const stopping = action === 'archive' ? [plan] : state.curatorPlans;
+      for (const candidate of stopping) {
+        if (candidate.status === 'active') {
+          Object.assign(candidate, {
+            status: 'archived',
+            archivedAtUtc: FIXTURE_TIMESTAMP,
+          } satisfies Partial<CuratorPlan>);
+        }
       }
       return json(route, plan);
     }

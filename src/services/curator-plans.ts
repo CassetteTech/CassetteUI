@@ -230,7 +230,10 @@ export async function deleteCuratorPlan(id: string): Promise<void> {
   if (!response.ok) throw new CuratorPageError('Failed to delete membership plan', response.status);
 }
 
-async function changeCuratorPlan(id: string, action: 'publish' | 'archive'): Promise<CuratorPlan> {
+async function changeCuratorPlan(
+  id: string,
+  action: 'publish' | 'archive' | 'end-memberships',
+): Promise<CuratorPlan> {
   const planId = planIdSchema.parse(id);
   const response = await fetch(`/api/v1/curators/plans/${encodeURIComponent(planId)}/${action}`, {
     method: 'POST', credentials: 'include',
@@ -244,19 +247,23 @@ export const publishCuratorPlan = (id: string): Promise<CuratorPlan> =>
 export const archiveCuratorPlan = (id: string): Promise<CuratorPlan> =>
   changeCuratorPlan(id, 'archive');
 
+/** Archives the plan and schedules every member of this curator to end at their paid-through date. */
+export const endCuratorMemberships = (id: string): Promise<CuratorPlan> =>
+  changeCuratorPlan(id, 'end-memberships');
+
 /** Published plans whose members can open members-only posts. */
 export const memberPostPlans = (plans: CuratorPlan[]): CuratorPlan[] =>
   plans.filter((plan) => plan.status === 'active' && plan.featureKeys.includes('member_posts'));
 
-export type MemberPostAccessState = 'loading' | 'needs-pro' | 'needs-plan' | 'ready';
+export type MemberPostAccessState = 'loading' | 'needs-plan' | 'ready';
 
-/** What still stands between a curator and publishing a members-only post. */
+/** What still stands between a user and publishing a members-only post. */
 export function memberPostAccessState(
-  hasProAccess: boolean | undefined,
+  hasCuratorProfile: boolean | undefined,
   plans: CuratorPlan[] | undefined,
 ): MemberPostAccessState {
-  if (hasProAccess === undefined) return 'loading';
-  if (!hasProAccess) return 'needs-pro';
+  if (hasCuratorProfile === undefined) return 'loading';
+  if (!hasCuratorProfile) return 'needs-plan';
   if (plans === undefined) return 'loading';
   return memberPostPlans(plans).length > 0 ? 'ready' : 'needs-plan';
 }

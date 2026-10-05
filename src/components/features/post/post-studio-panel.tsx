@@ -741,17 +741,13 @@ function AccessTab({
             </ul>
           ) : (
             <div className="rounded-lg border border-dashed border-border bg-muted/20 p-5">
-              <p className="text-sm font-medium text-foreground">
-                {access.state === 'needs-pro' ? 'Monetize your music' : 'Publish a member-posts plan'}
-              </p>
+              <p className="text-sm font-medium text-foreground">Publish a member-posts plan</p>
               <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
-                {access.state === 'needs-pro'
-                  ? 'Curator Pro lets you lock posts like this one for paying members and earn membership revenue.'
-                  : 'Members-only posts open for fans on a published plan that includes member posts.'}
+                Members-only posts open for fans on a published plan that includes member posts.
               </p>
               <Button asChild size="sm" className="mt-4">
                 <Link href="/studio/curator" prefetch={false}>
-                  {access.state === 'needs-pro' ? 'Start Curator Pro' : 'Open Curator Studio'}
+                  Open Curator Studio
                 </Link>
               </Button>
             </div>

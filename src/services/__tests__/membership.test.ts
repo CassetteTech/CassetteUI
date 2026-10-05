@@ -152,11 +152,11 @@ void test('curator-side endings explain the access end date and any refund', () 
   const scheduled = {
     ...subscription,
     cancelAtPeriodEnd: true,
-    endReason: 'curator_pro_ended',
+    endReason: 'plan_archived',
     accessEndsAtUtc: '2026-09-01T00:00:00Z',
   };
   assert.match(describeMembershipStanding(scheduled) ?? '', /stopped offering.*Sep 1, 2026.*keep member access/);
-  assert.doesNotMatch(describeMembershipStanding(scheduled) ?? '', /curator_pro_ended|Curator Pro/);
+  assert.doesNotMatch(describeMembershipStanding(scheduled) ?? '', /plan_archived|Curator Pro/);
 
   const immediate = {
     ...subscription,

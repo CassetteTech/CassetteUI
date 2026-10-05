@@ -24,10 +24,6 @@ type PortalBaseline = z.infer<typeof portalBaselineSchema>;
 
 const portalBaselinePrefix = 'cassette:curator-pro-portal-baseline:';
 const priceLocale = 'en-US';
-const feeFormatter = new Intl.NumberFormat(priceLocale, {
-  style: 'percent',
-  maximumFractionDigits: 2,
-});
 const dateFormatter = new Intl.DateTimeFormat(priceLocale, {
   dateStyle: 'medium',
   timeZone: 'UTC',
@@ -90,7 +86,7 @@ function discountCopy(status: CuratorProStatus) {
 }
 
 /** What ending Curator Pro means, shown before the billing handoff and on scheduled cancellations. */
-const endOfProCopy = 'After that, no new paid joins and no member-only publishing; each existing member is scheduled to end at the close of their own paid period. Your free profile and earned balances stay yours.';
+const endOfProCopy = 'Your memberships, earnings, and free profile are not affected.';
 
 /** One line on the current state; null when the pass already says it all. */
 function lifecycleCopy(status: CuratorProStatus): string | null {
@@ -98,7 +94,7 @@ function lifecycleCopy(status: CuratorProStatus): string | null {
     const end = status.paidThroughUtc
       ? `on ${dateFormatter.format(new Date(status.paidThroughUtc))}`
       : 'after the current billing period';
-    return `Curator Pro is canceling ${end}. Until then you keep every Pro capability; members finish their own paid periods.`;
+    return `Curator Pro is canceling ${end}. ${endOfProCopy}`;
   }
   if (status.hasAccess) return null;
   if (status.status === 'trialing' || status.status === 'active') {
@@ -108,7 +104,7 @@ function lifecycleCopy(status: CuratorProStatus): string | null {
     return 'Payment needs attention. Manage billing to restore access.';
   }
   if (status.status === 'canceled') return 'Curator Pro is canceled. Your free curator profile stays available.';
-  return 'Your free profile stays free. Pro adds locked posts and membership revenue.';
+  return 'Curator Pro is optional. Memberships and earnings work without it.';
 }
 
 export function CuratorProCard() {
@@ -192,7 +188,7 @@ export function CuratorProCard() {
     if (!flow || !status || !fetchedAfterMount || flowHandled.current) return;
     if (flow === 'return') {
       if (status.hasAccess) {
-        finishFlow('Curator Pro is active. Paid plan and payout requirements still apply before membership monetization.');
+        finishFlow('Curator Pro is active.');
       } else if (status.status === 'trialing' || status.status === 'active') {
         finishFlow('Your Curator Pro subscription is current, but access is unavailable.');
       } else if (status.status !== null && status.status !== 'incomplete') {
@@ -234,6 +230,9 @@ export function CuratorProCard() {
   const actionPending = checkout.isPending || checkout.isSuccess ||
     portal.isPending || portal.isSuccess;
 
+  // Hidden until Bridge offers Curator Pro; an existing subscriber keeps billing access.
+  if (!status?.available && !status?.canManage) return null;
+
   return (
     <StudioSection
       id="studio-pro"
@@ -241,7 +240,7 @@ export function CuratorProCard() {
       title="Curator Pro"
       headingId="curator-pro-title"
       testId="curator-pro-card"
-      description="Required for locked posts and membership revenue."
+      description="Optional curation tools. Earning from memberships does not need it."
     >
       <StudioNotice testId="curator-pro-notice" className="mb-5">{notice}</StudioNotice>
       <div className="space-y-5">
@@ -261,21 +260,9 @@ export function CuratorProCard() {
           </Button>
         )}
 
-        {statusQuery.isPending ? (
-          <output className="text-sm text-muted-foreground">Loading Curator Pro…</output>
-        ) : statusQuery.isError && !status ? (
-          <div className="space-y-3">
-            <p role="alert" className="text-sm text-destructive">
-              {getUserFacingApiErrorMessage(statusQuery.error, 'Curator Pro status is unavailable.')}
-              {' '}Your free curator profile still works.
-            </p>
-            <Button type="button" variant="outline" onClick={() => void statusQuery.refetch()}>
-              Try again
-            </Button>
-          </div>
-        ) : status ? (
+        {
           <>
-            <dl className="grid gap-4 sm:grid-cols-3">
+            <dl className="grid gap-4 sm:grid-cols-2">
               <StudioStat
                 label="Your monthly price"
                 value={formatMoney(status.discountKind === 'none' ? status.monthlyPriceMinor : 0, status.currency)}
@@ -291,10 +278,6 @@ export function CuratorProCard() {
                 value={status.hasAccess
                   ? (status.paidThroughUtc ? dateFormatter.format(new Date(status.paidThroughUtc)) : 'Current period')
                   : statusLabel(status)}
-              />
-              <StudioStat
-                label="Platform fee on fan payments"
-                value={feeFormatter.format(status.platformFeeBps / 10_000)}
               />
             </dl>
             {lifecycleCopy(status) && (
@@ -344,7 +327,7 @@ export function CuratorProCard() {
               )}
             </div>
           </>
-        ) : null}
+        }
       </div>
     </StudioSection>
   );

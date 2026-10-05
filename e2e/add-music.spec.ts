@@ -5,7 +5,6 @@ import {
   fixtureConvertTemplates,
   fixtureActiveCuratorProfile,
   fixtureActiveMemberPostPlan,
-  fixtureCuratorProActiveStatus,
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
@@ -14,7 +13,6 @@ test('creates a post from add-music search and shows it on the profile', async (
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProfile: fixtureActiveCuratorProfile,
-    curatorProStatus: fixtureCuratorProActiveStatus,
     curatorPlans: [fixtureActiveMemberPostPlan],
   });
 

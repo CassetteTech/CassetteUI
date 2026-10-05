@@ -183,7 +183,7 @@ test('opens the owned Billing Portal membership and trusts its cancellation webh
   await expectMembershipEvent(captures, 'membership_canceled', true);
 });
 
-test('keeps manage available but never offers Join when Curator Pro is inactive', async ({ page }) => {
+test('keeps manage available but never offers Join when the curator has no published plan', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorPage: fixtureFreeCuratorPage,
@@ -204,7 +204,7 @@ test('keeps manage available but never offers Join when Curator Pro is inactive'
   expect(state.membershipCheckoutRequests).toHaveLength(0);
 });
 
-test('blocks a new membership when Curator Pro is inactive', async ({ page }) => {
+test('blocks a new membership when the curator has no published plan', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.viewer,
     curatorPage: fixtureFreeCuratorPage,
@@ -413,7 +413,7 @@ test('explains curator-side endings with the access end date and refund state', 
         curatorDisplayName: fixtureCuratorPage.curator.displayName ?? '',
         membership: {
           ...fixtureCancelingMembershipStatus.membership!,
-          endReason: 'curator_pro_ended',
+          endReason: 'plan_archived',
           accessEndsAtUtc: fixtureCancelingMembershipStatus.membership!.paidThroughUtc,
         },
       },

@@ -94,7 +94,7 @@ export function PostQuickActions({
                 >
                   {active && <Check className="absolute left-2" />}
                   <span>{visibilityLabels[value]}</span>
-                  {disabled && <span className="ml-auto pl-4 text-[10px] text-muted-foreground">Needs Pro plan</span>}
+                  {disabled && <span className="ml-auto pl-4 text-[10px] text-muted-foreground">Needs a published plan</span>}
                 </ContextMenuItem>
               );
             })}

@@ -112,9 +112,11 @@ export interface FixturePost {
 
 export type FixtureMembershipStatusView = MembershipStatusView;
 
+/** Launch state: Curator Pro is not offered, so Checkout is closed. */
 export const fixtureCuratorProDefaultStatus: FixtureCuratorProStatus = {
+  available: false,
   hasAccess: false,
-  canSubscribe: true,
+  canSubscribe: false,
   status: null,
   monthlyPriceMinor: 500,
   currency: 'USD',
@@ -126,8 +128,15 @@ export const fixtureCuratorProDefaultStatus: FixtureCuratorProStatus = {
   paidThroughUtc: null,
 };
 
-export const fixtureCuratorProActiveStatus: FixtureCuratorProStatus = {
+/** Curator Pro is offered and this curator has not subscribed. */
+export const fixtureCuratorProAvailableStatus: FixtureCuratorProStatus = {
   ...fixtureCuratorProDefaultStatus,
+  available: true,
+  canSubscribe: true,
+};
+
+export const fixtureCuratorProActiveStatus: FixtureCuratorProStatus = {
+  ...fixtureCuratorProAvailableStatus,
   hasAccess: true,
   canSubscribe: false,
   status: 'active',

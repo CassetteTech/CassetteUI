@@ -162,7 +162,7 @@ export function describeMembershipBilling(subscription: MembershipSubscription):
 // Curator-side endings. A scheduled ending keeps access to the paid-through date; an
 // immediate one ends access at once and refunds unused paid time. The reason code itself
 // is never shown, and an unknown code falls back to the ordinary standing copy.
-const scheduledEndReasons = new Set(['curator_pro_ended', 'plan_archived']);
+const scheduledEndReasons = new Set(['plan_archived']);
 const immediateEndReasons = new Set(['curator_suspended', 'curator_retired', 'account_deleted']);
 const refundCopy = {
   pending: 'A refund for your unused paid time is on its way.',

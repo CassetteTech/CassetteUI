@@ -17,7 +17,6 @@ import { CuratorPayoutHistory } from '@/components/features/curator/curator-payo
 import { CuratorProCard } from '@/components/features/curator/curator-pro-card';
 import { StudioOverview, type LaunchStep } from '@/components/features/curator/studio-overview';
 import {
-  StudioChip,
   StudioSection,
   StudioStepsContext,
   studioViewOf,
@@ -30,7 +29,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthState } from '@/hooks/use-auth';
-import { apiService } from '@/services/api';
 import {
   createCuratorProfile,
   fetchCuratorPayoutAccount,
@@ -52,7 +50,6 @@ const views: ReadonlyArray<{ id: StudioView; label: string; icon: typeof LayoutD
     view. Reads the same query keys the section cards use, so React Query
     dedupes the requests and every surface stays in sync. */
 function useLaunchSteps(profile: CuratorProfile | null) {
-  const { user } = useAuthState();
   const searchParams = useSearchParams();
   // Provider return flows land on their owning section. During a payout return,
   // the payout card owns the single refresh request.
@@ -60,12 +57,6 @@ function useLaunchSteps(profile: CuratorProfile | null) {
     ? 'studio-payouts'
     : searchParams.has('pro') ? 'studio-pro' : null;
   const payoutFlowActive = flowStep === 'studio-payouts';
-  const pro = useQuery({
-    queryKey: ['curator-pro-status', user?.id ?? null],
-    queryFn: ({ signal }) => apiService.getCuratorProStatus(signal),
-    enabled: Boolean(user?.id),
-    staleTime: 0,
-  });
   const payout = useQuery({
     queryKey: ['curator-payout-account', 'current'],
     queryFn: ({ signal }) => fetchCuratorPayoutAccount(false, signal),
@@ -79,23 +70,20 @@ function useLaunchSteps(profile: CuratorProfile | null) {
     staleTime: 0,
   });
 
-  // Accepting members needs payout setup to have started; transfers going
-  // active is payout readiness, which the payout card tracks separately so a
-  // published plan never reads as launch-incomplete because of verification lag.
+  // Publishing needs a payout account Stripe has verified for transfers.
   const payoutStarted = payout.data != null;
+  const payoutReady = payout.data?.transfersCapabilityStatus === 'active';
   const hasPlan = plans.data?.some((plan) => plan.status !== 'archived') === true;
   const hasActivePlan = plans.data?.some((plan) => plan.status === 'active') === true;
   const steps: LaunchStep[] = [
     { href: '#studio-profile', label: 'Create your free profile', done: profile?.status === 'active' },
     { href: '#studio-plan', label: 'Prepare and preview your offer', done: hasPlan },
-    { href: '#studio-pro', label: 'Start Curator Pro', done: pro.data?.hasAccess === true },
-    { href: '#studio-payouts', label: 'Start payout setup', done: payoutStarted },
+    { href: '#studio-payouts', label: 'Complete payout setup', done: payoutReady },
     { href: '#studio-plan', label: 'Publish your membership plan', done: hasActivePlan },
   ];
   const doneCount = steps.filter((step) => step.done).length;
   const nextIndex = steps.findIndex((step) => !step.done);
-  const isPending = pro.isPending ||
-    !payoutFlowActive && payout.isPending ||
+  const isPending = !payoutFlowActive && payout.isPending ||
     profile !== null && plans.isPending;
 
   return {
@@ -104,12 +92,11 @@ function useLaunchSteps(profile: CuratorProfile | null) {
     nextIndex,
     isPending,
     flowStep,
-    pro: pro.data,
+    // Earnings exist only for a curator who has published at least once.
+    hasPublished: plans.data?.some((plan) => plan.status !== 'draft') === true,
     payoutStarted,
   };
 }
-
-type LaunchState = ReturnType<typeof useLaunchSteps>;
 
 const todayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
@@ -119,7 +106,7 @@ function greeting(hour: number) {
   return 'Good evening';
 }
 
-function StudioHeader({ pro }: { pro: LaunchState['pro'] }) {
+function StudioHeader() {
   const { user } = useAuthState();
   const username = user?.username ?? null;
   const publicPath = username ? `/profile/${encodeURIComponent(username)}` : null;
@@ -140,15 +127,7 @@ function StudioHeader({ pro }: { pro: LaunchState['pro'] }) {
         <h1 className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">
           Curator Studio
         </h1>
-        {/* Plan tier and handle read as one identity line; the actions wrap as a unit. */}
-        <p className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-muted-foreground">
-          {pro && (
-            <StudioChip tone={pro.hasAccess ? (pro.cancelAtPeriodEnd ? 'warning' : 'positive') : 'neutral'}>
-              {pro.hasAccess ? 'Curator Pro' : 'Free profile'}
-            </StudioChip>
-          )}
-          {username && <span className="truncate font-mono text-xs">@{username}</span>}
-        </p>
+        {username && <p className="mt-2.5 truncate font-mono text-xs text-muted-foreground">@{username}</p>}
       </div>
       {publicPath && (
         <div className="flex flex-wrap items-center gap-2">
@@ -216,7 +195,7 @@ function CuratorStudio() {
         className="studio-surface min-h-full w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-10"
         data-studio-steps-ready={ready ? 'true' : undefined}
       >
-        <StudioHeader pro={launch.pro} />
+        <StudioHeader />
 
         <Tabs value={view} onValueChange={(next) => open.open(next)} className="mt-6 gap-6">
             {/* Underline tabs across the top; content takes the full width below. */}
@@ -266,7 +245,7 @@ function CuratorStudio() {
                     steps={launch.steps}
                     doneCount={launch.doneCount}
                     nextIndex={launch.nextIndex}
-                    pro={launch.pro}
+                    hasPublished={launch.hasPublished}
                   />
                 )}
               </TabsContent>
@@ -301,7 +280,7 @@ function CuratorStudio() {
   );
 }
 
-/** Mirrors the Pro overview layout so the page does not reflow when data lands. */
+/** Mirrors the earnings overview layout so the page does not reflow when data lands. */
 function OverviewSkeleton() {
   return (
     <div aria-hidden className="space-y-6">

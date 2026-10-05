@@ -5,6 +5,7 @@ import { expect, type Page, test } from '@playwright/test';
 import type { CuratorProStatus } from '../src/services/curator-pro';
 import {
   fixtureCuratorProActiveStatus,
+  fixtureCuratorProAvailableStatus,
   fixtureCuratorProDefaultStatus,
   fixtureUsers,
 } from './support/cassette-fixtures';
@@ -16,7 +17,7 @@ const CHECKOUT_URL = 'https://checkout.stripe.test/curator-pro-session';
 const PORTAL_URL = 'https://billing.stripe.test/curator-pro-session';
 
 const proStatus = (overrides: Partial<CuratorProStatus>): CuratorProStatus => ({
-  ...fixtureCuratorProDefaultStatus,
+  ...fixtureCuratorProAvailableStatus,
   ...overrides,
 });
 
@@ -31,7 +32,7 @@ async function returnFromProvider(page: Page, providerUrl: string, returnPath: s
 test('shows default economics without taking away the free profile editor', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
-    curatorProStatus: fixtureCuratorProDefaultStatus,
+    curatorProStatus: fixtureCuratorProAvailableStatus,
   });
 
   await page.goto(STUDIO_PATH);
@@ -43,7 +44,6 @@ test('shows default economics without taking away the free profile editor', asyn
   const card = page.getByTestId('curator-pro-card');
   await expect(card).toBeVisible();
   await expect(card).toContainText('$5.00');
-  await expect(card).toContainText('10%');
   await expect(page.getByTestId('curator-pro-subscribe')).toHaveText('Start Curator Pro');
 
   await page.setViewportSize({ width: 375, height: 812 });
@@ -70,7 +70,6 @@ test('renders policy pricing and each valid launch discount', async ({ page }) =
   await page.goto(STUDIO_PATH);
   const card = page.getByTestId('curator-pro-card');
   await expect(card).toContainText('$7.25');
-  await expect(card).toContainText('12.5%');
 
   state.curatorProStatus = {
     ...fixtureCuratorProActiveStatus,
@@ -98,7 +97,7 @@ test('waits for polled subscription truth after Checkout returns', async ({ page
   });
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
-    curatorProStatus: fixtureCuratorProDefaultStatus,
+    curatorProStatus: fixtureCuratorProAvailableStatus,
     curatorProStatusSequence: [
       incompleteStatus,
       incompleteStatus,
@@ -209,7 +208,7 @@ test('treats an unchanged Billing Portal return as success without polling', asy
   await returnFromProvider(page, PORTAL_URL, `${STUDIO_PATH}?pro=portal-return`);
   await openStudioStep(page, 'studio-pro');
   const card = page.getByTestId('curator-pro-card');
-  await expect(card).toContainText('no new paid joins');
+  await expect(card).toContainText('Your memberships, earnings, and free profile are not affected.');
   await page.getByTestId('curator-pro-manage').click();
 
   await expect(page.getByTestId('curator-pro-notice')).toContainText('unchanged', { timeout: 5_000 });
@@ -220,7 +219,7 @@ test('treats an unchanged Billing Portal return as success without polling', asy
   await expect(page.getByRole('button', { name: 'Check again' })).toHaveCount(0);
 });
 
-test('leaves the free profile editor usable when Pro status fails', async ({ page }) => {
+test('keeps Curator Pro hidden and the free profile usable when Pro status fails', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProStatusFailures: 10,
@@ -229,12 +228,40 @@ test('leaves the free profile editor usable when Pro status fails', async ({ pag
   await page.goto(STUDIO_PATH);
   await openStudioStep(page, 'studio-pro');
 
-  await expect(page.getByTestId('curator-pro-card').getByRole('alert')).toBeVisible({
-    timeout: 10_000,
-  });
+  await expect(page.getByTestId('curator-payout-card')).toBeVisible();
+  await expect(page.getByTestId('curator-pro-card')).toHaveCount(0);
   await openStudioStep(page, 'studio-overview');
   await page.getByRole('button', { name: 'Next: Create your free profile' }).first().click();
 
   await expect.poll(() => state.curatorProfile?.status).toBe('active');
   await expect(page.getByRole('button', { name: 'Next: Create your free profile' })).toHaveCount(0);
+});
+
+test('hides Curator Pro everywhere in Studio while it is not available', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProStatus: fixtureCuratorProDefaultStatus,
+  });
+
+  await page.goto(STUDIO_PATH);
+  await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
+  await expect(page.getByText(/Curator Pro/)).toHaveCount(0);
+
+  await openStudioStep(page, 'studio-pro');
+  await expect(page.getByTestId('curator-payout-card')).toBeVisible();
+  await expect(page.getByTestId('curator-pro-card')).toHaveCount(0);
+  await expect(page.getByText(/Curator Pro/)).toHaveCount(0);
+});
+
+test('keeps billing management for an existing subscriber while Curator Pro is not available', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProStatus: { ...fixtureCuratorProActiveStatus, available: false },
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-pro');
+
+  await expect(page.getByTestId('curator-pro-manage')).toBeVisible();
+  await expect(page.getByTestId('curator-pro-subscribe')).toHaveCount(0);
 });

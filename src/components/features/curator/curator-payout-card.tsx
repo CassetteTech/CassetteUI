@@ -30,16 +30,16 @@ function needsAttention(account: CuratorPayoutAccount) {
 
 /** One line that names the state and the next step; the state word leads. */
 function statusCopy(account: CuratorPayoutAccount | null) {
-  if (!account) return 'Not started. Set up payouts to accept paying members; payouts begin once you are verified.';
+  if (!account) return 'Not started. Set up payouts before you publish a membership plan.';
   if (account.transfersCapabilityStatus === 'active') return 'Ready. Earnings go out on your payout schedule.';
-  if (needsAttention(account)) return 'Needs attention. Stripe needs more information before payouts can start; members can still join.';
-  return 'Verifying. Members can join; earnings are held until verification completes.';
+  if (needsAttention(account)) return 'Needs attention. Stripe needs more information before you can publish a plan or receive payouts.';
+  return 'Verifying. You can publish a plan and receive payouts once Stripe verifies your account.';
 }
 
 const ringRadius = 40;
 const ringCircumference = 2 * Math.PI * ringRadius;
 
-/** Payout readiness as a ring: setup started, fans can join, account verified.
+/** Payout readiness as a ring: setup started, account verified.
     Ring math after opensourceui.in's progress-ring (MIT); the arc draws in on
     mount and snaps under reduced motion. */
 function ReadinessRing({ done, total }: { done: number; total: number }) {
@@ -141,7 +141,7 @@ export function CuratorPayoutCard() {
       title="Payouts"
       headingId="curator-payout-title"
       testId="curator-payout-card"
-      description="Free, and not tied to Curator Pro."
+      description="Free. Complete it before you publish a membership plan."
     >
       <StudioNotice testId="curator-payout-notice" className="mb-5">
         {flow === 'return' && !loading && !status.isError
@@ -177,17 +177,17 @@ export function CuratorPayoutCard() {
             {account && !payoutsActive && (
               /* Setup in progress: the ring counts the steps, and each tile is the parent of its label and state. */
               <div className="grid gap-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
-              <ReadinessRing done={2} total={3} />
+              <ReadinessRing done={1} total={2} />
               <dl className="grid gap-3 md:grid-cols-3">
                 <div className="card-quiet px-4 py-3.5">
-                  <dt className="text-xs text-muted-foreground">Accept members</dt>
+                  <dt className="text-xs text-muted-foreground">Setup started</dt>
                   <dd className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-success-text">
                     <Check aria-hidden className="size-4" />
-                    Ready
+                    Done
                   </dd>
                 </div>
                 <div className="card-quiet px-4 py-3.5">
-                  <dt className="text-xs text-muted-foreground">Receive payouts</dt>
+                  <dt className="text-xs text-muted-foreground">Publish and receive payouts</dt>
                   <dd className={cn(
                     'mt-1 flex items-center gap-1.5 text-sm font-semibold',
                     payoutsActive ? 'text-success-text' : needsAttention(account) ? 'text-warning-text' : 'text-foreground',

@@ -7,13 +7,13 @@ import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
-import { apiService } from '@/services/api';
 import {
   fetchCuratorPayoutAccount,
   type CuratorProfile,
 } from '@/services/curator';
 import {
   archiveCuratorPlan,
+  endCuratorMemberships,
   calculateCuratorPlanEconomics,
   createCuratorPlan,
   deleteCuratorPlan,
@@ -62,10 +62,26 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
-type PlanAction = { kind: 'publish' | 'archive'; planId: string };
+type PlanAction = { kind: 'publish' | 'archive' | 'end-memberships'; planId: string };
+
+const planActions = {
+  publish: {
+    run: publishCuratorPlan,
+    notice: 'Membership plan published. Fans can join from your public page.',
+  },
+  archive: {
+    run: archiveCuratorPlan,
+    notice: 'Plan archived. New fans can no longer join; existing members keep their price, access, and renewals.',
+  },
+  'end-memberships': {
+    run: endCuratorMemberships,
+    notice: 'Memberships ended. New fans can no longer join, and each member keeps access through the period they paid for.',
+  },
+} satisfies Record<PlanAction['kind'], { run: (planId: string) => Promise<CuratorPlan>; notice: string }>;
 
 const profileQueryKey = ['curator-profile', 'me'] as const;
 const payoutQueryKey = ['curator-payout-account', 'current'] as const;
+const feeFormatter = new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 2 });
 // Server contract bounds for the monthly price (see curatorPlanRequestSchema).
 const monthlyMinMinor = 500;
 const monthlyMaxMinor = 10_000;
@@ -189,7 +205,6 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   // With a live plan the card folds to a summary; the curator opens the tools on demand.
   const [expanded, setExpanded] = useState(false);
   const plansKey = ['curator-plans', profile?.id ?? 'none'] as const;
-  const proKey = ['curator-pro-status', user?.id ?? null] as const;
   const plans = useQuery({
     queryKey: plansKey,
     queryFn: ({ signal }) => fetchCuratorPlans(signal),
@@ -204,12 +219,6 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   const pricing = useQuery({
     queryKey: ['curator-pricing', profile?.id ?? 'none'],
     queryFn: ({ signal }) => fetchCuratorPricing(signal),
-    staleTime: 0,
-  });
-  const pro = useQuery({
-    queryKey: proKey,
-    queryFn: ({ signal }) => apiService.getCuratorProStatus(signal),
-    enabled: Boolean(user?.id),
     staleTime: 0,
   });
   const payout = useQuery({
@@ -252,20 +261,17 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
     onError: () => queryClient.invalidateQueries({ queryKey: plansKey }),
   });
   const change = useMutation({
-    mutationFn: ({ kind, planId }: PlanAction) => kind === 'publish'
-      ? publishCuratorPlan(planId)
-      : archiveCuratorPlan(planId),
+    mutationFn: ({ kind, planId }: PlanAction) => planActions[kind].run(planId),
     onSuccess: (saved, action) => {
       queryClient.setQueryData<CuratorPlan[]>(plansKey, (current) => replacePlan(current, saved));
+      // Ending memberships also archives the live offer, which the response does not carry.
+      if (action.kind === 'end-memberships') void queryClient.invalidateQueries({ queryKey: plansKey });
       setExpanded(true);
-      setNotice(action.kind === 'publish'
-        ? 'Membership plan published. Fans can join from your public page.'
-        : 'Plan archived. New fans can no longer join; existing members keep their price, access, and renewals.');
+      setNotice(planActions[action.kind].notice);
     },
     onError: () => Promise.all([
       queryClient.invalidateQueries({ queryKey: profileQueryKey }),
       queryClient.invalidateQueries({ queryKey: plansKey }),
-      queryClient.invalidateQueries({ queryKey: proKey }),
       queryClient.invalidateQueries({ queryKey: payoutQueryKey }),
     ]),
   });
@@ -303,10 +309,9 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
     : null;
   const activePlan = plansData?.find((plan) => plan.status === 'active') ?? null;
   const profileReady = profile?.status === 'active';
-  const proReady = pro.data?.hasAccess === true;
-  const payoutStarted = payout.data != null;
-  const gatesConfirmed = profileReady && proReady && payoutStarted &&
-    !pro.isPending && !pro.isError && !payout.isPending && !payout.isError;
+  // Publishing needs a payout account Stripe has verified for transfers.
+  const payoutReady = payout.data?.transfersCapabilityStatus === 'active';
+  const gatesConfirmed = profileReady && payoutReady && !payout.isPending && !payout.isError;
   const featureByKey = new Map(features.data?.map((feature) => [feature.featureKey, feature]));
   const namesFor = (keys: string[]) => keys.map((key) => featureByKey.get(key)?.displayName ?? key);
   const benefitsFor = (keys: string[]) => keys.map((key) => ({
@@ -418,7 +423,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
       title="Fan membership plan"
       headingId="curator-plan-title"
       testId="curator-plan-card"
-      description="Drafts are free and stay editable. Publishing needs active Curator Pro and started payout setup."
+      description="Drafts are free and stay editable. Publishing needs completed payout setup."
     >
       {rail}
       <StudioNotice testId="curator-plan-notice" className="mb-8">{notice}</StudioNotice>
@@ -432,7 +437,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                 plans.error ?? features.error ?? pricing.error,
                 'Membership plan tools are unavailable.',
               )}
-              {' '}Your free profile, Curator Pro, and payout controls still work.
+              {' '}Your free profile and payout controls still work.
             </p>
             <Button
               type="button"
@@ -468,35 +473,21 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                   />
                   <ReceiptRow
                     className="py-2.5"
-                    label="Curator Pro"
-                    value={
-                      <RequirementValue
-                        met={proReady}
-                        pending={pro.isPending}
-                        onRetry={pro.isError ? () => void pro.refetch() : undefined}
-                        metLabel="Active"
-                        unmetLabel="Start Curator Pro"
-                        href="#studio-pro"
-                      />
-                    }
-                  />
-                  <ReceiptRow
-                    className="py-2.5"
                     label="Payout setup"
                     value={
                       <RequirementValue
-                        met={payoutStarted}
+                        met={payoutReady}
                         pending={payout.isPending}
                         onRetry={payout.isError ? () => void payout.refetch() : undefined}
-                        metLabel="Started"
-                        unmetLabel="Start payout setup"
+                        metLabel="Complete"
+                        unmetLabel={payout.data ? 'Finish payout setup' : 'Start payout setup'}
                         href="#studio-payouts"
                       />
                     }
                   />
                 </dl>
                 <p className="text-xs text-muted-foreground">
-                  Fans can join once payout setup has started. Payouts themselves begin when your payout account is fully verified.
+                  Fans can join once Stripe has verified your payout account.
                 </p>
                 </div>
               )}
@@ -630,14 +621,15 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                         </div>
                         {!gatesConfirmed && (
                           <p id={`plan-${plan.id}-gates`} className="text-xs text-muted-foreground">
-                            Before publishing, confirm an active <StepLink href="#studio-profile">profile</StepLink>,{' '}
-                            <StepLink href="#studio-pro">Curator Pro</StepLink>, and started{' '}
-                            <StepLink href="#studio-payouts">payout setup</StepLink>.
+                            Before publishing, confirm an active <StepLink href="#studio-profile">profile</StepLink>{' '}
+                            and completed <StepLink href="#studio-payouts">payout setup</StepLink>.
                           </p>
                         )}
                         {blockedByActivePlan && <p id={`plan-${plan.id}-blocked`} className="text-xs text-muted-foreground">Archive the active plan before publishing this draft.</p>}
                       </div>
                     )}
+                    {plan.status !== 'draft' && (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                     {plan.status === 'active' && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -663,6 +655,32 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
+                    )}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button type="button" variant="outline" disabled={change.isPending}>End memberships</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>End all your memberships?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              New fans can no longer join. Each current member keeps access until the end of the period they already paid for, then their membership ends and they are not charged again. Each member gets one email with their end date. You keep what you earned. This cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Keep memberships</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => {
+                                setNotice(null);
+                                change.mutate({ kind: 'end-memberships', planId: plan.id });
+                              }}
+                            >
+                              End memberships
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                     )}
                     </div>
                   </article>
@@ -900,9 +918,9 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                     {annualEconomics && <EconomicsBreakdown economics={annualEconomics} currency={pricing.data.currency} interval="year" />}
                     <dl className="divide-y divide-border/70 text-xs">
                       <div className="py-2.5">
-                        <dt className="text-muted-foreground">Curator Pro, not subtracted above</dt>
-                        <dd className="mt-1 text-sm">
-                          <span className="font-mono tabular-nums">{money(pricing.data.curatorProMonthlyPriceMinor, pricing.data.currency)}</span>/month, billed separately
+                        <dt className="text-muted-foreground">Platform fee on fan payments</dt>
+                        <dd className="mt-1 font-mono text-sm tabular-nums">
+                          {feeFormatter.format(pricing.data.platformFeeBps / 10_000)}
                         </dd>
                       </div>
                       <div className="py-2.5">
@@ -911,7 +929,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                           {/* capitalize only the cadence word, not the whole sentence */}
                           <span className="capitalize">{pricing.data.payoutCadence}</span>
                           , after your balance reaches{' '}
-                          <span className="font-mono tabular-nums">{money(pricing.data.minPayoutMinor, pricing.data.currency)}</span>. Smaller cleared balances are paid after 90 days or when Curator Pro ends.
+                          <span className="font-mono tabular-nums">{money(pricing.data.minPayoutMinor, pricing.data.currency)}</span>. Smaller cleared balances are paid after 90 days.
                         </dd>
                       </div>
                     </dl>

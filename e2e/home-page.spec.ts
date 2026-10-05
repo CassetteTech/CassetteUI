@@ -15,9 +15,8 @@ test.describe('home page', () => {
     await page.goto('/');
 
     await expect(page.locator('h1')).toHaveText(/Get paid for your playlists\.\s*Share music with anyone\./);
-    await expect(page.getByText('Every song and playlist you share opens in Spotify, Apple Music, or Deezer.', { exact: false })).toBeInViewport();
-    await expect(page.getByText('Sharing a song? Paste a Spotify, Apple Music, or Deezer link.')).toBeInViewport();
-    await expect(page.getByRole('figure', { name: 'What your friend sees' })).toBeInViewport();
+    await expect(page.getByText('Any music you share opens in Spotify, Apple Music, or Deezer.', { exact: false })).toBeInViewport();
+    await expect(page.getByRole('figure', { name: /Paste a Spotify link/ })).toBeInViewport();
 
     const start = page.getByRole('link', { name: 'Start your free page' });
     await expect(start.first()).toBeInViewport();
@@ -30,6 +29,35 @@ test.describe('home page', () => {
 
     // Curator Pro shows only as later tools, never as the way to earn.
     await expect(page.getByText(/Curator Pro/)).toHaveText(['Coming later: Curator Pro, optional extra tools for curators.']);
+  });
+
+  test('turns the link card only while motion is allowed', async ({ page }) => {
+    await mockCassetteApp(page);
+    // After the shared mocks, which turn reduced motion on.
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.goto('/');
+    const card = page.getByRole('figure', { name: /Paste a Spotify link/ });
+    const turning = card.getByTestId('link-card-turning');
+    const still = card.getByTestId('link-card-still');
+
+    // The converted link turns from Apple Music to Deezer.
+    await expect(still).toBeHidden();
+    await expect(turning.getByText('deezer.com/…')).toBeVisible({ timeout: 6000 });
+
+    // Reduced motion switched on mid-session swaps in the still Apple Music link.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect(turning).toBeHidden();
+    await expect(still).toHaveText('music.apple.com/…');
+    await expect(still).toBeVisible();
+    await page.waitForTimeout(3000);
+    expect(await turning.isVisible()).toBe(false);
+    expect(await still.isVisible()).toBe(true);
+
+    // Switched off again, the link turns through both services again.
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await expect(still).toBeHidden();
+    await expect(turning.getByText('music.apple.com/…')).toBeVisible({ timeout: 6000 });
+    await expect(turning.getByText('deezer.com/…')).toBeVisible({ timeout: 6000 });
   });
 
   test('converts an example link from How it works', async ({ page }) => {

@@ -64,7 +64,7 @@ export function HomeHowItWorks({ className }: { className?: string }) {
           <StepList title="If you make playlists" steps={curatorSteps} />
         </div>
         <div>
-          <StepList title="If you just want to share a song" steps={sharingSteps} />
+          <StepList title="If you just want to share music" steps={sharingSteps} />
           <p className="mt-6 text-sm leading-relaxed text-muted-foreground">
             Got a playlist on the wrong app? Sign in and copy it into your own Spotify, Apple Music, or Deezer account.
           </p>

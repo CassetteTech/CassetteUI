@@ -290,7 +290,7 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
 
 // Wide screens keep the right of the landscape frame; the portrait frame is centred.
 
-const PLACEHOLDER = 'Paste a link, or search for a song';
+const PLACEHOLDER = 'Paste a link, or search for music';
 // The open search: fades run shorter than moves, so the pitch is gone
 // before the bar passes over its place.
 const SEARCH_MOVE = { duration: 0.38, ease: EASE_OUT_QUART };
@@ -305,29 +305,67 @@ function Departing({ ref, ...props }: HTMLMotionProps<'div'> & { ref?: Ref<HTMLD
   return <motion.div ref={ref} inert={leaving} aria-hidden={leaving || undefined} {...props} />;
 }
 
-/** What a pasted link becomes: one Cassette page with a button for each
-    service. An illustration with the example curator's playlist, not a post. */
-function FriendCard() {
+const [spotify, appleMusic, deezer] = STREAMING_SERVICES;
+// A Spotify link converts to its match on each of the other services in turn.
+const CONVERTED_LINKS = [
+  { service: appleMusic, link: 'music.apple.com/…' },
+  { service: deezer, link: 'deezer.com/…' },
+];
+const CONVERT_TURN_MS = 2500;
+const CARD_LABEL = 'font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground';
+const CARD_CHIP = 'flex h-7 items-center gap-2 rounded-md border px-2 font-mono text-xs';
+
+const linkChip = (entry: { service: (typeof STREAMING_SERVICES)[number]; link: string }, className?: string) => (
+  <span className={cn(CARD_CHIP, 'border-border bg-background text-muted-foreground', className)}>
+    <Image src={entry.service.logo} alt="" width={14} height={14} className="h-3.5 w-3.5 shrink-0 object-contain" />
+    <span className="truncate">{entry.link}</span>
+  </span>
+);
+
+/** What the bar does, as input and output: a Spotify link converts to the
+    same music on Apple Music and Deezer, and one Cassette link opens in all
+    three. An illustration, not a post. Under reduced motion, CSS swaps the
+    turning chip for a still one, so a change mid-session applies at once. */
+function LinkCard() {
+  const [turn, setTurn] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTurn((value) => (value + 1) % CONVERTED_LINKS.length), CONVERT_TURN_MS);
+    return () => clearInterval(timer);
+  }, []);
   return (
     <figure className="rounded-lg border border-border bg-card/90 p-3 text-card-foreground elev-soft">
-      <figcaption className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-        What your friend sees
+      <figcaption className="sr-only">
+        Paste a Spotify link. Cassette finds the same music on Apple Music and Deezer, and gives you one link that opens in all three.
       </figcaption>
-      <div className="mt-2.5 flex items-center gap-3">
-        <Image src="/images/home-concepts/cover-after-dark.jpg" alt="" width={44} height={44} className="h-11 w-11 shrink-0 rounded-md object-cover" />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">After Dark, Vol. 7</p>
-          <p className="truncate text-xs text-muted-foreground">Playlist by Nadia Reyes</p>
-        </div>
+      <div aria-hidden className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
+        <span className={CARD_LABEL}>You paste</span>
+        {linkChip({ service: spotify, link: 'open.spotify.com/…' })}
+        <span className={CARD_LABEL}>Converts to</span>
+        <span data-testid="link-card-turning" className="relative h-7 overflow-hidden motion-reduce:hidden">
+          <AnimatePresence initial={false}>
+            <motion.span
+              key={turn}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.25, ease: EASE_OUT_QUART }}
+              className="absolute inset-0"
+            >
+              {linkChip(CONVERTED_LINKS[turn])}
+            </motion.span>
+          </AnimatePresence>
+        </span>
+        <span data-testid="link-card-still" className="hidden motion-reduce:block">{linkChip(CONVERTED_LINKS[0])}</span>
+        <span className={CARD_LABEL}>You share</span>
+        <span className={cn(CARD_CHIP, 'border-primary/40 bg-primary/10 font-semibold text-foreground')}>
+          <span className="truncate">cassette.tech/post/…</span>
+          <span className="ml-auto hidden shrink-0 gap-1 sm:flex">
+            {STREAMING_SERVICES.map((service) => (
+              <Image key={service.label} src={service.logo} alt="" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
+            ))}
+          </span>
+        </span>
       </div>
-      <ul aria-label="Listen on" className="mt-2.5 grid grid-cols-3 gap-1.5">
-        {STREAMING_SERVICES.map((service) => (
-          <li key={service.label} className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-background px-1.5 py-1.5 text-[11px] font-semibold sm:text-xs">
-            <Image src={service.logo} alt="" width={16} height={16} className="h-4 w-4 object-contain" />
-            {service.label}
-          </li>
-        ))}
-      </ul>
     </figure>
   );
 }
@@ -444,7 +482,7 @@ export function HomeConceptWindow() {
     exit: { opacity: 0, y: -8, transition: { ...SEARCH_FADE, delay: 0.03 * order } },
   });
   const brandMove = { ...SEARCH_MOVE, delay: expanded ? 0.03 : 0 };
-  const barRise = rise(4);
+  const barRise = rise(3);
 
   return (
     <div className="relative min-h-screen">
@@ -499,7 +537,7 @@ export function HomeConceptWindow() {
                 </motion.div>
                 {/* The open search fades the pitch in place; the bar moves up over its place.
                     Curators come first: the headline and the call to action speak to
-                    them, and the line over the bar speaks to people sharing a song. */}
+                    them; the bar and the card under it serve people sharing music. */}
                 <AnimatePresence mode="popLayout">
                   {!expanded && [
                     <Departing key="headline" {...intro(0)} className="pt-6 lg:pt-8">
@@ -511,7 +549,7 @@ export function HomeConceptWindow() {
                     </Departing>,
                     <Departing key="subline" {...intro(1)} className="pt-3">
                       <p className="text-base text-muted-foreground transition-colors duration-200">
-                        Fans join your free Cassette page for a monthly price you set. Every song and playlist you share opens in Spotify, Apple Music, or Deezer. Your friend picks the app.
+                        Fans join your free Cassette page for a monthly price you set. Any music you share opens in Spotify, Apple Music, or Deezer.
                       </p>
                     </Departing>,
                     <Departing key="actions" {...intro(2)} className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-5 lg:pt-6">
@@ -521,19 +559,11 @@ export function HomeConceptWindow() {
                         <ArrowDown className="h-3.5 w-3.5" aria-hidden />
                       </a>
                     </Departing>,
-                    <Departing key="share" {...intro(3)} className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-6 text-sm text-muted-foreground transition-colors duration-200 lg:pt-7">
-                      Sharing a song? Paste a Spotify, Apple Music, or Deezer link.
-                      <span className="flex gap-1.5">
-                        {STREAMING_SERVICES.map((service) => (
-                          <Image key={service.label} src={service.logo} alt="" width={16} height={16} className="h-4 w-4 object-contain" />
-                        ))}
-                      </span>
-                    </Departing>,
                   ]}
                 </AnimatePresence>
                 {/* Phones: the results drop over the card under the bar. Wide
                     screens: the card leaves and the results fill the column below. */}
-                <motion.div {...barRise} layout="position" transition={{ ...barRise.transition, layout: { ...SEARCH_MOVE, delay: expanded ? 0.06 : 0 } }} className={cn('w-full lg:relative lg:z-10', expanded ? 'pt-5 lg:pt-6' : 'pt-2.5')}>
+                <motion.div {...barRise} layout="position" transition={{ ...barRise.transition, layout: { ...SEARCH_MOVE, delay: expanded ? 0.06 : 0 } }} className="w-full pt-5 lg:relative lg:z-10 lg:pt-6">
                   {wide
                     ? <HomeSearchBar search={search} closeOnBlur size="sm" placeholder={PLACEHOLDER} />
                     : <HomeSearchDropdown search={search} size="sm" placeholder={PLACEHOLDER} />}
@@ -541,8 +571,8 @@ export function HomeConceptWindow() {
                 {/* Short screens skip the card, so the bar stays above the fold. */}
                 <AnimatePresence mode="popLayout">
                   {!expanded && (
-                    <Departing key="friend-card" {...intro(5)} className="pt-4 [@media(max-height:760px)]:hidden">
-                      <FriendCard />
+                    <Departing key="link-card" {...intro(4)} className="pt-3 [@media(max-height:760px)]:hidden">
+                      <LinkCard />
                     </Departing>
                   )}
                 </AnimatePresence>

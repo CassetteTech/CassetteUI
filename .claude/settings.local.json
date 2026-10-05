@@ -14,9 +14,9 @@
     "deny": []
   },
   "systemInstructions": [
-    "CLAUDE.md"
+    "AGENTS.md"
   ],
   "additionalContext": [
-    "CLAUDE.md"
+    "AGENTS.md"
   ]
 }

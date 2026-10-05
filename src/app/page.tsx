@@ -1,14 +1,12 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { preload } from 'react-dom';
-import HomePageClient from '@/components/pages/home-page-client';
+import { HomeConceptWindow } from '@/components/home-concepts/concept-11-window';
 import { homeWordmarkLayerImage } from '@/components/pages/home-wordmark';
-import { SocialLinks } from '@/components/ui/social-links';
 import { DEFAULT_SOCIAL_PREVIEW } from '@/lib/seo';
 
-const title = 'Universal Music Links — Cassette Music';
-const description = 'Turn Spotify, Apple Music, and Deezer links into one shareable MusicLink.';
+const title = 'Cassette: get paid for your playlists';
+const description = 'Make a free page where fans pay a monthly price to join. Share songs and playlists that open in Spotify, Apple Music, or Deezer.';
 
 export const metadata: Metadata = {
   title: { absolute: title },
@@ -24,25 +22,9 @@ export default function HomePage() {
   preload(homeWordmarkLayerImage, { as: 'image', fetchPriority: 'high' });
 
   return (
-    <>
-      {/* Suspense boundary required for useSearchParams (/?url= auto-convert) */}
-      <Suspense fallback={null}>
-        <HomePageClient />
-      </Suspense>
-      <footer className="border-t border-border/40 px-4 py-4">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-center gap-3 text-sm text-muted-foreground sm:flex-row sm:gap-6">
-          <Link href="/promote" className="hover:text-foreground">
-            Promote Your Music
-          </Link>
-          <Link href="https://www.cassette.tech/privacy" className="hover:text-foreground">
-            Privacy Policy
-          </Link>
-          <Link href="https://www.cassette.tech/terms" className="hover:text-foreground">
-            Terms of Service
-          </Link>
-          <SocialLinks iconClassName="h-4 w-4" />
-        </div>
-      </footer>
-    </>
+    // Suspense boundary required for useSearchParams (/?url= auto-convert)
+    <Suspense fallback={null}>
+      <HomeConceptWindow />
+    </Suspense>
   );
 }

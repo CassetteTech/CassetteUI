@@ -14,53 +14,42 @@ import type { HomeSearch } from './use-home-search';
 const heights = {
   sm: 'h-12 sm:h-12 md:h-12 lg:h-14',
   md: 'h-12 sm:h-14 md:h-16 lg:h-20',
-  lg: 'h-14 sm:h-16 md:h-20 lg:h-24',
 };
 
 export interface HomeSearchBarProps {
   search: HomeSearch;
   size?: keyof typeof heights;
-  /** `retro` keeps the offset shadow; `ink` is the hairline field. */
-  chrome?: 'retro' | 'ink';
-  placeholder?: string;
-  /** Narrate the conversion above the bar (kicker + headline). */
-  showHeading?: boolean;
+  placeholder: string;
   /** Hide the results when focus leaves the bar (dropdown layouts). */
   closeOnBlur?: boolean;
   className?: string;
-  inputClassName?: string;
 }
 
-/** The search bar: a white field on any paper, with the conversion beam,
-    in-place narration while converting, and the unsupported-link help. */
+/** The search bar: a white hairline field on any paper, with the conversion
+    beam, in-place narration while converting, and the unsupported-link help. */
 export function HomeSearchBar({
   search,
   size = 'md',
-  chrome = 'retro',
-  placeholder = 'Search or paste your music link here...',
-  showHeading = true,
+  placeholder,
   closeOnBlur = false,
   className,
-  inputClassName,
 }: HomeSearchBarProps) {
   const { isConverting, convertingMeta } = search;
   return (
     <div className={cn('relative w-full', className)}>
-      {showHeading && (
-        <AnimatePresence>
-          {isConverting && convertingMeta && (
-            <ConversionHeading
-              key="conversion-heading"
-              kicker={convertingMeta.kicker}
-              headline={convertingMeta.headline}
-              className="mb-5"
-            />
-          )}
-        </AnimatePresence>
-      )}
+      <AnimatePresence>
+        {isConverting && convertingMeta && (
+          <ConversionHeading
+            key="conversion-heading"
+            kicker={convertingMeta.kicker}
+            headline={convertingMeta.headline}
+            className="mb-5"
+          />
+        )}
+      </AnimatePresence>
       <ConversionBeam active={isConverting}>
         <UrlBar
-          variant={chrome === 'retro' ? 'light' : 'dark'}
+          variant="dark"
           className={cn('w-full', heights[size])}
           hasError={!!search.urlError}
           beamActive={isConverting}
@@ -96,10 +85,7 @@ export function HomeSearchBar({
                 onPaste={search.onPaste}
                 onKeyDown={search.onKeyDown}
                 placeholder={placeholder}
-                className={cn(
-                  'w-full h-full bg-transparent border-none outline-none text-center text-foreground placeholder:text-muted-foreground px-3 sm:px-4 md:px-6 text-base',
-                  inputClassName,
-                )}
+                className="w-full h-full bg-transparent border-none outline-none text-center text-foreground placeholder:text-muted-foreground px-3 sm:px-4 md:px-6 text-base"
                 style={{ fontSize: '16px', touchAction: 'manipulation' }}
               />
             )}
@@ -132,7 +118,7 @@ export function HomeSearchResults({
 }: {
   search: HomeSearch;
   className?: string;
-  chrome?: 'ink' | 'flat' | 'bare';
+  chrome?: 'ink' | 'bare';
 }) {
   if (search.isConverting) return null;
   return (
@@ -152,22 +138,10 @@ export function HomeSearchResults({
 }
 
 /** The bar with its results as a dropdown that opens on focus and closes
-    when focus leaves, so a composed hero stays composed until it is used.
-    `above` opens the list upward, for a bar docked at the viewport bottom. */
-export function HomeSearchDropdown({
-  above = false,
-  onlyWhenQuery = false,
-  className,
-  panelClassName,
-  ...bar
-}: HomeSearchBarProps & {
-  above?: boolean;
-  /** Open only once there is a query, when the charts are shown elsewhere. */
-  onlyWhenQuery?: boolean;
-  panelClassName?: string;
-}) {
+    when focus leaves, so a composed hero stays composed until it is used. */
+export function HomeSearchDropdown({ className, ...bar }: HomeSearchBarProps) {
   const { search } = bar;
-  const open = search.isSearchActive && !search.isConverting && (!onlyWhenQuery || search.showSearchResults);
+  const open = search.isSearchActive && !search.isConverting;
   return (
     <div className={cn('relative', className)}>
       <HomeSearchBar {...bar} closeOnBlur />
@@ -175,11 +149,11 @@ export function HomeSearchDropdown({
         {open && (
           <motion.div
             key="home-search-dropdown"
-            initial={{ opacity: 0, y: above ? 6 : -6 }}
+            initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: above ? 6 : -6 }}
+            exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            className={cn('absolute inset-x-0 z-30', above ? 'bottom-full mb-2' : 'top-full mt-2', panelClassName)}
+            className="absolute inset-x-0 top-full z-30 mt-2"
           >
             <HomeSearchResults search={search} />
           </motion.div>

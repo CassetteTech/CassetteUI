@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Lock, Share2, Sparkles } from 'lucide-react';
+import { Lock, Share2 } from 'lucide-react';
 import { EASE_OUT_QUART } from '@/lib/motion';
-import { cn } from '@/lib/utils';
 
 // Portrait and covers were generated for this demo (scripts/higgsfield-home-concepts.json).
 const curator = {
@@ -13,8 +12,8 @@ const curator = {
   handle: 'nadiareyes',
   avatar: '/images/home-concepts/curator-portrait.jpg',
   bio: 'Late-night R&B and the B-sides nobody plays.',
-  price: 4,
-  members: 128,
+  // The current default and minimum monthly price a curator can set.
+  price: 5,
 };
 
 const playlists = [
@@ -27,12 +26,12 @@ const playlists = [
 const joins = ['Sam', 'Priya', 'Leo', 'Kofi'];
 
 /**
- * A curator's public page as a fan sees it with Curator Pro on: the
- * membership card with a price the curator set, and playlists kept for
- * members behind a lock. A join notice lands every few seconds, so the
- * money in "get paid for your taste" is visible without a chart.
+ * An example curator's public page as a fan sees it: the membership card
+ * with a price the curator set, and playlists kept for members behind a
+ * lock. A join notice lands every few seconds, so the money in "get paid
+ * for your playlists" is visible without a chart.
  */
-export function CuratorPhoneDemo({ className }: { className?: string }) {
+export function CuratorPhoneDemo() {
   const still = useReducedMotion();
   const [join, setJoin] = useState<number | null>(null);
 
@@ -53,7 +52,7 @@ export function CuratorPhoneDemo({ className }: { className?: string }) {
   }, [still]);
 
   return (
-    <div className={cn('relative mx-auto w-72 sm:w-80', className)}>
+    <div className="relative mx-auto w-72 sm:w-80">
       <div className="relative h-[580px] rounded-[2.5rem] bg-black p-2 sm:h-[620px]">
         <div className="relative h-full w-full overflow-hidden rounded-[2rem] bg-background text-foreground">
           <div className="flex h-full flex-col pt-8">
@@ -61,13 +60,7 @@ export function CuratorPhoneDemo({ className }: { className?: string }) {
               <div className="flex items-center gap-3">
                 <Image src={curator.avatar} alt="" width={48} height={48} className="h-12 w-12 rounded-full object-cover" />
                 <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <p className="truncate text-sm font-bold">{curator.name}</p>
-                    <span className="inline-flex items-center gap-0.5 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary-foreground">
-                      <Sparkles className="h-2.5 w-2.5" aria-hidden />
-                      Pro
-                    </span>
-                  </div>
+                  <p className="truncate text-sm font-bold">{curator.name}</p>
                   <p className="font-mono text-xs text-muted-foreground">@{curator.handle}</p>
                 </div>
               </div>
@@ -79,13 +72,13 @@ export function CuratorPhoneDemo({ className }: { className?: string }) {
               </div>
             </div>
 
-            {/* Membership card: the price is the curator's, the count is the point. */}
+            {/* Membership card: the price is the curator's. */}
             <div className="mx-3 mt-3 rounded-xl border border-primary/30 bg-card p-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-xs font-semibold">Members get the vault</p>
                   <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                    Every playlist, a week early, plus the ones that never go public.
+                    The playlists I only share with members.
                   </p>
                 </div>
                 <p className="shrink-0 font-teko text-2xl font-bold leading-none tabular-nums">
@@ -93,14 +86,14 @@ export function CuratorPhoneDemo({ className }: { className?: string }) {
                 </p>
               </div>
               <div className="mt-2.5 flex items-center gap-2">
-                <button type="button" tabIndex={-1} className="flex-1 rounded-md bg-primary py-1.5 text-xs font-bold text-primary-foreground">
-                  Join
-                </button>
-                <button type="button" tabIndex={-1} aria-label="Share" className="rounded-md border border-border p-1.5">
+                {/* Pictures of the controls, not controls: the phone is an illustration. */}
+                <span className="flex-1 rounded-md bg-primary py-1.5 text-center text-xs font-bold text-primary-foreground">
+                  Join Nadia
+                </span>
+                <span aria-hidden className="rounded-md border border-border p-1.5">
                   <Share2 className="h-3.5 w-3.5" />
-                </button>
+                </span>
               </div>
-              <p className="mt-2 text-[11px] text-muted-foreground tabular-nums">{curator.members} members</p>
             </div>
 
             <div className="mt-3 flex gap-4 border-b border-border/60 px-4 text-[11px] font-semibold">
@@ -137,7 +130,8 @@ export function CuratorPhoneDemo({ className }: { className?: string }) {
                 exit={{ opacity: 0, y: 8 }}
                 transition={{ duration: 0.4, ease: EASE_OUT_QUART }}
                 className="absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-lg border border-border/70 bg-card px-3 py-2 elev-soft"
-                aria-live="polite"
+                // Simulated activity: shown, never announced.
+                aria-hidden
               >
                 <span className="signal-dot text-success-text" aria-hidden />
                 <p className="text-xs">

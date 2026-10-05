@@ -28,14 +28,14 @@ const sceneState = (page: Page) =>
 const expectAtRest = (page: Page, theme: Theme) =>
   expect.poll(() => sceneState(page), { timeout: MOVE_MS + 5000 }).toEqual({ visible: [theme], playingMoves: 0, theme, scene: theme });
 
-async function openWindow(page: Page, theme: Theme, width = 1440) {
+async function openWindow(page: Page, theme: Theme, width = 1440, path = '/') {
   const errors: Error[] = [];
   page.on('pageerror', (error) => errors.push(error));
   await page.setViewportSize({ width, height: 900 });
   await mockCassetteApp(page);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.addInitScript((value) => localStorage.setItem('theme', value), theme);
-  await page.goto('/11', { waitUntil: 'domcontentloaded' });
+  await page.goto(path, { waitUntil: 'domcontentloaded' });
   await expectAtRest(page, theme);
   return errors;
 }
@@ -96,9 +96,8 @@ test('home window search opens in the wall and closes on Escape', async ({ page 
   await input.focus();
   await expect(results).toBeVisible();
   await expect(headline).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Watch demo' })).toHaveCount(0);
-  await expect.poll(brandTop).toBeLessThan(140);
-  expect(restTop).toBeGreaterThan(200);
+  await expect(page.getByRole('link', { name: 'See how it works' })).toHaveCount(0);
+  await expect.poll(brandTop).toBeLessThan(Math.min(140, restTop - 30));
   const wall = await page.evaluate(() => innerWidth - 0.424 * Math.max(innerWidth, (innerHeight * 16) / 9));
   const panel = (await results.boundingBox())!;
   const bar = (await input.boundingBox())!;
@@ -110,13 +109,24 @@ test('home window search opens in the wall and closes on Escape', async ({ page 
   await expect(results).toBeHidden();
   await expect(headline).toBeVisible();
   await expect(headline.locator('..')).not.toHaveAttribute('inert');
-  await expect(page.getByRole('button', { name: 'Watch demo' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'See how it works' })).toBeVisible();
   await expect.poll(brandTop).toBe(restTop);
   expect(errors).toEqual([]);
 });
 
-test('home window scene plays the portrait set on a phone', async ({ page }) => {
+// Phones play the desktop set cropped to the window; `?phone=portrait` keeps
+// the portrait set available for review.
+test('home window scene plays the cropped desktop set on a phone', async ({ page }) => {
   const errors = await openWindow(page, 'light', 390);
+  await expect(page.locator('video[data-move="dark"]')).toHaveAttribute('src', /\/home-window\/move-to-dark\.mp4$/);
+  await switchTheme(page, 'dark');
+  await expect.poll(() => sceneState(page)).toMatchObject({ visible: ['light', 'move-dark'], scene: 'light' });
+  await expectAtRest(page, 'dark');
+  expect(errors).toEqual([]);
+});
+
+test('home window scene plays the portrait set on a phone for review', async ({ page }) => {
+  const errors = await openWindow(page, 'light', 390, '/?phone=portrait');
   await expect(page.locator('video[data-move="dark"]')).toHaveAttribute('src', /\/portrait\/move-to-dark\.mp4$/);
   await switchTheme(page, 'dark');
   await expect.poll(() => sceneState(page)).toMatchObject({ visible: ['light', 'move-dark'], scene: 'light' });
@@ -154,7 +164,7 @@ test('home window scene shows stills only under reduced motion', async ({ page }
   await page.setViewportSize({ width: 1440, height: 900 });
   await mockCassetteApp(page);
   await page.addInitScript(() => localStorage.setItem('theme', 'light'));
-  await page.goto('/11', { waitUntil: 'domcontentloaded' });
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('[data-scene="light"]')).toBeVisible();
 
   await switchTheme(page, 'dark');

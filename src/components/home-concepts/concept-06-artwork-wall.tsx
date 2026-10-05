@@ -10,7 +10,7 @@ import { EASE_OUT_QUART } from '@/lib/motion';
 import { useHomeSearch } from './use-home-search';
 import { HomeSearchDropdown } from './home-search-bar';
 import { HomeBrand, DemoButton } from './home-brand';
-import { CuratorProChip, CuratorProSection } from './curator-pro-section';
+import { CuratorMembershipSection } from './curator-membership-section';
 import { HomeClosing } from './home-closing';
 
 const COLUMNS = 7;
@@ -78,14 +78,13 @@ export function HomeConceptArtworkWall() {
           className="relative w-full rounded-xl border-2 border-foreground bg-card/85 p-6 text-center shadow-flat-6 backdrop-blur-md sm:p-10"
         >
           <HomeBrand className="mx-auto w-[86%] max-w-[460px]" />
-          <CuratorProChip className="mt-6" />
           <h1 className="mt-4 font-atkinson text-2xl font-bold leading-tight text-foreground text-balance sm:text-3xl">
             Share music with anyone. Get paid for your taste.
           </h1>
           <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground text-pretty sm:text-base">
             Paste a Spotify, Apple Music, or Deezer link to share a song in every app. Or open a curator page that fans join for a monthly price you set.
           </p>
-          <HomeSearchDropdown search={search} chrome="ink" className="mt-7" placeholder="Search a song, or paste a link" />
+          <HomeSearchDropdown search={search} className="mt-7" placeholder="Search a song, or paste a link" />
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-5">
             <DemoButton />
             <span className="text-xs text-muted-foreground">Tracks, albums, artists, and playlists. Free.</span>
@@ -97,7 +96,7 @@ export function HomeConceptArtworkWall() {
           dithers into the covers, and everything below sits on paper. */}
       <div ref={sheetRef} className="relative z-10 mt-10 bg-background">
         <DitherEdge color="hsl(var(--background))" side="top" />
-        <CuratorProSection className="pt-24" />
+        <CuratorMembershipSection isAuthenticated={search.isAuthenticated} className="pt-24" />
         <div className="mx-auto mt-28 max-w-6xl px-5 pb-24">
           <HomeDemoSection isAuthenticated={search.isAuthenticated} />
         </div>

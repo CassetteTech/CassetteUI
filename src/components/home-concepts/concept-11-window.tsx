@@ -5,13 +5,15 @@ import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'framer-motion';
+import { ArrowDown } from 'lucide-react';
 import { DitherEdge } from '@/components/features/marketing/dither-edge';
 import { EASE_OUT_QUART } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { useHomeSearch } from './use-home-search';
 import { HomeSearchBar, HomeSearchDropdown, HomeSearchResults } from './home-search-bar';
-import { HomeBrand, DemoButton } from './home-brand';
-import { CuratorProSection } from './curator-pro-section';
+import { HomeBrand, STREAMING_SERVICES, StartPageLink } from './home-brand';
+import { HomeHowItWorks } from './home-how-it-works';
+import { CuratorMembershipSection } from './curator-membership-section';
 import { HomeClosing } from './home-closing';
 import { WindowDither } from './window-dither';
 
@@ -288,7 +290,7 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
 
 // Wide screens keep the right of the landscape frame; the portrait frame is centred.
 
-const PLACEHOLDER = 'Paste a music link, or search a song';
+const PLACEHOLDER = 'Paste a link, or search for a song';
 // The open search: fades run shorter than moves, so the pitch is gone
 // before the bar passes over its place.
 const SEARCH_MOVE = { duration: 0.38, ease: EASE_OUT_QUART };
@@ -301,6 +303,33 @@ const BRAND_SCALE = 0.55;
 function Departing({ ref, ...props }: HTMLMotionProps<'div'> & { ref?: Ref<HTMLDivElement> }) {
   const leaving = !useIsPresent();
   return <motion.div ref={ref} inert={leaving} aria-hidden={leaving || undefined} {...props} />;
+}
+
+/** What a pasted link becomes: one Cassette page with a button for each
+    service. An illustration with the example curator's playlist, not a post. */
+function FriendCard() {
+  return (
+    <figure className="rounded-lg border border-border bg-card/90 p-3 text-card-foreground elev-soft">
+      <figcaption className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+        What your friend sees
+      </figcaption>
+      <div className="mt-2.5 flex items-center gap-3">
+        <Image src="/images/home-concepts/cover-after-dark.jpg" alt="" width={44} height={44} className="h-11 w-11 shrink-0 rounded-md object-cover" />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">After Dark, Vol. 7</p>
+          <p className="truncate text-xs text-muted-foreground">Playlist by Nadia Reyes</p>
+        </div>
+      </div>
+      <ul aria-label="Listen on" className="mt-2.5 grid grid-cols-3 gap-1.5">
+        {STREAMING_SERVICES.map((service) => (
+          <li key={service.label} className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-background px-1.5 py-1.5 text-[11px] font-semibold sm:text-xs">
+            <Image src={service.logo} alt="" width={16} height={16} className="h-4 w-4 object-contain" />
+            {service.label}
+          </li>
+        ))}
+      </ul>
+    </figure>
+  );
 }
 
 /** The window backdrop: stills at the bottom that follow the scene, and
@@ -372,10 +401,11 @@ function WindowScene({ theme, scene, onScene, copyRef, phonePan }: {
   );
 }
 
-/** Concept 11, Window: the approved window scene as the hero backdrop.
-    Dark is inside the room looking out at a rainy dusk; light is outside
-    looking in. A theme change from any control plays the camera move
-    between them, and the copy changes colour when the new scene reaches it. */
+/** The home page: the window scene as the hero backdrop, then how Cassette
+    works, the curator membership pitch, and the sign-up ask. Dark is inside
+    the room looking out at a rainy dusk; light is outside looking in. A theme
+    change from any control plays the camera move between them, and the copy
+    changes colour when the new scene reaches it. */
 export function HomeConceptWindow() {
   const search = useHomeSearch();
   const still = useReducedMotion();
@@ -414,12 +444,7 @@ export function HomeConceptWindow() {
     exit: { opacity: 0, y: -8, transition: { ...SEARCH_FADE, delay: 0.03 * order } },
   });
   const brandMove = { ...SEARCH_MOVE, delay: expanded ? 0.03 : 0 };
-  const barRise = rise(wide ? 3 : 2);
-  const demo = (
-    <Departing key="demo" {...intro(wide ? 2 : 3)} className="pt-5 lg:pt-7">
-      <DemoButton variant="brutalist-outline" />
-    </Departing>
-  );
+  const barRise = rise(4);
 
   return (
     <div className="relative min-h-screen">
@@ -472,33 +497,55 @@ export function HomeConceptWindow() {
                 >
                   <HomeBrand />
                 </motion.div>
-                {/* The open search fades the pitch in place; the bar moves up over its place. */}
+                {/* The open search fades the pitch in place; the bar moves up over its place.
+                    Curators come first: the headline and the call to action speak to
+                    them, and the line over the bar speaks to people sharing a song. */}
                 <AnimatePresence mode="popLayout">
                   {!expanded && [
                     <Departing key="headline" {...intro(0)} className="pt-6 lg:pt-8">
                       <h1 className="font-atkinson text-2xl font-bold leading-tight sm:text-4xl lg:text-3xl xl:text-4xl">
-                        Share music with anyone.
+                        Get paid for your playlists.
                         <br />
-                        Get paid for your taste.
+                        Share music with anyone.
                       </h1>
                     </Departing>,
                     <Departing key="subline" {...intro(1)} className="pt-3">
                       <p className="text-base text-muted-foreground transition-colors duration-200">
-                        One link that opens in every app. A page your fans can join.
+                        Fans join your free Cassette page for a monthly price you set. Every song and playlist you share opens in Spotify, Apple Music, or Deezer. Your friend picks the app.
                       </p>
                     </Departing>,
-                    wide && demo,
+                    <Departing key="actions" {...intro(2)} className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-5 lg:pt-6">
+                      <StartPageLink isAuthenticated={search.isAuthenticated} />
+                      <a href="#how-it-works" className="inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/50">
+                        See how it works
+                        <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+                      </a>
+                    </Departing>,
+                    <Departing key="share" {...intro(3)} className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-6 text-sm text-muted-foreground transition-colors duration-200 lg:pt-7">
+                      Sharing a song? Paste a Spotify, Apple Music, or Deezer link.
+                      <span className="flex gap-1.5">
+                        {STREAMING_SERVICES.map((service) => (
+                          <Image key={service.label} src={service.logo} alt="" width={16} height={16} className="h-4 w-4 object-contain" />
+                        ))}
+                      </span>
+                    </Departing>,
                   ]}
                 </AnimatePresence>
-                {/* Phones: the search sits under the subline and its results drop
-                    over the demo button. Wide screens: under the demo button, with
-                    the results in the column below. */}
-                <motion.div {...barRise} layout="position" transition={{ ...barRise.transition, layout: { ...SEARCH_MOVE, delay: expanded ? 0.06 : 0 } }} className="w-full pt-5 lg:relative lg:z-10 lg:pt-6">
+                {/* Phones: the results drop over the card under the bar. Wide
+                    screens: the card leaves and the results fill the column below. */}
+                <motion.div {...barRise} layout="position" transition={{ ...barRise.transition, layout: { ...SEARCH_MOVE, delay: expanded ? 0.06 : 0 } }} className={cn('w-full lg:relative lg:z-10', expanded ? 'pt-5 lg:pt-6' : 'pt-2.5')}>
                   {wide
-                    ? <HomeSearchBar search={search} closeOnBlur size="sm" chrome="ink" placeholder={PLACEHOLDER} />
-                    : <HomeSearchDropdown search={search} size="sm" chrome="ink" placeholder={PLACEHOLDER} />}
+                    ? <HomeSearchBar search={search} closeOnBlur size="sm" placeholder={PLACEHOLDER} />
+                    : <HomeSearchDropdown search={search} size="sm" placeholder={PLACEHOLDER} />}
                 </motion.div>
-                {!wide && demo}
+                {/* Short screens skip the card, so the bar stays above the fold. */}
+                <AnimatePresence mode="popLayout">
+                  {!expanded && (
+                    <Departing key="friend-card" {...intro(5)} className="pt-4 [@media(max-height:760px)]:hidden">
+                      <FriendCard />
+                    </Departing>
+                  )}
+                </AnimatePresence>
               </div>
               {/* Wide screens: the results fill the column under the bar and scroll
                   inside it, opening once the bar has nearly arrived. Pressing in
@@ -527,10 +574,11 @@ export function HomeConceptWindow() {
         </div>
       </section>
 
-      {/* The hero already says "Get paid for your taste", so the section leads with what Pro does. */}
-      <CuratorProSection title="Turn your Cassette page into a membership." calm className="relative z-10 mt-16" />
+      <HomeHowItWorks className="relative z-10 mt-16" />
 
-      <HomeClosing isAuthenticated={search.isAuthenticated} calm className="mt-20" />
+      <CuratorMembershipSection isAuthenticated={search.isAuthenticated} className="relative z-10 mt-24" />
+
+      <HomeClosing isAuthenticated={search.isAuthenticated} className="mt-20" />
     </div>
   );
 }

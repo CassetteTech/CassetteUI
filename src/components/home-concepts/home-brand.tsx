@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { Play } from 'lucide-react';
 import { HomeWordmark } from '@/components/pages/home-wordmark';
 import { StageHoverCard } from '@/components/features/stage-hover-card';
@@ -26,38 +26,40 @@ export function BetaBadge({ className }: { className?: string }) {
  * The folding wordmark with its beta badge. The SVG box carries empty
  * space above and below the lettering (its extrusion travel), so the
  * wrapper trims it and the badge sits on the lettering's baseline.
- * `badge` puts the badge to the right (`inline`) or under it (`below`).
  */
-export function HomeBrand({ badge = 'inline', className }: { badge?: 'inline' | 'below'; className?: string }) {
+export function HomeBrand({ className }: { className?: string }) {
   return (
-    <div className={cn('flex', badge === 'inline' ? 'flex-row items-end' : 'flex-col items-center', className)}>
-      <div className={cn('min-w-0', badge === 'inline' ? 'flex-1' : 'w-full')} style={{ marginTop: '-4%', marginBottom: '-8%' }}>
+    <div className={cn('flex flex-row items-end', className)}>
+      <div className="min-w-0 flex-1" style={{ marginTop: '-4%', marginBottom: '-8%' }}>
         <HomeWordmark />
       </div>
-      <BetaBadge className={badge === 'inline' ? '-ml-2 mb-[6%]' : 'mt-0'} />
+      <BetaBadge className="-ml-2 mb-[6%]" />
     </div>
   );
 }
 
-/** Opens the product walkthrough. `unstyled` renders a plain button that
-    takes its whole look from `className` (for coloured bands). */
-export function DemoButton({
-  variant = 'brutalist',
-  unstyled = false,
-  className,
-  children,
-}: {
-  variant?: 'brutalist' | 'brutalist-outline' | 'ghost' | 'link';
-  unstyled?: boolean;
-  className?: string;
-  children?: ReactNode;
-}) {
-  const label = (
-    <>
-      <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-      {children ?? 'Watch demo'}
-    </>
+/** The streaming services Cassette converts between, with their logos. */
+export const STREAMING_SERVICES = [
+  { label: 'Spotify', logo: '/images/spotify_logo_colored.png' },
+  { label: 'Apple Music', logo: '/images/apple_music_logo_colored.png' },
+  { label: 'Deezer', logo: '/images/deezer_logo_colored.png' },
+] as const;
+
+const CURATOR_STUDIO = '/studio/curator';
+
+/** The curator call to action. A new visitor signs up first, then lands in
+    Curator Studio, where the free page starts with one click. */
+export function StartPageLink({ isAuthenticated, className }: { isAuthenticated: boolean; className?: string }) {
+  const href = isAuthenticated ? CURATOR_STUDIO : `/auth/signup?redirect=${encodeURIComponent(CURATOR_STUDIO)}`;
+  return (
+    <Button asChild variant="brutalist" className={cn('h-auto px-5 py-2.5 text-[11px]', className)}>
+      <Link href={href}>Start your free page</Link>
+    </Button>
   );
+}
+
+/** Opens the product walkthrough. */
+export function DemoButton() {
   return (
     <DemoVideoDialog
       title={HOMEPAGE_DEMO_VIDEO.title}
@@ -65,13 +67,10 @@ export function DemoButton({
       videoType={HOMEPAGE_DEMO_VIDEO.videoType}
       caption={HOMEPAGE_DEMO_VIDEO.caption}
       trigger={
-        unstyled ? (
-          <button type="button" className={className}>{label}</button>
-        ) : (
-          <Button type="button" variant={variant} className={cn('gap-2 px-4 py-2 h-auto', className)}>
-            {label}
-          </Button>
-        )
+        <Button type="button" variant="brutalist" className="h-auto gap-2 px-4 py-2">
+          <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+          Watch demo
+        </Button>
       }
     />
   );

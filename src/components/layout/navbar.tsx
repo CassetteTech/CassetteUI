@@ -145,9 +145,9 @@ export function Navbar() {
 
             <Link
               href="/promote"
-              className="hidden md:inline-flex items-center text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted"
+              className="hidden md:inline-flex items-center whitespace-nowrap text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted"
             >
-              Promote
+              Promote your music
             </Link>
           </div>
 

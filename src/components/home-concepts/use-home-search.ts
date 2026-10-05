@@ -50,7 +50,7 @@ export function useHomeSearch() {
   const lastTrackedSearchRef = useRef('');
   const debouncedSearchTerm = useDebounce(musicUrl, 300);
 
-  const { isAuthenticated } = useAuthState();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuthState();
   const linkConversion = useMusicLinkConversion();
   const isConverting = conversionKey != null;
   const { label: conversionStageLabel } = useConversionStage(conversionKey, {
@@ -77,7 +77,10 @@ export function useHomeSearch() {
 
   const convertLink = useCallback(async (url: string, item?: { title: string; type: string }) => {
     const trimmed = normalizeMusicLinkInput(url);
-    if (!trimmed || conversionKey) return;
+    // Until the auth store settles, a signed-in user would convert anonymously:
+    // the post would not attach to their profile, and stage polling would use the
+    // wrong scope. A paste in that first moment does nothing; a /?url= link waits.
+    if (!trimmed || conversionKey || isAuthLoading) return;
 
     const detected = detectContentType(trimmed);
     void captureClientEvent('conversion_entry_started', analyticsBase(trimmed));
@@ -125,7 +128,7 @@ export function useHomeSearch() {
         'Something went wrong while converting your link. Please try again.',
       ));
     }
-  }, [conversionKey, isAuthenticated, linkConversion, router, analyticsBase]);
+  }, [conversionKey, isAuthenticated, isAuthLoading, linkConversion, router, analyticsBase]);
 
   // A pasted value either converts (supported link), errors (unsupported), or
   // is left alone (plain text). Returns true when it was handled as a paste.
@@ -195,20 +198,26 @@ export function useHomeSearch() {
     void convertLink(url, { title, type: type.toLowerCase() });
   }, [analyticsBase, convertLink]);
 
-  // /?url=<music link> starts the conversion directly.
+  // /?url=<music link> starts the conversion directly, once auth has settled.
+  // Each link in the query runs once; a query without one re-arms it, so an
+  // example link still works after an earlier conversion failed. A link that
+  // arrives during a conversion stays in the query until that conversion ends.
   const searchParams = useSearchParams();
-  const autoConvertHandled = useRef(false);
+  const handledUrl = useRef<string | null>(null);
   useEffect(() => {
-    if (autoConvertHandled.current) return;
     const prefill = searchParams?.get('url');
-    if (!prefill) return;
-    autoConvertHandled.current = true;
+    if (!prefill) {
+      handledUrl.current = null;
+      return;
+    }
+    if (isAuthLoading || isConverting || prefill === handledUrl.current) return;
+    handledUrl.current = prefill;
     const normalized = normalizeMusicLinkInput(prefill);
     if (!normalized || !isSupportedMusicLink(normalized)) return;
     setMusicUrl(normalized);
     void convertLink(normalized);
     router.replace(pathname, { scroll: false });
-  }, [searchParams, convertLink, router, pathname]);
+  }, [searchParams, isAuthLoading, isConverting, convertLink, router, pathname]);
 
   useEffect(() => {
     const query = debouncedSearchTerm.trim();

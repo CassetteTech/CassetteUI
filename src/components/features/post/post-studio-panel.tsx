@@ -17,8 +17,6 @@ import type { ChartConfig } from '@/components/dither-kit/chart-context';
 import { Grid } from '@/components/dither-kit/grid';
 import { Tooltip } from '@/components/dither-kit/tooltip';
 import { XAxis } from '@/components/dither-kit/x-axis';
-import { DitherEdge } from '@/components/features/marketing/dither-edge';
-import { bandColor, bandInk } from '@/components/features/post/post-label-head';
 import { SegmentedControl } from '@/components/interior/segmented-control';
 import { AnnotatedText } from '@/components/ui/annotated-text';
 import { Button } from '@/components/ui/button';
@@ -403,8 +401,6 @@ interface PostStudioContentProps {
   privacy: PostPrivacy;
   onPrivacyChange: (privacy: OwnerVisibility) => void;
   conversionSuccessCount?: number;
-  /** A color from the post's artwork; the head takes it so the column reads as this post's. */
-  tint?: string;
 }
 
 function PostStudioContent({
@@ -412,7 +408,6 @@ function PostStudioContent({
   privacy,
   onPrivacyChange,
   conversionSuccessCount,
-  tint,
   eyebrowAs: Eyebrow = 'p',
   action,
 }: PostStudioContentProps & { eyebrowAs?: ElementType; action?: ReactNode }) {
@@ -431,30 +426,24 @@ function PostStudioContent({
     });
   };
 
-  const band = bandColor(tint);
-
   return (
     <>
-      {/* A printed label in the artwork's color, dissolving into the paper through the brand's dither seam. */}
-      <header
-        className="relative px-6 pb-5 pt-5 transition-colors duration-500"
-        style={{ backgroundColor: band, color: bandInk(tint) }}
-      >
+      {/* A plain head: the printed label in the artwork's color belongs to the post card alone. */}
+      <header className="border-b border-border/70 px-6 pb-5 pt-5">
         <div className="flex items-center justify-between gap-3">
-          <Eyebrow className="font-mono text-[11px] font-bold uppercase tracking-[0.3em] opacity-75">Your post</Eyebrow>
+          <Eyebrow className="font-mono text-[11px] font-bold uppercase tracking-[0.3em] text-muted-foreground">Your post</Eyebrow>
           {action}
         </div>
         {/* Keyed on the setting so a change crossfades instead of swapping text in place. */}
         <h2
           key={privacy}
-          className="mt-7 whitespace-nowrap font-teko text-4xl font-bold uppercase leading-[0.8] tracking-tight motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280"
+          className="mt-5 whitespace-nowrap font-teko text-4xl font-bold uppercase leading-[0.8] tracking-tight text-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280"
         >
           {visibility?.label ?? 'Visibility'}
         </h2>
-        <DitherEdge color={band} side="bottom" className="transition-colors duration-500" />
       </header>
       {/* Sections stack with a hairline between them. */}
-      <div className="divide-y divide-border/70 px-6 pb-6 pt-10 [&>section+section]:pt-5 [&>section]:pb-4 [&>section:last-child]:pb-0">
+      <div className="divide-y divide-border/70 px-6 pb-6 pt-5 [&>section+section]:pt-5 [&>section]:pb-4 [&>section:last-child]:pb-0">
         <VisibilityControl privacy={privacy} access={access} choose={choose} />
         <InsightsSections postId={postId} conversionSuccessCount={conversionSuccessCount} />
       </div>

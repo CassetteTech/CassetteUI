@@ -11,6 +11,8 @@ export const bandColor = (tint = 'hsl(var(--primary))') => `oklch(from ${tint} 0
 export const bandInk = (tint = 'hsl(var(--primary))') => `oklch(from ${tint} 0.96 0.02 h)`;
 
 interface PostLabelHeadProps {
+  /** The post type and its genres, printed above the title. */
+  kicker?: ReactNode;
   title: string;
   /** Artist names, with roles. Omitted for a playlist. */
   artist?: ReactNode;
@@ -35,13 +37,23 @@ interface PostLabelHeadProps {
  * owner column, so the two read as one set. The card below needs 2.5rem of top padding
  * for the seam.
  */
-export function PostLabelHead({ title, artist, meta, source, tint, compact = false }: PostLabelHeadProps) {
+export function PostLabelHead({ kicker, title, artist, meta, source, tint, compact = false }: PostLabelHeadProps) {
   const band = bandColor(tint);
   return (
     <header
       className={cn('relative text-left transition-colors duration-500', compact ? 'px-4 pb-5 pt-4' : 'px-6 pb-6 pt-5')}
       style={{ backgroundColor: band, color: bandInk(tint) }}
     >
+      {kicker && (
+        <p
+          className={cn(
+            'flex flex-wrap items-baseline gap-x-3 gap-y-1 font-mono font-bold uppercase tracking-[0.3em] opacity-75',
+            compact ? 'mb-4 text-[10px]' : 'mb-5 text-[11px]',
+          )}
+        >
+          {kicker}
+        </p>
+      )}
       <h1
         className={cn(
           'text-balance font-teko font-bold uppercase leading-[0.9] tracking-tight',

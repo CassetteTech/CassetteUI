@@ -247,6 +247,10 @@ const unmarkPostAsReposted = (userId: string | undefined, targetPostId: string |
   }
 };
 
+// Desktop column tracks shared by every post type: artwork, main content, and the owner column.
+const POST_GRID = 'grid-cols-[minmax(16rem,26rem)_minmax(0,36rem)]';
+const POST_GRID_OWNER = 'grid-cols-[minmax(16rem,26rem)_minmax(0,36rem)_20rem]';
+
 export default function PostClientPage({ postId, initialMetadata }: PostClientPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1135,13 +1139,20 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     privacy: studioPrivacy,
     onPrivacyChange: (privacy: PostPrivacy) => setPostData((prev) => (prev ? { ...prev, privacy } : prev)),
     conversionSuccessCount: ownerVisibleConversionCount,
-    tint: palette?.vibrant,
   };
   const showSignupCTA = !isLoading && !isAuthenticated;
   const filteredGenres = (postData?.genres ?? []).filter(
     (genre) => genre.toLowerCase() !== 'music',
   );
-  const hasGenres = filteredGenres.length > 0;
+  // The type and genres: the first line of the card label.
+  const labelKicker = (
+    <>
+      <span>{typeLabel}</span>
+      {filteredGenres.map((genre) => (
+        <span key={genre} className="font-normal tracking-[0.2em] opacity-80">{genre}</span>
+      ))}
+    </>
+  );
 
   const providedSourceUrl = (postData?.originalUrl || sourceUrlRef.current)?.trim();
   const detectedFromProvided = providedSourceUrl ? detectContentType(providedSourceUrl).platform : null;
@@ -1304,36 +1315,21 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                 </div>
               </div>
             </div>
-            {/* Content Row */}
-            <div className="flex gap-8 flex-1 min-h-0">
-              {/* Left: fixed panel */}
-              <div className="flex-[2] sticky top-0 h-full overflow-y-auto no-scrollbar">
-                {/* Make the left column fill the available height and center content vertically */}
-                <div className="min-h-full flex flex-col items-center justify-start min-w-0 pt-2 pb-[calc(6rem+env(safe-area-inset-bottom))]">
-                  <span className="inline-block font-mono text-[11px] font-bold uppercase tracking-[0.3em] text-primary mb-3">
-                    {typeLabel}
-                  </span>
-                  {hasGenres && (
-                    <div className="flex flex-wrap justify-center gap-1.5 mb-6 max-w-xs">
-                      {filteredGenres.map((genre) => (
-                        <span
-                          key={genre}
-                          className="inline-flex items-center font-mono text-[9px] uppercase tracking-[0.2em] text-foreground/80"
-                        >
-                          {genre}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {/* Artwork — clean sleeve */}
-                  <div className="relative mb-8">
-                    <div className="relative rounded-md bg-card p-2.5 elev-3 ring-1 ring-foreground/10">
+            {/* Content row: the same three tracks as the track layout (artwork, main, owner), so
+                every post type shares one top line and one set of column widths. */}
+            <div className={`grid flex-1 min-h-0 justify-center gap-x-8 ${ownerColumnBeside ? POST_GRID_OWNER : POST_GRID}`}>
+              {/* Left: artwork and card, pinned while the tracklist scrolls */}
+              <div className="sticky top-0 h-full overflow-y-auto no-scrollbar">
+                <div className="min-h-full flex flex-col items-center min-w-0 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+                  {/* Artwork — clean sleeve, as wide as its column */}
+                  <div className="relative mb-8 w-full">
+                    <div className="relative rounded-md bg-card p-3 elev-3 ring-1 ring-foreground/10">
                       <ArtworkImage
                         src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
                         alt={metadata.title}
-                        width={340}
-                        height={340}
-                        className="block rounded-sm object-cover"
+                        width={416}
+                        height={416}
+                        className="block h-auto w-full rounded-sm object-cover"
                         priority
                         onError={() => setImageError(true)}
                         unoptimized={!imageError && !!metadata.artwork}
@@ -1355,8 +1351,9 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   </div>
                   {/* Info Card (moved from right) */}
                   {(isAlbum || isPlaylist) && (
-                    <div className="card-ink overflow-hidden w-full max-w-xl">
+                    <div className="card-ink overflow-hidden w-full">
                       <PostLabelHead
+                        kicker={labelKicker}
                         title={metadata.title}
                         artist={isAlbum ? artistLine : undefined}
                         source={playlistSource}
@@ -1468,8 +1465,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                 </div>
               </div>
               {/* Right: track card scrolls internally so its header and edges stay put */}
-              <div className="flex-[3] min-h-0 pr-1">
-                <div className="h-full pt-8 pb-12 max-w-2xl flex flex-col min-h-0">
+              <div className="min-h-0">
+                <div className="h-full pb-12 flex flex-col min-h-0">
                   {/* Track list for album/playlist */}
                   {showTracks && (
                     <div className="card-ink overflow-hidden flex flex-col min-h-0">
@@ -1495,7 +1492,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                 </div>
               </div>
               {ownerColumnBeside && (
-                <PostStudioColumn {...ownerColumnProps} className="mt-8 max-h-[calc(100%-2rem)] self-start overflow-y-auto" />
+                <PostStudioColumn {...ownerColumnProps} className="w-auto max-h-full self-start overflow-y-auto" />
               )}
             </div>
           </div>
@@ -1536,44 +1533,20 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   </div>
                 </div>
               </div>
-              {/* One grid for the eyebrow row and the post row. Visitors get the artwork and the card
-                  as a centered pair; owners get artwork, card, and their column edge to edge. The
-                  owner layout is top-aligned so a change in the column never moves the post. */}
-              <div className={`px-8 max-w-7xl mx-auto pb-24 min-h-[calc(100vh-144px)] flex flex-col ${ownerColumnBeside ? '' : 'justify-center'}`}>
-                <div
-                  className={`grid items-start gap-y-6 ${ownerColumnBeside
-                    ? 'grid-cols-[minmax(0,1fr)_minmax(0,30rem)_20rem] gap-x-8'
-                    : 'grid-cols-[minmax(0,29rem)_minmax(0,36rem)] justify-center gap-x-12'}`}
-                >
-                  <div className="col-start-2 flex justify-center">
-                    <div className="w-full flex flex-col items-center">
-                      <span className="inline-block font-mono text-[11px] font-bold uppercase tracking-[0.3em] text-primary mb-2">
-                        {typeLabel}
-                      </span>
-                      {hasGenres && (
-                        <div className="flex flex-wrap justify-center gap-1.5 max-w-xs">
-                          {filteredGenres.map((genre) => (
-                            <span
-                              key={genre}
-                              className="inline-flex items-center font-mono text-[9px] uppercase tracking-[0.2em] text-foreground/80"
-                            >
-                              {genre}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+              {/* Artwork, card, and (for owners) the column share one top line. Top-aligned, so a
+                  change in any column never moves the others. */}
+              <div className="px-8 max-w-7xl mx-auto pb-24">
+                <div className={`grid items-start justify-center gap-x-8 ${ownerColumnBeside ? POST_GRID_OWNER : POST_GRID}`}>
                   {/* Left Column - Artwork only */}
-                  <div className="col-start-1 row-start-2 flex justify-center">
+                  <div className="col-start-1">
                     <div className="relative">
                       <div className="relative rounded-md bg-card p-3 elev-3 ring-1 ring-foreground/10">
                         <ArtworkImage
                           src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
                           alt={metadata.title}
-                          width={440}
-                          height={440}
-                          className="block rounded-sm object-cover"
+                          width={416}
+                          height={416}
+                          className="block h-auto w-full rounded-sm object-cover"
                           priority
                           onError={() => setImageError(true)}
                           unoptimized={!imageError && !!metadata.artwork}
@@ -1595,12 +1568,13 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     </div>
                   </div>
                   {/* Right Column - Header + card + secondary content as one stack */}
-                  <div className="col-start-2 row-start-2">
+                  <div className="col-start-2">
                     <div className="w-full">
                       <div className="space-y-6">
                         {/* Info Card */}
                         <div className="card-ink overflow-hidden">
                           <PostLabelHead
+                            kicker={labelKicker}
                             title={metadata.title}
                             artist={isTrack || isAlbum ? artistLine : undefined}
                             meta={labelMeta}
@@ -1705,7 +1679,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                       </div>
                     </div>
                   </div>
-                  {ownerColumnBeside && <PostStudioColumn {...ownerColumnProps} className="col-start-3 row-start-2 w-auto" />}
+                  {ownerColumnBeside && <PostStudioColumn {...ownerColumnProps} className="col-start-3 w-auto" />}
                 </div>
               </div>
             </div>
@@ -1754,25 +1728,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
               </div>
             </div>
             <div className="text-center flex flex-col flex-1 gap-1.5 sm:gap-6">
-              {/* Element Type */}
-              <div>
-                <span className="inline-block font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.3em] text-primary mb-2">
-                  {typeLabel}
-                </span>
-                {hasGenres && (
-                  <div className="flex flex-wrap justify-center gap-1.5 max-w-xs mx-auto">
-                    {filteredGenres.map((genre) => (
-                      <span
-                        key={genre}
-                        className="inline-flex items-center font-mono text-[9px] uppercase tracking-[0.2em] text-foreground/80"
-                      >
-                        {genre}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
               {/* Album Art — fixed by width so browser height changes cannot resize it. */}
               <div className="flex flex-1 items-center justify-center">
                 <div className="relative rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10">
@@ -1810,6 +1765,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
               <div className="card-ink overflow-hidden">
                 <PostLabelHead
                   compact
+                  kicker={labelKicker}
                   title={metadata.title}
                   artist={isTrack || isAlbum ? artistLine : undefined}
                   meta={labelMeta}
@@ -1997,7 +1953,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
           privacy={ownerColumnProps.privacy}
           onPrivacyChange={ownerColumnProps.onPrivacyChange}
           conversionSuccessCount={ownerColumnProps.conversionSuccessCount}
-          tint={ownerColumnProps.tint}
         />
       )}
 

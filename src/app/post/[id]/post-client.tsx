@@ -1121,6 +1121,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     privacy: studioPrivacy,
     onPrivacyChange: (privacy: PostPrivacy) => setPostData((prev) => (prev ? { ...prev, privacy } : prev)),
     conversionSuccessCount: ownerVisibleConversionCount,
+    tint: palette?.vibrant,
   };
   const showSignupCTA = !isLoading && !isAuthenticated;
   const filteredGenres = (postData?.genres ?? []).filter(
@@ -2134,6 +2135,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
           privacy={ownerColumnProps.privacy}
           onPrivacyChange={ownerColumnProps.onPrivacyChange}
           conversionSuccessCount={ownerColumnProps.conversionSuccessCount}
+          tint={ownerColumnProps.tint}
         />
       )}
 

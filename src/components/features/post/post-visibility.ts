@@ -14,22 +14,19 @@ export const postVisibility = {
   public: {
     label: 'Public',
     icon: Globe,
-    summary: 'Anyone can open this post from your profile or the link.',
-    rule: 'Visible to everyone.',
+    summary: 'Anyone can open it from your profile or the link.',
   },
   subscriber: {
     label: 'Members only',
     icon: LockKeyhole,
-    summary: 'Only fans with an active membership can open this post. Everyone else sees it locked on your curator page.',
-    rule: 'Only active members can open it.',
+    summary: 'Only active members can open it. Everyone else sees it locked.',
   },
   private: {
     label: 'Private',
     icon: EyeOff,
-    summary: 'Hidden from your profile. Only people with the link can open this post.',
-    rule: 'Off your profile. The link still works.',
+    summary: 'Off your profile. Only people with the link can open it.',
   },
-} satisfies Record<OwnerVisibility, { label: string; icon: LucideIcon; summary: string; rule: string }>;
+} satisfies Record<OwnerVisibility, { label: string; icon: LucideIcon; summary: string }>;
 
 export function visibilityOf(privacy: string | undefined) {
   const key = privacy?.toLowerCase();

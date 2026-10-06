@@ -13,7 +13,7 @@ export function money(amountMinor: number, currency: string) {
 }
 
 /** Scalloped edge cut from the card tone so the paper reads as torn. */
-const tornEdge = (side: 'top' | 'bottom') => ({
+export const tornEdge = (side: 'top' | 'bottom') => ({
   background: `radial-gradient(circle at 8px ${side === 'top' ? 0 : 8}px, transparent 6px, hsl(var(--card)) 6px)`,
   backgroundSize: '16px 8px',
 });

@@ -5,11 +5,24 @@
     insights. On wide screens the column sits in the page beside the post; below
     that the same content opens as a bottom sheet from the engagement bar. */
 
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ElementType, type ReactNode } from 'react';
 import Link from 'next/link';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { SlidersHorizontal, XIcon } from 'lucide-react';
+import { useReducedMotion } from 'framer-motion';
+import { LockKeyhole, SlidersHorizontal, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { Area } from '@/components/dither-kit/area';
+import { AreaChart } from '@/components/dither-kit/area-chart';
+import { BlockLegend } from '@/components/dither-kit/block-legend';
+import type { ChartConfig } from '@/components/dither-kit/chart-context';
+import { Grid } from '@/components/dither-kit/grid';
+import { Tooltip } from '@/components/dither-kit/tooltip';
+import { XAxis } from '@/components/dither-kit/x-axis';
+import { ReceiptRow } from '@/components/features/curator/studio-shell';
+import { DitherEdge } from '@/components/features/marketing/dither-edge';
+import { SegmentedControl } from '@/components/interior/segmented-control';
+import { AnnotatedText } from '@/components/ui/annotated-text';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -18,11 +31,12 @@ import {
   visibilityOf,
   type OwnerVisibility,
 } from '@/components/features/post/post-visibility';
+import { useAuthState } from '@/hooks/use-auth';
 import { useMemberPostAccess } from '@/hooks/use-curator';
 import { useUpdatePost } from '@/hooks/use-music';
 import { ApiError, apiService } from '@/services/api';
 import type { CuratorPlan } from '@/services/curator-plans';
-import { money } from '@/components/features/curator/curator-plan-preview';
+import { money, tornEdge } from '@/components/features/curator/curator-plan-preview';
 import type { PostInsightsPlatformBreakdownItem, PostInsightsResponse, PostInsightsTrendPoint, PostPrivacy } from '@/types';
 import { cn } from '@/lib/utils';
 import { ValueFlash } from '@/components/ui/interior/value-flash';
@@ -43,7 +57,6 @@ const percentFormatter = new Intl.NumberFormat('en-US', {
 });
 
 const weekdayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
-const shortDateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
 
 function formatMetric(value: number): string {
   if (value < 1000) return fullNumberFormatter.format(value);
@@ -65,11 +78,6 @@ function parseTrendDate(value: string): Date {
 function formatWeekday(value: string): string {
   const parsed = parseTrendDate(value);
   return Number.isNaN(parsed.getTime()) ? value : weekdayFormatter.format(parsed);
-}
-
-function formatShortDate(value: string): string {
-  const parsed = parseTrendDate(value);
-  return Number.isNaN(parsed.getTime()) ? value : shortDateFormatter.format(parsed);
 }
 
 function formatPlatformLabel(platform: string): string {
@@ -98,8 +106,6 @@ function hasAudienceActivity(insights: PostInsightsResponse | null): boolean {
 }
 
 /* ─── Shared pieces ─────────────────────────────────────────────────── */
-const eyebrowClass = 'font-mono text-[11px] font-bold uppercase tracking-[0.3em] text-primary';
-
 /** Sentence-case section title, as on the Studio cards; hairlines between sections do the separating. */
 function SectionHeading({ children, meta }: { children: ReactNode; meta?: ReactNode }) {
   return (
@@ -180,56 +186,51 @@ function PlatformBreakdown({ items }: { items: PostInsightsPlatformBreakdownItem
   );
 }
 
+const trendConfig: ChartConfig = {
+  views: { label: 'Views', color: 'grey' },
+  destinationOpens: { label: 'Opens', color: 'brand' },
+};
+
+/** Seven days as a dithered area chart: views hatched, opens dotted, totals in the legend. */
 function TrendChart({ points }: { points: PostInsightsTrendPoint[] }) {
-  const maxValue = Math.max(1, ...points.flatMap((p) => [p.views, p.destinationOpens]));
-  const totalViews = points.reduce((s, p) => s + p.views, 0);
-  const totalOpens = points.reduce((s, p) => s + p.destinationOpens, 0);
+  const reduceMotion = useReducedMotion();
+  const rows = points.map((point) => ({ ...point, day: formatWeekday(point.date) }));
+  const totals = {
+    views: points.reduce((s, p) => s + p.views, 0),
+    destinationOpens: points.reduce((s, p) => s + p.destinationOpens, 0),
+  };
 
   return (
     <section>
-      <SectionHeading
-        meta={
-          <span className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-foreground" aria-hidden />
-              {formatMetric(totalViews)} views
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-primary" aria-hidden />
-              {formatMetric(totalOpens)} opens
-            </span>
-          </span>
-        }
-      >
-        Last 7 days
-      </SectionHeading>
-      <div className="mt-4 grid h-20 grid-cols-7 items-end gap-1.5">
-        {points.map((point) => (
-          <div
-            key={point.date}
-            className="flex h-full items-end justify-center gap-1"
-            title={`${formatShortDate(point.date)} · ${point.views} views · ${point.destinationOpens} opens`}
-          >
-            <div
-              className="h-20 w-1.5 origin-bottom rounded-sm bg-foreground/80"
-              style={{ transform: `scaleY(${point.views > 0 ? Math.max(0.04, point.views / maxValue) : 0})` }}
-              aria-hidden
-            />
-            <div
-              className="h-20 w-1.5 origin-bottom rounded-sm bg-primary"
-              style={{ transform: `scaleY(${point.destinationOpens > 0 ? Math.max(0.04, point.destinationOpens / maxValue) : 0})` }}
-              aria-hidden
-            />
-          </div>
-        ))}
+      <SectionHeading>Last 7 days</SectionHeading>
+      {/* The chart is pointer-only; screen readers get the same seven days as a table. */}
+      <table className="sr-only">
+        <caption>Views and opens in the last 7 days</caption>
+        <thead>
+          <tr><th scope="col">Day</th><th scope="col">Views</th><th scope="col">Opens</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.date}><th scope="row">{row.day}</th><td>{row.views}</td><td>{row.destinationOpens}</td></tr>
+          ))}
+        </tbody>
+      </table>
+      <div aria-hidden className="mt-3">
+        <AreaChart
+          data={rows}
+          config={trendConfig}
+          animate={!reduceMotion}
+          margins={{ left: 4, bottom: 20, right: 4, top: 8 }}
+          className="h-28 w-full"
+        >
+          <Grid />
+          <XAxis dataKey="day" maxTicks={7} />
+          <Area dataKey="views" variant="hatched" />
+          <Area dataKey="destinationOpens" variant="dotted" />
+          <Tooltip labelKey="day" valueFormatter={(value) => formatFull(value)} />
+        </AreaChart>
       </div>
-      <div className="mt-2 grid grid-cols-7 gap-1.5 border-t border-border/70 pt-2">
-        {points.map((point) => (
-          <div key={`axis-${point.date}`} className="text-center text-[11px] leading-none text-muted-foreground">
-            {formatWeekday(point.date)}
-          </div>
-        ))}
-      </div>
+      <BlockLegend config={trendConfig} values={totals} valueFormatter={formatMetric} className="mt-2" />
     </section>
   );
 }
@@ -276,19 +277,19 @@ function InsightsSections({ postId, conversionSuccessCount }: { postId: string; 
   }, [postId, reloadKey]);
 
   const conversions: MetricItem[] = conversionSuccessCount !== undefined
-    ? [{ label: 'Conversions', value: Math.max(0, conversionSuccessCount), hint: 'Matched on a listener’s service' }]
+    ? [{ label: 'Conversions', value: Math.max(0, conversionSuccessCount) }]
     : [];
 
   const metrics: MetricItem[] = insights
     ? [
-        { label: 'Views', value: insights.lifetime.views, hint: 'Includes repeat visits' },
-        { label: 'Unique viewers', value: insights.lifetime.uniqueViewers, hint: 'Distinct people' },
+        { label: 'Views', value: insights.lifetime.views },
+        { label: 'Unique viewers', value: insights.lifetime.uniqueViewers },
         {
           label: 'Destination opens',
           value: insights.lifetime.destinationOpens,
           hint: insights.lifetime.views > 0 ? `${formatPercent(insights.lifetime.openRate)} open rate` : 'Listen clicks',
         },
-        { label: 'Shares', value: insights.lifetime.shares, hint: 'Share button and copied links' },
+        { label: 'Shares', value: insights.lifetime.shares },
         ...conversions,
       ]
     : conversions;
@@ -321,7 +322,7 @@ function InsightsSections({ postId, conversionSuccessCount }: { postId: string; 
             {metrics.length > 0 && <div className="mt-1"><MetricGrid items={metrics} /></div>}
             {!hasAudienceActivity(insights) && (
               <p className="mt-2 text-sm text-muted-foreground">
-                No activity yet. Views and opens appear here once people open this post.
+                No activity <AnnotatedText>yet</AnnotatedText>. Views and opens appear once people open this post.
               </p>
             )}
           </>
@@ -336,20 +337,128 @@ function InsightsSections({ postId, conversionSuccessCount }: { postId: string; 
 /* ─── Access ────────────────────────────────────────────────────────── */
 const formatPlanPrice = (plan: CuratorPlan): string => `${money(plan.amountMinor, plan.currency)}/mo`;
 
-function AccessSections({
-  postId,
-  privacy,
-  onPrivacyChange,
-}: {
+/** The post's artwork color (brand red until it loads), re-toned so cream type stays legible on it in both themes. */
+const bandColor = (tint = 'hsl(var(--primary))') => `oklch(from ${tint} 0.42 clamp(0.03, c, 0.13) h)`;
+const bandInk = (tint = 'hsl(var(--primary))') => `oklch(from ${tint} 0.96 0.02 h)`;
+
+/** Three positions with the chosen one's summary swapping in beneath. */
+function VisibilityControl({ privacy, canLock, choose }: { privacy: PostPrivacy; canLock: boolean; choose: (next: OwnerVisibility) => void }) {
+  const visibility = visibilityOf(privacy);
+  return (
+    <section>
+      <SectionHeading>Who can open it</SectionHeading>
+      <SegmentedControl
+        label="Post visibility"
+        className="mt-3 w-full [&_span]:px-1"
+        value={privacy}
+        onValueChange={(next) => {
+          const value = ownerVisibilities.find((option) => option === next);
+          if (value) choose(value);
+        }}
+        options={ownerVisibilities.map((value) => ({
+          value,
+          label: postVisibility[value].label,
+          disabled: value === 'subscriber' && !canLock,
+        }))}
+      />
+      <p key={privacy} className="mt-3 text-pretty text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280">
+        {visibility?.summary ?? 'This post uses an older setting. Choose who can open it.'}
+      </p>
+    </section>
+  );
+}
+
+/** A small copy of the locked card fans get on the curator page, so "locked" is concrete. */
+function FanPreview() {
+  const { user } = useAuthState();
+  const name = user?.displayName?.trim() || user?.username || 'you';
+  return (
+    <section>
+      <SectionHeading>What fans see</SectionHeading>
+      <div aria-hidden className="card-ink mt-3 flex overflow-hidden">
+        <div className="flex size-16 shrink-0 items-center justify-center bg-gradient-to-br from-primary/15 via-primary/5 to-transparent">
+          <LockKeyhole className="size-6 text-primary/60" />
+        </div>
+        <div className="min-w-0 flex-1 px-3 py-2.5">
+          <Badge variant="outline" className="border-primary/40 bg-primary/10 text-[10px] text-primary">
+            <LockKeyhole />
+            Members only
+          </Badge>
+          <p className="mt-1 text-sm font-semibold leading-snug">Members-only post</p>
+          <p className="text-pretty text-xs text-muted-foreground">Join {name} to unlock this post.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PlansSection({ access }: { access: ReturnType<typeof useMemberPostAccess> }) {
+  return (
+    <section>
+      <SectionHeading>What unlocks members-only</SectionHeading>
+      {access.state === 'loading' ? (
+        <div className="mt-3 space-y-2.5">
+          <Skeleton className="h-3 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
+        </div>
+      ) : access.state === 'error' ? (
+        <div className="mt-2 space-y-3">
+          <p className="text-sm text-muted-foreground">Could not load your membership setup.</p>
+          <Button type="button" variant="outline" size="sm" onClick={access.refetch}>
+            Try again
+          </Button>
+        </div>
+      ) : access.state === 'ready' ? (
+        // Torn paper, as on the plan's earnings receipt in Curator Studio.
+        <div className="relative mb-2 mt-5 bg-card px-4 py-3 font-mono text-xs text-card-foreground">
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-2 h-2" style={tornEdge('top')} />
+          <dl className="space-y-2">
+            {access.plans.map((plan) => (
+              <ReceiptRow key={plan.id} label={plan.name} value={formatPlanPrice(plan)} />
+            ))}
+          </dl>
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 -bottom-2 h-2" style={tornEdge('bottom')} />
+        </div>
+      ) : (
+        <div className="mt-2 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Fans need a published plan that includes member posts.
+          </p>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/studio/curator" prefetch={false}>
+              Open Curator Studio
+            </Link>
+          </Button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ─── Column and sheet ──────────────────────────────────────────────── */
+interface PostStudioContentProps {
   postId: string;
   privacy: PostPrivacy;
   onPrivacyChange: (privacy: OwnerVisibility) => void;
-}) {
+  conversionSuccessCount?: number;
+  /** A color from the post's artwork; the head takes it so the column reads as this post's. */
+  tint?: string;
+}
+
+function PostStudioContent({
+  postId,
+  privacy,
+  onPrivacyChange,
+  conversionSuccessCount,
+  tint,
+  eyebrowAs: Eyebrow = 'p',
+  action,
+}: PostStudioContentProps & { eyebrowAs?: ElementType; action?: ReactNode }) {
+  const visibility = visibilityOf(privacy);
+  const StatusIcon = visibility?.icon ?? SlidersHorizontal;
   const access = useMemberPostAccess();
   const updatePost = useUpdatePost();
   const canLock = access.state === 'ready' || privacy === 'subscriber';
-  // Native radios group by name across the document, so each mounted copy needs its own.
-  const groupName = useId();
 
   const choose = (next: OwnerVisibility) => {
     if (next === privacy || updatePost.isPending) return;
@@ -362,130 +471,39 @@ function AccessSections({
     });
   };
 
-  return (
-    <>
-      <section>
-        <SectionHeading>Who can open it</SectionHeading>
-        <fieldset className="mt-1 divide-y divide-border/70" disabled={updatePost.isPending}>
-          <legend className="sr-only">Post visibility</legend>
-          {ownerVisibilities.map((value) => {
-            const { label, icon: Icon, rule } = postVisibility[value];
-            const disabled = value === 'subscriber' && !canLock;
-            return (
-              <label
-                key={value}
-                className={cn('flex items-center gap-3 py-3', disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer')}
-              >
-                <input
-                  type="radio"
-                  name={groupName}
-                  value={value}
-                  checked={privacy === value}
-                  disabled={disabled}
-                  onChange={() => choose(value)}
-                  className="size-4 shrink-0 accent-primary"
-                />
-                <Icon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium leading-tight">{label}</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">{rule}</span>
-                </span>
-              </label>
-            );
-          })}
-        </fieldset>
-      </section>
-
-      <section>
-        <SectionHeading>What unlocks members-only</SectionHeading>
-        {access.state === 'loading' ? (
-          <div className="mt-3 space-y-2.5">
-            <Skeleton className="h-3 w-3/4" />
-            <Skeleton className="h-3 w-1/2" />
-          </div>
-        ) : access.state === 'error' ? (
-          <div className="mt-2 space-y-3">
-            <p className="text-sm text-muted-foreground">Could not load your membership setup.</p>
-            <Button type="button" variant="outline" size="sm" onClick={access.refetch}>
-              Try again
-            </Button>
-          </div>
-        ) : access.state === 'ready' ? (
-          <ul className="mt-1 divide-y divide-border/70">
-            {access.plans.map((plan) => (
-              <li key={plan.id} className="flex items-baseline justify-between gap-3 py-3">
-                <span className="truncate text-sm font-medium">{plan.name}</span>
-                <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{formatPlanPrice(plan)}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="mt-2 space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Fans need a published plan that includes member posts.
-            </p>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/studio/curator" prefetch={false}>
-                Open Curator Studio
-              </Link>
-            </Button>
-          </div>
-        )}
-      </section>
-    </>
-  );
-}
-
-/* ─── Column and sheet ──────────────────────────────────────────────── */
-interface PostStudioContentProps {
-  postId: string;
-  privacy: PostPrivacy;
-  onPrivacyChange: (privacy: OwnerVisibility) => void;
-  conversionSuccessCount?: number;
-}
-
-function PostStudioContent({
-  postId,
-  privacy,
-  onPrivacyChange,
-  conversionSuccessCount,
-  eyebrow = <p className={eyebrowClass}>Your post</p>,
-  action,
-}: PostStudioContentProps & { eyebrow?: ReactNode; action?: ReactNode }) {
-  const visibility = visibilityOf(privacy);
-  const StatusIcon = visibility?.icon ?? SlidersHorizontal;
+  const band = bandColor(tint);
 
   return (
     <>
-      <header>
+      {/* A printed label in the artwork's color, dissolving into the paper through the brand's dither seam. */}
+      <header
+        className="relative px-6 pb-5 pt-5 transition-colors duration-500"
+        style={{ backgroundColor: band, color: bandInk(tint) }}
+      >
         <div className="flex items-center justify-between gap-3">
-          {eyebrow}
+          <Eyebrow className="font-mono text-[11px] font-bold uppercase tracking-[0.3em] opacity-75">Your post</Eyebrow>
           {action}
         </div>
         {/* Keyed on the setting so a change crossfades instead of swapping text in place. */}
-        <div key={privacy} className="mt-4 flex items-start gap-3.5 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280">
+        <div key={privacy} className="mt-7 flex items-end justify-between gap-3 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280">
+          <h2 className="font-teko text-5xl font-bold uppercase leading-[0.8] tracking-tight">
+            {visibility?.label ?? 'Visibility'}
+          </h2>
+          {/* Rubber-stamp mark: a double ring, set a little off true. */}
           <span
             aria-hidden
-            className={cn(
-              'flex size-11 shrink-0 items-center justify-center rounded-lg',
-              privacy === 'subscriber' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
-            )}
+            className="mb-1 flex size-12 shrink-0 -rotate-12 items-center justify-center rounded-full border-2 border-current opacity-85 outline outline-1 outline-offset-2 outline-current"
           >
             <StatusIcon className="size-5" />
           </span>
-          <div className="min-w-0">
-            <h2 className="font-teko text-3xl font-bold uppercase leading-none tracking-tight">
-              {visibility?.label ?? 'Visibility'}
-            </h2>
-            <p className="mt-1.5 text-pretty text-sm leading-relaxed text-muted-foreground">
-              {visibility?.summary ?? 'This post uses an older setting. Choose who can open it below.'}
-            </p>
-          </div>
         </div>
+        <DitherEdge color={band} side="bottom" className="transition-colors duration-500" />
       </header>
-      {/* Sections stack with a hairline between them; nothing inside is boxed. */}
-      <div className="mt-6 divide-y divide-border/70 [&>section+section]:pt-5 [&>section]:pb-3 [&>section:last-child]:pb-0">
-        <AccessSections postId={postId} privacy={privacy} onPrivacyChange={onPrivacyChange} />
+      {/* Sections stack with a hairline between them; the receipt and the fan card are the only paper on it. */}
+      <div className="divide-y divide-border/70 px-6 pb-6 pt-10 [&>section+section]:pt-5 [&>section]:pb-4 [&>section:last-child]:pb-0">
+        <VisibilityControl privacy={privacy} canLock={canLock} choose={choose} />
+        {privacy === 'subscriber' && <FanPreview />}
+        <PlansSection access={access} />
         <InsightsSections postId={postId} conversionSuccessCount={conversionSuccessCount} />
       </div>
     </>
@@ -498,7 +516,7 @@ export function PostStudioColumn({ className, ...props }: PostStudioContentProps
     <aside
       aria-label="Your post"
       data-testid="post-studio-panel"
-      className={cn('card-quiet w-80 shrink-0 p-6', className)}
+      className={cn('card-quiet w-80 shrink-0 overflow-hidden', className)}
     >
       <PostStudioContent {...props} />
     </aside>
@@ -535,7 +553,7 @@ export function PostStudioSheet({
             pill.focus();
           }}
           className={cn(
-            'fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-xl border-t border-border bg-background p-6 elev-3',
+            'fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto overflow-x-hidden rounded-t-xl border-t border-border bg-background elev-3',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full',
             'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
@@ -545,10 +563,10 @@ export function PostStudioSheet({
         >
           <PostStudioContent
             {...props}
-            eyebrow={<DialogPrimitive.Title className={eyebrowClass}>Your post</DialogPrimitive.Title>}
+            eyebrowAs={DialogPrimitive.Title}
             action={
               <DialogPrimitive.Close
-                className="-mr-2 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                className="-mr-2 rounded-md p-1.5 opacity-75 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 aria-label="Close post studio"
               >
                 <XIcon className="size-4" />

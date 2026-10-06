@@ -184,10 +184,11 @@ export function ReceiptRow({
 }) {
   return (
     <div className={cn('flex items-baseline justify-between gap-4', className)}>
-      <dt className={cn('text-muted-foreground', emphasized && 'font-semibold text-foreground')}>{label}</dt>
+      {/* Long labels (plan names) wrap so the amount always stays in view. */}
+      <dt className={cn('min-w-0 break-words text-muted-foreground', emphasized && 'font-semibold text-foreground')}>{label}</dt>
       <dd
         className={cn(
-          'font-mono text-sm tabular-nums',
+          'shrink-0 font-mono text-sm tabular-nums',
           emphasized && 'font-semibold',
           deduction && 'text-muted-foreground',
         )}

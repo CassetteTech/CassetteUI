@@ -1189,8 +1189,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                       <div className="space-y-6">
                         {/* Title block: title (with inline source badge for playlist) + artist (album) */}
                         <div className="space-y-2">
-                          <div className="relative flex justify-center items-center">
-                            <HeadlineText className="text-3xl sm:text-4xl uppercase leading-[0.95] tracking-tight text-foreground text-center">
+                          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+                            <HeadlineText className="text-3xl sm:text-4xl uppercase leading-[0.95] tracking-tight text-foreground text-center break-words min-w-0">
                               {metadata.title}
                             </HeadlineText>
                             {isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService && (
@@ -1212,7 +1212,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                   });
                                   handleStreamingLinkClick(event, resolvedSourceUrl);
                                 }}
-                                className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
+                                className="inline-flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
                                 aria-label={`from ${sourceService.name}`}
                               >
                                 <span>from</span>
@@ -1748,8 +1748,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
               <div className="p-3 sm:p-5 rounded-lg border border-border bg-card elev-2">
                 <div className="space-y-2 sm:space-y-4">
                   {/* Title (with source badge right-aligned for playlist) */}
-                  <div className="relative flex justify-center items-center">
-                    <HeadlineText className="text-2xl sm:text-3xl uppercase leading-[0.95] tracking-tight text-foreground text-center">
+                  <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+                    <HeadlineText className="text-2xl sm:text-3xl uppercase leading-[0.95] tracking-tight text-foreground text-center break-words min-w-0">
                       {metadata.title}
                     </HeadlineText>
                     {isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService && (
@@ -1771,7 +1771,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                           });
                           handleStreamingLinkClick(event, resolvedSourceUrl);
                         }}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 text-xs sm:text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
+                        className="inline-flex shrink-0 items-center gap-1 text-xs sm:text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
                         aria-label={`from ${sourceService.name}`}
                       >
                         <span>from</span>

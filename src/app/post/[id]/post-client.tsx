@@ -55,37 +55,61 @@ import { captureUiException } from '@/lib/observability/error-reporting';
 import { ApiConnectionError } from '@/utils/api-connection-error';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 
-function JoinCassetteCTA({ onClick, className }: { onClick: () => void; className?: string }) {
+/** Secondary actions under the post: one primary offer at most, then quiet links. */
+function PostFoot({
+  signUp,
+  addToProfile,
+  onReport,
+}: {
+  signUp?: () => void;
+  addToProfile?: { onClick: () => void; disabled: boolean; label: string };
+  onReport: () => void;
+}) {
   return (
-    <div className={`flex items-center justify-between gap-4 ${className ?? ''}`}>
-      <p className="text-sm text-foreground/80">
-        <span className="text-foreground font-medium">New here?</span> Create a free account to save your music.
+    <footer className="space-y-4 border-t border-border/70 pt-5">
+      {signUp && (
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm text-foreground/80">
+            <span className="font-medium text-foreground">New here?</span> Create a free account to save your music.
+          </p>
+          <Button onClick={signUp} className="shrink-0 font-atkinson font-bold tracking-wide">
+            Sign up free
+          </Button>
+        </div>
+      )}
+      {addToProfile && (
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm text-foreground/80">Save this post to your profile.</p>
+          <Button
+            onClick={addToProfile.onClick}
+            data-testid="post-add-to-profile"
+            disabled={addToProfile.disabled}
+            className="shrink-0 font-atkinson font-bold tracking-wide"
+          >
+            {addToProfile.label}
+          </Button>
+        </div>
+      )}
+      <p className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-foreground/80">
+        <button
+          type="button"
+          onClick={openKoFiSupport}
+          aria-label="Support Cassette on Ko-fi"
+          className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
+        >
+          <KofiIcon width={14} className="rounded-full" />
+          <span>Support Cassette on Ko-fi</span>
+        </button>
+        <button
+          type="button"
+          onClick={onReport}
+          className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
+        >
+          <AlertCircle className="h-4 w-4" />
+          <span>Report a Problem</span>
+        </button>
       </p>
-      <button
-        onClick={onClick}
-        className="shrink-0 px-4 py-2 text-sm font-semibold rounded-lg transition-colors bg-primary text-primary-foreground border-2 border-primary"
-      >
-        Sign up free
-      </button>
-    </div>
-  );
-}
-
-function SupportCTA({ className }: { className?: string }) {
-  return (
-    <div className={`flex items-center justify-between gap-4 ${className ?? ''}`}>
-      <p className="text-sm text-foreground/80">
-        <span className="text-foreground font-medium">Enjoying Cassette?</span> Support us on Ko-fi.
-      </p>
-      <button
-        onClick={openKoFiSupport}
-        className="shrink-0 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors bg-primary text-primary-foreground"
-        aria-label="Support Cassette on Ko-fi"
-      >
-        <KofiIcon width={16} className="rounded-full" />
-        <span>Tip us</span>
-      </button>
-    </div>
+    </footer>
   );
 }
 
@@ -1139,6 +1163,22 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const filteredGenres = (postData?.genres ?? []).filter(
     (genre) => genre.toLowerCase() !== 'music',
   );
+  const addToProfileAction = {
+    onClick: handleAddToProfile,
+    disabled: isAddingToProfile || addStatus === 'added',
+    label: addStatus === 'added' ? 'Added to Profile' : addStatus === 'error' ? 'Failed to Add' : 'Add Post to Profile',
+  };
+  const openReport = () => openReportModal({
+    sourceContext: 'post_view',
+    sourceLink: postData?.originalUrl || sourceUrlRef.current || '',
+    conversionData: {
+      elementType: metadata.type,
+      title: metadata.title,
+      artist: metadata.artist,
+      platforms: postData?.convertedUrls,
+      postId: postData?.postId || postId,
+    },
+  });
   // The type and genres: the first line of the card label.
   const labelKicker = (
     <>
@@ -1253,17 +1293,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         onRepost={() => void handleRepost()}
         canAddToProfile={showAddToProfile && addStatus !== 'added'}
         onAddToProfile={handleAddToProfile}
-        onReport={() => openReportModal({
-          sourceContext: 'post_view',
-          sourceLink: postData?.originalUrl || sourceUrlRef.current || '',
-          conversionData: {
-            elementType: metadata.type,
-            title: metadata.title,
-            artist: metadata.artist,
-            platforms: postData?.convertedUrls,
-            postId: postData?.postId || postId,
-          },
-        })}
+        onReport={openReport}
         isOwner={isOwnPost}
         onEdit={() => setEditModalOpen(true)}
         onOpenStudio={showOwnerColumn ? undefined : () => { if (!studioPanelOpen) handleOpenStudio(); }}
@@ -1434,42 +1464,11 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             />
                           </div>
                         )}
-                        {showAddToProfile && (
-                          <div>
-                            <Button
-                              onClick={handleAddToProfile}
-                              data-testid="post-add-to-profile"
-                              disabled={isAddingToProfile || addStatus === 'added'}
-                              className="h-12 px-8 font-bold tracking-wide font-atkinson"
-                            >
-                              {addStatus === 'added' ? 'Added to Profile' : addStatus === 'error' ? 'Failed to Add' : 'Add Post to Profile'}
-                            </Button>
-                          </div>
-                        )}
-                        {showSignupCTA && (
-                          <JoinCassetteCTA onClick={handleSignupClick} />
-                        )}
-                        <SupportCTA />
-                        {/* Report Problem */}
-                        <div>
-                          <button
-                            onClick={() => openReportModal({
-                              sourceContext: 'post_view',
-                              sourceLink: postData?.originalUrl || sourceUrlRef.current || '',
-                              conversionData: {
-                                elementType: metadata.type,
-                                title: metadata.title,
-                                artist: metadata.artist,
-                                platforms: postData?.convertedUrls,
-                                postId: postData?.postId || postId,
-                              },
-                            })}
-                            className="flex items-center gap-1.5 text-sm text-foreground/80 hover:text-foreground transition-colors"
-                          >
-                            <AlertCircle className="w-4 h-4" />
-                            <span>Report a Problem</span>
-                          </button>
-                        </div>
+                        <PostFoot
+                          signUp={showSignupCTA ? handleSignupClick : undefined}
+                          addToProfile={showAddToProfile ? addToProfileAction : undefined}
+                          onReport={openReport}
+                        />
                       </div>
                     </div>
                   </div>
@@ -1653,45 +1652,11 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                 </div>
               )}
 
-              {showAddToProfile && (
-                <div className="flex justify-center">
-                  <Button
-                    onClick={handleAddToProfile}
-                    data-testid="post-add-to-profile"
-                    disabled={isAddingToProfile || addStatus === 'added'}
-                    className="h-12 px-8 font-bold tracking-wide font-atkinson"
-                  >
-                    {addStatus === 'added' ? 'Added to Profile' : addStatus === 'error' ? 'Failed to Add' : 'Add Post to Profile'}
-                  </Button>
-                </div>
-              )}
-              <div className="mt-4 pt-5 border-t border-border/40 space-y-5">
-                {showSignupCTA && (
-                  <JoinCassetteCTA onClick={handleSignupClick} />
-                )}
-                <SupportCTA />
-              </div>
-
-              {/* Report Problem Button */}
-              <div className="flex justify-center">
-                <button
-                  onClick={() => openReportModal({
-                    sourceContext: 'post_view',
-                    sourceLink: postData?.originalUrl || sourceUrlRef.current || '',
-                    conversionData: {
-                      elementType: metadata.type,
-                      title: metadata.title,
-                      artist: metadata.artist,
-                      platforms: postData?.convertedUrls,
-                      postId: postData?.postId || postId,
-                    },
-                  })}
-                  className="flex items-center gap-1.5 text-sm text-foreground/80 hover:text-foreground transition-colors"
-                >
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Report a Problem</span>
-                </button>
-              </div>
+              <PostFoot
+                signUp={showSignupCTA ? handleSignupClick : undefined}
+                addToProfile={showAddToProfile ? addToProfileAction : undefined}
+                onReport={openReport}
+              />
             </div>
           </div>
         )}

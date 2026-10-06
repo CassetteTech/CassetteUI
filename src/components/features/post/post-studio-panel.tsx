@@ -1,15 +1,14 @@
 'use client';
 
 /** Owner-only tools for a post as one stacked column: the post's visibility as
-    the headline, who can open it, which plans unlock members-only, and its
-    insights. On wide screens the column sits in the page beside the post; below
+    the headline, who can open it, and its insights. On wide screens the column sits in the page beside the post; below
     that the same content opens as a bottom sheet from the engagement bar. */
 
 import { useEffect, useState, type ElementType, type ReactNode } from 'react';
 import Link from 'next/link';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useReducedMotion } from 'framer-motion';
-import { LockKeyhole, SlidersHorizontal, XIcon } from 'lucide-react';
+import { XIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Area } from '@/components/dither-kit/area';
 import { AreaChart } from '@/components/dither-kit/area-chart';
@@ -18,11 +17,9 @@ import type { ChartConfig } from '@/components/dither-kit/chart-context';
 import { Grid } from '@/components/dither-kit/grid';
 import { Tooltip } from '@/components/dither-kit/tooltip';
 import { XAxis } from '@/components/dither-kit/x-axis';
-import { ReceiptRow } from '@/components/features/curator/studio-shell';
 import { DitherEdge } from '@/components/features/marketing/dither-edge';
 import { SegmentedControl } from '@/components/interior/segmented-control';
 import { AnnotatedText } from '@/components/ui/annotated-text';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -31,12 +28,9 @@ import {
   visibilityOf,
   type OwnerVisibility,
 } from '@/components/features/post/post-visibility';
-import { useAuthState } from '@/hooks/use-auth';
 import { useMemberPostAccess } from '@/hooks/use-curator';
 import { useUpdatePost } from '@/hooks/use-music';
 import { ApiError, apiService } from '@/services/api';
-import type { CuratorPlan } from '@/services/curator-plans';
-import { money, tornEdge } from '@/components/features/curator/curator-plan-preview';
 import type { PostInsightsPlatformBreakdownItem, PostInsightsResponse, PostInsightsTrendPoint, PostPrivacy } from '@/types';
 import { cn } from '@/lib/utils';
 import { ValueFlash } from '@/components/ui/interior/value-flash';
@@ -335,21 +329,30 @@ function InsightsSections({ postId, conversionSuccessCount }: { postId: string; 
 }
 
 /* ─── Access ────────────────────────────────────────────────────────── */
-const formatPlanPrice = (plan: CuratorPlan): string => `${money(plan.amountMinor, plan.currency)}/mo`;
-
 /** The post's artwork color (brand red until it loads), re-toned so cream type stays legible on it in both themes. */
 const bandColor = (tint = 'hsl(var(--primary))') => `oklch(from ${tint} 0.42 clamp(0.03, c, 0.13) h)`;
 const bandInk = (tint = 'hsl(var(--primary))') => `oklch(from ${tint} 0.96 0.02 h)`;
 
-/** Three positions with the chosen one's summary swapping in beneath. */
-function VisibilityControl({ privacy, canLock, choose }: { privacy: PostPrivacy; canLock: boolean; choose: (next: OwnerVisibility) => void }) {
-  const visibility = visibilityOf(privacy);
+/** Three positions with the chosen one's summary beneath. Every summary sits in the same
+    grid cell and only the chosen one shows, so the cell keeps the tallest summary's height
+    and switching never moves what follows. */
+function VisibilityControl({
+  privacy,
+  access,
+  choose,
+}: {
+  privacy: PostPrivacy;
+  access: ReturnType<typeof useMemberPostAccess>;
+  choose: (next: OwnerVisibility) => void;
+}) {
+  const canLock = access.state === 'ready' || privacy === 'subscriber';
+  const known = visibilityOf(privacy) !== undefined;
   return (
     <section>
       <SectionHeading>Who can open it</SectionHeading>
       <SegmentedControl
         label="Post visibility"
-        className="mt-3 w-full [&_span]:px-1"
+        className="mt-3 w-full"
         value={privacy}
         onValueChange={(next) => {
           const value = ownerVisibilities.find((option) => option === next);
@@ -357,80 +360,42 @@ function VisibilityControl({ privacy, canLock, choose }: { privacy: PostPrivacy;
         }}
         options={ownerVisibilities.map((value) => ({
           value,
-          label: postVisibility[value].label,
+          // The headline above says "Members only"; the short label keeps the three segments even.
+          label: value === 'subscriber' ? 'Members' : postVisibility[value].label,
           disabled: value === 'subscriber' && !canLock,
         }))}
       />
-      <p key={privacy} className="mt-3 text-pretty text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280">
-        {visibility?.summary ?? 'This post uses an older setting. Choose who can open it.'}
-      </p>
-    </section>
-  );
-}
-
-/** A small copy of the locked card fans get on the curator page, so "locked" is concrete. */
-function FanPreview() {
-  const { user } = useAuthState();
-  const name = user?.displayName?.trim() || user?.username || 'you';
-  return (
-    <section>
-      <SectionHeading>What fans see</SectionHeading>
-      <div aria-hidden className="card-ink mt-3 flex overflow-hidden">
-        <div className="flex size-16 shrink-0 items-center justify-center bg-gradient-to-br from-primary/15 via-primary/5 to-transparent">
-          <LockKeyhole className="size-6 text-primary/60" />
-        </div>
-        <div className="min-w-0 flex-1 px-3 py-2.5">
-          <Badge variant="outline" className="border-primary/40 bg-primary/10 text-[10px] text-primary">
-            <LockKeyhole />
-            Members only
-          </Badge>
-          <p className="mt-1 text-sm font-semibold leading-snug">Members-only post</p>
-          <p className="text-pretty text-xs text-muted-foreground">Join {name} to unlock this post.</p>
-        </div>
+      <div className="mt-3 grid text-pretty text-sm text-muted-foreground">
+        {ownerVisibilities.map((value) => (
+          <p
+            key={value}
+            aria-hidden={value !== privacy}
+            className={cn('col-start-1 row-start-1 transition-opacity duration-200 motion-reduce:transition-none', value !== privacy && 'invisible opacity-0')}
+          >
+            {postVisibility[value].summary}
+          </p>
+        ))}
+        {!known && (
+          <p className="col-start-1 row-start-1">This post uses an older setting. Choose who can open it.</p>
+        )}
       </div>
-    </section>
-  );
-}
-
-function PlansSection({ access }: { access: ReturnType<typeof useMemberPostAccess> }) {
-  return (
-    <section>
-      <SectionHeading>What unlocks members-only</SectionHeading>
-      {access.state === 'loading' ? (
-        <div className="mt-3 space-y-2.5">
-          <Skeleton className="h-3 w-3/4" />
-          <Skeleton className="h-3 w-1/2" />
-        </div>
-      ) : access.state === 'error' ? (
-        <div className="mt-2 space-y-3">
-          <p className="text-sm text-muted-foreground">Could not load your membership setup.</p>
+      {/* Plans live in Curator Studio. The post only explains why "Members" is unavailable. */}
+      {access.state === 'error' ? (
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">Could not check your membership plans.</p>
           <Button type="button" variant="outline" size="sm" onClick={access.refetch}>
             Try again
           </Button>
         </div>
-      ) : access.state === 'ready' ? (
-        // Torn paper, as on the plan's earnings receipt in Curator Studio.
-        <div className="relative mb-2 mt-5 bg-card px-4 py-3 font-mono text-xs text-card-foreground">
-          <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-2 h-2" style={tornEdge('top')} />
-          <dl className="space-y-2">
-            {access.plans.map((plan) => (
-              <ReceiptRow key={plan.id} label={plan.name} value={formatPlanPrice(plan)} />
-            ))}
-          </dl>
-          <div aria-hidden className="pointer-events-none absolute inset-x-0 -bottom-2 h-2" style={tornEdge('bottom')} />
-        </div>
-      ) : (
-        <div className="mt-2 space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Fans need a published plan that includes member posts.
-          </p>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/studio/curator" prefetch={false}>
-              Open Curator Studio
-            </Link>
-          </Button>
-        </div>
-      )}
+      ) : access.state !== 'ready' && access.state !== 'loading' ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          To lock posts for members, publish a plan with member posts in{' '}
+          <Link href="/studio/curator" prefetch={false} className="font-medium text-foreground underline underline-offset-2">
+            Curator Studio
+          </Link>
+          .
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -455,10 +420,8 @@ function PostStudioContent({
   action,
 }: PostStudioContentProps & { eyebrowAs?: ElementType; action?: ReactNode }) {
   const visibility = visibilityOf(privacy);
-  const StatusIcon = visibility?.icon ?? SlidersHorizontal;
   const access = useMemberPostAccess();
   const updatePost = useUpdatePost();
-  const canLock = access.state === 'ready' || privacy === 'subscriber';
 
   const choose = (next: OwnerVisibility) => {
     if (next === privacy || updatePost.isPending) return;
@@ -485,25 +448,17 @@ function PostStudioContent({
           {action}
         </div>
         {/* Keyed on the setting so a change crossfades instead of swapping text in place. */}
-        <div key={privacy} className="mt-7 flex items-end justify-between gap-3 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280">
-          <h2 className="font-teko text-5xl font-bold uppercase leading-[0.8] tracking-tight">
-            {visibility?.label ?? 'Visibility'}
-          </h2>
-          {/* Rubber-stamp mark: a double ring, set a little off true. */}
-          <span
-            aria-hidden
-            className="mb-1 flex size-12 shrink-0 -rotate-12 items-center justify-center rounded-full border-2 border-current opacity-85 outline outline-1 outline-offset-2 outline-current"
-          >
-            <StatusIcon className="size-5" />
-          </span>
-        </div>
+        <h2
+          key={privacy}
+          className="mt-7 whitespace-nowrap font-teko text-5xl font-bold uppercase leading-[0.8] tracking-tight motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280"
+        >
+          {visibility?.label ?? 'Visibility'}
+        </h2>
         <DitherEdge color={band} side="bottom" className="transition-colors duration-500" />
       </header>
-      {/* Sections stack with a hairline between them; the receipt and the fan card are the only paper on it. */}
+      {/* Sections stack with a hairline between them. */}
       <div className="divide-y divide-border/70 px-6 pb-6 pt-10 [&>section+section]:pt-5 [&>section]:pb-4 [&>section:last-child]:pb-0">
-        <VisibilityControl privacy={privacy} canLock={canLock} choose={choose} />
-        {privacy === 'subscriber' && <FanPreview />}
-        <PlansSection access={access} />
+        <VisibilityControl privacy={privacy} access={access} choose={choose} />
         <InsightsSections postId={postId} conversionSuccessCount={conversionSuccessCount} />
       </div>
     </>

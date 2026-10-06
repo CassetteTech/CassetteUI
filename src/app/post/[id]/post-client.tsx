@@ -996,6 +996,18 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     if (hasColumnRoom) setStudioPanelOpen(false);
   }, [hasColumnRoom]);
 
+  // The comments panel pads the page's right edge (450 ms transition). The owner column
+  // stays out of the layout until that padding has shrunk again, or the artwork collapses.
+  const [commentsPadded, setCommentsPadded] = useState(false);
+  useEffect(() => {
+    if (commentsSheetOpen) {
+      setCommentsPadded(true);
+      return;
+    }
+    const timeout = setTimeout(() => setCommentsPadded(false), 450);
+    return () => clearTimeout(timeout);
+  }, [commentsSheetOpen]);
+
   // Show skeleton while loading
   if (!postData && !error) {
     return (
@@ -1065,6 +1077,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   // The owner column shows only with room beside the desktop layouts; the sheet and its
   // entry points (pill, menu items) exist only when the column does not.
   const showOwnerColumn = isOwnPost && hasColumnRoom;
+  // The comments panel takes the right edge, so the column steps out of the layout meanwhile.
+  const ownerColumnBeside = showOwnerColumn && !commentsPadded;
 
   // Owner menu, shared by the three layout branches.
   const ownerMenuItems = (
@@ -1213,7 +1227,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
           // Desktop Album/Playlist: fixed left, scrollable right (only right side scrolls)
           <div className="px-8 max-w-7xl mx-auto h-full flex flex-col min-h-0">
             {/* Header Toolbar */}
-            <div className="pt-4 pb-6 px-3 shrink-0 max-w-7xl mx-auto w-full">
+            <div className="pt-4 pb-6 shrink-0 max-w-7xl mx-auto w-full">
               <div className="flex items-center justify-between gap-3">
                 <BackButton route={backRoute} fallbackRoute="/explore" />
                 {/* Action cluster: Share is always the rightmost page action,
@@ -1499,7 +1513,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   )}
                 </div>
               </div>
-              {showOwnerColumn && (
+              {ownerColumnBeside && (
                 <PostStudioColumn {...ownerColumnProps} className="mt-8 max-h-[calc(100%-2rem)] self-start overflow-y-auto" />
               )}
             </div>
@@ -1507,8 +1521,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
           ) : (
             // Desktop Track/Artist: keep original full-page scroll behavior
             <div className="pt-16">
-              {/* Header Toolbar */}
-              <div className="pt-4 pb-6 px-3 relative z-20 max-w-7xl mx-auto w-full">
+              {/* Header Toolbar: same edges as the content below */}
+              <div className="pt-4 pb-6 px-8 relative z-20 max-w-7xl mx-auto w-full">
                 <div className="flex items-center justify-between gap-3">
                   <BackButton route={backRoute} fallbackRoute="/explore" />
                   {/* Action cluster: Share is always the rightmost page action,
@@ -1541,12 +1555,17 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   </div>
                 </div>
               </div>
-              <div className="px-8 max-w-7xl mx-auto pb-24 min-h-[calc(100vh-144px)] flex flex-col justify-center">
-                {/* Header row: positioned over the right column only, does not push artwork/card down */}
-                <div className="flex gap-12 mb-6">
-                  <div className="flex-[2]" aria-hidden="true" />
-                  <div className="flex-[3] flex justify-center">
-                    <div className="max-w-xl w-full flex flex-col items-center">
+              {/* One grid for the eyebrow row and the post row. Visitors get the artwork and the card
+                  as a centered pair; owners get artwork, card, and their column edge to edge. The
+                  owner layout is top-aligned so a change in the column never moves the post. */}
+              <div className={`px-8 max-w-7xl mx-auto pb-24 min-h-[calc(100vh-144px)] flex flex-col ${ownerColumnBeside ? '' : 'justify-center'}`}>
+                <div
+                  className={`grid items-start gap-y-6 ${ownerColumnBeside
+                    ? 'grid-cols-[minmax(0,1fr)_minmax(0,30rem)_20rem] gap-x-8'
+                    : 'grid-cols-[minmax(0,29rem)_minmax(0,36rem)] justify-center gap-x-12'}`}
+                >
+                  <div className="col-start-2 flex justify-center">
+                    <div className="w-full flex flex-col items-center">
                       <span className="inline-block font-mono text-[11px] font-bold uppercase tracking-[0.3em] text-primary mb-2">
                         {typeLabel}
                       </span>
@@ -1564,11 +1583,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                       )}
                     </div>
                   </div>
-                  {showOwnerColumn && <div className="w-80 shrink-0" aria-hidden />}
-                </div>
-                <div className="flex gap-12 items-start">
                   {/* Left Column - Artwork only */}
-                  <div className="flex-[2] flex justify-center">
+                  <div className="col-start-1 row-start-2 flex justify-center">
                     <div className="relative">
                       <div className="relative rounded-md bg-card p-3 elev-3 ring-1 ring-foreground/10">
                         <ArtworkImage
@@ -1598,8 +1614,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     </div>
                   </div>
                   {/* Right Column - Header + card + secondary content as one stack */}
-                  <div className="flex-[3]">
-                    <div className="max-w-xl w-full mx-auto">
+                  <div className="col-start-2 row-start-2">
+                    <div className="w-full">
                       <div className="space-y-6">
                         {/* Info Card */}
                         <div className="p-6 card-ink">
@@ -1746,7 +1762,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                       </div>
                     </div>
                   </div>
-                  {showOwnerColumn && <PostStudioColumn {...ownerColumnProps} />}
+                  {ownerColumnBeside && <PostStudioColumn {...ownerColumnProps} className="col-start-3 row-start-2 w-auto" />}
                 </div>
               </div>
             </div>

@@ -18,6 +18,7 @@ import { Grid } from '@/components/dither-kit/grid';
 import { Tooltip } from '@/components/dither-kit/tooltip';
 import { XAxis } from '@/components/dither-kit/x-axis';
 import { DitherEdge } from '@/components/features/marketing/dither-edge';
+import { bandColor, bandInk } from '@/components/features/post/post-label-head';
 import { SegmentedControl } from '@/components/interior/segmented-control';
 import { AnnotatedText } from '@/components/ui/annotated-text';
 import { Button } from '@/components/ui/button';
@@ -329,10 +330,6 @@ function InsightsSections({ postId, conversionSuccessCount }: { postId: string; 
 }
 
 /* ─── Access ────────────────────────────────────────────────────────── */
-/** The post's artwork color (brand red until it loads), re-toned so cream type stays legible on it in both themes. */
-const bandColor = (tint = 'hsl(var(--primary))') => `oklch(from ${tint} 0.42 clamp(0.03, c, 0.13) h)`;
-const bandInk = (tint = 'hsl(var(--primary))') => `oklch(from ${tint} 0.96 0.02 h)`;
-
 /** Three positions with the chosen one's summary beneath. Every summary sits in the same
     grid cell and only the chosen one shows, so the cell keeps the tallest summary's height
     and switching never moves what follows. */

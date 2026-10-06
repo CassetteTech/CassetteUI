@@ -2,7 +2,7 @@
 
 // Renders a public post, enforces viewer-state presentation, and emits sanitized interaction analytics.
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, type MouseEvent } from 'react';
 import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTemplate, PostByIdResponse, PostPrivacy, PublicPostPageMetadata } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
@@ -30,16 +30,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AnimatedColorBackground } from '@/components/ui/animated-color-background';
+import { PostLabelHead } from '@/components/features/post/post-label-head';
 import { ColorExtractor, ColorPalette } from '@/services/color-extractor';
 import { MainContainer } from '@/components/ui/container';
 import { HeadlineText, BodyText } from '@/components/ui/typography';
-import Image from 'next/image';
 import { ArtworkImage } from '@/components/ui/artwork-image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError, apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
-import { AlertCircle, ExternalLink, MoreVertical, Pencil, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { AlertCircle, MoreVertical, Pencil, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { openKoFiSupport } from '@/lib/ko-fi';
 import { KofiIcon } from '@/components/ui/kofi-icon';
 import { detectContentType } from '@/utils/content-type-detection';
@@ -1161,6 +1161,50 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const analyticsSourcePlatform = sourcePlatformKey || postData?.sourcePlatform || sourcePlatformRef.current || undefined;
   const sourceService = sourcePlatformKey ? streamingServices[sourcePlatformKey] : null;
 
+  // Label head content shared by the three card layouts.
+  const playlistSource = isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService
+    ? {
+        href: resolvedSourceUrl,
+        name: sourceService.name,
+        icon: sourceService.icon,
+        onClick: (event: MouseEvent<HTMLAnchorElement>) => {
+          void captureClientEvent('streaming_link_opened', {
+            route: `/post/${postData?.postId || postId}`,
+            source_surface: 'post',
+            source_platform: sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey,
+            source_domain: resolvedSourceUrl,
+            post_id: postData?.postId || postId,
+            element_type: 'playlist',
+            is_authenticated: isAuthenticated,
+            paid_promotion_campaign_id: postData?.paidPromotionCampaignId ?? undefined,
+            curator_id: postData?.curatorId ?? undefined,
+            is_member_view: postData?.isMemberView === true,
+          });
+          handleStreamingLinkClick(event, resolvedSourceUrl);
+        },
+      }
+    : undefined;
+  const artists = postData?.details?.artists;
+  const artistLine = artists && artists.length > 0
+    ? artists.map((artist, idx) => (
+        <span key={idx}>
+          {artist.name}
+          {artist.role === 'Featured' && <span className="text-[0.85em]"> (feat.)</span>}
+          {idx < artists.length - 1 && ', '}
+        </span>
+      ))
+    : metadata.artist;
+  const labelMeta = isTrack && (metadata.duration || postData?.albumName)
+    ? (
+        <>
+          {metadata.duration && <span className="tabular-nums">{metadata.duration}</span>}
+          {postData?.albumName && <span>{postData.albumName}</span>}
+        </>
+      )
+    : isAlbum && postData?.releaseDate
+      ? <span>Released {postData.releaseDate}</span>
+      : undefined;
+
   return (
     <div className={useSplitScrollLayout ? "fixed inset-x-0 top-16 bottom-0 overflow-y-auto" : "min-h-screen relative"}>
       {/* Animated Gradient Background */}
@@ -1311,77 +1355,16 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   </div>
                   {/* Info Card (moved from right) */}
                   {(isAlbum || isPlaylist) && (
-                    <div className="p-8 card-ink w-full max-w-xl">
-                      <div className="space-y-6">
-                        {/* Title block: title (with inline source badge for playlist) + artist (album) */}
-                        <div className="space-y-2">
-                          <div className="relative flex justify-center items-center">
-                            <HeadlineText className="text-3xl sm:text-4xl uppercase leading-[0.95] tracking-tight text-foreground text-center">
-                              {metadata.title}
-                            </HeadlineText>
-                            {isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService && (
-                              <a
-                                href={resolvedSourceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(event) => {
-                                  void captureClientEvent('streaming_link_opened', {
-                                    route: `/post/${postData?.postId || postId}`,
-                                    source_surface: 'post',
-                                    source_platform: sourcePlatformKey === 'appleMusic'
-                                      ? 'apple'
-                                      : sourcePlatformKey ?? 'unknown',
-                                    source_domain: resolvedSourceUrl,
-                                    post_id: postData?.postId || postId,
-                                    element_type: 'playlist',
-                                    is_authenticated: isAuthenticated,
-                                    paid_promotion_campaign_id:
-                                      postData?.paidPromotionCampaignId ?? undefined,
-                                    curator_id: postData?.curatorId ?? undefined,
-                                    is_member_view: postData?.isMemberView === true,
-                                  });
-                                  handleStreamingLinkClick(event, resolvedSourceUrl);
-                                }}
-                                className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
-                                aria-label={`from ${sourceService.name}`}
-                              >
-                                <span>from</span>
-                                <Image
-                                  src={sourceService.icon}
-                                  alt={sourceService.name}
-                                  width={14}
-                                  height={14}
-                                  className="opacity-60 group-hover:opacity-100 transition-opacity"
-                                />
-                                <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-                              </a>
-                            )}
-                          </div>
-                          {/* Artist line for album */}
-                          {isAlbum && (
-                            <div className="text-center">
-                              <BodyText className="text-lg italic text-muted-foreground">
-                                {postData?.details?.artists && postData.details.artists.length > 0 ? (
-                                  postData.details.artists.map((artist, idx) => (
-                                    <span key={idx}>
-                                      {artist.name}
-                                      {artist.role === 'Featured' && <span className="text-sm"> (feat.)</span>}
-                                      {idx < postData.details!.artists!.length - 1 && ', '}
-                                    </span>
-                                  ))
-                                ) : (
-                                  metadata.artist
-                                )}
-                              </BodyText>
-                            </div>
-                          )}
-                        </div>
-                        {/* Listen Now (merged into info card) */}
-                        <div className="border-t border-border/70 mx-6" />
+                    <div className="card-ink overflow-hidden w-full max-w-xl">
+                      <PostLabelHead
+                        title={metadata.title}
+                        artist={isAlbum ? artistLine : undefined}
+                        source={playlistSource}
+                        tint={palette?.vibrant}
+                      />
+                      <div className="space-y-5 px-6 pb-6 pt-10">
                         <div>
-                          <h3 className="mb-3 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-                            Listen on
-                          </h3>
+                          <h3 className="sr-only">Listen on</h3>
                           {isPlaylist ? (
                             <PlaylistStreamingLinks
                               links={convertedUrls}
@@ -1410,7 +1393,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                         {/* Social: author header + engagement bar (moved inside card) */}
                         {postData?.username && hasPostOwner && (
                           <>
-                            <div className="border-t border-border/70 mx-6" />
+                            <div className="border-t border-border/70" />
                             <div className="flex flex-col gap-2 text-left relative z-20">
                               <PostAuthorHeader
                                 username={postData.username}
@@ -1491,11 +1474,9 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   {showTracks && (
                     <div className="card-ink overflow-hidden flex flex-col min-h-0">
                       <div className="px-5 py-4 border-b border-border flex items-baseline justify-between gap-3 shrink-0">
-                        <h3 className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-foreground">
-                          Tracklist
-                        </h3>
+                        <h3 className="text-sm font-semibold text-foreground">Tracklist</h3>
                         {trackListStats && (
-                          <span className="font-mono text-[10px] uppercase tracking-[0.15em] tabular-nums text-muted-foreground">
+                          <span className="text-sm tabular-nums text-muted-foreground">
                             {trackListStats}
                           </span>
                         )}
@@ -1618,54 +1599,16 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     <div className="w-full">
                       <div className="space-y-6">
                         {/* Info Card */}
-                        <div className="p-6 card-ink">
-                          <div className="space-y-3">
-                            <HeadlineText className="text-3xl sm:text-4xl uppercase leading-[0.95] tracking-tight text-foreground text-center">
-                              {metadata.title}
-                            </HeadlineText>
-                            {(isTrack || isAlbum) && (
-                              <div className="text-center">
-                                <BodyText className="text-base italic text-muted-foreground">
-                                  {postData?.details?.artists && postData.details.artists.length > 0 ? (
-                                    postData.details.artists.map((artist, idx) => (
-                                      <span key={idx}>
-                                        {artist.name}
-                                        {artist.role === 'Featured' && <span className="text-xs"> (feat.)</span>}
-                                        {idx < postData.details!.artists!.length - 1 && ', '}
-                                      </span>
-                                    ))
-                                  ) : (
-                                    metadata.artist
-                                  )}
-                                </BodyText>
-                              </div>
-                            )}
-                            <div className="border-t border-border/70 mx-4" />
-                            {isTrack ? (
-                              <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1.5 font-mono text-[10px] sm:text-[11px] uppercase tracking-[0.2em]">
-                                {metadata.duration && (
-                                  <div>
-                                    <span className="text-muted-foreground">Duration&nbsp;</span>
-                                    <span className="font-bold text-foreground">{metadata.duration}</span>
-                                  </div>
-                                )}
-                                {metadata.duration && postData?.albumName && (
-                                  <span className="text-muted-foreground">/</span>
-                                )}
-                                {postData?.albumName && (
-                                  <div>
-                                    <span className="text-muted-foreground">Album&nbsp;</span>
-                                    <span className="font-bold text-foreground">{postData.albumName}</span>
-                                  </div>
-                                )}
-                              </div>
-                            ) : null}
-                            {/* Listen Now (merged into info card) */}
-                            <div className="border-t border-border/70 mx-4" />
+                        <div className="card-ink overflow-hidden">
+                          <PostLabelHead
+                            title={metadata.title}
+                            artist={isTrack || isAlbum ? artistLine : undefined}
+                            meta={labelMeta}
+                            tint={palette?.vibrant}
+                          />
+                          <div className="space-y-5 px-6 pb-6 pt-10">
                             <div>
-                              <h3 className="mb-3 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-                                Listen on
-                              </h3>
+                              <h3 className="sr-only">Listen on</h3>
                               {isPlaylist ? (
                                 <PlaylistStreamingLinks
                                   links={convertedUrls}
@@ -1694,7 +1637,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             {/* Social: author header + engagement bar (moved inside card) */}
                             {postData?.username && hasPostOwner && (
                               <>
-                                <div className="border-t border-border/70 mx-4" />
+                                <div className="border-t border-border/70" />
                                 <div className="flex flex-col gap-2.5 relative z-20">
                                   <PostAuthorHeader
                                     username={postData.username}
@@ -1864,113 +1807,18 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
               </div>
 
               {/* Track Information Card - Mobile */}
-              <div className="p-3 sm:p-5 card-ink">
-                <div className="space-y-2 sm:space-y-4">
-                  {/* Title (with source badge right-aligned for playlist) */}
-                  <div className="relative flex justify-center items-center">
-                    <HeadlineText className="text-2xl sm:text-3xl uppercase leading-[0.95] tracking-tight text-foreground text-center">
-                      {metadata.title}
-                    </HeadlineText>
-                    {isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService && (
-                      <a
-                        href={resolvedSourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(event) => {
-                          void captureClientEvent('streaming_link_opened', {
-                            route: `/post/${postData?.postId || postId}`,
-                            source_surface: 'post',
-                            source_platform: sourcePlatformKey === 'appleMusic'
-                              ? 'apple'
-                              : sourcePlatformKey ?? 'unknown',
-                            source_domain: resolvedSourceUrl,
-                            post_id: postData?.postId || postId,
-                            element_type: 'playlist',
-                            is_authenticated: isAuthenticated,
-                            paid_promotion_campaign_id:
-                              postData?.paidPromotionCampaignId ?? undefined,
-                            curator_id: postData?.curatorId ?? undefined,
-                            is_member_view: postData?.isMemberView === true,
-                          });
-                          handleStreamingLinkClick(event, resolvedSourceUrl);
-                        }}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 text-xs sm:text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
-                        aria-label={`from ${sourceService.name}`}
-                      >
-                        <span>from</span>
-                        <Image
-                          src={sourceService.icon}
-                          alt={sourceService.name}
-                          width={14}
-                          height={14}
-                          className="opacity-60 group-hover:opacity-100 transition-opacity"
-                        />
-                        <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-                      </a>
-                    )}
-                  </div>
-
-                  {/* Artists with roles (show for Track/Album) */}
-                  {(isTrack || isAlbum) && (
-                    <div className="text-center">
-                      <BodyText className="text-sm sm:text-base italic text-muted-foreground">
-                        {postData?.details?.artists && postData.details.artists.length > 0 ? (
-                          postData.details.artists.map((artist, idx) => (
-                            <span key={idx}>
-                              {artist.name}
-                              {artist.role === 'Featured' && <span className="text-sm"> (feat.)</span>}
-                              {idx < postData.details!.artists!.length - 1 && ', '}
-                            </span>
-                          ))
-                        ) : (
-                          metadata.artist
-                        )}
-                      </BodyText>
-                    </div>
-                  )}
-
-                  {/* Metadata (track-only: duration + album; album released date) */}
-                  {isTrack ? (
-                    <>
-                      <div className="border-t border-border/70" />
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5 font-mono text-[10px] uppercase tracking-[0.2em]">
-                          {postData?.metadata?.duration && (
-                            <div>
-                              <span className="text-muted-foreground">Duration&nbsp;</span>
-                              <span className="font-bold text-foreground">{postData.metadata.duration}</span>
-                            </div>
-                          )}
-
-                          {postData?.metadata?.duration && postData?.albumName && (
-                            <span className="text-muted-foreground">/</span>
-                          )}
-
-                          {postData?.albumName && (
-                            <div>
-                              <span className="text-muted-foreground">Album&nbsp;</span>
-                              <span className="font-bold text-foreground">{postData.albumName}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  ) : isAlbum && postData?.releaseDate ? (
-                    <>
-                      <div className="border-t border-border/70" />
-                      <div className="text-center font-mono text-[10px] uppercase tracking-[0.2em]">
-                        <span className="text-muted-foreground">Released&nbsp;</span>
-                        <span className="font-bold text-foreground">{postData.releaseDate}</span>
-                      </div>
-                    </>
-                  ) : null}
-
-                  {/* Listen Now (merged into info card) */}
-                  <div className="border-t border-border/70" />
+              <div className="card-ink overflow-hidden">
+                <PostLabelHead
+                  compact
+                  title={metadata.title}
+                  artist={isTrack || isAlbum ? artistLine : undefined}
+                  meta={labelMeta}
+                  source={playlistSource}
+                  tint={palette?.vibrant}
+                />
+                <div className="px-3 pb-3 pt-9 sm:px-5 sm:pb-5">
                   <div>
-                    <h3 className="sr-only sm:not-sr-only sm:block sm:text-left font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground sm:mb-3">
-                      Listen on
-                    </h3>
+                    <h3 className="sr-only">Listen on</h3>
                     {isPlaylist ? (
                       <PlaylistStreamingLinks
                         links={convertedUrls}
@@ -2034,13 +1882,11 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
             <div className="mt-2 sm:mt-6 text-center space-y-2 sm:space-y-6">
               {/* Track list for album/playlist - mobile */}
               {showTracks && (
-                <div className="border-2 border-foreground bg-card overflow-hidden shadow-flat-4">
+                <div className="card-ink overflow-hidden">
                   <div className="px-4 py-3 border-b border-border flex items-baseline justify-between gap-3">
-                    <h3 className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-foreground">
-                      Tracklist
-                    </h3>
+                    <h3 className="text-sm font-semibold text-foreground">Tracklist</h3>
                     {trackListStats && (
-                      <span className="font-mono text-[10px] uppercase tracking-[0.15em] tabular-nums text-muted-foreground">
+                      <span className="text-sm tabular-nums text-muted-foreground">
                         {trackListStats}
                       </span>
                     )}

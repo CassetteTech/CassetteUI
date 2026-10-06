@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { ValueFlash } from '@/components/ui/interior/value-flash';
+import { visibilityOf } from '@/components/features/post/post-visibility';
+import type { PostPrivacy } from '@/types';
 
 const numberFormatter = new Intl.NumberFormat('en-US');
 
@@ -24,6 +26,8 @@ interface PostEngagementBarProps {
   onOpenComments?: () => void;
 
   canManage?: boolean;
+  /** The owner's saved visibility; the manage control shows it so a locked post reads as locked. */
+  privacy?: PostPrivacy;
   onOpenStudio?: () => void;
 
   className?: string;
@@ -43,6 +47,7 @@ export function PostEngagementBar({
   commentsEnabled = true,
   onOpenComments,
   canManage = false,
+  privacy,
   onOpenStudio,
   className,
   compact = false,
@@ -59,6 +64,8 @@ export function PostEngagementBar({
   const commentsAriaLabel = hasCommentCount
     ? `Open comments (${formattedComments})`
     : 'Open comments';
+  const visibility = visibilityOf(privacy);
+  const ManageIcon = visibility?.icon ?? SlidersHorizontal;
 
   return (
     <div
@@ -154,7 +161,8 @@ export function PostEngagementBar({
         </>
       )}
 
-      {/* Post studio (owner only): access settings + insights */}
+      {/* Post studio (owner only): the control names the current visibility, so a
+          members-only post shows its lock here, and opens the owner sheet. */}
       {canManage && (
         <>
           <span className="h-4 w-px bg-border/40" aria-hidden />
@@ -165,16 +173,18 @@ export function PostEngagementBar({
                 data-studio-trigger
                 onClick={onOpenStudio}
                 disabled={!onOpenStudio}
-                aria-label="Open post studio"
+                aria-label={visibility ? `${visibility.label}. Open post studio` : 'Open post studio'}
                 className={cn(
                   'inline-flex items-center rounded-full font-atkinson text-xs font-bold tracking-wide transition-[color,background-color,transform] duration-200 active:scale-[0.96]',
                   btnGap,
                   btnPadding,
-                  'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+                  privacy === 'subscriber'
+                    ? 'text-primary hover:bg-primary/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
                 )}
               >
-                <SlidersHorizontal className="size-3.5" />
-                <span>Manage</span>
+                <ManageIcon className="size-3.5" />
+                <span>{visibility?.label ?? 'Manage'}</span>
               </button>
             </TooltipTrigger>
             <TooltipContent>Access &amp; insights</TooltipContent>

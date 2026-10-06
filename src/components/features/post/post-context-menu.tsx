@@ -46,7 +46,8 @@ interface PostContextMenuProps {
   onReport: () => void;
   isOwner: boolean;
   onEdit: () => void;
-  onOpenStudio: () => void;
+  /** Absent when the owner column is already on the page. */
+  onOpenStudio?: () => void;
   onDelete: () => void;
   children: React.ReactNode;
 }
@@ -146,10 +147,12 @@ export function PostContextMenu({
               <Pencil />
               <span>Edit</span>
             </ContextMenuItem>
-            <ContextMenuItem onSelect={onOpenStudio}>
-              <SlidersHorizontal />
-              <span>Access &amp; insights</span>
-            </ContextMenuItem>
+            {onOpenStudio && (
+              <ContextMenuItem onSelect={onOpenStudio}>
+                <SlidersHorizontal />
+                <span>Access &amp; insights</span>
+              </ContextMenuItem>
+            )}
             <ContextMenuItem onSelect={onDelete} className="text-destructive focus:text-destructive">
               <Trash2 />
               <span>Delete</span>

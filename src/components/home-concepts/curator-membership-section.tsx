@@ -11,7 +11,7 @@ const points = [
 
 /** The curator pitch: any curator's free page can become a membership that
     fans pay for. Curator Pro shows only as later, optional tools; it is never
-    the way to earn. The phone beside the copy is an example page. */
+    the way to earn. The phone beside the copy is a page template. */
 export function CuratorMembershipSection({ isAuthenticated, className }: { isAuthenticated: boolean; className?: string }) {
   return (
     <section
@@ -44,7 +44,7 @@ export function CuratorMembershipSection({ isAuthenticated, className }: { isAut
       </div>
       <figure>
         <CuratorPhoneDemo />
-        <figcaption className="mt-3 text-center text-xs text-muted-foreground">Example page</figcaption>
+        <figcaption className="mt-3 text-center text-xs text-muted-foreground">Your page</figcaption>
       </figure>
     </section>
   );

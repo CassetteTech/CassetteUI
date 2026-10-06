@@ -199,9 +199,9 @@ export function useHomeSearch() {
   }, [analyticsBase, convertLink]);
 
   // /?url=<music link> starts the conversion directly, once auth has settled.
-  // Each link in the query runs once; a query without one re-arms it, so an
-  // example link still works after an earlier conversion failed. A link that
-  // arrives during a conversion stays in the query until that conversion ends.
+  // Each link in the query runs once; a query without one re-arms it, so a
+  // later /?url= link still works after an earlier conversion failed. A link
+  // that arrives during a conversion stays in the query until that one ends.
   const searchParams = useSearchParams();
   const handledUrl = useRef<string | null>(null);
   useEffect(() => {

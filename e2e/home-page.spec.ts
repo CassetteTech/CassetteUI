@@ -2,8 +2,6 @@ import { expect, test } from '@playwright/test';
 import { fixtureConvertTemplates } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
-const MIDNIGHT_CITY = 'https://open.spotify.com/track/3jtvJtAA25a7d0BLOJ8Dqo';
-
 test.describe('home page', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -25,7 +23,11 @@ test.describe('home page', () => {
     }
 
     await page.getByRole('link', { name: 'See how it works' }).click();
-    await expect(page.getByRole('heading', { name: 'Share once. Fans listen on Spotify, Apple Music, or Deezer.' })).toBeInViewport();
+    await expect(page.getByRole('heading', { name: 'How it works' })).toBeInViewport();
+
+    // The curator page is a template: no example curator or music.
+    await expect(page.getByText('Your page', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Nadia/)).toHaveCount(0);
 
     // Curator Pro shows only as later tools, never as the way to earn.
     await expect(page.getByText(/Curator Pro/)).toHaveText(['Coming later: Curator Pro, optional extra tools for curators.']);
@@ -60,18 +62,6 @@ test.describe('home page', () => {
     await expect(turning.getByText('deezer.com/…')).toBeVisible({ timeout: 6000 });
   });
 
-  test('converts an example link from How it works', async ({ page }) => {
-    await mockCassetteApp(page, {
-      convertTemplates: [{ ...fixtureConvertTemplates.homeTrack, originalUrl: MIDNIGHT_CITY }],
-    });
-    await page.goto('/');
-
-    await page.getByRole('link', { name: /Midnight City/ }).click();
-
-    await expect(page).toHaveURL(/\/post\/post-home-converted$/);
-    await expect(page.getByText('Midnight City')).toBeVisible();
-  });
-
   test('waits for the session before it converts a linked music URL', async ({ page }) => {
     await mockCassetteApp(page);
     // Registered after the shared mocks, so it runs first and holds the session answer.
@@ -99,17 +89,14 @@ test.describe('home page', () => {
     expect(conversions).toBe(1);
   });
 
-  test('runs another example link after a failed conversion', async ({ page }) => {
-    // Only Midnight City converts; the other examples have no template and fail.
-    await mockCassetteApp(page, {
-      convertTemplates: [{ ...fixtureConvertTemplates.homeTrack, originalUrl: MIDNIGHT_CITY }],
-    });
-    await page.goto('/');
-
-    await page.getByRole('link', { name: /Get Lucky/ }).click();
+  test('runs a later linked music URL after a failed conversion', async ({ page }) => {
+    await mockCassetteApp(page);
+    // No conversion template exists for this link, so it fails.
+    await page.goto(`/?url=${encodeURIComponent('https://open.spotify.com/track/no-template')}`);
     await expect(page.getByRole('button', { name: 'Show me how.' })).toBeVisible();
 
-    await page.getByRole('link', { name: /Midnight City/ }).click();
+    // Next.js follows the native History API, so this is a client-side visit.
+    await page.evaluate((url) => window.history.pushState(null, '', `/?url=${encodeURIComponent(url)}`), fixtureConvertTemplates.homeTrack.originalUrl);
     await expect(page).toHaveURL(/\/post\/post-home-converted$/);
   });
 });

@@ -1349,15 +1349,17 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                       <div className="space-y-6">
                         {/* The post as one object: the sleeve on the left, the label and the listen
                             links on the right. The author row sits at the card's foot. */}
-                        <div className="card-ink grid grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)] overflow-hidden">
-                          <div className="p-3">
+                        <div className="card-ink grid grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] overflow-hidden">
+                          {/* The sleeve pane: a tonal step down from the card, the artwork flush to the
+                              card's edges, and the person who shared it beneath. */}
+                          <div className="flex flex-col bg-muted/40">
                             <div className="relative">
                               <ArtworkImage
                                 src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
                                 alt={metadata.title}
                                 width={416}
                                 height={416}
-                                className="block h-auto w-full rounded-sm object-cover ring-1 ring-foreground/10"
+                                className="block h-auto w-full object-cover"
                                 priority
                                 onError={() => setImageError(true)}
                                 unoptimized={!imageError && !!metadata.artwork}
@@ -1376,6 +1378,34 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                 </div>
                               )}
                             </div>
+                            {/* Who shared it, under the sleeve */}
+                            {postData?.username && hasPostOwner && (
+                              <div className="relative z-20 flex flex-1 flex-col gap-2.5 p-5">
+                                <PostAuthorHeader
+                                  username={postData.username}
+                                  description={postData?.description || ''}
+                                  createdAt={postData?.createdAt}
+                                  compact
+                                />
+                                <PostEngagementBar
+                                  likeCount={postData?.likeCount ?? 0}
+                                  likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
+                                  isLikePending={isLikePending}
+                                  onToggleLike={handleToggleLike}
+                                  canRepost={canRepost}
+                                  hasReposted={hasReposted}
+                                  isRepostPending={isRepostPending}
+                                  onRepost={() => void handleRepost()}
+                                  commentCount={commentCount}
+                                  commentsEnabled={postData?.commentsEnabled ?? true}
+                                  onOpenComments={handleOpenComments}
+                                  canManage={isOwnPost && !showOwnerColumn}
+                                  privacy={studioPrivacy}
+                                  onOpenStudio={handleOpenStudio}
+                                  className="self-start"
+                                />
+                              </div>
+                            )}
                           </div>
                           <div className="flex min-w-0 flex-col border-l border-border/70">
                           <PostLabelHead
@@ -1386,7 +1416,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             source={playlistSource}
                             tint={palette?.vibrant}
                           />
-                          <div className="flex flex-1 flex-col gap-5 px-6 pb-6 pt-10">
+                          <div className="px-6 pb-6 pt-10">
                             <div>
                               <h3 className="sr-only">Listen on</h3>
                               {isPlaylist ? (
@@ -1415,32 +1445,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                               )}
                             </div>
                             {/* Social: author header + engagement bar (moved inside card) */}
-                            {postData?.username && hasPostOwner && (
-                                <div className="mt-auto flex flex-col gap-2.5 border-t border-border/70 pt-5 relative z-20">
-                                  <PostAuthorHeader
-                                    username={postData.username}
-                                    description={postData?.description || ''}
-                                    createdAt={postData?.createdAt}
-                                  />
-                                  <PostEngagementBar
-                                    likeCount={postData?.likeCount ?? 0}
-                                    likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
-                                    isLikePending={isLikePending}
-                                    onToggleLike={handleToggleLike}
-                                    canRepost={canRepost}
-                                    hasReposted={hasReposted}
-                                    isRepostPending={isRepostPending}
-                                    onRepost={() => void handleRepost()}
-                                    commentCount={commentCount}
-                                    commentsEnabled={postData?.commentsEnabled ?? true}
-                                    onOpenComments={handleOpenComments}
-                                    canManage={isOwnPost && !showOwnerColumn}
-                                    privacy={studioPrivacy}
-                                    onOpenStudio={handleOpenStudio}
-                                    className="self-start"
-                                  />
-                                </div>
-                            )}
                           </div>
                           </div>
                         </div>

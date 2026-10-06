@@ -315,7 +315,7 @@ function InsightsSections({ postId, conversionSuccessCount }: { postId: string; 
             {metrics.length > 0 && <div className="mt-1"><MetricGrid items={metrics} /></div>}
             {!hasAudienceActivity(insights) && (
               <p className="mt-2 text-sm text-muted-foreground">
-                No activity <AnnotatedText>yet</AnnotatedText>. Views and opens appear once people open this post.
+                No views <AnnotatedText>yet</AnnotatedText>.
               </p>
             )}
           </>

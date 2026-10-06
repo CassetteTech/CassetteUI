@@ -2,26 +2,39 @@
 
 import React from 'react';
 import { useTheme } from 'next-themes';
+import { BAYER } from '@/components/dither-kit/dither-paint';
 import { type ColorPalette } from '@/services/color-extractor';
 
 interface AnimatedColorBackgroundProps {
   /** Full palette from ColorExtractor. If null, the background reverts to theme default. */
   palette: ColorPalette | null;
-  /** Duration of the palette crossfade between posts, in ms. */
+  /** Duration of the field fade-in when the palette arrives, in ms. */
   duration?: number;
 }
 
-// Static SVG grain — feTurbulence noise, desaturated via feColorMatrix, tiled seamlessly.
-const GRAIN_DATA_URI = (() => {
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'>
-    <filter id='n'>
-      <feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/>
-      <feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/>
-    </filter>
-    <rect width='100%' height='100%' filter='url(#n)'/>
-  </svg>`;
-  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+// ─── Ordered dither ──────────────────────────────────────────────────────────
+// The mesh is drawn through an SVG filter that quantizes its alpha into a few
+// tone steps and breaks each step boundary with the dither kit's 4×4 Bayer
+// matrix: flat tone bands with dithered seams, the same print language as
+// DitherEdge and the dither charts. Each step is 1/DITHER_STEPS of the tone,
+// so the field keeps the smooth mesh's average color and stays quiet.
+const DITHER_STEPS = 4;
+const DITHER_CELL = 4; // css px per dither cell
+
+// Bayer tile: one black cell per threshold, the threshold carried as alpha.
+const BAYER_TILE_URI = (() => {
+  const cells = BAYER.flatMap((row, y) =>
+    row.map(
+      (threshold, x) =>
+        `<rect x='${x * DITHER_CELL}' y='${y * DITHER_CELL}' width='${DITHER_CELL}' height='${DITHER_CELL}' fill-opacity='${threshold}'/>`
+    )
+  ).join('');
+  const size = 4 * DITHER_CELL;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' shape-rendering='crispEdges'>${cells}</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 })();
+
+const DITHER_TONES = Array.from({ length: DITHER_STEPS + 1 }, (_, step) => step / DITHER_STEPS).join(' ');
 
 // ─── Tone mapping ────────────────────────────────────────────────────────────
 // Raw extracted colors can be any lightness; compositing them directly over the
@@ -144,20 +157,43 @@ export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = (
     };
   }, [palette, meshBackground, duration]);
 
-  // Grain overlay stays as a pointer-none fixed element at -z-10; its small footprint in
-  // the Safari chrome area is imperceptible. mix-blend-soft-light needs the blob colors
-  // under it, so this sits above the body's background image.
+  // The dithered field covers the body mesh with paper inside the viewport. The body mesh
+  // still paints the iOS Safari chrome area, where the frosted bars blur it anyway.
+  // Browsers do not interpolate gradients, so the field fades in on opacity instead.
   return (
-    <div
-      className="fixed inset-0 -z-10 pointer-events-none"
-      aria-hidden="true"
-      style={{
-        backgroundImage: GRAIN_DATA_URI,
-        backgroundSize: '240px 240px',
-        mixBlendMode: 'soft-light',
-        opacity: palette ? 0.12 : 0,
-        transition: `opacity ${duration}ms ease-in-out`,
-      }}
-    />
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-background">
+      <div
+        className="absolute inset-0 transition-opacity ease-in-out motion-reduce:transition-none"
+        style={{
+          backgroundImage: meshBackground,
+          opacity: palette ? 1 : 0,
+          transitionDuration: `${duration}ms`,
+          filter: 'url(#post-gradient-dither)',
+        }}
+      />
+      <svg width="0" height="0" className="absolute">
+        {/* level = floor(alpha × steps + Bayer threshold), so each cell lands on the tone step
+            below or above its alpha. The ink is the mesh color at full alpha, cut by the level. */}
+        <filter id="post-gradient-dither" x="0" y="0" width="1" height="1" colorInterpolationFilters="sRGB">
+          <feImage href={BAYER_TILE_URI} width={4 * DITHER_CELL} height={4 * DITHER_CELL} result="cell" />
+          <feTile in="cell" result="bayer" />
+          <feComposite
+            in="SourceAlpha"
+            in2="bayer"
+            operator="arithmetic"
+            k2={DITHER_STEPS / (DITHER_STEPS + 1)}
+            k3={1 / (DITHER_STEPS + 1)}
+            result="level"
+          />
+          <feComponentTransfer in="level" result="tone">
+            <feFuncA type="discrete" tableValues={DITHER_TONES} />
+          </feComponentTransfer>
+          <feComponentTransfer in="SourceGraphic" result="ink">
+            <feFuncA type="linear" slope="255" />
+          </feComponentTransfer>
+          <feComposite in="ink" in2="tone" operator="in" />
+        </filter>
+      </svg>
+    </div>
   );
 };

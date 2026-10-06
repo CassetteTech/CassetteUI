@@ -247,10 +247,6 @@ const unmarkPostAsReposted = (userId: string | undefined, targetPostId: string |
   }
 };
 
-// Desktop column tracks shared by every post type: artwork, main content, and the owner column.
-const POST_GRID = 'grid-cols-[minmax(16rem,26rem)_minmax(0,36rem)]';
-const POST_GRID_OWNER = 'grid-cols-[minmax(16rem,26rem)_minmax(0,36rem)_20rem]';
-
 export default function PostClientPage({ postId, initialMetadata }: PostClientPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1281,8 +1277,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
           useSplitScrollLayout ? (
           // Desktop Album/Playlist: fixed left, scrollable right (only right side scrolls)
           <div className="px-8 max-w-7xl mx-auto h-full flex flex-col min-h-0">
-            {/* Header Toolbar */}
-            <div className="pt-4 pb-6 shrink-0 max-w-7xl mx-auto w-full">
+            {/* Header Toolbar: Back and Share sit on the content's edges */}
+            <div className="pt-4 pb-6 shrink-0">
               <div className="flex items-center justify-between gap-3">
                 <BackButton route={backRoute} fallbackRoute="/explore" />
                 {/* Action cluster: Share is always the rightmost page action,
@@ -1315,43 +1311,28 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                 </div>
               </div>
             </div>
-            {/* Content row: the same three tracks as the track layout (artwork, main, owner), so
-                every post type shares one top line and one set of column widths. */}
-            <div className={`grid flex-1 min-h-0 justify-center gap-x-8 ${ownerColumnBeside ? POST_GRID_OWNER : POST_GRID}`}>
-              {/* Left: artwork and card, pinned while the tracklist scrolls */}
+            {/* Content row: the post card in a column of up to 26rem (it gives way when the comments
+                panel narrows the page), the tracklist in the rest, and the owner column at the right
+                edge. The toolbar above shares these edges. */}
+            <div className={`grid flex-1 min-h-0 gap-x-8 ${ownerColumnBeside ? 'grid-cols-[minmax(16rem,26rem)_minmax(0,1fr)_20rem]' : 'grid-cols-[minmax(16rem,26rem)_minmax(0,1fr)]'}`}>
+              {/* Left: the post card, pinned while the tracklist scrolls */}
               <div className="sticky top-0 h-full overflow-y-auto no-scrollbar">
-                <div className="min-h-full flex flex-col items-center min-w-0 pb-[calc(6rem+env(safe-area-inset-bottom))]">
-                  {/* Artwork — clean sleeve, as wide as its column */}
-                  <div className="relative mb-8 w-full">
-                    <div className="relative rounded-md bg-card p-3 elev-3 ring-1 ring-foreground/10">
-                      <ArtworkImage
-                        src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
-                        alt={metadata.title}
-                        width={416}
-                        height={416}
-                        className="block h-auto w-full rounded-sm object-cover"
-                        priority
-                        onError={() => setImageError(true)}
-                        unoptimized={!imageError && !!metadata.artwork}
-                      />
-                    </div>
-                    {isTrack && postData?.previewUrl && (
-                      <div className="absolute -bottom-4 -right-4">
-                        <PlayPreview
-                          previewUrl={postData.previewUrl}
-                          title={metadata.title}
-                          artist={metadata.artist}
-                          artwork={metadata.artwork}
-                          postId={postData?.postId || postId}
-                          elementType="track"
-                          sourcePlatform={sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey ?? 'unknown'}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  {/* Info Card (moved from right) */}
+                <div className="min-h-full flex flex-col min-w-0 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+                  {/* The post as one object: the sleeve on top, then the label and the listen links. */}
                   {(isAlbum || isPlaylist) && (
                     <div className="card-ink overflow-hidden w-full">
+                      <div className="p-3">
+                        <ArtworkImage
+                          src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
+                          alt={metadata.title}
+                          width={416}
+                          height={416}
+                          className="block h-auto w-full rounded-sm object-cover ring-1 ring-foreground/10"
+                          priority
+                          onError={() => setImageError(true)}
+                          unoptimized={!imageError && !!metadata.artwork}
+                        />
+                      </div>
                       <PostLabelHead
                         kicker={labelKicker}
                         title={metadata.title}
@@ -1423,7 +1404,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     </div>
                   )}
                   {showAddToProfile && (
-                    <div className="mt-5 w-full max-w-xl flex justify-center">
+                    <div className="mt-5 w-full">
                       <Button
                         onClick={handleAddToProfile}
                         data-testid="post-add-to-profile"
@@ -1437,12 +1418,12 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   {showSignupCTA && (
                     <JoinCassetteCTA
                       onClick={handleSignupClick}
-                      className="mt-6 w-full max-w-xl"
+                      className="mt-6 w-full"
                     />
                   )}
                   {/* Report Problem (moved to left to keep right-only track list) */}
                   {(isAlbum || isPlaylist) && (
-                    <div className="mt-6 mb-[calc(6rem+env(safe-area-inset-bottom))] flex justify-center w-full max-w-xl">
+                    <div className="mt-6 mb-[calc(6rem+env(safe-area-inset-bottom))] w-full">
                       <button
                         onClick={() => openReportModal({
                           sourceContext: 'post_view',
@@ -1497,10 +1478,12 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
             </div>
           </div>
           ) : (
-            // Desktop Track/Artist: keep original full-page scroll behavior
+            // Desktop Track/Artist: full-page scroll
             <div className="pt-16">
-              {/* Header Toolbar: same edges as the content below */}
-              <div className="pt-4 pb-6 px-8 relative z-20 max-w-7xl mx-auto w-full">
+              {/* The toolbar and the post share one container, so Back and Share sit on the
+                  content's edges. Visitors get a narrower container; the owner column widens it. */}
+              <div className={`mx-auto px-8 pb-24 ${ownerColumnBeside ? 'max-w-7xl' : 'max-w-[68rem]'}`}>
+                <div className="pt-4 pb-6 relative z-20">
                 <div className="flex items-center justify-between gap-3">
                   <BackButton route={backRoute} fallbackRoute="/explore" />
                   {/* Action cluster: Share is always the rightmost page action,
@@ -1533,46 +1516,43 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   </div>
                 </div>
               </div>
-              {/* Artwork, card, and (for owners) the column share one top line. Top-aligned, so a
-                  change in any column never moves the others. */}
-              <div className="px-8 max-w-7xl mx-auto pb-24">
-                <div className={`grid items-start justify-center gap-x-8 ${ownerColumnBeside ? POST_GRID_OWNER : POST_GRID}`}>
-                  {/* Left Column - Artwork only */}
-                  <div className="col-start-1">
-                    <div className="relative">
-                      <div className="relative rounded-md bg-card p-3 elev-3 ring-1 ring-foreground/10">
-                        <ArtworkImage
-                          src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
-                          alt={metadata.title}
-                          width={416}
-                          height={416}
-                          className="block h-auto w-full rounded-sm object-cover"
-                          priority
-                          onError={() => setImageError(true)}
-                          unoptimized={!imageError && !!metadata.artwork}
-                        />
-                      </div>
-                      {isTrack && postData?.previewUrl && (
-                        <div className="absolute -bottom-4 -right-4">
-                          <PlayPreview
-                            previewUrl={postData.previewUrl}
-                            title={metadata.title}
-                            artist={metadata.artist}
-                            artwork={metadata.artwork}
-                            postId={postData?.postId || postId}
-                            elementType="track"
-                            sourcePlatform={sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey ?? 'unknown'}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {/* Right Column - Header + card + secondary content as one stack */}
-                  <div className="col-start-2">
+              {/* The post and, for owners, the column share one top line. Top-aligned, so a change
+                  in either never moves the other. */}
+                <div className={`grid items-start gap-x-8 ${ownerColumnBeside ? 'grid-cols-[minmax(0,1fr)_20rem]' : 'grid-cols-1'}`}>
+                  <div className="min-w-0">
                     <div className="w-full">
                       <div className="space-y-6">
-                        {/* Info Card */}
-                        <div className="card-ink overflow-hidden">
+                        {/* The post as one object: the sleeve on the left, the label and the listen
+                            links on the right. The author row sits at the card's foot. */}
+                        <div className="card-ink grid grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)] overflow-hidden">
+                          <div className="p-3">
+                            <div className="relative">
+                              <ArtworkImage
+                                src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
+                                alt={metadata.title}
+                                width={416}
+                                height={416}
+                                className="block h-auto w-full rounded-sm object-cover ring-1 ring-foreground/10"
+                                priority
+                                onError={() => setImageError(true)}
+                                unoptimized={!imageError && !!metadata.artwork}
+                              />
+                              {isTrack && postData?.previewUrl && (
+                                <div className="absolute bottom-3 right-3">
+                                  <PlayPreview
+                                    previewUrl={postData.previewUrl}
+                                    title={metadata.title}
+                                    artist={metadata.artist}
+                                    artwork={metadata.artwork}
+                                    postId={postData?.postId || postId}
+                                    elementType="track"
+                                    sourcePlatform={sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey ?? 'unknown'}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex min-w-0 flex-col border-l border-border/70">
                           <PostLabelHead
                             kicker={labelKicker}
                             title={metadata.title}
@@ -1580,7 +1560,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             meta={labelMeta}
                             tint={palette?.vibrant}
                           />
-                          <div className="space-y-5 px-6 pb-6 pt-10">
+                          <div className="flex flex-1 flex-col gap-5 px-6 pb-6 pt-10">
                             <div>
                               <h3 className="sr-only">Listen on</h3>
                               {isPlaylist ? (
@@ -1610,9 +1590,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             </div>
                             {/* Social: author header + engagement bar (moved inside card) */}
                             {postData?.username && hasPostOwner && (
-                              <>
-                                <div className="border-t border-border/70" />
-                                <div className="flex flex-col gap-2.5 relative z-20">
+                                <div className="mt-auto flex flex-col gap-2.5 border-t border-border/70 pt-5 relative z-20">
                                   <PostAuthorHeader
                                     username={postData.username}
                                     description={postData?.description || ''}
@@ -1636,12 +1614,12 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                     className="self-start"
                                   />
                                 </div>
-                              </>
                             )}
+                          </div>
                           </div>
                         </div>
                         {showAddToProfile && (
-                          <div className="flex justify-center">
+                          <div>
                             <Button
                               onClick={handleAddToProfile}
                               data-testid="post-add-to-profile"
@@ -1657,7 +1635,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                         )}
                         <SupportCTA />
                         {/* Report Problem */}
-                        <div className="flex justify-center">
+                        <div>
                           <button
                             onClick={() => openReportModal({
                               sourceContext: 'post_view',
@@ -1679,7 +1657,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                       </div>
                     </div>
                   </div>
-                  {ownerColumnBeside && <PostStudioColumn {...ownerColumnProps} className="col-start-3 w-auto" />}
+                  {ownerColumnBeside && <PostStudioColumn {...ownerColumnProps} className="w-auto" />}
                 </div>
               </div>
             </div>

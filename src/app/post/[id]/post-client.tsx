@@ -1416,7 +1416,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             source={playlistSource}
                             tint={palette?.vibrant}
                           />
-                          <div className="px-6 pb-6 pt-10">
+                          <div className="flex flex-1 flex-col justify-center px-6 pb-6 pt-10">
                             <div>
                               <h3 className="sr-only">Listen on</h3>
                               {isPlaylist ? (

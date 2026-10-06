@@ -37,7 +37,9 @@ export function SegmentedControl({
   const controlled = value !== undefined;
   const current = controlled ? value : internal;
   const found = options.findIndex((o) => o.value === current);
-  const index = found < 0 ? 0 : found;
+  // A value outside the options (a legacy setting) checks nothing; the thumb hides.
+  const unset = found < 0;
+  const index = unset ? 0 : found;
 
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const emit = useRef(onValueChange);
@@ -120,7 +122,7 @@ export function SegmentedControl({
         <motion.div
           aria-hidden
           className="pointer-events-none absolute inset-y-0 left-0 overflow-hidden rounded-md bg-card elev-soft"
-          style={{ width: `${100 / count}%`, x: thumbX }}
+          style={{ width: `${100 / count}%`, x: thumbX, opacity: unset ? 0 : 1 }}
           initial={false}
         >
           <motion.div className="absolute inset-0" style={{ x: maskX }} initial={false}>
@@ -151,7 +153,7 @@ export function SegmentedControl({
               // ARIA radio pattern with a roving tabindex; the sliding thumb needs buttons, not inputs.
               // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
               role="radio"
-              aria-checked={i === index}
+              aria-checked={!unset && i === index}
               aria-disabled={option.disabled || undefined}
               tabIndex={i === index ? 0 : -1}
               onClick={() => !option.disabled && select(option.value)}

@@ -58,7 +58,7 @@ import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 function JoinCassetteCTA({ onClick, className }: { onClick: () => void; className?: string }) {
   return (
     <div className={`flex items-center justify-between gap-4 ${className ?? ''}`}>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-foreground/80">
         <span className="text-foreground font-medium">New here?</span> Create a free account to save your music.
       </p>
       <button
@@ -74,7 +74,7 @@ function JoinCassetteCTA({ onClick, className }: { onClick: () => void; classNam
 function SupportCTA({ className }: { className?: string }) {
   return (
     <div className={`flex items-center justify-between gap-4 ${className ?? ''}`}>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-foreground/80">
         <span className="text-foreground font-medium">Enjoying Cassette?</span> Support us on Ko-fi.
       </p>
       <button
@@ -1260,7 +1260,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                       {filteredGenres.map((genre) => (
                         <span
                           key={genre}
-                          className="inline-flex items-center font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground"
+                          className="inline-flex items-center font-mono text-[9px] uppercase tracking-[0.2em] text-foreground/80"
                         >
                           {genre}
                         </span>
@@ -1461,7 +1461,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             postId: postData?.postId || postId,
                           },
                         })}
-                        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        className="flex items-center gap-1.5 text-sm text-foreground/80 hover:text-foreground transition-colors"
                       >
                         <AlertCircle className="w-4 h-4" />
                         <span>Report a Problem</span>
@@ -1555,7 +1555,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                           {filteredGenres.map((genre) => (
                             <span
                               key={genre}
-                              className="inline-flex items-center font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground"
+                              className="inline-flex items-center font-mono text-[9px] uppercase tracking-[0.2em] text-foreground/80"
                             >
                               {genre}
                             </span>
@@ -1737,7 +1737,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                 postId: postData?.postId || postId,
                               },
                             })}
-                            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                            className="flex items-center gap-1.5 text-sm text-foreground/80 hover:text-foreground transition-colors"
                           >
                             <AlertCircle className="w-4 h-4" />
                             <span>Report a Problem</span>
@@ -1805,7 +1805,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     {filteredGenres.map((genre) => (
                       <span
                         key={genre}
-                        className="inline-flex items-center font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground"
+                        className="inline-flex items-center font-mono text-[9px] uppercase tracking-[0.2em] text-foreground/80"
                       >
                         {genre}
                       </span>
@@ -2075,7 +2075,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                       postId: postData?.postId || postId,
                     },
                   })}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center gap-1.5 text-sm text-foreground/80 hover:text-foreground transition-colors"
                 >
                   <AlertCircle className="w-4 h-4" />
                   <span>Report a Problem</span>

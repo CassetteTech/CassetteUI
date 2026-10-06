@@ -450,7 +450,7 @@ function PostStudioContent({
         {/* Keyed on the setting so a change crossfades instead of swapping text in place. */}
         <h2
           key={privacy}
-          className="mt-7 whitespace-nowrap font-teko text-5xl font-bold uppercase leading-[0.8] tracking-tight motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280"
+          className="mt-7 whitespace-nowrap font-teko text-4xl font-bold uppercase leading-[0.8] tracking-tight motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280"
         >
           {visibility?.label ?? 'Visibility'}
         </h2>

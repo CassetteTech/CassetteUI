@@ -1,17 +1,23 @@
 'use client';
 
-/** Owner-only post studio: an Access tab to gate the post for members, and an Insights tab for its performance. */
+/** Owner-only tools for a post as one stacked column: the post's visibility as
+    the headline, who can open it, which plans unlock members-only, and its
+    insights. On wide screens the column sits in the page beside the post; below
+    that the same content opens as a bottom sheet from the engagement bar. */
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { Info, XIcon } from 'lucide-react';
+import { SlidersHorizontal, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SegmentedControl } from '@/components/interior/segmented-control';
-import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  ownerVisibilities,
+  postVisibility,
+  visibilityOf,
+  type OwnerVisibility,
+} from '@/components/features/post/post-visibility';
 import { useMemberPostAccess } from '@/hooks/use-curator';
 import { useUpdatePost } from '@/hooks/use-music';
 import { ApiError, apiService } from '@/services/api';
@@ -91,290 +97,82 @@ function hasAudienceActivity(insights: PostInsightsResponse | null): boolean {
   ].some((v) => v > 0);
 }
 
-/* ─────────────────────────────────────────────────────────────────────
- * InfoTip — tap/click-to-toggle info popover. Works identically on
- * touch and mouse. Escape + outside-click dismiss.
- * ───────────────────────────────────────────────────────────────────── */
-function InfoTip({
-  label,
-  description,
-  align = 'start',
-  side = 'bottom',
-}: {
-  label: string;
-  description: string;
-  align?: 'start' | 'end';
-  side?: 'top' | 'bottom';
-}) {
-  const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
-  const ref = useRef<HTMLSpanElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const popupRef = useRef<HTMLDivElement>(null);
+/* ─── Shared pieces ─────────────────────────────────────────────────── */
+const eyebrowClass = 'font-mono text-[11px] font-bold uppercase tracking-[0.3em] text-primary';
 
-  useEffect(() => {
-    if (open) {
-      setMounted(true);
-      return;
-    }
-
-    if (!mounted) return;
-    const timeout = window.setTimeout(() => setMounted(false), 150);
-    return () => window.clearTimeout(timeout);
-  }, [mounted, open]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    const onPointer = (e: PointerEvent) => {
-      const target = e.target as Node;
-      if (ref.current?.contains(target) || popupRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('pointerdown', onPointer);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onPointer);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [mounted]);
-
-  useLayoutEffect(() => {
-    if (!mounted) return;
-
-    const updatePosition = () => {
-      const trigger = buttonRef.current;
-      const popup = popupRef.current;
-      if (!trigger || !popup) return;
-
-      const triggerRect = trigger.getBoundingClientRect();
-      const popupRect = popup.getBoundingClientRect();
-      const gap = 6;
-      const padding = 8;
-      const maxLeft = window.innerWidth - popupRect.width - padding;
-      const left =
-        align === 'end'
-          ? Math.min(Math.max(triggerRect.right - popupRect.width, padding), maxLeft)
-          : Math.min(Math.max(triggerRect.left, padding), maxLeft);
-      const top =
-        side === 'top'
-          ? Math.max(triggerRect.top - popupRect.height - gap, padding)
-          : Math.min(
-              triggerRect.bottom + gap,
-              window.innerHeight - popupRect.height - padding,
-            );
-
-      setPosition({ top, left });
-    };
-
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
-    };
-  }, [align, mounted, side]);
-
-  return (
-    <span ref={ref} className="relative inline-flex align-middle">
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-label={`About ${label}`}
-        aria-expanded={open}
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((o) => !o);
-        }}
-        className={cn(
-          'inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground/60 transition-colors',
-          'hover:bg-muted hover:text-foreground',
-          'focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-          open && 'bg-muted text-foreground',
-        )}
-      >
-        <Info className="size-3" aria-hidden />
-      </button>
-      {mounted
-        ? createPortal(
-            <div
-              ref={popupRef}
-              role="tooltip"
-              className={cn(
-                'fixed z-[70] w-52 rounded-md border border-border bg-popover p-3 text-popover-foreground elev-2',
-                'transition-opacity duration-150',
-                open ? 'opacity-100' : 'opacity-0',
-              )}
-              style={{ top: position.top, left: position.left }}
-            >
-              <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-foreground">
-                {label}
-              </div>
-              <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                {description}
-              </p>
-            </div>,
-            document.body,
-          )
-        : null}
-    </span>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────
- * Section heading — small, plain, consistent
- * ───────────────────────────────────────────────────────────────────── */
-function SectionHeading({ children, meta }: { children: React.ReactNode; meta?: React.ReactNode }) {
+/** Sentence-case section title, as on the Studio cards; hairlines between sections do the separating. */
+function SectionHeading({ children, meta }: { children: ReactNode; meta?: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-        {children}
-      </h3>
-      {meta ? <div className="text-[11px] text-muted-foreground">{meta}</div> : null}
+      <h3 className="text-sm font-semibold">{children}</h3>
+      {meta ? <div className="text-xs tabular-nums text-muted-foreground">{meta}</div> : null}
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────
- * Stat cell — label + number, optional info popover
- * ───────────────────────────────────────────────────────────────────── */
-function Stat({
-  label,
-  value,
-  meta,
-  description,
-  infoAlign = 'start',
-  infoSide = 'bottom',
-}: {
-  label: string;
-  value: number;
-  meta?: string;
-  description?: string;
-  infoAlign?: 'start' | 'end';
-  infoSide?: 'top' | 'bottom';
-}) {
+type MetricItem = { label: string; value: number; hint?: string };
+
+/** One figure: small label, Teko number, one-line hint. Rendered as a dl group. */
+function Metric({ label, value, hint, className }: MetricItem & { className?: string }) {
   return (
-    <div className="min-w-0">
-      <div className="flex items-center gap-1.5">
-        <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-          {label}
-        </div>
-        {description ? (
-          <InfoTip label={label} description={description} align={infoAlign} side={infoSide} />
-        ) : null}
-      </div>
-      <div className="mt-1 text-[26px] font-semibold leading-none tracking-tight text-foreground">
+    <div className={cn('min-w-0 py-3', className)}>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-1 font-teko text-3xl font-bold leading-none tabular-nums">
         <ValueFlash value={value} format={formatMetric} label={label} />
-      </div>
-      {meta ? (
-        <div className="mt-1 text-[11px] tabular-nums text-muted-foreground">{meta}</div>
-      ) : null}
+      </dd>
+      {hint && <dd className="mt-1 truncate text-xs text-muted-foreground">{hint}</dd>}
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────
- * Overview — 2-col grid of stats with explicit hairline dividers.
- *   • First row: no top border (card border handles it)
- *   • First column: no left border (card border handles it)
- *   • Orphan (odd-count) final cell: spans both columns
- * ───────────────────────────────────────────────────────────────────── */
-type OverviewItem = { label: string; value: number; meta?: string; description?: string };
-
-function Overview({ items }: { items: OverviewItem[] }) {
-  if (items.length === 0) return null;
-
+/** Two figures per row with a hairline between rows; an odd last figure takes the whole row. */
+function MetricGrid({ items }: { items: MetricItem[] }) {
   return (
-    <section>
-      <SectionHeading>Overview</SectionHeading>
-      <div className="mt-3 grid grid-cols-2 overflow-hidden card-quiet">
-        {items.map((item, i) => {
-          const isLast = i === items.length - 1;
-          const isOrphan = isLast && items.length % 2 === 1;
-          const isLeftCol = isOrphan ? true : i % 2 === 0;
-          const isFirstRow = i < 2;
-          const isBottomRow = isOrphan || i >= items.length - 2;
-
-          return (
-            <div
-              key={item.label}
-              className={cn(
-                'p-4',
-                isOrphan && 'col-span-2',
-                !isLeftCol && 'border-l border-border',
-                !isFirstRow && 'border-t border-border',
-              )}
-            >
-              <Stat
-                label={item.label}
-                value={item.value}
-                meta={item.meta}
-                description={item.description}
-                infoAlign={isLeftCol ? 'start' : 'end'}
-                infoSide={isBottomRow ? 'top' : 'bottom'}
-              />
-            </div>
-          );
-        })}
-      </div>
-    </section>
+    <dl className="grid grid-cols-2 gap-x-6">
+      {items.map((item, i) => (
+        <Metric
+          key={item.label}
+          {...item}
+          className={cn(
+            i >= 2 && 'border-t border-border/70',
+            i === items.length - 1 && items.length % 2 === 1 && 'col-span-2',
+          )}
+        />
+      ))}
+    </dl>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────
- * Platforms — single stacked bar + compact list
- * ───────────────────────────────────────────────────────────────────── */
+/* ─── Insights ──────────────────────────────────────────────────────── */
 function PlatformBreakdown({ items }: { items: PostInsightsPlatformBreakdownItem[] }) {
   const sorted = [...items].sort((a, b) => b.shareOfOpens - a.shareOfOpens);
-  const hasAny = sorted.some((i) => i.shareOfOpens > 0);
   const totalOpens = sorted.reduce((sum, i) => sum + i.opens, 0);
 
   return (
     <section>
       <SectionHeading meta={`${formatFull(totalOpens)} opens`}>Platforms</SectionHeading>
-
-      <div className="mt-3 flex h-2 w-full overflow-hidden rounded-full bg-muted">
-        {hasAny
-          ? sorted.map((item) => (
-              <div
-                key={`bar-${item.platform}`}
-                className={cn(
-                  'h-full transition-[width] duration-500 ease-out',
-                  platformBarClass(item.platform),
-                )}
-                style={{ width: `${Math.max(0, item.shareOfOpens * 100)}%` }}
-                title={`${formatPlatformLabel(item.platform)}: ${formatPercent(item.shareOfOpens)}`}
-                aria-hidden
-              />
-            ))
-          : null}
-      </div>
-
-      <ul className="mt-4 space-y-2.5">
+      <div className="mt-3 flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
         {sorted.map((item) => (
-          <li
-            key={`row-${item.platform}`}
-            className="flex items-center justify-between gap-3 text-[13px]"
-          >
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span
-                className={cn('size-2 shrink-0 rounded-full', platformBarClass(item.platform))}
-                aria-hidden
-              />
-              <span className="truncate font-medium text-foreground">
-                {formatPlatformLabel(item.platform)}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-3 tabular-nums">
-              <span className="text-muted-foreground">{formatMetric(item.opens)}</span>
-              <span className="w-12 text-right font-semibold text-foreground">
-                {formatPercent(item.shareOfOpens)}
-              </span>
-            </div>
+          <div
+            key={`bar-${item.platform}`}
+            className={cn('h-full', platformBarClass(item.platform))}
+            style={{ width: `${Math.max(0, item.shareOfOpens * 100)}%` }}
+            title={`${formatPlatformLabel(item.platform)}: ${formatPercent(item.shareOfOpens)}`}
+            aria-hidden
+          />
+        ))}
+      </div>
+      <ul className="mt-2 divide-y divide-border/70">
+        {sorted.map((item) => (
+          <li key={`row-${item.platform}`} className="flex items-center justify-between gap-3 py-2 text-sm">
+            <span className="flex min-w-0 items-center gap-2">
+              <span className={cn('size-2 shrink-0 rounded-full', platformBarClass(item.platform))} aria-hidden />
+              <span className="truncate">{formatPlatformLabel(item.platform)}</span>
+            </span>
+            <span className="flex items-baseline gap-3 font-mono text-xs tabular-nums text-muted-foreground">
+              <span>{formatMetric(item.opens)}</span>
+              <span className="w-12 text-right text-foreground">{formatPercent(item.shareOfOpens)}</span>
+            </span>
           </li>
         ))}
       </ul>
@@ -382,9 +180,6 @@ function PlatformBreakdown({ items }: { items: PostInsightsPlatformBreakdownItem
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────
- * Trend — minimal dual bars, shared baseline
- * ───────────────────────────────────────────────────────────────────── */
 function TrendChart({ points }: { points: PostInsightsTrendPoint[] }) {
   const maxValue = Math.max(1, ...points.flatMap((p) => [p.views, p.destinationOpens]));
   const totalViews = points.reduce((s, p) => s + p.views, 0);
@@ -394,139 +189,53 @@ function TrendChart({ points }: { points: PostInsightsTrendPoint[] }) {
     <section>
       <SectionHeading
         meta={
-          <div className="flex items-center gap-3">
+          <span className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5">
               <span className="size-2 rounded-full bg-foreground" aria-hidden />
-              <span className="tabular-nums">{formatMetric(totalViews)}</span>
-              <span>views</span>
+              {formatMetric(totalViews)} views
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="size-2 rounded-full bg-primary" aria-hidden />
-              <span className="tabular-nums">{formatMetric(totalOpens)}</span>
-              <span>opens</span>
+              {formatMetric(totalOpens)} opens
             </span>
-          </div>
+          </span>
         }
       >
         Last 7 days
       </SectionHeading>
-
-      <div className="mt-4">
-        <div className="grid h-[96px] grid-cols-7 items-end gap-1.5">
-          {points.map((point) => {
-            const viewH = point.views > 0 ? Math.max(3, (point.views / maxValue) * 96) : 0;
-            const openH = point.destinationOpens > 0 ? Math.max(3, (point.destinationOpens / maxValue) * 96) : 0;
-
-            return (
-              <div
-                key={point.date}
-                className="flex h-full w-full items-end justify-center gap-1"
-                title={`${formatShortDate(point.date)} · ${point.views} views · ${point.destinationOpens} opens`}
-              >
-                <div
-                  className="h-24 w-[6px] origin-bottom rounded-sm bg-foreground/80 transition-transform duration-300 ease-out"
-                  style={{ transform: `scaleY(${viewH / 96})` }}
-                  aria-hidden
-                />
-                <div
-                  className="h-24 w-[6px] origin-bottom rounded-sm bg-primary transition-transform duration-300 ease-out"
-                  style={{ transform: `scaleY(${openH / 96})` }}
-                  aria-hidden
-                />
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-2 h-px w-full bg-border" aria-hidden />
-
-        <div className="mt-2 grid grid-cols-7 gap-1.5">
-          {points.map((point) => (
+      <div className="mt-4 grid h-20 grid-cols-7 items-end gap-1.5">
+        {points.map((point) => (
+          <div
+            key={point.date}
+            className="flex h-full items-end justify-center gap-1"
+            title={`${formatShortDate(point.date)} · ${point.views} views · ${point.destinationOpens} opens`}
+          >
             <div
-              key={`axis-${point.date}`}
-              className="text-center text-[11px] leading-none text-muted-foreground"
-            >
-              {formatWeekday(point.date)}
-            </div>
-          ))}
-        </div>
+              className="h-20 w-1.5 origin-bottom rounded-sm bg-foreground/80"
+              style={{ transform: `scaleY(${point.views > 0 ? Math.max(0.04, point.views / maxValue) : 0})` }}
+              aria-hidden
+            />
+            <div
+              className="h-20 w-1.5 origin-bottom rounded-sm bg-primary"
+              style={{ transform: `scaleY(${point.destinationOpens > 0 ? Math.max(0.04, point.destinationOpens / maxValue) : 0})` }}
+              aria-hidden
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 grid grid-cols-7 gap-1.5 border-t border-border/70 pt-2">
+        {points.map((point) => (
+          <div key={`axis-${point.date}`} className="text-center text-[11px] leading-none text-muted-foreground">
+            {formatWeekday(point.date)}
+          </div>
+        ))}
       </div>
     </section>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────
- * Loading · Empty · Error
- * ───────────────────────────────────────────────────────────────────── */
-function InsightsLoadingState() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <Skeleton className="h-3 w-20" />
-        <div className="mt-3 card-quiet">
-          <div className="grid grid-cols-2 divide-x divide-y divide-border [&>*:nth-child(-n+2)]:border-t-0 [&>*:nth-child(2n+1)]:border-l-0">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="p-4">
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="mt-2 h-7 w-20" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div>
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="mt-3 h-2 w-full rounded-full" />
-        <div className="mt-4 space-y-2.5">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex items-center justify-between">
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-3 w-12" />
-            </div>
-          ))}
-        </div>
-      </div>
-      <div>
-        <Skeleton className="h-3 w-24" />
-        <div className="mt-4 grid h-[96px] grid-cols-7 items-end gap-1.5">
-          {Array.from({ length: 7 }).map((_, i) => (
-            <Skeleton key={i} className="h-full w-full rounded-sm" />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function InsightsEmptyState() {
-  return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center">
-      <p className="text-sm font-medium text-foreground">No activity yet</p>
-      <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
-        Views and opens will appear here once people start interacting with this post.
-      </p>
-    </div>
-  );
-}
-
-function InsightsErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="card-quiet p-6 text-center">
-      <p className="text-sm font-medium text-foreground">Unable to load insights</p>
-      <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">{message}</p>
-      <Button type="button" variant="outline" size="sm" onClick={onRetry} className="mt-4">
-        Try again
-      </Button>
-    </div>
-  );
-}
-
-
-/* ─────────────────────────────────────────────────────────────────────
- * Insights tab — fetches on mount, so the request only fires once the
- * owner actually opens this tab.
- * ───────────────────────────────────────────────────────────────────── */
-function InsightsTab({ postId, conversionSuccessCount }: { postId: string; conversionSuccessCount?: number }) {
+/** Fetches once on mount; the column and the sheet both mount it only when an owner can see it. */
+function InsightsSections({ postId, conversionSuccessCount }: { postId: string; conversionSuccessCount?: number }) {
   const [status, setStatus] = useState<InsightsStatus>('loading');
   const [insights, setInsights] = useState<PostInsightsResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -566,106 +275,83 @@ function InsightsTab({ postId, conversionSuccessCount }: { postId: string; conve
     };
   }, [postId, reloadKey]);
 
-  const conversions: OverviewItem[] = conversionSuccessCount !== undefined
-    ? [{
-        label: 'Conversions',
-        value: Math.max(0, conversionSuccessCount),
-        description:
-          'Successful cross-platform matches — times Cassette found this track on a viewer’s preferred service.',
-      }]
+  const conversions: MetricItem[] = conversionSuccessCount !== undefined
+    ? [{ label: 'Conversions', value: Math.max(0, conversionSuccessCount), hint: 'Matched on a listener’s service' }]
     : [];
 
-  const overviewItems: OverviewItem[] = insights
+  const metrics: MetricItem[] = insights
     ? [
+        { label: 'Views', value: insights.lifetime.views, hint: 'Includes repeat visits' },
+        { label: 'Unique viewers', value: insights.lifetime.uniqueViewers, hint: 'Distinct people' },
         {
-          label: 'Views',
-          value: insights.lifetime.views,
-          description:
-            'Total times this post has been viewed, including repeat visits from the same person.',
-        },
-        {
-          label: 'Unique Viewers',
-          value: insights.lifetime.uniqueViewers,
-          description:
-            'Distinct people who viewed this post. Multiple views from the same person only count once.',
-        },
-        {
-          label: 'Destination Opens',
+          label: 'Destination opens',
           value: insights.lifetime.destinationOpens,
-          meta: insights.lifetime.views > 0 ? `${formatPercent(insights.lifetime.openRate)} open rate` : undefined,
-          description:
-            'Times a viewer clicked through to listen on their preferred music platform (Spotify, Apple Music, or Deezer).',
+          hint: insights.lifetime.views > 0 ? `${formatPercent(insights.lifetime.openRate)} open rate` : 'Listen clicks',
         },
-        {
-          label: 'Shares',
-          value: insights.lifetime.shares,
-          description:
-            'Times this post was shared — via the share button, a copied link, or forwarded to another app.',
-        },
+        { label: 'Shares', value: insights.lifetime.shares, hint: 'Share button and copied links' },
         ...conversions,
       ]
     : conversions;
 
-  const showEmptyState = status === 'success' && !hasAudienceActivity(insights);
   const showPlatformBreakdown = (insights?.platformBreakdown.length ?? 0) > 0;
-  const showTrend = (insights?.trend ?? []).some(
-    (point) => point.views > 0 || point.destinationOpens > 0,
-  );
-
-  if (status === 'error') {
-    return (
-      <InsightsErrorState
-        message={errorMessage || 'Unable to load insights.'}
-        onRetry={() => setReloadKey((c) => c + 1)}
-      />
-    );
-  }
-  if (status !== 'success') return <InsightsLoadingState />;
+  const showTrend = (insights?.trend ?? []).some((point) => point.views > 0 || point.destinationOpens > 0);
 
   return (
     <>
-      {overviewItems.length > 0 ? <Overview items={overviewItems} /> : null}
-      {showEmptyState ? <InsightsEmptyState /> : null}
-      {showPlatformBreakdown && insights ? (
-        <PlatformBreakdown items={insights.platformBreakdown} />
-      ) : null}
-      {showTrend && insights ? <TrendChart points={insights.trend} /> : null}
+      <section>
+        <SectionHeading>Insights</SectionHeading>
+        {status === 'loading' ? (
+          <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-5">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i}>
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="mt-2 h-7 w-14" />
+              </div>
+            ))}
+          </div>
+        ) : status === 'error' ? (
+          <div className="mt-2 space-y-3">
+            <p role="alert" className="text-sm text-muted-foreground">{errorMessage || 'Unable to load insights.'}</p>
+            <Button type="button" variant="outline" size="sm" onClick={() => setReloadKey((c) => c + 1)}>
+              Try again
+            </Button>
+          </div>
+        ) : (
+          <>
+            {metrics.length > 0 && <div className="mt-1"><MetricGrid items={metrics} /></div>}
+            {!hasAudienceActivity(insights) && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                No activity yet. Views and opens appear here once people open this post.
+              </p>
+            )}
+          </>
+        )}
+      </section>
+      {showPlatformBreakdown && insights && <PlatformBreakdown items={insights.platformBreakdown} />}
+      {showTrend && insights && <TrendChart points={insights.trend} />}
     </>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────
- * Access tab — who can open this post, and what unlocks members-only.
- * ───────────────────────────────────────────────────────────────────── */
-/** The visibilities an owner can pick here; a legacy value simply leaves no radio checked. */
-type AccessPrivacy = Extract<PostPrivacy, 'public' | 'subscriber' | 'private'>;
-
-const accessOptions: ReadonlyArray<{ value: AccessPrivacy; label: string; description: string }> = [
-  { value: 'public', label: 'Public', description: 'Anyone can open it from your profile or the link.' },
-  {
-    value: 'subscriber',
-    label: 'Members only',
-    description: 'Locked on your curator page. Only fans with an active membership can open it.',
-  },
-  { value: 'private', label: 'Private', description: 'Hidden from your profile for everyone but you. Anyone with the link can still open it.' },
-];
-
+/* ─── Access ────────────────────────────────────────────────────────── */
 const formatPlanPrice = (plan: CuratorPlan): string => `${money(plan.amountMinor, plan.currency)}/mo`;
 
-function AccessTab({
+function AccessSections({
   postId,
   privacy,
   onPrivacyChange,
 }: {
   postId: string;
   privacy: PostPrivacy;
-  onPrivacyChange: (privacy: AccessPrivacy) => void;
+  onPrivacyChange: (privacy: OwnerVisibility) => void;
 }) {
   const access = useMemberPostAccess();
   const updatePost = useUpdatePost();
   const canLock = access.state === 'ready' || privacy === 'subscriber';
+  // Native radios group by name across the document, so each mounted copy needs its own.
+  const groupName = useId();
 
-  const choose = (next: AccessPrivacy) => {
+  const choose = (next: OwnerVisibility) => {
     if (next === privacy || updatePost.isPending) return;
     updatePost.mutate({ postId, privacy: next }, {
       onSuccess: () => {
@@ -680,32 +366,29 @@ function AccessTab({
     <>
       <section>
         <SectionHeading>Who can open it</SectionHeading>
-        <fieldset className="mt-3 overflow-hidden card-quiet" disabled={updatePost.isPending}>
+        <fieldset className="mt-1 divide-y divide-border/70" disabled={updatePost.isPending}>
           <legend className="sr-only">Post visibility</legend>
-          {accessOptions.map((option) => {
-            const disabled = option.value === 'subscriber' && !canLock;
+          {ownerVisibilities.map((value) => {
+            const { label, icon: Icon, rule } = postVisibility[value];
+            const disabled = value === 'subscriber' && !canLock;
             return (
               <label
-                key={option.value}
-                className={cn(
-                  'flex cursor-pointer items-start gap-3 border-t border-border p-4 first:border-t-0',
-                  disabled ? 'cursor-not-allowed opacity-60' : 'hover:bg-muted/40',
-                )}
+                key={value}
+                className={cn('flex items-center gap-3 py-3', disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer')}
               >
                 <input
                   type="radio"
-                  name="post-access"
-                  value={option.value}
-                  checked={privacy === option.value}
+                  name={groupName}
+                  value={value}
+                  checked={privacy === value}
                   disabled={disabled}
-                  onChange={() => choose(option.value)}
-                  className="mt-0.5 size-4 shrink-0 accent-primary"
+                  onChange={() => choose(value)}
+                  className="size-4 shrink-0 accent-primary"
                 />
-                <span className="min-w-0">
-                  <span className="block text-[13px] font-semibold text-foreground">{option.label}</span>
-                  <span className="mt-0.5 block text-[12px] leading-relaxed text-muted-foreground">
-                    {option.description}
-                  </span>
+                <Icon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium leading-tight">{label}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">{rule}</span>
                 </span>
               </label>
             );
@@ -715,175 +398,163 @@ function AccessTab({
 
       <section>
         <SectionHeading>What unlocks members-only</SectionHeading>
-        <div className="mt-3">
-          {access.state === 'loading' ? (
-            <div className="space-y-2.5">
-              <Skeleton className="h-3 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
-            </div>
-          ) : access.state === 'error' ? (
-            <div className="card-quiet p-4">
-              <p className="text-[12px] leading-relaxed text-muted-foreground">Could not load your membership setup.</p>
-              <Button type="button" variant="outline" size="sm" onClick={access.refetch} className="mt-3">
-                Try again
-              </Button>
-            </div>
-          ) : access.state === 'ready' ? (
-            <ul className="divide-y divide-border overflow-hidden card-quiet">
-              {access.plans.map((plan) => (
-                <li key={plan.id} className="flex items-baseline justify-between gap-3 p-4 text-[13px]">
-                  <span className="truncate font-medium text-foreground">{plan.name}</span>
-                  <span className="shrink-0 font-mono text-[12px] tabular-nums text-muted-foreground">
-                    {formatPlanPrice(plan)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="rounded-lg border border-dashed border-border bg-muted/20 p-5">
-              <p className="text-sm font-medium text-foreground">Publish a member-posts plan</p>
-              <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
-                Members-only posts open for fans on a published plan that includes member posts.
-              </p>
-              <Button asChild size="sm" className="mt-4">
-                <Link href="/studio/curator" prefetch={false}>
-                  Open Curator Studio
-                </Link>
-              </Button>
-            </div>
-          )}
-        </div>
+        {access.state === 'loading' ? (
+          <div className="mt-3 space-y-2.5">
+            <Skeleton className="h-3 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+        ) : access.state === 'error' ? (
+          <div className="mt-2 space-y-3">
+            <p className="text-sm text-muted-foreground">Could not load your membership setup.</p>
+            <Button type="button" variant="outline" size="sm" onClick={access.refetch}>
+              Try again
+            </Button>
+          </div>
+        ) : access.state === 'ready' ? (
+          <ul className="mt-1 divide-y divide-border/70">
+            {access.plans.map((plan) => (
+              <li key={plan.id} className="flex items-baseline justify-between gap-3 py-3">
+                <span className="truncate text-sm font-medium">{plan.name}</span>
+                <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{formatPlanPrice(plan)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="mt-2 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Fans need a published plan that includes member posts.
+            </p>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/studio/curator" prefetch={false}>
+                Open Curator Studio
+              </Link>
+            </Button>
+          </div>
+        )}
       </section>
     </>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────
- * PANEL — owner-only side panel: Access first, Insights one tap away.
- * ───────────────────────────────────────────────────────────────────── */
-type StudioTab = 'access' | 'insights';
-
-interface PostStudioPanelProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+/* ─── Column and sheet ──────────────────────────────────────────────── */
+interface PostStudioContentProps {
   postId: string;
   privacy: PostPrivacy;
-  onPrivacyChange: (privacy: AccessPrivacy) => void;
+  onPrivacyChange: (privacy: OwnerVisibility) => void;
   conversionSuccessCount?: number;
 }
 
-export function PostStudioPanel({
-  open,
-  onOpenChange,
+function PostStudioContent({
   postId,
   privacy,
   onPrivacyChange,
   conversionSuccessCount,
-}: PostStudioPanelProps) {
-  const isMobile = useIsMobile();
-  const [tab, setTab] = useState<StudioTab>('access');
-  // Insights mounts on first visit (gating its request) and then stays mounted
-  // while the panel is open, so tab switches do not refetch either tab.
-  const [insightsVisited, setInsightsVisited] = useState(false);
-
-  // The page also closes the panel by prop, so reset from `open` rather than the close handler.
-  useEffect(() => {
-    if (!open) {
-      setTab('access');
-      setInsightsVisited(false);
-    }
-  }, [open]);
-
-  const contentClasses = isMobile
-    ? cn(
-        'fixed inset-x-0 bottom-0 z-50 flex flex-col gap-0 h-[85vh] overflow-hidden rounded-t-xl border-t border-border bg-background elev-3',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full',
-        'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
-        'data-[state=open]:duration-400 data-[state=closed]:duration-280',
-        'data-[state=open]:ease-out-quart',
-        'data-[state=closed]:ease-in-quart',
-        'will-change-transform',
-      )
-    : cn(
-        // Docked beside the page, below the fixed navbar (h-16, z-50): no shadow, so it
-        // reads as the same layer as the content it pushes aside, not a sheet over it.
-        'fixed top-16 right-0 bottom-0 z-40 flex w-full flex-col gap-0 overflow-hidden border-l border-border bg-background',
-        'sm:max-w-md md:max-w-lg',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=open]:slide-in-from-right-full data-[state=closed]:slide-out-to-right-full',
-        'data-[state=open]:duration-450 data-[state=closed]:duration-300',
-        'data-[state=open]:ease-out-quart',
-        'data-[state=closed]:ease-in-quart',
-        'will-change-transform',
-      );
+  eyebrow = <p className={eyebrowClass}>Your post</p>,
+  action,
+}: PostStudioContentProps & { eyebrow?: ReactNode; action?: ReactNode }) {
+  const visibility = visibilityOf(privacy);
+  const StatusIcon = visibility?.icon ?? SlidersHorizontal;
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} modal={isMobile}>
-      <DialogPrimitive.Portal>
-        {isMobile && (
-          <DialogPrimitive.Overlay
+    <>
+      <header>
+        <div className="flex items-center justify-between gap-3">
+          {eyebrow}
+          {action}
+        </div>
+        {/* Keyed on the setting so a change crossfades instead of swapping text in place. */}
+        <div key={privacy} className="mt-4 flex items-start gap-3.5 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280">
+          <span
+            aria-hidden
             className={cn(
-              'fixed inset-0 z-50 bg-foreground/40',
-              'data-[state=open]:animate-in data-[state=closed]:animate-out',
-              'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
-              'data-[state=open]:duration-300 data-[state=closed]:duration-200',
+              'flex size-11 shrink-0 items-center justify-center rounded-lg',
+              privacy === 'subscriber' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
             )}
-          />
-        )}
+          >
+            <StatusIcon className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="font-teko text-3xl font-bold uppercase leading-none tracking-tight">
+              {visibility?.label ?? 'Visibility'}
+            </h2>
+            <p className="mt-1.5 text-pretty text-sm leading-relaxed text-muted-foreground">
+              {visibility?.summary ?? 'This post uses an older setting. Choose who can open it below.'}
+            </p>
+          </div>
+        </div>
+      </header>
+      {/* Sections stack with a hairline between them; nothing inside is boxed. */}
+      <div className="mt-6 divide-y divide-border/70 [&>section+section]:pt-5 [&>section]:pb-3 [&>section:last-child]:pb-0">
+        <AccessSections postId={postId} privacy={privacy} onPrivacyChange={onPrivacyChange} />
+        <InsightsSections postId={postId} conversionSuccessCount={conversionSuccessCount} />
+      </div>
+    </>
+  );
+}
+
+/** The owner column beside the post on wide screens. */
+export function PostStudioColumn({ className, ...props }: PostStudioContentProps & { className?: string }) {
+  return (
+    <aside
+      aria-label="Your post"
+      data-testid="post-studio-panel"
+      className={cn('card-quiet w-80 shrink-0 p-6', className)}
+    >
+      <PostStudioContent {...props} />
+    </aside>
+  );
+}
+
+/** The same tools as a bottom sheet for screens without room for the column. */
+export function PostStudioSheet({
+  open,
+  onOpenChange,
+  ...props
+}: PostStudioContentProps & { open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay
+          className={cn(
+            'fixed inset-0 z-50 bg-foreground/40',
+            'data-[state=open]:animate-in data-[state=closed]:animate-out',
+            'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
+            'data-[state=open]:duration-300 data-[state=closed]:duration-200',
+          )}
+        />
         <DialogPrimitive.Content
-          className={contentClasses}
-          data-testid="post-studio-panel"
-          // Docked beside the post on desktop, often auto-opened: keep focus on the page.
-          onOpenAutoFocus={(event) => {
-            if (!isMobile) event.preventDefault();
+          data-testid="post-studio-sheet"
+          // The headline under the eyebrow describes the sheet; Radix's own description slot stays empty.
+          aria-describedby={undefined}
+          // Radix would return focus to a Trigger this sheet does not render. The engagement
+          // bar pill is the sheet's real opener (the menus only mirror it), so focus goes there.
+          onCloseAutoFocus={(event) => {
+            const pill = document.querySelector<HTMLElement>('[data-studio-trigger]');
+            if (!pill) return;
+            event.preventDefault();
+            pill.focus();
           }}
-          onInteractOutside={(event) => {
-            if (!isMobile) event.preventDefault();
-          }}
-          onFocusOutside={(event) => {
-            if (!isMobile) event.preventDefault();
-          }}
+          className={cn(
+            'fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-xl border-t border-border bg-background p-6 elev-3',
+            'data-[state=open]:animate-in data-[state=closed]:animate-out',
+            'data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full',
+            'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
+            'data-[state=open]:duration-400 data-[state=closed]:duration-280',
+            'data-[state=open]:ease-out-quart data-[state=closed]:ease-in-quart',
+          )}
         >
-          <DialogPrimitive.Title className="sr-only">Post studio</DialogPrimitive.Title>
-
-          {/* Header: one bar, tabs left and close right */}
-          <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border/60 px-4 sm:px-5">
-            <span className="hidden shrink-0 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground sm:inline">
-              Your post
-            </span>
-            <SegmentedControl
-              label="Post studio sections"
-              className="w-full max-w-[220px]"
-              value={tab}
-              onValueChange={(next) => {
-                if (next === 'insights') setInsightsVisited(true);
-                setTab(next === 'insights' ? 'insights' : 'access');
-              }}
-              options={[
-                { value: 'access', label: 'Access' },
-                { value: 'insights', label: 'Insights' },
-              ]}
-            />
-            <DialogPrimitive.Close
-              className="ml-auto -mr-1.5 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-              aria-label="Close post studio"
-            >
-              <XIcon className="size-4" />
-            </DialogPrimitive.Close>
-          </div>
-
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-5">
-            <div className="space-y-7" hidden={tab !== 'access'}>
-              <AccessTab postId={postId} privacy={privacy} onPrivacyChange={onPrivacyChange} />
-            </div>
-            {insightsVisited && (
-              <div className="space-y-7" hidden={tab !== 'insights'}>
-                <InsightsTab postId={postId} conversionSuccessCount={conversionSuccessCount} />
-              </div>
-            )}
-          </div>
+          <PostStudioContent
+            {...props}
+            eyebrow={<DialogPrimitive.Title className={eyebrowClass}>Your post</DialogPrimitive.Title>}
+            action={
+              <DialogPrimitive.Close
+                className="-mr-2 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                aria-label="Close post studio"
+              >
+                <XIcon className="size-4" />
+              </DialogPrimitive.Close>
+            }
+          />
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

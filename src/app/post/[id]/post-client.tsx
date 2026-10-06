@@ -12,7 +12,7 @@ import { TrackList, formatTrackListStats } from '@/components/features/entity/tr
 import { PostAuthorHeader } from '@/components/features/post/post-author-header';
 import { PostEngagementBar } from '@/components/features/post/post-engagement-bar';
 import { PostCommentsSheet } from '@/components/features/post/post-comments-sheet';
-import { PostStudioPanel } from '@/components/features/post/post-studio-panel';
+import { PostStudioColumn, PostStudioSheet } from '@/components/features/post/post-studio-panel';
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
@@ -275,6 +275,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const [likeAuthPromptOpen, setLikeAuthPromptOpen] = useState(false);
   const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
   const [commentCount, setCommentCount] = useState<number | undefined>(undefined);
+  // The owner's tools sit beside the post as a column when the viewport has room;
+  // otherwise this sheet carries the same content, opened from the engagement bar.
   const [studioPanelOpen, setStudioPanelOpen] = useState(false);
   const panelSwitchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -973,10 +975,13 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   };
 
   const [isDesktop, setIsDesktop] = useState(false);
+  // Room for the owner column beside the desktop layouts; below this the sheet takes over.
+  const [hasColumnRoom, setHasColumnRoom] = useState(false);
 
   useEffect(() => {
     const checkDesktop = () => {
       setIsDesktop(window.innerWidth > 900);
+      setHasColumnRoom(window.innerWidth >= 1280);
     };
 
     checkDesktop();
@@ -985,16 +990,11 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     return () => window.removeEventListener('resize', checkDesktop);
   }, []);
 
-  // Owners land with the studio panel open on desktop, where it docks beside the
-  // post. On mobile it is a modal sheet, so it stays closed until asked for.
-  // Once per post: closing it is a choice the page should not undo.
-  const autoOpenedStudioRef = useRef<string | null>(null);
+  // When the window grows into column room while the sheet is open, the column takes
+  // over the same content, so the sheet closes instead of doubling it.
   useEffect(() => {
-    const resolvedPostId = postData?.postId || postId;
-    if (!isOwnPost || !isDesktop || autoOpenedStudioRef.current === resolvedPostId) return;
-    autoOpenedStudioRef.current = resolvedPostId;
-    setStudioPanelOpen(true);
-  }, [isDesktop, isOwnPost, postData?.postId, postId]);
+    if (hasColumnRoom) setStudioPanelOpen(false);
+  }, [hasColumnRoom]);
 
   // Show skeleton while loading
   if (!postData && !error) {
@@ -1062,6 +1062,10 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
 
   const { metadata, convertedUrls } = postData as MusicLinkConversion;
 
+  // The owner column shows only with room beside the desktop layouts; the sheet and its
+  // entry points (pill, menu items) exist only when the column does not.
+  const showOwnerColumn = isOwnPost && hasColumnRoom;
+
   // Owner menu, shared by the three layout branches.
   const ownerMenuItems = (
     <>
@@ -1069,10 +1073,13 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         <Pencil className="mr-2 h-4 w-4" />
         Edit
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => { setDropdownOpen(false); if (!studioPanelOpen) handleOpenStudio(); }}>
-        <SlidersHorizontal className="mr-2 h-4 w-4" />
-        Access &amp; insights
-      </DropdownMenuItem>
+      {/* Opens the owner sheet; absent while the owner column is already beside the post. */}
+      {!showOwnerColumn && (
+        <DropdownMenuItem onClick={() => { setDropdownOpen(false); if (!studioPanelOpen) handleOpenStudio(); }}>
+          <SlidersHorizontal className="mr-2 h-4 w-4" />
+          Access &amp; insights
+        </DropdownMenuItem>
+      )}
       <DropdownMenuItem
         onClick={() => { setDropdownOpen(false); setDeleteModalOpen(true); }}
         className="text-destructive focus:text-destructive"
@@ -1107,6 +1114,14 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       ? `${playlistTrackCount} ${playlistTrackCount === 1 ? 'track' : 'tracks'}`
       : null;
   const useSplitScrollLayout = isDesktop && (isAlbum || isPlaylist);
+
+  // Owner column beside the post; both desktop layouts place it after the content.
+  const ownerColumnProps = {
+    postId: postData?.postId || postId,
+    privacy: studioPrivacy,
+    onPrivacyChange: (privacy: PostPrivacy) => setPostData((prev) => (prev ? { ...prev, privacy } : prev)),
+    conversionSuccessCount: ownerVisibleConversionCount,
+  };
   const showSignupCTA = !isLoading && !isAuthenticated;
   const filteredGenres = (postData?.genres ?? []).filter(
     (genre) => genre.toLowerCase() !== 'music',
@@ -1186,11 +1201,11 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         })}
         isOwner={isOwnPost}
         onEdit={() => setEditModalOpen(true)}
-        onOpenStudio={() => { if (!studioPanelOpen) handleOpenStudio(); }}
+        onOpenStudio={showOwnerColumn ? undefined : () => { if (!studioPanelOpen) handleOpenStudio(); }}
         onDelete={() => setDeleteModalOpen(true)}
       >
       <div
-        className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"} transition-[padding] duration-450 ease-out-quart ${commentsSheetOpen || studioPanelOpen ? "md:pr-[512px]" : ""}`}
+        className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"} transition-[padding] duration-450 ease-out-quart ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
       >
         {isDesktop ? (
           useSplitScrollLayout ? (
@@ -1400,7 +1415,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                 commentCount={commentCount}
                                 commentsEnabled={postData?.commentsEnabled ?? true}
                                 onOpenComments={handleOpenComments}
-                                canManage={isOwnPost}
+                                canManage={isOwnPost && !showOwnerColumn}
+                                privacy={studioPrivacy}
                                 onOpenStudio={handleOpenStudio}
                                 className="self-start"
                                 compact
@@ -1482,6 +1498,9 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   )}
                 </div>
               </div>
+              {showOwnerColumn && (
+                <PostStudioColumn {...ownerColumnProps} className="mt-8 max-h-[calc(100%-2rem)] self-start overflow-y-auto" />
+              )}
             </div>
           </div>
           ) : (
@@ -1544,6 +1563,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                       )}
                     </div>
                   </div>
+                  {showOwnerColumn && <div className="w-80 shrink-0" aria-hidden />}
                 </div>
                 <div className="flex gap-12 items-start">
                   {/* Left Column - Artwork only */}
@@ -1676,7 +1696,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                     commentCount={commentCount}
                                     commentsEnabled={postData?.commentsEnabled ?? true}
                                     onOpenComments={handleOpenComments}
-                                    canManage={isOwnPost}
+                                    canManage={isOwnPost && !showOwnerColumn}
+                                    privacy={studioPrivacy}
                                     onOpenStudio={handleOpenStudio}
                                     className="self-start"
                                   />
@@ -1724,6 +1745,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                       </div>
                     </div>
                   </div>
+                  {showOwnerColumn && <PostStudioColumn {...ownerColumnProps} />}
                 </div>
               </div>
             </div>
@@ -1982,6 +2004,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     commentsEnabled={postData?.commentsEnabled ?? true}
                     onOpenComments={handleOpenComments}
                     canManage={isOwnPost}
+                    privacy={studioPrivacy}
                     onOpenStudio={handleOpenStudio}
                     className="self-start"
                   />
@@ -2103,14 +2126,14 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       )}
 
       {isOwnPost && (
-        <PostStudioPanel
+        <PostStudioSheet
           key={postData?.postId || postId}
           open={studioPanelOpen}
           onOpenChange={setStudioPanelOpen}
-          postId={postData?.postId || postId}
-          privacy={studioPrivacy}
-          onPrivacyChange={(privacy) => setPostData((prev) => (prev ? { ...prev, privacy } : prev))}
-          conversionSuccessCount={ownerVisibleConversionCount}
+          postId={ownerColumnProps.postId}
+          privacy={ownerColumnProps.privacy}
+          onPrivacyChange={ownerColumnProps.onPrivacyChange}
+          conversionSuccessCount={ownerColumnProps.conversionSuccessCount}
         />
       )}
 

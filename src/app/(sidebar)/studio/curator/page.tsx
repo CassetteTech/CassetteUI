@@ -15,7 +15,7 @@ import { CuratorEarningsCard } from '@/components/features/curator/curator-earni
 import { CuratorPayoutCard } from '@/components/features/curator/curator-payout-card';
 import { CuratorPayoutHistory } from '@/components/features/curator/curator-payout-history';
 import { CuratorProCard } from '@/components/features/curator/curator-pro-card';
-import { StudioOverview, type LaunchStep } from '@/components/features/curator/studio-overview';
+import { OverviewSkeleton, StudioOverview, type LaunchStep } from '@/components/features/curator/studio-overview';
 import {
   StudioSection,
   StudioStepsContext,
@@ -92,8 +92,12 @@ function useLaunchSteps(profile: CuratorProfile | null) {
     nextIndex,
     isPending,
     flowStep,
-    // Earnings exist only for a curator who has published at least once.
-    hasPublished: plans.data?.some((plan) => plan.status !== 'draft') === true,
+    // Earnings exist only for a curator who has published at least once. Unknown
+    // (null) while the first plan read is in flight, so the overview holds its
+    // skeleton instead of guessing at the launch checklist.
+    hasPublished: profile !== null && plans.isPending
+      ? null
+      : plans.data?.some((plan) => plan.status !== 'draft') === true,
     payoutStarted,
   };
 }
@@ -159,7 +163,12 @@ function CuratorStudio() {
   // The free profile has no fields, so "create your free profile" anywhere on the page is one click.
   const createProfile = useMutation({
     mutationFn: () => createCuratorProfile({ headline: null, about: null, declaredGenres: [], declaredPlatforms: [] }),
-    onSuccess: (saved) => queryClient.setQueryData(profileQueryKey, saved),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(profileQueryKey, saved);
+      // A new profile has no plans yet; seeding its key keeps the checklist on screen
+      // while the first real read confirms that.
+      queryClient.setQueryData(['curator-plans', saved.id], []);
+    },
   });
   let defaultView: StudioView | null;
   if (launch.flowStep) defaultView = studioViewOf(launch.flowStep);
@@ -273,32 +282,16 @@ function CuratorStudio() {
                 <CuratorPayoutHistory enabled={launch.payoutStarted && Boolean(profile.data)} />
               </TabsContent>
             </div>
-            <aside ref={setPassSlot} aria-label="Membership plan" className="empty:hidden lg:sticky lg:top-6" />
+            {/* The pass arrives by portal; leaving display:none restarts the rise, so it enters like the cards. */}
+            <aside
+              ref={setPassSlot}
+              aria-label="Membership plan"
+              className="empty:hidden motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2.5 motion-safe:duration-450 motion-safe:ease-out-quart lg:sticky lg:top-6"
+            />
           </div>
         </Tabs>
       </CoralGlow>
     </StudioStepsContext.Provider>
-  );
-}
-
-/** Mirrors the earnings overview layout so the page does not reflow when data lands. */
-function OverviewSkeleton() {
-  return (
-    <div aria-hidden className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="card-quiet px-5 py-4">
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="mt-2 h-7 w-16" />
-            <Skeleton className="mt-2 h-3 w-24" />
-          </div>
-        ))}
-      </div>
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Skeleton className="h-72 w-full rounded-xl lg:col-span-2" />
-        <Skeleton className="h-72 w-full rounded-xl" />
-      </div>
-    </div>
   );
 }
 

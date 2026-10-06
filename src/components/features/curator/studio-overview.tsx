@@ -25,6 +25,7 @@ import { SegmentedControl } from '@/components/interior/segmented-control';
 import { TaskSteps } from '@/components/interior/task-steps';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { CuratorProfile } from '@/services/curator';
 import { monthStart, periodSummary, type CuratorEarningsBalances } from '@/services/curator-earnings';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
@@ -143,6 +144,27 @@ function LaunchCard({ steps, doneCount, nextIndex }: { steps: LaunchStep[]; done
   );
 }
 
+/** Mirrors the earnings overview layout so the page does not reflow when data lands. */
+export function OverviewSkeleton() {
+  return (
+    <div aria-hidden className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="card-quiet px-5 py-4">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="mt-2 h-7 w-16" />
+            <Skeleton className="mt-2 h-3 w-24" />
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Skeleton className="h-72 w-full rounded-xl lg:col-span-2" />
+        <Skeleton className="h-72 w-full rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
 export function StudioOverview({
   profile,
   steps,
@@ -154,10 +176,11 @@ export function StudioOverview({
   steps: LaunchStep[];
   doneCount: number;
   nextIndex: number;
-  hasPublished: boolean;
+  /** null while the first plan read is in flight. */
+  hasPublished: boolean | null;
 }) {
   const views = useContext(StudioStepsContext);
-  const earnings = useCuratorLedger(hasPublished && profile !== null);
+  const earnings = useCuratorLedger(hasPublished === true && profile !== null);
   const ledger = earnings.data;
   const [months, setMonths] = useState('6');
   const period = useMemo(
@@ -232,9 +255,15 @@ export function StudioOverview({
     <div className="space-y-6">
       {suspended}
 
-      {/* Nothing has been earned before the first publish, so setup leads. */}
-      {!hasPublished ? (
-        <LaunchCard steps={steps} doneCount={doneCount} nextIndex={nextIndex} />
+      {/* Nothing has been earned before the first publish, so setup leads. While the
+          plan read is still in flight the skeleton holds, so the dashboard reveals once.
+          The plan card below stays mounted throughout so its own reads start now. */}
+      {hasPublished === null ? (
+        <OverviewSkeleton />
+      ) : !hasPublished ? (
+        <motion.div {...rise(0)}>
+          <LaunchCard steps={steps} doneCount={doneCount} nextIndex={nextIndex} />
+        </motion.div>
       ) : (
       <>
       <motion.dl {...rise(0)} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -345,7 +374,9 @@ export function StudioOverview({
       </>
       )}
 
-      <CuratorPlanCard profile={profile} />
+      <motion.div {...rise(hasPublished ? 3 : 1)}>
+        <CuratorPlanCard profile={profile} />
+      </motion.div>
     </div>
   );
 }

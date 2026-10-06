@@ -101,8 +101,10 @@ export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = (
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
-  // Low-confidence extractions (busy or near-monochrome art) get a quieter wash.
-  const alphaCap = palette && palette.confidence < 0.4 ? 0.5 : 0.85;
+  // Peak alpha of the star glow; the side glow and horizon scale from it. Kept low so the
+  // colors tint the paper instead of covering it. Low-confidence extractions (busy or
+  // near-monochrome art) get a quieter wash.
+  const alphaCap = palette && palette.confidence < 0.4 ? 0.4 : 0.6;
 
   const meshBackground = React.useMemo(() => {
     if (!palette) return '';
@@ -120,12 +122,13 @@ export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = (
     const horizon   = tone(palette.muted, isDark, alphaCap * 0.6);
     const horizonFade = tone(palette.muted, isDark, 0);
 
-    // Coverage is deliberately partial: the top ~third stays theme paper so the
-    // page still reads as Cassette, with the album glowing up from below.
+    // Coverage is deliberately partial: the color is strongest low on the page and
+    // fades toward the top, so the page still reads as Cassette with the album
+    // glowing up from below.
     return [
-      `radial-gradient(90vmax at 22% 85%, ${glow} 0%, ${glowFade} 60%)`,
-      `radial-gradient(70vmax at 88% 70%, ${side} 0%, ${sideFade} 55%)`,
-      `linear-gradient(to bottom, ${horizonFade} 38%, ${horizon} 100%)`,
+      `radial-gradient(90vmax at 22% 85%, ${glow} 0%, ${glowFade} 50%)`,
+      `radial-gradient(70vmax at 88% 70%, ${side} 0%, ${sideFade} 50%)`,
+      `linear-gradient(to bottom, ${horizonFade} 46%, ${horizon} 100%)`,
     ].join(', ');
   }, [palette, alphaCap, isDark]);
 

@@ -22,10 +22,12 @@ test('lets a post owner edit and delete a post', async ({ page }) => {
   // Owners see their post tools as a column beside the post.
   const studio = page.getByTestId('post-studio-panel');
   await expect(studio).toBeVisible();
-  await expect(studio).toContainText('Member posts');
+  // Plans are managed in Curator Studio; the post column only says who can open the post.
+  await expect(studio).not.toContainText('Member posts');
   // The radio is controlled by the saved post, so it flips only after the PATCH lands.
-  await studio.getByRole('radio', { name: 'Members only' }).click();
-  await expect(studio.getByRole('radio', { name: 'Members only' })).toBeChecked();
+  await studio.getByRole('radio', { name: 'Members' }).click();
+  await expect(studio.getByRole('radio', { name: 'Members' })).toBeChecked();
+  await expect(studio.getByRole('heading', { name: 'Members only' })).toBeVisible();
   await expect(studio).toContainText('Views');
 
   // Right-click anywhere on the post for quick actions; owners get their tools too.

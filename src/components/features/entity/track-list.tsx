@@ -31,7 +31,7 @@ export const formatTrackListStats = (items: TrackListItem[]): string => {
   const totalMinutes = Math.round((seconds as number[]).reduce((a, b) => a + b, 0) / 60);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  return `${label} · ${hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`}`;
+  return `${label}, ${hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`}`;
 };
 
 export interface TrackListItem {

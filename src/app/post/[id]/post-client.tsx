@@ -1127,7 +1127,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     : typeof playlistTrackCount === 'number' && playlistTrackCount > 0
       ? `${playlistTrackCount} ${playlistTrackCount === 1 ? 'track' : 'tracks'}`
       : null;
-  const useSplitScrollLayout = isDesktop && (isAlbum || isPlaylist);
 
   // Owner column beside the post; both desktop layouts place it after the content.
   const ownerColumnProps = {
@@ -1213,7 +1212,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       : undefined;
 
   return (
-    <div className={useSplitScrollLayout ? "fixed inset-x-0 top-16 bottom-0 overflow-y-auto" : "min-h-screen relative"}>
+    <div className="min-h-screen relative">
       {/* Animated Gradient Background */}
       <AnimatedColorBackground palette={palette} />
 
@@ -1271,214 +1270,10 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         onDelete={() => setDeleteModalOpen(true)}
       >
       <div
-        className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"} transition-[padding] duration-450 ease-out-quart ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
+        className={`relative z-10 min-h-screen transition-[padding] duration-450 ease-out-quart ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
       >
         {isDesktop ? (
-          useSplitScrollLayout ? (
-          // Desktop Album/Playlist: fixed left, scrollable right (only right side scrolls)
-          <div className="px-8 max-w-7xl mx-auto h-full flex flex-col min-h-0">
-            {/* Header Toolbar: Back and Share sit on the content's edges */}
-            <div className="pt-4 pb-6 shrink-0">
-              <div className="flex items-center justify-between gap-3">
-                <BackButton route={backRoute} fallbackRoute="/explore" />
-                {/* Action cluster: Share is always the rightmost page action,
-                    with the owner-only menu at the far edge beside it */}
-                <div className="flex items-center gap-1.5">
-                  <PostShareMenu
-                    isTeamAccount={isTeamAccount}
-                    copyState={copyState}
-                    onPlainShare={handleShare}
-                    onTemplateCopy={handleAttributedCopy}
-                  />
-                  {isOwnPost && (
-                    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Post actions"
-                          data-testid="post-actions-trigger"
-                          className="rounded-full"
-                        >
-                          <MoreVertical className="h-5 w-5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {ownerMenuItems}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
-              </div>
-            </div>
-            {/* Content row: the post card in a column of up to 26rem (it gives way when the comments
-                panel narrows the page), the tracklist in the rest, and the owner column at the right
-                edge. The toolbar above shares these edges. */}
-            <div className={`grid flex-1 min-h-0 gap-x-8 ${ownerColumnBeside ? 'grid-cols-[minmax(16rem,26rem)_minmax(0,1fr)_20rem]' : 'grid-cols-[minmax(16rem,26rem)_minmax(0,1fr)]'}`}>
-              {/* Left: the post card, pinned while the tracklist scrolls */}
-              <div className="sticky top-0 h-full overflow-y-auto no-scrollbar">
-                <div className="min-h-full flex flex-col min-w-0 pb-[calc(6rem+env(safe-area-inset-bottom))]">
-                  {/* The post as one object: the sleeve on top, then the label and the listen links. */}
-                  {(isAlbum || isPlaylist) && (
-                    <div className="card-ink overflow-hidden w-full">
-                      <div className="p-3">
-                        <ArtworkImage
-                          src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
-                          alt={metadata.title}
-                          width={416}
-                          height={416}
-                          className="block h-auto w-full rounded-sm object-cover ring-1 ring-foreground/10"
-                          priority
-                          onError={() => setImageError(true)}
-                          unoptimized={!imageError && !!metadata.artwork}
-                        />
-                      </div>
-                      <PostLabelHead
-                        kicker={labelKicker}
-                        title={metadata.title}
-                        artist={isAlbum ? artistLine : undefined}
-                        source={playlistSource}
-                        tint={palette?.vibrant}
-                      />
-                      <div className="space-y-5 px-6 pb-6 pt-10">
-                        <div>
-                          <h3 className="sr-only">Listen on</h3>
-                          {isPlaylist ? (
-                            <PlaylistStreamingLinks
-                              links={convertedUrls}
-                              className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                              playlistId={postData?.musicElementId || ''}
-                              postId={postData?.postId || postId}
-                              playlistTrackCount={playlistTrackCount}
-                              sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
-                              sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                              paidPromotionCampaignId={postData?.paidPromotionCampaignId}
-                            />
-                          ) : (
-                            <StreamingLinks
-                              links={convertedUrls}
-                              postId={postData?.postId || postId}
-                              elementType={metadata.type}
-                              sourcePlatform={analyticsSourcePlatform}
-                              isAuthenticated={isAuthenticated}
-                              paidPromotionCampaignId={postData?.paidPromotionCampaignId}
-                              curatorId={postData?.curatorId}
-                              isMemberView={postData?.isMemberView}
-                              className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                            />
-                          )}
-                        </div>
-                        {/* Social: author header + engagement bar (moved inside card) */}
-                        {postData?.username && hasPostOwner && (
-                          <>
-                            <div className="border-t border-border/70" />
-                            <div className="flex flex-col gap-2 text-left relative z-20">
-                              <PostAuthorHeader
-                                username={postData.username}
-                                description={postData?.description || ''}
-                                createdAt={postData?.createdAt}
-                                compact
-                              />
-                              <PostEngagementBar
-                                likeCount={postData?.likeCount ?? 0}
-                                likedByCurrentUser={Boolean(postData?.likedByCurrentUser)}
-                                isLikePending={isLikePending}
-                                onToggleLike={handleToggleLike}
-                                canRepost={canRepost}
-                                hasReposted={hasReposted}
-                                isRepostPending={isRepostPending}
-                                onRepost={() => void handleRepost()}
-                                commentCount={commentCount}
-                                commentsEnabled={postData?.commentsEnabled ?? true}
-                                onOpenComments={handleOpenComments}
-                                canManage={isOwnPost && !showOwnerColumn}
-                                privacy={studioPrivacy}
-                                onOpenStudio={handleOpenStudio}
-                                className="self-start"
-                                compact
-                              />
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {showAddToProfile && (
-                    <div className="mt-5 w-full">
-                      <Button
-                        onClick={handleAddToProfile}
-                        data-testid="post-add-to-profile"
-                        disabled={isAddingToProfile || addStatus === 'added'}
-                        className="h-12 px-8 font-bold tracking-wide font-atkinson"
-                      >
-                        {addStatus === 'added' ? 'Added to Profile' : addStatus === 'error' ? 'Failed to Add' : 'Add Post to Profile'}
-                      </Button>
-                    </div>
-                  )}
-                  {showSignupCTA && (
-                    <JoinCassetteCTA
-                      onClick={handleSignupClick}
-                      className="mt-6 w-full"
-                    />
-                  )}
-                  {/* Report Problem (moved to left to keep right-only track list) */}
-                  {(isAlbum || isPlaylist) && (
-                    <div className="mt-6 mb-[calc(6rem+env(safe-area-inset-bottom))] w-full">
-                      <button
-                        onClick={() => openReportModal({
-                          sourceContext: 'post_view',
-                          sourceLink: postData?.originalUrl || sourceUrlRef.current || '',
-                          conversionData: {
-                            elementType: metadata.type,
-                            title: metadata.title,
-                            artist: metadata.artist,
-                            platforms: postData?.convertedUrls,
-                            postId: postData?.postId || postId,
-                          },
-                        })}
-                        className="flex items-center gap-1.5 text-sm text-foreground/80 hover:text-foreground transition-colors"
-                      >
-                        <AlertCircle className="w-4 h-4" />
-                        <span>Report a Problem</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              {/* Right: track card scrolls internally so its header and edges stay put */}
-              <div className="min-h-0">
-                <div className="h-full pb-12 flex flex-col min-h-0">
-                  {/* Track list for album/playlist */}
-                  {showTracks && (
-                    <div className="card-ink overflow-hidden flex flex-col min-h-0">
-                      <div className="px-5 py-4 border-b border-border flex items-baseline justify-between gap-3 shrink-0">
-                        <h3 className="text-sm font-semibold text-foreground">Tracklist</h3>
-                        {trackListStats && (
-                          <span className="text-sm tabular-nums text-muted-foreground">
-                            {trackListStats}
-                          </span>
-                        )}
-                      </div>
-                      <TrackList
-                        items={postData.tracks!}
-                        artwork={metadata.artwork}
-                        albumArtist={metadata.artist}
-                        variant={isAlbum ? 'album' : 'playlist'}
-                        scrollFill
-                        className="flex-1 min-h-0 !border-0 !bg-transparent !shadow-none"
-                        sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-              {ownerColumnBeside && (
-                <PostStudioColumn {...ownerColumnProps} className="w-auto max-h-full self-start overflow-y-auto" />
-              )}
-            </div>
-          </div>
-          ) : (
-            // Desktop Track/Artist: full-page scroll
+            // Desktop: one layout for every post type
             <div className="pt-16">
               {/* The toolbar and the post share one container, so Back and Share sit on the
                   content's edges. Visitors get a narrower container; the owner column widens it. */}
@@ -1558,6 +1353,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             title={metadata.title}
                             artist={isTrack || isAlbum ? artistLine : undefined}
                             meta={labelMeta}
+                            source={playlistSource}
                             tint={palette?.vibrant}
                           />
                           <div className="flex flex-1 flex-col gap-5 px-6 pb-6 pt-10">
@@ -1618,6 +1414,26 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                           </div>
                           </div>
                         </div>
+                        {/* Album and playlist tracks, in a second card under the post */}
+                        {showTracks && (
+                          <div className="card-ink overflow-hidden">
+                            <div className="px-5 py-4 border-b border-border flex items-baseline justify-between gap-3">
+                              <h3 className="text-sm font-semibold text-foreground">Tracklist</h3>
+                              {trackListStats && (
+                                <span className="text-sm tabular-nums text-muted-foreground">{trackListStats}</span>
+                              )}
+                            </div>
+                            <TrackList
+                              items={postData.tracks!}
+                              artwork={metadata.artwork}
+                              albumArtist={metadata.artist}
+                              variant={isAlbum ? 'album' : 'playlist'}
+                              expandable
+                              className="!border-0 !bg-transparent !shadow-none"
+                              sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
+                            />
+                          </div>
+                        )}
                         {showAddToProfile && (
                           <div>
                             <Button
@@ -1657,11 +1473,10 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                       </div>
                     </div>
                   </div>
-                  {ownerColumnBeside && <PostStudioColumn {...ownerColumnProps} className="w-auto" />}
+                  {ownerColumnBeside && <PostStudioColumn {...ownerColumnProps} className="sticky top-20 w-auto" />}
                 </div>
               </div>
             </div>
-          )
         ) : (
           // Mobile Layout
           <div className="px-4 sm:px-6 md:px-8 pb-2 sm:pb-8 pt-16 max-w-lg mx-auto">

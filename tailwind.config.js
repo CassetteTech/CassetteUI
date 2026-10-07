@@ -22,6 +22,7 @@ module.exports = {
           "sans-serif",
         ],
         teko: ["var(--font-teko)", "ui-sans-serif", "sans-serif"],
+        mono: ["var(--font-paper-mono)", "ui-monospace", "monospace"],
         atkinson: ["var(--font-atkinson)", "ui-sans-serif", "sans-serif"],
         "roboto-flex": ["var(--font-roboto-flex)", "ui-sans-serif", "sans-serif"],
         // Legacy alias: Roboto was never loaded; these usages get Roboto Flex.

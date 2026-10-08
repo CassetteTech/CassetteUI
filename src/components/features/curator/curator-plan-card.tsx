@@ -22,7 +22,6 @@ import {
   fetchCuratorFeatures,
   fetchCuratorPlans,
   fetchCuratorPricing,
-  planFeesMatchPolicy,
   publishCuratorPlan,
   updateCuratorPlan,
   type CuratorPlan,
@@ -190,9 +189,8 @@ const focusOnMount = (node: HTMLElement | null) => node?.focus();
 /** Adds the one-time annual price to a published plan. The plan list is refetched
     after the request settles, so the card only changes once the server confirms it.
     Once the plan has an annual price the adder renders nothing. */
-function AnnualPriceAdder({ plan, pricing, refresh, onAdded }: {
+function AnnualPriceAdder({ plan, refresh, onAdded }: {
   plan: CuratorPlan;
-  pricing: CuratorPricing;
   refresh: () => Promise<void>;
   onAdded: () => void;
 }) {
@@ -210,8 +208,6 @@ function AnnualPriceAdder({ plan, pricing, refresh, onAdded }: {
   const entered = price.trim() !== '';
   const annualMinor = entered ? priceMinor(price) : null;
   const valid = annualMinor !== null && annualMinor <= plan.amountMinor * 12;
-  const economics = valid ? calculateCuratorPlanEconomics(annualMinor, pricing) : null;
-  const estimateMatchesTerms = planFeesMatchPolicy(plan, pricing);
   const inputError = !entered || valid
     ? null
     : annualMinor === null ? 'Enter a valid annual price.' : 'Annual price can be at most 12 monthly payments.';
@@ -256,10 +252,10 @@ function AnnualPriceAdder({ plan, pricing, refresh, onAdded }: {
       <p id={`plan-${plan.id}-annual-help`} className={cn('text-xs', inputError ? 'text-destructive' : 'text-muted-foreground')}>
         {inputError ?? `Up to ${money(plan.amountMinor * 12, plan.currency)}. Once added, it cannot change.`}
       </p>
-      {/* Same estimate receipt as the draft form, but only while today's policy matches the plan's frozen fees. */}
-      {economics && (estimateMatchesTerms
-        ? <EconomicsBreakdown economics={economics} currency={pricing.currency} interval="year" />
-        : <p className="text-xs text-muted-foreground">Fan fees follow this plan&apos;s original terms.</p>)}
+      {/* Bridge prices the annual term from the plan's frozen fee schedule. The plan response
+          carries only the frozen monthly fee, and today's policy can match that fee yet price the
+          annual term differently, so no fan estimate is shown. */}
+      {valid && <p className="text-xs text-muted-foreground">Fan fees follow this plan&apos;s original terms.</p>}
       {add.isError && <p role="alert" className="text-sm text-destructive">{requestError}</p>}
       <div className="flex flex-col gap-2 sm:flex-row">
         <Button type="submit" className="w-full sm:w-auto" disabled={!valid || add.isPending}>
@@ -728,7 +724,6 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                     {plan.status === 'active' && profileReady && (
                       <AnnualPriceAdder
                         plan={plan}
-                        pricing={pricing.data}
                         refresh={() => queryClient.invalidateQueries({ queryKey: plansKey })}
                         onAdded={() => {
                           // An Archive or End memberships that settled first keeps its notice.

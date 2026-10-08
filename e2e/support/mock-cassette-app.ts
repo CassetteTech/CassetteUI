@@ -1129,8 +1129,8 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       if (plan.annualAmountMinor === null) {
         Object.assign(plan, {
           annualAmountMinor,
-          // ponytail: today's policy stands in for the plan's frozen fee schedule, which matches only
-          // while planFeesMatchPolicy holds; store a schedule per plan when a test submits under drift.
+          // ponytail: today's policy stands in for the plan's frozen fee schedule; store a schedule
+          // per plan when a test submits under a changed policy.
           annualServiceFeeMinor: curatorServiceFee(annualAmountMinor, state.curatorPricing),
         } satisfies Partial<CuratorPlan>);
       }

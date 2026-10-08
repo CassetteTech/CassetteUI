@@ -476,7 +476,6 @@ test('adds a one-time annual price to a published plan after the server confirms
   await expect(form).toContainText('Annual price can be at most 12 monthly payments.');
   await expect(form.getByRole('button', { name: 'Add annual price' })).toBeDisabled();
   await form.getByLabel('Annual price (USD)').fill('60');
-  await expect(form.getByText('Fan pays').locator('..')).toContainText('$62.70');
 
   // Bridge rejects the addition while the profile is inactive; its copy reaches the curator.
   state.curatorProfile = { ...curatorProfile, status: 'suspended' };
@@ -496,13 +495,13 @@ test('adds a one-time annual price to a published plan after the server confirms
   ]);
 });
 
-test('omits the annual fan estimate when today\'s policy differs from the plan\'s frozen fee', async ({ page }) => {
+test('omits the annual fan estimate even when today\'s policy gives the plan\'s frozen monthly fee', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProfile,
     curatorPayoutAccount: payoutAccount(),
-    // Today's policy gives 58 on 700; this plan froze a different fee.
-    curatorPlans: [{ ...publishedMonthlyPlan, serviceFeeMinor: 60 }],
+    // Today's policy also gives 58 on 700, but the plan's frozen schedule can still price a year differently.
+    curatorPlans: [publishedMonthlyPlan],
   });
 
   await page.goto(STUDIO_PATH);

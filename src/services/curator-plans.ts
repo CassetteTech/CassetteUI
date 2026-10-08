@@ -167,12 +167,6 @@ export function calculateCuratorPlanEconomics(
   };
 }
 
-/** True while today's policy still yields the plan's frozen monthly fan fee. Bridge prices an
-    added annual term from the plan's frozen fee schedule, so a today's-policy estimate is only
-    shown when the two agree. */
-export const planFeesMatchPolicy = (plan: CuratorPlan, pricing: CuratorPricing): boolean =>
-  calculateCuratorPlanEconomics(plan.amountMinor, pricing).serviceFeeMinor === plan.serviceFeeMinor;
-
 async function parseResponse<T>(
   response: Response,
   message: string,

@@ -15,7 +15,6 @@ import {
   parseCuratorFeatures,
   parseCuratorPlan,
   parseCuratorPricing,
-  planFeesMatchPolicy,
   publishCuratorPlan,
   updateCuratorPlan,
   type CuratorPricing,
@@ -294,16 +293,13 @@ void test('annual price client posts once, parses the plan strictly, and keeps B
   assert.equal(calls.length, 4);
 });
 
-void test('annual estimates show only while today\'s policy matches the plan\'s frozen fees', () => {
-  // 700 at 400 bps + 30 fixed = 58, the fee frozen on this published plan.
-  const published = parseCuratorPlan({
-    ...draft,
-    annualAmountMinor: null,
-    status: 'active',
-    serviceFeeMinor: 58,
-    publishedAtUtc: '2026-08-16T13:00:00Z',
-  });
-  assert.equal(planFeesMatchPolicy(published, pricing), true);
-  assert.equal(planFeesMatchPolicy(published, { ...pricing, serviceFeeBps: 500 }), false);
-  assert.equal(planFeesMatchPolicy({ ...published, serviceFeeMinor: 60 }, pricing), false);
+void test('a matching monthly fee does not prove the annual fan charge of a plan\'s frozen fees', () => {
+  // A $5 plan frozen under a 10% service fee, and today's policy at a fixed $0.50 fee.
+  const frozen = { ...pricing, serviceFeeBps: 1000, serviceFeeFixedMinor: 0 };
+  const today = { ...pricing, serviceFeeBps: 0, serviceFeeFixedMinor: 50 };
+  assert.equal(calculateCuratorPlanEconomics(500, frozen).serviceFeeMinor, 50);
+  assert.equal(calculateCuratorPlanEconomics(500, today).serviceFeeMinor, 50);
+  // For a $60 annual price Bridge charges $66.00; today's policy would show $60.50.
+  assert.equal(calculateCuratorPlanEconomics(6000, frozen).fanChargeMinor, 6600);
+  assert.equal(calculateCuratorPlanEconomics(6000, today).fanChargeMinor, 6050);
 });

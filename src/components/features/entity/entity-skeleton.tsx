@@ -44,11 +44,11 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
   const showMobile = isDesktop === undefined ? true : !isDesktop;
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-svh relative">
       {/* Background with skeleton gradient */}
       <div className="fixed inset-0 z-0 bg-gradient-to-b from-muted/50 via-muted/30 to-background" />
 
-      <div className="relative z-10 min-h-screen">
+      <div className="relative z-10 min-h-svh">
         {/* Desktop Layout - hidden on mobile via CSS */}
         {showDesktop && (
           <div className={`${isDesktop === undefined ? 'hidden lg:block' : ''}`}>
@@ -227,7 +227,7 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
         <div className="flex gap-12">
           {/* Left Column - Artwork (flex: 2) - matches PostClientPage sticky layout */}
           <div className="flex-[2] sticky top-[120px] self-start">
-            <div className="flex flex-col items-center min-w-0 h-[calc(100vh-144px)] justify-center">
+            <div className="flex flex-col items-center min-w-0 h-[calc(100svh-144px)] justify-center">
               {/* Type Badge */}
               <Skeleton className="h-6 w-20 mb-6" />
 
@@ -258,7 +258,7 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
 
           {/* Right Column - Content (flex: 3) */}
           <div className="flex-[3]">
-            <div className="py-8 pb-16 min-h-[calc(100vh-144px)] flex flex-col justify-center">
+            <div className="py-8 pb-16 min-h-[calc(100svh-144px)] flex flex-col justify-center">
               <div className="space-y-6">
                 {/* Track Information Card */}
                 <div className="p-5 bg-card/40 rounded-xl border border-border/50 backdrop-blur-sm">

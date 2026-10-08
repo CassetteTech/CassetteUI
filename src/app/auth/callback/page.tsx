@@ -55,7 +55,7 @@ export default function OAuthCallbackPage() {
 
   if (error) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4">
+      <div className="flex min-h-svh flex-col items-center justify-center gap-4">
         <h1 className="text-2xl font-bold text-destructive">Login Failed</h1>
         <p>{error}</p>
         <button

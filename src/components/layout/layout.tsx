@@ -51,7 +51,7 @@ useEffect(() => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col relative">
+    <div className="min-h-svh flex flex-col relative">
       {/* We don't render MobileMenu here anymore, it's self-contained in Navbar */}
       
       {showNavbar && (

@@ -21,9 +21,9 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-svh relative">
       <AnimatedBackground className="fixed inset-0 z-0" />
-      <div className="relative z-10 min-h-screen flex items-center justify-center">
+      <div className="relative z-10 min-h-svh flex items-center justify-center">
         <div className="text-center p-8 max-w-md mx-auto">
           <div className="mb-6">
             <svg className="w-20 h-20 text-destructive mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">

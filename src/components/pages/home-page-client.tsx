@@ -425,21 +425,21 @@ export default function HomePageClient() {
   const sheetRef = useSheetViewportPin(isSearchActive);
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-svh relative">
       {/* Animated Background */}
       <AnimatedBackground className="fixed inset-0 z-0" />
       
       {/* The search/converting sheet lives inside this wrapper, so during a
           takeover the wrapper itself must rise above the fixed navbar (z-50)
           — a child's z-index can't escape its ancestor's stacking context. */}
-      <div className={`relative min-h-screen ${isTakeover ? 'z-[60]' : 'z-10'}`}>
+      <div className={`relative min-h-svh ${isTakeover ? 'z-[60]' : 'z-10'}`}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-0 lg:max-w-none">
           
           {/* Top spacing */}
           <div className="h-16 lg:h-0"></div>
 
           {/* Main Content Container */}
-          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] relative lg:max-w-[1600px] lg:mx-auto lg:block lg:pr-[500px] lg:p-0">
+          <div className="flex flex-col items-center justify-center min-h-[calc(100svh-4rem)] relative lg:max-w-[1600px] lg:mx-auto lg:block lg:pr-[500px] lg:p-0">
             
             {/* Left Column - Logo and Profile Demo (dimmed while a conversion runs) */}
             <div

@@ -47,7 +47,7 @@ export default function ExplorePage() {
 
   if (data.postsError) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-svh bg-background">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <h1 className="font-teko text-5xl font-bold uppercase">Explore</h1>
           <p className="mt-3 text-muted-foreground">Unable to load the explore feed right now.</p>
@@ -57,7 +57,7 @@ export default function ExplorePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background relative overflow-x-hidden">
+    <div className="min-h-svh bg-background relative overflow-x-hidden">
       {/* Subtle dotted paper */}
       <div
         aria-hidden

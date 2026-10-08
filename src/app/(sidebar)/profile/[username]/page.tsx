@@ -322,7 +322,7 @@ export default function ProfilePage() {
   // Handle edit mode without auth
   if (isEditMode && !user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-svh">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
           <p className="text-muted-foreground mb-4">You must be logged in to edit your profile</p>
@@ -344,7 +344,7 @@ export default function ProfilePage() {
     return (
       <>
         <div className="bg-background lg:hidden">
-          <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
+          <Container className="min-h-svh bg-transparent p-0 flex items-center justify-center">
             <div className="text-center">
               <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
               <p className="text-muted-foreground mb-4">{error}</p>
@@ -368,7 +368,7 @@ export default function ProfilePage() {
     return (
       <>
         <div className="bg-background lg:hidden">
-          <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
+          <Container className="min-h-svh bg-transparent p-0 flex items-center justify-center">
             <div className="text-center">
               <h1 className="text-2xl font-bold text-foreground mb-4">User Not Found</h1>
               <p className="text-muted-foreground mb-4">The profile you&apos;re looking for doesn&apos;t exist.</p>

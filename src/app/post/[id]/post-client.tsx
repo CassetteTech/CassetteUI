@@ -969,9 +969,9 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     const needsSession = error.kind === 'session';
 
     return (
-      <div className="min-h-screen relative">
+      <div className="min-h-svh relative">
         <AnimatedColorBackground palette={palette} />
-        <div className="relative z-10 min-h-screen flex items-center justify-center">
+        <div className="relative z-10 min-h-svh flex items-center justify-center">
           <MainContainer className="text-center p-8">
             <div className="mb-4">
               <svg className="w-16 h-16 text-danger mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1065,7 +1065,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const sourceService = sourcePlatformKey ? streamingServices[sourcePlatformKey] : null;
 
   return (
-    <div className={useSplitScrollLayout ? "fixed inset-x-0 top-16 bottom-0 overflow-y-auto" : "min-h-screen relative"}>
+    <div className={useSplitScrollLayout ? "fixed inset-x-0 top-16 bottom-0 overflow-y-auto" : "min-h-svh relative"}>
       {/* Animated Gradient Background */}
       <AnimatedColorBackground palette={palette} />
 
@@ -1080,7 +1080,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       />
 
       <div
-        className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-screen"} transition-[padding] duration-450 ease-out-quart ${commentsSheetOpen || insightsSheetOpen ? "md:pr-[512px]" : ""}`}
+        className={`${useSplitScrollLayout ? "relative z-10 h-full" : "relative z-10 min-h-svh"} transition-[padding] duration-450 ease-out-quart ${commentsSheetOpen || insightsSheetOpen ? "md:pr-[512px]" : ""}`}
       >
         {isDesktop ? (
           useSplitScrollLayout ? (
@@ -1431,7 +1431,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   </div>
                 </div>
               </div>
-              <div className="px-8 max-w-7xl mx-auto pb-24 min-h-[calc(100vh-144px)] flex flex-col justify-center">
+              <div className="px-8 max-w-7xl mx-auto pb-24 min-h-[calc(100svh-144px)] flex flex-col justify-center">
                 {/* Header row: positioned over the right column only, does not push artwork/card down */}
                 <div className="flex gap-12 mb-6">
                   <div className="flex-[2]" aria-hidden="true" />

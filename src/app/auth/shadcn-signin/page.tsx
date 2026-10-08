@@ -5,7 +5,7 @@ import { AnimatedBackground } from "@/components/ui/animated-background"
 
 export default function ShadcnSignInPage() {
   return (
-    <div className="min-h-screen bg-cream relative overflow-hidden">
+    <div className="min-h-svh bg-cream relative overflow-hidden">
       {/* Animated Background */}
       <AnimatedBackground className="fixed inset-0 z-0" />
       

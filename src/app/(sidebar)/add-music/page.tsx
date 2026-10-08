@@ -825,7 +825,7 @@ export default function AddMusicPage() {
     <>
       {/* Mobile Layout */}
       <div className="lg:hidden">
-        <div className="min-h-screen relative bg-background">
+        <div className="min-h-svh relative bg-background">
           {/* Subtle dotted paper — same texture as Explore */}
           <div
             aria-hidden
@@ -840,7 +840,7 @@ export default function AddMusicPage() {
           {/* The search sheet lives inside this wrapper, so while it's open
               the wrapper must rise above the fixed global navbar (z-50) — a
               child's z-index can't escape its ancestor's stacking context. */}
-          <div className={`relative min-h-screen ${isSearchActive ? 'z-[60]' : 'z-10'}`}>
+          <div className={`relative min-h-svh ${isSearchActive ? 'z-[60]' : 'z-10'}`}>
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
 
               {/* Header + profile stay mounted — the search sheet covers them

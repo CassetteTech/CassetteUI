@@ -56,7 +56,7 @@ export function PostLabelHead({ kicker, title, artist, meta, source, tint, compa
       )}
       <h1
         className={cn(
-          'text-balance font-teko font-bold uppercase leading-[0.9] tracking-tight',
+          'text-balance break-words font-teko font-bold uppercase leading-[0.9] tracking-tight',
           compact ? 'text-2xl' : 'text-4xl',
         )}
       >

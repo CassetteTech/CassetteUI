@@ -456,6 +456,10 @@ class ApiService {
     }
   }
 
+  async getPaidPromotionAvailability(): Promise<{ salesEnabled: boolean }> {
+    return this.request('/api/v1/paid-promotions/availability');
+  }
+
   async getPaidPromotionRateCards(): Promise<PaidPromotionRateCardsResponse> {
     return this.request<PaidPromotionRateCardsResponse>('/api/v1/paid-promotions/rate-cards');
   }

@@ -2,6 +2,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePaidPromotionAvailability } from '@/hooks/use-paid-promotion-availability';
+import { PromoteLanding } from './promote-landing';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, CheckCircle2, CircleAlert, Music2, RotateCcw, Search, ShieldCheck, X } from 'lucide-react';
@@ -173,7 +175,15 @@ function RequiredIndicator() {
   );
 }
 
-export function PaidPromotionIntake({ repeatElementId }: { repeatElementId?: string }) {
+export function PaidPromotionIntake(props: { repeatElementId?: string }) {
+  const { data, isPending, isError } = usePaidPromotionAvailability();
+  if (isPending) return <p role="status" className="p-6">Checking Boost availability…</p>;
+  if (isError) return <p role="alert" className="p-6">Boost availability could not be loaded.</p>;
+  if (!data.salesEnabled) return <PromoteLanding />;
+  return <PaidPromotionIntakeForm {...props} />;
+}
+
+function PaidPromotionIntakeForm({ repeatElementId }: { repeatElementId?: string }) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuthState();
   const linkConversion = useMusicLinkConversion();

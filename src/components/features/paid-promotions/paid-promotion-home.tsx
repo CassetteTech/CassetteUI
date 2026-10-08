@@ -13,6 +13,7 @@ import {
   TapeDeckBand,
 } from '@/components/features/paid-promotions/promote-tape-deck';
 import { Spinner } from '@/components/ui/spinner';
+import { usePaidPromotionAvailability } from '@/hooks/use-paid-promotion-availability';
 import { useAuthState } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { apiService } from '@/services/api';
@@ -108,15 +109,17 @@ function CampaignCard({
   campaign,
   subject,
   featured = false,
+  salesEnabled,
 }: {
   campaign: PaidPromotionCampaign;
   subject?: PaidPromotionSubject;
   featured?: boolean;
+  salesEnabled: boolean;
 }) {
   const statusPresentation = getPaidPromotionStatusPresentation(campaign);
   const awaitingPromoter = statusPresentation.actor === 'you';
   const canRepeat = Boolean(
-    subject?.repeatSourceUrl && REPEATABLE_CAMPAIGN_STATUSES.has(campaign.status),
+    salesEnabled && subject?.repeatSourceUrl && REPEATABLE_CAMPAIGN_STATUSES.has(campaign.status),
   );
   const displayedAmountMinor = campaign.finalTotalMinor ?? campaign.amountMinor;
   const displayedAmountLabel = campaign.finalTotalMinor === null ? 'Campaign subtotal' : 'Final total';
@@ -272,7 +275,7 @@ function CampaignCard({
   );
 }
 
-function SubjectCard({ subject }: { subject: PaidPromotionSubject }) {
+function SubjectCard({ subject, salesEnabled }: { subject: PaidPromotionSubject; salesEnabled: boolean }) {
   return (
     <li className="flex min-w-0 gap-3 border border-border bg-card p-3">
       <div className="relative size-14 shrink-0 overflow-hidden border border-border">
@@ -308,7 +311,7 @@ function SubjectCard({ subject }: { subject: PaidPromotionSubject }) {
             </li>
           ))}
         </ul>
-        {subject.repeatSourceUrl && (
+        {salesEnabled && subject.repeatSourceUrl && (
           <Button asChild variant="brutalist-outline" size="sm" className="mt-3 w-full">
             <Link
               href={repeatCampaignHref(subject)}
@@ -355,6 +358,8 @@ function LoadingPanel({ label }: { label: string }) {
 }
 
 export function PaidPromotionHome() {
+  const { data: availability } = usePaidPromotionAvailability();
+  const salesEnabled = availability?.salesEnabled === true;
   const { isAuthenticated, isLoading: authLoading } = useAuthState();
   const [campaigns, setCampaigns] = useState<ResourceState<PaidPromotionCampaign[]>>({
     phase: 'loading',
@@ -434,11 +439,11 @@ export function PaidPromotionHome() {
   // worth surfacing with a retry; users with no campaigns stay on the
   // landing in its signed-in continue state.
   if (authLoading || !isAuthenticated || !hasLoadedCampaigns) {
-    return <PromoteLanding signedIn={!authLoading && isAuthenticated} />;
+    return <PromoteLanding signedIn={!authLoading && isAuthenticated} salesEnabled={salesEnabled} />;
   }
 
   if (campaigns.phase === 'ready' && campaigns.data.length === 0) {
-    return <PromoteLanding signedIn />;
+    return <PromoteLanding signedIn salesEnabled={salesEnabled} />;
   }
 
   const isRefreshing = campaigns.phase === 'loading' || subjects.phase === 'loading';
@@ -462,13 +467,13 @@ export function PaidPromotionHome() {
             </p>
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-            <Link
+            {salesEnabled && <Link
               href="/promote/new"
               data-testid="paid-promotion-new-campaign"
               className={`${TAPE_DECK_CTA_CLASS} w-full sm:w-auto`}
             >
               Start a new campaign <ArrowRight aria-hidden="true" />
-            </Link>
+            </Link>}
             <button
               type="button"
               onClick={() => void load()}
@@ -523,6 +528,7 @@ export function PaidPromotionHome() {
                         <CampaignCard
                           key={campaign.id}
                           campaign={campaign}
+                          salesEnabled={salesEnabled}
                           subject={subjectsByElementId.get(campaign.elementId)}
                           // Only the single most urgent campaign gets the focal
                           // treatment; a page of focal cards has no hierarchy.
@@ -571,7 +577,7 @@ export function PaidPromotionHome() {
                 className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
                 {subjects.data.map((subject) => (
-                  <SubjectCard key={subject.elementId} subject={subject} />
+                  <SubjectCard key={subject.elementId} subject={subject} salesEnabled={salesEnabled} />
                 ))}
               </ul>
             )}

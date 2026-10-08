@@ -967,3 +967,29 @@ test('keeps campaign detail and evidence links usable within a narrow mobile vie
     return documentWidth - window.innerWidth;
   })).toBeLessThanOrEqual(1);
 });
+
+for (const currentUser of [null, fixtureUsers.member]) {
+  test(`closed Boost hides intake for ${currentUser ? 'members' : 'visitors'}`, async ({ page }) => {
+    await mockCassetteApp(page, { currentUser, paidPromotionSalesEnabled: false, paidPromotionCampaigns: [] });
+    await page.goto('/promote');
+    await expect(page.getByRole('heading', { name: 'Boost is not available yet' })).toBeVisible();
+    await expect(page.locator('a[href="/promote/new"]')).toHaveCount(0);
+    await page.goto('/promote/new');
+    await expect(page.getByRole('heading', { name: 'Boost is not available yet' })).toBeVisible();
+    await expect(page.getByTestId('paid-promotion-submit')).toHaveCount(0);
+  });
+}
+
+test('closed Boost keeps campaign history and hides repeat and Checkout controls', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    paidPromotionSalesEnabled: false,
+    paidPromotionCampaigns: [fixturePaidPromotionCampaign],
+    paidPromotionSubjects: fixturePaidPromotionSubjects,
+  });
+  await page.goto('/promote');
+  await expect(page.getByRole('heading', { name: 'Promotion home' })).toBeVisible();
+  await expect(page.locator('a[href^="/promote/new"]')).toHaveCount(0);
+  await page.goto(`/promote/${fixturePaidPromotionCampaign.id}/return`);
+  await expect(page.getByTestId('paid-promotion-reopen-checkout')).toHaveCount(0);
+});

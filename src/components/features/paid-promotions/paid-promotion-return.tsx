@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePaidPromotionAvailability } from '@/hooks/use-paid-promotion-availability';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -121,6 +122,7 @@ interface PaidPromotionReturnProps {
 }
 
 export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
+  const { data: availability } = usePaidPromotionAvailability();
   const router = useRouter();
   const searchParams = useSearchParams();
   const cameFromCancelUrl = searchParams.get('checkout') === 'canceled';
@@ -349,7 +351,7 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
                   </p>
                 )}
 
-                {(state === 'not_started' || state === 'pending' || state === 'failed' || state === 'expired') && (
+                {availability?.salesEnabled && (state === 'not_started' || state === 'pending' || state === 'failed' || state === 'expired') && (
                   <div className="space-y-3">
                     <Button
                       type="button"

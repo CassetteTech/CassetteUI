@@ -110,7 +110,21 @@ function DraftBadge() {
   );
 }
 
-export function PromoteLanding({ signedIn = false }: { signedIn?: boolean }) {
+export function PromoteLanding({ signedIn = false, salesEnabled = false }: {
+  signedIn?: boolean;
+  salesEnabled?: boolean;
+}) {
+  if (!salesEnabled) {
+    return (
+      <section className="card-quiet mx-auto my-12 max-w-3xl p-6" data-testid="promote-landing">
+        <h1 className="font-atkinson text-3xl font-bold">Boost is not available yet</h1>
+        <p className="mt-3 text-muted-foreground">Boost sales will open in a separate release.</p>
+        <p className="mt-3 text-muted-foreground">Spotlight and Headline are not live yet.</p>
+        <PaidPromotionSupportContact className="mt-6" />
+      </section>
+    );
+  }
+
   return (
     <div className="relative bg-background pb-16" data-testid="promote-landing">
       <TapeDeckBand variant="hero">

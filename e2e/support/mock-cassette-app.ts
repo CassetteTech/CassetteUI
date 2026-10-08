@@ -101,6 +101,7 @@ type MockCassetteOptions = {
   profileUpdateFailures?: number;
   issueReportFailures?: number;
   googleAuthInitFailures?: number;
+  paidPromotionSalesEnabled?: boolean;
   paidPromotionRateCards?: FixturePaidPromotionRateCard[];
   paidPromotionConversionDelayMs?: number;
   paidPromotionCampaign?: FixturePaidPromotionCampaign;
@@ -2029,6 +2030,11 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
           ? Array.from(state.paidPromotionCampaignsById.values())
           : state.paidPromotionCampaignsResponse,
       );
+    }
+
+    if (pathname === '/api/v1/paid-promotions/availability' && method === 'GET') {
+      await route.fulfill({ json: { salesEnabled: options.paidPromotionSalesEnabled ?? true } });
+      return;
     }
 
     if (pathname === '/api/v1/paid-promotions/rate-cards' && method === 'GET') {

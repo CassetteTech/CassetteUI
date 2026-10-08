@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { fixtureUsers } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
+import { fixtureMatchQualityIssueId, mockInternalMatchQuality } from './support/mock-internal-match-quality';
 
 /**
  * The /internal gate resolves client-side, so a deny has to be asserted on the
@@ -134,5 +135,83 @@ test.describe('internal console access', () => {
 
     releaseRefresh();
     await expect(consoleHeading(page)).toBeVisible();
+  });
+});
+
+/** Visible matches only: the sidebar layout renders each page twice and hides one copy by breakpoint. */
+const shown = (page: Page, text: string | RegExp) => page.getByText(text).filter({ visible: true });
+
+test.describe('internal match-quality reporting', () => {
+  test('shows a Shadow Jev attempt beside the applied deterministic result on an issue', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: { ...fixtureUsers.member, accountType: 'CassetteTeam' },
+    });
+    await mockInternalMatchQuality(page, { authorized: true });
+
+    await page.goto(`/internal/issues?issue=${fixtureMatchQualityIssueId}`);
+
+    await expect(shown(page, 'shadow · not applied · spotify-1')).toBeVisible();
+    await expect(shown(page, 'Deterministic · spotify-0')).toHaveCount(2);
+    await expect(shown(page, 'jev-1.13.0 → jev-1.13.0 · track-selection-prompt-v1')).toBeVisible();
+    const options = page.getByRole('table', { name: /Candidate options .* tmd_linked/ });
+    await expect(options.getByRole('columnheader', { name: 'Deterministic score' })).toBeVisible();
+    await expect(options.getByRole('columnheader', { name: 'Model probability' })).toBeVisible();
+    await expect(options.getByRole('row').filter({ hasText: 'spotify-1' })).toContainText(/60\s*0\.750/);
+    await expect(options.getByRole('row').filter({ hasText: 'no_match' })).toContainText('0.050');
+    await expect(shown(page, 'tmd_expired · not retained')).toBeVisible();
+
+    await expect(shown(page, 'Captured attempts without a shown outcome')).toBeVisible();
+    await expect(shown(page, 'shadow · not applied · failed · timeout')).toBeVisible();
+    await expect(shown(page, /exceeded the size limit/)).toBeVisible();
+  });
+
+  test('reports Jev operations and evidence gaps in conversion quality', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: { ...fixtureUsers.member, accountType: 'CassetteTeam' },
+    });
+    const state = await mockInternalMatchQuality(page, { authorized: true });
+
+    await page.goto('/internal/conversion-quality');
+
+    const row = page
+      .getByRole('table', { name: /Jev attempts by provider/ })
+      .getByRole('row')
+      .filter({ hasText: 'single_track_conversion' });
+    await expect(row).toContainText('shadow (not applied)');
+    await expect(row).toContainText('66.7%');
+    await expect(row).toContainText('1 unapplied · 0 applied');
+    await expect(row).toContainText('Failed: timeout 1');
+    await expect(row).toContainText('Request 280 ms / 7,990 ms');
+    await expect(row).toContainText('Added 310 ms / 8,000 ms');
+    await expect(row).toContainText('Jev 100.0% · deterministic 0.0%');
+    await expect(shown(page, /checked 2026-09-21/)).toBeVisible();
+    await expect(shown(page, 'conversion_failed 1 · pending 1')).toBeVisible();
+    await expect(shown(page, /operator-configured approved limits/)).toBeVisible();
+    const limits = page.getByRole('table', { name: /approved operating limits/ });
+    await expect(limits.getByRole('row').filter({ hasText: 'Added time per single track (p95)' }))
+      .toContainText('5,000 ms8,000 ms3 measuredExceeded');
+    await expect(limits.getByRole('row').filter({ hasText: 'Wrong songs where Jev decided' }))
+      .toContainText('Not enough data');
+    await expect(limits.getByRole('row').filter({ hasText: 'No-match errors where Jev decided' }))
+      .toContainText('Not enough data');
+
+    // The report window stays keyboard operable.
+    await page.getByRole('button', { name: '90d', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => state.urls.some(url => url.includes('days=90'))).toBe(true);
+  });
+
+  test('neither fetches nor renders match-quality evidence for a non-internal account', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: { ...fixtureUsers.member, accountType: 'Standard' },
+    });
+    const state = await mockInternalMatchQuality(page, { authorized: false });
+
+    for (const path of [`/internal/issues?issue=${fixtureMatchQualityIssueId}`, '/internal/conversion-quality']) {
+      await page.goto(path);
+      await expect(page).toHaveURL('/');
+      await expect(page.getByText(/Jev|Model probability/)).toHaveCount(0);
+    }
+    expect(state.urls).toEqual([]);
   });
 });

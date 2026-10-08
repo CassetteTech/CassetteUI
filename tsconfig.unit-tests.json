@@ -39,6 +39,8 @@
     "src/services/__tests__/conversion-contract-fixtures.test.ts",
     "src/app/(sidebar)/internal/_components/explore-snapshot-utils.ts",
     "src/app/(sidebar)/internal/_components/__tests__/explore-snapshot-utils.test.ts",
+    "src/app/(sidebar)/internal/_components/match-decision-evidence.ts",
+    "src/app/(sidebar)/internal/_components/__tests__/match-decision-evidence.test.ts",
     "src/lib/analytics/events.ts",
     "src/lib/analytics/sanitize.ts",
     "src/lib/attribution/attribution-links.ts",

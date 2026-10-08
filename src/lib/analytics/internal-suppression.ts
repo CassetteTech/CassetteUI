@@ -3,8 +3,6 @@ const INTERNAL_ROUTE_PREFIXES = [
   '/debug',
   '/demo',
   '/music-auth-demo',
-  '/auth/shadcn-signin',
-  '/auth/shadcn-signup',
 ];
 
 function normalizePath(path: string): string {

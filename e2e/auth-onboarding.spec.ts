@@ -89,7 +89,10 @@ test('keeps the membership purchase visible through sign-in and minimal onboardi
   }));
   await page.getByRole('button', { name: 'Save and continue to payment' }).click();
 
-  await expect(page).toHaveURL(`${curatorPath}?membership=canceled`);
+  await expect(page.getByTestId('membership-notice')).toHaveText(
+    'Checkout was canceled. You were not charged.',
+  );
+  await expect(page).toHaveURL(curatorPath);
   await expect.poll(() => state.membershipCheckoutRequests.at(-1)).toEqual({
     planId: fixtureCuratorPage.membership!.planId,
     interval: 'year',

@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
-import Image from 'next/image';
+import { useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { ArtworkWallBackground } from '@/components/features/marketing/artwork-wall-background';
 import { DitherEdge } from '@/components/features/marketing/dither-edge';
 import { HomeDitherField } from '@/components/pages/home-dither-field';
 import { HomeDemoSection } from '@/components/demo/home-demo-section';
@@ -12,8 +12,6 @@ import { HomeSearchDropdown } from './home-search-bar';
 import { HomeBrand, DemoButton } from './home-brand';
 import { CuratorMembershipSection } from './curator-membership-section';
 import { HomeClosing } from './home-closing';
-
-const COLUMNS = 7;
 
 /** Concept 6, Artwork wall: the charts are the backdrop, printed. Real
     covers drift in slow columns under a paper halftone screen, a grain
@@ -25,41 +23,9 @@ export function HomeConceptArtworkWall() {
   const cardRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  // Distinct artwork from the charts, dealt into columns. Until the charts
-  // arrive, the wall is muted tiles so the card has something to frost.
-  const columns = useMemo(() => {
-    const charts = search.topCharts;
-    const artworks = Array.from(new Set(
-      [...(charts?.tracks ?? []), ...(charts?.albums ?? []), ...(charts?.playlists ?? [])]
-        .map((item) => item.artwork)
-        .filter((artwork): artwork is string => !!artwork),
-    ));
-    return Array.from({ length: COLUMNS }, (_, column) =>
-      artworks.filter((_, index) => index % COLUMNS === column));
-  }, [search.topCharts]);
-
   return (
     <div className="relative min-h-screen">
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-background">
-        <div className="absolute inset-x-0 -top-10 bottom-0 grid grid-cols-3 gap-3 px-3 opacity-70 saturate-[0.85] sm:grid-cols-5 lg:grid-cols-7 dark:opacity-50 [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_78%)]">
-          {columns.map((column, index) => (
-            <div
-              key={index}
-              className={index >= 3 ? (index >= 5 ? 'home-wall-column hidden lg:flex' : 'home-wall-column hidden sm:flex') : 'home-wall-column'}
-              style={{ animationDuration: `${70 + index * 11}s`, animationDirection: index % 2 ? 'reverse' : 'normal' }}
-            >
-              {[...(column.length ? column : Array<null>(8).fill(null)), ...(column.length ? column : Array<null>(8).fill(null))].map((artwork, tile) => (
-                <div key={tile} className="relative aspect-square w-full overflow-hidden rounded-md bg-muted">
-                  {artwork && <Image src={artwork} alt="" fill sizes="220px" className="object-cover" />}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-        {/* Paper dots over the covers: the wall is a print, not a photo grid. */}
-        <div className="home-halftone-screen absolute inset-0 opacity-80" />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-transparent to-background" />
-      </div>
+      <ArtworkWallBackground />
       {/* Grain sun behind the card, cut-outs drifting above it. */}
       <HomeDitherField
         wordmarkRef={cardRef}

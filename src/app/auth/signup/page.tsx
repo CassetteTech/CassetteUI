@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { AnimatedBackground } from '@/components/ui/animated-background';
+import { ArtworkWallBackground } from '@/components/features/marketing/artwork-wall-background';
 import { MailCheck } from 'lucide-react';
 import { useSignUp, useSignInWithProvider } from '@/hooks/use-auth';
 import Image from 'next/image';
@@ -44,7 +44,7 @@ export default function SignUpPage() {
   if (isSuccess && signUpResult?.authenticated !== true) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
-        <AnimatedBackground className="fixed inset-0 z-0" />
+        <ArtworkWallBackground />
         <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
           <div className="w-full max-w-md">
             <div className="flex justify-center mb-8">
@@ -60,7 +60,7 @@ export default function SignUpPage() {
               </Link>
             </div>
 
-            <Card className="dark:bg-[hsl(var(--secondary))]">
+            <Card>
               <CardHeader className="text-center flex flex-col items-center gap-3">
                 <div className="h-14 w-14 border-2 border-foreground bg-background flex items-center justify-center shadow-flat-3">
                   <MailCheck className="h-7 w-7 text-primary" aria-hidden />
@@ -94,8 +94,7 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Animated Background */}
-      <AnimatedBackground className="fixed inset-0 z-0" />
+      <ArtworkWallBackground />
 
       <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
         <div className="w-full max-w-md">
@@ -113,7 +112,7 @@ export default function SignUpPage() {
             </Link>
           </div>
 
-          <Card className="dark:bg-[hsl(var(--secondary))]">
+          <Card>
             <CardHeader className="text-center">
               <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2 flex items-center justify-center gap-1.5">
                 <Image

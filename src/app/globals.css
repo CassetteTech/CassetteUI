@@ -786,29 +786,29 @@
   mask-size: 100% 100%;
 }
 
-/* ─── Home concept: artwork wall ─────────────────────────────────────────
+/* ─── Artwork wall ──────────────────────────────────────────────────────
    Each column of chart artwork drifts one full copy of itself and loops,
-   so the wall reads as slow tape motion behind the frosted hero card. */
-@keyframes home-wall-drift {
+   so the wall reads as slow tape motion behind the card above it. */
+@keyframes artwork-wall-drift {
   to { transform: translateY(-50%); }
 }
 
-.home-wall-column {
+.artwork-wall-column {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  will-change: transform;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .home-wall-column {
-    animation: home-wall-drift 80s linear infinite;
+  .artwork-wall-column {
+    animation: artwork-wall-drift 80s linear infinite;
+    will-change: transform;
   }
 }
 
 /* Paper dots punched over the artwork wall, so the covers read as a
    halftone print rather than a photo grid. */
-.home-halftone-screen {
+.artwork-wall-halftone {
   background-image: radial-gradient(circle at center, hsl(var(--background)) 0.9px, transparent 1.1px);
   background-size: 4px 4px;
 }

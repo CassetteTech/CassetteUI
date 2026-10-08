@@ -185,6 +185,13 @@ const nextConfig: NextConfig = {
         destination: '/release-notes',
         permanent: true,
       },
+      // Sign-in alias, like /signup. The query string, including `redirect`,
+      // passes through.
+      {
+        source: '/login',
+        destination: '/auth/signin',
+        permanent: false,
+      },
       // Email/password auth is temporarily disabled (Google-only), so the
       // password reset flow is parked too — a password set here could never be
       // used to sign in. Remove these when the email auth blocks in

@@ -10,7 +10,7 @@ import {
   CardDescription,
   CardHeader,
 } from '@/components/ui/card';
-import { AnimatedBackground } from '@/components/ui/animated-background';
+import { ArtworkWallBackground } from '@/components/features/marketing/artwork-wall-background';
 import { useSignInWithProvider } from '@/hooks/use-auth';
 import Image from 'next/image';
 import { GoogleGIcon } from '@/components/ui/google-g-icon';
@@ -55,8 +55,7 @@ export default function SignInPage() {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Animated Background */}
-      <AnimatedBackground className="fixed inset-0 z-0" />
+      <ArtworkWallBackground />
 
       <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
         <div className="w-full max-w-md">
@@ -74,7 +73,7 @@ export default function SignInPage() {
             </Link>
           </div>
 
-          <Card className="dark:bg-[hsl(var(--secondary))]">
+          <Card>
             <CardHeader className="text-center">
               <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2 flex items-center justify-center gap-1.5">
                 <Image
@@ -237,20 +236,19 @@ export default function SignInPage() {
                   Sign Up →
                 </Link>
               </div>
+              <div className="text-muted-foreground text-center text-xs text-balance mt-4">
+                By clicking continue, you agree to our{' '}
+                <Link href="/terms" className="underline underline-offset-4 hover:text-foreground">
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+                  Privacy Policy
+                </Link>
+                .
+              </div>
             </CardContent>
           </Card>
-
-          <div className="text-muted-foreground text-center text-xs text-balance mt-4">
-            By clicking continue, you agree to our{' '}
-            <Link href="/terms" className="underline underline-offset-4 hover:text-foreground">
-              Terms of Service
-            </Link>{' '}
-            and{' '}
-            <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
-              Privacy Policy
-            </Link>
-            .
-          </div>
         </div>
       </div>
     </div>

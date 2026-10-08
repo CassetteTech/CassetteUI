@@ -167,6 +167,12 @@ export function calculateCuratorPlanEconomics(
   };
 }
 
+/** True while today's policy still yields the plan's frozen monthly fan fee. Bridge prices an
+    added annual term from the plan's frozen fee schedule, so a today's-policy estimate is only
+    shown when the two agree. */
+export const planFeesMatchPolicy = (plan: CuratorPlan, pricing: CuratorPricing): boolean =>
+  calculateCuratorPlanEconomics(plan.amountMinor, pricing).serviceFeeMinor === plan.serviceFeeMinor;
+
 async function parseResponse<T>(
   response: Response,
   message: string,
@@ -250,6 +256,25 @@ export const archiveCuratorPlan = (id: string): Promise<CuratorPlan> =>
 /** Archives the plan and schedules every member of this curator to end at their paid-through date. */
 export const endCuratorMemberships = (id: string): Promise<CuratorPlan> =>
   changeCuratorPlan(id, 'end-memberships');
+
+const annualPriceRequestSchema = z.object({ annualAmountMinor: moneyMinorSchema.positive() }).strict();
+const curatorErrorSchema = z.object({ errorCode: z.string(), message: z.string().min(1).max(500) }).strict();
+
+/** Adds the one-time annual price to an active plan. Bridge freezes it after the
+    first addition. Failures carry Bridge's own message when the body is its error shape. */
+export async function addCuratorPlanAnnualPrice(id: string, annualAmountMinor: number): Promise<CuratorPlan> {
+  const response = await fetch(`/api/v1/curators/plans/${encodeURIComponent(planIdSchema.parse(id))}/annual-price`, {
+    method: 'POST',
+    body: JSON.stringify(annualPriceRequestSchema.parse({ annualAmountMinor })),
+    credentials: 'include',
+    headers: jsonHeaders,
+  });
+  if (!response.ok) {
+    const body = curatorErrorSchema.safeParse(await response.json().catch(() => null));
+    throw new CuratorPageError(body.success ? body.data.message : 'Failed to add annual price', response.status);
+  }
+  return curatorPlanSchema.parse(await response.json());
+}
 
 /** Published plans whose members can open members-only posts. */
 export const memberPostPlans = (plans: CuratorPlan[]): CuratorPlan[] =>

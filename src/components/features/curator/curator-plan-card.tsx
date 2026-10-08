@@ -8,10 +8,12 @@ import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
 import {
+  CuratorPageError,
   fetchCuratorPayoutAccount,
   type CuratorProfile,
 } from '@/services/curator';
 import {
+  addCuratorPlanAnnualPrice,
   archiveCuratorPlan,
   endCuratorMemberships,
   calculateCuratorPlanEconomics,
@@ -20,6 +22,7 @@ import {
   fetchCuratorFeatures,
   fetchCuratorPlans,
   fetchCuratorPricing,
+  planFeesMatchPolicy,
   publishCuratorPlan,
   updateCuratorPlan,
   type CuratorPlan,
@@ -93,7 +96,7 @@ function priceMinor(value: string): number | null {
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount <= 0) return null;
   const minor = Math.round(amount * 100);
-  return Number.isSafeInteger(minor) ? minor : null;
+  return Number.isSafeInteger(minor) && minor > 0 ? minor : null;
 }
 
 function priceText(amountMinor: number | null): string {
@@ -180,6 +183,96 @@ function PriceField({ unit, className, ...props }: React.ComponentProps<typeof I
   );
 }
 
+// Stable identity, so React calls it once on mount: focus moves from the control
+// that unmounted to the one that replaced it.
+const focusOnMount = (node: HTMLElement | null) => node?.focus();
+
+/** Adds the one-time annual price to a published plan. The plan list is refetched
+    after the request settles, so the card only changes once the server confirms it.
+    Once the plan has an annual price the adder renders nothing. */
+function AnnualPriceAdder({ plan, pricing, refresh, onAdded }: {
+  plan: CuratorPlan;
+  pricing: CuratorPricing;
+  refresh: () => Promise<void>;
+  onAdded: () => void;
+}) {
+  // null until first opened, so only Cancel returns focus to the opening button.
+  const [open, setOpen] = useState<boolean | null>(null);
+  const [price, setPrice] = useState('');
+  const add = useMutation({
+    mutationFn: (annualAmountMinor: number) => addCuratorPlanAnnualPrice(plan.id, annualAmountMinor),
+    onSuccess: async () => {
+      await refresh();
+      onAdded();
+    },
+    onError: refresh,
+  });
+  const entered = price.trim() !== '';
+  const annualMinor = entered ? priceMinor(price) : null;
+  const valid = annualMinor !== null && annualMinor <= plan.amountMinor * 12;
+  const economics = valid ? calculateCuratorPlanEconomics(annualMinor, pricing) : null;
+  const estimateMatchesTerms = planFeesMatchPolicy(plan, pricing);
+  const inputError = !entered || valid
+    ? null
+    : annualMinor === null ? 'Enter a valid annual price.' : 'Annual price can be at most 12 monthly payments.';
+  // Bridge's conflict copy names the exact blocker (plan state, profile state, or a price already added).
+  const requestError = add.error instanceof CuratorPageError && add.error.status === 409
+    ? add.error.message
+    : getUserFacingApiErrorMessage(add.error, 'The annual price was not added.');
+
+  if (plan.annualAmountMinor !== null) return null;
+  if (!open) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        data-testid="curator-plan-annual-open"
+        ref={open === false ? focusOnMount : undefined}
+        onClick={() => setOpen(true)}
+      >
+        Add annual price
+      </Button>
+    );
+  }
+  return (
+    <form
+      data-testid="curator-plan-annual-form"
+      className="w-full max-w-sm space-y-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (valid && !add.isPending) add.mutate(annualMinor);
+      }}
+    >
+      <Label htmlFor={`plan-${plan.id}-annual`}>Annual price<span className="sr-only"> (USD)</span></Label>
+      <PriceField
+        id={`plan-${plan.id}-annual`}
+        unit="/year"
+        ref={focusOnMount}
+        aria-invalid={inputError ? true : undefined}
+        aria-describedby={`plan-${plan.id}-annual-help`}
+        value={price}
+        onChange={(event) => setPrice(event.target.value)}
+      />
+      <p id={`plan-${plan.id}-annual-help`} className={cn('text-xs', inputError ? 'text-destructive' : 'text-muted-foreground')}>
+        {inputError ?? `Up to ${money(plan.amountMinor * 12, plan.currency)}. Once added, it cannot change.`}
+      </p>
+      {/* Same estimate receipt as the draft form, but only while today's policy matches the plan's frozen fees. */}
+      {economics && (estimateMatchesTerms
+        ? <EconomicsBreakdown economics={economics} currency={pricing.currency} interval="year" />
+        : <p className="text-xs text-muted-foreground">Fan fees follow this plan&apos;s original terms.</p>)}
+      {add.isError && <p role="alert" className="text-sm text-destructive">{requestError}</p>}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button type="submit" className="w-full sm:w-auto" disabled={!valid || add.isPending}>
+          {add.isPending ? 'Adding…' : 'Add annual price'}
+        </Button>
+        <Button type="button" variant="ghost" className="w-full sm:w-auto" disabled={add.isPending} onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null }) {
   const { user } = useAuthState();
   const passSlot = useContext(StudioStepsContext)?.passSlot ?? null;
@@ -262,7 +355,9 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   });
   const change = useMutation({
     mutationFn: ({ kind, planId }: PlanAction) => planActions[kind].run(planId),
-    onSuccess: (saved, action) => {
+    onSuccess: async (saved, action) => {
+      // A plan list read sent before this action, such as the annual price refresh, would overwrite its result.
+      await queryClient.cancelQueries({ queryKey: plansKey });
       queryClient.setQueryData<CuratorPlan[]>(plansKey, (current) => replacePlan(current, saved));
       // Ending memberships also archives the live offer, which the response does not carry.
       if (action.kind === 'end-memberships') void queryClient.invalidateQueries({ queryKey: plansKey });
@@ -630,6 +725,18 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                     )}
                     {plan.status !== 'draft' && (
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    {plan.status === 'active' && profileReady && (
+                      <AnnualPriceAdder
+                        plan={plan}
+                        pricing={pricing.data}
+                        refresh={() => queryClient.invalidateQueries({ queryKey: plansKey })}
+                        onAdded={() => {
+                          // An Archive or End memberships that settled first keeps its notice.
+                          const current = queryClient.getQueryData<CuratorPlan[]>(plansKey)?.find((candidate) => candidate.id === plan.id);
+                          if (current?.status === 'active') setNotice('Annual price added. Fans can now choose yearly billing.');
+                        }}
+                      />
+                    )}
                     {plan.status === 'active' && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>

@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  addCuratorPlanAnnualPrice,
   archiveCuratorPlan,
   calculateCuratorPlanEconomics,
   createCuratorPlan,
@@ -14,10 +15,12 @@ import {
   parseCuratorFeatures,
   parseCuratorPlan,
   parseCuratorPricing,
+  planFeesMatchPolicy,
   publishCuratorPlan,
   updateCuratorPlan,
   type CuratorPricing,
 } from '../curator-plans';
+import { CuratorPageError } from '../curator';
 
 const pricing: CuratorPricing = {
   curatorProMonthlyPriceMinor: 500,
@@ -238,4 +241,69 @@ void test('plan client uses only the authenticated public lifecycle routes', asy
     { body: undefined, cache: undefined, credentials: 'include', method: 'POST', url: `${'/api/v1/curators/plans'}/${draft.id}/publish` },
     { body: undefined, cache: undefined, credentials: 'include', method: 'POST', url: `${'/api/v1/curators/plans'}/${draft.id}/archive` },
   ]);
+});
+
+void test('annual price client posts once, parses the plan strictly, and keeps Bridge conflict copy', async (t) => {
+  const active = {
+    ...draft,
+    annualAmountMinor: null,
+    status: 'active',
+    serviceFeeMinor: 58,
+    publishedAtUtc: '2026-08-16T13:00:00Z',
+  };
+  const responses = [
+    new Response(JSON.stringify({ ...active, annualAmountMinor: 7000, annualServiceFeeMinor: 310 })),
+    new Response(JSON.stringify({
+      errorCode: 'curator_profile_state_invalid',
+      message: 'This plan already has immutable annual pricing.',
+    }), { status: 409 }),
+    new Response('<html>bad gateway</html>', { status: 502 }),
+    // Published with an annual price but no frozen annual fee: inconsistent evidence.
+    new Response(JSON.stringify({ ...active, annualAmountMinor: 7000 })),
+  ];
+  const calls: Array<{ init?: RequestInit; input: string | URL | Request }> = [];
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ init, input });
+    return responses[calls.length - 1];
+  });
+
+  const saved = await addCuratorPlanAnnualPrice(draft.id, 7000);
+  assert.equal(saved.annualAmountMinor, 7000);
+  assert.equal(saved.annualServiceFeeMinor, 310);
+  assert.deepEqual({
+    body: calls[0].init?.body,
+    credentials: calls[0].init?.credentials,
+    method: calls[0].init?.method,
+    url: requestUrl(calls[0].input),
+  }, {
+    body: JSON.stringify({ annualAmountMinor: 7000 }),
+    credentials: 'include',
+    method: 'POST',
+    url: `/api/v1/curators/plans/${draft.id}/annual-price`,
+  });
+
+  await assert.rejects(addCuratorPlanAnnualPrice(draft.id, 7000), (error) =>
+    error instanceof CuratorPageError && error.status === 409 &&
+    error.message === 'This plan already has immutable annual pricing.');
+  await assert.rejects(addCuratorPlanAnnualPrice(draft.id, 7000), (error) =>
+    error instanceof CuratorPageError && error.status === 502 && error.message === 'Failed to add annual price');
+  await assert.rejects(addCuratorPlanAnnualPrice(draft.id, 7000), /Annual plan fields are inconsistent/);
+  // Invalid input never reaches the network.
+  await assert.rejects(addCuratorPlanAnnualPrice(draft.id, 0));
+  await assert.rejects(addCuratorPlanAnnualPrice('not-a-plan', 7000));
+  assert.equal(calls.length, 4);
+});
+
+void test('annual estimates show only while today\'s policy matches the plan\'s frozen fees', () => {
+  // 700 at 400 bps + 30 fixed = 58, the fee frozen on this published plan.
+  const published = parseCuratorPlan({
+    ...draft,
+    annualAmountMinor: null,
+    status: 'active',
+    serviceFeeMinor: 58,
+    publishedAtUtc: '2026-08-16T13:00:00Z',
+  });
+  assert.equal(planFeesMatchPolicy(published, pricing), true);
+  assert.equal(planFeesMatchPolicy(published, { ...pricing, serviceFeeBps: 500 }), false);
+  assert.equal(planFeesMatchPolicy({ ...published, serviceFeeMinor: 60 }, pricing), false);
 });

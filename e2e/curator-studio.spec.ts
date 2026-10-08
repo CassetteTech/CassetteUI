@@ -444,6 +444,160 @@ test('ends memberships after a confirmation that states the effect on members', 
   expect(state.curatorPlanArchiveRequests).toEqual([]);
 });
 
+const publishedMonthlyPlan: CuratorPlan = {
+  ...draftPlan,
+  id: 'mpl_FixtureStudioPlan01',
+  name: 'Monthly Club',
+  amountMinor: 700,
+  serviceFeeMinor: 58,
+  status: 'active',
+  publishedAtUtc: '2026-08-16T13:00:00Z',
+};
+
+test('adds a one-time annual price to a published plan after the server confirms it', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPayoutAccount: payoutAccount(),
+    curatorPlans: [publishedMonthlyPlan],
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const card = page.getByTestId('curator-plan-card');
+  await card.getByRole('button', { name: 'Manage plan' }).click();
+  await card.getByTestId('curator-plan-annual-open').click();
+
+  const form = card.getByTestId('curator-plan-annual-form');
+  await form.getByLabel('Annual price (USD)').fill('0.001');
+  await expect(form).toContainText('Enter a valid annual price.');
+  await expect(form.getByRole('button', { name: 'Add annual price' })).toBeDisabled();
+  await form.getByLabel('Annual price (USD)').fill('100');
+  await expect(form).toContainText('Annual price can be at most 12 monthly payments.');
+  await expect(form.getByRole('button', { name: 'Add annual price' })).toBeDisabled();
+  await form.getByLabel('Annual price (USD)').fill('60');
+  await expect(form.getByText('Fan pays').locator('..')).toContainText('$62.70');
+
+  // Bridge rejects the addition while the profile is inactive; its copy reaches the curator.
+  state.curatorProfile = { ...curatorProfile, status: 'suspended' };
+  await form.getByRole('button', { name: 'Add annual price' }).click();
+  await expect(form.getByRole('alert')).toHaveText('Adding annual pricing requires an active curator profile.');
+  expect(state.curatorPlans[0].annualAmountMinor).toBeNull();
+
+  state.curatorProfile = curatorProfile;
+  await form.getByRole('button', { name: 'Add annual price' }).click();
+  await expect(card.getByTestId('curator-plan-notice')).toContainText('Annual price added.');
+  await expect(card.getByTestId('curator-plan-active')).toContainText('$62.70 (frozen)');
+  await expect(card.getByTestId('curator-plan-annual-open')).toHaveCount(0);
+  await expect(form).toHaveCount(0);
+  expect(state.curatorPlanAnnualPriceRequests).toEqual([
+    { planId: 'mpl_FixtureStudioPlan01', annualAmountMinor: 6000 },
+    { planId: 'mpl_FixtureStudioPlan01', annualAmountMinor: 6000 },
+  ]);
+});
+
+test('omits the annual fan estimate when today\'s policy differs from the plan\'s frozen fee', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPayoutAccount: payoutAccount(),
+    // Today's policy gives 58 on 700; this plan froze a different fee.
+    curatorPlans: [{ ...publishedMonthlyPlan, serviceFeeMinor: 60 }],
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const card = page.getByTestId('curator-plan-card');
+  await card.getByRole('button', { name: 'Manage plan' }).click();
+  await card.getByTestId('curator-plan-annual-open').click();
+  const form = card.getByTestId('curator-plan-annual-form');
+  await form.getByLabel('Annual price (USD)').fill('60');
+  await expect(form).toContainText('Fan fees follow this plan\'s original terms.');
+  await expect(form.getByText('Fan pays')).toHaveCount(0);
+  await form.getByRole('button', { name: 'Cancel' }).click();
+  await expect(card.getByTestId('curator-plan-annual-open')).toBeFocused();
+});
+
+test('keeps an archive result when the annual price refresh was sent before it', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPayoutAccount: payoutAccount(),
+    curatorPlans: [publishedMonthlyPlan],
+  });
+  // Hold the plan list read that follows the annual price, answering later with the plans it saw.
+  let markListReadHeld = () => {};
+  const listReadHeld = new Promise<void>((resolve) => { markListReadHeld = resolve; });
+  let answerListRead = () => {};
+  await page.route('**/api/v1/curators/plans', (route) => {
+    if (route.request().method() !== 'GET' || state.curatorPlanAnnualPriceRequests.length === 0) return route.fallback();
+    const plansWhenSent = structuredClone(state.curatorPlans);
+    markListReadHeld();
+    return new Promise<void>((resolve) => { answerListRead = resolve; })
+      // The page cancels this read, so the late answer may have no request to reach.
+      .then(() => route.fulfill({ json: plansWhenSent }).catch(() => undefined));
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const card = page.getByTestId('curator-plan-card');
+  await card.getByRole('button', { name: 'Manage plan' }).click();
+  await card.getByTestId('curator-plan-annual-open').click();
+  const form = card.getByTestId('curator-plan-annual-form');
+  await form.getByLabel('Annual price (USD)').fill('60');
+  await form.getByRole('button', { name: 'Add annual price' }).click();
+  await expect(form.getByRole('button', { name: 'Adding…' })).toBeDisabled();
+  await listReadHeld;
+
+  const listReadCancelled = page.waitForEvent('requestfailed', (request) =>
+    new URL(request.url()).pathname === '/api/v1/curators/plans');
+  await card.getByRole('button', { name: 'Archive plan' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Archive plan' }).click();
+  await listReadCancelled;
+  answerListRead();
+  await expect(card.getByTestId('curator-plan-archived')).toContainText('Monthly Club');
+  await expect(card.getByTestId('curator-plan-active')).toHaveCount(0);
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText(/^Plan archived\./);
+});
+
+test('keeps the archive notice when the annual price response arrives after Archive', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPayoutAccount: payoutAccount(),
+    curatorPlans: [publishedMonthlyPlan],
+  });
+  // The server saves the annual price at once; its response reaches the page only after Archive settles.
+  let markAnnualSaved = () => {};
+  const annualSaved = new Promise<void>((resolve) => { markAnnualSaved = resolve; });
+  let answerAnnualPrice = () => {};
+  await page.route('**/api/v1/curators/plans/*/annual-price', (route) => {
+    const saved = structuredClone(Object.assign(state.curatorPlans[0], { annualAmountMinor: 6000, annualServiceFeeMinor: 270 }));
+    markAnnualSaved();
+    return new Promise<void>((resolve) => { answerAnnualPrice = resolve; }).then(() => route.fulfill({ json: saved }));
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const card = page.getByTestId('curator-plan-card');
+  await card.getByRole('button', { name: 'Manage plan' }).click();
+  await card.getByTestId('curator-plan-annual-open').click();
+  const form = card.getByTestId('curator-plan-annual-form');
+  await form.getByLabel('Annual price (USD)').fill('60');
+  await form.getByRole('button', { name: 'Add annual price' }).click();
+  await annualSaved;
+  await card.getByRole('button', { name: 'Archive plan' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Archive plan' }).click();
+  await expect(card.getByTestId('curator-plan-archived')).toContainText('$62.70 (frozen)');
+
+  const refreshed = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/curators/plans');
+  answerAnnualPrice();
+  await refreshed;
+  // Nothing visible marks the late success callback, so allow it to run before the check.
+  await page.waitForTimeout(500);
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText(/^Plan archived\./);
+});
+
 test('does not publish a suspended profile', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,

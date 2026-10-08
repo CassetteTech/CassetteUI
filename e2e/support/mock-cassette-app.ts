@@ -181,6 +181,7 @@ type MockState = {
   curatorPlanPublishRequests: string[];
   curatorPlanArchiveRequests: string[];
   curatorPlanEndMembershipsRequests: string[];
+  curatorPlanAnnualPriceRequests: Array<{ planId: string; annualAmountMinor: number }>;
   curatorPlanUpdateRequests: CuratorPlanRequest[];
   curatorPlanDeleteRequests: string[];
   curatorPlanToolsStatus: number;
@@ -622,6 +623,7 @@ const buildState = (options: MockCassetteOptions): MockState => {
     curatorPlanPublishRequests: [],
     curatorPlanArchiveRequests: [],
     curatorPlanEndMembershipsRequests: [],
+    curatorPlanAnnualPriceRequests: [],
     curatorPlanUpdateRequests: [],
     curatorPlanDeleteRequests: [],
     curatorPlanToolsStatus: options.curatorPlanToolsStatus ?? 200,
@@ -1098,6 +1100,39 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
             archivedAtUtc: FIXTURE_TIMESTAMP,
           } satisfies Partial<CuratorPlan>);
         }
+      }
+      return json(route, plan);
+    }
+
+    const curatorPlanAnnualPrice = pathname.match(/^\/api\/v1\/curators\/plans\/(mpl_[0-9A-Za-z]+)\/annual-price$/);
+    if (curatorPlanAnnualPrice && method === 'POST') {
+      getCurrentUserOrThrow(state);
+      const plan = state.curatorPlans.find((candidate) => candidate.id === curatorPlanAnnualPrice[1]);
+      if (!plan) return json(route, { errorCode: 'curator_profile_not_found', message: 'Membership plan not found.' }, 404);
+      const { annualAmountMinor } = z.object({ annualAmountMinor: z.number().int() }).strict()
+        .parse(request.postDataJSON());
+      state.curatorPlanAnnualPriceRequests.push({ planId: plan.id, annualAmountMinor });
+      if (annualAmountMinor <= 0 || annualAmountMinor > plan.amountMinor * 12) {
+        return json(route, {
+          errorCode: 'curator_invalid_request',
+          message: 'Annual face must be greater than zero and at most 12x monthly.',
+        }, 400);
+      }
+      // Same order and copy as Bridge's conflict checks.
+      const conflict = plan.status !== 'active' ? 'Annual pricing can be added only to an active plan.'
+        : state.curatorProfile?.status !== 'active' ? 'Adding annual pricing requires an active curator profile.'
+          : plan.annualAmountMinor !== null && plan.annualAmountMinor !== annualAmountMinor
+            ? 'This plan already has immutable annual pricing.'
+            : null;
+      if (conflict) return json(route, { errorCode: 'curator_profile_state_invalid', message: conflict }, 409);
+      // An identical retry returns the plan unchanged.
+      if (plan.annualAmountMinor === null) {
+        Object.assign(plan, {
+          annualAmountMinor,
+          // ponytail: today's policy stands in for the plan's frozen fee schedule, which matches only
+          // while planFeesMatchPolicy holds; store a schedule per plan when a test submits under drift.
+          annualServiceFeeMinor: curatorServiceFee(annualAmountMinor, state.curatorPricing),
+        } satisfies Partial<CuratorPlan>);
       }
       return json(route, plan);
     }

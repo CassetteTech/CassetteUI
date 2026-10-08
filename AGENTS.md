@@ -50,10 +50,7 @@ CassetteUI is the Next.js frontend for Cassette. It owns the web user experience
 
 ## Verification
 
-- `npm run typecheck`
-- `npm run test:unit`
-- `npm run test:analytics` when analytics code changes.
-- `npm run lint`
+- `npm run check` runs the fast local checks: lint, type check, unit tests, and analytics tests. Run it before each handoff. The pull-request workflow runs the same checks.
 - `npm run build` for routing, server, or dependency changes.
 - `npm run test:e2e` or a targeted Playwright spec when user flows change.
 

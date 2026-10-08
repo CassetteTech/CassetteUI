@@ -45,6 +45,40 @@ test('locks a post for members from the curator feed right-click menu', async ({
   await expect(feed.getByText('Members', { exact: true })).toBeVisible();
 });
 
+test('removes a deleted post from the curator feed', async ({ page }) => {
+  const curator = fixtureUsers.playlistCurator;
+  const feedPost = fixtureCuratorPage.posts.items.find((item) => item.kind === 'post');
+  if (!feedPost || feedPost.kind !== 'post') throw new Error('Curator page fixture has no public post');
+
+  await mockCassetteApp(page, {
+    currentUser: curator,
+    posts: [{
+      ...fixturePosts.ownerTrack,
+      postId: feedPost.post.postId,
+      title: feedPost.post.title,
+      ownerId: curator.id,
+      ownerUsername: curator.username,
+    }],
+    curatorPage: {
+      ...fixtureCuratorPage,
+      viewer: { isOwner: true, isMember: false, hasMemberBadge: false },
+      posts: { ...fixtureCuratorPage.posts, items: [feedPost], totalItems: 1 },
+    },
+    curatorProfile: fixtureActiveCuratorProfile,
+    curatorPlans: [fixtureActiveMemberPostPlan],
+  });
+
+  await page.goto(`/profile/${curator.username}?tab=posts`);
+  const feed = page.getByTestId('curator-feed');
+  await feed.getByRole('heading', { name: feedPost.post.title }).click({ button: 'right' });
+  await page.getByTestId('post-quick-actions').getByRole('menuitem', { name: 'Delete' }).click();
+  await page.getByRole('button', { name: 'Delete Post' }).click();
+
+  await expect(page.getByText('Post deleted successfully')).toBeVisible();
+  // includeHidden: the closing sheet briefly hides the page from the accessibility tree.
+  await expect(feed.getByRole('heading', { name: feedPost.post.title, includeHidden: true })).toHaveCount(0);
+});
+
 test('makes a post private from the profile grid right-click menu', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.owner,

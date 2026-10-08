@@ -2546,6 +2546,11 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
 
       if (method === 'DELETE') {
         state.postsById.delete(postId);
+        if (state.curatorPage) {
+          const { posts } = state.curatorPage;
+          const items = posts.items.filter((item) => item.kind !== 'post' || item.post.postId !== postId);
+          state.curatorPage.posts = { ...posts, items, totalItems: posts.totalItems - (posts.items.length - items.length) };
+        }
         return route.fulfill({ status: 204, body: '' });
       }
     }

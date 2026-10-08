@@ -231,6 +231,7 @@ export const useDeletePost = () => {
       queryClient.invalidateQueries({ queryKey: ['user-posts'] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
+      void queryClient.invalidateQueries({ queryKey: ['curator-page'] });
     },
     onError: (error) => {
       appLogger.error('post_delete_failed', { error });

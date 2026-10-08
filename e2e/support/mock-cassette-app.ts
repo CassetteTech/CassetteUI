@@ -2479,6 +2479,9 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       }
 
       const reposted = method === 'POST';
+      if (reposted && (post.privacy || 'public') !== 'public') {
+        return json(route, { message: 'Only public posts can be reposted.' }, 400);
+      }
       upsertPost(state, {
         ...post,
         repostedByCurrentUser: reposted,

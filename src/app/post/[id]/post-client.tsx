@@ -571,12 +571,13 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const hasOwner = Boolean(postData?.userId || postData?.username?.trim());
   const showAddToProfile = isAuthenticated && !hasOwner;
   const normalizedPrivacy = (postData?.privacy || 'public').toLowerCase();
-  const isPublicPost = normalizedPrivacy !== 'private';
+  const isPublicPost = normalizedPrivacy === 'public';
   const studioPrivacy: PostPrivacy =
     normalizedPrivacy === 'private' || normalizedPrivacy === 'subscriber' || normalizedPrivacy === 'friends'
       ? normalizedPrivacy
       : 'public';
-  const canRepost = Boolean(isAuthenticated && hasOwner && !isOwnPost && isPublicPost);
+  // Bridge reposts only public source posts; an existing repost stays removable.
+  const canRepost = Boolean(isAuthenticated && hasOwner && !isOwnPost && (isPublicPost || hasReposted));
 
   const handleToggleLike = useCallback(async () => {
     const currentPostId = postData?.postId || postId;

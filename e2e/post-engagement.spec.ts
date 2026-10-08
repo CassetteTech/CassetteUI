@@ -36,6 +36,25 @@ test.describe('post engagement', () => {
     await expect(page.getByRole('button', { name: 'Repost', exact: true })).toBeVisible();
   });
 
+  test('offers no repost on a members-only post to an entitled member', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      posts: [{
+        ...fixturePosts.publicTrack,
+        privacy: 'subscriber',
+        curatorId: 'cpr_FixtureCurator01',
+        isMemberView: true,
+      }],
+    });
+
+    await page.goto('/post/post-public-track');
+
+    // A signed-in like proves the viewer state has loaded before the absence check.
+    await page.getByRole('button', { name: 'Like post' }).click();
+    await expect(page.getByRole('button', { name: 'Unlike post' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /repost/i })).toHaveCount(0);
+  });
+
   test('does not poll the full notifications list on idle post pages and updates the badge after marking all read', async ({ page }) => {
     const fullListRequests: string[] = [];
     page.on('request', (request) => {

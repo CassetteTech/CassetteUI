@@ -450,7 +450,7 @@ export function PaidPromotionHome() {
   const totalCampaigns = campaigns.phase === 'ready' ? campaigns.data.length : null;
 
   return (
-    <div className="relative min-h-screen bg-background pb-16">
+    <div className="relative min-h-svh bg-background pb-16">
       {/* Slim variant of the landing hero, so both states of /promote read as
           one page rather than a marketing site bolted to a workspace. */}
       <TapeDeckBand variant="band">

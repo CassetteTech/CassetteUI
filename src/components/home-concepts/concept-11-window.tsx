@@ -485,7 +485,7 @@ export function HomeConceptWindow() {
   const barRise = rise(3);
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-svh">
       {/* --wall: on wide screens, the plain wall left of the window. The scene
           covers the hero anchored right, and the window frame starts at 57.6%
           of its width, so the free wall is the viewport less 42.4% of the

@@ -67,7 +67,7 @@ export const ConversionProgress: React.FC<ConversionProgressProps> = ({
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-col items-center justify-center min-h-screen p-6 space-y-8">
+      <div className="flex flex-col items-center justify-center min-h-svh p-6 space-y-8">
         
         {/* Logo and Title */}
         <div className="text-center space-y-4">

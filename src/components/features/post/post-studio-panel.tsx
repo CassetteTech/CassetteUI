@@ -403,7 +403,7 @@ function VisibilityControl({
           disabled: value === 'subscriber' && !canLock,
         }))}
       />
-      <div className="mt-3 grid text-pretty text-sm text-muted-foreground">
+      <div className="mt-3 grid text-sm text-muted-foreground">
         {ownerVisibilities.map((value) => (
           <p
             key={value}

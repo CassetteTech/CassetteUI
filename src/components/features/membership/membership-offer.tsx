@@ -95,7 +95,7 @@ export function MembershipOffer({
       {...rest}
     >
       {description.trim() && (
-        <p className="whitespace-pre-line text-pretty break-words text-sm leading-relaxed text-muted-foreground">
+        <p className="whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground">
           {description}
         </p>
       )}

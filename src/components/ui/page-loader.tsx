@@ -13,7 +13,7 @@ function PageLoader({ message, subtitle, className }: PageLoaderProps) {
   return (
     <div
       className={cn(
-        "min-h-screen bg-background flex flex-col items-center justify-center gap-6",
+        "min-h-svh bg-background flex flex-col items-center justify-center gap-6",
         className
       )}
     >

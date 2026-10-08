@@ -523,7 +523,7 @@ function CuratorFeed({
   return (
     <section data-testid="curator-feed" aria-labelledby={headingId} className="min-w-0 max-w-2xl">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id={headingId} className="text-balance font-teko text-3xl font-bold uppercase">
+        <h2 id={headingId} className="font-teko text-3xl font-bold uppercase">
           {memberFilter ? 'Member posts' : 'Latest posts'}
         </h2>
         {memberFilter !== null && (
@@ -614,7 +614,7 @@ function LockedPost({
           </time>
         </div>
         <h3 className="mt-1.5 text-base font-semibold leading-snug sm:text-lg">Members-only post</h3>
-        <p className="mt-1 text-pretty text-sm leading-snug text-muted-foreground">
+        <p className="mt-1 text-sm leading-snug text-muted-foreground">
           Join {displayName} to unlock this post.
         </p>
       </div>
@@ -707,7 +707,7 @@ function CuratorPost({
             {title}
           </h3>
           {detail && (
-            <p className="mt-1 line-clamp-2 text-pretty text-sm leading-snug text-muted-foreground">
+            <p className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground">
               {detail}
             </p>
           )}
@@ -746,7 +746,7 @@ function CuratorNotFound() {
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-lg items-center justify-center px-6">
       <Empty className="w-full border-none">
-        <EmptyTitle className="text-balance font-teko text-4xl font-bold uppercase">
+        <EmptyTitle className="font-teko text-4xl font-bold uppercase">
           Curator not found
         </EmptyTitle>
         <EmptyDescription>This curator page is not available.</EmptyDescription>
@@ -762,7 +762,7 @@ function CuratorLoadError({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-lg items-center justify-center px-6">
       <Empty className="w-full border-none">
-        <EmptyTitle className="text-balance font-teko text-4xl font-bold uppercase">
+        <EmptyTitle className="font-teko text-4xl font-bold uppercase">
           Could not load curator
         </EmptyTitle>
         <EmptyDescription>Try again in a moment.</EmptyDescription>

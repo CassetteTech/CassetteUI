@@ -181,7 +181,7 @@ function CampaignDetail({
   };
 
   return (
-    <div className="min-h-screen bg-background pb-16">
+    <div className="min-h-svh bg-background pb-16">
       <TapeDeckBand variant="band">
         <Link
           href="/promote"
@@ -488,7 +488,7 @@ function DeliverableRow({ deliverable }: { deliverable: PaidPromotionCampaignDel
 
 function DetailFailure({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
+    <main className="flex min-h-svh items-center justify-center bg-background px-4 py-12">
       <section className="w-full max-w-lg border-2 border-foreground bg-card p-6 shadow-flat-4">
         <h1 className="font-atkinson text-2xl font-bold text-foreground">Campaign unavailable</h1>
         <p role="alert" className="mt-3 text-sm leading-6 text-muted-foreground">{message}</p>

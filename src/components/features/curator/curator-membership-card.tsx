@@ -165,7 +165,7 @@ export function CuratorMembershipCard({
           validityValue={memberEndUtc ? formatMembershipDate(memberEndUtc) : planName}
         >
           {activated && (
-            <h2 className="text-balance break-words font-teko text-2xl font-semibold uppercase leading-none">
+            <h2 className="break-words font-teko text-2xl font-semibold uppercase leading-none">
               Welcome to {displayName}&apos;s membership
             </h2>
           )}

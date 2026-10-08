@@ -1051,9 +1051,9 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     const needsSession = error.kind === 'session';
 
     return (
-      <div className="min-h-screen relative">
+      <div className="min-h-svh relative">
         <AnimatedColorBackground palette={palette} />
-        <div className="relative z-10 min-h-screen flex items-center justify-center">
+        <div className="relative z-10 min-h-svh flex items-center justify-center">
           <MainContainer className="text-center p-8">
             <div className="mb-4">
               <svg className="w-16 h-16 text-danger mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1252,7 +1252,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       : undefined;
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-svh relative">
       {/* Animated Gradient Background */}
       <AnimatedColorBackground palette={palette} />
 
@@ -1300,7 +1300,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         onDelete={() => setDeleteModalOpen(true)}
       >
       <div
-        className={`relative z-10 min-h-screen transition-[padding] duration-450 ease-out-quart ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
+        className={`relative z-10 min-h-svh transition-[padding] duration-450 ease-out-quart ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
       >
         {isDesktop ? (
             // Desktop: one layout for every post type

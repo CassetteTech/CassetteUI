@@ -24,7 +24,7 @@ export function HomeConceptArtworkWall() {
   const sheetRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-svh">
       <ArtworkWallBackground />
       {/* Grain sun behind the card, cut-outs drifting above it. */}
       <HomeDitherField
@@ -35,7 +35,7 @@ export function HomeConceptArtworkWall() {
         className="pointer-events-none absolute left-0 -top-16 z-0 text-primary opacity-40 dark:opacity-50"
       />
 
-      <section className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-2xl items-center justify-center px-5 py-12">
+      <section className="relative z-10 mx-auto flex min-h-[calc(100svh-4rem)] w-full max-w-2xl items-center justify-center px-5 py-12">
         <motion.div
           ref={cardRef}
           initial={still ? false : { opacity: 0, y: 16, scale: 0.985 }}
@@ -44,10 +44,10 @@ export function HomeConceptArtworkWall() {
           className="relative w-full rounded-xl border-2 border-foreground bg-card/85 p-6 text-center shadow-flat-6 backdrop-blur-md sm:p-10"
         >
           <HomeBrand className="mx-auto w-[86%] max-w-[460px]" />
-          <h1 className="mt-4 font-atkinson text-2xl font-bold leading-tight text-foreground text-balance sm:text-3xl">
+          <h1 className="mt-4 font-atkinson text-2xl font-bold leading-tight text-foreground sm:text-3xl">
             Share music with anyone. Get paid for your taste.
           </h1>
-          <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground text-pretty sm:text-base">
+          <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground sm:text-base">
             Paste a Spotify, Apple Music, or Deezer link to share a song in every app. Or open a curator page that fans join for a monthly price you set.
           </p>
           <HomeSearchDropdown search={search} className="mt-7" placeholder="Search a song, or paste a link" />

@@ -585,7 +585,7 @@ function PaidPromotionIntakeForm({ repeatElementId }: { repeatElementId?: string
   const subjectTypeLabel = subjectTypeDisplayName?.toLowerCase() ?? null;
 
   return (
-    <div className="relative min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+    <div className="relative min-h-svh bg-background px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 opacity-[0.3]"

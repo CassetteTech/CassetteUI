@@ -23,7 +23,7 @@ const EmptyTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <h3
     ref={ref}
-    className={cn("text-balance text-base font-semibold", className)}
+    className={cn("text-base font-semibold", className)}
     {...props}
   />
 ))
@@ -36,7 +36,7 @@ const EmptyDescription = React.forwardRef<
   <p
     ref={ref}
     className={cn(
-      "max-w-sm text-pretty text-sm text-muted-foreground",
+      "max-w-sm text-sm text-muted-foreground",
       className
     )}
     {...props}

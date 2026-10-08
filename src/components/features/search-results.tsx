@@ -247,7 +247,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             className={
               chrome === 'flat' || chrome === 'bare'
                 ? undefined
-                : 'max-h-[calc(100vh-10rem)] lg:max-h-[calc(100vh-20rem)] overflow-y-auto'
+                : 'max-h-[calc(100svh-10rem)] lg:max-h-[calc(100vh-20rem)] overflow-y-auto'
             }
           >
             <SkeletonSwap

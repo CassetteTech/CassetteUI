@@ -578,14 +578,14 @@ export function AttributionTab() {
                     type="date"
                     value={fromDate}
                     onChange={(e) => handleCustomDateChange('from', e.target.value)}
-                    className="h-7 w-[130px] text-xs"
+                    className="h-7 w-auto text-xs"
                   />
                   <span className="text-xs text-muted-foreground">–</span>
                   <Input
                     type="date"
                     value={toDate}
                     onChange={(e) => handleCustomDateChange('to', e.target.value)}
-                    className="h-7 w-[130px] text-xs"
+                    className="h-7 w-auto text-xs"
                   />
                 </div>
               </div>

@@ -290,7 +290,7 @@ export default function OnboardingPage() {
   // Loading state (auth resolution or stored intent not yet read)
   if (isLoading || intent === null) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-svh bg-background flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
           <Disc3 className="w-12 h-12 text-primary animate-spin" style={{ animationDuration: '2s' }} />
           <p className="text-foreground font-atkinson">Loading...</p>
@@ -328,7 +328,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-svh bg-background">
       <div className="container mx-auto px-4 py-8 max-w-lg">
         {/* Welcome Phase */}
         <AnimatePresence mode="wait">

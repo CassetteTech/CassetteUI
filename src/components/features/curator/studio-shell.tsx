@@ -100,7 +100,7 @@ export function StudioSection({
             {title}
           </h2>
           {description && (
-            <p className="mt-1.5 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
               {description}
             </p>
           )}

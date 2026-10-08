@@ -43,9 +43,9 @@ export default function SignUpPage() {
   // Keep email verification screen for users who signed up via email previously
   if (isSuccess && signUpResult?.authenticated !== true) {
     return (
-      <div className="min-h-screen bg-background relative overflow-hidden">
+      <div className="min-h-svh bg-background relative overflow-hidden">
         <ArtworkWallBackground />
-        <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
+        <div className="relative z-10 flex items-center justify-center min-h-svh px-4 py-8">
           <div className="w-full max-w-md">
             <div className="flex justify-center mb-8">
               <Link href="/" className="flex flex-col items-center">
@@ -93,10 +93,10 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-svh bg-background relative overflow-hidden">
       <ArtworkWallBackground />
 
-      <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
+      <div className="relative z-10 flex items-center justify-center min-h-svh px-4 py-8">
         <div className="w-full max-w-md">
           {/* Logo */}
           <div className="flex justify-center mb-8">

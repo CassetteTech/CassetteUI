@@ -483,7 +483,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
           <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
             <div className="min-w-0">
               <p className="break-words text-base font-semibold leading-tight">{activePlan.name}</p>
-              <p className="mt-1 text-pretty text-sm text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {activePlan.description || 'Fans join from your public page.'}
               </p>
             </div>
@@ -1015,7 +1015,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                       <h3 id="economics-title" className="text-sm font-semibold">
                         What you earn
                       </h3>
-                      <p className="mt-1 text-pretty text-sm text-muted-foreground">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         Estimated under today’s policy. Fan charges freeze when you publish; your cut can still change with policy.
                       </p>
                     </div>
@@ -1032,7 +1032,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                       </div>
                       <div className="py-2.5">
                         <dt className="text-muted-foreground">Payouts</dt>
-                        <dd className="mt-1 text-pretty text-sm">
+                        <dd className="mt-1 text-sm">
                           {/* capitalize only the cadence word, not the whole sentence */}
                           <span className="capitalize">{pricing.data.payoutCadence}</span>
                           , after your balance reaches{' '}

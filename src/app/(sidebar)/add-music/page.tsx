@@ -937,12 +937,12 @@ export default function AddMusicPage() {
     <>
       {/* Phones and tablets: bar first, details under it; the bar opens a search sheet. */}
       <div className="lg:hidden">
-        <div className="studio-surface relative min-h-screen bg-background">
+        <div className="studio-surface relative min-h-svh bg-background">
           {paper}
           {/* The search sheet lives inside this wrapper, so while it's open
               the wrapper must rise above the fixed global navbar (z-50) — a
               child's z-index can't escape its ancestor's stacking context. */}
-          <div className={`relative min-h-screen ${isSearchActive ? 'z-[60]' : 'z-10'}`}>
+          <div className={`relative min-h-svh ${isSearchActive ? 'z-[60]' : 'z-10'}`}>
             <div className="mx-auto max-w-2xl px-4 pb-16 sm:px-6">
               <div className={`transition-opacity duration-500 ${dimmed}`}>
                 <div className="flex items-center justify-between py-5">

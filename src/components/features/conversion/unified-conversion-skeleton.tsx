@@ -42,11 +42,11 @@ export const UnifiedConversionSkeleton: React.FC<UnifiedConversionSkeletonProps>
   const progressPercent = Math.max(6, Math.min(100, Math.round(progressState.progress)));
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-svh relative">
       {/* Background matching EntitySkeleton */}
       <div className="fixed inset-0 z-0 bg-gradient-to-b from-muted/50 via-muted/30 to-background" />
 
-      <div className="relative z-10 min-h-screen">
+      <div className="relative z-10 min-h-svh">
         {isDesktop ? (
           <DesktopLayout
             progressState={progressState}
@@ -272,7 +272,7 @@ const DesktopLayout: React.FC<LayoutProps> = ({ progressState, progressPercent, 
         <div className="flex gap-12">
           {/* Left Column - Artwork (flex: 2) - matches EntitySkeleton sticky layout */}
           <div className="flex-[2] sticky top-[120px] self-start">
-            <div className="flex flex-col items-center min-w-0 h-[calc(100vh-140px)] justify-center">
+            <div className="flex flex-col items-center min-w-0 h-[calc(100svh-140px)] justify-center">
               {/* Type Badge */}
               <Skeleton className="h-6 w-20 mb-6" />
 
@@ -305,7 +305,7 @@ const DesktopLayout: React.FC<LayoutProps> = ({ progressState, progressPercent, 
 
           {/* Right Column - Content (flex: 3) */}
           <div className="flex-[3]">
-            <div className="py-8 pb-16 min-h-[calc(100vh-140px)] flex flex-col justify-center">
+            <div className="py-8 pb-16 min-h-[calc(100svh-140px)] flex flex-col justify-center">
               <div className="space-y-6">
                 {/* Steps Progress - only show while converting */}
                 <AnimatePresence>

@@ -209,7 +209,7 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-background px-4 py-10 sm:px-6">
+    <div className="relative flex min-h-svh items-center justify-center bg-background px-4 py-10 sm:px-6">
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 opacity-[0.3]"

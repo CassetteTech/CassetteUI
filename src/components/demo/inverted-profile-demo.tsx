@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 
 export default function AboutPageReimagined() {
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-background via-background to-muted/30 selection:bg-primary/20 selection:text-primary">
+    <div className="relative min-h-svh bg-gradient-to-b from-background via-background to-muted/30 selection:bg-primary/20 selection:text-primary">
       {/* Ambient background accents */}
       <div
         aria-hidden

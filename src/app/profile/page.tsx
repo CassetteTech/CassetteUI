@@ -31,7 +31,7 @@ export default function ProfileRedirect() {
   }, [user, isLoading, router]);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-svh bg-background flex items-center justify-center">
       <div className="flex flex-col items-center space-y-4">
         <Skeleton className="h-12 w-12 rounded-full" />
         <Skeleton className="h-4 w-32" />

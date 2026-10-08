@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Inbox } from 'lucide-react';
 import type { InternalIssueDetail, InternalTargetMatchCandidate } from '@/types';
 import { CopyId, Field, Mono, Panel, StatusPill } from './kit/primitives';
+import { DecisionEvidence } from './decision-evidence';
 import { formatDate, formatDuration, statusTone } from './internal-utils';
 
 interface IssueDetailPanelProps {
@@ -131,7 +132,11 @@ export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
         <div className="border-t border-border bg-muted/10 px-3 py-2">
           <div className="mb-1.5 flex items-baseline justify-between gap-2">
             <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground">Match quality</p>
-            <Mono>outbox v{issue.matchQualityContext.payloadSchemaVersion}</Mono>
+            <Mono>
+              {issue.matchQualityContext.outboxId
+                ? `outbox v${issue.matchQualityContext.payloadSchemaVersion}`
+                : 'no outcome event'}
+            </Mono>
           </div>
           {issue.matchQualityContext.decisions.map(decision => (
             <div key={decision.decisionId} className="border-t border-border/70 py-1.5 first:border-t-0">
@@ -171,8 +176,33 @@ export function IssueDetailPanel({ issue, isLoading }: IssueDetailPanelProps) {
               {decision.selectedCandidate && <CandidateDetails label="Selected candidate" candidate={decision.selectedCandidate} />}
               {decision.runnerUpCandidate && <CandidateDetails label="Runner-up candidate" candidate={decision.runnerUpCandidate} />}
               <Field label="Decision"><Mono>{decision.decisionId}</Mono></Field>
+              {decision.evidence ? (
+                <DecisionEvidence evidence={decision.evidence} />
+              ) : decision.evidenceId ? (
+                <Field label="Evidence">
+                  <Mono>{decision.evidenceId} · not retained</Mono>
+                </Field>
+              ) : null}
             </div>
           ))}
+          {issue.matchQualityContext.unlinkedEvidence.length > 0 && (
+            <div className="border-t border-border/70 py-1.5">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground">
+                Captured attempts without a shown outcome
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Operational evidence, for example from a failed conversion. These attempts are not in quality rates.
+              </p>
+              {issue.matchQualityContext.unlinkedEvidence.map(evidence => (
+                <DecisionEvidence key={evidence.evidenceId} evidence={evidence} />
+              ))}
+            </div>
+          )}
+          {issue.matchQualityContext.evidenceTruncated && (
+            <p className="text-[10px] text-[hsl(var(--warning-text))]">
+              More decision evidence exists for this job than this view shows.
+            </p>
+          )}
         </div>
       )}
 

@@ -649,14 +649,115 @@ export interface InternalIssueFailedTrack {
   ambiguous: boolean;
 }
 
+/** Outbox fields are null when the job has decision evidence but no completed outcome event. */
 export interface InternalIssueMatchQualityContext {
-  outboxId: string;
-  payloadSchemaVersion: number;
+  outboxId?: string | null;
+  payloadSchemaVersion?: number | null;
   conversionJobId: string;
   sourcePlatform?: string | null;
   sourceEntityType?: string | null;
-  recordedAtUtc: string;
+  recordedAtUtc?: string | null;
   decisions: InternalTargetMatchDecision[];
+  /** Captured decisions that no shown outcome references; operational evidence only. */
+  unlinkedEvidence: InternalMatchDecisionEvidence[];
+  evidenceTruncated: boolean;
+}
+
+/** One stored decision. Details are null when the record has no readable payload. */
+export interface InternalMatchDecisionEvidence {
+  evidenceId: string;
+  capturedAtUtc: string;
+  targetPlatform: string;
+  trigger: string;
+  captureStatus: string;
+  disposition: string;
+  sampleRate: number;
+  schemaVersion: number;
+  payloadAvailable: boolean;
+  source?: InternalMatchEvidenceSource | null;
+  requestedTerritory?: string | null;
+  territoryApplied?: boolean | null;
+  retrieval?: {
+    status: string;
+    reasonCode?: string | null;
+    truncated: boolean;
+    candidateCount: number;
+  } | null;
+  options: InternalMatchEvidenceOption[];
+  decision?: InternalMatchEvidenceDecision | null;
+  modelSelection?: {
+    mode: string;
+    applied: boolean;
+    attempt: InternalJevAttempt;
+  } | null;
+  hydration?: {
+    status: string;
+    reasonCode?: string | null;
+    disqualifiers?: string[] | null;
+  } | null;
+  /** What the routing selected before hydration: an ID, or none and the rejection reason. Absent on older records. */
+  appliedSelection?: {
+    method: string;
+    providerTrackId?: string | null;
+    reasonCode?: string | null;
+  } | null;
+}
+
+export interface InternalMatchEvidenceSource {
+  sourcePlatform: string;
+  sourceTrackId: string;
+  isrcs: string[];
+  title: string;
+  artistNames: string[];
+  albumName?: string | null;
+  durationMs?: number | null;
+  territory: string;
+}
+
+/** Score is the deterministic score; modelProbability is model output. */
+export interface InternalMatchEvidenceOption {
+  rank: number;
+  providerTrackId: string;
+  title: string;
+  artistNames: string[];
+  albumName?: string | null;
+  durationMs?: number | null;
+  score: number;
+  disqualifiers: string[];
+  modelProbability?: number | null;
+}
+
+export interface InternalMatchEvidenceDecision {
+  kind: string;
+  missReason: string;
+  selectedProviderTrackId?: string | null;
+  runnerUpProviderTrackId?: string | null;
+  runnerUpMargin?: number | null;
+  threshold: number;
+  scorerVersion: string;
+  decisionPolicyVersion: string;
+  decisionConfigurationVersion: string;
+}
+
+/** A skipped or failed attempt is never a model no_match. */
+export interface InternalJevAttempt {
+  /** answered, skipped or failed */
+  outcome: string;
+  reasonCode?: string | null;
+  requestedModel: string;
+  promptVersion: string;
+  answer?: {
+    returnedModel: string;
+    choice: string;
+    selectedProviderTrackId?: string | null;
+    probability: number;
+    confidence: number;
+    probabilities: Record<string, number>;
+    inputTokens: number;
+    outputTokens: number;
+  } | null;
+  elapsedMilliseconds?: number | null;
+  requestElapsedMilliseconds?: number | null;
 }
 
 export interface InternalConversionQualityRate {
@@ -751,7 +852,85 @@ export interface InternalConversionQualityTrendResponse {
   versionCohorts: InternalConversionQualityVersionCohort[];
   dimensions: InternalConversionQualityDimension[];
   offlineBaseline: InternalConversionQualityOfflineBaseline;
+  evidenceCoverage: InternalConversionQualityEvidenceCoverage;
+  jevSelection: InternalJevSelectionMetrics[];
+  jevTimingBoundary: string;
+  jevPriceAssumptions: InternalJevPriceAssumption[];
+  jevLimitComparisons: InternalJevLimitComparison[];
   caveats: string[];
+}
+
+export interface InternalConversionQualityEvidenceCoverage {
+  rowsTruncated: boolean;
+  retentionDays: number;
+  windowExceedsRetention: boolean;
+  records: number;
+  rejectedOversized: number;
+  unreadablePayloads: number;
+  linkedToOutcomes: number;
+  unlinkedDispositionCounts: Record<string, number>;
+  metadataDecisionsWithoutEvidence: number;
+  linkedEvidenceNotFound: number;
+  sampleRates: number[];
+}
+
+export interface InternalLatency {
+  measured: number;
+  medianMs?: number | null;
+  p95Ms?: number | null;
+}
+
+export interface InternalJevSelectionMetrics {
+  provider: string;
+  context: string;
+  mode: string;
+  model: string;
+  promptVersion: string;
+  capturedDecisions: number;
+  attempts: number;
+  calls: number;
+  callRate: InternalConversionQualityRate;
+  answered: number;
+  failed: number;
+  skipped: number;
+  failureReasonCounts: Record<string, number>;
+  skipReasonCounts: Record<string, number>;
+  unappliedRecoveries: number;
+  appliedRecoveries: number;
+  disagreements: number;
+  inputTokens: number;
+  outputTokens: number;
+  callsWithoutUsage: number;
+  estimatedSpendUsd?: number | null;
+  requestLatency: InternalLatency;
+  addedLatency: InternalLatency;
+  adjudicatedAnswered: number;
+  modelDecisionAccuracy: InternalConversionQualityRate;
+  deterministicDecisionAccuracy: InternalConversionQualityRate;
+  modelWrongSongs: number;
+  modelNoMatchErrors: number;
+  deterministicNoMatchErrors: number;
+}
+
+/** A measured Jev value against an operator-configured approved limit. */
+export interface InternalJevLimitComparison {
+  limit:
+    | 'applied_wrong_song_rate'
+    | 'applied_no_match_error_rate'
+    | 'monthly_spend_usd'
+    | 'single_track_added_latency_p95_ms';
+  threshold: number;
+  observed?: number | null;
+  measured: number;
+  status: 'within_limit' | 'exceeded' | 'insufficient_data';
+}
+
+export interface InternalJevPriceAssumption {
+  model: string;
+  inputUsdPerMillionTokens: number;
+  outputUsdPerMillionTokens: number;
+  checkedOn: string;
+  source: string;
 }
 
 export interface InternalTargetMatchDecision {
@@ -776,6 +955,9 @@ export interface InternalTargetMatchDecision {
   correctionVersion?: number | null;
   selectedCandidate?: InternalTargetMatchCandidate | null;
   runnerUpCandidate?: InternalTargetMatchCandidate | null;
+  evidenceId?: string | null;
+  /** Null when the outcome has no evidence ID or its record is no longer retained. */
+  evidence?: InternalMatchDecisionEvidence | null;
 }
 
 export interface InternalTargetMatchCandidate {

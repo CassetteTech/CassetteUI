@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Roboto_Flex, Atkinson_Hyperlegible, Teko } from "next/font/google";
+import localFont from "next/font/local";
 import Script from "next/script";
 import "./globals.css";
 import { Providers } from "@/providers/providers";
@@ -28,6 +29,14 @@ const teko = Teko({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
   variable: "--font-teko",
+});
+
+const paperMono = localFont({
+  src: "./fonts/PaperMono-Variable.woff2",
+  weight: "100 800",
+  variable: "--font-paper-mono",
+  // The default Arial fallback is proportional; tailwind.config.js falls back to a monospace font instead.
+  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {
@@ -81,7 +90,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${robotoFlex.variable} ${atkinsonHyperlegible.variable} ${teko.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${robotoFlex.variable} ${atkinsonHyperlegible.variable} ${teko.variable} ${paperMono.variable}`} suppressHydrationWarning>
       <head>
         <link
           href="https://fonts.googleapis.com/icon?family=Material+Icons"

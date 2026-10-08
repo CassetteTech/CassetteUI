@@ -404,6 +404,29 @@
     /* font-sans resolves to var(--font-inter) via tailwind.config.js. */
     @apply bg-background text-foreground font-sans;
   }
+
+  /* Text wrapping is set once here; it inherits, so do not repeat it per element.
+     The text-wrap-style longhand leaves nowrap and truncate (text-wrap-mode) intact. */
+  :root {
+    text-wrap-style: pretty;
+  }
+
+  h1, h2, h3, h4 {
+    text-wrap-style: balance;
+  }
+
+  /* pretty re-breaks earlier lines; stable keeps typed text from shifting. */
+  textarea {
+    text-wrap-style: stable;
+  }
+
+  /* iOS Safari zooms the page when a focused field is below 16px and does not zoom back out.
+     !important overrides the compact text-sm / text-xs utilities on touch devices only. */
+  @media (pointer: coarse) {
+    input, textarea, select {
+      font-size: max(16px, 1rem) !important;
+    }
+  }
 }
 
 /* ─── Console chrome ───────────────────────────────────────────────────────

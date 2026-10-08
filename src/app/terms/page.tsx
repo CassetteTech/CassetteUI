@@ -22,7 +22,7 @@ const termsMarkdown = fs.readFileSync(termsMarkdownPath, "utf8");
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen surface-bottom relative">
+    <div className="min-h-svh surface-bottom relative">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 md:pt-24 pb-20">
         <header className="mb-10">
           <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-4">

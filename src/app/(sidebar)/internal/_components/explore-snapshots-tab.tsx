@@ -193,7 +193,7 @@ export function ExploreSnapshotsTab() {
                 />
               </div>
             ) : (
-              <div className="max-h-[calc(100vh-14rem)] overflow-y-auto no-scrollbar divide-y divide-border">
+              <div className="max-h-[calc(100svh-14rem)] overflow-y-auto no-scrollbar divide-y divide-border">
                 {snapshots.map((snapshot) => {
                   const isSelected = snapshot.snapshotId === selectedId;
                   const warnings = snapshot.validationWarnings.length;

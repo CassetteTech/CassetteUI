@@ -81,7 +81,7 @@ export default function EditProfilePage() {
       <>
         {/* Mobile Error */}
         <div className="bg-background lg:hidden">
-          <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
+          <Container className="min-h-svh bg-transparent p-0 flex items-center justify-center">
             <div className="text-center">
               <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
               <p className="text-muted-foreground mb-4">{error}</p>
@@ -108,7 +108,7 @@ export default function EditProfilePage() {
       <>
         {/* Mobile Not Found */}
         <div className="bg-background lg:hidden">
-          <Container className="min-h-screen bg-transparent p-0 flex items-center justify-center">
+          <Container className="min-h-svh bg-transparent p-0 flex items-center justify-center">
             <div className="text-center">
               <h1 className="text-2xl font-bold text-foreground mb-4">Profile Not Found</h1>
               <p className="text-muted-foreground mb-4">The profile you&apos;re trying to edit doesn&apos;t exist.</p>
@@ -133,7 +133,7 @@ export default function EditProfilePage() {
     <>
       {/* Mobile Layout */}
       <div className="bg-background lg:hidden">
-        <Container className="min-h-screen bg-transparent p-0">
+        <Container className="min-h-svh bg-transparent p-0">
           <div className="py-4 sm:py-6 md:py-8 px-4">
             {/* Back to profile */}
             <div className="mb-4">

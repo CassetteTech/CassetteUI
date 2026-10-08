@@ -95,7 +95,7 @@ export default async function ReleaseNotesPage() {
   const releases = await getPublishedGitHubReleases();
 
   return (
-    <div className="min-h-screen surface-bottom relative">
+    <div className="min-h-svh surface-bottom relative">
       {/* Subtle grain texture overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"

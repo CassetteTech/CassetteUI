@@ -28,7 +28,7 @@ test('lets a post owner edit and delete a post', async ({ page }) => {
   await studio.getByRole('radio', { name: 'Members' }).click();
   await expect(studio.getByRole('radio', { name: 'Members' })).toBeChecked();
   await expect(studio.getByRole('heading', { name: 'Members only' })).toBeVisible();
-  await expect(studio).toContainText('Views');
+  await expect(studio).toContainText('Post audience insights are part of Curator Pro.');
 
   // Right-click anywhere on the post for quick actions; owners get their tools too.
   await page.getByRole('heading', { name: 'Paper Hearts' }).click({ button: 'right' });

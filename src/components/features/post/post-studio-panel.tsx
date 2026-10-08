@@ -6,6 +6,8 @@
 
 import { useEffect, useState, type ElementType, type ReactNode } from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { useAuthState } from '@/hooks/use-auth';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useReducedMotion } from 'framer-motion';
 import { XIcon } from 'lucide-react';
@@ -228,6 +230,47 @@ function TrendChart({ points }: { points: PostInsightsTrendPoint[] }) {
   );
 }
 
+/** Keep protected metric state mounted only while this account has confirmed Pro access. */
+function InsightsAccess(props: { postId: string; conversionSuccessCount?: number }) {
+  const { user } = useAuthState();
+  const pro = useQuery({
+    queryKey: ['curator-pro-status', user?.id ?? null],
+    queryFn: ({ signal }) => apiService.getCuratorProStatus(signal),
+    enabled: Boolean(user?.id),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchInterval: (query) => {
+      const status = query.state.data;
+      const remaining = status?.cancelAtPeriodEnd && status.paidThroughUtc
+        ? Date.parse(status.paidThroughUtc) - Date.now()
+        : 30_000;
+      return remaining > 0 ? Math.max(100, Math.min(30_000, remaining)) : 30_000;
+    },
+  });
+  const status = pro.data;
+  const hasAccess = Boolean(user?.id) && pro.isFetchedAfterMount && !pro.isError && status?.hasAccess &&
+    (!status.cancelAtPeriodEnd || (status.paidThroughUtc !== null && Date.parse(status.paidThroughUtc) > Date.now()));
+
+  if (hasAccess) return <InsightsSections key={user?.id} {...props} />;
+
+  return (
+    <section data-testid="post-insights-locked">
+      <SectionHeading>Insights</SectionHeading>
+      <p className="mt-3 text-sm text-muted-foreground">
+        {pro.isPending ? 'Checking audience insights access…' : pro.isError
+          ? 'Audience insights access could not be checked.'
+          : 'Post audience insights are part of Curator Pro.'}
+      </p>
+      {pro.isError && <Button variant="outline" size="sm" className="mt-3" onClick={() => void pro.refetch()}>Try again</Button>}
+      {!pro.isError && status?.available && status.canSubscribe && (
+        <Link href="/studio/curator" prefetch={false} className="mt-3 inline-block text-sm underline underline-offset-2">
+          View Curator Pro
+        </Link>
+      )}
+    </section>
+  );
+}
+
 /** Fetches once on mount; the column and the sheet both mount it only when an owner can see it. */
 function InsightsSections({ postId, conversionSuccessCount }: { postId: string; conversionSuccessCount?: number }) {
   const [status, setStatus] = useState<InsightsStatus>('loading');
@@ -445,7 +488,7 @@ function PostStudioContent({
       {/* Sections stack with a hairline between them. */}
       <div className="divide-y divide-border/70 px-6 pb-6 pt-5 [&>section+section]:pt-5 [&>section]:pb-4 [&>section:last-child]:pb-0">
         <VisibilityControl privacy={privacy} access={access} choose={choose} />
-        <InsightsSections postId={postId} conversionSuccessCount={conversionSuccessCount} />
+        <InsightsAccess postId={postId} conversionSuccessCount={conversionSuccessCount} />
       </div>
     </>
   );

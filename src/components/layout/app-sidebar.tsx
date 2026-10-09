@@ -4,6 +4,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
+import { usePaidPromotionSalesEnabled } from '@/hooks/use-paid-promotion-availability';
 import {
   Sidebar,
   SidebarContent,
@@ -41,12 +42,16 @@ const SIDEBAR_NAV_ORDER = ['profile', 'curator-studio', 'add-music', 'membership
 // Pages outside the sidebar shell; shown in the footer with an exit marker.
 const SIDEBAR_EXIT_ORDER = ['explore', 'promote'] as const;
 
-function getSidebarNavItems(user: NavUser, order: readonly string[] = SIDEBAR_NAV_ORDER): NavigationItemDefinition[] {
+function getSidebarNavItems(
+  user: NavUser,
+  paidPromotionSalesEnabled: boolean,
+  order: readonly string[] = SIDEBAR_NAV_ORDER,
+): NavigationItemDefinition[] {
   const all = [...primaryNavItems, ...accountNavItems];
   const ordered = order
     .map((key) => all.find((item) => item.key === key))
     .filter((item): item is NavigationItemDefinition => Boolean(item));
-  return getVisibleNavItems(ordered, user);
+  return getVisibleNavItems(ordered, user, { salesEnabled: paidPromotionSalesEnabled });
 }
 
 interface AppSidebarProps {
@@ -76,7 +81,8 @@ export function AppSidebar({ className }: AppSidebarProps) {
     opacity: number;
     hasPositioned: boolean;
   }>({ top: 0, height: 0, opacity: 0, hasPositioned: false });
-  const sidebarNavItems = getSidebarNavItems(user);
+  const paidPromotionSalesEnabled = usePaidPromotionSalesEnabled();
+  const sidebarNavItems = getSidebarNavItems(user, paidPromotionSalesEnabled);
 
   // Update indicator position when pathname changes or when auth resolves
   // (menu items are conditionally rendered based on user state, and the user menu affects layout)
@@ -223,7 +229,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
 
       <SidebarFooter className="border-t p-4 space-y-2">
         {/* Pages that leave the sidebar shell */}
-        {getSidebarNavItems(user, SIDEBAR_EXIT_ORDER).map((item) => (
+        {getSidebarNavItems(user, paidPromotionSalesEnabled, SIDEBAR_EXIT_ORDER).map((item) => (
           <Button
             key={item.key}
             asChild
@@ -295,7 +301,8 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
     opacity: number;
     hasPositioned: boolean;
   }>({ top: 0, height: 0, opacity: 0, hasPositioned: false });
-  const sidebarNavItems = getSidebarNavItems(user);
+  const paidPromotionSalesEnabled = usePaidPromotionSalesEnabled();
+  const sidebarNavItems = getSidebarNavItems(user, paidPromotionSalesEnabled);
 
   // Update indicator position when pathname changes
   useEffect(() => {

@@ -25,6 +25,26 @@ test.describe('home conversion funnel', () => {
     await expect(page.getByText("This music service isn't supported yet.")).toBeVisible();
   });
 
+  for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
+    test(`shows keyboard focus and an announced, linked error at ${viewport.width}px`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await mockCassetteApp(page);
+
+      await page.goto('/');
+      const input = page.getByTestId('home-search-input');
+      const bar = input.locator('..');
+      await expect(bar).toHaveCSS('box-shadow', 'none');
+      await input.focus();
+      await expect(bar).not.toHaveCSS('box-shadow', 'none');
+
+      await dispatchPaste(page, 'home-search-input', 'https://www.youtube.com/watch?v=not-supported');
+      const error = page.getByRole('alert').filter({ hasText: "This music service isn't supported yet." });
+      await expect(error).toBeVisible();
+      await expect(input).toHaveAttribute('aria-invalid', 'true');
+      await expect(input).toHaveAttribute('aria-describedby', (await error.getAttribute('id'))!);
+    });
+  }
+
   test('shows validation for unknown http music links', async ({ page }) => {
     await mockCassetteApp(page);
 

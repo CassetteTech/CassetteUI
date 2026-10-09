@@ -122,9 +122,9 @@ export function CuratorProCard() {
     queryFn: ({ signal }) => apiService.getCuratorProStatus(signal),
     enabled: Boolean(userId),
     staleTime: 0,
-    // Only a checkout return waits on the payment mirror; a portal return
-    // resolves on the first fresh status read.
-    refetchInterval: flow === 'return' ? 1_000 : false,
+    // Both provider returns wait on the billing mirror, which Stripe updates by
+    // webhook, possibly after the curator is back.
+    refetchInterval: flow ? 1_000 : false,
   });
   const status = statusQuery.data;
   const checkout = useMutation({
@@ -173,10 +173,12 @@ export function CuratorProCard() {
   }, [userId]);
 
   useEffect(() => {
-    if (flow !== 'return') return;
+    if (!flow) return;
     const timeout = window.setTimeout(() => {
       setTimedOutFlow(flow);
-      finishFlow('Curator Pro activation is still processing. Refresh in a moment.');
+      finishFlow(flow === 'return'
+        ? 'Curator Pro activation is still processing. Refresh in a moment.'
+        : 'No billing change has reached Cassette yet. A change made in Stripe can take a minute to appear.');
     }, 30_000);
     return () => window.clearTimeout(timeout);
   }, [finishFlow, flow]);
@@ -197,8 +199,8 @@ export function CuratorProCard() {
       return;
     }
 
-    // Portal return: an unchanged status is the normal outcome (the curator
-    // looked or updated a card), so it succeeds immediately rather than waiting.
+    // Portal return: an unchanged read proves nothing, because the change can
+    // still be on its way. The bounded poll ends with neutral copy instead.
     const baseline = portalBaseline.current;
     const canceled = baseline !== null && baseline.status !== 'canceled' && status.status === 'canceled';
     const canceling = baseline !== null && !baseline.cancelAtPeriodEnd && status.cancelAtPeriodEnd;
@@ -215,8 +217,6 @@ export function CuratorProCard() {
       finishFlow('Your Curator Pro subscription will continue.');
     } else if (baseline !== null && baseline.status !== status.status) {
       finishFlow('Your Curator Pro billing status changed. Review the current status below.');
-    } else {
-      finishFlow('Billing settings are up to date. Your Curator Pro status is unchanged.');
     }
   }, [fetchedAfterMount, finishFlow, flow, status]);
 

@@ -102,10 +102,31 @@ function priceText(amountMinor: number | null): string {
   return amountMinor === null ? '' : (amountMinor / 100).toFixed(2);
 }
 
-function formText(data: FormData, name: string): string {
-  // SAFETY: each requested name belongs to a text input in this form.
-  return (data.get(name) as string | null) ?? '';
-}
+/** Everything the curator has entered in the draft form. The fields, the fan
+    preview, and the saved request all read this one value. */
+type PlanDraft = {
+  name: string;
+  description: string;
+  monthlyPrice: string;
+  annualPrice: string;
+  featureKeys: string[];
+};
+
+const emptyDraft: PlanDraft = {
+  name: '',
+  description: '',
+  monthlyPrice: defaultMonthlyPrice,
+  annualPrice: '',
+  featureKeys: [],
+};
+
+const draftOf = (plan: CuratorPlan): PlanDraft => ({
+  name: plan.name,
+  description: plan.description,
+  monthlyPrice: priceText(plan.amountMinor),
+  annualPrice: priceText(plan.annualAmountMinor),
+  featureKeys: plan.featureKeys,
+});
 
 function replacePlan(plans: CuratorPlan[] | undefined, saved: CuratorPlan): CuratorPlan[] {
   if (!plans) return [saved];
@@ -279,17 +300,14 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   const formRef = useRef<HTMLFormElement>(null);
   const monthlyRef = useRef<HTMLInputElement>(null);
   const annualRef = useRef<HTMLInputElement>(null);
-  const [monthlyPrice, setMonthlyPrice] = useState(defaultMonthlyPrice);
-  const [annualPrice, setAnnualPrice] = useState('');
-  // Uncontrolled text fields mirrored into state only to feed the live fan preview.
-  const [previewName, setPreviewName] = useState('');
-  const [previewDescription, setPreviewDescription] = useState('');
-  const [previewFeatures, setPreviewFeatures] = useState<string[]>([]);
+  // Lives above the disclosure, so folding the form away keeps what was entered.
+  const [draft, setDraft] = useState<PlanDraft>(emptyDraft);
+  const updateDraft = (change: Partial<PlanDraft>) => setDraft((current) => ({ ...current, ...change }));
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   // null = follow the default (open only while the curator has no plans yet)
   const [createOpen, setCreateOpen] = useState<boolean | null>(null);
-  // Draft currently loaded into the form; the form remounts (key) when this changes.
+  // Saved draft currently loaded into the form.
   const [editingId, setEditingId] = useState<string | null>(null);
   // With a live plan the card folds to a summary; the curator opens the tools on demand.
   const [expanded, setExpanded] = useState(false);
@@ -318,14 +336,8 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   });
 
   const resetForm = () => {
-    // Uncontrolled fields only remount when the form key changes (edit → new).
-    formRef.current?.reset();
     setEditingId(null);
-    setMonthlyPrice(defaultMonthlyPrice);
-    setAnnualPrice('');
-    setPreviewName('');
-    setPreviewDescription('');
-    setPreviewFeatures([]);
+    setDraft(emptyDraft);
     setSubmitAttempted(false);
   };
   const save = useMutation({
@@ -368,11 +380,13 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   });
 
   const plansData = profile ? plans.data : [];
-  // A draft that was published or deleted elsewhere silently drops out of edit mode.
   const editingPlan = plansData?.find((plan) => plan.id === editingId && plan.status === 'draft') ?? null;
-  const monthlyMinor = priceMinor(monthlyPrice);
-  const annualEntered = annualPrice.trim() !== '';
-  const annualMinor = annualEntered ? priceMinor(annualPrice) : null;
+  // A draft that was published or deleted elsewhere drops out of edit mode, and
+  // its values leave the form with it.
+  if (editingId !== null && plansData && !editingPlan) resetForm();
+  const monthlyMinor = priceMinor(draft.monthlyPrice);
+  const annualEntered = draft.annualPrice.trim() !== '';
+  const annualMinor = annualEntered ? priceMinor(draft.annualPrice) : null;
   const validMonthly = monthlyMinor !== null && monthlyMinor >= monthlyMinMinor && monthlyMinor <= monthlyMaxMinor;
   const validAnnual = annualMinor !== null && monthlyMinor !== null && annualMinor <= monthlyMinor * 12;
   const priceCurrency = pricing.data?.currency ?? 'USD';
@@ -384,7 +398,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
     : annualMinor === null
       ? 'Enter a valid annual price.'
       : 'Annual price can be at most 12 monthly payments.';
-  const showMonthlyError = monthlyError !== null && (submitAttempted || monthlyPrice.trim() !== '');
+  const showMonthlyError = monthlyError !== null && (submitAttempted || draft.monthlyPrice.trim() !== '');
   const showAnnualError = annualError !== null;
   const annualSavingsMinor = validAnnual ? monthlyMinor * 12 - annualMinor : null;
   const annualHelp = annualSavingsMinor === null
@@ -427,9 +441,9 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   const pass = !pricing.data ? null : formOpen ? (
     <FanPreview
       {...curatorPass}
-      name={previewName}
-      description={previewDescription}
-      benefits={benefitsFor(previewFeatures)}
+      name={draft.name}
+      description={draft.description}
+      benefits={benefitsFor(draft.featureKeys)}
       currency={pricing.data.currency}
       frozen={false}
       monthly={monthlyEconomics && { faceMinor: monthlyEconomics.faceMinor, serviceFeeMinor: monthlyEconomics.serviceFeeMinor }}
@@ -451,11 +465,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
 
   const startEditing = (plan: CuratorPlan) => {
     setEditingId(plan.id);
-    setMonthlyPrice(priceText(plan.amountMinor));
-    setAnnualPrice(priceText(plan.annualAmountMinor));
-    setPreviewName(plan.name);
-    setPreviewDescription(plan.description);
-    setPreviewFeatures(plan.featureKeys);
+    setDraft(draftOf(plan));
     setSubmitAttempted(false);
     setNotice(null);
     setCreateOpen(true);
@@ -828,7 +838,6 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                 )}
                 <form
                   ref={formRef}
-                  key={editingPlan?.id ?? 'new'}
                   className="grid gap-8 pt-6 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start"
                   onSubmit={(event) => {
                     event.preventDefault();
@@ -842,17 +851,15 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                       annualRef.current?.focus();
                       return;
                     }
-                    const data = new FormData(event.currentTarget);
                     setNotice(null);
                     save.mutate({
                       planId: editingPlan?.id ?? null,
                       request: {
-                        name: formText(data, 'name'),
-                        description: formText(data, 'description'),
+                        name: draft.name,
+                        description: draft.description,
                         amountMinor: monthlyMinor,
                         annualAmountMinor: annualEntered ? annualMinor : null,
-                        // SAFETY: featureKeys belongs only to checkbox inputs in this form.
-                        featureKeys: data.getAll('featureKeys') as string[],
+                        featureKeys: draft.featureKeys,
                       },
                     });
                   }}
@@ -862,24 +869,22 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                       <Label htmlFor="curator-plan-name">Plan name</Label>
                       <Input
                         id="curator-plan-name"
-                        name="name"
                         required
                         maxLength={150}
                         placeholder="Selector Club"
-                        defaultValue={editingPlan?.name ?? ''}
-                        onChange={(event) => setPreviewName(event.target.value)}
+                        value={draft.name}
+                        onChange={(event) => updateDraft({ name: event.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="curator-plan-description">Description</Label>
                       <Textarea
                         id="curator-plan-description"
-                        name="description"
                         maxLength={2000}
                         placeholder="Two exclusive playlists every week, plus a monthly members-only mix."
                         aria-describedby="curator-plan-description-help"
-                        defaultValue={editingPlan?.description ?? ''}
-                        onChange={(event) => setPreviewDescription(event.target.value)}
+                        value={draft.description}
+                        onChange={(event) => updateDraft({ description: event.target.value })}
                       />
                       <p id="curator-plan-description-help" className="text-xs text-muted-foreground">
                         What members get and how often. Promise only what you will deliver.
@@ -897,8 +902,8 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                           aria-required="true"
                           aria-invalid={showMonthlyError || undefined}
                           aria-describedby={showMonthlyError ? 'curator-plan-monthly-error' : undefined}
-                          value={monthlyPrice}
-                          onChange={(event) => setMonthlyPrice(event.target.value)}
+                          value={draft.monthlyPrice}
+                          onChange={(event) => updateDraft({ monthlyPrice: event.target.value })}
                         />
                         {showMonthlyError && (
                           <p id="curator-plan-monthly-error" className="text-xs text-destructive">
@@ -915,7 +920,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                               size="xs"
                               aria-pressed={monthlyMinor === minor}
                               className="rounded-full font-mono tabular-nums aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:text-foreground"
-                              onClick={() => setMonthlyPrice(priceText(minor))}
+                              onClick={() => updateDraft({ monthlyPrice: priceText(minor) })}
                             >
                               ${minor / 100}
                             </Button>
@@ -933,8 +938,8 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                           aria-describedby={showAnnualError
                             ? 'curator-plan-annual-error curator-plan-annual-help'
                             : 'curator-plan-annual-help'}
-                          value={annualPrice}
-                          onChange={(event) => setAnnualPrice(event.target.value)}
+                          value={draft.annualPrice}
+                          onChange={(event) => updateDraft({ annualPrice: event.target.value })}
                         />
                         {showAnnualError && (
                           <p id="curator-plan-annual-error" className="text-xs text-destructive">
@@ -961,12 +966,13 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                           <Checkbox
                             id={`curator-feature-${feature.featureKey}`}
                             className="mt-0.5"
-                            name="featureKeys"
-                            value={feature.featureKey}
-                            defaultChecked={editingPlan?.featureKeys.includes(feature.featureKey) ?? false}
-                            onCheckedChange={(checked) => setPreviewFeatures((current) => checked === true
-                              ? [...current, feature.featureKey]
-                              : current.filter((key) => key !== feature.featureKey))}
+                            checked={draft.featureKeys.includes(feature.featureKey)}
+                            onCheckedChange={(checked) => setDraft((current) => ({
+                              ...current,
+                              featureKeys: checked === true
+                                ? [...current.featureKeys, feature.featureKey]
+                                : current.featureKeys.filter((key) => key !== feature.featureKey),
+                            }))}
                           />
                           <span><span className="font-medium">{feature.displayName}</span><span className="mt-1 block text-muted-foreground">{feature.description}</span></span>
                         </Label>

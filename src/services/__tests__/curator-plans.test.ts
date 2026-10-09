@@ -11,7 +11,7 @@ import {
   fetchCuratorFeatures,
   fetchCuratorPlans,
   fetchCuratorPricing,
-  memberPostAccessState,
+  fetchMemberPostAuthoring,
   parseCuratorFeatures,
   parseCuratorPlan,
   parseCuratorPricing,
@@ -56,22 +56,22 @@ function requestUrl(input: string | URL | Request): string {
   return input as string;
 }
 
-void test('members-only access state follows the curator profile, then a published member-post plan', () => {
-  const active = parseCuratorPlan({
-    ...draft,
-    status: 'active',
-    serviceFeeMinor: 58,
-    annualServiceFeeMinor: 310,
-    publishedAtUtc: '2026-08-16T13:00:00Z',
+// The browser no longer infers this from plan states: an archived plan with paying
+// members still allows member posts, which only Bridge can know.
+void test('members-only authoring uses the Bridge decision privately and strictly', async (t) => {
+  const calls: { input: string; init?: RequestInit }[] = [];
+  const answers = [{ canAuthor: true }, { canAuthor: false }, { canAuthor: true, plans: [] }];
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ input: requestUrl(input), init });
+    return new Response(JSON.stringify(answers.shift()), { status: 200 });
   });
-  const otherFeature = { ...active, featureKeys: ['early_access'] };
 
-  assert.equal(memberPostAccessState(undefined, undefined), 'loading');
-  assert.equal(memberPostAccessState(false, undefined), 'needs-plan');
-  assert.equal(memberPostAccessState(true, undefined), 'loading');
-  assert.equal(memberPostAccessState(true, []), 'needs-plan');
-  assert.equal(memberPostAccessState(true, [parseCuratorPlan(draft), otherFeature]), 'needs-plan');
-  assert.equal(memberPostAccessState(true, [otherFeature, active]), 'ready');
+  assert.equal(await fetchMemberPostAuthoring(), true);
+  assert.equal(await fetchMemberPostAuthoring(), false);
+  await assert.rejects(fetchMemberPostAuthoring());
+  assert.equal(calls[0].input, '/api/v1/curators/me/member-post-authoring');
+  assert.equal(calls[0].init?.cache, 'no-store');
+  assert.equal(calls[0].init?.credentials, 'include');
 });
 
 void test('plan and feature parsers enforce the public contract and published evidence', () => {

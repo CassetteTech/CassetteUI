@@ -198,7 +198,10 @@ test('reflects cancellation and reactivation only after Billing Portal mirror ch
   await expect(page.getByTestId('curator-pro-notice')).toContainText(/continue|active/i);
 });
 
-test('treats an unchanged Billing Portal return as success without polling', async ({ page }) => {
+// The billing mirror changes by webhook, possibly after the curator is back. An
+// unchanged read never confirms the outcome; the bounded check ends neutrally.
+test('ends an unchanged Billing Portal return with neutral copy and a way to check again', async ({ page }) => {
+  test.setTimeout(60_000);
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProStatus: fixtureCuratorProActiveStatus,
@@ -211,12 +214,37 @@ test('treats an unchanged Billing Portal return as success without polling', asy
   await expect(card).toContainText('Your memberships, earnings, and free profile are not affected.');
   await page.getByTestId('curator-pro-manage').click();
 
-  await expect(page.getByTestId('curator-pro-notice')).toContainText('unchanged', { timeout: 5_000 });
+  await expect(page.getByTestId('curator-pro-notice')).toHaveText(
+    'No billing change has reached Cassette yet. A change made in Stripe can take a minute to appear.',
+    { timeout: 35_000 },
+  );
   await expect(page).not.toHaveURL(/pro=/);
-  const requestsAfterReturn = state.curatorProStatusRequests;
+  await expect(page.getByText(/up to date|unchanged/)).toHaveCount(0);
+  const requestsAtTimeout = state.curatorProStatusRequests;
   await page.waitForTimeout(2_500);
-  expect(state.curatorProStatusRequests).toBe(requestsAfterReturn);
-  await expect(page.getByRole('button', { name: 'Check again' })).toHaveCount(0);
+  expect(state.curatorProStatusRequests).toBe(requestsAtTimeout);
+  await page.getByRole('button', { name: 'Check again' }).click();
+  await expect.poll(() => state.curatorProStatusRequests).toBeGreaterThan(requestsAtTimeout);
+});
+
+test('shows a Billing Portal cancellation that reaches Bridge after the first status read', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProStatus: fixtureCuratorProActiveStatus,
+    curatorProStatusSequence: [
+      fixtureCuratorProActiveStatus,
+      fixtureCuratorProActiveStatus,
+      { ...fixtureCuratorProActiveStatus, cancelAtPeriodEnd: true },
+    ],
+  });
+
+  await page.goto(STUDIO_PATH);
+  await returnFromProvider(page, PORTAL_URL, `${STUDIO_PATH}?pro=portal-return`);
+  await openStudioStep(page, 'studio-pro');
+  await page.getByTestId('curator-pro-manage').click();
+
+  await expect(page.getByTestId('curator-pro-notice')).toContainText('Curator Pro will end');
+  await expect(page.getByText(/up to date|unchanged/)).toHaveCount(0);
 });
 
 test('keeps Curator Pro hidden and the free profile usable when Pro status fails', async ({ page }) => {

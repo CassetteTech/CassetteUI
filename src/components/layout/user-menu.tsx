@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
+import { usePaidPromotionAccountVisible } from '@/hooks/use-paid-promotion-availability';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { accountNavItems, getVisibleNavItems, resolveNavHref } from './navigation-config';
 
@@ -23,9 +24,10 @@ export function UserMenu({ align = 'start' }: { align?: 'start' | 'end' }) {
   const { user } = useAuthState();
   const { mutate: signOut } = useSignOut();
   const { openReportModal } = useReportIssue();
+  const accountVisible = usePaidPromotionAccountVisible();
   if (!user) return null;
   const name = user.displayName || user.username;
-  const items = getVisibleNavItems(accountNavItems, user);
+  const items = getVisibleNavItems(accountNavItems, user, { accountVisible });
 
   return (
     <DropdownMenu>

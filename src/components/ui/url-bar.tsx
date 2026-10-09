@@ -21,6 +21,8 @@ function UrlBar({ className, variant = "dark", hasError = false, beamActive = fa
         // force-light pins the bar (and everything composed inside it) to the
         // light token set, so bg-field stays pure white in dark mode too.
         "force-light bg-field text-card-foreground",
+        // The field inside drops its own outline, so the bar shows keyboard focus.
+        "has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50",
         variant === "dark"
           ? "border-border"
           : "border-foreground",

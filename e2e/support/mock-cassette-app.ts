@@ -73,6 +73,8 @@ type MockCassetteOptions = {
   curatorPayoutRefreshAccount?: CuratorPayoutAccount;
   curatorPayoutOnboardingUrl?: string;
   curatorPlans?: CuratorPlan[];
+  /** Bridge's member-post authoring decision; defaults to an active curator with an active member-posts plan. */
+  memberPostAuthoring?: boolean;
   curatorPlanToolsStatus?: number;
   curatorFeatures?: CuratorFeature[];
   curatorPricing?: CuratorPricing;
@@ -983,6 +985,16 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         statusChangedAtUtc: FIXTURE_TIMESTAMP,
       };
       return json(route, state.curatorProfile, 201);
+    }
+
+    if (pathname === '/api/v1/curators/me/member-post-authoring' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      return json(route, {
+        canAuthor: options.memberPostAuthoring ?? (
+          state.curatorProfile?.status === 'active' &&
+          state.curatorPlans.some((plan) => plan.status === 'active' && plan.featureKeys.includes('member_posts'))
+        ),
+      });
     }
 
     if (pathname === '/api/v1/curators/me/earnings' && method === 'GET') {

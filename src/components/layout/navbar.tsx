@@ -8,6 +8,7 @@ import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserMenu } from '@/components/layout/user-menu';
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
+import { usePaidPromotionSalesEnabled } from '@/hooks/use-paid-promotion-availability';
 import { ChevronDown, AlertCircle, LogOut } from 'lucide-react';
 import { ThemeSwitcher } from './theme-switcher';
 import { NavigationLinks } from './navigation-links';
@@ -16,7 +17,6 @@ import Image from 'next/image';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { NotificationMenu } from './notification-menu';
 import {
-  accountNavItems,
   companyNavItems,
   getVisibleNavItems,
   resolveNavHref,
@@ -41,7 +41,7 @@ export function Navbar() {
   // beneath it instead of stopping at a solid band over the backdrop.
   const isHero = isHeroRoute(usePathname());
   const visibleCompanyItems = getVisibleNavItems(companyNavItems, user);
-  const visibleAccountItems = getVisibleNavItems(accountNavItems, user);
+  const paidPromotionSalesEnabled = usePaidPromotionSalesEnabled();
 
   // Lock body scroll while the mobile menu is open so the panel feels modal.
   useEffect(() => {
@@ -143,12 +143,14 @@ export function Navbar() {
               Explore
             </Link>
 
-            <Link
-              href="/promote"
-              className="hidden md:inline-flex items-center whitespace-nowrap text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted"
-            >
-              Promote your music
-            </Link>
+            {paidPromotionSalesEnabled && (
+              <Link
+                href="/promote"
+                className="hidden md:inline-flex items-center whitespace-nowrap text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted"
+              >
+                Promote your music
+              </Link>
+            )}
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4">

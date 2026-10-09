@@ -270,19 +270,14 @@ export async function addCuratorPlanAnnualPrice(id: string, annualAmountMinor: n
   return curatorPlanSchema.parse(await response.json());
 }
 
-/** Published plans whose members can open members-only posts. */
-export const memberPostPlans = (plans: CuratorPlan[]): CuratorPlan[] =>
-  plans.filter((plan) => plan.status === 'active' && plan.featureKeys.includes('member_posts'));
+const memberPostAuthoringSchema = z.object({ canAuthor: z.boolean() }).strict();
 
-export type MemberPostAccessState = 'loading' | 'needs-plan' | 'ready';
-
-/** What still stands between a user and publishing a members-only post. */
-export function memberPostAccessState(
-  hasCuratorProfile: boolean | undefined,
-  plans: CuratorPlan[] | undefined,
-): MemberPostAccessState {
-  if (hasCuratorProfile === undefined) return 'loading';
-  if (!hasCuratorProfile) return 'needs-plan';
-  if (plans === undefined) return 'loading';
-  return memberPostPlans(plans).length > 0 ? 'ready' : 'needs-plan';
+/** Whether the signed-in user may publish members-only posts. Bridge decides with the
+    rule that post writes enforce: an active plan with member posts, or an archived one
+    whose members still pay for them. */
+export async function fetchMemberPostAuthoring(signal?: AbortSignal): Promise<boolean> {
+  const response = await fetch('/api/v1/curators/me/member-post-authoring', {
+    cache: 'no-store', credentials: 'include', signal,
+  });
+  return (await parseResponse(response, 'Failed to check member post access', memberPostAuthoringSchema)).canAuthor;
 }

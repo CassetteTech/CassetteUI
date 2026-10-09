@@ -26,6 +26,29 @@ const intervalControl = (card: Locator, interval: 'month' | 'year') =>
   card.getByText(interval === 'month' ? 'Monthly' : 'Annual', { exact: true });
 
 const manageControl = (page: Page) => page.getByTestId('membership-manage');
+
+const unpaidMembershipStatus = {
+  ...fixtureActiveMembershipStatus,
+  membership: { ...fixtureActiveMembershipStatus.membership!, status: 'unpaid' as const },
+};
+
+/** After a repaired payment the page reads the server-owned feed again: the posts
+    unlock, the pass updates, the bounded poll stops, and no notice is left behind. */
+async function expectRepairedMembership(page: Page, state: { membershipStatusRequests: string[] }) {
+  await expect(page.getByTestId('membership-view-posts')).toBeVisible();
+  await expect(page.getByTestId('curator-locked-post')).toHaveCount(0);
+  await expect(page.getByTestId('membership-standing')).toHaveCount(0);
+  await expect(page.getByTestId('membership-notice')).toHaveCount(0);
+  await expect(page).not.toHaveURL(/membership=/);
+  const requests = state.membershipStatusRequests.length;
+  await page.waitForTimeout(2_500);
+  expect(state.membershipStatusRequests.length).toBe(requests);
+}
+
+// The fixtures renew on Sep 16, 2026. Endings read as scheduled only before that date.
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-08-24T12:00:00Z'));
+});
 type MembershipAnalyticsProperties = {
   curator_id?: string;
   membership_plan_id?: string;
@@ -253,7 +276,7 @@ test('reports a continued membership from one fresh status read after Portal rea
 
 test('does not attribute an unchanged canceled membership to a new Portal action', async ({ page }) => {
   const captures: MembershipAnalyticsCapture[] = [];
-  await mockCassetteApp(page, {
+  const { state } = await mockCassetteApp(page, {
     analyticsCaptures: captures,
     currentUser: fixtureUsers.member,
     curatorPage: fixtureCuratorPage,
@@ -265,10 +288,35 @@ test('does not attribute an unchanged canceled membership to a new Portal action
   await returnFromProvider(page, PORTAL_URL, `${CURATOR_PATH}?membership=portal-return`);
   await manageControl(page).click();
 
-  await expect(page.getByTestId('membership-notice')).toHaveText(
-    'Membership management is up to date.',
-  );
+  await expect.poll(() => state.membershipStatusRequests.length).toBeGreaterThanOrEqual(4);
+  await expect(page.getByTestId('membership-notice')).toHaveCount(0);
   expect(captures.some((capture) => capture.event === 'membership_canceled')).toBe(false);
+});
+
+// Stripe's webhook can reach Bridge after the fan is back from the Portal, so an
+// unchanged first read never confirms the outcome.
+test('shows a Portal cancellation that reaches Bridge after the first status read', async ({ page }) => {
+  const captures: MembershipAnalyticsCapture[] = [];
+  await mockCassetteApp(page, {
+    analyticsCaptures: captures,
+    currentUser: fixtureUsers.member,
+    curatorPage: fixtureMemberCuratorPage,
+    membershipStatus: fixtureActiveMembershipStatus,
+    membershipPollSequence: [
+      fixtureActiveMembershipStatus,
+      fixtureActiveMembershipStatus,
+      fixtureCancelingMembershipStatus,
+    ],
+  });
+
+  await page.goto(CURATOR_PATH);
+  await returnFromProvider(page, PORTAL_URL, `${CURATOR_PATH}?membership=portal-return`);
+  await manageControl(page).click();
+
+  await expect(page.getByTestId('membership-standing')).toContainText('Your membership will end on Sep 16, 2026.');
+  await expect(page.getByTestId('membership-billing')).toHaveText('$5.50/month · ends Sep 16, 2026');
+  await expect(page.getByText(/up to date/)).toHaveCount(0);
+  await expectMembershipEvent(captures, 'membership_canceled', true);
 });
 
 test('does not attribute a crafted return URL to a new membership', async ({ page }) => {
@@ -288,7 +336,10 @@ test('does not attribute a crafted return URL to a new membership', async ({ pag
   )).toBe(false);
 });
 
-test('treats an unchanged membership after a Portal visit as up to date without waiting', async ({ page }) => {
+// A Portal visit that changed nothing looks like a change still on its way. The
+// bounded check ends with neutral copy and lets the fan check again.
+test('ends an unchanged Portal return with neutral copy and a way to check again', async ({ page }) => {
+  test.setTimeout(60_000);
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorPage: fixtureMemberCuratorPage,
@@ -300,10 +351,119 @@ test('treats an unchanged membership after a Portal visit as up to date without 
   await returnFromProvider(page, PORTAL_URL, `${CURATOR_PATH}?membership=portal-return`);
   await manageControl(page).click();
 
-  await expect(page.getByTestId('membership-notice')).toHaveText('Membership management is up to date.');
+  await expect(page.getByTestId('membership-notice')).toHaveText(
+    'No membership change has reached Cassette yet. A change made in Stripe can take a minute to appear.',
+    { timeout: 35_000 },
+  );
   await expect(page).not.toHaveURL(/membership=/);
+  const requestsAtTimeout = state.membershipStatusRequests.length;
   await page.waitForTimeout(2_500);
-  expect(state.membershipStatusRequests.length).toBeLessThanOrEqual(3);
+  expect(state.membershipStatusRequests.length).toBe(requestsAtTimeout);
+
+  await page.getByRole('button', { name: 'Check again' }).click();
+  await expect.poll(() => state.membershipStatusRequests.length).toBeGreaterThan(requestsAtTimeout);
+  await expect(page.getByText(/up to date/)).toHaveCount(0);
+});
+
+// A payment repaired in the Portal can reach Bridge after the fan is back. Any
+// status change, not only a cancellation, refreshes the server-owned page.
+test('unlocks member posts when a Portal payment repair reaches Bridge after the first read', async ({ page }) => {
+  const captures: MembershipAnalyticsCapture[] = [];
+  const { state } = await mockCassetteApp(page, {
+    analyticsCaptures: captures,
+    currentUser: fixtureUsers.member,
+    curatorPage: fixtureCuratorPage,
+    membershipStatus: unpaidMembershipStatus,
+    membershipPollSequence: [unpaidMembershipStatus, unpaidMembershipStatus, fixtureActiveMembershipStatus],
+    membershipActiveCuratorPage: fixtureMemberCuratorPage,
+  });
+
+  await page.goto(CURATOR_PATH);
+  await returnFromProvider(page, PORTAL_URL, `${CURATOR_PATH}?membership=portal-return`);
+  await expect(page.getByTestId('curator-locked-post')).not.toHaveCount(0);
+  await manageControl(page).click();
+  await page.waitForURL(/membership=portal-return/);
+  await expect(page.getByTestId('membership-standing')).toContainText('on hold');
+  // A window property lives only as long as this document, so a reload removes it.
+  // The return parameter is still present, so the repair has not been handled yet.
+  await page.evaluate(() => { Object.defineProperty(window, 'portalReturnDocument', { value: true }); });
+  expect(page.url()).toContain('membership=portal-return');
+
+  await expectRepairedMembership(page, state);
+  expect(await page.evaluate(() => 'portalReturnDocument' in window)).toBe(true);
+  expect(captures.some((capture) => capture.event === 'membership_canceled')).toBe(false);
+});
+
+// The wallet stores the same Portal baseline, and the change can already be in
+// Bridge when the first status read after the return arrives.
+test('unlocks member posts after a wallet Portal repair that Bridge saw before the first read', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorPage: fixtureCuratorPage,
+    membershipStatus: unpaidMembershipStatus,
+    membershipPollSequence: [fixtureActiveMembershipStatus],
+    membershipActiveCuratorPage: fixtureMemberCuratorPage,
+    myMemberships: [{
+      curatorProfileId: fixtureCuratorPage.curator.id,
+      curatorUsername: fixtureCuratorPage.curator.username,
+      curatorDisplayName: fixtureCuratorPage.curator.displayName ?? '',
+      membership: unpaidMembershipStatus.membership,
+    }],
+  });
+
+  await page.goto('/memberships');
+  await returnFromProvider(page, PORTAL_URL, `${CURATOR_PATH}?membership=portal-return`);
+  await page.getByTestId('my-membership-manage').click();
+
+  await expect(page).toHaveURL(new RegExp(CURATOR_PATH));
+  await expectRepairedMembership(page, state);
+});
+
+// Without session storage no baseline survives the Portal visit, so the return
+// compares later reads with its first one.
+test('detects a Portal repair when session storage is unavailable', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'sessionStorage', {
+      configurable: true,
+      get() {
+        throw new DOMException('Storage is disabled.', 'SecurityError');
+      },
+    });
+  });
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorPage: fixtureCuratorPage,
+    membershipStatus: unpaidMembershipStatus,
+    membershipPollSequence: [unpaidMembershipStatus, unpaidMembershipStatus, fixtureActiveMembershipStatus],
+    membershipActiveCuratorPage: fixtureMemberCuratorPage,
+  });
+
+  await page.goto(CURATOR_PATH);
+  await returnFromProvider(page, PORTAL_URL, `${CURATOR_PATH}?membership=portal-return`);
+  await manageControl(page).click();
+
+  await expectRepairedMembership(page, state);
+});
+
+// Only a baseline from the moment the fan opened the Portal attributes a
+// cancellation to it; a change seen after the first return read is still shown.
+test('shows a cancellation seen without a Portal baseline but does not attribute it', async ({ page }) => {
+  const captures: MembershipAnalyticsCapture[] = [];
+  const { state } = await mockCassetteApp(page, {
+    analyticsCaptures: captures,
+    currentUser: fixtureUsers.member,
+    curatorPage: fixtureMemberCuratorPage,
+    membershipStatus: fixtureActiveMembershipStatus,
+  });
+
+  await page.goto(`${CURATOR_PATH}?membership=portal-return`);
+  await expect.poll(() => state.membershipStatusRequests.length).toBeGreaterThanOrEqual(2);
+  state.membershipStatus = structuredClone(fixtureCancelingMembershipStatus);
+
+  await expect(page.getByTestId('membership-standing')).toContainText('Your membership will end on Sep 16, 2026.');
+  await expect(page).not.toHaveURL(/membership=/);
+  await page.waitForTimeout(1_500);
+  expect(captures.some((capture) => capture.event === 'membership_canceled')).toBe(false);
 });
 
 test('guides a past-due member to update payment while access continues', async ({ page }) => {
@@ -443,6 +603,114 @@ test('explains curator-side endings with the access end date and refund state', 
   );
   await expect(rows.nth(1)).toContainText('Aug 20, 2026');
   await expect(rows.nth(1)).not.toContainText('suspend');
+});
+
+// Bridge records a curator-side ending before Stripe confirms the cancellation. The
+// pass, its billing line, and the active count follow the ending, not the stale status.
+test('reads an immediate ending as ended while Stripe still reports the membership active', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    myMemberships: [
+      {
+        curatorProfileId: fixtureCuratorPage.curator.id,
+        curatorUsername: fixtureCuratorPage.curator.username,
+        curatorDisplayName: fixtureCuratorPage.curator.displayName ?? '',
+        membership: {
+          ...fixtureActiveMembershipStatus.membership!,
+          endReason: 'curator_suspended',
+          accessEndsAtUtc: '2026-08-20T00:00:00Z',
+          refundStatus: 'pending',
+        },
+      },
+    ],
+  });
+
+  await page.goto('/memberships');
+  const pass = page.getByTestId('my-membership');
+  await expect(pass.getByTestId('my-membership-standing')).toHaveText(
+    'This membership ended on Aug 20, 2026 because the curator can no longer offer it. A refund for your unused paid time is on its way.',
+  );
+  await expect(pass.getByTestId('my-membership-billing')).toHaveText('$5.50/month · ended Aug 20, 2026');
+  await expect(pass).toContainText('Ended');
+  await expect(pass).not.toContainText(/renews/i);
+  await expect(page.getByText(/active of 1/)).toContainText('0 active of 1');
+});
+
+// Before a scheduled end, a failed payment or a pause still needs the fan's action:
+// the pass keeps that guidance and the end date, never calls the end a renewal, and
+// counts only memberships that Bridge entitles.
+test('keeps payment and pause guidance on passes with a future end date', async ({ page }) => {
+  const ending = fixtureCancelingMembershipStatus.membership!;
+  const entry = (index: number, status: 'past_due' | 'unpaid' | 'paused') => ({
+    curatorProfileId: `cpr_FixtureCurator0${index}`,
+    curatorUsername: `curator_${index}`,
+    curatorDisplayName: `Curator ${index}`,
+    membership: {
+      ...ending,
+      membershipSubscriptionId: `msb_FixtureMembership0${index}`,
+      status,
+      accessEndsAtUtc: ending.paidThroughUtc,
+    },
+  });
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    myMemberships: [entry(1, 'past_due'), entry(2, 'unpaid'), entry(3, 'paused')],
+  });
+
+  await page.goto('/memberships');
+  const rows = page.getByTestId('my-membership');
+  const expected = [
+    {
+      tier: 'Payment needed',
+      action: 'Update payment method',
+      standing: 'Your membership will end on Sep 16, 2026. Your last payment failed. Update your payment method in billing settings to keep access.',
+    },
+    {
+      tier: 'Payment needed',
+      action: 'Update payment method',
+      standing: 'Your membership will end on Sep 16, 2026. Your membership is on hold because payment failed. Update your payment method in billing settings to restore access.',
+    },
+    {
+      tier: 'Paused',
+      action: 'Manage membership',
+      standing: 'Your membership will end on Sep 16, 2026. Your membership is paused. Resume it from billing settings to restore access.',
+    },
+  ];
+  for (const [index, row] of expected.entries()) {
+    const pass = rows.nth(index);
+    await expect(pass.getByTestId('my-membership-standing')).toHaveText(row.standing);
+    await expect(pass).toContainText(row.tier);
+    await expect(pass).toContainText('Ends');
+    await expect(pass).not.toContainText(/Renews|keep member access/);
+    if (row.action === 'Manage membership') await pass.locator('summary').click();
+    await expect(pass.getByTestId('my-membership-manage')).toHaveText(row.action);
+  }
+  await expect(page.getByText(/active of 3/)).toContainText('1 active of 3');
+});
+
+test('keeps payment guidance on the profile pass before a scheduled end', async ({ page }) => {
+  const ending = fixtureCancelingMembershipStatus.membership!;
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorPage: fixtureMemberCuratorPage,
+    membershipStatus: {
+      ...fixtureCancelingMembershipStatus,
+      membership: { ...ending, status: 'past_due', accessEndsAtUtc: ending.paidThroughUtc },
+    },
+  });
+
+  await page.goto(CURATOR_PATH);
+
+  const card = page.getByTestId('curator-membership-card');
+  await expect(page.getByTestId('membership-standing')).toHaveText(
+    'Your membership will end on Sep 16, 2026. Your last payment failed. Update your payment method in billing settings to keep access.',
+  );
+  await expect(page.getByTestId('membership-billing')).toHaveText(
+    '$5.50/month · payment overdue · ends Sep 16, 2026 · tax extra',
+  );
+  await expect(card).toContainText('Ends');
+  await expect(card).not.toContainText('Renews');
+  await expect(manageControl(page)).toHaveText('Update payment method');
 });
 
 test('slides a membership pass into the curator profile rail on navigation', async ({ page }) => {

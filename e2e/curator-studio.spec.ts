@@ -369,6 +369,69 @@ test('edits and deletes drafts before publication', async ({ page }) => {
   expect(state.curatorPlanDeleteRequests).toEqual(['mpl_FixtureStudioDraft01']);
 });
 
+// The form folds away without losing input: the fields, the pass in the rail, and
+// the saved request all read the same draft, for a saved draft and a new one.
+test('keeps draft input across folding the form and saves what the pass shows', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [draftPlan],
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const card = page.getByTestId('curator-plan-card');
+  const pass = page.getByTestId('curator-plan-preview');
+  const disclosure = card.getByRole('button', { name: /^(Create a draft|Edit draft: )/ });
+  const foldAndReopen = async () => {
+    await disclosure.click();
+    await expect(card.getByLabel('Plan name')).toHaveCount(0);
+    await disclosure.click();
+  };
+
+  await card.getByTestId('curator-plan-edit').click();
+  await card.getByLabel('Plan name').fill('Second Draft');
+  await card.getByLabel(/Member-only posts/).check();
+  await foldAndReopen();
+  await expect(card.getByLabel('Plan name')).toHaveValue('Second Draft');
+  await expect(card.getByLabel('Description')).toHaveValue('Weekly picks.');
+  await expect(card.getByLabel(/Member-only posts/)).toBeChecked();
+  await expect(pass).toContainText('Second Draft');
+  await expect(pass).toContainText('Member-only posts');
+  await card.getByRole('button', { name: 'Save changes' }).click();
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft updated.');
+  expect(state.curatorPlanUpdateRequests).toEqual([{
+    name: 'Second Draft',
+    description: 'Weekly picks.',
+    amountMinor: 500,
+    annualAmountMinor: null,
+    featureKeys: ['member_posts'],
+  }]);
+
+  await disclosure.click();
+  await expect(card.getByLabel('Plan name')).toHaveValue('');
+  await card.getByLabel('Plan name').fill('Night Shift');
+  await card.getByLabel('Description').fill('Late picks.');
+  await card.getByLabel('Monthly price (USD)').fill('9');
+  await card.getByLabel(/Member-only posts/).check();
+  await foldAndReopen();
+  await expect(card.getByLabel('Plan name')).toHaveValue('Night Shift');
+  await expect(card.getByLabel('Description')).toHaveValue('Late picks.');
+  await expect(card.getByLabel('Monthly price (USD)')).toHaveValue('9');
+  await expect(card.getByLabel(/Member-only posts/)).toBeChecked();
+  await expect(pass).toContainText('Night Shift');
+  await expect(pass).toContainText('Late picks.');
+  await card.getByRole('button', { name: 'Save draft' }).click();
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft saved. Publishing remains optional.');
+  expect(state.curatorPlanCreateRequests).toEqual([{
+    name: 'Night Shift',
+    description: 'Late picks.',
+    amountMinor: 900,
+    annualAmountMinor: null,
+    featureKeys: ['member_posts'],
+  }]);
+});
+
 test('publishes without Curator Pro after payout onboarding completes and archives without canceling subscriptions', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,

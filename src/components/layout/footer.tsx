@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { SocialLinks } from '@/components/ui/social-links';
+import { usePaidPromotionSalesEnabled } from '@/hooks/use-paid-promotion-availability';
 
 const linkColumns: { label: string; links: { href: string; label: string }[] }[] = [
   {
@@ -31,6 +32,7 @@ const linkColumns: { label: string; links: { href: string; label: string }[] }[]
 ];
 
 export function Footer() {
+  const paidPromotionSalesEnabled = usePaidPromotionSalesEnabled();
   return (
     <footer className="relative border-t-2 border-foreground bg-background">
       <div className="editorial-rule-thick" />
@@ -67,7 +69,7 @@ export function Footer() {
                   {col.label}
                 </p>
                 <ul className="space-y-2">
-                  {col.links.map((link) => (
+                  {col.links.filter((link) => link.href !== '/promote' || paidPromotionSalesEnabled).map((link) => (
                     <FooterLink key={link.href} href={link.href}>
                       {link.label}
                     </FooterLink>

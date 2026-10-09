@@ -19,41 +19,38 @@ import {
   describeMembershipBilling,
   describeMembershipStanding,
   formatMembershipDate,
-  grantsMembershipAccess,
+  hasMembershipAccess,
+  membershipDateLabel,
   membershipEndOrRenewalUtc,
-  type MembershipSubscription,
+  membershipPhase,
+  rememberMembershipPortalBaseline,
+  type MembershipPhase,
   type MyMembership,
 } from '@/services/membership';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { cn } from '@/lib/utils';
 
 /** Short state printed on the pass head. */
-function tier(membership: MembershipSubscription) {
-  switch (membership.status) {
-    case 'past_due':
-    case 'unpaid':
-      return 'Payment needed';
-    case 'paused':
-      return 'Paused';
-    case 'canceled':
-      return 'Canceled';
-    default:
-      if (membership.cancelAtPeriodEnd || membership.accessEndsAtUtc) return 'Ending';
-      return grantsMembershipAccess(membership.status) ? 'Member' : 'Pending';
-  }
-}
+const tier = {
+  ended: 'Ended',
+  ending: 'Ending',
+  'payment-problem': 'Payment needed',
+  paused: 'Paused',
+  renewing: 'Member',
+  pending: 'Pending',
+} satisfies Record<MembershipPhase, string>;
 
 function MembershipPass({ entry }: { entry: MyMembership }) {
   const [portalPending, setPortalPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { membership } = entry;
+  const phase = membershipPhase(membership);
   const standing = describeMembershipStanding(membership);
-  const paymentProblem = membership.status === 'past_due' || membership.status === 'unpaid';
+  const paymentProblem = phase === 'payment-problem';
   const curatorName = entry.curatorDisplayName.trim() || entry.curatorUsername;
   const money = (minor: number) => formatPaidPromotionMinorAmount(minor, membership.currency);
   const endUtc = membershipEndOrRenewalUtc(membership);
   const end = endUtc ? formatMembershipDate(endUtc) : null;
-  const ending = membership.cancelAtPeriodEnd || Boolean(membership.accessEndsAtUtc);
   // The same key on the curator's profile pass lets this card slide into the rail on navigation, and back.
   const passRef = useRef<HTMLDivElement>(null);
   useSharedPosition(passRef, `membership-pass:${entry.curatorUsername}`);
@@ -63,6 +60,7 @@ function MembershipPass({ entry }: { entry: MyMembership }) {
     setError(null);
     try {
       const portal = await apiService.createMembershipPortal(membership.membershipSubscriptionId);
+      rememberMembershipPortalBaseline(membership);
       window.location.assign(portal.portalUrl);
     } catch {
       setError('We could not open billing settings. Try again.');
@@ -74,16 +72,16 @@ function MembershipPass({ entry }: { entry: MyMembership }) {
     <WalletPass
       ref={passRef}
       data-testid="my-membership"
-      className={cn(membership.status === 'canceled' && 'opacity-80')}
+      className={cn(phase === 'ended' && 'opacity-80')}
       product="Membership"
-      tier={tier(membership)}
+      tier={tier[phase]}
       holderName={curatorName}
       holderHandle={entry.curatorUsername}
       holderHref={`/profile/${encodeURIComponent(entry.curatorUsername)}`}
-      // Canceled passes lose the brand head; every other state is still a live pass.
-      active={membership.status !== 'canceled'}
-      validityLabel={!end ? 'Status' : membership.status === 'canceled' ? 'Ended' : ending ? 'Ends' : 'Renews'}
-      validityValue={end ?? tier(membership)}
+      // Ended passes lose the brand head; every other state is still a live pass.
+      active={phase !== 'ended'}
+      validityLabel={end ? membershipDateLabel(membership) : 'Status'}
+      validityValue={end ?? tier[phase]}
     >
       {/* Standing is status, not money: a scheduled end or a failed payment reads without opening anything. */}
       {standing && (
@@ -145,7 +143,7 @@ function MyMemberships() {
     staleTime: 0,
     retry: 1,
   });
-  const activeCount = query.data?.filter((entry) => grantsMembershipAccess(entry.membership.status)).length ?? 0;
+  const activeCount = query.data?.filter((entry) => hasMembershipAccess(entry.membership)).length ?? 0;
 
   return (
     <div className="studio-surface mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:py-10">

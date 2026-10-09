@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UrlBar } from '@/components/ui/url-bar';
 import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
@@ -35,6 +36,7 @@ export function HomeSearchBar({
   className,
 }: HomeSearchBarProps) {
   const { isConverting, convertingMeta } = search;
+  const errorId = useId();
   return (
     <div className={cn('relative w-full', className)}>
       <AnimatePresence>
@@ -85,6 +87,8 @@ export function HomeSearchBar({
                 onPaste={search.onPaste}
                 onKeyDown={search.onKeyDown}
                 placeholder={placeholder}
+                aria-invalid={search.urlError ? true : undefined}
+                aria-describedby={search.urlError ? errorId : undefined}
                 className="w-full h-full bg-transparent border-none outline-none text-center text-foreground placeholder:text-muted-foreground px-3 sm:px-4 md:px-6 text-base"
                 style={{ fontSize: '16px', touchAction: 'manipulation' }}
               />
@@ -93,7 +97,7 @@ export function HomeSearchBar({
         </UrlBar>
       </ConversionBeam>
       {search.urlError && (
-        <p className="text-destructive text-sm mt-2 text-center px-4 font-semibold">
+        <p id={errorId} role="alert" className="text-destructive text-sm mt-2 text-center px-4 font-semibold">
           {search.urlError}{' '}
           <button
             type="button"

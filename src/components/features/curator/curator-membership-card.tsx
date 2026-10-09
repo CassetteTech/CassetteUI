@@ -12,10 +12,12 @@ import {
   describeMembershipBilling,
   describeMembershipStanding,
   formatMembershipDate,
+  membershipDateLabel,
   membershipEndOrRenewalUtc,
+  membershipPhase,
   type MembershipInterval,
-  type MembershipStatus,
   type MembershipStatusView,
+  type MembershipSubscription,
 } from '@/services/membership';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { BenefitList, MembershipOffer } from '@/components/features/membership/membership-offer';
@@ -65,11 +67,7 @@ export function CuratorMembershipCard({
   noticeAction: { label: string; onClick: () => void } | null;
   onIntervalChange: (interval: MembershipInterval) => void;
   onJoin: () => void;
-  onManage: (
-    membershipSubscriptionId: string,
-    cancelAtPeriodEnd: boolean,
-    status: MembershipStatus,
-  ) => void;
+  onManage: (membership: MembershipSubscription) => void;
   onCheckStatus: () => void;
   onViewMemberPosts: () => void;
 }) {
@@ -92,18 +90,15 @@ export function CuratorMembershipCard({
   const canJoin = Boolean(plan) && (!authenticated || status?.canSubscribe === true);
   const statusNotice = membership ? describeMembershipStanding(membership) : null;
   const memberEndUtc = membership ? membershipEndOrRenewalUtc(membership) : null;
+  const phase = membership ? membershipPhase(membership) : null;
   const planName = displayedPlan?.name ?? `${displayName} membership`;
-  const paymentProblem = membership?.status === 'past_due' || membership?.status === 'unpaid';
+  const paymentProblem = phase === 'payment-problem';
 
   const manageButton = !page.viewer.isOwner && membership?.canManage ? (
     <Button
       variant={paymentProblem ? 'default' : 'outline'}
       className="w-full"
-      onClick={() => onManage(
-        membership.membershipSubscriptionId,
-        membership.cancelAtPeriodEnd,
-        membership.status,
-      )}
+      onClick={() => onManage(membership)}
       disabled={portalPending}
       data-testid="membership-manage"
     >
@@ -161,7 +156,7 @@ export function CuratorMembershipCard({
           tier="Member"
           price={membership ? formatPaidPromotionMinorAmount(membership.totalAmountMinor, membership.currency) : undefined}
           priceUnit={membership ? `/${membership.billingInterval}` : undefined}
-          validityLabel={memberEndUtc ? (membership?.cancelAtPeriodEnd || membership?.accessEndsAtUtc ? 'Ends' : 'Renews') : 'Plan'}
+          validityLabel={!memberEndUtc || !membership ? 'Plan' : membershipDateLabel(membership)}
           validityValue={memberEndUtc ? formatMembershipDate(memberEndUtc) : planName}
         >
           {activated && (

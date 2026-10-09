@@ -26,8 +26,11 @@ import {
 import { apiService } from '@/services/api';
 import {
   grantsMembershipAccess,
+  rememberMembershipPortalBaseline,
+  takeMembershipPortalBaseline,
   type MembershipInterval,
-  type MembershipStatus,
+  type MembershipPortalBaseline,
+  type MembershipSubscription,
 } from '@/services/membership';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { getDeviceCategory, getUserCohort } from '@/lib/analytics/audience';
@@ -61,7 +64,10 @@ function getPostIcon(elementType: string) {
 type MembershipFlow = 'join' | 'return' | 'canceled' | 'portal-return' | null;
 const joinIntentPrefix = 'cassette:membership-join-intent:';
 const joinIntentLifetimeMs = 10 * 60 * 1_000;
-const portalBaselinePrefix = 'cassette:membership-portal-baseline:';
+
+/** What a Portal return compares status reads with: the membership as the fan opened the
+    Portal when that baseline survived, otherwise the first read after the return. */
+type PortalReturnReference = { state: MembershipPortalBaseline; openedBaseline: boolean };
 
 export function PublicCuratorPage({
   username,
@@ -86,7 +92,9 @@ export function PublicCuratorPage({
   const query = useCuratorPage(username, viewerKey);
   const page = query.data?.pages[0];
   const [interval, setBillingInterval] = useState(initialInterval);
-  const [pollStatus, setPollStatus] = useState(membershipFlow === 'return');
+  // A Portal change reaches Bridge by webhook, possibly after the fan is back,
+  // so a Portal return also polls for a bounded time.
+  const [pollStatus, setPollStatus] = useState(membershipFlow === 'return' || membershipFlow === 'portal-return');
   const [notice, setNotice] = useState<string | null>(
     membershipFlow === 'canceled' ? 'Checkout was canceled. You were not charged.' : null,
   );
@@ -98,6 +106,7 @@ export function PublicCuratorPage({
   const [membersOnly, setMembersOnly] = useState(false);
   const pageViewCaptured = useRef(false);
   const flowHandled = useRef(false);
+  const portalReturn = useRef<PortalReturnReference | null>(null);
   const statusQuery = useMembershipStatus(
     page?.curator.id ?? '',
     isAuthenticated && user?.id ? user.id : null,
@@ -138,23 +147,12 @@ export function PublicCuratorPage({
       setCheckoutPending(false);
     }
   }, [userCohort]);
-  async function manage(
-    membershipSubscriptionId: string,
-    cancelAtPeriodEnd: boolean,
-    status: MembershipStatus,
-  ) {
+  async function manage(membership: MembershipSubscription) {
     setPortalPending(true);
     setActionError(null);
     try {
-      const portal = await apiService.createMembershipPortal(membershipSubscriptionId);
-      try {
-        sessionStorage.setItem(
-          `${portalBaselinePrefix}${membershipSubscriptionId}`,
-          `${cancelAtPeriodEnd}:${status === 'canceled'}`,
-        );
-      } catch {
-        // The status poll remains authoritative when storage is unavailable.
-      }
+      const portal = await apiService.createMembershipPortal(membership.membershipSubscriptionId);
+      rememberMembershipPortalBaseline(membership);
       window.location.assign(portal.portalUrl);
     } catch {
       setActionError('We could not open membership management. Try again.');
@@ -207,11 +205,15 @@ export function PublicCuratorPage({
     const timeout = window.setTimeout(() => {
       setPollStatus(false);
       setPollTimedOut(true);
-      setNotice('Your membership update is still processing.');
+      setNotice(membershipFlow !== 'portal-return'
+        ? 'Your membership update is still processing.'
+        : portalReturn.current?.openedBaseline
+          ? 'No membership change has reached Cassette yet. A change made in Stripe can take a minute to appear.'
+          : 'A change made in Stripe can take a minute to appear here.');
       removeQueryParameters('membership', 'interval');
     }, 30_000);
     return () => window.clearTimeout(timeout);
-  }, [pollStatus]);
+  }, [membershipFlow, pollStatus]);
 
   useEffect(() => {
     const status = statusQuery.data;
@@ -240,38 +242,41 @@ export function PublicCuratorPage({
 
     if (membershipFlow !== 'portal-return') return;
     // Settle only on a status read completed after this mount, never on a cached snapshot.
-    // One fresh read is the Portal outcome; an unchanged membership is the normal case.
-    if (!statusQuery.isFetchedAfterMount || statusQuery.isFetching) return;
+    if (!statusQuery.isFetchedAfterMount || statusQuery.isFetching || !membership) return;
 
-    flowHandled.current = true;
-    removeQueryParameters('membership', 'interval');
-    let baseline: { cancelAtPeriodEnd: boolean; canceled: boolean } | null = null;
-    if (membership) {
-      try {
-        const key = `${portalBaselinePrefix}${membership.membershipSubscriptionId}`;
-        const stored = sessionStorage.getItem(key);
-        sessionStorage.removeItem(key);
-        if (['false:false', 'false:true', 'true:false', 'true:true'].includes(stored ?? '')) {
-          const [cancelAtPeriodEnd, canceled] = stored!.split(':');
-          baseline = { cancelAtPeriodEnd: cancelAtPeriodEnd === 'true', canceled: canceled === 'true' };
-        }
-      } catch {
-        // Without a baseline the fresh status renders as-is below.
-      }
+    const current = { status: membership.status, cancelAtPeriodEnd: membership.cancelAtPeriodEnd };
+    if (!portalReturn.current) {
+      const opened = takeMembershipPortalBaseline(membership.membershipSubscriptionId);
+      portalReturn.current = { state: opened ?? current, openedBaseline: opened !== null };
+      // Without that baseline, the page can predate a change that this first read
+      // already shows, so the page is read once more.
+      if (!opened) void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
     }
-    const cancellationObserved = membership !== null && baseline !== null && (
-      (!baseline.canceled && membership.status === 'canceled') ||
-      (!baseline.cancelAtPeriodEnd && membership.cancelAtPeriodEnd)
-    );
-    const continuationObserved = membership !== null && baseline !== null && (
-      (baseline.cancelAtPeriodEnd && !membership.cancelAtPeriodEnd) ||
-      (baseline.canceled && membership.status !== 'canceled')
-    );
+    const { state: reference, openedBaseline } = portalReturn.current;
+    // An unchanged read proves nothing: the change can still be on its way, or
+    // the fan only looked. The bounded poll ends with neutral copy instead.
+    if (current.status === reference.status && current.cancelAtPeriodEnd === reference.cancelAtPeriodEnd) return;
+
+    // Any change, such as a repaired payment, refreshes the server-owned page and its posts.
+    flowHandled.current = true;
+    setPollStatus(false);
+    setPollTimedOut(false);
+    setNotice(null);
+    removeQueryParameters('membership', 'interval');
+    void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
+    const cancellationObserved =
+      (reference.status !== 'canceled' && current.status === 'canceled') ||
+      (!reference.cancelAtPeriodEnd && current.cancelAtPeriodEnd);
+    const continuationObserved =
+      (reference.cancelAtPeriodEnd && !current.cancelAtPeriodEnd) ||
+      (reference.status === 'canceled' && current.status !== 'canceled');
     if (cancellationObserved) {
       // The persistent state (ends on date / canceled) renders inline via the standing notice.
       toast.info(membership.status === 'canceled'
         ? 'Your membership is canceled.'
         : 'Your membership renewal is canceled.');
+      // A first read after the return cannot show that the Portal visit caused it.
+      if (!openedBaseline) return;
       void captureClientEvent('membership_canceled', {
         route: '/profile/[username]',
         source_surface: 'curator',
@@ -284,11 +289,6 @@ export function PublicCuratorPage({
       });
     } else if (continuationObserved) {
       setNotice('Your membership will continue.');
-    } else {
-      setNotice('Membership management is up to date.');
-    }
-    if (cancellationObserved || continuationObserved) {
-      void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
     }
   }, [
     membershipFlow,
@@ -478,7 +478,7 @@ export function PublicCuratorPage({
             } : null}
             onIntervalChange={setBillingInterval}
             onJoin={join}
-            onManage={(id, cancelAtPeriodEnd, status) => void manage(id, cancelAtPeriodEnd, status)}
+            onManage={(membership) => void manage(membership)}
             onCheckStatus={() => void statusQuery.refetch()}
             onViewMemberPosts={() => setMembersOnly(true)}
           />,

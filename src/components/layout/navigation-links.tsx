@@ -1,6 +1,10 @@
 'use client';
 
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
+import {
+  usePaidPromotionAccountVisible,
+  usePaidPromotionSalesEnabled,
+} from '@/hooks/use-paid-promotion-availability';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -124,14 +128,17 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
   const { mutate: signOut } = useSignOut();
   const { openReportModal } = useReportIssue();
   const pathname = usePathname();
+  const salesEnabled = usePaidPromotionSalesEnabled();
+  const accountVisible = usePaidPromotionAccountVisible();
 
   const primaryItems = getVisibleNavItems(
     primaryNavItems.filter(
       (item) => item.key !== 'home' && item.key !== 'add-music',
     ),
     user,
+    { salesEnabled },
   );
-  const accountItems = getVisibleNavItems(accountNavItems, user);
+  const accountItems = getVisibleNavItems(accountNavItems, user, { accountVisible });
   const companyItems = getVisibleNavItems(companyNavItems, user);
 
   const handleSignOut = () => {

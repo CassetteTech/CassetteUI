@@ -31,20 +31,24 @@ export interface NavigationItemDefinition {
   authRequired?: boolean;
   internalOnly?: boolean;
   external?: boolean;
+  /** Shown only while paid-promotion (Boost) sales are open. */
+  requiresPaidPromotionSales?: boolean;
+  /** Shown while sales are open or the user still has campaign records to manage. */
+  requiresPaidPromotionAccount?: boolean;
 }
 
 export const primaryNavItems: NavigationItemDefinition[] = [
   { key: 'home', label: 'Home', icon: Home, href: '/' },
   { key: 'explore', label: 'Explore', icon: Compass, href: '/explore' },
   { key: 'add-music', label: 'Add Music', icon: Music, href: '/add-music', authRequired: true },
-  { key: 'promote', label: 'Promote', icon: Megaphone, href: '/promote' },
+  { key: 'promote', label: 'Promote', icon: Megaphone, href: '/promote', requiresPaidPromotionSales: true },
 ];
 
 export const accountNavItems: NavigationItemDefinition[] = [
   { key: 'profile', label: 'Profile', icon: User, href: '/profile', authRequired: true },
   { key: 'curator-studio', label: 'Curator Studio', icon: LayoutDashboard, href: '/studio/curator', authRequired: true },
   { key: 'memberships', label: 'My Memberships', icon: BadgeCheck, href: '/memberships', authRequired: true },
-  { key: 'campaigns', label: 'Your Campaigns', icon: Megaphone, href: '/promote', authRequired: true },
+  { key: 'campaigns', label: 'Your Campaigns', icon: Megaphone, href: '/promote', authRequired: true, requiresPaidPromotionAccount: true },
   { key: 'internal', label: 'Internal', icon: Shield, href: '/internal', authRequired: true, internalOnly: true },
 ];
 
@@ -58,12 +62,15 @@ export const companyNavItems: NavigationItemDefinition[] = [
 export function getVisibleNavItems(
   items: NavigationItemDefinition[],
   user: NavUser,
+  paidPromotion: { salesEnabled?: boolean; accountVisible?: boolean } = {},
 ) {
   const canSeeInternalDashboard = isCassetteInternalAccount(user?.accountType ?? null);
 
   return items.filter((item) => {
     if (item.authRequired && !user) return false;
     if (item.internalOnly && !canSeeInternalDashboard) return false;
+    if (item.requiresPaidPromotionSales && !paidPromotion.salesEnabled) return false;
+    if (item.requiresPaidPromotionAccount && !paidPromotion.accountVisible) return false;
     return true;
   });
 }

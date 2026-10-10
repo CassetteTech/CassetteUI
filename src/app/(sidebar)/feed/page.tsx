@@ -1,11 +1,12 @@
 'use client';
 
 /**
- * Posts from the curators the viewer is a member of, newest first. The session
- * says whether the viewer has memberships; the Feed reads posts only after it
- * knows the count is positive. Every page is authorized by Bridge, so an
- * ending membership drops that curator's posts from the next read. Billing
- * stays on Memberships.
+ * Posts from the curators the viewer follows or joined, newest first. The
+ * session says how many such curators there are; the Feed reads posts only
+ * after it knows that count is positive. Every page is authorized by Bridge,
+ * so an ending membership or an Unfollow drops that curator's posts from the
+ * next read, and a followed curator's members-only post arrives locked.
+ * Billing stays on Memberships.
  */
 
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -15,19 +16,23 @@ import { useQueryClient } from '@tanstack/react-query';
 import { AccountCheckError, AccountCheckStatus } from '@/components/auth/account-check';
 import {
   CreatorCard,
+  LockedPostCard,
   POST_GRID,
   PostCard,
   PostGridSkeleton,
 } from '@/components/features/explore/explore-cards';
+import { MEMBERSHIP_OFFER_ID } from '@/components/features/curator/curator-membership-card';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { SegmentedControl } from '@/components/ui/interior/segmented-control';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuthState } from '@/hooks/use-auth';
+import { useMembershipStatus } from '@/hooks/use-membership-status';
 import { profileQueryKeys, useCuratorFeed, useExploreCurators } from '@/hooks/use-profile';
 import { authService } from '@/services/auth';
 import { SESSION_MAX_AGE_MS, useAuthStore } from '@/stores/auth-store';
+import type { CuratorFeedItem } from '@/types';
 
 const FEATURED_CURATOR_LIMIT = 3;
 
@@ -52,16 +57,19 @@ function CuratorFeed() {
     sessionError,
     isRefreshingSession,
     activeMembershipCount,
+    feedCuratorCount,
     sessionCheckedAt,
   } = useAuthState();
-  const setActiveMembershipCount = useAuthStore((state) => state.setActiveMembershipCount);
+  const setFeedSourceCounts = useAuthStore((state) => state.setFeedSourceCounts);
   const [openedAt] = useState(() => Date.now());
   const viewerId = user?.id ?? null;
-  const hasMemberships = !sessionError && activeMembershipCount !== null && activeMembershipCount > 0;
+  // Only the count of followed and joined curators opens the Feed; the paid
+  // count can briefly exceed it while a source changes, and never does on its own.
+  const hasSources = !sessionError && feedCuratorCount !== null && feedCuratorCount > 0;
   // Posts wait for a session read that is fresh for this visit and not being replaced.
   const sessionCurrent =
     !isRefreshingSession && sessionCheckedAt !== null && sessionCheckedAt + SESSION_MAX_AGE_MS > openedAt;
-  const feedEnabled = hasMemberships && sessionCurrent;
+  const feedEnabled = hasSources && sessionCurrent;
   const feed = useCuratorFeed(viewerId, membersOnly, feedEnabled);
   const { headingRef, recordFocus } = useResetFocusRecovery(feedEnabled && feed.data !== undefined);
 
@@ -78,15 +86,18 @@ function CuratorFeed() {
     return () => window.clearTimeout(timer);
   }, [viewerId, sessionCheckedAt]);
 
-  // Bridge counts memberships again with each page. A different count means
-  // the loaded pages came from an earlier set of memberships: keep the new
-  // count and start over at the first page, or show the join state at zero.
-  const latestPageCount = feed.data?.pages.at(-1)?.activeMembershipCount;
+  // Bridge counts the sources again with each page. A different count means
+  // the loaded pages came from an earlier set of sources: keep both new counts
+  // and start over at the first page, or show the join state at zero.
+  const latestPage = feed.data?.pages.at(-1);
+  const pageMemberships = latestPage?.activeMembershipCount;
+  const pageSources = latestPage?.feedCuratorCount;
   useEffect(() => {
-    if (latestPageCount === undefined || latestPageCount === activeMembershipCount) return;
-    setActiveMembershipCount(latestPageCount);
+    if (pageMemberships === undefined || pageSources === undefined) return;
+    if (pageMemberships === activeMembershipCount && pageSources === feedCuratorCount) return;
+    setFeedSourceCounts({ activeMembershipCount: pageMemberships, feedCuratorCount: pageSources });
     queryClient.removeQueries({ queryKey: profileQueryKeys.allCuratorFeeds() });
-  }, [latestPageCount, activeMembershipCount, queryClient, setActiveMembershipCount]);
+  }, [pageMemberships, pageSources, activeMembershipCount, feedCuratorCount, queryClient, setFeedSourceCounts]);
 
   const setMembersOnly = (next: boolean) =>
     router.replace(next ? '/feed?filter=members' : '/feed', { scroll: false });
@@ -98,14 +109,15 @@ function CuratorFeed() {
     content = <AccountCheckError />;
   } else if (!user) {
     content = <SignInPrompt membersOnly={membersOnly} />;
-  } else if (activeMembershipCount === null) {
+  } else if (feedCuratorCount === null) {
     content = <AccountCheckStatus />;
-  } else if (activeMembershipCount === 0) {
+  } else if (feedCuratorCount === 0) {
     content = <JoinCuratorPrompt viewerId={user.id} />;
   } else {
     content = (
       <FeedPosts
         feed={feed}
+        viewerId={user.id}
         sessionCurrent={sessionCurrent}
         membersOnly={membersOnly}
         onShowAll={() => setMembersOnly(false)}
@@ -126,7 +138,7 @@ function CuratorFeed() {
         >
           From your curators
         </h1>
-        {hasMemberships && (
+        {hasSources && (
           <SegmentedControl
             label="Post filter"
             value={membersOnly ? 'members' : 'all'}
@@ -172,7 +184,7 @@ function SignInPrompt({ membersOnly }: { membersOnly: boolean }) {
   return (
     <Empty>
       <EmptyTitle>Sign in to see your Feed</EmptyTitle>
-      <EmptyDescription>Posts from the curators you join appear here, newest first.</EmptyDescription>
+      <EmptyDescription>Posts from the curators you follow or join appear here, newest first.</EmptyDescription>
       <div className="flex flex-wrap justify-center gap-2">
         <Button asChild>
           <Link href={`/auth/signin?redirect=${encodeURIComponent(returnPath)}`}>Sign in</Link>
@@ -185,7 +197,7 @@ function SignInPrompt({ membersOnly }: { membersOnly: boolean }) {
   );
 }
 
-/** No memberships: the curators a fan could join now, from the featured list in its own order. */
+/** No followed or joined curators: the curators a fan could join now, from the featured list in its own order. */
 function JoinCuratorPrompt({ viewerId }: { viewerId: string }) {
   const curators = useExploreCurators();
   const joinable = (curators.data ?? [])
@@ -196,8 +208,8 @@ function JoinCuratorPrompt({ viewerId }: { viewerId: string }) {
     <div className="max-w-3xl">
       <h2 className="font-teko text-3xl font-bold uppercase leading-none tracking-tight">Join a curator</h2>
       <p className="mt-3 max-w-xl text-sm text-muted-foreground">
-        When you join a curator, their posts appear here, newest first. Each curator&apos;s page lists what their
-        membership includes.
+        When you follow or join a curator, their posts appear here, newest first. Each curator&apos;s page lists what
+        their membership includes.
       </p>
 
       {curators.isPending ? (
@@ -237,11 +249,13 @@ function JoinCuratorPrompt({ viewerId }: { viewerId: string }) {
 
 function FeedPosts({
   feed,
+  viewerId,
   sessionCurrent,
   membersOnly,
   onShowAll,
 }: {
   feed: ReturnType<typeof useCuratorFeed>;
+  viewerId: string;
   sessionCurrent: boolean;
   membersOnly: boolean;
   onShowAll: () => void;
@@ -268,17 +282,17 @@ function FeedPosts({
     return <PostGridSkeleton />;
   }
 
-  const posts = feed.data.pages.flatMap((page) => page.items);
+  const items = feed.data.pages.flatMap((page) => page.items);
 
   return (
     <>
-      {posts.length === 0 ? (
+      {items.length === 0 ? (
         <Empty>
           <EmptyTitle>{membersOnly ? 'No members-only posts yet' : 'No posts yet'}</EmptyTitle>
           <EmptyDescription>
             {membersOnly
               ? 'The curators you joined have not shared members-only posts yet.'
-              : 'The curators you joined have not posted yet. New posts appear here first.'}
+              : 'The curators you follow have not posted yet. New posts appear here first.'}
           </EmptyDescription>
           {membersOnly ? (
             <Button variant="outline" onClick={onShowAll}>
@@ -292,9 +306,9 @@ function FeedPosts({
         </Empty>
       ) : (
         <div className={POST_GRID}>
-          {posts.map((post) => (
-            <PostCard key={post.postId} post={post} />
-          ))}
+          {items.map((item) => item.kind === 'post'
+            ? <PostCard key={item.post.postId} post={item.post} />
+            : <LockedFeedPost key={item.postId} item={item} viewerId={viewerId} />)}
         </div>
       )}
 
@@ -317,5 +331,22 @@ function FeedPosts({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Whether the curator takes new members now comes from the viewer's own
+ * membership status, read once per curator; the locked row never carries it.
+ */
+function LockedFeedPost({ item, viewerId }: { item: Extract<CuratorFeedItem, { kind: 'locked' }>; viewerId: string }) {
+  const status = useMembershipStatus(item.curator.id, viewerId, false);
+  let availability: 'available' | 'unavailable' | 'unknown' = 'unknown';
+  if (status.data) availability = status.data.canSubscribe ? 'available' : 'unavailable';
+  return (
+    <LockedPostCard
+      item={item}
+      availability={availability}
+      joinHref={`/profile/${encodeURIComponent(item.curator.username)}?tab=posts#${MEMBERSHIP_OFFER_ID}`}
+    />
   );
 }

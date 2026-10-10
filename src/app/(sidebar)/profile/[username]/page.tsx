@@ -23,7 +23,9 @@ import { captureClientEvent } from '@/lib/analytics/client';
 import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { PublicCuratorPage } from '@/components/features/curator/curator-page';
+import { CuratorFollowContext } from '@/components/features/curator/curator-follow-action';
 import { useCuratorPage } from '@/hooks/use-curator';
+import { useCuratorFollow } from '@/hooks/use-curator-follow';
 import { toast } from 'sonner';
 import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
 
@@ -71,6 +73,17 @@ export default function ProfilePage() {
     (flow) => flow === searchParams.get('membership'),
   ) ?? null;
   const membershipInterval = searchParams.get('interval') === 'year' ? 'year' : 'month';
+  // One Follow state for every place the profile shows its control.
+  const curatorPage = curatorQuery.data?.pages[0];
+  const follow = useCuratorFollow(
+    curatorPage ? {
+      id: curatorPage.curator.id,
+      username: curatorPage.curator.username,
+      displayName: curatorPage.curator.displayName?.trim() || curatorPage.curator.username,
+    } : null,
+    curatorPage?.viewer.isOwner ?? false,
+    activeTab,
+  );
 
   // Use React Query for bio and activity - handles deduplication automatically
   const {
@@ -425,6 +438,7 @@ export default function ProfilePage() {
   // One responsive tree for every tab: the tab strip stays mounted when Posts swaps in, so its
   // underline slides, and the curator posts pane, which owns the Stripe flow effects, mounts once.
   return (
+    <CuratorFollowContext.Provider value={follow}>
     <div className="studio-surface min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
       <div className="bg-background lg:hidden">
         <div className="mx-auto max-w-4xl">
@@ -519,6 +533,7 @@ export default function ProfilePage() {
         </div>
       )}
     </div>
+    </CuratorFollowContext.Provider>
   );
 }
 

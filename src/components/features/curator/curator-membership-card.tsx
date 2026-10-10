@@ -2,7 +2,7 @@
 
 /** Renders a fan's server-authorized membership offer and current billing actions. */
 
-import { useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -23,8 +23,12 @@ import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecy
 import { BenefitList, MembershipOffer } from '@/components/features/membership/membership-offer';
 import { WalletPass } from '@/components/features/curator/wallet-pass';
 import { StudioNotice } from '@/components/features/curator/studio-shell';
+import { CuratorFollowAction } from '@/components/features/curator/curator-follow-action';
 import { useSharedPosition } from '@/hooks/use-shared-position';
 import { cn } from '@/lib/utils';
+
+/** The offer's stable anchor, so a link from another page, such as a locked Feed post, can name it. */
+export const MEMBERSHIP_OFFER_ID = 'membership-offer';
 
 export function CuratorMembershipCard({
   page,
@@ -79,6 +83,13 @@ export function CuratorMembershipCard({
   // Keyed per curator so the matching pass on Memberships slides into this rail slot, and back.
   const memberPassRef = useRef<HTMLDivElement>(null);
   useSharedPosition(memberPassRef, `membership-pass:${page.curator.username}`);
+  // The card renders after the page's own read, too late for the browser's
+  // scroll to a linked anchor. On a phone it sits below the posts.
+  useEffect(() => {
+    if (window.location.hash !== `#${membershipId}`) return;
+    const offer = document.getElementById(membershipId);
+    if (offer && offer.getBoundingClientRect().top >= window.innerHeight) offer.scrollIntoView({ block: 'start' });
+  }, [membershipId]);
   const planMatchesMembership = !membership || membership.planId === plan?.planId;
   // Never present the current public offer as an existing member's price.
   const displayedPlan = status?.canSubscribe === false && !planMatchesMembership ? null : plan;
@@ -289,6 +300,8 @@ export function CuratorMembershipCard({
           </>
         ) : null}
 
+        {/* Free and secondary, under Join; phones show it in the profile header instead. */}
+        <CuratorFollowAction className="hidden lg:block" />
         {manageButton}
         {membership?.canManage && (
           <p className="text-sm tabular-nums text-muted-foreground" data-testid="membership-billing">

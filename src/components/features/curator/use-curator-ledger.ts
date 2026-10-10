@@ -17,7 +17,6 @@ const ledgerMonths = 12;
 const windowStart = () => monthStart(ledgerMonths - 1);
 
 type LedgerChunk = {
-  activeMemberCount: number;
   balances: CuratorEarningsBalances;
   totalItems: number;
   items: CuratorEarningsHistoryItem[];
@@ -25,7 +24,6 @@ type LedgerChunk = {
 };
 
 export type CuratorLedger = {
-  activeMemberCount: number;
   balances: CuratorEarningsBalances;
   items: CuratorEarningsHistoryItem[];
   totalItems: number;
@@ -38,7 +36,6 @@ function selectLedger(data: InfiniteData<LedgerChunk>): CuratorLedger {
   const first = data.pages[0];
   const oldest = items.at(-1);
   return {
-    activeMemberCount: first.activeMemberCount,
     balances: first.balances,
     items,
     totalItems: first.totalItems,
@@ -57,16 +54,16 @@ export function useCuratorLedger(enabled: boolean) {
       const items: CuratorEarningsHistoryItem[] = [];
       let page = pageParam;
       let result = await fetchCuratorEarnings(page, ledgerPageSize, signal);
-      const { activeMemberCount, balances, totalItems } = result;
+      const { balances, totalItems } = result;
       for (;;) {
         items.push(...result.items);
         const oldest = result.items.at(-1);
         if (result.items.length < ledgerPageSize || page * ledgerPageSize >= totalItems) {
-          return { activeMemberCount, balances, totalItems, items, nextPage: null };
+          return { balances, totalItems, items, nextPage: null };
         }
         page += 1;
         if (page - pageParam >= burst || !oldest || new Date(oldest.occurredAtUtc) < windowStart()) {
-          return { activeMemberCount, balances, totalItems, items, nextPage: page };
+          return { balances, totalItems, items, nextPage: page };
         }
         result = await fetchCuratorEarnings(page, ledgerPageSize, signal);
       }

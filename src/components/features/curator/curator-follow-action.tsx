@@ -1,0 +1,64 @@
+'use client';
+
+/** The quiet Follow control for the viewed curator. The profile route owns one
+    relationship and shares it here, so the phone header and the desktop pass
+    show the same state; only one of them is visible at a time. */
+
+import { createContext, useContext } from 'react';
+import { Check, UserPlus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import type { CuratorFollow } from '@/hooks/use-curator-follow';
+import { cn } from '@/lib/utils';
+
+export const CuratorFollowContext = createContext<CuratorFollow | null>(null);
+
+/** Renders nothing outside a curator profile, for its owner, for an active member, or while the relationship is unknown.
+    `compact` sizes it like the small header actions instead of filling a pass. */
+export function CuratorFollowAction({ className, compact = false }: { className?: string; compact?: boolean }) {
+  const follow = useContext(CuratorFollowContext);
+  if (!follow || follow.state === 'loading' || follow.state === 'member') return null;
+
+  const name = <span className="sr-only"> {follow.displayName}</span>;
+  let control;
+  if (follow.state === 'unavailable') {
+    control = (
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <p className="text-sm text-muted-foreground">Follow status is unavailable.</p>
+        <Button variant="outline" size="sm" onClick={follow.retry}>Try again</Button>
+      </div>
+    );
+  } else {
+    const following = follow.state === 'following';
+    // One button in one place for both states, so keyboard focus stays on it after the change.
+    control = (
+      <div className={cn('flex items-center gap-3', !compact && 'justify-between')}>
+        {following && (
+          <p className="flex items-center gap-1.5 text-sm font-medium">
+            <Check className="size-4" aria-hidden />
+            Following
+          </p>
+        )}
+        <Button
+          variant="outline"
+          size={following || compact ? 'sm' : 'default'}
+          // aria-disabled, not disabled: a disabled button drops keyboard focus while the write runs.
+          className={cn('aria-disabled:pointer-events-none aria-disabled:opacity-50', !following && !compact && 'w-full')}
+          onClick={following ? follow.unfollow : follow.follow}
+          aria-disabled={follow.pending}
+        >
+          {follow.pending ? <Spinner size="sm" aria-hidden /> : !following && <UserPlus aria-hidden />}
+          {following ? 'Unfollow' : 'Follow'}
+          {name}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('min-w-0', className)} data-testid="curator-follow">
+      {control}
+      {follow.error && <p role="alert" className="mt-2 text-sm text-destructive">{follow.error}</p>}
+    </div>
+  );
+}

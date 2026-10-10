@@ -6,6 +6,7 @@ import {
   PaginatedExploreUsersResponse,
   PostPrivacy,
   SponsoredExplorePlacement,
+  CuratorFeedItem,
   CuratorFeedPage,
   UserBio,
 } from '@/types';
@@ -96,12 +97,31 @@ interface ActivityApiResponse {
   SponsoredPlacement?: unknown;
 }
 
+const feedCount = z.number().int().nonnegative();
+
 // The feed metadata drives paging and the empty states, so a response without
-// it is an error, never an empty feed. The items keep the activity mapping.
-const curatorFeedMetadataSchema = z.object({
-  items: z.array(z.unknown()),
+// it is an error, never an empty feed. Each count is checked on its own: Bridge
+// counts them in separate statements, so they can briefly disagree. A full
+// post keeps the activity mapping; a locked row is exact, because an added
+// field on it would carry the post's content to a viewer without access.
+const curatorFeedPageSchema = z.object({
+  items: z.array(z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('post'), post: z.record(z.string(), z.unknown()) }).strict(),
+    z.object({
+      kind: z.literal('locked'),
+      postId: z.string().min(1),
+      createdAt: z.string().datetime({ offset: true }),
+      curator: z.object({
+        id: z.string().min(1),
+        username: z.string().min(1),
+        displayName: z.string().nullable(),
+        avatarUrl: z.string().nullable(),
+      }).strict(),
+    }).strict(),
+  ])),
   nextCursor: z.string().min(1).nullable(),
-  activeMembershipCount: z.number().int().nonnegative(),
+  activeMembershipCount: feedCount,
+  feedCuratorCount: feedCount,
 });
 
 interface ExploreUserPayload {
@@ -678,7 +698,7 @@ export class ProfileService {
     }
   }
 
-  /** Posts from the curators the signed-in viewer is a member of, newest first. */
+  /** Posts from the curators the signed-in viewer follows or joined, newest first. */
   async fetchCuratorFeed(
     options: { cursor?: string; pageSize?: number; membersOnly?: boolean; signal?: AbortSignal } = {},
   ): Promise<CuratorFeedPage> {
@@ -698,17 +718,26 @@ export class ProfileService {
       throw new Error('Failed to load the Feed');
     }
 
-    const parsed = curatorFeedMetadataSchema.safeParse(await response.json());
+    const parsed = curatorFeedPageSchema.safeParse(await response.json());
     if (!parsed.success) {
       appLogger.warn('curator_feed_response_invalid', { issues: parsed.error.issues.length });
       throw new Error('Failed to load the Feed');
     }
-    const { nextCursor, activeMembershipCount } = parsed.data;
+    const { items, nextCursor, activeMembershipCount, feedCuratorCount } = parsed.data;
+    const posts = this.mapActivityResponse(
+      // SAFETY: each post is an object; mapActivityResponse reads every field defensively.
+      { items: items.flatMap((item) => (item.kind === 'post' ? [item.post as ActivityItemPayload] : [])) },
+      1,
+      pageSize,
+    ).items;
+    let postIndex = 0;
     return {
-      // SAFETY: the schema checked that items is an array; mapActivityResponse reads each item defensively.
-      items: this.mapActivityResponse(parsed.data as ActivityApiResponse, 1, pageSize).items,
+      // One server order for both kinds: full rows take their mapped posts in sequence.
+      items: items.map((item): CuratorFeedItem =>
+        item.kind === 'post' ? { kind: 'post', post: posts[postIndex++] } : item),
       nextCursor,
       activeMembershipCount,
+      feedCuratorCount,
     };
   }
 

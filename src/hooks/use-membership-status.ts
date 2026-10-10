@@ -23,12 +23,14 @@ export function useMembershipStatus(
 
 /**
  * Runs after Bridge confirms a membership change, never on a return URL alone.
- * A new session read restarts the Feed for both filters; the membership reads
- * and the curator page load again.
+ * A new session read restarts the Feed for both filters; the membership reads,
+ * the Follow relationships (a membership hides Follow), and the curator page
+ * load again.
  */
 export function refreshAfterMembershipChange(queryClient: QueryClient, username: string) {
   void authService.refreshSession({ restart: true });
   void queryClient.invalidateQueries({ queryKey: ['membership-status'] });
+  void queryClient.invalidateQueries({ queryKey: ['curator-follow'] });
   void queryClient.invalidateQueries({ queryKey: ['my-memberships'] });
   void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
 }

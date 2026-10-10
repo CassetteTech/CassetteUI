@@ -1,13 +1,14 @@
 'use client';
 
 /** Curator Studio landing view. Once a plan has been published: one hero
-    figure (earned in the chosen period) with three figures under it, a
-    dithered earned-versus-paid chart at full width, the latest activity, and
-    the membership plan card. Before that: the launch checklist and the plan
-    editor. */
+    figure (earned in the chosen period) with two payout figures under it, a
+    dithered earned-versus-paid chart at full width, and the latest activity.
+    Before that: the launch checklist. Every curator then sees the current
+    audience and the membership plan card. */
 
 import { useContext, useMemo, useState, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CuratorPlanCard } from '@/components/features/curator/curator-plan-card';
@@ -27,7 +28,8 @@ import { TaskSteps } from '@/components/interior/task-steps';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { CuratorProfile } from '@/services/curator';
+import { useAuthState } from '@/hooks/use-auth';
+import { fetchCuratorAudience, type CuratorProfile } from '@/services/curator';
 import { periodSummary, type CuratorEarningsBalances } from '@/services/curator-earnings';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { AnnotatedText } from '@/components/ui/annotated-text';
@@ -111,6 +113,43 @@ function LaunchCard({ steps, doneCount, nextIndex }: { steps: LaunchStep[]; done
   );
 }
 
+/** The owner's current audience from its own read, never the earnings ledger's status count. Members
+    are part of the audience; neither figure is shown to anyone else. */
+function AudienceCard({ onOpenMembers }: { onOpenMembers: () => void }) {
+  const { user } = useAuthState();
+  const audience = useQuery({
+    queryKey: ['curator-audience', user?.id ?? null],
+    queryFn: ({ signal }) => fetchCuratorAudience(signal),
+    enabled: Boolean(user?.id),
+    staleTime: 0,
+  });
+  const figure = (count: number | undefined, hint: string) => ({
+    value: count === undefined ? '—' : countFormatter.format(count),
+    hint: count !== undefined ? hint : audience.isError ? 'Unavailable right now' : 'Loading…',
+  });
+  return (
+    <section aria-label="Audience" className="card-quiet px-5 py-5 sm:px-6">
+      <dl className="grid gap-4 sm:grid-cols-2">
+        <StudioStat label="Audience" {...figure(audience.data?.audienceCount, 'Followers and members')} />
+        <StudioStat
+          label="Members"
+          {...figure(audience.data?.activeMemberCount, 'With access today')}
+          onClick={onOpenMembers}
+        />
+      </dl>
+      <p className="mt-4 text-xs text-muted-foreground">
+        Your audience counts each person once: everyone who follows you, plus your active members. Only you see
+        these numbers.
+      </p>
+      {audience.isError && (
+        <Button variant="outline" size="sm" className="mt-3" onClick={() => void audience.refetch()}>
+          Try again
+        </Button>
+      )}
+    </section>
+  );
+}
+
 /** Mirrors the earnings overview layout so the page does not reflow when data lands. */
 export function OverviewSkeleton() {
   return (
@@ -118,8 +157,8 @@ export function OverviewSkeleton() {
       <div className="card-quiet px-5 py-5 sm:px-6">
         <Skeleton className="h-3 w-16" />
         <Skeleton className="mt-2 h-11 w-40" />
-        <div className="mt-6 grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-          {Array.from({ length: 3 }, (_, i) => (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: 2 }, (_, i) => (
             <div key={i} className={studioFigureClassName}>
               <Skeleton className="h-3 w-20" />
               <Skeleton className="mt-2 h-7 w-16" />
@@ -178,17 +217,10 @@ export function StudioOverview({
           target: 'studio-payouts',
         },
         { label: 'Next payout', target: 'studio-payouts', ...nextPayout(balances) },
-        {
-          label: 'Active members',
-          value: countFormatter.format(ledger.activeMemberCount),
-          hint: 'Paying members today',
-          target: 'studio-earnings',
-        },
       ]
     : [
         { label: 'Ready to pay out', target: 'studio-payouts' },
         { label: 'Next payout', target: 'studio-payouts' },
-        { label: 'Active members', target: 'studio-earnings' },
       ].map((figure) => ({
         ...figure,
         value: '—',
@@ -267,8 +299,7 @@ export function StudioOverview({
             <SegmentedControl label="Earnings period" options={periods} value={months} onValueChange={setMonths} />
           </div>
 
-          {/* From lg to xl the app sidebar and the pass rail leave about 310 px, too narrow for three figures. */}
-          <dl className="mt-6 grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+          <dl className="mt-6 grid gap-4 sm:grid-cols-2">
             {figures.map((figure) => (
               <StudioStat
                 key={figure.label}
@@ -357,7 +388,14 @@ export function StudioOverview({
       </>
       )}
 
-      <motion.div {...rise(hasPublished ? 3 : 1)}>
+      {/* A free curator without a plan has an audience too, so it does not wait for the plan read. */}
+      {profile && (
+        <motion.div {...rise(hasPublished ? 3 : 1)}>
+          <AudienceCard onOpenMembers={() => views?.open('studio-earnings')} />
+        </motion.div>
+      )}
+
+      <motion.div {...rise(hasPublished ? 4 : 2)}>
         <CuratorPlanCard profile={profile} />
       </motion.div>
     </div>

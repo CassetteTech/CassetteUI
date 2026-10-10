@@ -4,14 +4,19 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   CuratorPageError,
+  fetchCuratorAudience,
+  fetchCuratorFollow,
   fetchCuratorPayoutAccount,
   fetchCuratorPage,
   fetchOwnCuratorProfile,
   formatCuratorPlanPrice,
+  parseCuratorAudience,
+  parseCuratorFollowState,
   parseCuratorPage,
   parseCuratorPayoutAccount,
   parseCuratorPayoutOnboarding,
   parseCuratorProfile,
+  setCuratorFollow,
   startCuratorPayoutOnboarding,
 } from '../curator';
 
@@ -278,4 +283,73 @@ void test('returns null when no payout account exists', async (t) => {
 void test('formats the fan charge from face price plus frozen service fee', () => {
   assert.equal(formatCuratorPlanPrice(500, 50, 'USD', 'en-US'), '$5.50');
   assert.equal(formatCuratorPlanPrice(500, 0, 'USD', 'en-US'), '$5.00');
+});
+
+void test('parses only the exact private Follow relationship', () => {
+  const state = { isFollowing: true, hasExplicitFollow: false, hasActiveMembership: true };
+  assert.deepEqual(parseCuratorFollowState(state), state);
+  for (const body of [
+    { ...state, followerCount: 3 },
+    { ...state, followers: null },
+    { isFollowing: true, hasExplicitFollow: false },
+    { ...state, hasActiveMembership: 'true' },
+  ]) {
+    assert.throws(() => parseCuratorFollowState(body), JSON.stringify(body));
+  }
+});
+
+void test('reads, follows, and unfollows only the viewer relationship through the encoded curator path', async (t) => {
+  const calls: Array<{ body: unknown; method?: string; url: string }> = [];
+  const state = { isFollowing: false, hasExplicitFollow: false, hasActiveMembership: false };
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ body: init?.body, method: init?.method, url: input instanceof Request ? input.url : input.toString() });
+    return new Response(JSON.stringify(state));
+  });
+
+  await fetchCuratorFollow('cpr_Night01');
+  await setCuratorFollow('cpr_Night01', true);
+  await setCuratorFollow('cpr/../x', false);
+
+  assert.deepEqual(calls, [
+    { body: undefined, method: undefined, url: '/api/v1/curators/cpr_Night01/follow' },
+    { body: undefined, method: 'PUT', url: '/api/v1/curators/cpr_Night01/follow' },
+    { body: undefined, method: 'DELETE', url: '/api/v1/curators/cpr%2F..%2Fx/follow' },
+  ]);
+});
+
+void test('a failed Follow write is an error with its status, never a relationship', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => new Response('{}', { status: 429 }));
+  await assert.rejects(
+    setCuratorFollow('cpr_Night01', true),
+    (error) => error instanceof CuratorPageError && error.status === 429,
+  );
+});
+
+void test('parses the owner audience with each count checked on its own', () => {
+  assert.deepEqual(parseCuratorAudience({ audienceCount: 7, activeMemberCount: 5 }), {
+    audienceCount: 7,
+    activeMemberCount: 5,
+  });
+  // Separate statements can briefly report more members than audience; that is not an error.
+  assert.deepEqual(parseCuratorAudience({ audienceCount: 0, activeMemberCount: 1 }), {
+    audienceCount: 0,
+    activeMemberCount: 1,
+  });
+  for (const body of [
+    { audienceCount: 7 },
+    { audienceCount: -1, activeMemberCount: 0 },
+    { audienceCount: 1.5, activeMemberCount: 0 },
+    { audienceCount: 1, activeMemberCount: 0, followers: [] },
+    { audienceCount: 1, activeMemberCount: 0, followerIds: null },
+  ]) {
+    assert.throws(() => parseCuratorAudience(body), JSON.stringify(body));
+  }
+});
+
+void test('a failed audience read is an error, never a zero count', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => new Response('unavailable', { status: 503 }));
+  await assert.rejects(
+    fetchCuratorAudience(),
+    (error) => error instanceof CuratorPageError && error.status === 503,
+  );
 });

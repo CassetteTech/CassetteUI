@@ -2,26 +2,41 @@
 
 import { expect, type Page, type Route, test } from '@playwright/test';
 
-import { fixtureUsers } from './support/cassette-fixtures';
+import {
+  fixtureCuratorPage,
+  fixtureFreeCuratorPage,
+  fixtureNoMembershipStatus,
+  fixtureUsers,
+} from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
+/** A full Feed row: the post the viewer may open. */
 const feedPost = (index: number, privacy: 'public' | 'subscriber', username: string) => ({
-  postId: `p_20261001120000_0000000000000${index}`,
-  redirectPostId: `p_20261001120000_0000000000000${index}`,
-  elementType: 'Track',
-  title: `Feed track ${index}`,
-  subtitle: `Feed artist ${index}`,
-  imageUrl: `https://example.com/feed-${index}.jpg`,
-  username,
-  userId: '33333333-3333-3333-3333-33333333333' + index,
-  createdAt: '2026-10-01T12:00:00Z',
-  privacy,
+  kind: 'post',
+  post: {
+    postId: `p_20261001120000_0000000000000${index}`,
+    redirectPostId: `p_20261001120000_0000000000000${index}`,
+    elementType: 'Track',
+    title: `Feed track ${index}`,
+    subtitle: `Feed artist ${index}`,
+    imageUrl: `https://example.com/feed-${index}.jpg`,
+    username,
+    userId: '33333333-3333-3333-3333-33333333333' + index,
+    createdAt: '2026-10-01T12:00:00Z',
+    privacy,
+  },
 });
 
-const feedPage = (items: unknown[], nextCursor: string | null, activeMembershipCount = 2) => ({
+const feedPage = (
+  items: unknown[],
+  nextCursor: string | null,
+  activeMembershipCount = 2,
+  feedCuratorCount = activeMembershipCount,
+) => ({
   items,
   nextCursor,
   activeMembershipCount,
+  feedCuratorCount,
 });
 
 const memberFeed = ({ cursor, membersOnly }: { cursor: string | null; membersOnly: boolean }) => {
@@ -33,6 +48,19 @@ const memberFeed = ({ cursor, membersOnly }: { cursor: string | null; membersOnl
     : { body: feedPage([feedPost(3, 'public', 'night-curator')], null) };
 };
 
+/** A followed curator's members-only post the viewer has not joined for: the curator and the time only. */
+const lockedPost = (index: number, curatorId: string, username: string, displayName: string | null = null) => ({
+  kind: 'locked',
+  postId: `p_20261001110000_0000000000000${index}`,
+  createdAt: '2026-10-01T11:00:00Z',
+  curator: { id: curatorId, username, displayName, avatarUrl: null },
+});
+
+const CRATE = { id: fixtureCuratorPage.curator.id, username: fixtureCuratorPage.curator.username };
+const QUIET = { id: 'cpr_QuietCurator01', username: 'quiet-curator' };
+/** Follows two curators and joined none. */
+const follower = { ...fixtureUsers.viewer, activeMembershipCount: 0, feedCuratorCount: 2 };
+
 const featuredCurator = (name: string, index: number, hasActiveMembershipPlan = true) => ({
   userId: `44444444-4444-4444-4444-44444444444${index}`,
   username: `${name}-curator`,
@@ -43,6 +71,13 @@ const featuredCurator = (name: string, index: number, hasActiveMembershipPlan = 
 });
 
 const postLinks = (page: Page) => page.getByRole('link', { name: /Feed track/ });
+const lockedCards = (page: Page) => page.getByTestId('feed-locked-post');
+/** Full and locked rows in page order: a post title, or `locked:` and the curator handle. */
+const rowOrder = (page: Page) => page.locator('a[href^="/post/"], [data-testid="feed-locked-post"]').evaluateAll(
+  (rows) => rows.map((row) => row.tagName === 'ARTICLE'
+    ? `locked:${row.querySelector('a[href^="/profile/"]')?.textContent?.replace(/^[^@]*/, '')}`
+    : row.querySelector('h3')?.textContent?.trim()),
+);
 const skeleton = (page: Page) => page.getByTestId('post-grid-skeleton');
 const cursors = (requests: string[]) => requests.map((url) => new URL(url).searchParams.get('cursor'));
 
@@ -215,24 +250,30 @@ test('a session outage offers a retry, never the join state or sign-in', async (
   await expect(postLinks(page)).toHaveCount(2);
 });
 
-test('a session without a valid membership count is an error, not zero memberships', async ({ page }) => {
-  const curatorFeedRequests = trackRequests(page, FEED_PATH);
-  await mockCassetteApp(page, { currentUser: fixtureUsers.member });
-  await page.route('**/api/auth/session', (route) => route.fulfill({
-    json: {
-      success: true,
-      authenticated: true,
-      user: { userId: fixtureUsers.member.id, username: fixtureUsers.member.username, isOnboarded: true },
-      activeMembershipCount: 1.5,
-    },
-  }));
+for (const [name, counts] of [
+  ['membership', { activeMembershipCount: 1.5, feedCuratorCount: 2 }],
+  ['source', { activeMembershipCount: 1 }],
+] as const) {
+  test(`a session without a valid ${name} count is an error, not zero sources`, async ({ page }) => {
+    const curatorFeedRequests = trackRequests(page, FEED_PATH);
+    await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+    await page.route('**/api/auth/session', (route) => route.fulfill({
+      json: {
+        success: true,
+        authenticated: true,
+        user: { userId: fixtureUsers.member.id, username: fixtureUsers.member.username, isOnboarded: true },
+        ...counts,
+      },
+    }));
 
-  await page.goto('/feed');
+    await page.goto('/feed');
 
-  await expect(page.getByText('Could not check your account')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
-  expect(curatorFeedRequests).toEqual([]);
-});
+    await expect(page.getByText('Could not check your account')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
+    await expect(skeleton(page)).toHaveCount(0);
+    expect(curatorFeedRequests).toEqual([]);
+  });
+}
 
 test('a failed first page offers a retry', async ({ page }) => {
   let available = false;
@@ -308,7 +349,7 @@ test.describe('freshness', () => {
     const curatorFeedRequests = trackRequests(page, FEED_PATH);
     let curator = 'night-curator';
     await mockCassetteApp(page, {
-      currentUser: { ...fixtureUsers.member, activeMembershipCount: 1 },
+      currentUser: { ...fixtureUsers.member, activeMembershipCount: 1, feedCuratorCount: 1 },
       curatorFeed: () => ({ body: feedPage([feedPost(1, 'subscriber', curator)], 'cursor-page-2', 1) }),
     });
 
@@ -338,6 +379,7 @@ test.describe('freshness', () => {
     await expect(postLinks(page)).toHaveCount(2);
 
     state.currentUser!.activeMembershipCount = 0;
+    state.currentUser!.feedCuratorCount = 0;
     await page.clock.fastForward('01:01');
 
     await expect(page.getByRole('heading', { name: 'Join a curator' })).toBeVisible();
@@ -401,6 +443,7 @@ test.describe('freshness', () => {
         authenticated: true,
         user: { userId: fixtureUsers.member.id, username: fixtureUsers.member.username, isOnboarded: true },
         activeMembershipCount: 2,
+        feedCuratorCount: 2,
       };
       await released;
       await route.fulfill({ json: stale }).catch(() => {});
@@ -657,5 +700,301 @@ test.describe('navigation', () => {
     await expect(page).toHaveURL('/feed?filter=members');
     await expect(page.getByRole('radio', { name: 'Members only' })).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByRole('radiogroup', { name: 'Post filter' })).toBeVisible();
+  });
+});
+
+test.describe('followed curators', () => {
+  test('a Follow-only viewer waits for the session, then gets the skeleton and posts without a paid membership', async ({ page }) => {
+    const curatorFeedRequests = trackRequests(page, FEED_PATH);
+    await mockCassetteApp(page, {
+      currentUser: { ...follower, feedCuratorCount: 1 },
+      curatorFeed: () => ({ body: feedPage([feedPost(4, 'public', CRATE.username)], null, 0, 1) }),
+    });
+    const releaseSession = await holdRoute(page, isSession, () => true);
+    const releaseFeed = await holdRoute(page, isFeed, () => true);
+
+    await page.goto('/feed');
+    await page.waitForTimeout(500);
+    await expect(skeleton(page)).toHaveCount(0);
+    expect(curatorFeedRequests).toEqual([]);
+
+    releaseSession();
+    await expect(skeleton(page)).toBeVisible();
+    await expect.poll(() => curatorFeedRequests.length).toBe(1);
+    releaseFeed();
+
+    await expect(postLinks(page)).toHaveText([/Feed track 4/]);
+    await expect(page.getByRole('radiogroup', { name: 'Post filter' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
+  });
+
+  test('a paid count above the source count during a change shows the join state, not an error or a request', async ({ page }) => {
+    const curatorFeedRequests = trackRequests(page, FEED_PATH);
+    await mockCassetteApp(page, {
+      currentUser: { ...fixtureUsers.viewer, activeMembershipCount: 1, feedCuratorCount: 0 },
+      curatorFeed: memberFeed,
+    });
+
+    await page.goto('/feed');
+
+    await expect(page.getByRole('heading', { name: 'Join a curator' })).toBeVisible();
+    await expect(page.getByText('Could not check your account')).toHaveCount(0);
+    await expect(page.getByRole('radio', { name: 'Members only' })).toHaveCount(0);
+    await expect(skeleton(page)).toHaveCount(0);
+    await page.waitForTimeout(300);
+    expect(curatorFeedRequests).toEqual([]);
+  });
+
+  test('locked rows show the curator, the time, and availability, but nothing from the post', async ({ page }) => {
+    const { state } = await mockCassetteApp(page, {
+      currentUser: follower,
+      // The viewer could join Crate Keeper now; the quiet curator takes no new members.
+      membershipStatus: fixtureNoMembershipStatus,
+      curatorFeed: () => ({
+        body: feedPage([
+          feedPost(1, 'public', CRATE.username),
+          lockedPost(2, CRATE.id, CRATE.username, 'Crate Keeper'),
+          lockedPost(3, QUIET.id, QUIET.username),
+          lockedPost(4, CRATE.id, CRATE.username, 'Crate Keeper'),
+        ], null, 0, 2),
+      }),
+    });
+
+    await page.goto('/feed');
+
+    await expect.poll(() => rowOrder(page)).toEqual([
+      'Feed track 1',
+      `locked:@${CRATE.username}`,
+      `locked:@${QUIET.username}`,
+      `locked:@${CRATE.username}`,
+    ]);
+    const crate = lockedCards(page).first();
+    await expect(crate).toHaveAccessibleName('Members-only post from Crate Keeper');
+    await expect(crate.getByRole('heading', { name: 'Members-only post' })).toBeVisible();
+    await expect(crate).toContainText("For Crate Keeper's members.");
+    await expect(crate.getByRole('link', { name: 'Join Crate Keeper' })).toHaveAttribute(
+      'href',
+      `/profile/${CRATE.username}?tab=posts#membership-offer`,
+    );
+    await expect(crate.getByRole('link', { name: `@${CRATE.username}`, exact: true })).toHaveAttribute('href', `/profile/${CRATE.username}`);
+
+    const quiet = lockedCards(page).nth(1);
+    await expect(quiet).toContainText(`${QUIET.username} is not taking new members right now.`);
+    await expect(quiet.getByRole('link', { name: `View profile ${QUIET.username}` })).toHaveAttribute('href', `/profile/${QUIET.username}`);
+    await expect(quiet.getByRole('link', { name: /Join/ })).toHaveCount(0);
+
+    // No post page, artwork, or engagement comes from a locked row.
+    await expect(lockedCards(page).locator('a[href^="/post/"]')).toHaveCount(0);
+    await expect(lockedCards(page).locator('img')).toHaveCount(0);
+    await expect(lockedCards(page).getByRole('button')).toHaveCount(0);
+    // One membership read per curator, however many locked rows it has; none starts Checkout.
+    expect([...state.membershipStatusRequests].sort()).toEqual([CRATE.id, QUIET.id].sort());
+    expect(state.membershipCheckoutRequests).toEqual([]);
+  });
+
+  test('a locked row whose membership read fails offers the profile only', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: follower,
+      curatorFeed: () => ({ body: feedPage([lockedPost(2, CRATE.id, CRATE.username, 'Crate Keeper')], null, 0, 2) }),
+    });
+    await page.route('**/api/v1/memberships/status/**', (route) => route.fulfill({ status: 503, body: 'unavailable' }));
+
+    await page.goto('/feed');
+
+    const card = lockedCards(page);
+    await expect(card.getByRole('link', { name: 'View profile Crate Keeper' })).toBeVisible();
+    await expect(card).toContainText("For Crate Keeper's members.");
+    await expect(card.getByRole('link', { name: /Join/ })).toHaveCount(0);
+  });
+
+  test('a locked row with any extra field is a load error, never a card', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: follower,
+      curatorFeed: () => ({
+        body: feedPage([{ ...lockedPost(2, CRATE.id, CRATE.username), imageUrl: null }], null, 0, 2),
+      }),
+    });
+
+    await page.goto('/feed');
+
+    await expect(page.getByText('Posts could not load')).toBeVisible({ timeout: 15_000 });
+    await expect(lockedCards(page)).toHaveCount(0);
+    await expect(page.getByText('No posts yet')).toHaveCount(0);
+  });
+
+  test('paging keeps one server order across full and locked rows; Members only asks for member posts', async ({ page }) => {
+    const curatorFeedRequests = trackRequests(page, FEED_PATH);
+    await mockCassetteApp(page, {
+      currentUser: { ...fixtureUsers.member, activeMembershipCount: 1, feedCuratorCount: 2 },
+      membershipStatus: fixtureNoMembershipStatus,
+      curatorFeed: ({ cursor, membersOnly }) => {
+        if (membersOnly) return { body: feedPage([feedPost(5, 'subscriber', 'night-curator')], null, 1, 2) };
+        return cursor === null
+          ? { body: feedPage([feedPost(1, 'subscriber', 'night-curator'), lockedPost(2, CRATE.id, CRATE.username)], 'cursor-2', 1, 2) }
+          : { body: feedPage([lockedPost(3, CRATE.id, CRATE.username), feedPost(4, 'public', 'night-curator')], null, 1, 2) };
+      },
+    });
+
+    await page.goto('/feed');
+    await expect.poll(() => rowOrder(page)).toEqual(['Feed track 1', `locked:@${CRATE.username}`]);
+    await page.getByRole('button', { name: 'Load more' }).click();
+    await expect.poll(() => rowOrder(page)).toEqual([
+      'Feed track 1',
+      `locked:@${CRATE.username}`,
+      `locked:@${CRATE.username}`,
+      'Feed track 4',
+    ]);
+    expect(cursors(curatorFeedRequests)).toEqual([null, 'cursor-2']);
+
+    await page.getByRole('radio', { name: 'Members only' }).click();
+    await expect.poll(() => rowOrder(page)).toEqual(['Feed track 5']);
+    await expect(lockedCards(page)).toHaveCount(0);
+    expect(new URL(curatorFeedRequests.at(-1)!).searchParams.get('membersOnly')).toBe('true');
+  });
+
+  test('a Follow restarts both Feed filters even when the counts stay the same', async ({ page }) => {
+    const curatorFeedRequests = trackRequests(page, FEED_PATH);
+    const sessionRequests = trackRequests(page, SESSION_PATH);
+    let version = 1;
+    const { state } = await mockCassetteApp(page, {
+      currentUser: { ...follower, feedCuratorCount: 1 },
+      curatorPage: fixtureFreeCuratorPage,
+      curatorFeed: () => ({
+        body: feedPage([feedPost(version, 'public', 'night-curator'), lockedPost(9, CRATE.id, CRATE.username)], null, 0, 1),
+      }),
+    });
+    // Another source ended as this one began: Bridge reports the same counts after the Follow.
+    await page.route('**/api/auth/session', (route) => route.fulfill({
+      json: {
+        success: true,
+        authenticated: true,
+        user: { userId: fixtureUsers.viewer.id, username: fixtureUsers.viewer.username, isOnboarded: true },
+        activeMembershipCount: 0,
+        feedCuratorCount: 1,
+      },
+    }));
+
+    await page.goto('/feed');
+    await expect(postLinks(page)).toHaveText([/Feed track 1/]);
+    await lockedCards(page).getByRole('link', { name: `@${CRATE.username}` }).click();
+    await expect(page).toHaveURL(new RegExp(`/profile/${CRATE.username}`));
+    const readsBefore = sessionRequests.length;
+
+    version = 2;
+    await page.getByRole('button', { name: /^Follow/ }).filter({ visible: true }).click();
+    await expect(page.getByText('Following', { exact: true }).filter({ visible: true })).toBeVisible();
+    expect(state.curatorFollowRequests.filter(({ method }) => method === 'PUT')).toHaveLength(1);
+    await expect.poll(() => sessionRequests.length).toBe(readsBefore + 1);
+
+    await page.evaluate(() => {
+      new MutationObserver(() => {
+        if (document.body.textContent?.includes('Feed track 1')) document.body.dataset.earlierRowShown = 'true';
+      }).observe(document.body, { childList: true, subtree: true, characterData: true });
+    });
+    await page.goBack();
+    await expect(postLinks(page)).toHaveText([/Feed track 2/]);
+    await expect(page.locator('body')).not.toHaveAttribute('data-earlier-row-shown');
+    expect(curatorFeedRequests).toHaveLength(2);
+  });
+
+  test('an Unfollow made elsewhere clears the Feed at the next visible boundary', async ({ page }) => {
+    await page.clock.install();
+    const curatorFeedRequests = trackRequests(page, FEED_PATH);
+    const { state } = await mockCassetteApp(page, {
+      currentUser: { ...follower, feedCuratorCount: 1 },
+      curatorFeed: () => ({ body: feedPage([feedPost(1, 'public', 'night-curator')], null, 0, 1) }),
+    });
+
+    await page.goto('/feed');
+    await expect(postLinks(page)).toHaveCount(1);
+
+    state.currentUser!.feedCuratorCount = 0;
+    await page.clock.fastForward('01:01');
+
+    await expect(page.getByRole('heading', { name: 'Join a curator' })).toBeVisible();
+    await expect(postLinks(page)).toHaveCount(0);
+    expect(curatorFeedRequests).toHaveLength(1);
+  });
+
+  test('Join on a locked row opens the curator offer and never starts Checkout', async ({ page }) => {
+    const { state } = await mockCassetteApp(page, {
+      currentUser: follower,
+      curatorPage: fixtureCuratorPage,
+      membershipStatus: fixtureNoMembershipStatus,
+      curatorFeed: () => ({ body: feedPage([lockedPost(2, CRATE.id, CRATE.username, 'Crate Keeper')], null, 0, 2) }),
+    });
+
+    await page.goto('/feed');
+    await lockedCards(page).getByRole('link', { name: 'Join Crate Keeper' }).click();
+
+    await expect(page).toHaveURL(`/profile/${CRATE.username}?tab=posts#membership-offer`);
+    const offer = page.locator('#membership-offer');
+    await expect(offer).toBeVisible();
+    await expect(offer.getByRole('button', { name: 'Join Crate Keeper' })).toBeVisible();
+    await page.waitForTimeout(300);
+    expect(state.membershipCheckoutRequests).toEqual([]);
+  });
+
+  test.describe('on a phone', () => {
+    test.use({ viewport: { width: 390, height: 844 } });
+
+    test('Join on a locked row brings the offer below the posts into view', async ({ page }) => {
+      // Enough posts that the offer, which phones show after them, starts below the screen.
+      const [publicItem] = fixtureFreeCuratorPage.posts.items;
+      const items = Array.from({ length: 6 }, (_, index) => (publicItem.kind === 'post'
+        ? { kind: 'post' as const, post: { ...publicItem.post, postId: `post-public-${index}`, redirectPostId: `post-public-${index}` } }
+        : publicItem));
+      const { state } = await mockCassetteApp(page, {
+        currentUser: follower,
+        curatorPage: { ...fixtureCuratorPage, posts: { ...fixtureCuratorPage.posts, items, totalItems: items.length } },
+        membershipStatus: fixtureNoMembershipStatus,
+        curatorFeed: () => ({ body: feedPage([lockedPost(2, CRATE.id, CRATE.username, 'Crate Keeper')], null, 0, 2) }),
+      });
+
+      await page.goto('/feed');
+      await lockedCards(page).getByRole('link', { name: 'Join Crate Keeper' }).click();
+      await expect(page).toHaveURL(`/profile/${CRATE.username}?tab=posts#membership-offer`);
+
+      const offer = page.locator('#membership-offer');
+      await expect(offer.getByRole('button', { name: 'Join Crate Keeper' })).toBeVisible();
+      await expect.poll(() => offer.evaluate((element) => Math.round(element.getBoundingClientRect().top))).toBeLessThan(844 / 2);
+      expect(await offer.evaluate((element) => element.getBoundingClientRect().top)).toBeGreaterThan(-80);
+      expect(state.membershipCheckoutRequests).toEqual([]);
+    });
+
+    test('mixed rows fit the screen', async ({ page }) => {
+      await mockCassetteApp(page, {
+        currentUser: follower,
+        membershipStatus: fixtureNoMembershipStatus,
+        curatorFeed: () => ({
+          body: feedPage([
+            feedPost(1, 'public', CRATE.username),
+            lockedPost(2, CRATE.id, CRATE.username, 'A curator with a very long display name for a small card'),
+          ], null, 0, 2),
+        }),
+      });
+
+      await page.goto('/feed');
+      await expect(lockedCards(page).getByRole('link', { name: /Join/ })).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  });
+
+  test('locked row links work from the keyboard', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: follower,
+      curatorPage: fixtureCuratorPage,
+      membershipStatus: fixtureNoMembershipStatus,
+      curatorFeed: () => ({ body: feedPage([lockedPost(2, CRATE.id, CRATE.username, 'Crate Keeper')], null, 0, 2) }),
+    });
+
+    await page.goto('/feed');
+    const profileLink = lockedCards(page).getByRole('link', { name: `@${CRATE.username}` });
+    await profileLink.focus();
+    await page.keyboard.press('Tab');
+    await expect(lockedCards(page).getByRole('link', { name: 'Join Crate Keeper' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(`/profile/${CRATE.username}?tab=posts#membership-offer`);
   });
 });

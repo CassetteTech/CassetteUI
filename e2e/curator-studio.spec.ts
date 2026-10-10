@@ -10,6 +10,7 @@ import type { CuratorEarningsHistoryItem } from '../src/services/curator-earning
 import {
   fixtureActiveMemberPostPlan,
   fixtureCuratorMemberCounts,
+  fixtureCuratorProActiveStatus,
   fixtureCuratorProAvailableStatus,
   fixtureUsers,
 } from './support/cassette-fixtures';
@@ -842,7 +843,8 @@ test('shows member counts, the daily trend, and the previous-window baseline', a
     curatorProfile,
     curatorPlans: [fixtureActiveMemberPostPlan],
     curatorMemberCounts: fixtureCuratorMemberCounts,
-    // A different ledger count proves which source each tab reads.
+    // Three different counts prove which source each place reads.
+    curatorAudience: { audienceCount: 9, activeMemberCount: 5 },
     curatorEarnings: {
       activeMemberCount: 7, items: earningsItems.slice(0, 3),
       balances: { currency: 'USD', earnedThisMonth: 0, accrued: 425, payable: 0,
@@ -853,9 +855,11 @@ test('shows member counts, the daily trend, and the previous-window baseline', a
     new URL(response.url()).pathname === '/api/v1/curators/me/member-stats');
 
   await page.goto(STUDIO_PATH);
-  // The Overview reads the earnings ledger; the Members tab reads member counts.
+  // The Overview reads the audience; the Members tab reads member counts. Neither shows the ledger's status count.
   await openStudioStep(page, 'studio-overview');
-  await expect(page.getByRole('button', { name: 'Active members 7', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Members 5', exact: true })).toBeVisible();
+  // The hidden Members tab keeps its own historical "Active members" figure.
+  await expect(page.getByText('Active members', { exact: true }).filter({ visible: true })).toHaveCount(0);
   await openStudioStep(page, 'studio-earnings');
 
   const card = page.getByTestId('curator-earnings-card');
@@ -1093,4 +1097,108 @@ test('shows no setup banner while the payout state is unknown', async ({ page })
   await openStudioStep(page, 'studio-overview');
   await expect(page.getByRole('heading', { name: 'Earned' })).toBeVisible();
   await expect(page.getByText('Payout setup is not complete.')).toHaveCount(0);
+});
+
+test.describe('audience', () => {
+  const audienceSection = (page: Page) => page.getByRole('region', { name: 'Audience' });
+
+  test('a free curator with no plan and no Curator Pro sees the audience and its definition', async ({ page }) => {
+    const { state } = await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      curatorProfile,
+      curatorAudience: { audienceCount: 4, activeMemberCount: 0 },
+    });
+
+    await page.goto(STUDIO_PATH);
+    await openStudioStep(page, 'studio-overview');
+
+    const section = audienceSection(page);
+    await expect(section.getByText('Audience', { exact: true })).toBeVisible();
+    await expect(section).toContainText('4');
+    await expect(section.getByRole('button', { name: 'Members 0', exact: true })).toBeVisible();
+    await expect(section).toContainText('everyone who follows you, plus your active members');
+    // No published plan: the checklist leads, and the audience still shows.
+    await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
+    expect(state.curatorAudienceRequests).toBeGreaterThan(0);
+  });
+
+  test('a curator with a published plan and Curator Pro sees the same private counts beside earnings', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      curatorProfile,
+      curatorPlans: [fixtureActiveMemberPostPlan],
+      curatorProStatus: fixtureCuratorProActiveStatus,
+      curatorAudience: { audienceCount: 12, activeMemberCount: 5 },
+      curatorEarnings: {
+        activeMemberCount: 7, items: earningsItems.slice(0, 3),
+        balances: { currency: 'USD', earnedThisMonth: 0, accrued: 425, payable: 0,
+          blocked: 0, paidOut: 900, nextPayableAt: null },
+      },
+    });
+
+    await page.goto(STUDIO_PATH);
+    await openStudioStep(page, 'studio-overview');
+
+    await expect(page.getByRole('button', { name: 'Ready to pay out $0.00', exact: true })).toBeVisible();
+    const section = audienceSection(page);
+    await expect(section).toContainText('12');
+    await expect(section.getByRole('button', { name: 'Members 5', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Active members/ })).toHaveCount(0);
+    await section.getByRole('button', { name: 'Members 5', exact: true }).click();
+    await expect(page.getByTestId('curator-earnings-card')).toBeVisible();
+  });
+
+  test('loading and failure never read as zero, and a retry recovers', async ({ page }) => {
+    const { state } = await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      curatorProfile,
+      curatorAudience: { audienceCount: 3, activeMemberCount: 1 },
+      curatorAudienceStatus: 503,
+    });
+    let release = () => {};
+    const released = new Promise<void>((resolve) => { release = resolve; });
+    let holdFirst = true;
+    await page.route('**/api/v1/curators/me/audience', async (route) => {
+      if (holdFirst) {
+        holdFirst = false;
+        await released;
+      }
+      await route.fallback().catch(() => {});
+    });
+
+    await page.goto(STUDIO_PATH);
+    await openStudioStep(page, 'studio-overview');
+    const section = audienceSection(page);
+    await expect(section.getByText('Loading…')).toHaveCount(2);
+    await expect(section.getByText('0', { exact: true })).toHaveCount(0);
+
+    release();
+    await expect(section.getByText('Unavailable right now')).toHaveCount(2, { timeout: 15_000 });
+    await expect(section.getByText('0', { exact: true })).toHaveCount(0);
+    await expect(section.getByText('—')).toHaveCount(2);
+
+    state.curatorAudienceStatus = 200;
+    await section.getByRole('button', { name: 'Try again' }).click();
+    await expect(section.getByRole('button', { name: 'Members 1', exact: true })).toBeVisible();
+    await expect(section).toContainText('3');
+    await expect(section.getByRole('button', { name: 'Try again' })).toHaveCount(0);
+  });
+
+  test.describe('on a phone', () => {
+    test.use({ viewport: { width: 390, height: 844 } });
+
+    test('the audience fits the screen', async ({ page }) => {
+      await mockCassetteApp(page, {
+        currentUser: fixtureUsers.member,
+        curatorProfile,
+        curatorAudience: { audienceCount: 1234567, activeMemberCount: 89012 },
+      });
+
+      await page.goto(STUDIO_PATH);
+      await openStudioStep(page, 'studio-overview');
+      await expect(audienceSection(page).getByRole('button', { name: 'Members 89,012', exact: true })).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  });
 });

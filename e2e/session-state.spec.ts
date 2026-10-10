@@ -128,6 +128,7 @@ test('the internal console does not deny access when its account check fails', a
         success: true,
         authenticated: true,
         activeMembershipCount: 0,
+        feedCuratorCount: 0,
         user: {
           userId: fixtureUsers.member.id,
           username: fixtureUsers.member.username,

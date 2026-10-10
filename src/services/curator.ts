@@ -126,7 +126,24 @@ const curatorPageSchema = z.object({
   { message: 'Subscriber post bodies require an entitled viewer' },
 );
 
+// The viewer's own relationship. isFollowing is Feed inclusion: an explicit
+// Follow or a membership that gives access now.
+const curatorFollowStateSchema = z.object({
+  isFollowing: z.boolean(),
+  hasExplicitFollow: z.boolean(),
+  hasActiveMembership: z.boolean(),
+}).strict();
+
+// Current owner counts, never identities. Each count is checked on its own:
+// Bridge counts them in separate statements, so they can briefly disagree.
+const curatorAudienceSchema = z.object({
+  audienceCount: z.number().int().nonnegative(),
+  activeMemberCount: z.number().int().nonnegative(),
+}).strict();
+
 export type CuratorPage = z.infer<typeof curatorPageSchema>;
+export type CuratorFollowState = z.infer<typeof curatorFollowStateSchema>;
+export type CuratorAudience = z.infer<typeof curatorAudienceSchema>;
 export type CuratorPostItem = z.infer<typeof postItemSchema>;
 export type CuratorProfile = z.infer<typeof curatorProfileSchema>;
 export type CuratorPayoutAccount = z.infer<typeof curatorPayoutAccountSchema>;
@@ -143,6 +160,18 @@ export class CuratorPageError extends Error {
 // oxlint-disable-next-line anti-slop/no-unknown-parameters
 export function parseCuratorPage(value: unknown): CuratorPage {
   return curatorPageSchema.parse(value);
+}
+
+// The endpoint body is untrusted until this schema succeeds.
+// oxlint-disable-next-line anti-slop/no-unknown-parameters
+export function parseCuratorFollowState(value: unknown): CuratorFollowState {
+  return curatorFollowStateSchema.parse(value);
+}
+
+// The endpoint body is untrusted until this schema succeeds.
+// oxlint-disable-next-line anti-slop/no-unknown-parameters
+export function parseCuratorAudience(value: unknown): CuratorAudience {
+  return curatorAudienceSchema.parse(value);
 }
 
 // The endpoint body is untrusted until this schema succeeds.
@@ -206,6 +235,54 @@ export async function fetchOwnCuratorProfile(
   }
 
   return parseCuratorProfile(await response.json());
+}
+
+const curatorFollowPath = (curatorProfileId: string) =>
+  `/api/v1/curators/${encodeURIComponent(curatorProfileId)}/follow`;
+
+/** The signed-in viewer's own relationship; the server resolves the viewer from the session. */
+export async function fetchCuratorFollow(
+  curatorProfileId: string,
+  signal?: AbortSignal,
+): Promise<CuratorFollowState> {
+  const response = await fetch(curatorFollowPath(curatorProfileId), {
+    cache: 'no-store',
+    credentials: 'include',
+    signal,
+  });
+  if (!response.ok) {
+    throw new CuratorPageError('Failed to load follow status', response.status);
+  }
+  return parseCuratorFollowState(await response.json());
+}
+
+/** Follows (PUT, empty body) or unfollows (DELETE); both answer with the relationship after the change. */
+export async function setCuratorFollow(
+  curatorProfileId: string,
+  following: boolean,
+): Promise<CuratorFollowState> {
+  const response = await fetch(curatorFollowPath(curatorProfileId), {
+    method: following ? 'PUT' : 'DELETE',
+    cache: 'no-store',
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    throw new CuratorPageError(following ? 'Failed to follow' : 'Failed to unfollow', response.status);
+  }
+  return parseCuratorFollowState(await response.json());
+}
+
+/** The owner's current audience and members, for Curator Studio only. */
+export async function fetchCuratorAudience(signal?: AbortSignal): Promise<CuratorAudience> {
+  const response = await fetch('/api/v1/curators/me/audience', {
+    cache: 'no-store',
+    credentials: 'include',
+    signal,
+  });
+  if (!response.ok) {
+    throw new CuratorPageError('Failed to load audience', response.status);
+  }
+  return parseCuratorAudience(await response.json());
 }
 
 export async function fetchCuratorPayoutAccount(

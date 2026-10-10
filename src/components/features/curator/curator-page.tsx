@@ -38,7 +38,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArtworkImage } from '@/components/ui/artwork-image';
-import { CuratorMembershipCard } from '@/components/features/curator/curator-membership-card';
+import { CuratorMembershipCard, MEMBERSHIP_OFFER_ID } from '@/components/features/curator/curator-membership-card';
 import { PostQuickActions } from '@/components/features/post/post-quick-actions';
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
@@ -87,7 +87,7 @@ export function PublicCuratorPage({
   const instanceId = useId();
   const curatorNameId = `curator-name-${instanceId}`;
   const feedHeadingId = `curator-feed-heading-${instanceId}`;
-  const membershipId = `membership-${instanceId}`;
+  const membershipId = MEMBERSHIP_OFFER_ID;
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, isLoading: authLoading, isAuthenticated } = useAuthState();

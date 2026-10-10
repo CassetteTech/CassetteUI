@@ -1,7 +1,7 @@
 'use client';
 
 import { SESSION_MAX_AGE_MS, useAuthStore } from '@/stores/auth-store';
-import { AuthUser, SignInForm, SignUpForm, ConnectedService, SignupAttribution } from '@/types';
+import { AuthUser, SignInForm, SignUpForm, ConnectedService, SignupAttribution, type FeedSourceCounts } from '@/types';
 import {
   readSessionResponse,
   readSignedInBody,
@@ -456,19 +456,19 @@ class AuthService {
    * Applies the session that a sign-in, sign-up, or password update returned.
    * A pending session read belongs to the previous identity, so it is dropped.
    */
-  private startSession({ user: userData, activeMembershipCount }: SignedInBody): AuthUser {
+  private startSession({ user: userData, counts }: SignedInBody): AuthUser {
     this.abortSessionRead();
-    if (activeMembershipCount !== null) {
-      return this.applySession(userData, activeMembershipCount);
+    if (counts) {
+      return this.applySession(userData, counts);
     }
-    // Signed in, but without a valid membership count: the session is an error until a read succeeds.
+    // Signed in, but without valid counts: the session is an error until a read succeeds.
     const user = this.mapToAuthUser(userData);
     useAuthStore.getState().setSessionError(user);
     this.warmProfileArtworkCache(user);
     return user;
   }
 
-  private applySession(userData: SessionUser, activeMembershipCount: number): AuthUser {
+  private applySession(userData: SessionUser, counts: FeedSourceCounts): AuthUser {
     const current = useAuthStore.getState().user;
     const json = JSON.stringify(userData);
     // An unchanged account keeps its user object, so a periodic read does not
@@ -480,7 +480,7 @@ class AuthService {
       ? applied.user
       : this.mapToAuthUser(userData);
     this.appliedSessionUser = { json, user };
-    useAuthStore.getState().setSession({ user, activeMembershipCount });
+    useAuthStore.getState().setSession({ user, ...counts });
     this.warmProfileArtworkCache(user);
     return user;
   }
@@ -538,7 +538,7 @@ class AuthService {
         this.endSessionRead(controller);
         switch (read.kind) {
           case 'authenticated':
-            return { kind: 'authenticated', user: this.applySession(read.user, read.activeMembershipCount) };
+            return { kind: 'authenticated', user: this.applySession(read.user, read.counts) };
           case 'signed-out':
             useAuthStore.getState().signOut();
             return read;

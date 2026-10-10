@@ -15,6 +15,7 @@ import { CoralGlow } from '@/components/ui/coral-glow';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { AvatarPreviewDialog } from '@/components/features/profile/avatar-preview-dialog';
 import { StudioChip } from '@/components/features/curator/studio-shell';
+import { CuratorFollowAction } from '@/components/features/curator/curator-follow-action';
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 import { getDisplayPlatformDefinition, isAppleMusicPlatform } from '@/lib/platforms';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
@@ -131,6 +132,8 @@ export function ProfileHeader({
       {userBio.bio && <ProfileBio bio={userBio.bio} />}
 
       <ProfileLinksRow links={userBio.profileLinks} />
+
+      <CuratorFollowAction compact />
 
       {showActions && (
         <div className="flex flex-row gap-2 pt-1 sm:gap-3">

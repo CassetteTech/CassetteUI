@@ -78,12 +78,36 @@ export interface PaginatedActivityResponse {
   sponsoredPlacement?: SponsoredExplorePlacement;
 }
 
-/** One page of the viewer's curator Feed; `nextCursor` is null on the last page. */
-export interface CuratorFeedPage {
-  items: ActivityPost[];
-  nextCursor: string | null;
-  /** Curators whose memberships give the viewer access, counted with this page. */
+/**
+ * The viewer's Feed sources, from a session read or a Feed page. Bridge counts
+ * them in separate statements, so they can briefly disagree; both are loading
+ * hints, never authorization.
+ */
+export interface FeedSourceCounts {
+  /** Curators whose memberships give the viewer access now. */
   activeMembershipCount: number;
+  /** Those curators together with the curators the viewer follows. */
+  feedCuratorCount: number;
+}
+
+/**
+ * A Feed row: a post the viewer may open, or a members-only post of a followed
+ * curator that the viewer has not joined. A locked row carries the curator and
+ * the time only, never any of the post's content.
+ */
+export type CuratorFeedItem =
+  | { kind: 'post'; post: ActivityPost }
+  | {
+      kind: 'locked';
+      postId: string;
+      createdAt: string;
+      curator: { id: string; username: string; displayName: string | null; avatarUrl: string | null };
+    };
+
+/** One page of the viewer's curator Feed; `nextCursor` is null on the last page. */
+export interface CuratorFeedPage extends FeedSourceCounts {
+  items: CuratorFeedItem[];
+  nextCursor: string | null;
 }
 
 export interface SponsoredExplorePlacement {
@@ -913,11 +937,9 @@ export interface AuthUser {
   signupAttribution?: SignupAttribution;
 }
 
-/** A signed-in web session: the viewer and their current membership count. */
-export interface AuthSession {
+/** A signed-in web session: the viewer and their current Feed sources. */
+export interface AuthSession extends FeedSourceCounts {
   user: AuthUser;
-  /** Curators whose memberships give the viewer access now. A loading hint, never authorization. */
-  activeMembershipCount: number;
 }
 
 // Internal dashboard types

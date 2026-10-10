@@ -70,6 +70,8 @@ export interface FixtureUser {
   musicConnections?: string[];
   /** Curators whose memberships give this user access; every session read reports it. Defaults to 0. */
   activeMembershipCount?: number;
+  /** Those curators together with the ones this user follows; every session read reports it. Defaults to 0. */
+  feedCuratorCount?: number;
 }
 
 export interface FixturePost {
@@ -372,6 +374,7 @@ export const fixtureUsers = {
     platformPreferences: ['Spotify'],
     musicConnections: ['Spotify'],
     activeMembershipCount: 2,
+    feedCuratorCount: 2,
   },
   viewer: {
     id: 'user-viewer',

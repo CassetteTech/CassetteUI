@@ -1,4 +1,4 @@
-/** Explore's paper cards, shared with the Feed: post cards, their grid and skeleton, section headings, and creator cards. */
+/** Explore's paper cards, shared with the Feed: post cards, the Feed's locked post card, their grid and skeleton, section headings, and creator cards. */
 
 import Image from 'next/image';
 import Link from 'next/link';
@@ -8,7 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { DitherEdge } from '@/components/features/marketing/dither-edge';
 import { cn } from '@/lib/utils';
-import type { ActivityPost, ExploreUser } from '@/types';
+import { formatRelativeTime } from '@/lib/utils/format-date';
+import type { ActivityPost, CuratorFeedItem, ExploreUser } from '@/types';
 
 // Row gaps leave room for the offset shadow below each card.
 export const POST_GRID = 'grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 sm:gap-x-6 sm:gap-y-8';
@@ -124,6 +125,73 @@ export function PostCard({
         </div>
       </Link>
     </div>
+  );
+}
+
+/**
+ * A members-only post the viewer has not joined for: the lock where the
+ * artwork goes, the curator, and the time, and no link to the post. Join opens
+ * the curator's offer and never starts Checkout. `availability` comes from the
+ * viewer's membership status; while it is unknown the card offers the profile.
+ */
+export function LockedPostCard({
+  item,
+  joinHref,
+  availability,
+}: {
+  item: Extract<CuratorFeedItem, { kind: 'locked' }>;
+  joinHref: string;
+  availability: 'available' | 'unavailable' | 'unknown';
+}) {
+  const { curator } = item;
+  const name = curator.displayName?.trim() || curator.username;
+  const profileHref = `/profile/${encodeURIComponent(curator.username)}`;
+  const action = availability === 'available'
+    ? { href: joinHref, label: 'Join' }
+    : { href: profileHref, label: 'View profile' };
+
+  return (
+    <article
+      aria-label={`Members-only post from ${name}`}
+      data-testid="feed-locked-post"
+      className={cn(PAPER_CARD, 'flex flex-col shadow-flat-4')}
+    >
+      <div className="relative flex aspect-square items-center justify-center bg-gradient-to-br from-primary/20 via-primary/5 to-transparent">
+        <LockKeyhole aria-hidden className="size-8 text-primary/70" />
+        <span className={cn(ARTWORK_CHIP, 'right-1.5 bg-primary text-primary-foreground')}>
+          <LockKeyhole aria-hidden className="size-2.5" />
+          Members only
+        </span>
+      </div>
+
+      <div className="relative flex min-h-28 flex-1 flex-col px-3 pb-3 pt-3">
+        <DitherEdge color="hsl(var(--primary-foreground))" side="top" scale={0.5} />
+        <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight">Members-only post</h3>
+        <p className="mt-1 line-clamp-2 text-xs italic text-muted-foreground">
+          {availability === 'unavailable' ? `${name} is not taking new members right now.` : `For ${name}'s members.`}
+        </p>
+        <div className="mt-auto flex min-w-0 items-center gap-2 pt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          <Link
+            href={profileHref}
+            className="flex min-w-0 items-center gap-1.5 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Avatar aria-hidden className="size-5 shrink-0 border border-foreground">
+              <AvatarImage src={curator.avatarUrl ?? undefined} alt="" />
+              <AvatarFallback className="text-[9px]">{curator.username.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <span className="truncate">@{curator.username}</span>
+          </Link>
+          <time dateTime={item.createdAt} className="ml-auto shrink-0">{formatRelativeTime(item.createdAt)}</time>
+        </div>
+        <Link
+          href={action.href}
+          className="mt-2 flex min-h-9 items-center justify-center border-2 border-foreground px-3 text-sm font-semibold transition-colors hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          {action.label}
+          <span className="sr-only"> {name}</span>
+        </Link>
+      </div>
+    </article>
   );
 }
 

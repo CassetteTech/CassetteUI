@@ -56,6 +56,7 @@ export const useAuthState = () =>
       isLoading: state.isLoading,
       isAuthenticated: state.isAuthenticated,
       activeMembershipCount: state.activeMembershipCount,
+      feedCuratorCount: state.feedCuratorCount,
       sessionCheckedAt: state.sessionCheckedAt,
       sessionError: state.sessionError,
       isRefreshingSession: state.isRefreshingSession,

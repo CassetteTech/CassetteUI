@@ -29,6 +29,7 @@ async function withSessionAccountTypes(
         success: true,
         authenticated: true,
         activeMembershipCount: 0,
+        feedCuratorCount: 0,
         user: {
           userId: fixtureUsers.member.id,
           email: fixtureUsers.member.email,
@@ -116,6 +117,7 @@ test.describe('internal console access', () => {
           success: true,
           authenticated: true,
           activeMembershipCount: 0,
+          feedCuratorCount: 0,
           user: {
             userId: fixtureUsers.member.id,
             email: fixtureUsers.member.email,

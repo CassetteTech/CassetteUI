@@ -137,8 +137,17 @@ type MockCassetteOptions = {
   accountDeleteFailures?: number;
   exploreResponse?: unknown;
   exploreCurators?: ExploreCurator[];
-  /** Answers each Feed page; the default is an empty page that reports the session's membership count. */
+  /** Answers each Feed page; the default is an empty page that reports the session's two counts. */
   curatorFeed?: (query: { cursor: string | null; membersOnly: boolean }) => { status?: number; body?: unknown };
+  /** Curator profile IDs the current user explicitly follows. */
+  curatorFollows?: string[];
+  /** Relationship reads that answer 503 before the stateful answer. */
+  curatorFollowReadFailures?: number;
+  /** Follow and Unfollow writes that answer 503, changing nothing, before the stateful answer. */
+  curatorFollowWriteFailures?: number;
+  /** The owner's current audience; defaults to zero for both counts. */
+  curatorAudience?: { audienceCount: number; activeMemberCount: number };
+  curatorAudienceStatus?: number;
 };
 
 type MockNotification = {
@@ -260,6 +269,13 @@ type MockState = {
   internalPaidPromotionSubjectsStatus: number;
   internalPaidPromotionSubjectsDelayMs: number;
   accountDeleteFailuresRemaining: number;
+  curatorFollows: Set<string>;
+  curatorFollowRequests: Array<{ method: string; curatorProfileId: string }>;
+  curatorFollowReadFailuresRemaining: number;
+  curatorFollowWriteFailuresRemaining: number;
+  curatorAudience: { audienceCount: number; activeMemberCount: number };
+  curatorAudienceStatus: number;
+  curatorAudienceRequests: number;
 };
 
 const DEFAULT_USERS = Object.values(fixtureUsers);
@@ -728,6 +744,13 @@ const buildState = (options: MockCassetteOptions): MockState => {
     internalPaidPromotionSubjectsStatus: options.internalPaidPromotionSubjectsStatus ?? 200,
     internalPaidPromotionSubjectsDelayMs: options.internalPaidPromotionSubjectsDelayMs ?? 0,
     accountDeleteFailuresRemaining: options.accountDeleteFailures ?? 0,
+    curatorFollows: new Set(options.curatorFollows ?? []),
+    curatorFollowRequests: [],
+    curatorFollowReadFailuresRemaining: options.curatorFollowReadFailures ?? 0,
+    curatorFollowWriteFailuresRemaining: options.curatorFollowWriteFailures ?? 0,
+    curatorAudience: clone(options.curatorAudience ?? { audienceCount: 0, activeMemberCount: 0 }),
+    curatorAudienceStatus: options.curatorAudienceStatus ?? 200,
+    curatorAudienceRequests: 0,
   };
 
   for (const user of DEFAULT_USERS) {
@@ -899,6 +922,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         authenticated: true,
         user: toSessionUser(currentUser),
         activeMembershipCount: currentUser.activeMembershipCount ?? 0,
+        feedCuratorCount: currentUser.feedCuratorCount ?? 0,
       });
     }
 
@@ -927,6 +951,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         items: [],
         nextCursor: null,
         activeMembershipCount: state.currentUser.activeMembershipCount ?? 0,
+        feedCuratorCount: state.currentUser.feedCuratorCount ?? 0,
       }, answer.status ?? 200);
     }
 
@@ -1038,6 +1063,49 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         page: requestedPage,
         pageSize: requestedPageSize,
       });
+    }
+
+    if (pathname === '/api/v1/curators/me/audience' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      state.curatorAudienceRequests += 1;
+      if (!state.curatorProfile) {
+        return json(route, { errorCode: 'curator_profile_not_found', message: 'No curator profile exists for this user.' }, 404);
+      }
+      if (state.curatorAudienceStatus !== 200) {
+        return json(route, { message: 'Audience is unavailable.' }, state.curatorAudienceStatus);
+      }
+      return json(route, state.curatorAudience);
+    }
+
+    const curatorFollowMatch = pathname.match(/^\/api\/v1\/curators\/([^/]+)\/follow$/);
+    if (curatorFollowMatch && ['GET', 'PUT', 'DELETE'].includes(method)) {
+      const curatorProfileId = decodeURIComponent(curatorFollowMatch[1]);
+      state.curatorFollowRequests.push({ method, curatorProfileId });
+      if (!state.currentUser) {
+        return json(route, {
+          errorCode: 'curator_invalid_user_session',
+          message: 'The authenticated Cassette user could not be resolved.',
+        }, 401);
+      }
+      const failuresKey = method === 'GET' ? 'curatorFollowReadFailuresRemaining' : 'curatorFollowWriteFailuresRemaining';
+      if (state[failuresKey] > 0) {
+        state[failuresKey] -= 1;
+        return json(route, { message: 'Follow is temporarily unavailable.' }, 503);
+      }
+      // Like Bridge: a membership with access implies inclusion; only the explicit row changes here.
+      const membership = state.membershipStatus?.curatorProfileId === curatorProfileId
+        ? state.membershipStatus.membership
+        : null;
+      const hasActiveMembership = Boolean(membership && ['active', 'trialing', 'past_due'].includes(membership.status));
+      const wasSource = hasActiveMembership || state.curatorFollows.has(curatorProfileId);
+      if (method === 'PUT') state.curatorFollows.add(curatorProfileId);
+      if (method === 'DELETE') state.curatorFollows.delete(curatorProfileId);
+      const hasExplicitFollow = state.curatorFollows.has(curatorProfileId);
+      const isFollowing = hasActiveMembership || hasExplicitFollow;
+      if (isFollowing !== wasSource) {
+        state.currentUser.feedCuratorCount = Math.max(0, (state.currentUser.feedCuratorCount ?? 0) + (isFollowing ? 1 : -1));
+      }
+      return json(route, { isFollowing, hasExplicitFollow, hasActiveMembership });
     }
 
     if (pathname === '/api/v1/curators/me/member-stats' && method === 'GET') {

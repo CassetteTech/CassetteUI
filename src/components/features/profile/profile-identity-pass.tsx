@@ -7,9 +7,9 @@ import { useRef } from 'react';
 import { ConnectedServices } from '@/components/features/profile/profile-header';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
 import { WalletPass } from '@/components/features/curator/wallet-pass';
+import { CuratorFollowAction } from '@/components/features/curator/curator-follow-action';
 import { useSharedPosition } from '@/hooks/use-shared-position';
 import type { UserBio } from '@/types';
-import { cn } from '@/lib/utils';
 
 /** Bio, connected services, and links: everything about the person except the name.
     Each row decides its own presence, so a profile with none of them prints nothing. */
@@ -23,7 +23,8 @@ export function ProfileSummary({ user }: { user: UserBio }) {
   );
 }
 
-/** A profile with no membership still gets one pass in the rail, on muted paper. */
+/** A profile with no membership still gets one pass in the rail, on muted paper, with Follow
+    for a curator that sells nothing. */
 export function ProfileIdentityPass({ user, className }: { user: UserBio; className?: string }) {
   const likes = Number(user.totalLikesReceived ?? 0);
   // The membership pass key: this pass holds the same rail spot, so it slides (and turns
@@ -34,7 +35,7 @@ export function ProfileIdentityPass({ user, className }: { user: UserBio; classN
     <WalletPass
       ref={passRef}
       data-testid="profile-identity-pass"
-      className={cn('pb-4', className)}
+      className={className}
       product="Profile"
       tier={likes > 0 ? `${likes.toLocaleString()} ${likes === 1 ? 'like' : 'likes'}` : ''}
       holderName={user.displayName || user.username}
@@ -42,6 +43,9 @@ export function ProfileIdentityPass({ user, className }: { user: UserBio; classN
       avatarUrl={user.avatarUrl}
       active={false}
       summary={<ProfileSummary user={user} />}
-    />
+    >
+      {/* The children slot keeps the pass's bottom padding when Follow renders nothing. */}
+      <CuratorFollowAction className="mt-4" />
+    </WalletPass>
   );
 }

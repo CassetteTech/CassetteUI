@@ -64,6 +64,8 @@
     "src/stores/auth-store.ts",
     "src/stores/__tests__/auth-store.test.ts",
     "src/services/__tests__/auth-sign-in-session.test.ts",
+    "src/services/profile.ts",
+    "src/services/__tests__/curator-feed.test.ts",
     "src/services/curator-pro.ts",
     "src/services/__tests__/curator-pro.test.ts",
     "src/services/paid-promotion-subject-contract.ts",
@@ -84,6 +86,8 @@
     "src/lib/server/__tests__/fetch-post.test.ts",
     "src/lib/server/proxy-fetch.ts",
     "src/lib/server/__tests__/proxy-fetch.test.ts",
+    "src/lib/server/__tests__/curator-follow-route.test.ts",
+    "src/lib/server/__tests__/api-proxy-route.test.ts",
     "src/lib/observability/**/*.ts"
   ],
   "exclude": ["node_modules"]

@@ -23,11 +23,16 @@ const stubFetch: typeof fetch = async (input) => {
 globalThis.fetch = stubFetch;
 
 /** The envelope Bridge returns for a signed-in web session; an undefined count is left out of the JSON. */
-const signedIn = (userId: string, activeMembershipCount: number | undefined) => ({
+const signedIn = (
+  userId: string,
+  activeMembershipCount: number | undefined,
+  feedCuratorCount: number | undefined,
+) => ({
   success: true,
   authenticated: true,
   user: { userId, username: userId, displayName: userId, isOnboarded: true },
   activeMembershipCount,
+  feedCuratorCount,
 });
 
 const credentials = { email: 'mia@cassette.test', password: 'a long password' };
@@ -50,52 +55,65 @@ beforeEach(() => {
 });
 
 for (const entry of entries) {
-  void test(`a ${entry.name} applies the returned user and count in one update, without a session read`, async () => {
-    answer = (path) => (path === entry.path ? { status: 200, body: signedIn('user-mia', 3) } : NOT_FOUND);
-    const counts: Array<number | null> = [];
+  void test(`a ${entry.name} applies the returned user and both counts in one update, without a session read`, async () => {
+    answer = (path) => (path === entry.path ? { status: 200, body: signedIn('user-mia', 3, 5) } : NOT_FOUND);
+    const counts: Array<[number | null, number | null]> = [];
     const unsubscribe = useAuthStore.subscribe((state) => {
-      if (state.user?.id === 'user-mia') counts.push(state.activeMembershipCount);
+      if (state.user?.id === 'user-mia') counts.push([state.activeMembershipCount, state.feedCuratorCount]);
     });
 
     await entry.start();
     unsubscribe();
 
-    assert.deepEqual(counts, [3]);
+    assert.deepEqual(counts, [[3, 5]]);
     const state = useAuthStore.getState();
     assert.equal(state.sessionError, false);
     assert.notEqual(state.sessionCheckedAt, null);
     assert.equal(sessionReads(), 0);
   });
 
-  void test(`a ${entry.name} without a valid count is a session error, never zero memberships`, async () => {
-    for (const count of [undefined, -1]) {
+  void test(`a ${entry.name} without valid counts is a session error, never zero sources`, async () => {
+    const invalid: Array<[number | undefined, number | undefined]> = [[undefined, 2], [-1, 2], [1, undefined], [1, 0.5]];
+    for (const [paid, sources] of invalid) {
       useAuthStore.getState().signOut();
-      answer = (path) => (path === entry.path ? { status: 200, body: signedIn('user-mia', count) } : NOT_FOUND);
+      answer = (path) => (path === entry.path ? { status: 200, body: signedIn('user-mia', paid, sources) } : NOT_FOUND);
 
       await entry.start();
 
       const state = useAuthStore.getState();
-      assert.equal(state.user?.id, 'user-mia', `count ${count}`);
+      assert.equal(state.user?.id, 'user-mia', `counts ${paid}, ${sources}`);
       assert.equal(state.isAuthenticated, true);
       assert.equal(state.sessionError, true);
       assert.equal(state.activeMembershipCount, null);
+      assert.equal(state.feedCuratorCount, null);
     }
     assert.equal(sessionReads(), 0);
   });
 
+  void test(`a ${entry.name} keeps counts that disagree while a source changes`, async () => {
+    answer = (path) => (path === entry.path ? { status: 200, body: signedIn('user-mia', 1, 0) } : NOT_FOUND);
+
+    await entry.start();
+
+    const state = useAuthStore.getState();
+    assert.equal(state.sessionError, false);
+    assert.equal(state.activeMembershipCount, 1);
+    assert.equal(state.feedCuratorCount, 0);
+  });
+
   void test(`a session read that began before a ${entry.name} cannot restore the earlier account`, async () => {
-    answer = (path) => (path === SESSION_PATH ? { status: 200, body: signedIn('user-earlier', 1) } : NOT_FOUND);
+    answer = (path) => (path === SESSION_PATH ? { status: 200, body: signedIn('user-earlier', 1, 2) } : NOT_FOUND);
     await authService.refreshSession();
     assert.equal(useAuthStore.getState().user?.id, 'user-earlier');
 
     let release = () => {};
     const released = new Promise<void>((resolve) => { release = resolve; });
     answer = async (path) => {
-      if (path === entry.path) return { status: 200, body: signedIn('user-mia', 3) };
+      if (path === entry.path) return { status: 200, body: signedIn('user-mia', 3, 4) };
       if (path !== SESSION_PATH) return NOT_FOUND;
       // Bridge answers for the earlier account after the new session began.
       await released;
-      return { status: 200, body: signedIn('user-earlier', 1) };
+      return { status: 200, body: signedIn('user-earlier', 1, 2) };
     };
     const earlierRead = authService.refreshSession();
     await entry.start();
@@ -105,6 +123,26 @@ for (const entry of entries) {
     const state = useAuthStore.getState();
     assert.equal(state.user?.id, 'user-mia');
     assert.equal(state.activeMembershipCount, 3);
+    assert.equal(state.feedCuratorCount, 4);
     assert.equal(state.isRefreshingSession, false);
   });
 }
+
+void test('a session read replaces both counts together, and a malformed source count keeps the earlier answer as an error', async () => {
+  answer = (path) => (path === SESSION_PATH ? { status: 200, body: signedIn('user-mia', 0, 2) } : NOT_FOUND);
+  assert.equal((await authService.refreshSession()).kind, 'authenticated');
+  let state = useAuthStore.getState();
+  assert.deepEqual([state.activeMembershipCount, state.feedCuratorCount, state.sessionError], [0, 2, false]);
+
+  answer = (path) => (path === SESSION_PATH ? { status: 200, body: signedIn('user-mia', 1, 0) } : NOT_FOUND);
+  assert.equal((await authService.refreshSession()).kind, 'authenticated');
+  state = useAuthStore.getState();
+  assert.deepEqual([state.activeMembershipCount, state.feedCuratorCount, state.sessionError], [1, 0, false]);
+
+  answer = (path) => (path === SESSION_PATH ? { status: 200, body: signedIn('user-mia', 1, -1) } : NOT_FOUND);
+  assert.deepEqual(await authService.refreshSession(), { kind: 'error' });
+  state = useAuthStore.getState();
+  assert.equal(state.user?.id, 'user-mia');
+  assert.equal(state.sessionError, true);
+  assert.deepEqual([state.activeMembershipCount, state.feedCuratorCount], [1, 0]);
+});

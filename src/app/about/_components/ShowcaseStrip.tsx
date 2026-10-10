@@ -80,7 +80,7 @@ export function ShowcaseStrip() {
           </p>
           <span className="inline-flex items-center gap-2 border-2 border-foreground bg-background px-3 py-1.5">
             <Image
-              src="/images/cassette_logo.png"
+              src="/images/cassette_logo.svg"
               alt=""
               width={16}
               height={16}

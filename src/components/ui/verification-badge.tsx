@@ -92,7 +92,7 @@ export function VerificationBadge({
     [AccountType.CASSETTE_TEAM]: {
       component: (
         <Image
-          src="/images/cassette_logo.png"
+          src="/images/cassette_logo.svg"
           alt="Cassette Team"
           width={width}
           height={height}

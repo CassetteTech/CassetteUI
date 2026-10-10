@@ -120,7 +120,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
         <div className="p-4 flex items-center">
           <Link href="/" className="flex items-center gap-2">
             <Image
-              src="/images/app_logo.png"
+              src="/images/app_logo.svg"
               alt="Cassette"
               width={150}
               height={50}
@@ -323,7 +323,7 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
         <div className="p-4 flex items-center">
           <Link href="/" className="flex items-center gap-2">
             <Image
-              src="/images/app_logo.png"
+              src="/images/app_logo.svg"
               alt="Cassette"
               width={150}
               height={50}

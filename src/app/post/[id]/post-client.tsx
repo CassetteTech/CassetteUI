@@ -1376,7 +1376,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                           <div className="flex flex-col bg-muted/40">
                             <div className="relative">
                               <ArtworkImage
-                                src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
+                                src={imageError || !metadata.artwork ? '/images/cassette_logo.svg' : metadata.artwork}
                                 alt={metadata.title}
                                 width={416}
                                 height={416}
@@ -1555,7 +1555,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
               <div className="flex flex-1 items-center justify-center">
                 <div className="relative rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10">
                   <ArtworkImage
-                    src={imageError || !metadata.artwork ? '/images/cassette_logo.png' : metadata.artwork}
+                    src={imageError || !metadata.artwork ? '/images/cassette_logo.svg' : metadata.artwork}
                     alt={metadata.title}
                     width={340}
                     height={340}

@@ -49,9 +49,12 @@ export const metadata: Metadata = {
   keywords: ["music", "social", "spotify", "apple music", "deezer", "sharing"],
   authors: [{ name: "Cassette Team" }],
   icons: {
-    icon: [{ url: "/images/cassette_logo.png", type: "image/png" }],
+    icon: [
+      { url: "/images/cassette_logo.svg", type: "image/svg+xml" },
+      { url: "/images/cassette_logo.png", type: "image/png", sizes: "512x512" },
+    ],
     shortcut: [{ url: "/images/cassette_logo.png", type: "image/png" }],
-    apple: [{ url: "/images/cassette_logo.png", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],
   },
   openGraph: {
     ...DEFAULT_SOCIAL_PREVIEW,

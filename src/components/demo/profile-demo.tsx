@@ -18,7 +18,7 @@ const dummyUserBio = {
   username: "matt",
   displayName: "Matt Toppi",
   bio: "🎵 Music enthusiast | Playlist curator | Always discovering new sounds",
-  avatarUrl: "/images/cassette_logo.png",
+  avatarUrl: "/images/cassette_logo.svg",
   connectedServices: ["spotify", "apple-music", "deezer"]
 };
 

@@ -43,7 +43,7 @@ export function Footer() {
           <div className="md:col-span-6">
             <Link href="/" className="inline-flex items-center gap-2 -rotate-[1deg]">
               <Image
-                src="/images/cassette_logo.png"
+                src="/images/cassette_logo.svg"
                 alt="Cassette"
                 width={32}
                 height={32}

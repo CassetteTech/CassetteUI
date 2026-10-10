@@ -73,7 +73,7 @@ export const ConversionProgress: React.FC<ConversionProgressProps> = ({
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center">
             <Image
-              src="/images/cassette_logo.png"
+              src="/images/cassette_logo.svg"
               alt="Cassette Logo"
               width={isDesktop ? 48 : 40}
               height={isDesktop ? 48 : 40}

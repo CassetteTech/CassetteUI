@@ -20,7 +20,7 @@ function PageLoader({ message, subtitle, className }: PageLoaderProps) {
       {/* Cassette logo with subtle pulse */}
       <div className="animate-pulse">
         <Image
-          src="/images/cassette_logo.png"
+          src="/images/cassette_logo.svg"
           alt="Cassette"
           width={48}
           height={48}

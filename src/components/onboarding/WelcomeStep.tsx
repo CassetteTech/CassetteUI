@@ -70,7 +70,7 @@ export function WelcomeStep({ onNext, displayName, variant = 'default' }: Welcom
           className="mx-auto"
         >
           <Image
-            src="/images/cassette_logo.png"
+            src="/images/cassette_logo.svg"
             alt="Cassette"
             width={100}
             height={100}

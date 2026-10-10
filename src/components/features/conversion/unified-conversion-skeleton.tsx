@@ -130,7 +130,7 @@ const ConversionOverlay: React.FC<ConversionOverlayProps> = ({
           <CircularProgress percent={progressPercent} />
         ) : (
           <Image
-            src="/images/cassette_logo.png"
+            src="/images/cassette_logo.svg"
             alt="Cassette Logo"
             width={40}
             height={40}
@@ -242,7 +242,7 @@ const CircularProgress: React.FC<{ percent: number }> = ({ percent }) => {
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
         <Image
-          src="/images/cassette_logo.png"
+          src="/images/cassette_logo.svg"
           alt="Cassette Logo"
           width={44}
           height={44}

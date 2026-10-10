@@ -77,7 +77,7 @@ export default function SignInPage() {
             <CardHeader className="text-center">
               <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2 flex items-center justify-center gap-1.5">
                 <Image
-                  src="/images/cassette_logo.png"
+                  src="/images/cassette_logo.svg"
                   alt=""
                   width={14}
                   height={14}

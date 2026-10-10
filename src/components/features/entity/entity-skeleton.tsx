@@ -142,7 +142,7 @@ const ProgressOverlay: React.FC<{
                 className="absolute inset-0 -m-2 rounded-full bg-primary/10 blur-md animate-progress-breath"
               />
               <Image
-                src="/images/cassette_logo.png"
+                src="/images/cassette_logo.svg"
                 alt="Cassette Logo"
                 width={logoSize}
                 height={logoSize}

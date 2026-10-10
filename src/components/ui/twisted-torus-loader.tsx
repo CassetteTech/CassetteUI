@@ -153,7 +153,7 @@ export const TwistedTorusLoader: React.FC<TwistedTorusLoaderProps> = ({
           <div className={styles.loadingSection}>
             <div className={styles.logoContainer}>
               <Image
-                src="/images/cassette_logo.png"
+                src="/images/cassette_logo.svg"
                 alt="Cassette Logo"
                 width={32}
                 height={32}

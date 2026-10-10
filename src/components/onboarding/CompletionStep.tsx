@@ -104,7 +104,7 @@ export function CompletionStep({
               className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center p-4"
             >
               <Image
-                src="/images/cassette_logo.png"
+                src="/images/cassette_logo.svg"
                 alt="Cassette"
                 width={64}
                 height={64}

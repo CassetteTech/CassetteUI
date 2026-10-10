@@ -2,9 +2,9 @@
 
 /** Presentation for a membership plan: the fan-facing preview and the curator earnings receipt. */
 
-import { ReceiptRow } from '@/components/features/curator/studio-shell';
 import { MembershipOffer, type OfferBenefit, type OfferPrice } from '@/components/features/membership/membership-offer';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import type { CuratorPlanEconomics } from '@/services/curator-plans';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 
@@ -18,41 +18,83 @@ export const tornEdge = (side: 'top' | 'bottom') => ({
   backgroundSize: '16px 8px',
 });
 
-/** Curator-side receipt: the fan charge builds down to what the curator keeps.
-    Same paper as the fan receipt in the rail, so the two read as one pair. */
-export function EconomicsBreakdown({
-  economics,
-  currency,
-  interval,
-}: {
-  economics: CuratorPlanEconomics;
-  currency: string;
-  interval: 'month' | 'year';
+/** One receipt line. A row header and one cell per billing interval, so tests
+    and screen readers read a label with its amounts. */
+function ReceiptLine({ label, amounts, emphasized, deduction, rule }: {
+  label: string;
+  amounts: string[];
+  emphasized?: boolean;
+  deduction?: boolean;
+  /** A dashed rule above the line opens a new group. */
+  rule?: boolean;
 }) {
+  return (
+    <tr className={cn(rule && '[&>*]:border-t [&>*]:border-dashed [&>*]:border-border [&>*]:pt-2.5')}>
+      <th scope="row" className={cn('py-1 pr-3 text-left font-normal text-muted-foreground', emphasized && 'font-semibold text-foreground')}>
+        {label}
+      </th>
+      {amounts.map((amount, index) => (
+        <td key={index} className={cn('py-1 pl-3 text-right tabular-nums', emphasized && 'font-semibold', deduction && 'text-muted-foreground')}>
+          {amount}
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+/** Curator-side receipt: the fan charge builds down to what the curator keeps,
+    with a column per billing interval. Same paper as the fan receipt in the
+    rail, so the two read as one pair. */
+export function EconomicsBreakdown({
+  monthly,
+  annual,
+  currency,
+}: {
+  monthly: CuratorPlanEconomics;
+  annual: CuratorPlanEconomics | null;
+  currency: string;
+}) {
+  const terms = annual ? [monthly, annual] : [monthly];
+  const amounts = (pick: (economics: CuratorPlanEconomics) => number, sign = '') =>
+    terms.map((economics) => `${sign}${money(pick(economics), currency)}`);
   return (
     <div className="relative my-2 bg-card px-4 py-4 font-mono text-xs text-card-foreground">
       <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-2 h-2" style={tornEdge('top')} />
-      <h4 className="text-center text-[11px] font-bold uppercase tracking-[0.2em]">Per {interval}</h4>
-      <dl className="mt-3 space-y-1.5 border-t border-dashed border-border pt-3">
-        <ReceiptRow label="Your price" value={money(economics.faceMinor, currency)} />
-        <ReceiptRow label="Fan service fee" value={money(economics.serviceFeeMinor, currency)} deduction />
-        <ReceiptRow
-          label="Fan pays"
-          value={money(economics.fanChargeMinor, currency)}
-          emphasized
-          className="border-t border-dashed border-border pt-2"
-        />
-        <ReceiptRow label="Cassette platform fee" value={`−${money(economics.platformFeeMinor, currency)}`} deduction />
-        <ReceiptRow label="Payout operations fee" value={`−${money(economics.payoutOpsFeeMinor, currency)}`} deduction />
-        <ReceiptRow label="Payment processing" value={`−${money(economics.processingFeeMinor, currency)}`} deduction />
-        {/* Total line: div wrapper kept so tests can find the amount via its row */}
-        <div className="flex items-baseline justify-between gap-4 border-t border-dashed border-border pt-3">
-          <dt className="font-bold">Estimated earnings per member</dt>
-          <dd className="font-teko text-3xl font-bold leading-none tabular-nums">
-            {money(economics.curatorAccrualMinor, currency)}
-          </dd>
-        </div>
-      </dl>
+      {/* Large prices in two columns can outgrow a 320px phone; the table scrolls instead of widening the form.
+          Focusable so keyboard users in every browser can scroll it. */}
+      <section
+        aria-label="Earnings estimate"
+        // A scrollable region must take focus (WCAG 2.1.1); it is the one exception to this rule.
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+        tabIndex={0}
+        className="overflow-x-auto rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+      >
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="text-[11px] uppercase tracking-[0.2em]">
+            <th scope="col" className="pb-2 text-left font-normal"><span className="sr-only">Line</span></th>
+            <th scope="col" className="pb-2 pl-3 text-right font-bold">Month</th>
+            {annual && <th scope="col" className="pb-2 pl-3 text-right font-bold">Year</th>}
+          </tr>
+        </thead>
+        <tbody>
+          <ReceiptLine label="Your price" amounts={amounts((economics) => economics.faceMinor)} rule />
+          <ReceiptLine label="Fan service fee" amounts={amounts((economics) => economics.serviceFeeMinor)} deduction />
+          <ReceiptLine label="Fan pays" amounts={amounts((economics) => economics.fanChargeMinor)} emphasized rule />
+          <ReceiptLine label="Platform fee" amounts={amounts((economics) => economics.platformFeeMinor, '−')} deduction />
+          <ReceiptLine label="Payout fee" amounts={amounts((economics) => economics.payoutOpsFeeMinor, '−')} deduction />
+          <ReceiptLine label="Payment processing" amounts={amounts((economics) => economics.processingFeeMinor, '−')} deduction />
+          <tr className="[&>*]:border-t [&>*]:border-dashed [&>*]:border-border [&>*]:pt-3 [&>*]:align-bottom">
+            <th scope="row" className="pr-3 text-left font-bold">Estimated earnings per member</th>
+            {terms.map((economics, index) => (
+              <td key={index} className="pl-3 text-right font-teko text-2xl font-bold leading-none tabular-nums">
+                {money(economics.curatorAccrualMinor, currency)}
+              </td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+      </section>
       <div aria-hidden className="pointer-events-none absolute inset-x-0 -bottom-2 h-2" style={tornEdge('bottom')} />
     </div>
   );

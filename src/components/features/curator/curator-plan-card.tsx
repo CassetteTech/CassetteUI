@@ -495,7 +495,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
             </div>
             <Button type="button" variant="outline" onClick={() => setExpanded(true)}>Manage plan</Button>
           </div>
-          <dl className="grid gap-3 sm:grid-cols-3">
+          <dl className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
             <StudioStat
               label="Monthly price"
               value={money(activePlan.amountMinor, activePlan.currency)}

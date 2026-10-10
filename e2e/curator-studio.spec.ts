@@ -10,6 +10,7 @@ import type { CuratorEarningsHistoryItem } from '../src/services/curator-earning
 import {
   fixtureActiveMemberPostPlan,
   fixtureCuratorMemberCounts,
+  fixtureCuratorProAvailableStatus,
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
@@ -916,4 +917,91 @@ test('opens Stripe for payout updates after onboarding is complete', async ({ pa
   await page.getByRole('button', { name: 'Update payout details' }).click();
   await expect(page).toHaveURL(PAYOUT_URL);
   expect(state.curatorPayoutOnboardingRequests).toBe(1);
+});
+
+/** Payouts & billing sections from top to bottom; null until all three are laid out, so order is never inferred from a missing box. */
+async function billingOrder(page: Page) {
+  const sections = {
+    setup: page.getByTestId('curator-payout-card'),
+    history: page.locator('#studio-payout-history'),
+    pro: page.getByTestId('curator-pro-card'),
+  };
+  const placed: Array<{ name: string; y: number }> = [];
+  for (const [name, section] of Object.entries(sections)) {
+    const box = await section.boundingBox();
+    if (!box) return null;
+    placed.push({ name, y: box.y });
+  }
+  return placed.sort((a, b) => a.y - b.y).map((entry) => entry.name);
+}
+
+const restrictedPayout = payoutAccount({
+  onboardingStatus: 'restricted',
+  transfersCapabilityStatus: 'restricted',
+  requirementsDue: true,
+});
+const activePayout = payoutAccount({
+  onboardingStatus: 'active',
+  transfersCapabilityStatus: 'active',
+  capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
+});
+
+test('swaps the launch checklist for one banner after the first publish and orders billing by payout state', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [publishedMonthlyPlan],
+    curatorPayoutAccount: restrictedPayout,
+    curatorProStatus: fixtureCuratorProAvailableStatus,
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByText('Payout setup is not complete.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Launch checklist' })).toHaveCount(0);
+  await page.getByRole('button', { name: /^Ready to pay out/ }).click();
+  await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-selected', 'true');
+  await expect.poll(() => billingOrder(page)).toEqual(['setup', 'history', 'pro']);
+
+  state.curatorPayoutAccount = activePayout;
+  await page.reload();
+  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByRole('heading', { name: 'Earned' })).toBeVisible();
+  await expect(page.getByText('Payout setup is not complete.')).toHaveCount(0);
+  await openStudioStep(page, 'studio-billing');
+  await expect(page.getByTestId('curator-payout-card')).toContainText('Ready. Last checked');
+  await expect.poll(() => billingOrder(page)).toEqual(['history', 'setup', 'pro']);
+});
+
+test('keeps the payout return notice when billing reorders as payouts turn active', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPayoutAccount: payoutAccount(),
+    curatorPayoutRefreshAccount: activePayout,
+    curatorProStatus: fixtureCuratorProAvailableStatus,
+  });
+
+  await page.goto(`${STUDIO_PATH}?payout=return`);
+
+  await expect.poll(() => billingOrder(page)).toEqual(['history', 'setup', 'pro']);
+  // A remounted card would restart without the return parameter and drop this notice.
+  await expect(page.getByTestId('curator-payout-notice')).toHaveText('Payout setup is complete.');
+  expect(state.curatorPayoutStatusRequests.filter(Boolean)).toEqual([true]);
+});
+
+test('shows no setup banner while the payout state is unknown', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [publishedMonthlyPlan],
+    curatorPayoutAccount: restrictedPayout,
+  });
+  state.curatorPayoutStatusFailuresRemaining = 10;
+
+  await page.goto(STUDIO_PATH);
+  await expect(page.getByTestId('curator-payout-card').getByRole('alert')).toBeAttached({ timeout: 10_000 });
+  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByRole('heading', { name: 'Earned' })).toBeVisible();
+  await expect(page.getByText('Payout setup is not complete.')).toHaveCount(0);
 });

@@ -51,8 +51,8 @@ const memberWindows = [
 ];
 const memberChartConfig: ChartConfig = { members: { label: 'Active members', color: 'brand' } };
 const allocationStatus = {
-  accrued: 'Accrued',
-  payable: 'Ready for payout',
+  accrued: 'Accruing',
+  payable: 'Ready to pay out',
   blocked: 'On hold',
   transferred: 'Transferred',
   forfeited: 'Not earned',
@@ -160,7 +160,7 @@ function MemberHealth({ stats }: { stats: CuratorMemberStats }) {
 
   return (
     <>
-      <dl className="grid gap-3 sm:max-lg:grid-cols-3 xl:grid-cols-3">
+      <dl className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
         <StudioStat
           label="Active members"
           value={countFormatter.format(stats.activeMembers)}

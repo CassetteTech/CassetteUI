@@ -118,11 +118,9 @@ export function periodSummary(
     if (earned(item)) row.earned += item.amountMinor;
     else if (paidOut(item)) row.paid += item.amountMinor;
   }
-  const allocations = inPeriod.filter(earned);
   return {
     rows,
-    earned: sum(allocations),
-    pending: sum(allocations.filter((item) => item.status !== 'transferred')),
+    earned: sum(inPeriod.filter(earned)),
     paid: sum(inPeriod.filter(paidOut)),
     forfeited: sum(inPeriod.filter((item) => item.kind === 'allocation' && item.status === 'forfeited')),
     complete: items.length >= totalItems || items.some((item) => new Date(item.occurredAtUtc) < start),

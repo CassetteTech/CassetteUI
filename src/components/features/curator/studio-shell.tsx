@@ -36,7 +36,8 @@ export const StudioStepsContext = createContext<{
 
 export type StudioChipTone = 'neutral' | 'positive' | 'warning' | 'danger';
 
-const chipTones = {
+/** Text color per status tone; ledger rows print the status in it without a chip. */
+export const studioToneText = {
   neutral: 'text-muted-foreground',
   positive: 'text-success-text',
   warning: 'text-warning-text',
@@ -53,7 +54,7 @@ export function StudioChip({
     <span
       className={cn(
         'inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium leading-none',
-        chipTones[tone],
+        studioToneText[tone],
         className,
       )}
       {...props}
@@ -65,12 +66,11 @@ export function StudioChip({
   );
 }
 
-/** One studio section: a soft card with a sentence-case label, title, optional
-    status chip, and description. Sections are always expanded; the dashboard
-    decides which view (and therefore which sections) is visible. */
+/** One studio section: a soft card with a title, an optional trailing control,
+    and a description. Sections are always expanded; the dashboard decides which
+    view (and therefore which sections) is visible. */
 export function StudioSection({
   id,
-  eyebrow,
   title,
   headingId,
   description,
@@ -79,7 +79,6 @@ export function StudioSection({
   children,
 }: {
   id: string;
-  eyebrow: ReactNode;
   title: string;
   headingId: string;
   description?: ReactNode;
@@ -98,8 +97,7 @@ export function StudioSection({
     >
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-border/70 px-5 py-4 sm:px-6">
         <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">{eyebrow}</p>
-          <h2 id={headingId} className="mt-0.5 text-lg font-semibold leading-tight tracking-tight">
+          <h2 id={headingId} className="text-lg font-semibold leading-tight tracking-tight">
             {title}
           </h2>
           {description && (

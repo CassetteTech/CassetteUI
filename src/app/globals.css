@@ -15,6 +15,16 @@
   }
 }
 
+@layer components {
+  /* A focused text field darkens its hairline to ink under a faint ink halo.
+     Brand red stays for actions and errors; a red ring on every focused field
+     read as an alarm. In the components layer, so an invalid field's red
+     utilities still win. */
+  .field-focus {
+    @apply focus-visible:border-foreground/60 focus-visible:ring-[3px] focus-visible:ring-foreground/[0.07];
+  }
+}
+
 @layer utilities {
   .line-clamp-3 {
     overflow: hidden;

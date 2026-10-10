@@ -1,26 +1,26 @@
 'use client';
 
-/** The Studio Members tab: member counts and a daily trend for a chosen
-    window, then the paginated money activity behind them. */
+/** The Studio Members tab: the active member count as the hero figure, its
+    daily trend for a chosen window, then the paginated money activity behind
+    it, printed as a statement grouped by month. */
 
 import { useContext, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useReducedMotion } from 'framer-motion';
 import { ZodError } from 'zod';
-import { Banknote, ChevronLeft, ChevronRight, HandCoins } from 'lucide-react';
-import { Area } from '@/components/dither-kit/area';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AreaChart } from '@/components/dither-kit/area-chart';
+import { Area } from '@/components/dither-kit/area';
 import type { ChartConfig } from '@/components/dither-kit/chart-context';
 import { Grid } from '@/components/dither-kit/grid';
 import { Tooltip } from '@/components/dither-kit/tooltip';
 import { XAxis } from '@/components/dither-kit/x-axis';
 import { YAxis } from '@/components/dither-kit/y-axis';
 import {
-  StudioChip,
-  StudioSection,
   StudioStat,
   StudioStepsContext,
+  studioToneText,
   type StudioChipTone,
 } from '@/components/features/curator/studio-shell';
 import { SegmentedControl } from '@/components/interior/segmented-control';
@@ -40,9 +40,9 @@ import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 const pageSize = 10;
 const countFormatter = new Intl.NumberFormat('en-US');
-/** Day precision: the ledger reads as a statement, and times added noise to every row. */
 const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
 const dayFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const formatDay = (date: string) => dayFormatter.format(new Date(`${date}T00:00:00Z`));
 const memberWindows = [
   { value: '7', label: '7 days' },
@@ -75,11 +75,11 @@ const allocationTone = {
   accrued: 'neutral',
   payable: 'positive',
   blocked: 'warning',
-  transferred: 'positive',
+  transferred: 'neutral',
   forfeited: 'neutral',
   reversed: 'danger',
 } satisfies Record<Extract<CuratorEarningsHistoryItem, { kind: 'allocation' }>['status'], StudioChipTone>;
-const transferTone = {
+export const transferTone = {
   created: 'neutral',
   succeeded: 'positive',
   failed: 'danger',
@@ -108,67 +108,84 @@ export function eventTitle(item: CuratorEarningsHistoryItem) {
   return 'New member earning';
 }
 
-export function HistoryItem({ item }: { item: CuratorEarningsHistoryItem }) {
+/** Consecutive items that share a calendar month; the ledger arrives newest first. */
+function byMonth(items: CuratorEarningsHistoryItem[]) {
+  const groups: Array<{ month: string; items: CuratorEarningsHistoryItem[] }> = [];
+  for (const item of items) {
+    const month = monthFormatter.format(new Date(item.occurredAtUtc));
+    const last = groups.at(-1);
+    if (last?.month === month) last.items.push(item);
+    else groups.push({ month, items: [item] });
+  }
+  return groups;
+}
+
+/** One statement line: day, event, then amount over status. */
+function HistoryItem({ item }: { item: CuratorEarningsHistoryItem }) {
   const showPayableAt = item.kind === 'allocation' &&
     item.status !== 'transferred' && item.status !== 'forfeited' && item.status !== 'reversed';
-  const KindIcon = item.kind === 'allocation' ? HandCoins : Banknote;
   const outgoing = item.kind === 'transfer' || item.status === 'forfeited' || item.status === 'reversed';
-  const amount = money(item.amountMinor, item.currency);
   // Structure note: the amount's parent div and grandparent li are how tests
   // associate an amount with its label and status. Keep both wrappers.
   return (
-    <li className={cn(ledgerRow, 'transition-colors hover:bg-muted/40')}>
-      <div className="flex min-w-0 items-start gap-3">
-        <span aria-hidden className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
-          <KindIcon className="size-3.5" />
-        </span>
-        <div className="min-w-0">
-          <p className="truncate font-medium leading-tight">{eventTitle(item)}</p>
-          {showPayableAt && (
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Payout eligibility{' '}
-              <time dateTime={item.payableAtUtc}>{dateFormatter.format(new Date(item.payableAtUtc))}</time>
-            </p>
-          )}
-        </div>
+    <li className="grid grid-cols-[3.25rem_minmax(0,1fr)_auto] items-baseline gap-x-3 py-3">
+      <time dateTime={item.occurredAtUtc} className="font-mono text-xs uppercase tabular-nums text-muted-foreground">
+        {dayFormatter.format(new Date(item.occurredAtUtc))}
+      </time>
+      <div className="min-w-0">
+        <p className="truncate text-sm">{eventTitle(item)}</p>
+        {showPayableAt && (
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Payout eligibility{' '}
+            <time dateTime={item.payableAtUtc}>{dateFormatter.format(new Date(item.payableAtUtc))}</time>
+          </p>
+        )}
       </div>
-      <p className="pl-10 text-xs text-muted-foreground sm:max-lg:pl-0 sm:max-lg:text-sm xl:pl-0 xl:text-sm">
-        <time dateTime={item.occurredAtUtc}>{dateFormatter.format(new Date(item.occurredAtUtc))}</time>
-      </p>
-      <div className="flex items-center gap-3 pl-10 sm:max-lg:flex-col sm:max-lg:items-end sm:max-lg:gap-1.5 sm:max-lg:pl-0 xl:flex-col xl:items-end xl:gap-1.5 xl:pl-0">
-        <p className={cn('font-mono font-semibold tabular-nums', outgoing && 'text-muted-foreground')}>
-          {amount}
+      <div className="text-right">
+        <p className={cn('font-mono text-sm tabular-nums', outgoing && 'text-muted-foreground')}>
+          {money(item.amountMinor, item.currency)}
         </p>
-        <StudioChip tone={statusTone(item)} className="whitespace-nowrap">{statusLabel(item)}</StudioChip>
+        <p className={cn('mt-0.5 text-xs', studioToneText[statusTone(item)])}>{statusLabel(item)}</p>
       </div>
     </li>
   );
 }
 
-/** Three-column ledger row: description, date, amount. It stacks where the
-    Studio panel is narrow: under `sm`, and between `lg` and `xl`, where the
-    sidebar and the pass rail share the width. */
-const ledgerRow = 'grid gap-1 px-4 py-3 sm:max-lg:grid-cols-[minmax(0,1fr)_11rem_8rem] sm:max-lg:items-start sm:max-lg:gap-3 xl:grid-cols-[minmax(0,1fr)_11rem_8rem] xl:items-start xl:gap-3';
+/** The hero figure: today's count, its change over the window, and pending endings. */
+function MemberCount({ stats }: { stats: CuratorMemberStats }) {
+  const change = stats.activeMembers - stats.previousWindow.activeMembers;
+  const since = formatDay(stats.daily[0].date);
+  return (
+    <>
+      <p className="mt-1 font-teko text-5xl font-bold leading-none tabular-nums" data-testid="curator-active-member-count">
+        {countFormatter.format(stats.activeMembers)}
+      </p>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        {change === 0
+          ? `No change since ${since}`
+          : `${change > 0 ? '+' : '−'}${countFormatter.format(Math.abs(change))} since ${since}`}
+      </p>
+      {stats.notRenewingMembers > 0 && (
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {countFormatter.format(stats.notRenewingMembers)}{' '}
+          {stats.notRenewingMembers === 1 ? 'member' : 'members'} will not renew.
+        </p>
+      )}
+    </>
+  );
+}
 
-function MemberHealth({ stats }: { stats: CuratorMemberStats }) {
+/** The window's joins and endings beside the previous window, then the daily trend. */
+function MemberTrend({ stats }: { stats: CuratorMemberStats }) {
   const reduceMotion = useReducedMotion();
   const since = formatDay(stats.daily[0].date);
-  const change = stats.activeMembers - stats.previousWindow.activeMembers;
   const before = (count: number) => `${countFormatter.format(count)} in the ${stats.days} days before`;
   const rows = stats.daily.map((day) => ({ day: formatDay(day.date), members: day.activeMembers }));
   const counts = stats.daily.map((day) => day.activeMembers);
 
   return (
     <>
-      <dl className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-        <StudioStat
-          label="Active members"
-          value={countFormatter.format(stats.activeMembers)}
-          valueTestId="curator-active-member-count"
-          hint={change === 0
-            ? `No change since ${since}`
-            : `${change > 0 ? '+' : '−'}${countFormatter.format(Math.abs(change))} since ${since}`}
-        />
+      <dl className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
         <StudioStat
           label="New members"
           value={countFormatter.format(stats.newMembers)}
@@ -182,13 +199,7 @@ function MemberHealth({ stats }: { stats: CuratorMemberStats }) {
           hint={before(stats.previousWindow.endedMembers)}
         />
       </dl>
-      {stats.notRenewingMembers > 0 && (
-        <p className="mt-3 text-sm">
-          {countFormatter.format(stats.notRenewingMembers)}{' '}
-          {stats.notRenewingMembers === 1 ? 'member' : 'members'} will not renew.
-        </p>
-      )}
-      <figure className="mt-5">
+      <figure className="mt-6">
         <figcaption className="sr-only">
           Active members went from {counts[0]} on {since} to {counts.at(-1)} today, with a low
           of {Math.min(...counts)} and a high of {Math.max(...counts)}.
@@ -199,7 +210,7 @@ function MemberHealth({ stats }: { stats: CuratorMemberStats }) {
           yMax={memberAxisMax(Math.max(...counts))}
           animate={!reduceMotion}
           margins={{ left: 28, bottom: 20, right: 8, top: 8 }}
-          className="h-44 w-full"
+          className="h-56 w-full"
         >
           <Grid />
           {/* Counts are whole members, so fractional ticks stay blank. */}
@@ -209,7 +220,7 @@ function MemberHealth({ stats }: { stats: CuratorMemberStats }) {
           <Tooltip labelKey="day" valueFormatter={(value) => countFormatter.format(value)} />
         </AreaChart>
       </figure>
-      <p className="mt-3 text-xs text-muted-foreground">
+      <p className="mt-4 border-t border-border/70 pt-4 text-xs text-muted-foreground">
         A membership counts as ended on the day its access ends, not the day the fan cancels.
       </p>
     </>
@@ -288,8 +299,9 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
   );
   const showPagination = page > 1 || hasNextPage;
 
+  // Empty states take the chart's height, the same as the Overview's empty chart.
   const noMembers = (title: string, description: string) => (
-    <Empty>
+    <Empty className="mt-6 h-56 py-0">
       <EmptyTitle>{title}</EmptyTitle>
       <EmptyDescription>{description}</EmptyDescription>
       {hasActivePlan && user?.username ? (
@@ -307,71 +319,63 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
       )}
     </Empty>
   );
+  let hero: ReactNode = null;
   let members: ReactNode;
   if (plans.isPending || hasPublished && stats.isPending) {
-    members = <output className="text-sm text-muted-foreground">Loading members…</output>;
+    members = <output className="mt-1.5 block text-sm text-muted-foreground">Loading members…</output>;
   } else if (!plans.data) {
     // Without the plans the published gate is unknown, so say so rather than
     // show a curator with members the unpublished state.
     members = (
-      <RetryAlert error={plans.error} fallback="Member counts are unavailable." onRetry={() => void plans.refetch()} />
+      <RetryAlert className="mt-3" error={plans.error} fallback="Member counts are unavailable." onRetry={() => void plans.refetch()} />
     );
   } else if (!hasPublished) {
     members = noMembers('No members yet', 'Publish a plan, and the fans who join it appear here.');
   } else if (stats.isError || !stats.data) {
     members = (
-      <RetryAlert error={stats.error} fallback="Member counts are unavailable." onRetry={() => void stats.refetch()} />
+      <RetryAlert className="mt-3" error={stats.error} fallback="Member counts are unavailable." onRetry={() => void stats.refetch()} />
     );
   } else if (hasNoMembers(stats.data)) {
     members = noMembers('No active members', `No one joined or left in the last ${stats.data.days * 2} days.`);
   } else {
-    // A window switch keeps the last window on screen, dimmed and busy, until the new one lands.
-    members = (
-      <div
-        aria-busy={stats.isPlaceholderData}
-        className={cn('transition-opacity motion-reduce:transition-none', stats.isPlaceholderData && 'opacity-60')}
-      >
-        <MemberHealth stats={stats.data} />
-      </div>
-    );
+    hero = <MemberCount stats={stats.data} />;
+    members = <MemberTrend stats={stats.data} />;
   }
+  // A window switch keeps the last window on screen, dimmed and busy, until the new one lands.
+  const dimmed = cn('transition-opacity motion-reduce:transition-none', stats.isPlaceholderData && 'opacity-60');
 
   return (
-    <StudioSection
-      id="studio-earnings"
-      eyebrow="Performance"
-      title="Members & earnings"
-      headingId="curator-earnings-title"
-      testId="curator-earnings-card"
-      description="Membership activity and payouts."
-    >
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-baseline gap-2">
-          <h3 className="text-sm font-semibold">Members</h3>
-          {stats.isPlaceholderData && (
-            <output className="text-xs text-muted-foreground">Loading {days} days…</output>
+    // Both panels share the view's anchor, so step links land on the hero and tests read one card.
+    <div id="studio-earnings" data-testid="curator-earnings-card" tabIndex={-1} className="scroll-mt-24 space-y-6 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+      <section aria-labelledby="curator-earnings-title" aria-busy={stats.isPlaceholderData} className="card-quiet px-5 py-5 sm:px-6">
+        {/* The Overview's hero shape: label and figure on the left, the window control on the right. */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 id="curator-earnings-title" className="text-xs text-muted-foreground">Active members</h2>
+            {hero && <div className={dimmed}>{hero}</div>}
+          </div>
+          {hasPublished && (
+            <div className="flex items-center gap-3">
+              {stats.isPlaceholderData && (
+                <output className="text-xs text-muted-foreground">Loading {days} days…</output>
+              )}
+              <SegmentedControl label="Member window" options={memberWindows} value={days} onValueChange={setDays} />
+            </div>
           )}
         </div>
-        {hasPublished && (
-          <SegmentedControl label="Member window" options={memberWindows} value={days} onValueChange={setDays} />
-        )}
-      </div>
-      {members}
+        <div className={dimmed}>{members}</div>
+      </section>
 
-      <section className="card-ink mt-7 overflow-hidden" aria-labelledby="curator-earnings-history-title">
-        <div className="border-b border-border/70 px-4 py-3">
-          <h3 id="curator-earnings-history-title" className="text-sm font-semibold">
-            Recent activity
-          </h3>
-        </div>
+      <section aria-labelledby="curator-earnings-history-title" className="card-quiet px-5 py-5 sm:px-6">
+        <h2 id="curator-earnings-history-title" className="text-sm font-semibold">Activity</h2>
         {query.isPending ? (
-          <output className="block px-4 py-3 text-sm text-muted-foreground">Loading activity…</output>
+          <output className="mt-3 block text-sm text-muted-foreground">Loading activity…</output>
         ) : query.isError || !earnings ? (
           <RetryAlert
             error={query.error}
             fallback="Membership earnings are unavailable."
             onRetry={() => void query.refetch()}
-            className="px-4 py-3"
+            className="mt-3"
           >
             {page > 1 && (
               <Button type="button" variant="outline" onClick={() => setPage((current) => current - 1)}>
@@ -380,45 +384,48 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
             )}
           </RetryAlert>
         ) : earnings.items.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-muted-foreground">
+          <p className="mt-3 text-sm text-muted-foreground">
             No membership earnings yet. Earnings appear here as fans join your plan.
           </p>
         ) : (
-          <>
-            <div aria-hidden className={cn(ledgerRow, 'hidden text-xs font-medium text-muted-foreground sm:max-lg:grid xl:grid')}>
-              <span>Description</span>
-              <span>Date</span>
-              <span className="text-right">Amount</span>
-            </div>
-            <ul className="divide-y divide-border/70 border-t border-border/70" data-testid="curator-earnings-history">
-              {earnings.items.map((item, index) => (
-                <HistoryItem
-                  key={`${item.kind}-${item.occurredAtUtc}-${index}`}
-                  item={item}
-                />
-              ))}
-            </ul>
-          </>
+          // A statement: each month opens with a dashed rule, the receipt's device.
+          <div className="mt-4 space-y-5" data-testid="curator-earnings-history">
+            {byMonth(earnings.items).map((group) => (
+              <section key={group.month} aria-label={group.month}>
+                <h3 className="flex items-center gap-3 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  {group.month}
+                  <span aria-hidden className="flex-1 border-t border-dashed border-border" />
+                </h3>
+                <ul className="divide-y divide-border/60">
+                  {group.items.map((item, index) => (
+                    <HistoryItem key={`${item.kind}-${item.occurredAtUtc}-${index}`} item={item} />
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
         )}
         {earnings && showPagination && (
-          <nav className="flex items-center justify-between gap-3 border-t border-border/70 px-2 py-1.5" aria-label="Earnings history pages">
+          <nav className="mt-3 flex items-center justify-between gap-3 border-t border-border/70 pt-3" aria-label="Earnings history pages">
             <Button
               type="button"
               variant="ghost"
               size="sm"
+              className="-ml-3"
               disabled={page <= 1 || query.isFetching}
               onClick={() => setPage((current) => Math.max(1, current - 1))}
             >
               <ChevronLeft className="size-4" />
               Previous
             </Button>
-            <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
+            <span className="font-mono text-xs tabular-nums text-muted-foreground" aria-live="polite">
               Page {earnings.page} of {totalPages}
             </span>
             <Button
               type="button"
               variant="ghost"
               size="sm"
+              className="-mr-3"
               disabled={!hasNextPage || query.isFetching}
               onClick={() => setPage((current) => current + 1)}
             >
@@ -428,6 +435,6 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
           </nav>
         )}
       </section>
-    </StudioSection>
+    </div>
   );
 }

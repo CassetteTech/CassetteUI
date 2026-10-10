@@ -1,13 +1,12 @@
 'use client';
 
-/** Balance tiles, payouts by month, and the transfer list from the curator's
+/** Balance figures, payouts by month, and the transfer list from the curator's
     earnings ledger. Sits beside the payout account card; only shows once
-    payout setup started. List layout after opensourceui.in's
-    recent-transactions-table (MIT), on the theme tokens. */
+    payout setup started. */
 
 import { useContext } from 'react';
-import { transferStatus } from '@/components/features/curator/curator-earnings-card';
-import { StudioChip, StudioSection, StudioStat, StudioStepsContext, type StudioChipTone } from '@/components/features/curator/studio-shell';
+import { eventTitle, transferStatus, transferTone } from '@/components/features/curator/curator-earnings-card';
+import { StudioSection, StudioStat, StudioStepsContext, studioToneText } from '@/components/features/curator/studio-shell';
 import { useCuratorLedger } from '@/components/features/curator/use-curator-ledger';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
@@ -23,13 +22,6 @@ const money = (amountMinor: number, currency: string) =>
   formatPaidPromotionMinorAmount(amountMinor, currency, 'en-US');
 
 type Transfer = Extract<CuratorEarningsHistoryItem, { kind: 'transfer' }>;
-
-const transferTone = {
-  created: 'neutral',
-  succeeded: 'positive',
-  failed: 'danger',
-  reversed: 'warning',
-} satisfies Record<Transfer['status'], StudioChipTone>;
 
 const chartMonths = 6;
 
@@ -61,7 +53,6 @@ export function CuratorPayoutHistory({ enabled }: { enabled: boolean }) {
   return (
     <StudioSection
       id="studio-payout-history"
-      eyebrow="Get paid"
       title="Payout history"
       headingId="curator-payout-history-title"
     >
@@ -98,9 +89,9 @@ export function CuratorPayoutHistory({ enabled }: { enabled: boolean }) {
             <StudioStat label="Paid out" value={money(balances.paidOut, balances.currency)} />
           </dl>
 
-          {/* Transfer list in the transactions-table shape: description, date, signed amount. */}
-          <section aria-labelledby="curator-payouts-list-title" className="card-ink mt-6 overflow-hidden">
-            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/70 px-4 py-3">
+          {/* The transfer list sits on the panel itself: a rule, not a second box. */}
+          <section aria-labelledby="curator-payouts-list-title" className="mt-6 border-t border-border/70 pt-5">
+            <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h3 id="curator-payouts-list-title" className="text-sm font-semibold">Payouts</h3>
                 {transfers.length > 0 && (
@@ -125,48 +116,30 @@ export function CuratorPayoutHistory({ enabled }: { enabled: boolean }) {
               )}
             </div>
             {transfers.length === 0 ? (
-              <Empty className="m-3 border-none">
+              <Empty className="mt-4 border-none py-8">
                 <EmptyTitle>No payouts yet</EmptyTitle>
                 <EmptyDescription>Cleared earnings go out on your payout schedule.</EmptyDescription>
               </Empty>
             ) : (
-              <table className="w-full border-collapse text-left text-sm">
-                <thead>
-                  <tr className="text-xs text-muted-foreground">
-                    <th scope="col" className="px-4 py-2.5 font-medium">Description</th>
-                    <th scope="col" className="px-3 py-2.5 font-medium">Date</th>
-                    <th scope="col" className="px-4 py-2.5 text-right font-medium">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transfers.map((item, index) => (
-                    <tr key={`${item.occurredAtUtc}-${index}`} className="border-t border-border/70 transition-colors hover:bg-muted/40">
-                      <td className="px-4 py-3">
-                        <span className="flex flex-wrap items-center gap-2 font-medium">
-                          Payout
-                          <StudioChip tone={transferTone[item.status]}>{transferStatus[item.status]}</StudioChip>
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-muted-foreground">
-                        <time dateTime={item.occurredAtUtc} className="font-mono text-xs tabular-nums sm:text-sm">
-                          {dateFormatter.format(new Date(item.occurredAtUtc))}
-                        </time>
-                      </td>
-                      <td
-                        className={cn(
-                          'px-4 py-3 text-right font-mono font-semibold tabular-nums',
-                          item.status === 'succeeded' ? 'text-success-text' : item.status === 'created' ? 'text-foreground' : 'text-muted-foreground',
-                        )}
-                      >
-                        {item.status === 'succeeded' ? '+' : ''}{money(item.amountMinor, item.currency)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <ul className="mt-3 divide-y divide-border/60">
+                {transfers.map((item, index) => (
+                  <li key={`${item.occurredAtUtc}-${index}`} className="flex items-baseline justify-between gap-4 py-3">
+                    <div className="min-w-0">
+                      <p className="text-sm">{eventTitle(item)}</p>
+                      <time dateTime={item.occurredAtUtc} className="mt-0.5 block font-mono text-xs tabular-nums text-muted-foreground">
+                        {dateFormatter.format(new Date(item.occurredAtUtc))}
+                      </time>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono text-sm tabular-nums">{money(item.amountMinor, item.currency)}</p>
+                      <p className={cn('mt-0.5 text-xs', studioToneText[transferTone[item.status]])}>{transferStatus[item.status]}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
             {query.hasNextPage && (
-              <div className="border-t border-border/70 px-4 py-2.5">
+              <div className="border-t border-border/70 pt-2.5">
                 <Button
                   type="button"
                   variant="ghost"

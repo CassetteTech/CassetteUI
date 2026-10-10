@@ -20,7 +20,7 @@ import { AlertCircle, ArrowUpRight, LogOut } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ThemeSwitcher } from '@/components/layout/theme-switcher';
+import { ThemeSegmentedControl } from '@/components/layout/theme-switcher';
 import { SidebarAccountRow, SidebarAccountRowSkeleton } from '@/components/layout/sidebar-account-row';
 import { usePathname } from 'next/navigation';
 import { KOFI_SUPPORT_URL } from '@/lib/ko-fi';
@@ -117,8 +117,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
   return (
     <Sidebar collapsible="none" className={`h-screen border-r border-sidebar-border/50 ${className}`}>
       <SidebarHeader>
-        {/* Cassette Logo and Theme Switcher */}
-        <div className="p-4 flex items-center justify-between">
+        <div className="p-4 flex items-center">
           <Link href="/" className="flex items-center gap-2">
             <Image
               src="/images/app_logo.png"
@@ -128,7 +127,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
               className="h-10 w-auto"
             />
           </Link>
-          <ThemeSwitcher />
         </div>
       </SidebarHeader>
       
@@ -260,6 +258,8 @@ export function AppSidebar({ className }: AppSidebarProps) {
             <span>Sign Out</span>
           </Button>
         )}
+
+        <ThemeSegmentedControl />
       </SidebarFooter>
     </Sidebar>
   );
@@ -320,7 +320,7 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
   return (
     <Sidebar collapsible="icon" className={className}>
       <SidebarHeader>
-        <div className="p-4 flex items-center justify-between">
+        <div className="p-4 flex items-center">
           <Link href="/" className="flex items-center gap-2">
             <Image
               src="/images/app_logo.png"
@@ -330,7 +330,6 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
               className="h-10 w-auto"
             />
           </Link>
-          <ThemeSwitcher />
         </div>
       </SidebarHeader>
 
@@ -403,6 +402,8 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
           <AlertCircle className="mr-2 h-4 w-4" />
           <span>Report a Problem</span>
         </Button>
+
+        <ThemeSegmentedControl />
       </SidebarFooter>
     </Sidebar>
   );

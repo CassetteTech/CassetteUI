@@ -14,6 +14,20 @@ test.describe('profile rail', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
   });
 
+  test('keeps the theme choice in the sidebar footer, not the header', async ({ page }) => {
+    await mockCassetteApp(page, { currentUser: fixtureUsers.viewer, curatorPage: fixtureCuratorPage });
+
+    await page.goto(`/profile/${fixtureUsers.playlistCurator.username}`);
+
+    const sidebar = page.locator('[data-slot="sidebar"]');
+    await expect(sidebar.getByRole('button', { name: 'Toggle theme' })).toHaveCount(0);
+    const theme = sidebar.locator('[data-slot="sidebar-footer"]').getByRole('radiogroup', { name: 'Theme' });
+    const dark = theme.getByRole('radio', { name: 'Dark' });
+    await dark.click();
+    await expect(dark).toBeChecked();
+    await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+  });
+
   test('keeps the signed-in user in the sidebar and puts the curator in the membership pass', async ({ page }) => {
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.viewer,

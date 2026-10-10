@@ -184,6 +184,7 @@ type MockState = {
   curatorPayoutOnboardingRequests: number;
   curatorPayoutOnboardingFailuresRemaining: number;
   curatorPayoutStatusFailuresRemaining: number;
+  curatorProfileReadFailuresRemaining: number;
   curatorPayoutOnboardingUrl: string;
   curatorPlans: CuratorPlan[];
   curatorPlanCreateRequests: CuratorPlanRequest[];
@@ -284,13 +285,6 @@ const membershipCheckoutRequestSchema = z.object({
 
 const membershipPortalRequestSchema = z.object({
   membershipSubscriptionId: z.string(),
-}).strict();
-
-const curatorProfileRequestSchema = z.object({
-  headline: z.string().max(2000).nullable(),
-  about: z.string().max(2000).nullable(),
-  declaredGenres: z.array(z.string().max(2000)).max(20),
-  declaredPlatforms: z.array(z.string().max(2000)).max(20),
 }).strict();
 
 const internalCuratorSuspendRequestSchema = z.object({
@@ -515,6 +509,21 @@ const ensureUser = (state: MockState, user: FixtureUser) => {
   return cloned;
 };
 
+/** Bridge creates an empty active curator profile when a curator first saves a plan draft or starts payout setup. */
+const ensureCuratorProfile = (state: MockState) => {
+  state.curatorProfile ??= {
+    id: 'cpr_FixtureStudioProfile01',
+    status: 'active',
+    headline: null,
+    about: null,
+    declaredGenres: [],
+    declaredPlatforms: [],
+    suspensionReason: null,
+    createdAtUtc: FIXTURE_TIMESTAMP,
+    statusChangedAtUtc: FIXTURE_TIMESTAMP,
+  };
+};
+
 const updateUser = (
   state: MockState,
   userId: string,
@@ -631,6 +640,7 @@ const buildState = (options: MockCassetteOptions): MockState => {
     curatorPayoutOnboardingRequests: 0,
     curatorPayoutOnboardingFailuresRemaining: 0,
     curatorPayoutStatusFailuresRemaining: 0,
+    curatorProfileReadFailuresRemaining: 0,
     curatorPayoutOnboardingUrl: options.curatorPayoutOnboardingUrl ??
       'https://connect.stripe.test/payout-onboarding',
     curatorPlans: clone(options.curatorPlans || []),
@@ -963,41 +973,19 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       });
     }
 
-    if (pathname === '/api/v1/curators/me' && (method === 'GET' || method === 'PUT')) {
+    if (pathname === '/api/v1/curators/me' && method === 'GET') {
       getCurrentUserOrThrow(state);
+      if (state.curatorProfileReadFailuresRemaining > 0) {
+        state.curatorProfileReadFailuresRemaining -= 1;
+        return json(route, { message: 'Curator profile is temporarily unavailable.' }, 503);
+      }
       if (!state.curatorProfile) {
         return json(route, {
           errorCode: 'curator_profile_not_found',
           message: 'Curator profile not found.',
         }, 404);
       }
-
-      if (method === 'GET') return json(route, state.curatorProfile);
-
-      const payload = curatorProfileRequestSchema.parse(request.postDataJSON());
-      state.curatorProfile = { ...state.curatorProfile, ...payload };
       return json(route, state.curatorProfile);
-    }
-
-    if (pathname === '/api/v1/curators' && method === 'POST') {
-      getCurrentUserOrThrow(state);
-      if (state.curatorProfile) {
-        return json(route, {
-          errorCode: 'curator_profile_exists',
-          message: 'A curator profile already exists for this user.',
-        }, 409);
-      }
-
-      const payload = curatorProfileRequestSchema.parse(request.postDataJSON());
-      state.curatorProfile = {
-        id: 'cpr_FixtureStudioProfile01',
-        status: 'active',
-        ...payload,
-        suspensionReason: null,
-        createdAtUtc: FIXTURE_TIMESTAMP,
-        statusChangedAtUtc: FIXTURE_TIMESTAMP,
-      };
-      return json(route, state.curatorProfile, 201);
     }
 
     if (pathname === '/api/v1/curators/me/member-post-authoring' && method === 'GET') {
@@ -1082,9 +1070,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
 
     if (pathname === '/api/v1/curators/plans' && method === 'POST') {
       getCurrentUserOrThrow(state);
-      if (!state.curatorProfile) {
-        return json(route, { message: 'Curator profile not found.' }, 404);
-      }
       const payload = curatorPlanRequestSchema.parse(request.postDataJSON());
       if (payload.annualAmountMinor !== null && payload.annualAmountMinor > payload.amountMinor * 12) {
         return json(route, { message: 'Annual price exceeds the plan limit.' }, 400);
@@ -1094,6 +1079,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         return json(route, { message: 'Unknown membership feature.' }, 400);
       }
       state.curatorPlanCreateRequests.push(clone(payload));
+      ensureCuratorProfile(state);
       const plan: CuratorPlan = {
         id: `mpl_FixtureStudioPlan${String(state.curatorPlans.length + 1).padStart(2, '0')}`,
         ...payload,
@@ -1243,19 +1229,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
     if (pathname === '/api/v1/curators/payout-account' && method === 'POST') {
       getCurrentUserOrThrow(state);
       state.curatorPayoutOnboardingRequests += 1;
-      if (!state.curatorProfile) {
-        state.curatorProfile = {
-          id: 'cpr_FixtureStudioProfile01',
-          status: 'active',
-          headline: null,
-          about: null,
-          declaredGenres: [],
-          declaredPlatforms: [],
-          suspensionReason: null,
-          createdAtUtc: FIXTURE_TIMESTAMP,
-          statusChangedAtUtc: FIXTURE_TIMESTAMP,
-        };
-      }
+      ensureCuratorProfile(state);
       if (state.curatorPayoutOnboardingFailuresRemaining > 0) {
         state.curatorPayoutOnboardingFailuresRemaining -= 1;
         return json(route, {

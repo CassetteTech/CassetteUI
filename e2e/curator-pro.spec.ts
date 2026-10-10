@@ -29,7 +29,7 @@ async function returnFromProvider(page: Page, providerUrl: string, returnPath: s
   }));
 }
 
-test('shows default economics without taking away the free profile editor', async ({ page }) => {
+test('shows default economics without taking away the launch checklist', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProStatus: fixtureCuratorProAvailableStatus,
@@ -39,7 +39,7 @@ test('shows default economics without taking away the free profile editor', asyn
 
   // A curator without a profile lands on the overview checklist; billing is one rail click away.
   await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Next: Create your free profile' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Next: Design your membership' })).toBeVisible();
   await openStudioStep(page, 'studio-pro');
   const card = page.getByTestId('curator-pro-card');
   await expect(card).toBeVisible();
@@ -211,7 +211,7 @@ test('ends an unchanged Billing Portal return with neutral copy and a way to che
   await returnFromProvider(page, PORTAL_URL, `${STUDIO_PATH}?pro=portal-return`);
   await openStudioStep(page, 'studio-pro');
   const card = page.getByTestId('curator-pro-card');
-  await expect(card).toContainText('Your memberships, earnings, and free profile are not affected.');
+  await expect(card).toContainText('Your memberships and earnings are not affected.');
   await page.getByTestId('curator-pro-manage').click();
 
   await expect(page.getByTestId('curator-pro-notice')).toHaveText(
@@ -247,8 +247,8 @@ test('shows a Billing Portal cancellation that reaches Bridge after the first st
   await expect(page.getByText(/up to date|unchanged/)).toHaveCount(0);
 });
 
-test('keeps Curator Pro hidden and the free profile usable when Pro status fails', async ({ page }) => {
-  const { state } = await mockCassetteApp(page, {
+test('keeps Curator Pro hidden and the launch checklist usable when Pro status fails', async ({ page }) => {
+  await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProStatusFailures: 10,
   });
@@ -259,10 +259,9 @@ test('keeps Curator Pro hidden and the free profile usable when Pro status fails
   await expect(page.getByTestId('curator-payout-card')).toBeVisible();
   await expect(page.getByTestId('curator-pro-card')).toHaveCount(0);
   await openStudioStep(page, 'studio-overview');
-  await page.getByRole('button', { name: 'Next: Create your free profile' }).first().click();
+  await page.getByRole('button', { name: 'Next: Design your membership' }).click();
 
-  await expect.poll(() => state.curatorProfile?.status).toBe('active');
-  await expect(page.getByRole('button', { name: 'Next: Create your free profile' })).toHaveCount(0);
+  await expect(page.getByTestId('curator-plan-card').getByLabel('Plan name')).toBeFocused();
 });
 
 test('hides Curator Pro everywhere in Studio while it is not available', async ({ page }) => {

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 export type StudioView = 'studio-overview' | 'studio-earnings' | 'studio-billing';
 
 /** Resolves a section anchor (e.g. "#studio-pro") or a view id to the dashboard view that hosts it.
-    The profile step and the membership plan both live on the overview. */
+    The membership plan lives on the overview. */
 export function studioViewOf(sectionId: string): StudioView {
   switch (sectionId) {
     case 'studio-overview':
@@ -28,6 +28,7 @@ export function studioViewOf(sectionId: string): StudioView {
     Every view stays mounted (hidden when inactive) so queries and provider
     return flows keep running regardless of which view is showing. */
 export const StudioStepsContext = createContext<{
+  /** Shows the section's view, scrolls the section into view, and focuses its first field or the section. */
   open: (sectionId: string) => void;
   /** Rail element the plan card portals the membership pass into; one fixed spot across every view. */
   passSlot: HTMLElement | null;
@@ -91,8 +92,9 @@ export function StudioSection({
       id={id}
       data-testid={testId}
       aria-labelledby={headingId}
-      // scroll-mt keeps anchored jumps clear of any sticky chrome above.
-      className="scroll-mt-24 card-quiet"
+      // Focusable so a step link can move focus here; scroll-mt keeps anchored jumps clear of any sticky chrome above.
+      tabIndex={-1}
+      className="scroll-mt-24 card-quiet outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-border/70 px-5 py-4 sm:px-6">
         <div className="min-w-0">
@@ -113,34 +115,48 @@ export function StudioSection({
   );
 }
 
+export type StudioNoticeTone = 'neutral' | 'success' | 'warning';
+
+// Brand red reads as an error, so no tone uses it.
+const noticeTones = {
+  neutral: 'border-border bg-muted/40',
+  success: 'border-success/30 bg-success/10',
+  warning: 'border-warning/30 bg-warning/10',
+} satisfies Record<StudioNoticeTone, string>;
+
 /** Inline confirmation banner; keeps the <output> semantics tests and screen readers rely on.
     The live region stays mounted (visually collapsed while empty) so swapping the text
     content in actually fires the announcement. */
 export function StudioNotice({
   testId,
+  tone = 'neutral',
+  action,
   className,
   children,
 }: {
   testId?: string;
+  tone?: StudioNoticeTone;
+  /** Next-step controls beside the sentence, outside the live region. */
+  action?: ReactNode;
   /** Applied only while the notice has visible content. */
   className?: string;
   children: ReactNode;
 }) {
   const hasContent = children !== null && children !== undefined && children !== false && children !== '';
   return (
-    <output
-      data-testid={testId}
-      aria-live="polite"
+    <div
       className={hasContent
         ? cn(
             // A short rise explains that the banner is new; reduced motion gets the static cue alone.
-            'block rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-280 motion-safe:ease-out',
+            'flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border px-4 py-3 text-sm motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-280 motion-safe:ease-out',
+            noticeTones[tone],
             className,
           )
         : 'sr-only'}
     >
-      {children}
-    </output>
+      <output data-testid={testId} aria-live="polite">{children}</output>
+      {hasContent && action}
+    </div>
   );
 }
 

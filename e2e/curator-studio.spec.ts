@@ -1,4 +1,4 @@
-/** Tests free curator profiles, payout onboarding, plan economics, member counts, and earnings in Studio. */
+/** Tests curator onboarding, payout setup, plan economics, member counts, and earnings in Studio. */
 
 import { expect, type Page, test } from '@playwright/test';
 import type {
@@ -122,7 +122,7 @@ test('redirects anonymous visitors away from the curator studio', async ({ page 
   await expect(page.getByRole('link', { name: 'Curator Studio' })).toHaveCount(0);
 });
 
-test('lets a signed-in user create a free curator profile with one click', async ({ page }) => {
+test('saves a first draft without a profile and advances the launch checklist', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
   });
@@ -132,23 +132,57 @@ test('lets a signed-in user create a free curator profile with one click', async
   await expect(page.getByRole('heading', { level: 1, name: 'Curator Studio' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Curator Studio' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
+  await expect(page.getByText('0 of 3 done', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Next: Create your free profile' }).first().click();
+  // The plan editor is on this view: the step has no forward arrow and focuses the first field.
+  const next = page.getByRole('button', { name: 'Next: Design your membership' });
+  await expect(next.locator('svg')).toHaveCount(0);
+  await next.click();
+  const card = page.getByTestId('curator-plan-card');
+  await expect(card.getByLabel('Plan name')).toBeFocused();
+  await expect(card.getByLabel('Plan name')).toHaveAttribute('placeholder', "Mia's Inner Circle");
 
-  await expect.poll(() => state.curatorProfile).toMatchObject({
-    status: 'active',
-    headline: null,
-    declaredGenres: [],
-    declaredPlatforms: [],
-  });
-  await expect(page.getByRole('button', { name: 'Next: Create your free profile' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Next: Prepare and preview your offer' }).first()).toBeVisible();
+  await card.getByLabel('Plan name').fill('Early Club');
+  await expect(page.getByTestId('curator-plan-preview')).toContainText('Early Club');
+  await card.getByRole('button', { name: 'Save draft' }).click();
+
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft saved. Publishing remains optional.');
+  await expect(card.getByTestId('curator-plan-draft')).toContainText('Early Club');
+  expect(state.curatorProfile?.status).toBe('active');
+  await expect(page.getByText('1 of 3 done', { exact: true })).toBeVisible();
+  // Payout setup is on another view, so this step keeps its forward arrow.
+  await expect(page.getByRole('button', { name: 'Next: Set up payouts' }).locator('svg')).toHaveCount(1);
+  await expect(page.getByTestId('curator-plan-preview')).toContainText('Early Club');
 
   await page.reload();
   await openStudioStep(page, 'studio-overview');
-  await expect(page.getByRole('button', { name: 'Next: Create your free profile' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Next: Set up payouts' })).toBeVisible();
   // No plan was published, so member counts were never requested.
   expect(state.curatorMemberStatsRequests).toEqual([]);
+});
+
+test('says so when the profile read after a first draft fails, and recovers on retry', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const card = page.getByTestId('curator-plan-card');
+  await card.getByLabel('Plan name').fill('Early Club');
+  // The draft saves, then every profile read (the card's own and the page's retries) fails.
+  state.curatorProfileReadFailuresRemaining = 10;
+  await card.getByRole('button', { name: 'Save draft' }).click();
+
+  await expect(page.getByText('Could not load your curator profile.')).toBeVisible({ timeout: 15_000 });
+  expect(state.curatorPlanCreateRequests).toHaveLength(1);
+
+  state.curatorProfileReadFailuresRemaining = 0;
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(card.getByTestId('curator-plan-draft')).toContainText('Early Club');
+  await expect(page.getByText('Could not load your curator profile.')).toHaveCount(0);
+  // Retrying reads the profile again; it never saves the draft a second time.
+  expect(state.curatorPlanCreateRequests).toHaveLength(1);
 });
 
 test('hands a user with no payout account to secure onboarding', async ({ page }) => {
@@ -161,14 +195,14 @@ test('hands a user with no payout account to secure onboarding', async ({ page }
 
   const card = page.getByTestId('curator-payout-card');
   await expect(card).toContainText('Not started');
-  await expect(page.getByRole('button', { name: 'Next: Create your free profile' }).first()).toBeEnabled();
+  // The handoff says what Stripe asks for and why.
+  await expect(card).toContainText('Social Security number because Cassette sends you a 1099 tax form');
+  await expect(page.getByRole('button', { name: 'Next: Design your membership' })).toBeEnabled();
 
   state.curatorPayoutOnboardingFailuresRemaining = 1;
   await openStudioStep(page, 'studio-payouts');
   await page.getByTestId('curator-payout-onboarding').click();
   await expect(card.getByRole('alert')).toBeVisible();
-  // Onboarding auto-created the free profile, so the checklist moves past that step.
-  await expect(page.getByRole('button', { name: 'Next: Create your free profile' })).toHaveCount(0);
 
   await openStudioStep(page, 'studio-payouts');
   await page.getByTestId('curator-payout-onboarding').click();
@@ -193,6 +227,9 @@ test('refreshes capability truth after hosted onboarding returns', async ({ page
 
   await expect(page.getByTestId('curator-payout-notice')).toHaveText('Payout setup is complete.');
   await expect(page.getByTestId('curator-payout-card')).toContainText('Ready');
+  // Without a draft, the next step is designing one.
+  await expect(page.getByTestId('curator-payout-card').getByRole('button', { name: 'Design your membership' }))
+    .toBeVisible();
   await expect(page).not.toHaveURL(/payout=/);
   // Exactly one provider-refresh read; ordinary reads by other cards are incidental.
   expect(state.curatorPayoutStatusRequests.filter(Boolean)).toEqual([true]);
@@ -218,23 +255,22 @@ test('keeps the launch checklist on payout setup until Stripe verifies the accou
   await expect(payoutCard.getByText('Setup started').locator('..')).toContainText('Done');
   await expect(payoutCard.getByText('Publish and receive payouts').locator('..')).toContainText('Needs your information');
   await openStudioStep(page, 'studio-overview');
-  await expect(page.getByRole('button', { name: 'Next: Complete payout setup' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Next: Set up payouts' })).toBeVisible();
 });
 
-test('lets a curator preview an offer before a profile exists and creates the profile inline', async ({ page }) => {
-  const { state } = await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+test('opens the plan editor from the Members view before a profile exists', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member });
 
   await page.goto(STUDIO_PATH);
-  await openStudioStep(page, 'studio-plan');
+  await openStudioStep(page, 'studio-earnings');
+  await page.getByRole('button', { name: 'Design your membership', exact: true }).click();
 
+  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-selected', 'true');
   const card = page.getByTestId('curator-plan-card');
+  await expect(card.getByLabel('Plan name')).toBeFocused();
   await card.getByLabel('Plan name').fill('Early Club');
-  await expect(page.getByTestId('curator-plan-preview')).toContainText('Early Club');
   await expect(page.getByTestId('curator-plan-preview')).toContainText('$5.50/month');
-  await card.getByRole('link', { name: 'Create your free profile' }).click();
-  await expect.poll(() => state.curatorProfile?.status).toBe('active');
-  await expect(card.getByRole('link', { name: 'Create your free profile' })).toHaveCount(0);
-  await expect(page.getByTestId('curator-plan-preview')).toContainText('Early Club');
+  await expect(page.getByText(/free profile/i)).toHaveCount(0);
 });
 
 test('mints a new hosted link when the provider refresh URL returns', async ({ page }) => {
@@ -256,7 +292,7 @@ test('mints a new hosted link when the provider refresh URL returns', async ({ p
   expect(state.curatorPayoutOnboardingRequests).toBe(1);
 });
 
-test('keeps the free profile usable through restricted and failed payout status', async ({ page }) => {
+test('keeps plan drafts usable through restricted and failed payout status', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorPayoutAccount: payoutAccount({
@@ -279,9 +315,13 @@ test('keeps the free profile usable through restricted and failed payout status'
   await expect(card.getByRole('alert')).toBeVisible({ timeout: 10_000 });
 
   await openStudioStep(page, 'studio-overview');
-  await page.getByRole('button', { name: 'Next: Create your free profile' }).first().click();
+  await page.getByRole('button', { name: 'Next: Design your membership' }).click();
+  const plan = page.getByTestId('curator-plan-card');
+  await plan.getByLabel('Plan name').fill('Steady Club');
+  await plan.getByRole('button', { name: 'Save draft' }).click();
 
-  await expect.poll(() => state.curatorProfile?.status).toBe('active');
+  await expect(plan.getByTestId('curator-plan-draft')).toContainText('Steady Club');
+  expect(state.curatorProfile?.status).toBe('active');
 });
 
 test('creates a free draft with policy economics before payouts', async ({ page }) => {
@@ -460,6 +500,12 @@ test('publishes without Curator Pro after payout onboarding completes and archiv
   await publish.click();
   await expect(card.getByTestId('curator-plan-active')).toContainText('$7.58 (frozen)');
   expect(state.curatorPlanPublishRequests).toEqual(['mpl_FixtureStudioPlan01']);
+  // The first publish confirms the plan is live with the page fans join from.
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText("You're live. Fans can join from your public page.");
+  await expect(card.getByRole('link', { name: /\/profile\/miagroove$/ })).toHaveAttribute('href', '/profile/miagroove');
+  await expect(card.getByRole('button', { name: 'Copy page link' })).toBeVisible();
+  // The dashboard replaces the checklist above the card, so focus returns to the card.
+  await expect(card).toBeFocused();
 
   await card.getByRole('button', { name: 'Archive plan' }).click();
   const dialog = page.getByRole('alertdialog');
@@ -717,7 +763,7 @@ test('uses server-provided curator-borne processing in the estimate', async ({ p
   );
 });
 
-test('isolates plan-tool failures from profile and payout controls', async ({ page }) => {
+test('isolates plan-tool failures from payout controls and recovers before a profile exists', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorPlanToolsStatus: 503,
@@ -726,14 +772,18 @@ test('isolates plan-tool failures from profile and payout controls', async ({ pa
   await page.goto(STUDIO_PATH);
   await openStudioStep(page, 'studio-plan');
 
-  await expect(page.getByTestId('curator-plan-card').getByRole('alert')).toContainText(
-    'Your free profile and payout controls still work.',
+  const card = page.getByTestId('curator-plan-card');
+  await expect(card.getByRole('alert')).toContainText(
+    'Your payout controls still work.',
     { timeout: 10_000 },
   );
-  await page.getByRole('button', { name: 'Next: Create your free profile' }).first().click();
-
-  await expect.poll(() => state.curatorProfile?.status).toBe('active');
   await expect(page.getByTestId('curator-payout-onboarding')).toBeEnabled();
+
+  // Retrying must not read the plan list, which has no profile to answer for yet.
+  state.curatorPlanToolsStatus = 200;
+  await card.getByRole('button', { name: 'Try again' }).click();
+  await expect(card.getByLabel('Plan name')).toBeVisible();
+  await expect(card.getByRole('alert')).toHaveCount(0);
 });
 
 test('shows private paginated earnings without Curator Pro', async ({ page }) => {
@@ -1006,10 +1056,11 @@ test('swaps the launch checklist for one banner after the first publish and orde
   await expect.poll(() => billingOrder(page)).toEqual(['history', 'setup', 'pro']);
 });
 
-test('keeps the payout return notice when billing reorders as payouts turn active', async ({ page }) => {
+test('keeps payout setup first after a payout return and offers the next plan step', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProfile,
+    curatorPlans: [draftPlan],
     curatorPayoutAccount: payoutAccount(),
     curatorPayoutRefreshAccount: activePayout,
     curatorProStatus: fixtureCuratorProAvailableStatus,
@@ -1017,10 +1068,15 @@ test('keeps the payout return notice when billing reorders as payouts turn activ
 
   await page.goto(`${STUDIO_PATH}?payout=return`);
 
-  await expect.poll(() => billingOrder(page)).toEqual(['history', 'setup', 'pro']);
-  // A remounted card would restart without the return parameter and drop this notice.
   await expect(page.getByTestId('curator-payout-notice')).toHaveText('Payout setup is complete.');
+  // Setup stays first for this visit, so the notice does not move when payouts turn active.
+  await expect.poll(() => billingOrder(page)).toEqual(['setup', 'history', 'pro']);
   expect(state.curatorPayoutStatusRequests.filter(Boolean)).toEqual([true]);
+
+  await page.getByTestId('curator-payout-card').getByRole('button', { name: 'Publish your plan' }).click();
+  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('curator-plan-card')).toBeFocused();
+  await expect(page.getByTestId('curator-plan-publish')).toBeEnabled();
 });
 
 test('shows no setup banner while the payout state is unknown', async ({ page }) => {

@@ -20,7 +20,7 @@ import { Tooltip } from '@/components/dither-kit/tooltip';
 import { XAxis } from '@/components/dither-kit/x-axis';
 import { YAxis } from '@/components/dither-kit/y-axis';
 import { eventTitle } from '@/components/features/curator/curator-earnings-card';
-import { StudioStat, StudioStepsContext, studioFigureClassName } from '@/components/features/curator/studio-shell';
+import { StudioStat, StudioStepsContext, studioFigureClassName, studioViewOf } from '@/components/features/curator/studio-shell';
 import { useCuratorLedger } from '@/components/features/curator/use-curator-ledger';
 import { SegmentedControl } from '@/components/interior/segmented-control';
 import { TaskSteps } from '@/components/interior/task-steps';
@@ -35,6 +35,10 @@ import { cn } from '@/lib/utils';
 
 /** `notice` is the one sentence the overview shows when the step is open again after launch. */
 export type LaunchStep = { href: string; label: string; notice: string; done: boolean };
+
+/** A forward arrow only for a step on another view; an overview step scrolls in place. */
+const stepArrow = (step: LaunchStep) =>
+  studioViewOf(step.href.slice(1)) !== 'studio-overview' && <ArrowRight aria-hidden />;
 
 const countFormatter = new Intl.NumberFormat('en-US');
 const dayFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -83,6 +87,9 @@ function LaunchCard({ steps, doneCount, nextIndex }: { steps: LaunchStep[]; done
       title="Launch checklist"
       action={<span className="text-xs tabular-nums text-muted-foreground">{doneCount} of {steps.length} done</span>}
     >
+      {doneCount === 0 && (
+        <p className="mb-3 text-sm text-muted-foreground">A membership lets fans support your curation with a monthly payment.</p>
+      )}
       <Progress
         value={(doneCount / steps.length) * 100}
         aria-label={`Launch progress: ${doneCount} of ${steps.length} steps complete`}
@@ -97,7 +104,7 @@ function LaunchCard({ steps, doneCount, nextIndex }: { steps: LaunchStep[]; done
       {next && (
         <Button className="mt-4 w-full sm:w-auto" onClick={() => views?.open(next.href.slice(1))}>
           Next: {next.label}
-          <ArrowRight aria-hidden />
+          {stepArrow(next)}
         </Button>
       )}
     </Card>
@@ -229,11 +236,11 @@ export function StudioOverview({
       <>
         {openStep && (
           <motion.div {...rise(0)}>
-            <Alert variant="info" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <Alert className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-muted/40">
               <p>{openStep.notice}</p>
               <Button size="sm" onClick={() => views?.open(openStep.href.slice(1))}>
                 {openStep.label}
-                <ArrowRight aria-hidden />
+                {stepArrow(openStep)}
               </Button>
             </Alert>
           </motion.div>

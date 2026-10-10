@@ -128,7 +128,6 @@ const curatorPageSchema = z.object({
 
 export type CuratorPage = z.infer<typeof curatorPageSchema>;
 export type CuratorPostItem = z.infer<typeof postItemSchema>;
-export type CuratorProfileRequest = z.infer<typeof curatorProfileRequestSchema>;
 export type CuratorProfile = z.infer<typeof curatorProfileSchema>;
 export type CuratorPayoutAccount = z.infer<typeof curatorPayoutAccountSchema>;
 export type CuratorPayoutOnboarding = z.infer<typeof curatorPayoutOnboardingSchema>;
@@ -207,31 +206,6 @@ export async function fetchOwnCuratorProfile(
   }
 
   return parseCuratorProfile(await response.json());
-}
-
-async function saveCuratorProfile(
-  path: string,
-  method: 'POST' | 'PUT',
-  request: CuratorProfileRequest,
-): Promise<CuratorProfile> {
-  const response = await fetch(path, {
-    method,
-    body: JSON.stringify(curatorProfileRequestSchema.parse(request)),
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-  });
-
-  if (!response.ok) {
-    throw new CuratorPageError('Failed to save curator profile', response.status);
-  }
-
-  return parseCuratorProfile(await response.json());
-}
-
-export function createCuratorProfile(
-  request: CuratorProfileRequest,
-): Promise<CuratorProfile> {
-  return saveCuratorProfile('/api/v1/curators', 'POST', request);
 }
 
 export async function fetchCuratorPayoutAccount(

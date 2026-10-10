@@ -2,10 +2,16 @@
 
 /** Manages Stripe Connect onboarding and renders only the payout status confirmed by Bridge. */
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useContext, useEffect, useId, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Clock } from 'lucide-react';
-import { StudioNotice, StudioSection, studioFigureClassName } from '@/components/features/curator/studio-shell';
+import { ArrowRight, Check, Clock } from 'lucide-react';
+import type { LaunchStep } from '@/components/features/curator/studio-overview';
+import {
+  StudioNotice,
+  StudioSection,
+  StudioStepsContext,
+  studioFigureClassName,
+} from '@/components/features/curator/studio-shell';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -87,7 +93,9 @@ function ReadinessRing({ done, total }: { done: number; total: number }) {
   );
 }
 
-export function CuratorPayoutCard() {
+/** `nextStep` is the plan step a completed payout return offers; it lives on the overview. */
+export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
+  const views = useContext(StudioStepsContext);
   const queryClient = useQueryClient();
   const initialized = useRef(false);
   const returnHandled = useRef(false);
@@ -131,6 +139,7 @@ export function CuratorPayoutCard() {
   const account = status.data ?? null;
   const loading = flow === 'checking' || status.isPending;
   const payoutsActive = account?.transfersCapabilityStatus === 'active';
+  const returned = flow === 'return' && !loading && !status.isError;
   // Onboarding keeps the button disabled through isSuccess: the mutation resolves
   // before the Stripe navigation completes, so re-enabling would allow a double submit.
   const onboardingBusy = onboarding.isPending || onboarding.isSuccess;
@@ -145,10 +154,22 @@ export function CuratorPayoutCard() {
       title="Payout setup"
       headingId="curator-payout-title"
       testId="curator-payout-card"
-      description={payoutsActive ? undefined : 'Free. Complete it before you publish a membership plan.'}
+      description={payoutsActive
+        ? undefined
+        : 'Free, and no business or website is needed. Stripe confirms your identity and connects your bank account. It asks for your Social Security number because Cassette sends you a 1099 tax form.'}
     >
-      <StudioNotice testId="curator-payout-notice" className="mb-5">
-        {flow === 'return' && !loading && !status.isError
+      <StudioNotice
+        testId="curator-payout-notice"
+        tone={linkExpired ? 'warning' : payoutsActive ? 'success' : 'neutral'}
+        className="mb-5"
+        action={returned && payoutsActive && nextStep && (
+          <Button size="sm" onClick={() => views?.open(nextStep.href.slice(1))}>
+            {nextStep.label}
+            <ArrowRight aria-hidden />
+          </Button>
+        )}
+      >
+        {returned
           ? payoutsActive
             ? 'Payout setup is complete.'
             : 'Payout setup started. Verification is still in progress; see the status below.'
@@ -164,7 +185,7 @@ export function CuratorPayoutCard() {
           <div className="space-y-3">
             <p role="alert" className="text-sm text-destructive">
               {getUserFacingApiErrorMessage(status.error, 'Payout status is unavailable.')}
-              {' '}Your free profile and regular Cassette features still work.
+              {' '}Your other Cassette features still work.
             </p>
             <Button type="button" variant="outline" onClick={() => void status.refetch()}>
               Try again

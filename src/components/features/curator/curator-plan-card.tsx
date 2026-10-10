@@ -4,12 +4,14 @@
 
 import { useContext, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
 import {
   CuratorPageError,
   fetchCuratorPayoutAccount,
+  fetchOwnCuratorProfile,
   type CuratorProfile,
 } from '@/services/curator';
 import {
@@ -43,7 +45,9 @@ import {
   StudioStat,
   StudioStepsContext,
   type StudioChipTone,
+  type StudioNoticeTone,
 } from '@/components/features/curator/studio-shell';
+import { CopyButton } from '@/components/interior/copy-button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,28 +62,40 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Check, ChevronDown, Plus } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronDown, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 type PlanAction = { kind: 'publish' | 'archive' | 'end-memberships'; planId: string };
+/** `live` adds the public page link and a copy action. */
+type PlanNotice = { text: ReactNode; tone: StudioNoticeTone; live?: true };
 
 const planActions = {
   publish: {
     run: publishCuratorPlan,
-    notice: 'Membership plan published. Fans can join from your public page.',
+    notice: {
+      text: <><span className="font-semibold">You&apos;re live.</span> Fans can join from your public page.</>,
+      tone: 'success',
+      live: true,
+    },
   },
   archive: {
     run: archiveCuratorPlan,
-    notice: 'Plan archived. New fans can no longer join; existing members keep their price, access, and renewals.',
+    notice: {
+      text: 'Plan archived. New fans can no longer join; existing members keep their price, access, and renewals.',
+      tone: 'neutral',
+    },
   },
   'end-memberships': {
     run: endCuratorMemberships,
-    notice: 'Memberships ended. New fans can no longer join, and each member keeps access through the period they paid for.',
+    notice: {
+      text: 'Memberships ended. New fans can no longer join, and each member keeps access through the period they paid for.',
+      tone: 'neutral',
+    },
   },
-} satisfies Record<PlanAction['kind'], { run: (planId: string) => Promise<CuratorPlan>; notice: string }>;
+} satisfies Record<PlanAction['kind'], { run: (planId: string) => Promise<CuratorPlan>; notice: PlanNotice }>;
 
 const profileQueryKey = ['curator-profile', 'me'] as const;
 const payoutQueryKey = ['curator-payout-account', 'current'] as const;
@@ -292,7 +308,8 @@ function AnnualPriceAdder({ plan, refresh, onAdded }: {
 
 export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null }) {
   const { user } = useAuthState();
-  const passSlot = useContext(StudioStepsContext)?.passSlot ?? null;
+  const views = useContext(StudioStepsContext);
+  const passSlot = views?.passSlot ?? null;
   // During a payout provider return the payout card owns the single refresh
   // request and seeds this key; an ordinary read here would race it with stale data.
   const payoutFlowActive = useSearchParams().has('payout');
@@ -304,7 +321,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   const [draft, setDraft] = useState<PlanDraft>(emptyDraft);
   const updateDraft = (change: Partial<PlanDraft>) => setDraft((current) => ({ ...current, ...change }));
   const [submitAttempted, setSubmitAttempted] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<PlanNotice | null>(null);
   // null = follow the default (open only while the curator has no plans yet)
   const [createOpen, setCreateOpen] = useState<boolean | null>(null);
   // Saved draft currently loaded into the form.
@@ -343,12 +360,28 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   const save = useMutation({
     mutationFn: ({ planId, request }: { planId: string | null; request: CuratorPlanRequest }) =>
       planId ? updateCuratorPlan(planId, request) : createCuratorPlan(request),
-    onSuccess: (saved, { planId }) => {
-      queryClient.setQueryData<CuratorPlan[]>(plansKey, (current) => replacePlan(current, saved));
+    onSuccess: async (saved, { planId }) => {
+      if (profile) {
+        queryClient.setQueryData<CuratorPlan[]>(plansKey, (current) => replacePlan(current, saved));
+      } else {
+        // Bridge creates the curator profile with the first draft. The new profile's plan and
+        // pricing reads are seeded before it lands, so nothing on the page flashes a loading state.
+        // An older read started before the save would answer "no profile", so it is cancelled first.
+        await queryClient.cancelQueries({ queryKey: profileQueryKey });
+        const created = await fetchOwnCuratorProfile().catch(() => null);
+        if (created) {
+          queryClient.setQueryData(['curator-plans', created.id], [saved]);
+          queryClient.setQueryData(['curator-pricing', created.id], pricing.data);
+          queryClient.setQueryData(profileQueryKey, created);
+        } else {
+          // The draft is saved; the page's own profile read retries, then loads the draft list.
+          await queryClient.invalidateQueries({ queryKey: profileQueryKey });
+        }
+      }
       resetForm();
       // Fold the form away so the freshly saved draft is what the curator sees.
       setCreateOpen(false);
-      setNotice(planId ? 'Draft updated.' : 'Draft saved. Publishing remains optional.');
+      setNotice({ text: planId ? 'Draft updated.' : 'Draft saved. Publishing remains optional.', tone: 'success' });
     },
     onError: () => queryClient.invalidateQueries({ queryKey: plansKey }),
   });
@@ -357,7 +390,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
     onSuccess: (_, planId) => {
       queryClient.setQueryData<CuratorPlan[]>(plansKey, (current) => current?.filter((plan) => plan.id !== planId) ?? []);
       if (planId === editingId) resetForm();
-      setNotice('Draft deleted.');
+      setNotice({ text: 'Draft deleted.', tone: 'neutral' });
     },
     onError: () => queryClient.invalidateQueries({ queryKey: plansKey }),
   });
@@ -375,6 +408,9 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
       }
       setExpanded(true);
       setNotice(planActions[action.kind].notice);
+      // A first publish swaps the checklist for the earnings dashboard above this card,
+      // so bring the card and its live link back into view.
+      if (action.kind === 'publish') views?.open('studio-plan');
     },
     onError: () => Promise.all([
       queryClient.invalidateQueries({ queryKey: profileQueryKey }),
@@ -420,7 +456,9 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   const profileReady = profile?.status === 'active';
   // Publishing needs a payout account Stripe has verified for transfers.
   const payoutReady = payout.data?.transfersCapabilityStatus === 'active';
-  const gatesConfirmed = profileReady && payoutReady && !payout.isPending && !payout.isError;
+  const payoutConfirmed = payoutReady && !payout.isPending && !payout.isError;
+  // A suspended profile is explained by the overview's suspension alert.
+  const gatesConfirmed = profileReady && payoutConfirmed;
   const featureByKey = new Map(features.data?.map((feature) => [feature.featureKey, feature]));
   const namesFor = (keys: string[]) => keys.map((key) => featureByKey.get(key)?.displayName ?? key);
   const benefitsFor = (keys: string[]) => keys.map((key) => ({
@@ -429,8 +467,11 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
     description: featureByKey.get(key)?.description ?? '',
   }));
   const curatorName = user?.displayName || 'you';
+  const firstName = user?.displayName.trim().split(/\s+/)[0];
+  const publicPath = user?.username ? `/profile/${encodeURIComponent(user.username)}` : null;
   const corePending = (profile !== null && plans.isPending) || features.isPending || pricing.isPending;
-  const coreError = plans.isError || features.isError || pricing.isError;
+  // With no profile the plan list is not read, so only features and pricing can fail.
+  const coreError = (profile !== null && plans.isError) || features.isError || pricing.isError;
   const busy = save.isPending || remove.isPending;
 
   // One membership pass for the whole Studio, portaled into the page rail: the
@@ -531,7 +572,27 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
       description="Drafts are free and stay editable. Publishing needs completed payout setup."
     >
       {rail}
-      <StudioNotice testId="curator-plan-notice" className="mb-8">{notice}</StudioNotice>
+      <StudioNotice
+        testId="curator-plan-notice"
+        tone={notice?.tone}
+        className="mb-8"
+        action={notice?.live && publicPath && (
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Rendered only after a publish, so reading window is client-only. */}
+            <Link href={publicPath} className="inline-flex items-center gap-1 font-mono text-xs underline underline-offset-2">
+              {window.location.host}{publicPath}
+              <ArrowUpRight aria-hidden className="size-3.5" />
+            </Link>
+            <CopyButton
+              label="Copy page link"
+              copiedLabel="Link copied"
+              value={() => `${window.location.origin}${publicPath}`}
+            />
+          </div>
+        )}
+      >
+        {notice?.text}
+      </StudioNotice>
       <div className="space-y-8">
         {corePending ? (
           <output className="text-sm text-muted-foreground">Loading membership plan tools…</output>
@@ -539,15 +600,15 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
           <div className="space-y-3">
             <p role="alert" className="text-sm text-destructive">
               {getUserFacingApiErrorMessage(
-                plans.error ?? features.error ?? pricing.error,
+                (profile ? plans.error : null) ?? features.error ?? pricing.error,
                 'Membership plan tools are unavailable.',
               )}
-              {' '}Your free profile and payout controls still work.
+              {' '}Your payout controls still work.
             </p>
             <Button
               type="button"
               variant="outline"
-              onClick={() => void Promise.all([plans.refetch(), features.refetch(), pricing.refetch()])}
+              onClick={() => void Promise.all([profile && plans.refetch(), features.refetch(), pricing.refetch()])}
             >
               Try again
             </Button>
@@ -560,22 +621,10 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                 <h3 id="saved-plans-title" className="text-sm font-semibold">Your plans</h3>
                 <p className="mt-1 text-sm text-muted-foreground">Published fan charges are frozen. Your cut can still change with policy.</p>
               </div>
-              {/* Requirements surface only while an unpublishable draft is waiting */}
-              {!gatesConfirmed && plansData.some((plan) => plan.status === 'draft') && (
+              {/* Requirements surface only while a draft waits on payouts */}
+              {!payoutConfirmed && plansData.some((plan) => plan.status === 'draft') && (
                 <div className="space-y-2.5">
                 <dl aria-label="Publishing requirements" className="divide-y divide-border/70 text-sm">
-                  <ReceiptRow
-                    className="py-2.5"
-                    label="Free profile"
-                    value={
-                      <RequirementValue
-                        met={profileReady}
-                        metLabel="Active"
-                        unmetLabel={profile ? 'Not active' : 'Create profile'}
-                        href="#studio-profile"
-                      />
-                    }
-                  />
                   <ReceiptRow
                     className="py-2.5"
                     label="Payout setup"
@@ -669,7 +718,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                             // requirement text stays reachable; the click is guarded.
                             aria-disabled={!canPublish || change.isPending || editing ? true : undefined}
                             aria-describedby={[
-                              !gatesConfirmed && `plan-${plan.id}-gates`,
+                              !payoutConfirmed && `plan-${plan.id}-gates`,
                               blockedByActivePlan && `plan-${plan.id}-blocked`,
                             ].filter(Boolean).join(' ') || undefined}
                             className="w-full sm:w-auto aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
@@ -724,10 +773,9 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
-                        {!gatesConfirmed && (
+                        {!payoutConfirmed && (
                           <p id={`plan-${plan.id}-gates`} className="text-xs text-muted-foreground">
-                            Before publishing, confirm an active <StepLink href="#studio-profile">profile</StepLink>{' '}
-                            and completed <StepLink href="#studio-payouts">payout setup</StepLink>.
+                            Publishing needs completed <StepLink href="#studio-payouts">payout setup</StepLink>.
                           </p>
                         )}
                         {blockedByActivePlan && <p id={`plan-${plan.id}-blocked`} className="text-xs text-muted-foreground">Archive the active plan before publishing this draft.</p>}
@@ -742,7 +790,9 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                         onAdded={() => {
                           // An Archive or End memberships that settled first keeps its notice.
                           const current = queryClient.getQueryData<CuratorPlan[]>(plansKey)?.find((candidate) => candidate.id === plan.id);
-                          if (current?.status === 'active') setNotice('Annual price added. Fans can now choose yearly billing.');
+                          if (current?.status === 'active') {
+                            setNotice({ text: 'Annual price added. Fans can now choose yearly billing.', tone: 'success' });
+                          }
                         }}
                       />
                     )}
@@ -834,19 +884,13 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                {!profile && (
-                  <p className="mt-6 text-sm">
-                    Preview your offer now.{' '}
-                    <StepLink href="#studio-profile">Create your free profile</StepLink> to save it as a draft.
-                  </p>
-                )}
                 <form
                   ref={formRef}
                   className="grid gap-8 pt-6 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start"
                   onSubmit={(event) => {
                     event.preventDefault();
                     setSubmitAttempted(true);
-                    if (!profile || busy) return;
+                    if (busy) return;
                     if (monthlyMinor === null || !validMonthly) {
                       monthlyRef.current?.focus();
                       return;
@@ -875,7 +919,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                         id="curator-plan-name"
                         required
                         maxLength={150}
-                        placeholder="Selector Club"
+                        placeholder={firstName ? `${firstName}'s Inner Circle` : 'Selector Club'}
                         value={draft.name}
                         onChange={(event) => updateDraft({ name: event.target.value })}
                       />
@@ -992,8 +1036,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                       <Button
                         type="submit"
-                        className="w-full sm:w-auto aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-                        aria-disabled={!profile || undefined}
+                        className="w-full sm:w-auto"
                         disabled={busy}
                       >
                         {save.isPending

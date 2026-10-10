@@ -2,13 +2,13 @@
 
 /** Curator Studio: a dashboard with a view rail (Overview, Members, Payouts &
     billing). Every view stays mounted so section queries dedupe and Stripe
-    return flows resolve whichever view is showing. The free curator profile is
-    created with one click from the launch checklist; it has no editable fields. */
+    return flows resolve whichever view is showing. Bridge creates the curator
+    profile with the first plan draft or payout setup; it has no editable fields. */
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, CreditCard, HandCoins, LayoutDashboard } from 'lucide-react';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { CuratorEarningsCard } from '@/components/features/curator/curator-earnings-card';
@@ -30,13 +30,11 @@ import { TabUnderline } from '@/components/ui/tab-underline';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthState } from '@/hooks/use-auth';
 import {
-  createCuratorProfile,
   fetchCuratorPayoutAccount,
   fetchOwnCuratorProfile,
   type CuratorProfile,
 } from '@/services/curator';
 import { fetchCuratorPlans } from '@/services/curator-plans';
-import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 const profileQueryKey = ['curator-profile', 'me'] as const;
 
@@ -76,15 +74,9 @@ function useLaunchSteps(profile: CuratorProfile | null) {
   const hasPlan = plans.data?.some((plan) => plan.status !== 'archived') === true;
   const hasActivePlan = plans.data?.some((plan) => plan.status === 'active') === true;
   const steps: LaunchStep[] = [
-    {
-      href: '#studio-profile',
-      label: 'Create your free profile',
-      notice: 'Your curator profile is not active.',
-      done: profile?.status === 'active',
-    },
-    { href: '#studio-plan', label: 'Prepare and preview your offer', notice: 'You have no membership plan.', done: hasPlan },
-    { href: '#studio-payouts', label: 'Complete payout setup', notice: 'Payout setup is not complete.', done: payoutReady },
-    { href: '#studio-plan', label: 'Publish your membership plan', notice: 'No membership plan is live.', done: hasActivePlan },
+    { href: '#studio-plan', label: 'Design your membership', notice: 'You have no membership plan.', done: hasPlan },
+    { href: '#studio-payouts', label: 'Set up payouts', notice: 'Payout setup is not complete.', done: payoutReady },
+    { href: '#studio-plan', label: 'Publish your plan', notice: 'No membership plan is live.', done: hasActivePlan },
   ];
   const doneCount = steps.filter((step) => step.done).length;
   const nextIndex = steps.findIndex((step) => !step.done);
@@ -168,17 +160,8 @@ function CuratorStudio() {
     staleTime: 0,
   });
   const launch = useLaunchSteps(profile.data ?? null);
-  const queryClient = useQueryClient();
-  // The free profile has no fields, so "create your free profile" anywhere on the page is one click.
-  const createProfile = useMutation({
-    mutationFn: () => createCuratorProfile({ headline: null, about: null, declaredGenres: [], declaredPlatforms: [] }),
-    onSuccess: (saved) => {
-      queryClient.setQueryData(profileQueryKey, saved);
-      // A new profile has no plans yet; seeding its key keeps the checklist on screen
-      // while the first real read confirms that.
-      queryClient.setQueryData(['curator-plans', saved.id], []);
-    },
-  });
+  // A visit that starts from a payout return keeps setup first, so its notice and next step stay put when payouts turn active.
+  const [payoutReturn] = useState(launch.flowStep === 'studio-payouts');
   let defaultView: StudioView | null;
   if (launch.flowStep) defaultView = studioViewOf(launch.flowStep);
   else if (profile.isError) defaultView = 'studio-overview';
@@ -197,16 +180,28 @@ function CuratorStudio() {
     setReady(true);
   }, [defaultView, ready]);
 
-  const { mutate: createProfileNow } = createProfile;
   const open = useMemo(() => ({
     open: (sectionId: string) => {
       touched.current = true;
       setView(studioViewOf(sectionId));
-      if (sectionId === 'studio-profile' && !queryClient.getQueryData(profileQueryKey)) createProfileNow();
+      // One frame lets a newly shown view lay out before its section scrolls into view.
+      requestAnimationFrame(() => {
+        const section = document.getElementById(sectionId);
+        if (!section) return;
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        section.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+        // A collapsible that is animating closed is still in the DOM; its fields are about to go.
+        const field = section.querySelector<HTMLElement>(':is(input, textarea, select):not([data-state="closed"] *)');
+        (field ?? section).focus({ preventScroll: true });
+      });
     },
     passSlot,
-  }), [createProfileNow, queryClient, passSlot]);
-  const payoutSetup = <CuratorPayoutCard key="payout-setup" />;
+  }), [passSlot]);
+  // After a payout return, the notice offers whichever plan step comes next.
+  const planStep = launch.stepsKnown
+    ? launch.steps.find((step) => step.href === '#studio-plan' && !step.done)
+    : undefined;
+  const payoutSetup = <CuratorPayoutCard key="payout-setup" nextStep={planStep} />;
   const payoutHistory = <CuratorPayoutHistory key="payout-history" enabled={launch.payoutStarted && Boolean(profile.data)} />;
 
   return (
@@ -218,7 +213,15 @@ function CuratorStudio() {
       >
         <StudioHeader />
 
-        <Tabs value={view} onValueChange={(next) => open.open(next)} className="mt-6 gap-6">
+        {/* A tab only switches the view; focus stays on the tab for arrow-key navigation. */}
+        <Tabs
+          value={view}
+          onValueChange={(next) => {
+            touched.current = true;
+            setView(studioViewOf(next));
+          }}
+          className="mt-6 gap-6"
+        >
             {/* Underline tabs across the top; content takes the full width below. */}
             <TabsList
               aria-label="Studio views"
@@ -243,17 +246,11 @@ function CuratorStudio() {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
             <div className="min-w-0">
               <TabsContent value="studio-overview" forceMount tabIndex={-1} className="space-y-6 data-[state=inactive]:hidden">
-                {createProfile.isPending && (
-                  <output className="block text-sm text-muted-foreground">Creating your free profile…</output>
-                )}
-                {createProfile.isError && (
-                  <p role="alert" className="text-sm text-destructive">
-                    {getUserFacingApiErrorMessage(createProfile.error, 'Your free profile was not created. Try again.')}
-                  </p>
-                )}
                 {profile.isPending ? (
                   <OverviewSkeleton />
-                ) : profile.isError ? (
+                ) : profile.data === undefined ? (
+                  /* Only a first read that failed replaces the overview; a failed background refresh keeps
+                     the overview and plan card mounted with the last answer, so a draft in progress survives. */
                   <StudioSection id="studio-overview-error" eyebrow="Overview" title="Curator Studio" headingId="studio-overview-error-title">
                     <div className="space-y-4">
                       <p role="alert">Could not load your curator profile.</p>
@@ -261,14 +258,24 @@ function CuratorStudio() {
                     </div>
                   </StudioSection>
                 ) : (
-                  <StudioOverview
-                    profile={profile.data ?? null}
-                    steps={launch.steps}
-                    doneCount={launch.doneCount}
-                    nextIndex={launch.nextIndex}
-                    hasPublished={launch.hasPublished}
-                    stepsKnown={launch.stepsKnown}
-                  />
+                  <>
+                    {/* "No profile" can go stale once a first draft creates one; if that read then fails,
+                        say so here rather than show an empty Studio. */}
+                    {profile.isError && profile.data === null && (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <p role="alert" className="text-sm text-destructive">Could not load your curator profile.</p>
+                        <Button variant="outline" size="sm" onClick={() => profile.refetch()}>Try again</Button>
+                      </div>
+                    )}
+                    <StudioOverview
+                      profile={profile.data ?? null}
+                      steps={launch.steps}
+                      doneCount={launch.doneCount}
+                      nextIndex={launch.nextIndex}
+                      hasPublished={launch.hasPublished}
+                      stepsKnown={launch.stepsKnown}
+                    />
+                  </>
                 )}
               </TabsContent>
               <TabsContent value="studio-earnings" forceMount tabIndex={-1} className="data-[state=inactive]:hidden">
@@ -280,10 +287,10 @@ function CuratorStudio() {
                     eyebrow="Performance"
                     title="Members & earnings"
                     headingId="curator-earnings-title"
-                    description="Membership activity and payout history appear here once you have a curator profile."
+                    description="Members and earnings show up here once you save a membership draft."
                   >
-                    <Button variant="outline" onClick={() => open.open('studio-profile')}>
-                      Create your free profile
+                    <Button variant="outline" onClick={() => open.open('studio-plan')}>
+                      Design your membership
                     </Button>
                   </StudioSection>
                 )}
@@ -291,7 +298,7 @@ function CuratorStudio() {
               <TabsContent value="studio-billing" forceMount tabIndex={-1} className="space-y-6 data-[state=inactive]:hidden">
                 {/* Setup leads until payouts are active; then balances lead and setup is one line.
                     The keys move both cards without remounting, so a provider return survives the swap. */}
-                {launch.payoutReady ? [payoutHistory, payoutSetup] : [payoutSetup, payoutHistory]}
+                {launch.payoutReady && !payoutReturn ? [payoutHistory, payoutSetup] : [payoutSetup, payoutHistory]}
                 <CuratorProCard />
               </TabsContent>
             </div>

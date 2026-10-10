@@ -86,7 +86,7 @@ function discountCopy(status: CuratorProStatus) {
 }
 
 /** What ending Curator Pro means, shown before the billing handoff and on scheduled cancellations. */
-const endOfProCopy = 'Your memberships, earnings, and free profile are not affected.';
+const endOfProCopy = 'Your memberships and earnings are not affected.';
 
 /** One line on the current state; null when the pass already says it all. */
 function lifecycleCopy(status: CuratorProStatus): string | null {
@@ -103,7 +103,7 @@ function lifecycleCopy(status: CuratorProStatus): string | null {
   if (status.status === 'past_due' || status.status === 'unpaid') {
     return 'Payment needs attention. Manage billing to restore access.';
   }
-  if (status.status === 'canceled') return 'Curator Pro is canceled. Your free curator profile stays available.';
+  if (status.status === 'canceled') return 'Curator Pro is canceled. Your memberships and earnings keep working.';
   return 'Curator Pro is optional. Memberships and earnings work without it.';
 }
 
@@ -210,7 +210,7 @@ export function CuratorProCard() {
       (baseline.cancelAtPeriodEnd && !status.cancelAtPeriodEnd)
     );
     if (canceled) {
-      finishFlow('Curator Pro is canceled. Your free curator profile stays available.');
+      finishFlow('Curator Pro is canceled. Your memberships and earnings keep working.');
     } else if (canceling) {
       finishFlow(`Curator Pro will end${status.paidThroughUtc ? ` on ${dateFormatter.format(new Date(status.paidThroughUtc))}` : ' after the current billing period'}. ${endOfProCopy}`);
     } else if (reactivated) {

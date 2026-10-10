@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   CuratorPageError,
-  createCuratorProfile,
   fetchCuratorPayoutAccount,
   fetchCuratorPage,
   fetchOwnCuratorProfile,
@@ -14,7 +13,6 @@ import {
   parseCuratorPayoutOnboarding,
   parseCuratorProfile,
   startCuratorPayoutOnboarding,
-  type CuratorProfileRequest,
 } from '../curator';
 
 function fullPost() {
@@ -191,46 +189,6 @@ void test('returns null when the authenticated user has no curator profile', asy
   t.mock.method(globalThis, 'fetch', async () => new Response(null, { status: 404 }));
 
   assert.equal(await fetchOwnCuratorProfile(), null);
-});
-
-void test('creates the authenticated curator profile with the public request only', async (t) => {
-  const calls: Array<{ init?: RequestInit; input: string | URL | Request }> = [];
-  t.mock.method(
-    globalThis,
-    'fetch',
-    async (input: string | URL | Request, init?: RequestInit) => {
-      calls.push({ init, input });
-      return new Response(JSON.stringify({
-        ...profilePayload(),
-        correlationId: '44444444-4444-4444-8444-444444444444',
-      }));
-    },
-  );
-  const request: CuratorProfileRequest = {
-    headline: 'Rare records, every week.',
-    about: null,
-    declaredGenres: ['Soul'],
-    declaredPlatforms: ['Spotify'],
-  };
-
-  await createCuratorProfile(request);
-
-  assert.deepEqual(
-    calls.map(({ init, input }) => ({
-      body: init?.body,
-      credentials: init?.credentials,
-      method: init?.method,
-      url: input,
-    })),
-    [
-      {
-        body: JSON.stringify(request),
-        credentials: 'include',
-        method: 'POST',
-        url: '/api/v1/curators',
-      },
-    ],
-  );
 });
 
 void test('parses payout status and secure onboarding without provider identifiers', () => {

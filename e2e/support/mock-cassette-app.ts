@@ -26,6 +26,7 @@ import type {
 } from '../../src/services/curator-plans';
 import type { MyMembership } from '../../src/services/membership';
 import type {
+  FixtureCuratorMemberCounts,
   FixturePost,
   FixtureInternalPaidPromotionCampaign,
   FixtureMembershipStatusView,
@@ -68,6 +69,9 @@ type MockCassetteOptions = {
   internalPricingPolicies?: PricingPolicy[];
   internalPricingAssignments?: PricingAssignment[];
   curatorEarnings?: Pick<CuratorEarnings, 'activeMemberCount' | 'balances' | 'items'>;
+  /** Counts for every requested window; the daily series is built per request. */
+  curatorMemberCounts?: FixtureCuratorMemberCounts;
+  curatorMemberStatsStatus?: number;
   curatorPage?: CuratorPage;
   curatorPayoutAccount?: CuratorPayoutAccount | null;
   curatorPayoutRefreshAccount?: CuratorPayoutAccount;
@@ -170,6 +174,9 @@ type MockState = {
   internalPricingAssignmentRequests: PricingAssignmentRequest[];
   curatorEarnings: Pick<CuratorEarnings, 'activeMemberCount' | 'balances' | 'items'>;
   curatorEarningsRequests: Array<{ page: number; pageSize: number }>;
+  curatorMemberCounts: FixtureCuratorMemberCounts;
+  curatorMemberStatsStatus: number;
+  curatorMemberStatsRequests: number[];
   curatorPage?: CuratorPage;
   curatorPayoutAccount: CuratorPayoutAccount | null;
   curatorPayoutRefreshAccount?: CuratorPayoutAccount;
@@ -607,6 +614,12 @@ const buildState = (options: MockCassetteOptions): MockState => {
     internalPricingAssignmentRequests: [],
     curatorEarnings: clone(options.curatorEarnings || { activeMemberCount: 0, items: [], balances: { currency: 'USD', earnedThisMonth: 0, accrued: 0, payable: 0, blocked: 0, paidOut: 0, nextPayableAt: null } }),
     curatorEarningsRequests: [],
+    curatorMemberCounts: clone(options.curatorMemberCounts || {
+      activeMembers: 0, newMembers: 0, endedMembers: 0, notRenewingMembers: 0,
+      previousWindow: { activeMembers: 0, newMembers: 0, endedMembers: 0 },
+    }),
+    curatorMemberStatsStatus: options.curatorMemberStatsStatus ?? 200,
+    curatorMemberStatsRequests: [],
     curatorPage,
     curatorPayoutAccount: options.curatorPayoutAccount
       ? clone(options.curatorPayoutAccount)
@@ -1013,6 +1026,32 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         totalItems: state.curatorEarnings.items.length,
         page: requestedPage,
         pageSize: requestedPageSize,
+      });
+    }
+
+    if (pathname === '/api/v1/curators/me/member-stats' && method === 'GET') {
+      getCurrentUserOrThrow(state);
+      // Logged first, so a request the gate should have stopped still shows.
+      const days = Number(url.searchParams.get('days'));
+      state.curatorMemberStatsRequests.push(days);
+      if (!state.curatorProfile) {
+        return json(route, { message: 'Curator profile not found.' }, 404);
+      }
+      if (state.curatorMemberStatsStatus !== 200) {
+        return json(route, { message: 'Member counts are unavailable.' }, state.curatorMemberStatsStatus);
+      }
+      // A straight ramp from the count at the window start to the count now.
+      const counts = state.curatorMemberCounts;
+      const now = new Date();
+      const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      return json(route, {
+        days,
+        ...counts,
+        daily: Array.from({ length: days }, (_, index) => ({
+          date: new Date(today - (days - 1 - index) * 86_400_000).toISOString().slice(0, 10),
+          activeMembers: Math.round(counts.previousWindow.activeMembers +
+            (counts.activeMembers - counts.previousWindow.activeMembers) * index / (days - 1)),
+        })),
       });
     }
 

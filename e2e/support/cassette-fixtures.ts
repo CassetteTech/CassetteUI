@@ -6,6 +6,7 @@ import type {
 } from '../../src/services/curator';
 import type { CuratorPlan as FixtureCuratorPlan } from '../../src/services/curator-plans';
 import type { CuratorProStatus as FixtureCuratorProStatus } from '../../src/services/curator-pro';
+import type { CuratorMemberStats } from '../../src/services/curator-member-stats';
 import type { MembershipStatusView } from '../../src/services/membership';
 
 export interface FixtureSearchResults {
@@ -154,6 +155,18 @@ export const fixtureActiveCuratorProfile: FixtureCuratorProfile = {
   suspensionReason: null,
   createdAtUtc: '2026-08-16T12:00:00Z',
   statusChangedAtUtc: '2026-08-16T12:00:00Z',
+};
+
+/** Member counts without the window echo and daily series, which the mock builds per request. */
+export type FixtureCuratorMemberCounts = Omit<CuratorMemberStats, 'days' | 'daily'>;
+
+/** A curator with a few members: one joined since the window start, one will not renew. */
+export const fixtureCuratorMemberCounts: FixtureCuratorMemberCounts = {
+  activeMembers: 3,
+  newMembers: 2,
+  endedMembers: 1,
+  notRenewingMembers: 1,
+  previousWindow: { activeMembers: 2, newMembers: 1, endedMembers: 0 },
 };
 
 export const fixtureActiveMemberPostPlan: FixtureCuratorPlan = {

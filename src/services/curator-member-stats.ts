@@ -33,6 +33,17 @@ const curatorMemberStatsSchema = z.object({
 
 export type CuratorMemberStats = z.infer<typeof curatorMemberStatsSchema>;
 
+/** Top of the member trend's y axis: about 30% above the busiest day, rounded up to a
+    whole step of 1, 2, or 5 times a power of ten (three steps from zero), so the line
+    never touches the top. One member gives an axis of 0 to 2, 18 members 0 to 30. */
+export function memberAxisMax(peak: number): number {
+  const target = Math.max(peak, 1) * 1.3;
+  const roughStep = target / 3;
+  const magnitude = 10 ** Math.floor(Math.log10(Math.max(roughStep, 1)));
+  const step = [1, 2, 5, 10].map((multiple) => multiple * magnitude).find((size) => size >= roughStep) ?? 10 * magnitude;
+  return Math.ceil(target / step) * step;
+}
+
 // oxlint-disable-next-line anti-slop/no-unknown-parameters
 export const parseCuratorMemberStats = (value: unknown): CuratorMemberStats =>
   curatorMemberStatsSchema.parse(value);

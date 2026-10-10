@@ -36,6 +36,8 @@ export type CartesianChartProps<TData extends Row> = {
   config: ChartConfig
   children: ReactNode
   stackType?: StackType
+  /** Top of the y axis while the data stays below it; larger data still grows the axis. */
+  yMax?: number
   margins?: Partial<Margins>
   className?: string
   animate?: boolean
@@ -81,6 +83,7 @@ export function CartesianRoot<TData extends Row>({
   config,
   children,
   stackType = "default",
+  yMax,
   margins: marginsProp,
   className,
   animate = true,
@@ -107,6 +110,7 @@ export function CartesianRoot<TData extends Row>({
     data: data as Record<string, unknown>[],
     config,
     stackType,
+    yMax,
     dimensions: size,
     margins,
     animate,

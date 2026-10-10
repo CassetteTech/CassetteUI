@@ -182,6 +182,7 @@ export function useChartController({
   data,
   config,
   stackType,
+  yMax,
   dimensions,
   margins,
   animate = true,
@@ -198,6 +199,7 @@ export function useChartController({
   data: Row[]
   config: ChartConfig
   stackType: StackType
+  yMax?: number
   dimensions: Dimensions
   margins: Margins
   animate?: boolean
@@ -343,8 +345,8 @@ export function useChartController({
     [xCenter, stacked, bandwidth]
   )
   const y = useMemo(
-    () => buildYScale(min, max, plotHeight),
-    [min, max, plotHeight]
+    () => buildYScale(min, max, plotHeight, yMax),
+    [min, max, plotHeight, yMax]
   )
 
   // Stable so `common` and the value stay stable; re-created only on config.

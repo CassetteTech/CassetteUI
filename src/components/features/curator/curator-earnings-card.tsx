@@ -33,7 +33,7 @@ import {
   fetchCuratorEarnings,
   type CuratorEarningsHistoryItem,
 } from '@/services/curator-earnings';
-import { fetchCuratorMemberStats, type CuratorMemberStats } from '@/services/curator-member-stats';
+import { fetchCuratorMemberStats, memberAxisMax, type CuratorMemberStats } from '@/services/curator-member-stats';
 import { fetchCuratorPlans } from '@/services/curator-plans';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
@@ -196,6 +196,7 @@ function MemberHealth({ stats }: { stats: CuratorMemberStats }) {
         <AreaChart
           data={rows}
           config={memberChartConfig}
+          yMax={memberAxisMax(Math.max(...counts))}
           animate={!reduceMotion}
           margins={{ left: 28, bottom: 20, right: 8, top: 8 }}
           className="h-44 w-full"

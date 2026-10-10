@@ -92,10 +92,15 @@ export function indexAtBand(px: number, length: number, plotWidth: number) {
  * value → vertical pixel. The domain always includes zero, so charts with only
  * positive values keep a floor at the plot bottom, while diverging data (values
  * below zero) draws below a zero baseline that sits somewhere inside the plot.
+ * A `top` above the data is used as given (not rounded), so callers can leave
+ * headroom over the peak; data above `top` still grows the axis.
  */
-export function buildYScale(min: number, max: number, plotHeight: number) {
+export function buildYScale(min: number, max: number, plotHeight: number, top?: number) {
   const lo = Math.min(0, min)
   const hi = Math.max(0, max)
+  if (top !== undefined && top > hi) {
+    return scaleLinear().domain([lo, top]).range([plotHeight, 0])
+  }
   // Guard a degenerate (zero-width) domain so `nice()` and the range map stay
   // finite even when every value is exactly zero.
   return scaleLinear()

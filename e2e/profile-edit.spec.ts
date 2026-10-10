@@ -23,14 +23,20 @@ test('redirects /profile and persists profile edits and music service preference
   const profileMain = page.getByRole('main').last();
   await profileMain.locator('input[name="fullName"]:visible').fill('Mia Afterglow');
   await profileMain.locator('textarea#profile-bio:visible').fill('Documenting the songs that outlast the week.');
+  // A bare domain must pass the browser and reach the server with https:// added.
+  await profileMain.getByRole('button', { name: 'Add link' }).click();
+  await profileMain.getByLabel('Link 1', { exact: true }).fill('instagram.com/miagroove');
 
-  await profileMain.locator('button:has-text("Add More"):visible').click();
   const spotifyPreference = profileMain.locator(
     '[data-testid="music-service-toggle-spotify"]:visible',
   );
   await spotifyPreference.click();
   await expect(spotifyPreference).toHaveAttribute('data-state', 'unchecked');
+  const saveRequest = page.waitForRequest(
+    (request) => request.method() === 'PUT' && new URL(request.url()).pathname === '/api/v1/profile',
+  );
   await profileMain.locator('[data-testid="profile-save"]:visible').click();
+  expect((await saveRequest).postData()).toContain('https://instagram.com/miagroove');
 
   await expect(page).toHaveURL(/\/profile\/miagroove(?:\?tab=playlists)?$/);
   const updatedProfileMain = page.getByRole('main').last();
@@ -104,6 +110,9 @@ test('persists liked-post privacy changes and hides the liked tab from other vie
 
   await page.goto('/profile/miagroove/edit');
   const profileMain = page.getByRole('main').last();
+  // Privacy is on the Account tab; switching tabs keeps the tab in the URL.
+  await profileMain.getByRole('tab', { name: 'Account' }).click();
+  await expect(page).toHaveURL(/\/profile\/miagroove\/edit\?tab=account$/);
   await profileMain.locator('label:visible').filter({ hasText: /^Private$/ }).click();
   await profileMain.locator('[data-testid="profile-save"]:visible').click();
 
@@ -120,4 +129,40 @@ test('persists liked-post privacy changes and hides the liked tab from other vie
   await expect(viewerPage).toHaveURL(/\/profile\/miagroove\?tab=playlists$/);
   await expect(viewerPage.getByRole('tab', { name: /Liked/ })).toHaveCount(0);
   await viewerPage.close();
+});
+
+test('opens the Profile tab and focuses a taken username when saving from the Account tab', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    usernameAvailability: { samloops: false },
+  });
+
+  await page.goto('/profile/miagroove/edit');
+  const profileMain = page.getByRole('main').last();
+  await profileMain.locator('input#profile-username:visible').fill('samloops');
+  await expect(profileMain.getByText('Username already exists. Please choose a different one.')).toBeVisible();
+
+  await profileMain.getByRole('tab', { name: 'Account' }).click();
+  await profileMain.locator('[data-testid="profile-save"]:visible').click();
+
+  await expect(profileMain.getByRole('tab', { name: 'Profile' })).toHaveAttribute('data-state', 'active');
+  await expect(profileMain.locator('input#profile-username')).toBeFocused();
+  await expect(page).toHaveURL(/\/profile\/miagroove\/edit$/);
+});
+
+test('follows URL changes to the settings tab while the form stays mounted', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+
+  await page.goto('/profile/miagroove/edit');
+  const profileMain = page.getByRole('main').last();
+  const accountTab = profileMain.getByRole('tab', { name: 'Account' });
+  await expect(profileMain.getByRole('tab', { name: 'Profile' })).toHaveAttribute('data-state', 'active');
+
+  // A client-side URL change, as an in-app link would make.
+  await page.evaluate(() => window.history.pushState(null, '', '/profile/miagroove/edit?tab=account'));
+  await expect(accountTab).toHaveAttribute('data-state', 'active');
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/profile\/miagroove\/edit$/);
+  await expect(accountTab).toHaveAttribute('data-state', 'inactive');
 });

@@ -1,17 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { ChevronDown, ChevronUp, Loader2, Check } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import { apiService } from '@/services/api';
 import { platformConnectService } from '@/services/platform-connect';
 import { appLogger } from '@/lib/observability/logger';
 import { PendingLabel } from '@/components/ui/interior/loading-button';
+import { cn } from '@/lib/utils';
 import {
   ACTIVE_PLATFORM_DEFINITIONS,
   ACTIVE_PLATFORM_PREFERENCE_KEYS,
@@ -31,7 +30,6 @@ const MUSIC_SERVICES = ACTIVE_PLATFORM_DEFINITIONS.map((platform) => ({
   id: platform.preferenceKey,
   name: platform.displayName,
   iconSrc: platform.logoSrc,
-  bgColor: platform.solidBgColor,
   requiresAuth: platform.requiresAuthForPlaylistCreation,
   description: platform.connectionDescription,
 }));
@@ -44,18 +42,9 @@ const createEmptyPlatformStates = (): Record<ServiceId, PlatformState> =>
     ]),
   ) as Record<ServiceId, PlatformState>;
 
-interface MusicConnectionsFlowProps {
-  className?: string;
-  onConnectionChange?: (hasConnections: boolean) => void;
-}
-
-export function MusicConnectionsFlow({
-  className = "",
-  onConnectionChange
-}: MusicConnectionsFlowProps) {
+export function MusicConnectionsFlow() {
   const [platformStates, setPlatformStates] = useState<Record<ServiceId, PlatformState>>(createEmptyPlatformStates);
   const [isLoading, setIsLoading] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     const fetchPreferences = async () => {
@@ -86,9 +75,6 @@ export function MusicConnectionsFlow({
           appLogger.debug('music_connections_preferences_loaded', {
             selected_platform_count: Object.values(newStates).filter((state) => state.isSelected).length,
           });
-
-          const hasConnections = Object.values(newStates).some(s => s.isSelected);
-          onConnectionChange?.(hasConnections);
         }
       } catch (error) {
         appLogger.error('music_connections_preferences_fetch_failed', { error });
@@ -98,7 +84,7 @@ export function MusicConnectionsFlow({
     };
 
     fetchPreferences();
-  }, [onConnectionChange]);
+  }, []);
 
   const getSelectedPlatforms = (overrides: Partial<Record<ServiceId, boolean>> = {}) =>
     Object.entries(platformStates)
@@ -129,20 +115,16 @@ export function MusicConnectionsFlow({
         getSelectedPlatforms(ensureSelected ? { AppleMusic: true } : {})
       );
 
-      setPlatformStates(prev => {
-        const updated = {
-          ...prev,
-          AppleMusic: {
-            ...prev.AppleMusic,
-            isSelected: ensureSelected || prev.AppleMusic.isSelected,
-            isAuthenticated: true,
-            isLoading: false,
-            addedAt: prev.AppleMusic.addedAt ?? new Date().toISOString(),
-          },
-        };
-        onConnectionChange?.(Object.values(updated).some(state => state.isSelected));
-        return updated;
-      });
+      setPlatformStates(prev => ({
+        ...prev,
+        AppleMusic: {
+          ...prev.AppleMusic,
+          isSelected: ensureSelected || prev.AppleMusic.isSelected,
+          isAuthenticated: true,
+          isLoading: false,
+          addedAt: prev.AppleMusic.addedAt ?? new Date().toISOString(),
+        },
+      }));
 
       toast.success(ensureSelected ? 'Apple Music connected!' : 'Apple Music authorized!');
     } catch (error) {
@@ -212,18 +194,14 @@ export function MusicConnectionsFlow({
 
       await apiService.setPlatformPreferences(newSelectedPlatforms);
 
-      setPlatformStates(prev => {
-        const updated = {
-          ...prev,
-          [serviceId]: {
-            ...prev[serviceId],
-            isSelected: newIsSelected,
-            isLoading: false,
-          },
-        };
-        onConnectionChange?.(Object.values(updated).some(s => s.isSelected));
-        return updated;
-      });
+      setPlatformStates(prev => ({
+        ...prev,
+        [serviceId]: {
+          ...prev[serviceId],
+          isSelected: newIsSelected,
+          isLoading: false,
+        },
+      }));
 
       if (newIsSelected) {
         toast.success(`${service.name} added to your profile`);
@@ -243,211 +221,72 @@ export function MusicConnectionsFlow({
     }
   };
 
-  const selectedPlatforms = MUSIC_SERVICES.filter(s => platformStates[s.id].isSelected);
-  const hasConnections = selectedPlatforms.length > 0;
-  const hasUnselectedServices = selectedPlatforms.length < MUSIC_SERVICES.length;
-  const appleMusicNeedsAuthorization =
-    platformStates.AppleMusic.isSelected && !platformStates.AppleMusic.isAuthenticated;
-  const deezerNeedsAuthorization =
-    platformStates.Deezer.isSelected && !platformStates.Deezer.isAuthenticated;
-
+  // Rows only: the caller's settings section supplies the heading and the container.
   if (isLoading) {
     return (
-      <Card className={`w-full ${className}`}>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">Music Services</CardTitle>
-              <CardDescription>Loading your preferences...</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center p-4">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        </CardContent>
-      </Card>
+      <p className="flex items-center gap-2 py-5 text-sm text-muted-foreground" aria-live="polite">
+        <Loader2 aria-hidden className="size-4 animate-spin" />
+        Loading music services…
+      </p>
     );
   }
 
   return (
-    <Card className={`w-full ${className}`}>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-lg">Music Services</CardTitle>
-            <CardDescription>
-              {hasConnections
-                ? "Streaming services on your profile"
-                : "Select the streaming services you use"
-              }
-            </CardDescription>
-          </div>
-          {hasConnections && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-1"
-            >
-              {hasUnselectedServices ? 'Add More' : 'Manage'}
-              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        {/* Connected Services Summary */}
-        {hasConnections && !isExpanded && (
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {selectedPlatforms.map(service => (
-                <Badge key={service.id} variant="secondary" className="flex items-center gap-1.5 py-1 px-2">
-                  <Image
-                    src={service.iconSrc}
-                    alt={service.name}
-                    width={16}
-                    height={16}
-                    className="rounded-sm"
-                  />
-                  {service.name}
-                </Badge>
-              ))}
-            </div>
-            {appleMusicNeedsAuthorization && (
-              <div className="rounded-lg border border-border bg-muted/40 p-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    Apple Music is on your profile, but it still needs authorization to create playlists.
-                  </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => void handleAppleMusicAuthorization()}
-                    disabled={platformStates.AppleMusic.isLoading}
-                    className="sm:shrink-0"
-                  >
-                    <PendingLabel
-                      pending={platformStates.AppleMusic.isLoading}
-                      label="Authorize Apple Music"
-                      pendingLabel="Authorizing…"
-                    />
-                  </Button>
-                </div>
-              </div>
-            )}
-            {deezerNeedsAuthorization && (
-              <div className="rounded-lg border border-border bg-muted/40 p-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    Deezer is on your profile, but it still needs authorization to create playlists.
-                  </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => void handleDeezerAuthorization()}
-                    disabled={platformStates.Deezer.isLoading}
-                    className="sm:shrink-0"
-                  >
-                    <PendingLabel
-                      pending={platformStates.Deezer.isLoading}
-                      label="Authorize Deezer"
-                      pendingLabel="Authorizing…"
-                    />
-                  </Button>
-                </div>
-              </div>
-            )}
-            {hasUnselectedServices && (
-              <p className="text-sm text-muted-foreground">
-                Click &quot;Add More&quot; to add additional streaming services
+    <>
+      {MUSIC_SERVICES.map(service => {
+        const state = platformStates[service.id];
+        const needsAuthorization = service.requiresAuth && state.isSelected && !state.isAuthenticated;
+
+        return (
+          <div key={service.id} className="flex items-center gap-4 py-5">
+            <Image src={service.iconSrc} alt="" width={32} height={32} className="size-8 shrink-0 object-contain" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium leading-none">{service.name}</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {needsAuthorization ? 'Authorization required to create playlists' : service.description}
               </p>
+            </div>
+            {/* Turning a service on starts its authorization, so the button only covers
+                a service that is on the profile but not yet authorized. */}
+            {needsAuthorization && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={state.isLoading}
+                className="shrink-0"
+                onClick={() => {
+                  if (service.id === 'Deezer') {
+                    void handleDeezerAuthorization();
+                  } else {
+                    void handleAppleMusicAuthorization();
+                  }
+                }}
+              >
+                <PendingLabel
+                  pending={state.isLoading}
+                  label={<>Authorize<span className="sr-only"> {service.name}</span></>}
+                  pendingLabel="Authorizing…"
+                />
+              </Button>
             )}
+            <span className="relative grid shrink-0 place-items-center">
+              <Loader2
+                aria-hidden
+                className={cn('pointer-events-none col-start-1 row-start-1 size-5 animate-spin text-muted-foreground transition-opacity', state.isLoading ? 'opacity-100' : 'opacity-0')}
+              />
+              <Switch
+                checked={state.isSelected}
+                onCheckedChange={() => handleToggle(service.id)}
+                disabled={state.isLoading}
+                aria-label={`Toggle ${service.name}`}
+                data-testid={`music-service-toggle-${service.id.toLowerCase()}`}
+                className={cn('col-start-1 row-start-1 transition-opacity', state.isLoading ? 'opacity-0' : 'opacity-100')}
+              />
+            </span>
           </div>
-        )}
-
-        {/* Full Platform List */}
-        {(!hasConnections || isExpanded) && (
-          <div className="space-y-3">
-            {MUSIC_SERVICES.map(service => {
-              const state = platformStates[service.id];
-
-              return (
-                <div
-                  key={service.id}
-                  className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                    state.isSelected ? 'bg-success/5 border-success/30' : 'bg-muted/50 border-transparent'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg ${service.bgColor} flex items-center justify-center p-1.5`}>
-                      <Image
-                        src={service.iconSrc}
-                        alt={service.name}
-                        width={28}
-                        height={28}
-                        className="object-contain"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{service.name}</span>
-                        {state.isSelected && (
-                          <Check className="w-4 h-4 text-success-text" />
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {service.requiresAuth && state.isSelected && !state.isAuthenticated
-                          ? 'Authorization required to create playlists'
-                          : service.description}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {service.requiresAuth && !state.isAuthenticated && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={state.isLoading}
-                        onClick={() => {
-                          if (service.id === 'Deezer') {
-                            void handleDeezerAuthorization();
-                          } else {
-                            void handleAppleMusicAuthorization(!state.isSelected);
-                          }
-                        }}
-                      >
-                        <PendingLabel
-                          pending={state.isLoading}
-                          label={state.isSelected ? 'Authorize' : 'Add & Authorize'}
-                          pendingLabel="Authorizing…"
-                        />
-                      </Button>
-                    )}
-                    <span className="relative grid place-items-center">
-                      <Loader2
-                        aria-hidden
-                        className={`pointer-events-none col-start-1 row-start-1 w-5 h-5 animate-spin text-muted-foreground transition-opacity ${state.isLoading ? 'opacity-100' : 'opacity-0'}`}
-                      />
-                      <Switch
-                        checked={state.isSelected}
-                        onCheckedChange={() => handleToggle(service.id)}
-                        disabled={state.isLoading}
-                        aria-label={`Toggle ${service.name}`}
-                        data-testid={`music-service-toggle-${service.id.toLowerCase()}`}
-                        className={`col-start-1 row-start-1 transition-opacity ${state.isLoading ? 'opacity-0' : 'opacity-100'}`}
-                      />
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        );
+      })}
+    </>
   );
 }

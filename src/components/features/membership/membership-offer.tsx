@@ -46,6 +46,7 @@ export function MembershipOffer({
   currency,
   interval,
   controls,
+  summary,
   children,
   ...rest
 }: Omit<ComponentProps<'div'>, 'children'> & {
@@ -65,6 +66,8 @@ export function MembershipOffer({
   interval: 'month' | 'year';
   /** Interval selector, placed between the description and the benefits. */
   controls?: ReactNode;
+  /** Identity details printed under the pass head; see WalletPass. */
+  summary?: ReactNode;
   children?: ReactNode;
 }) {
   const gross = (price: OfferPrice) => formatPaidPromotionMinorAmount(price.faceMinor + price.serviceFeeMinor, currency);
@@ -78,6 +81,7 @@ export function MembershipOffer({
       ref={passRef}
       product="Membership"
       tier={tier}
+      summary={summary}
       holderName={curatorName}
       holderHandle={curatorHandle}
       avatarUrl={curatorAvatarUrl}

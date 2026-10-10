@@ -2,14 +2,14 @@
 
 /** Renders the canonical public profile, enriching it with curator membership content when active. */
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, type ComponentProps } from 'react';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
 import { useUserBio, useUserActivity, useUserLikedPosts, profileQueryKeys } from '@/hooks/use-profile';
 import { ProfileHeader } from '@/components/features/profile/profile-header';
 import { ProfileOwnerBar } from '@/components/features/profile/profile-owner-bar';
-import { NotificationMenu } from '@/components/layout/notification-menu';
+import { ProfileIdentityPass, ProfileSummary } from '@/components/features/profile/profile-identity-pass';
 import { ProfileHeaderSkeleton } from '@/components/features/profile/profile-header-skeleton';
 import { ProfileTabs, TabType } from '@/components/features/profile/profile-tabs';
 import { ProfileActivity, ActivitySkeleton } from '@/components/features/profile/profile-activity';
@@ -24,7 +24,6 @@ import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { PublicCuratorPage } from '@/components/features/curator/curator-page';
 import { useCuratorPage } from '@/hooks/use-curator';
-import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
 
@@ -445,43 +444,43 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-        {/* Tab strip and owner bar run edge to edge, above the content and the membership rail alike. */}
-        <div className="sticky top-0 z-10 flex items-center bg-background/80 backdrop-blur-sm">
-          <div className="min-w-0 flex-1">
-            <ProfileTabs
-              activeTab={activeTab}
-              onTabChange={filterByElementType}
-              showPostsTab
-              showLikedTab={likedSectionVisible}
-              likedTabVisibility={likedTabVisibility}
-            />
-          </div>
-          {isCurrentUser && (
-            <div className="hidden flex-shrink-0 px-4 lg:block">
-              <NotificationMenu />
-            </div>
-          )}
-        </div>
+        {/* Tab strip and owner bar run edge to edge, above the content and the rail alike. */}
+        <ProfileTabStrip
+          showBack={!isCurrentUser}
+          activeTab={activeTab}
+          onTabChange={filterByElementType}
+          showPostsTab
+          showLikedTab={likedSectionVisible}
+          likedTabVisibility={likedTabVisibility}
+        />
         {isCurrentUser && <ProfileOwnerBar username={userBio.username} />}
         {/* Same right rail as Curator Studio; the membership pass slides between the two pages' spots. */}
-        <div className={cn(
-          'lg:px-8 lg:py-10',
-          showRail && 'grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6',
-        )}>
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:px-8 lg:py-10">
           <div className="min-w-0">
             <PublicCuratorPage
               username={userBio.username}
               membershipFlow={membership}
               initialInterval={membershipInterval}
               membershipSlot={membershipSlot}
+              identitySummary={<ProfileSummary user={userBio} />}
             />
           </div>
-          {/* top offset clears the sticky tab strip. */}
-          <aside
-            ref={setMembershipSlot}
-            aria-label="Membership"
-            className="empty:hidden px-4 pb-6 sm:px-6 sm:pb-8 lg:sticky lg:top-[5.5rem] lg:p-0"
-          />
+          {/* One pass in the rail: the membership pass by portal when the curator sells one, else
+              the profile pass. The has() guard covers a lapsed member whose manage pass arrives late.
+              top offset clears the sticky tab strip. */}
+          <div className="group lg:sticky lg:top-[5.5rem]">
+            <aside
+              ref={setMembershipSlot}
+              aria-label="Membership"
+              className="membership-slot empty:hidden px-4 pb-6 sm:px-6 sm:pb-8 lg:p-0"
+            />
+            {!showRail && (
+              <ProfileIdentityPass
+                user={userBio}
+                className="hidden lg:block group-has-[.membership-slot:not(:empty)]:hidden"
+              />
+            )}
+          </div>
         </div>
       </div>
     );
@@ -546,26 +545,19 @@ export default function ProfilePage() {
       </div>
 
       {/* --- DESKTOP LAYOUT --- */}
-      <div className="studio-surface hidden lg:flex lg:flex-1 lg:min-h-0">
-        <div className="min-w-0 flex-1 flex flex-col">
-          <div className="bg-background/80 backdrop-blur-sm sticky top-0 z-10 flex items-center">
-            <div className="flex-1 min-w-0">
-              <ProfileTabs
-                activeTab={activeTab}
-                onTabChange={filterByElementType}
-                showPostsTab={hasCuratorPage}
-                showLikedTab={likedSectionVisible}
-                likedTabVisibility={likedTabVisibility}
-              />
-            </div>
-            {isCurrentUser && (
-              <div className="px-4 flex-shrink-0">
-                <NotificationMenu />
-              </div>
-            )}
-          </div>
-          {isCurrentUser && userBio && <ProfileOwnerBar username={userBio.username} />}
-          <div className="flex-1 overflow-y-auto" data-testid="profile-content-pane">
+      <div className="studio-surface hidden lg:block lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
+        <ProfileTabStrip
+          showBack={!isCurrentUser && Boolean(userBio)}
+          activeTab={activeTab}
+          onTabChange={filterByElementType}
+          showPostsTab={hasCuratorPage}
+          showLikedTab={likedSectionVisible}
+          likedTabVisibility={likedTabVisibility}
+        />
+        {isCurrentUser && userBio && <ProfileOwnerBar username={userBio.username} />}
+        {/* The music tabs keep the activity grid's own padding; the rail matches its top edge. */}
+        <div className="grid grid-cols-[minmax(0,1fr)_20rem] items-start gap-6 pr-8">
+          <div className="min-w-0">
             {showActivitySkeleton ? (
               <div className="p-3 sm:p-4 md:p-6 lg:p-8">
                 <ActivitySkeleton count={6} />
@@ -588,8 +580,29 @@ export default function ProfilePage() {
               />
             )}
           </div>
+          {userBio && (
+            <div className="sticky top-[5.5rem] pt-6">
+              <ProfileIdentityPass user={userBio} />
+            </div>
+          )}
         </div>
       </div>
     </>
+  );
+}
+
+/** Sticky tab strip with the desktop back control for visitors; phones keep theirs above the masthead. */
+function ProfileTabStrip({ showBack, ...tabs }: { showBack: boolean } & ComponentProps<typeof ProfileTabs>) {
+  return (
+    <div className="sticky top-0 z-10 flex items-end bg-background/80 backdrop-blur-sm">
+      {showBack && (
+        <div className="hidden pb-2.5 pl-6 lg:block">
+          <BackButton fallbackRoute="/explore" />
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <ProfileTabs {...tabs} />
+      </div>
+    </div>
   );
 }

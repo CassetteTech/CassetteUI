@@ -2,7 +2,7 @@
 
 /** Renders a fan's server-authorized membership offer and current billing actions. */
 
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -48,6 +48,7 @@ export function CuratorMembershipCard({
   onManage,
   onCheckStatus,
   onViewMemberPosts,
+  summary,
 }: {
   page: CuratorPage;
   displayName: string;
@@ -70,6 +71,8 @@ export function CuratorMembershipCard({
   onManage: (membership: MembershipSubscription) => void;
   onCheckStatus: () => void;
   onViewMemberPosts: () => void;
+  /** The curator's bio, services, and links; the pass is the page's identity on wide screens. */
+  summary?: ReactNode;
 }) {
   const plan = page.membership;
   const membership = status?.membership;
@@ -153,6 +156,7 @@ export function CuratorMembershipCard({
         <WalletPass
           ref={memberPassRef}
           {...pass}
+          summary={summary}
           tier="Member"
           price={membership ? formatPaidPromotionMinorAmount(membership.totalAmountMinor, membership.currency) : undefined}
           priceUnit={membership ? `/${membership.billingInterval}` : undefined}
@@ -205,6 +209,7 @@ export function CuratorMembershipCard({
       annual={annual}
       currency={displayedPlan?.currency ?? 'USD'}
       interval={displayedInterval}
+      summary={summary}
       controls={
         displayedPlan && annual && canJoin && !page.viewer.isOwner &&
           !(membership?.status === 'incomplete' && planMatchesMembership) && (

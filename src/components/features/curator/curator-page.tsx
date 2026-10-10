@@ -2,7 +2,7 @@
 
 /** Coordinates the public curator feed, fan entitlement state, and Stripe handoff flows. */
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -74,12 +74,15 @@ export function PublicCuratorPage({
   membershipFlow,
   initialInterval,
   membershipSlot,
+  identitySummary,
 }: {
   username: string;
   membershipFlow: MembershipFlow;
   initialInterval: MembershipInterval;
   /** Page rail the membership card renders into; the same rail Curator Studio uses. */
   membershipSlot: HTMLElement | null;
+  /** The profile's bio, services, and links, printed inside the pass on wide screens. */
+  identitySummary?: ReactNode;
 }) {
   const instanceId = useId();
   const curatorNameId = `curator-name-${instanceId}`;
@@ -481,6 +484,7 @@ export function PublicCuratorPage({
             onManage={(membership) => void manage(membership)}
             onCheckStatus={() => void statusQuery.refetch()}
             onViewMemberPosts={() => setMembersOnly(true)}
+            summary={identitySummary}
           />,
           membershipSlot,
         )}

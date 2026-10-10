@@ -367,8 +367,12 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
       // A plan list read sent before this action, such as the annual price refresh, would overwrite its result.
       await queryClient.cancelQueries({ queryKey: plansKey });
       queryClient.setQueryData<CuratorPlan[]>(plansKey, (current) => replacePlan(current, saved));
-      // Ending memberships also archives the live offer, which the response does not carry.
-      if (action.kind === 'end-memberships') void queryClient.invalidateQueries({ queryKey: plansKey });
+      // Ending memberships also archives the live offer, which the response does not carry,
+      // and turns every active member into one who will not renew.
+      if (action.kind === 'end-memberships') {
+        void queryClient.invalidateQueries({ queryKey: plansKey });
+        void queryClient.invalidateQueries({ queryKey: ['curator-member-stats'] });
+      }
       setExpanded(true);
       setNotice(planActions[action.kind].notice);
     },
@@ -495,7 +499,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
             </div>
             <Button type="button" variant="outline" onClick={() => setExpanded(true)}>Manage plan</Button>
           </div>
-          <dl className="grid gap-3 sm:grid-cols-3">
+          <dl className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
             <StudioStat
               label="Monthly price"
               value={money(activePlan.amountMinor, activePlan.currency)}

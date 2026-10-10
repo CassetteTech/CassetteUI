@@ -1,13 +1,14 @@
 'use client';
 
-/** Curator Studio landing view. Once a plan has been published: stat cards, a
-    dithered earned-versus-paid chart with a running activity feed beside it,
-    and the membership plan card. Before that: the launch checklist and the
-    plan editor. */
+/** Curator Studio landing view. Once a plan has been published: one hero
+    figure (earned in the chosen period) with three figures under it, a
+    dithered earned-versus-paid chart at full width, the latest activity, and
+    the membership plan card. Before that: the launch checklist and the plan
+    editor. */
 
 import { useContext, useMemo, useState, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, ArrowUpRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CuratorPlanCard } from '@/components/features/curator/curator-plan-card';
 import { Area } from '@/components/dither-kit/area';
@@ -19,7 +20,7 @@ import { Tooltip } from '@/components/dither-kit/tooltip';
 import { XAxis } from '@/components/dither-kit/x-axis';
 import { YAxis } from '@/components/dither-kit/y-axis';
 import { eventTitle } from '@/components/features/curator/curator-earnings-card';
-import { StudioStepsContext } from '@/components/features/curator/studio-shell';
+import { StudioStat, StudioStepsContext, studioFigureClassName } from '@/components/features/curator/studio-shell';
 import { useCuratorLedger } from '@/components/features/curator/use-curator-ledger';
 import { SegmentedControl } from '@/components/interior/segmented-control';
 import { TaskSteps } from '@/components/interior/task-steps';
@@ -27,12 +28,13 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { CuratorProfile } from '@/services/curator';
-import { monthStart, periodSummary, type CuratorEarningsBalances } from '@/services/curator-earnings';
+import { periodSummary, type CuratorEarningsBalances } from '@/services/curator-earnings';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { AnnotatedText } from '@/components/ui/annotated-text';
 import { cn } from '@/lib/utils';
 
-export type LaunchStep = { href: string; label: string; done: boolean };
+/** `notice` is the one sentence the overview shows when the step is open again after launch. */
+export type LaunchStep = { href: string; label: string; notice: string; done: boolean };
 
 const countFormatter = new Intl.NumberFormat('en-US');
 const dayFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -61,57 +63,15 @@ function nextPayout(balances: CuratorEarningsBalances) {
   return { value: 'None yet', hint: 'Nothing is waiting for payout' };
 }
 
-function Card({ title, action, className, children }: {
-  title: string;
-  action?: ReactNode;
-  className?: string;
-  children: ReactNode;
-}) {
+function Card({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <section className={cn('card-quiet', className)}>
+    <section className="card-quiet">
       <div className="flex items-center justify-between gap-3 px-5 pt-4">
         <h2 className="text-sm font-semibold">{title}</h2>
         {action}
       </div>
       <div className="px-5 pb-5 pt-3">{children}</div>
     </section>
-  );
-}
-
-/** One stat card. Clickable tiles open the view that explains the number. */
-function StatTile({ label, value, hint, onClick }: {
-  label: string;
-  value: ReactNode;
-  hint?: ReactNode;
-  onClick?: () => void;
-}) {
-  const body = (
-    <>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-1.5 font-teko text-4xl font-bold leading-none tabular-nums">{value}</dd>
-      {hint && <dd className="mt-2 text-xs text-muted-foreground">{hint}</dd>}
-    </>
-  );
-  const shell = 'block h-full w-full card-quiet px-5 py-4 text-left';
-  return (
-    <div className="min-w-0">
-      {onClick ? (
-        <button
-          type="button"
-          onClick={onClick}
-          className={cn(shell, 'group relative transition-colors hover:bg-muted/40 active:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')}
-        >
-          {/* Corner arrow marks the tile as a way into the view behind the number. */}
-          <ArrowUpRight
-            aria-hidden
-            className="absolute right-4 top-4 size-4 text-muted-foreground/60 transition-colors group-hover:text-foreground group-focus-visible:text-foreground"
-          />
-          {body}
-        </button>
-      ) : (
-        <div className={shell}>{body}</div>
-      )}
-    </div>
   );
 }
 
@@ -148,19 +108,20 @@ function LaunchCard({ steps, doneCount, nextIndex }: { steps: LaunchStep[]; done
 export function OverviewSkeleton() {
   return (
     <div aria-hidden className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="card-quiet px-5 py-4">
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="mt-2 h-7 w-16" />
-            <Skeleton className="mt-2 h-3 w-24" />
-          </div>
-        ))}
+      <div className="card-quiet px-5 py-5 sm:px-6">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="mt-2 h-11 w-40" />
+        <div className="mt-6 grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div key={i} className={studioFigureClassName}>
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="mt-2 h-7 w-16" />
+            </div>
+          ))}
+        </div>
+        <Skeleton className="mt-6 h-56 w-full" />
       </div>
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Skeleton className="h-72 w-full rounded-xl lg:col-span-2" />
-        <Skeleton className="h-72 w-full rounded-xl" />
-      </div>
+      <Skeleton className="h-48 w-full rounded-xl" />
     </div>
   );
 }
@@ -171,6 +132,7 @@ export function StudioOverview({
   doneCount,
   nextIndex,
   hasPublished,
+  stepsKnown,
 }: {
   profile: CuratorProfile | null;
   steps: LaunchStep[];
@@ -178,6 +140,8 @@ export function StudioOverview({
   nextIndex: number;
   /** null while the first plan read is in flight. */
   hasPublished: boolean | null;
+  /** False until every step's state has been read. */
+  stepsKnown: boolean;
 }) {
   const views = useContext(StudioStepsContext);
   const earnings = useCuratorLedger(hasPublished === true && profile !== null);
@@ -190,21 +154,16 @@ export function StudioOverview({
   const balances = ledger?.balances;
   const currency = balances?.currency ?? 'USD';
   const axis = useMemo(() => axisMoney(currency), [currency]);
-  const setupIncomplete = nextIndex !== -1;
+  // After launch an open setup step is one banner, not the checklist; an unread step is not open.
+  const openStep = stepsKnown ? steps[nextIndex] : undefined;
   // The ledger is read newest-first up to a page cap; say so when the window is cut short.
   const windowHint = ledger && !ledger.coversWindow
     ? `From your latest ${countFormatter.format(ledger.items.length)} ledger events`
     : null;
-  const tiles = ledger && balances
+  const figures = ledger && balances
     ? [
         {
-          label: 'Earned this month',
-          value: money(balances.earnedThisMonth, currency),
-          hint: `Since ${dayFormatter.format(monthStart(0))}`,
-          target: 'studio-earnings',
-        },
-        {
-          label: 'Payable balance',
+          label: 'Ready to pay out',
           value: money(balances.payable, currency),
           hint: balances.accrued > 0
             ? `${money(balances.accrued, currency)} more still accruing`
@@ -219,11 +178,14 @@ export function StudioOverview({
           target: 'studio-earnings',
         },
       ]
-    : ['Earned this month', 'Payable balance', 'Next payout', 'Active members'].map((label) => ({
-        label,
+    : [
+        { label: 'Ready to pay out', target: 'studio-payouts' },
+        { label: 'Next payout', target: 'studio-payouts' },
+        { label: 'Active members', target: 'studio-earnings' },
+      ].map((figure) => ({
+        ...figure,
         value: '—',
         hint: earnings.isError ? 'Unavailable right now' : 'Loading…',
-        target: 'studio-earnings',
       }));
   // One orchestrated entrance for the dashboard; disabled under prefers-reduced-motion.
   const reduceMotion = useReducedMotion();
@@ -241,12 +203,11 @@ export function StudioOverview({
     </Alert>
   );
 
+  // Earned is the hero figure, so the totals line holds the period's other outcomes.
   const summary = period
     ? [
-        { label: 'Earned', value: money(period.earned, currency) },
-        { label: 'Pending payout', value: money(period.pending, currency) },
         { label: 'Paid out', value: money(period.paid, currency) },
-        { label: 'Forfeited', value: money(period.forfeited, currency), muted: true },
+        { label: 'Not earned', value: money(period.forfeited, currency), muted: true },
       ]
     : [];
 
@@ -266,79 +227,95 @@ export function StudioOverview({
         </motion.div>
       ) : (
       <>
-      <motion.dl {...rise(0)} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {tiles.map((tile) => (
-          <StatTile key={tile.label} {...tile} onClick={() => views?.open(tile.target)} />
-        ))}
-      </motion.dl>
+        {openStep && (
+          <motion.div {...rise(0)}>
+            <Alert variant="info" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <p>{openStep.notice}</p>
+              <Button size="sm" onClick={() => views?.open(openStep.href.slice(1))}>
+                {openStep.label}
+                <ArrowRight aria-hidden />
+              </Button>
+            </Alert>
+          </motion.div>
+        )}
 
-      <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
-        <motion.div {...rise(1)} className="lg:col-span-2">
-          <Card
-            title="Earnings"
-            action={
-              <SegmentedControl
-                label="Earnings period"
-                options={periods}
-                value={months}
-                onValueChange={setMonths}
+        {/* Stripe Express shape: the hero figure and its period control, three figures, then the chart at full width. */}
+        <motion.section {...rise(1)} aria-labelledby="studio-earned-title" className="card-quiet px-5 py-5 sm:px-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h2 id="studio-earned-title" className="text-xs text-muted-foreground">Earned</h2>
+              <p className="mt-1 font-teko text-5xl font-bold leading-none tabular-nums">
+                {period ? money(period.earned, currency) : '—'}
+              </p>
+              {earnings.isPending ? (
+                <output className="mt-1.5 block text-xs text-muted-foreground">Loading earnings…</output>
+              ) : (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  {period
+                    ? `From members in the last ${months} months${period.complete ? '.' : `. ${windowHint}.`}`
+                    : 'Earnings are unavailable right now. Try again in a moment.'}
+                </p>
+              )}
+            </div>
+            <SegmentedControl label="Earnings period" options={periods} value={months} onValueChange={setMonths} />
+          </div>
+
+          {/* From lg to xl the app sidebar and the pass rail leave about 310 px, too narrow for three figures. */}
+          <dl className="mt-6 grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+            {figures.map((figure) => (
+              <StudioStat
+                key={figure.label}
+                label={figure.label}
+                value={figure.value}
+                hint={figure.hint}
+                onClick={() => views?.open(figure.target)}
               />
-            }
-          >
-            {earnings.isPending ? (
-              <output className="text-sm text-muted-foreground">Loading earnings…</output>
-            ) : period ? (
-              <div>
-                <p className="font-teko text-4xl font-bold leading-none tabular-nums">
-                  {money(period.earned, currency)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Earned from members in the last {months} months
-                  {period.complete ? '.' : `. ${windowHint}.`}
-                </p>
-                {period.earned + period.paid === 0 ? (
-                  <p className="mt-4 flex h-56 items-center justify-center rounded-lg border border-dashed border-border/70 text-sm text-muted-foreground">
-                    <span>No earnings <AnnotatedText>in this period</AnnotatedText> yet.</span>
-                  </p>
-                ) : (
-                  <div className="mt-4">
-                    <AreaChart
-                      data={period.rows}
-                      config={chartConfig}
-                      animate={!reduceMotion}
-                      margins={{ left: 44, bottom: 20, right: 8, top: 8 }}
-                      className="h-56 w-full"
-                    >
-                      <Grid />
-                      <YAxis tickCount={3} tickFormatter={(value) => axis.format(value / 100)} />
-                      <XAxis dataKey="label" maxTicks={12} />
-                      <Area dataKey="paid" variant="hatched" />
-                      <Area dataKey="earned" variant="dotted" />
-                      <Tooltip labelKey="label" valueFormatter={(value) => money(value, currency)} />
-                    </AreaChart>
-                    <BlockLegend config={chartConfig} className="mt-2" />
-                  </div>
-                )}
-                {/* Period totals read as one line under the chart. */}
-                <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-border/70 pt-4 sm:grid-cols-4">
-                  {summary.map((row) => (
-                    <div key={row.label}>
-                      <dt className="text-xs text-muted-foreground">{row.label}</dt>
-                      <dd className={cn('mt-0.5 font-mono text-sm tabular-nums', row.muted && 'text-muted-foreground')}>
-                        {row.value}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Earnings are unavailable right now. Try again in a moment.</p>
-            )}
-          </Card>
-        </motion.div>
+            ))}
+          </dl>
 
-        <motion.div {...rise(2)} className="space-y-6">
-          {setupIncomplete && <LaunchCard steps={steps} doneCount={doneCount} nextIndex={nextIndex} />}
+          {earnings.isPending ? (
+            <Skeleton className="mt-6 h-56 w-full" />
+          ) : period && (
+            <>
+              {period.earned + period.paid === 0 ? (
+                <p className="mt-6 flex h-56 items-center justify-center rounded-lg border border-dashed border-border/70 text-sm text-muted-foreground">
+                  <span>No earnings <AnnotatedText>in this period</AnnotatedText> yet.</span>
+                </p>
+              ) : (
+                <div className="mt-6">
+                  <AreaChart
+                    data={period.rows}
+                    config={chartConfig}
+                    animate={!reduceMotion}
+                    margins={{ left: 44, bottom: 20, right: 8, top: 8 }}
+                    className="h-56 w-full"
+                  >
+                    <Grid />
+                    <YAxis tickCount={3} tickFormatter={(value) => axis.format(value / 100)} />
+                    <XAxis dataKey="label" maxTicks={12} />
+                    <Area dataKey="paid" variant="hatched" />
+                    <Area dataKey="earned" variant="dotted" />
+                    <Tooltip labelKey="label" valueFormatter={(value) => money(value, currency)} />
+                  </AreaChart>
+                  <BlockLegend config={chartConfig} className="mt-2" />
+                </div>
+              )}
+              {/* Period totals read as one line under the chart. */}
+              <dl className="mt-5 flex flex-wrap gap-x-8 gap-y-3 border-t border-border/70 pt-4">
+                {summary.map((row) => (
+                  <div key={row.label}>
+                    <dt className="text-xs text-muted-foreground">{row.label}</dt>
+                    <dd className={cn('mt-0.5 font-mono text-sm tabular-nums', row.muted && 'text-muted-foreground')}>
+                      {row.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </>
+          )}
+        </motion.section>
+
+        <motion.div {...rise(2)}>
           <Card
             title="Latest activity"
             action={
@@ -370,7 +347,6 @@ export function StudioOverview({
             )}
           </Card>
         </motion.div>
-      </div>
       </>
       )}
 

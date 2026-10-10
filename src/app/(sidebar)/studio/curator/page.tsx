@@ -76,10 +76,15 @@ function useLaunchSteps(profile: CuratorProfile | null) {
   const hasPlan = plans.data?.some((plan) => plan.status !== 'archived') === true;
   const hasActivePlan = plans.data?.some((plan) => plan.status === 'active') === true;
   const steps: LaunchStep[] = [
-    { href: '#studio-profile', label: 'Create your free profile', done: profile?.status === 'active' },
-    { href: '#studio-plan', label: 'Prepare and preview your offer', done: hasPlan },
-    { href: '#studio-payouts', label: 'Complete payout setup', done: payoutReady },
-    { href: '#studio-plan', label: 'Publish your membership plan', done: hasActivePlan },
+    {
+      href: '#studio-profile',
+      label: 'Create your free profile',
+      notice: 'Your curator profile is not active.',
+      done: profile?.status === 'active',
+    },
+    { href: '#studio-plan', label: 'Prepare and preview your offer', notice: 'You have no membership plan.', done: hasPlan },
+    { href: '#studio-payouts', label: 'Complete payout setup', notice: 'Payout setup is not complete.', done: payoutReady },
+    { href: '#studio-plan', label: 'Publish your membership plan', notice: 'No membership plan is live.', done: hasActivePlan },
   ];
   const doneCount = steps.filter((step) => step.done).length;
   const nextIndex = steps.findIndex((step) => !step.done);
@@ -99,6 +104,10 @@ function useLaunchSteps(profile: CuratorProfile | null) {
       ? null
       : plans.data?.some((plan) => plan.status !== 'draft') === true,
     payoutStarted,
+    payoutReady,
+    // False while a step input has no answer yet (pending, or failed with nothing cached),
+    // so an unknown payout state never reads as an open step.
+    stepsKnown: payout.data !== undefined && (profile === null || plans.data !== undefined),
   };
 }
 
@@ -197,6 +206,8 @@ function CuratorStudio() {
     },
     passSlot,
   }), [createProfileNow, queryClient, passSlot]);
+  const payoutSetup = <CuratorPayoutCard key="payout-setup" />;
+  const payoutHistory = <CuratorPayoutHistory key="payout-history" enabled={launch.payoutStarted && Boolean(profile.data)} />;
 
   return (
     <StudioStepsContext.Provider value={open}>
@@ -256,6 +267,7 @@ function CuratorStudio() {
                     doneCount={launch.doneCount}
                     nextIndex={launch.nextIndex}
                     hasPublished={launch.hasPublished}
+                    stepsKnown={launch.stepsKnown}
                   />
                 )}
               </TabsContent>
@@ -277,9 +289,10 @@ function CuratorStudio() {
                 )}
               </TabsContent>
               <TabsContent value="studio-billing" forceMount tabIndex={-1} className="space-y-6 data-[state=inactive]:hidden">
+                {/* Setup leads until payouts are active; then balances lead and setup is one line.
+                    The keys move both cards without remounting, so a provider return survives the swap. */}
+                {launch.payoutReady ? [payoutHistory, payoutSetup] : [payoutSetup, payoutHistory]}
                 <CuratorProCard />
-                <CuratorPayoutCard />
-                <CuratorPayoutHistory enabled={launch.payoutStarted && Boolean(profile.data)} />
               </TabsContent>
             </div>
             {/* The pass arrives by portal; leaving display:none restarts the rise, so it enters like the cards. */}

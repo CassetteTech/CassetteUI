@@ -262,7 +262,7 @@ export function CuratorProCard() {
 
         {
           <>
-            <dl className="grid gap-4 sm:grid-cols-2">
+            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               <StudioStat
                 label="Your monthly price"
                 value={formatMoney(status.discountKind === 'none' ? status.monthlyPriceMinor : 0, status.currency)}

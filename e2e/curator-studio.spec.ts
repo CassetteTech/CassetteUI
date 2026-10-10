@@ -1,4 +1,4 @@
-/** Tests free curator profiles, payout onboarding, plan economics, and earnings in Studio. */
+/** Tests free curator profiles, payout onboarding, plan economics, member counts, and earnings in Studio. */
 
 import { expect, type Page, test } from '@playwright/test';
 import type {
@@ -8,6 +8,9 @@ import type {
 import type { CuratorPlan, CuratorPricing } from '../src/services/curator-plans';
 import type { CuratorEarningsHistoryItem } from '../src/services/curator-earnings';
 import {
+  fixtureActiveMemberPostPlan,
+  fixtureCuratorMemberCounts,
+  fixtureCuratorProAvailableStatus,
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
@@ -144,6 +147,8 @@ test('lets a signed-in user create a free curator profile with one click', async
   await page.reload();
   await openStudioStep(page, 'studio-overview');
   await expect(page.getByRole('button', { name: 'Next: Create your free profile' })).toHaveCount(0);
+  // No plan was published, so member counts were never requested.
+  expect(state.curatorMemberStatsRequests).toEqual([]);
 });
 
 test('hands a user with no payout account to secure onboarding', async ({ page }) => {
@@ -481,9 +486,11 @@ test('ends memberships after a confirmation that states the effect on members', 
       transfersCapabilityStatus: 'active',
       capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
     }),
+    curatorMemberCounts: { ...fixtureCuratorMemberCounts, notRenewingMembers: 0 },
   });
 
   await page.goto(STUDIO_PATH);
+  await expect.poll(() => state.curatorMemberStatsRequests).toEqual([30]);
   await openStudioStep(page, 'studio-plan');
   const card = page.getByTestId('curator-plan-card');
   // A live plan folds the card to a summary; open the tools first.
@@ -505,6 +512,12 @@ test('ends memberships after a confirmation that states the effect on members', 
   await expect(card.getByTestId('curator-plan-notice')).toContainText('each member keeps access through the period they paid for');
   expect(state.curatorPlanEndMembershipsRequests).toEqual([draftPlan.id]);
   expect(state.curatorPlanArchiveRequests).toEqual([]);
+
+  // The always-mounted Members tab reads its counts again after the ending.
+  await expect.poll(() => state.curatorMemberStatsRequests).toEqual([30, 30]);
+  await openStudioStep(page, 'studio-earnings');
+  await expect(page.getByTestId('curator-earnings-card').getByText('3 members will not renew.', { exact: true }))
+    .toBeVisible();
 });
 
 const publishedMonthlyPlan: CuratorPlan = {
@@ -743,7 +756,9 @@ test('shows private paginated earnings without Curator Pro', async ({ page }) =>
 
   const card = page.getByTestId('curator-earnings-card');
   await expect(card).toBeVisible();
-  await expect(card.getByTestId('curator-active-member-count')).toHaveText('3');
+  // No plan has been published, so there are no members to count or request.
+  await expect(card.getByText('No members yet', { exact: true })).toBeVisible();
+  await expect(card.getByRole('radiogroup', { name: 'Member window' })).toHaveCount(0);
 
   const terminalAllocation = card.getByText('$1.25', { exact: true }).locator('..').locator('..');
   await expect(terminalAllocation).toContainText('Earning forfeited');
@@ -768,6 +783,132 @@ test('shows private paginated earnings without Curator Pro', async ({ page }) =>
     { page: 1, pageSize: 10 },
     { page: 2, pageSize: 10 },
   ]);
+  expect(state.curatorMemberStatsRequests).toEqual([]);
+});
+
+test('shows member counts, the daily trend, and the previous-window baseline', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [fixtureActiveMemberPostPlan],
+    curatorMemberCounts: fixtureCuratorMemberCounts,
+    // A different ledger count proves which source each tab reads.
+    curatorEarnings: {
+      activeMemberCount: 7, items: earningsItems.slice(0, 3),
+      balances: { currency: 'USD', earnedThisMonth: 0, accrued: 425, payable: 0,
+        blocked: 0, paidOut: 900, nextPayableAt: null },
+    },
+  });
+  const firstResponse = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === '/api/v1/curators/me/member-stats');
+
+  await page.goto(STUDIO_PATH);
+  // The Overview reads the earnings ledger; the Members tab reads member counts.
+  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByRole('button', { name: 'Active members 7', exact: true })).toBeVisible();
+  await openStudioStep(page, 'studio-earnings');
+
+  const card = page.getByTestId('curator-earnings-card');
+  await expect(card.getByTestId('curator-active-member-count')).toHaveText('3');
+  await expect(card.getByTestId('curator-new-member-count')).toHaveText('2');
+  await expect(card.getByTestId('curator-ended-member-count')).toHaveText('1');
+  await expect(card.getByText(/^\+1 since /)).toBeVisible();
+  await expect(card.getByText('1 in the 30 days before', { exact: true })).toBeVisible();
+  await expect(card.getByText('0 in the 30 days before', { exact: true })).toBeVisible();
+  await expect(card.getByText('1 member will not renew.', { exact: true })).toBeVisible();
+  await expect(card.getByText(
+    'A membership counts as ended on the day its access ends, not the day the fan cancels.',
+    { exact: true },
+  )).toBeVisible();
+  await expect(card.getByRole('figure')).toBeVisible();
+  // The Overview owns earnings figures.
+  await expect(card).not.toContainText('Earned this month');
+
+  const responseText = JSON.stringify(await (await firstResponse).json());
+  expect(responseText).not.toMatch(/fanUserId|membershipSubscriptionId|email|username|stripe/i);
+
+  // Hold the 7-day response: the 30-day figures stay on screen, dimmed and busy.
+  let releaseWeek!: () => void;
+  const weekHeld = new Promise<void>((resolve) => { releaseWeek = resolve; });
+  await page.route(
+    (url) => url.pathname === '/api/v1/curators/me/member-stats' && url.searchParams.get('days') === '7',
+    async (route) => {
+      await weekHeld;
+      await route.fallback();
+    },
+  );
+  await card.getByRole('radio', { name: '7 days' }).click();
+  await expect(card.getByText('Loading 7 days…', { exact: true })).toBeVisible();
+  await expect(card.locator('[aria-busy="true"]')).toBeVisible();
+  await expect(card.getByText('1 in the 30 days before', { exact: true })).toBeVisible();
+
+  releaseWeek();
+  await expect(card.getByText('1 in the 7 days before', { exact: true })).toBeVisible();
+  await expect(card.locator('[aria-busy="true"]')).toHaveCount(0);
+  await expect(card.getByText('Loading 7 days…', { exact: true })).toHaveCount(0);
+  expect(state.curatorMemberStatsRequests).toEqual([30, 7]);
+});
+
+test('says when a published plan has no members in the window', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [fixtureActiveMemberPostPlan],
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-earnings');
+
+  const card = page.getByTestId('curator-earnings-card');
+  await expect(card.getByText('No active members', { exact: true })).toBeVisible();
+  await expect(card.getByText('No one joined or left in the last 60 days.', { exact: true })).toBeVisible();
+  await expect(card.getByRole('link', { name: 'View your public profile' })).toBeVisible();
+  await expect(card.getByTestId('curator-active-member-count')).toHaveCount(0);
+  expect(state.curatorMemberStatsRequests).toEqual([30]);
+});
+
+test('says member counts are unavailable when the plans cannot load', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [fixtureActiveMemberPostPlan],
+  });
+  await page.route('**/api/v1/curators/plans', (route) =>
+    route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"unavailable"}' }));
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-earnings');
+
+  const card = page.getByTestId('curator-earnings-card');
+  await expect(card.getByRole('alert').first()).toContainText('Your other Studio tools still work.', { timeout: 10_000 });
+  await expect(card.getByText('No members yet', { exact: true })).toHaveCount(0);
+  expect(state.curatorMemberStatsRequests).toEqual([]);
+});
+
+test('keeps the activity list when member counts fail, then retries them', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [fixtureActiveMemberPostPlan],
+    curatorMemberStatsStatus: 503,
+    curatorEarnings: {
+      activeMemberCount: 3, items: earningsItems.slice(0, 3),
+      balances: { currency: 'USD', earnedThisMonth: 0, accrued: 425, payable: 0,
+        blocked: 0, paidOut: 900, nextPayableAt: null },
+    },
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-earnings');
+
+  const card = page.getByTestId('curator-earnings-card');
+  await expect(card.getByRole('alert')).toContainText('Your other Studio tools still work.', { timeout: 10_000 });
+  await expect(card.getByTestId('curator-earnings-history')).toBeVisible();
+
+  state.curatorMemberStatsStatus = 200;
+  state.curatorMemberCounts = fixtureCuratorMemberCounts;
+  await card.getByRole('button', { name: 'Try again' }).click();
+  await expect(card.getByTestId('curator-active-member-count')).toHaveText('3');
 });
 
 
@@ -809,4 +950,91 @@ test('opens Stripe for payout updates after onboarding is complete', async ({ pa
   await page.getByRole('button', { name: 'Update payout details' }).click();
   await expect(page).toHaveURL(PAYOUT_URL);
   expect(state.curatorPayoutOnboardingRequests).toBe(1);
+});
+
+/** Payouts & billing sections from top to bottom; null until all three are laid out, so order is never inferred from a missing box. */
+async function billingOrder(page: Page) {
+  const sections = {
+    setup: page.getByTestId('curator-payout-card'),
+    history: page.locator('#studio-payout-history'),
+    pro: page.getByTestId('curator-pro-card'),
+  };
+  const placed: Array<{ name: string; y: number }> = [];
+  for (const [name, section] of Object.entries(sections)) {
+    const box = await section.boundingBox();
+    if (!box) return null;
+    placed.push({ name, y: box.y });
+  }
+  return placed.sort((a, b) => a.y - b.y).map((entry) => entry.name);
+}
+
+const restrictedPayout = payoutAccount({
+  onboardingStatus: 'restricted',
+  transfersCapabilityStatus: 'restricted',
+  requirementsDue: true,
+});
+const activePayout = payoutAccount({
+  onboardingStatus: 'active',
+  transfersCapabilityStatus: 'active',
+  capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
+});
+
+test('swaps the launch checklist for one banner after the first publish and orders billing by payout state', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [publishedMonthlyPlan],
+    curatorPayoutAccount: restrictedPayout,
+    curatorProStatus: fixtureCuratorProAvailableStatus,
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByText('Payout setup is not complete.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Launch checklist' })).toHaveCount(0);
+  await page.getByRole('button', { name: /^Ready to pay out/ }).click();
+  await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-selected', 'true');
+  await expect.poll(() => billingOrder(page)).toEqual(['setup', 'history', 'pro']);
+
+  state.curatorPayoutAccount = activePayout;
+  await page.reload();
+  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByRole('heading', { name: 'Earned' })).toBeVisible();
+  await expect(page.getByText('Payout setup is not complete.')).toHaveCount(0);
+  await openStudioStep(page, 'studio-billing');
+  await expect(page.getByTestId('curator-payout-card')).toContainText('Ready. Last checked');
+  await expect.poll(() => billingOrder(page)).toEqual(['history', 'setup', 'pro']);
+});
+
+test('keeps the payout return notice when billing reorders as payouts turn active', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPayoutAccount: payoutAccount(),
+    curatorPayoutRefreshAccount: activePayout,
+    curatorProStatus: fixtureCuratorProAvailableStatus,
+  });
+
+  await page.goto(`${STUDIO_PATH}?payout=return`);
+
+  await expect.poll(() => billingOrder(page)).toEqual(['history', 'setup', 'pro']);
+  // A remounted card would restart without the return parameter and drop this notice.
+  await expect(page.getByTestId('curator-payout-notice')).toHaveText('Payout setup is complete.');
+  expect(state.curatorPayoutStatusRequests.filter(Boolean)).toEqual([true]);
+});
+
+test('shows no setup banner while the payout state is unknown', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [publishedMonthlyPlan],
+    curatorPayoutAccount: restrictedPayout,
+  });
+  state.curatorPayoutStatusFailuresRemaining = 10;
+
+  await page.goto(STUDIO_PATH);
+  await expect(page.getByTestId('curator-payout-card').getByRole('alert')).toBeAttached({ timeout: 10_000 });
+  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByRole('heading', { name: 'Earned' })).toBeVisible();
+  await expect(page.getByText('Payout setup is not complete.')).toHaveCount(0);
 });

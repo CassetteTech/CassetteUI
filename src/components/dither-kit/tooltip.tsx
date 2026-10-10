@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion"
 import { useState } from "react"
 import { useCommonChart } from "./common-context"
+import { prefersReducedMotion } from "./dither-paint"
 import { cn } from "./lib"
 import { rgb } from "./palette"
 
@@ -15,8 +16,8 @@ const VARIANT: Record<TooltipVariant, string> = {
 
 /**
  * Floating hover tooltip. Reads the shared common context so it works in every
- * chart family. It glides between points and fades in/out (instead of snapping),
- * and dims unselected series/slices.
+ * chart family. It glides between points and fades in/out (instead of snapping,
+ * except under reduced motion), and dims unselected series/slices.
  */
 export function Tooltip({
   labelKey,
@@ -61,12 +62,13 @@ export function Tooltip({
             left: chart.tooltipLeft,
           }}
           exit={{ opacity: 0 }}
-          transition={{
-            type: "spring",
-            stiffness: 520,
-            damping: 38,
-            mass: 0.6,
-          }}
+          // Read on every render, so a reduced-motion change applies at the
+          // next hover; the tooltip then jumps and appears without a fade.
+          transition={
+            prefersReducedMotion()
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 520, damping: 38, mass: 0.6 }
+          }
           className={cn(
             "pointer-events-none absolute z-10 rounded-md border px-2 py-1 shadow-sm",
             VARIANT[variant]

@@ -25,6 +25,7 @@ export function WalletPass({
   validityLabel,
   validityValue,
   active,
+  summary,
   className,
   children,
   ...rest
@@ -41,10 +42,14 @@ export function WalletPass({
   price?: string;
   priceUnit?: string;
   priceNote?: ReactNode;
-  validityLabel: string;
-  validityValue: string;
+  validityLabel?: string;
+  validityValue?: string;
   /** Active passes take the brand red; inactive ones stay on muted paper. */
   active: boolean;
+  /** Identity details (bio, services, links) printed under the head on wide screens,
+      where the pass is the page's identity. The head grows its photo to match there;
+      phones keep the standard pass because their masthead already carries the identity. */
+  summary?: ReactNode;
   children?: ReactNode;
 }) {
   return (
@@ -67,26 +72,30 @@ export function WalletPass({
           <span className="shrink-0">{tier}</span>
         </div>
         <div className="relative flex items-center gap-3">
-          <Avatar className={cn('size-12 border-2', active ? 'border-primary-foreground/30' : 'border-border')}>
+          <Avatar className={cn('size-12 border-2', summary && 'lg:size-16', active ? 'border-primary-foreground/30' : 'border-border')}>
             <AvatarImage src={avatarUrl} alt="" />
             {/* Delay keeps a cached photo from flashing its initial when the pass remounts across pages. */}
-            <AvatarFallback delayMs={avatarUrl ? 400 : undefined} className="bg-background font-teko text-xl font-bold text-foreground">
+            <AvatarFallback delayMs={avatarUrl ? 400 : undefined} className={cn('bg-background font-teko text-xl font-bold text-foreground', summary && 'lg:text-2xl')}>
               {holderName.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 text-left">
-            <p className="truncate text-sm font-semibold underline-offset-4 group-hover:underline">{holderName}</p>
+            <p className={cn('truncate text-sm font-semibold underline-offset-4 group-hover:underline', summary && 'lg:text-base')}>{holderName}</p>
             <p className="truncate font-mono text-[11px] opacity-75">@{holderHandle}</p>
           </div>
         </div>
         {/* The head dithers down into the strip, like a section band on the company pages. */}
         <DitherEdge color={active ? 'hsl(var(--primary))' : 'hsl(var(--muted))'} side="bottom" />
       </div>
-      <div className="flex items-end justify-between gap-3 px-4 pb-3 pt-9">
-        <div className="min-w-0">
-          <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{validityLabel}</p>
-          <p className="break-words text-xs font-semibold">{validityValue}</p>
-        </div>
+      {summary && <div className="hidden px-4 pt-9 lg:block">{summary}</div>}
+      {(validityLabel || price || priceNote) && (
+      <div className={cn('flex items-end justify-between gap-3 px-4 pb-3 pt-9', summary && 'lg:pt-5')}>
+        {validityLabel && (
+          <div className="min-w-0">
+            <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{validityLabel}</p>
+            <p className="break-words text-xs font-semibold">{validityValue}</p>
+          </div>
+        )}
         {(price || priceNote) && (
           <div className="shrink-0 text-right">
             {price && (
@@ -99,6 +108,7 @@ export function WalletPass({
           </div>
         )}
       </div>
+      )}
       {children && <div className="px-4 pb-4">{children}</div>}
       {holderHref && (
         <Link href={holderHref} className="absolute inset-0 z-10 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">

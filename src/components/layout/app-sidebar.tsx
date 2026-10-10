@@ -21,8 +21,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/layout/theme-switcher';
-import { SidebarProfileCard, SidebarProfileCardSkeleton } from '@/components/features/profile/sidebar-profile-card';
-import { useUserBio } from '@/hooks/use-profile';
+import { SidebarAccountRow, SidebarAccountRowSkeleton } from '@/components/layout/sidebar-account-row';
 import { usePathname } from 'next/navigation';
 import { KOFI_SUPPORT_URL } from '@/lib/ko-fi';
 import { KofiIcon } from '@/components/ui/kofi-icon';
@@ -64,16 +63,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const { openReportModal } = useReportIssue();
   const pathname = usePathname();
 
-  // The identity card is persistent: on /profile/[username] it shows the viewed
-  // profile; everywhere else in the sidebar layout it shows the signed-in user,
-  // loaded through the same bio query so the card never loses data.
-  const rawProfileSegment = pathname?.startsWith('/profile/') ? pathname.split('/')[2] : undefined;
-  const profileUsername =
-    (rawProfileSegment && rawProfileSegment !== 'edit' ? rawProfileSegment : undefined) ?? user?.username;
-  const { data: profileBio, isLoading: profileLoading } = useUserBio(profileUsername, {
-    staleTime: 1000 * 60,
-    gcTime: 1000 * 60 * 10,
-  });
   const contentRef = useRef<HTMLDivElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState<{
     top: number;
@@ -117,13 +106,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
       }
     };
 
-    // Don't calculate position while auth or the profile card is loading (layout can shift)
-    if (authLoading || profileLoading) return;
+    // Don't calculate position while auth is loading (layout can shift)
+    if (authLoading) return;
 
     // Delay to ensure DOM has fully settled after layout changes
     const timeoutId = setTimeout(updateIndicator, 100);
     return () => clearTimeout(timeoutId);
-  }, [pathname, user, authLoading, profileLoading]);
+  }, [pathname, user, authLoading]);
 
   return (
     <Sidebar collapsible="none" className={`h-screen border-r border-sidebar-border/50 ${className}`}>
@@ -160,30 +149,17 @@ export function AppSidebar({ className }: AppSidebarProps) {
               : 'none',
           }}
         />
-        {/* Persistent identity card */}
-        {profileUsername ? (
+        {/* The sidebar always carries the signed-in user; the page carries the viewed profile. */}
+        {authLoading && !user ? (
           <SidebarGroup>
             <SidebarGroupContent>
-              {profileBio ? (
-                <SidebarProfileCard
-                  user={profileBio}
-                  isCurrentUser={profileBio.username === user?.username}
-                />
-              ) : profileLoading ? (
-                <SidebarProfileCardSkeleton />
-              ) : null}
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ) : authLoading && !user ? (
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarProfileCardSkeleton />
+              <SidebarAccountRowSkeleton />
             </SidebarGroupContent>
           </SidebarGroup>
         ) : user ? (
           <SidebarGroup>
             <SidebarGroupContent>
-              <SidebarProfileCard user={user} isCurrentUser />
+              <SidebarAccountRow user={user} />
             </SidebarGroupContent>
           </SidebarGroup>
         ) : null}
@@ -377,7 +353,7 @@ export function AppSidebarSkeleton({ className }: { className?: string }) {
         />
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarProfileCardSkeleton />
+            <SidebarAccountRowSkeleton />
           </SidebarGroupContent>
         </SidebarGroup>
 

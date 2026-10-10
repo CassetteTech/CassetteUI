@@ -69,7 +69,9 @@ export function BackButton({
 
   return (
     <button
+      type="button"
       onClick={handleClick}
+      aria-label={label ? undefined : 'Go back'}
       className={cn(
         'flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity',
         className

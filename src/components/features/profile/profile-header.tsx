@@ -1,7 +1,7 @@
 'use client';
 
 /** Mobile/tablet profile identity card: a quiet panel with the warm wash
-    behind the avatar, bio, genres, and links. Desktop uses SidebarProfileCard. */
+    behind the avatar, bio, genres, and links. On desktop the rail pass carries the identity. */
 
 import { useId } from 'react';
 import Image from 'next/image';
@@ -192,7 +192,7 @@ function ProfileBio({ bio }: { bio: string }) {
 }
 
 /** Connected platforms as live-state chips: platform mark, name, and a signal dot. */
-function ConnectedServices({
+export function ConnectedServices({
   services,
   platformPreferences,
 }: {

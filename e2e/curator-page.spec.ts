@@ -30,10 +30,12 @@ test('shows a paid curator plan without leaking locked content to a nonmember', 
   await page.goto(CURATOR_PATH);
 
   await expect(
-    page.getByText(fixtureUsers.playlistCurator.displayName, { exact: true }).first(),
+    page.getByText(fixtureUsers.playlistCurator.displayName, { exact: true }).filter({ visible: true }).first(),
   ).toBeVisible();
   // The page identity is the ordinary, editable profile; the free curator profile has no editable fields of its own.
-  await expect(page.getByText(fixtureUsers.playlistCurator.bio!, { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText(fixtureUsers.playlistCurator.bio!, { exact: true }).filter({ visible: true }).first(),
+  ).toBeVisible();
   await expect(page.getByText(fixtureCuratorPage.curator.about!, { exact: true })).toHaveCount(0);
   const membershipCard = page.locator('[data-testid="curator-membership-card"]:visible').first();
   await expect(membershipCard).toContainText(

@@ -1,6 +1,6 @@
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient, useMutation, type InfiniteData } from '@tanstack/react-query';
 import { profileService } from '@/services/profile';
-import { UserBio, PaginatedActivityResponse, PaginatedExploreUsersResponse, ExploreCurator } from '@/types';
+import { UserBio, PaginatedActivityResponse, PaginatedExploreUsersResponse, ExploreCurator, SubscriptionFeedPage } from '@/types';
 
 /**
  * Query keys for profile-related queries.
@@ -19,6 +19,8 @@ export const profileQueryKeys = {
   exploreUsers: (page?: number, pageSize?: number, q?: string) =>
     ['explore-users', page, pageSize, q ?? ''] as const,
   exploreCurators: () => ['explore-curators'] as const,
+  subscriptionFeed: (viewerId: string | null, membersOnly: boolean) =>
+    ['subscription-feed', viewerId, membersOnly] as const,
 };
 
 /**
@@ -159,6 +161,24 @@ export const useExploreActivity = (options: ExploreQueryOptions = {}) => {
     gcTime: 1000 * 60 * 5,
   });
 };
+
+/** The viewer's subscription feed. Keyed by viewer so a session change never shows another account's posts. */
+export const useSubscriptionFeed = (viewerId: string | null, membersOnly: boolean, enabled: boolean) =>
+  useInfiniteQuery<
+    SubscriptionFeedPage,
+    Error,
+    InfiniteData<SubscriptionFeedPage, string | undefined>,
+    ReturnType<typeof profileQueryKeys.subscriptionFeed>,
+    string | undefined
+  >({
+    queryKey: profileQueryKeys.subscriptionFeed(viewerId, membersOnly),
+    initialPageParam: undefined,
+    queryFn: ({ pageParam, signal }) =>
+      profileService.fetchSubscriptionFeed({ cursor: pageParam, membersOnly, signal }),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: enabled && viewerId !== null,
+    staleTime: 1000 * 60,
+  });
 
 export const useExploreCurators = () => {
   return useQuery<ExploreCurator[], Error>({

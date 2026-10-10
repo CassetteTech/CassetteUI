@@ -135,6 +135,9 @@ type MockCassetteOptions = {
   internalPaidPromotionSubjectsDelayMs?: number;
   accountDeleteFailures?: number;
   exploreResponse?: unknown;
+  /** Answers the signed-in subscription feed per page; the default is an account with no memberships. */
+  subscriptionFeed?: (query: { cursor: string | null; membersOnly: boolean }) => { status?: number; body?: unknown };
+  subscriptionFeedRequests?: string[];
 };
 
 type MockNotification = {
@@ -905,6 +908,24 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         isOwnProfile: false,
         sponsoredPlacement: null,
       });
+    }
+
+    if (pathname === '/api/v1/social/subscriptions/posts' && method === 'GET') {
+      options.subscriptionFeedRequests?.push(request.url());
+      if (!state.currentUser) {
+        return json(route, 'User ID not found in claims', 401);
+      }
+      const query = new URL(request.url()).searchParams;
+      const answer = options.subscriptionFeed?.({
+        cursor: query.get('cursor'),
+        membersOnly: query.get('membersOnly') === 'true',
+      }) ?? {};
+      return json(route, answer.body ?? {
+        items: [],
+        nextCursor: null,
+        subscribedCuratorCount: 0,
+        hasMembershipHistory: false,
+      }, answer.status ?? 200);
     }
 
     if (pathname === '/api/v1/social/explore/users' && method === 'GET') {

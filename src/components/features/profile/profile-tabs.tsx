@@ -76,7 +76,7 @@ export function ProfileTabs({
               className="h-10 flex-none gap-2 rounded-none border-0 px-3 text-sm font-normal text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent"
             >
               <Icon aria-hidden className="size-4 shrink-0" />
-              {tab.label}
+              <span className="tab-label" data-label={tab.label}>{tab.label}</span>
               {tab.key === 'liked' && (
                 <LikedVisibilityIcon
                   aria-label={likedTabVisibility === 'private' ? 'Private' : 'Public'}

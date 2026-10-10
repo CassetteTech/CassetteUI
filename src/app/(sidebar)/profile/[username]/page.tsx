@@ -422,39 +422,42 @@ export default function ProfilePage() {
   const isPostsTab = activeTab === 'posts' && hasCuratorPage;
   const showRail = Boolean(curatorQuery.data?.pages[0]?.membership);
 
-  // The curator posts pane owns Stripe flow effects, so it must mount exactly
-  // once — a single responsive branch instead of the CSS-split double layout.
-  if (isPostsTab && userBio) {
-    return (
-      <div className="studio-surface min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
-          <div className="bg-background lg:hidden">
-            <div>
-              <div className="mx-auto max-w-4xl">
-                {!isCurrentUser && (
-                  <div className="px-4 pt-4">
-                    <BackButton fallbackRoute="/explore" />
-                  </div>
-                )}
-                <ProfileHeader
-                  userBio={userBio}
-                  isCurrentUser={isCurrentUser}
-                  onShare={handleShare}
-                  onAddMusic={isCurrentUser ? handleAddMusic : undefined}
-                />
-              </div>
+  // One responsive tree for every tab: the tab strip stays mounted when Posts swaps in, so its
+  // underline slides, and the curator posts pane, which owns the Stripe flow effects, mounts once.
+  return (
+    <div className="studio-surface min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
+      <div className="bg-background lg:hidden">
+        <div className="mx-auto max-w-4xl">
+          {!isCurrentUser && userBio && (
+            <div className="px-4 pt-4">
+              <BackButton fallbackRoute="/explore" />
             </div>
-          </div>
-        {/* Tab strip and owner bar run edge to edge, above the content and the rail alike. */}
-        <ProfileTabStrip
-          showBack={!isCurrentUser}
-          activeTab={activeTab}
-          onTabChange={filterByElementType}
-          showPostsTab
-          showLikedTab={likedSectionVisible}
-          likedTabVisibility={likedTabVisibility}
-        />
-        {isCurrentUser && <ProfileOwnerBar username={userBio.username} />}
-        {/* Same right rail as Curator Studio; the membership pass slides between the two pages' spots. */}
+          )}
+          {showHeaderSkeleton ? (
+            <ProfileHeaderSkeleton />
+          ) : userBio ? (
+            <ProfileHeader
+              userBio={userBio}
+              isCurrentUser={isCurrentUser}
+              onShare={handleShare}
+              shareCopied={shareLinkCopied}
+              onAddMusic={isCurrentUser ? handleAddMusic : undefined}
+            />
+          ) : null}
+        </div>
+      </div>
+      {/* Tab strip and owner bar run edge to edge, above the content and the rail alike. */}
+      <ProfileTabStrip
+        showBack={!isCurrentUser && Boolean(userBio)}
+        activeTab={activeTab}
+        onTabChange={filterByElementType}
+        showPostsTab={hasCuratorPage}
+        showLikedTab={likedSectionVisible}
+        likedTabVisibility={likedTabVisibility}
+      />
+      {isCurrentUser && userBio && <ProfileOwnerBar username={userBio.username} />}
+      {isPostsTab && userBio ? (
+        /* Same right rail as Curator Studio; the pass slides between the two pages' spots. */
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:px-8 lg:py-10">
           <div className="min-w-0">
             <PublicCuratorPage
@@ -482,82 +485,10 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {/* --- MOBILE & TABLET LAYOUT --- */}
-      <div className="studio-surface bg-background lg:hidden">
-        <div>
-          <div className="max-w-4xl mx-auto">
-            {/* Back button — only for other users' profiles */}
-            {!isCurrentUser && userBio && (
-              <div className="px-4 pt-4">
-                <BackButton fallbackRoute="/explore" />
-              </div>
-            )}
-            {showHeaderSkeleton ? (
-              <ProfileHeaderSkeleton />
-            ) : userBio ? (
-              <ProfileHeader
-                userBio={userBio}
-                isCurrentUser={isCurrentUser}
-                onShare={handleShare}
-                shareCopied={shareLinkCopied}
-                onAddMusic={isCurrentUser ? handleAddMusic : undefined}
-              />
-            ) : null}
-            <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm">
-              <ProfileTabs
-                activeTab={activeTab}
-                onTabChange={filterByElementType}
-                showPostsTab={hasCuratorPage}
-                showLikedTab={likedSectionVisible}
-                likedTabVisibility={likedTabVisibility}
-              />
-            </div>
-            {isCurrentUser && userBio && <ProfileOwnerBar username={userBio.username} />}
-            {showActivitySkeleton ? (
-              <div className="p-3 sm:p-4 md:p-6 lg:p-8">
-                <ActivitySkeleton count={6} />
-              </div>
-            ) : isLikedTabPrivateError ? (
-              <div className="p-8 text-center text-muted-foreground">
-                Liked posts are private
-              </div>
-            ) : (
-              <ProfileActivity
-                posts={displayPosts}
-                activeTab={activeTab}
-                isLoading={isLoadingMore}
-                onLoadMore={loadMore}
-                hasMore={allActivityPosts.length < totalItems}
-                ownerAccountType={userBio?.accountType}
-                ownerUsername={userBio?.username}
-                isCurrentUser={isCurrentUser}
-                currentUserId={user?.id}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* --- DESKTOP LAYOUT --- */}
-      <div className="studio-surface hidden lg:block lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
-        <ProfileTabStrip
-          showBack={!isCurrentUser && Boolean(userBio)}
-          activeTab={activeTab}
-          onTabChange={filterByElementType}
-          showPostsTab={hasCuratorPage}
-          showLikedTab={likedSectionVisible}
-          likedTabVisibility={likedTabVisibility}
-        />
-        {isCurrentUser && userBio && <ProfileOwnerBar username={userBio.username} />}
-        {/* The music tabs keep the activity grid's own padding; the rail matches its top edge. */}
-        <div className="grid grid-cols-[minmax(0,1fr)_20rem] items-start gap-6 pr-8">
-          <div className="min-w-0">
+      ) : (
+        /* The music tabs keep the activity grid's own padding; the rail matches its top edge. */
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:pr-8">
+          <div className="mx-auto min-w-0 max-w-4xl lg:mx-0 lg:max-w-none">
             {showActivitySkeleton ? (
               <div className="p-3 sm:p-4 md:p-6 lg:p-8">
                 <ActivitySkeleton count={6} />
@@ -581,13 +512,13 @@ export default function ProfilePage() {
             )}
           </div>
           {userBio && (
-            <div className="sticky top-[5.5rem] pt-6">
+            <div className="hidden lg:sticky lg:top-[5.5rem] lg:block lg:pt-6">
               <ProfileIdentityPass user={userBio} />
             </div>
           )}
         </div>
-      </div>
-    </>
+      )}
+    </div>
   );
 }
 

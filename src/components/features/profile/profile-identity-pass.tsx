@@ -3,9 +3,11 @@
 /** The viewed profile's identity for the desktop rail: the summary that prints inside
     a membership pass, and a pass-shaped card for profiles that sell no membership. */
 
+import { useRef } from 'react';
 import { ConnectedServices } from '@/components/features/profile/profile-header';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
 import { WalletPass } from '@/components/features/curator/wallet-pass';
+import { useSharedPosition } from '@/hooks/use-shared-position';
 import type { UserBio } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -24,8 +26,13 @@ export function ProfileSummary({ user }: { user: UserBio }) {
 /** A profile with no membership still gets one pass in the rail, on muted paper. */
 export function ProfileIdentityPass({ user, className }: { user: UserBio; className?: string }) {
   const likes = Number(user.totalLikesReceived ?? 0);
+  // The membership pass key: this pass holds the same rail spot, so it slides (and turns
+  // brand red) into Curator Studio's plan pass, and back.
+  const passRef = useRef<HTMLDivElement>(null);
+  useSharedPosition(passRef, 'membership-pass');
   return (
     <WalletPass
+      ref={passRef}
       data-testid="profile-identity-pass"
       className={cn('pb-4', className)}
       product="Profile"

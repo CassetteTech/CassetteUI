@@ -802,6 +802,23 @@
   }
 }
 
+/* ─── Tab label ───────────────────────────────────────────────────────────────
+   Underline tabs set the active label in medium weight. A hidden medium-weight
+   copy of the label (from data-label) holds that width at every weight, so
+   selecting a tab never moves the tabs beside it. */
+.tab-label {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.tab-label::after {
+  content: attr(data-label);
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 500;
+}
+
 /* ─── Squircle ───────────────────────────────────────────────────────────────
    iOS-style superellipse corners for square artwork (vault "Apple's Corners"). */
 .squircle {

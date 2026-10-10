@@ -18,6 +18,7 @@ import { SegmentedControl } from '@/components/ui/interior/segmented-control';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { BackButton } from '@/components/ui/back-button';
+import { DitherEdge } from '@/components/features/marketing/dither-edge';
 import { ArrowRight, LockKeyhole, Plus, Repeat2, Search, X, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
@@ -34,23 +35,11 @@ import {
   type MusicElementType,
 } from './_shared/use-explore-data';
 
-// Deterministic pseudo-random from string so SSR/CSR stay in sync.
-function hashRand(seed: string) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  return () => {
-    h = (h * 1664525 + 1013904223) | 0;
-    return (h >>> 0) / 0xffffffff;
-  };
-}
-
-const TAPE_COLORS = ['bg-primary/70', 'bg-accentRoyal/60', 'bg-warning/70', 'bg-info/60'];
-
-// Row gaps leave room for the tape above each card and the offset shadow below it.
-const POST_GRID = 'grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4 sm:gap-x-6 sm:gap-y-10';
+// Row gaps leave room for the offset shadow below each card.
+const POST_GRID = 'grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 sm:gap-x-6 sm:gap-y-8';
 
 // The paper card shared by posts and skeletons: warm white in every theme.
-const PAPER_CARD = 'border-2 border-foreground bg-primary-foreground force-light-surface p-3 pb-4 text-foreground';
+const PAPER_CARD = 'border-2 border-foreground bg-primary-foreground force-light-surface text-foreground';
 
 const DASHED_NOTE = 'border-t-2 border-dashed border-foreground/30 py-4 text-center font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground';
 
@@ -386,8 +375,8 @@ function SubscriptionFeed({
         </Empty>
       ) : (
         <div className={POST_GRID}>
-          {posts.map((post, i) => (
-            <PostCard key={post.postId} post={post} index={i} />
+          {posts.map((post) => (
+            <PostCard key={post.postId} post={post} />
           ))}
         </div>
       )}
@@ -464,14 +453,8 @@ function SponsoredPostCard({ placement }: { placement: SponsoredExplorePlacement
     <article ref={cardRef} data-testid="sponsored-explore">
       <PostCard
         post={placement.post}
-        index={0}
-        sponsored
+        label={placement.label}
         artworkTestId="sponsored-explore-artwork"
-        kicker={
-          <div className="mb-3 border-b border-foreground/25 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.18em]">
-            <span className="text-primary">{placement.label}</span>
-          </div>
-        }
         onClick={() => {
           void captureClientEvent('sponsored_explore_opened', {
             source_surface: 'explore',
@@ -557,8 +540,8 @@ function MusicSection({
       ) : (
         <div className={POST_GRID}>
           {sponsoredPlacement && <SponsoredPostCard placement={sponsoredPlacement} />}
-          {organicPosts.map((post, i) => (
-            <PostCard key={post.postId} post={post} index={i + (sponsoredPlacement ? 1 : 0)} />
+          {organicPosts.map((post) => (
+            <PostCard key={post.postId} post={post} />
           ))}
         </div>
       )}
@@ -566,29 +549,26 @@ function MusicSection({
   );
 }
 
-const ARTWORK_CHIP = 'absolute bottom-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]';
+const ARTWORK_CHIP = 'absolute top-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]';
 
 /**
- * A polaroid: paper mat, ink border, offset shadow, and a strip of tape whose
- * color and side cycle with the grid position. The grid stays straight; the
- * card lifts on hover and its shadow turns brand red.
+ * A paper card: ink border, offset shadow, artwork flush at the top printing
+ * into the paper through the brand's dither seam (the post page's label
+ * device). Every card reserves the same title, detail, and footer lines, so a
+ * grid row has one height whatever the copy. The card lifts on hover and its
+ * shadow turns brand red.
  */
 function PostCard({
   post,
-  index,
-  kicker,
+  label,
   artworkTestId,
   onClick,
-  sponsored = false,
 }: {
   post: ActivityPost;
-  index: number;
-  /** A strip above the artwork, such as the sponsored label. */
-  kicker?: React.ReactNode;
+  /** A disclosure printed in the footer, such as "Sponsored"; it also turns the shadow red. */
+  label?: string;
   artworkTestId?: string;
   onClick?: () => void;
-  /** Red shadow and no tape: the disclosure is the card's only decoration. */
-  sponsored?: boolean;
 }) {
   const targetPostId = post.redirectPostId || post.postId;
   const href = targetPostId ? `/post/${targetPostId}` : '#';
@@ -598,29 +578,18 @@ function PostCard({
     : post.username;
 
   return (
-    <div className="group relative transition-transform duration-200 ease-out-quart hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
-      {!sponsored && (
-        <span
-          aria-hidden
-          className={cn(
-            'absolute -top-2 z-10 h-5 w-16 rotate-[-6deg] border border-foreground/10 opacity-80',
-            TAPE_COLORS[index % TAPE_COLORS.length],
-            index % 2 === 0 ? 'left-3' : 'right-3',
-          )}
-        />
-      )}
+    <div className="group flex transition-transform duration-200 ease-out-quart hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
       <Link
         href={href}
         onClick={onClick}
         className={cn(
           PAPER_CARD,
-          'block transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-          sponsored
+          'flex w-full flex-col transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+          label
             ? 'shadow-flat-primary-6 group-hover:shadow-flat-primary-8'
             : 'shadow-flat-4 group-hover:shadow-flat-primary-6',
         )}
       >
-        {kicker}
         <div data-testid={artworkTestId} className="relative aspect-square overflow-hidden bg-muted">
           {post.imageUrl ? (
             <Image
@@ -649,12 +618,18 @@ function PostCard({
           )}
         </div>
 
-        <div className="pt-3">
+        {/* min-h holds two title lines, a detail line, and the footer, so a
+            one-line title leaves its slack above the pinned footer. */}
+        <div className="relative flex min-h-28 flex-1 flex-col px-3 pb-3 pt-3">
+          <DitherEdge color="hsl(var(--primary-foreground))" side="top" scale={0.5} />
           <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight line-clamp-2 transition-colors group-hover:text-primary">
             {post.title}
           </h3>
           {detail && <p className="mt-1 line-clamp-1 text-xs italic text-muted-foreground">{detail}</p>}
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-auto flex items-center gap-2 pt-2">
+            {label && (
+              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-primary">{label}</span>
+            )}
             <span className="h-px flex-1 bg-foreground/20" />
             <span className="truncate font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
               @{username}
@@ -1259,8 +1234,8 @@ function CreatorsMarquee({
           style={RAIL_EDGE_FADE}
         >
           <div className="flex gap-5">
-            {users.map((u, i) => (
-              <CreatorSticker key={u.userId || u.username} user={u} index={i} />
+            {users.map((u) => (
+              <CreatorCard key={u.userId || u.username} user={u} />
             ))}
             {hasMore && (
               <button
@@ -1268,7 +1243,7 @@ function CreatorsMarquee({
                 onClick={onLoadMore}
                 disabled={isLoadingMore}
                 aria-label="Load more creators"
-                className="group flex w-[220px] shrink-0 rotate-[1.5deg] items-center gap-3 rounded-2xl border-2 border-foreground bg-primary-foreground force-light-surface px-4 py-3 text-left text-foreground shadow-flat-4 transition-shadow hover:shadow-flat-primary-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                className="group flex w-[220px] shrink-0 items-center gap-3 rounded-2xl border-2 border-foreground bg-primary-foreground force-light-surface px-4 py-3 text-left text-foreground shadow-flat-4 transition-shadow hover:shadow-flat-primary-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
               >
                 <span className="flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-foreground">
                   {isLoadingMore ? <Spinner size="sm" /> : <Plus aria-hidden className="size-4" />}
@@ -1283,16 +1258,13 @@ function CreatorsMarquee({
   );
 }
 
-function CreatorSticker({ user, index }: { user: ExploreUser; index: number }) {
-  const rand = hashRand(user.userId || user.username || String(index));
-  const rot = (rand() - 0.5) * 4;
+function CreatorCard({ user }: { user: ExploreUser }) {
   const initials = user.username?.charAt(0)?.toUpperCase() || 'U';
   const displayName = user.displayName?.trim() || user.username;
   return (
     <Link
       href={`/profile/${user.username}`}
       className="group flex w-[220px] shrink-0 items-center gap-3 rounded-2xl border-2 border-foreground bg-primary-foreground force-light-surface px-4 py-3 text-foreground shadow-flat-4 transition-shadow hover:shadow-flat-primary-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      style={{ transform: `rotate(${rot}deg)` }}
     >
       <Avatar className="size-11 shrink-0 border-2 border-foreground">
         <AvatarImage src={user.avatarUrl} alt={`@${user.username}`} />
@@ -1315,8 +1287,11 @@ function PostGridSkeleton() {
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className={cn(PAPER_CARD, 'shadow-flat-4')}>
           <Skeleton className="aspect-square w-full rounded-none" />
-          <Skeleton className="mt-3 h-5 w-4/5" />
-          <Skeleton className="mt-2 h-3 w-3/5" />
+          <div className="min-h-28 px-3 pb-3 pt-3">
+            <Skeleton className="h-5 w-4/5" />
+            <Skeleton className="mt-2 h-3 w-3/5" />
+            <Skeleton className="ml-auto mt-3 h-3 w-1/3" />
+          </div>
         </div>
       ))}
     </div>

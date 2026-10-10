@@ -47,6 +47,8 @@ interface DitherEdgeProps {
   color: string;
   /** Which edge of the band the pixels dissolve from. */
   side?: "top" | "bottom";
+  /** Multiplies the 6px cell and the 24px height; 0.5 suits a small card. */
+  scale?: number;
   className?: string;
 }
 
@@ -55,21 +57,24 @@ interface DitherEdgeProps {
  * band (parent must be `relative`) so the band's color dithers over the
  * neighboring section's background.
  */
-export function DitherEdge({ color, side = "top", className }: DitherEdgeProps) {
+export function DitherEdge({ color, side = "top", scale = 1, className }: DitherEdgeProps) {
   return (
     <div
       aria-hidden
       className={cn(
-        "pointer-events-none absolute inset-x-0 h-6",
+        "pointer-events-none absolute inset-x-0",
         side === "top" ? "bottom-full" : "top-full -scale-y-100",
         className
       )}
       style={{
+        height: 24 * scale,
         backgroundColor: color,
         WebkitMaskImage: TILE_URL,
         maskImage: TILE_URL,
         WebkitMaskRepeat: "repeat",
         maskRepeat: "repeat",
+        WebkitMaskSize: `${48 * scale}px ${24 * scale}px`,
+        maskSize: `${48 * scale}px ${24 * scale}px`,
       }}
     />
   );

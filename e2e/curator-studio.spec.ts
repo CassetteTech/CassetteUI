@@ -486,9 +486,11 @@ test('ends memberships after a confirmation that states the effect on members', 
       transfersCapabilityStatus: 'active',
       capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
     }),
+    curatorMemberCounts: { ...fixtureCuratorMemberCounts, notRenewingMembers: 0 },
   });
 
   await page.goto(STUDIO_PATH);
+  await expect.poll(() => state.curatorMemberStatsRequests).toEqual([30]);
   await openStudioStep(page, 'studio-plan');
   const card = page.getByTestId('curator-plan-card');
   // A live plan folds the card to a summary; open the tools first.
@@ -510,6 +512,12 @@ test('ends memberships after a confirmation that states the effect on members', 
   await expect(card.getByTestId('curator-plan-notice')).toContainText('each member keeps access through the period they paid for');
   expect(state.curatorPlanEndMembershipsRequests).toEqual([draftPlan.id]);
   expect(state.curatorPlanArchiveRequests).toEqual([]);
+
+  // The always-mounted Members tab reads its counts again after the ending.
+  await expect.poll(() => state.curatorMemberStatsRequests).toEqual([30, 30]);
+  await openStudioStep(page, 'studio-earnings');
+  await expect(page.getByTestId('curator-earnings-card').getByText('3 members will not renew.', { exact: true }))
+    .toBeVisible();
 });
 
 const publishedMonthlyPlan: CuratorPlan = {
@@ -819,9 +827,25 @@ test('shows member counts, the daily trend, and the previous-window baseline', a
   const responseText = JSON.stringify(await (await firstResponse).json());
   expect(responseText).not.toMatch(/fanUserId|membershipSubscriptionId|email|username|stripe/i);
 
+  // Hold the 7-day response: the 30-day figures stay on screen, dimmed and busy.
+  let releaseWeek!: () => void;
+  const weekHeld = new Promise<void>((resolve) => { releaseWeek = resolve; });
+  await page.route(
+    (url) => url.pathname === '/api/v1/curators/me/member-stats' && url.searchParams.get('days') === '7',
+    async (route) => {
+      await weekHeld;
+      await route.fallback();
+    },
+  );
   await card.getByRole('radio', { name: '7 days' }).click();
+  await expect(card.getByText('Loading 7 days…', { exact: true })).toBeVisible();
+  await expect(card.locator('[aria-busy="true"]')).toBeVisible();
+  await expect(card.getByText('1 in the 30 days before', { exact: true })).toBeVisible();
+
+  releaseWeek();
   await expect(card.getByText('1 in the 7 days before', { exact: true })).toBeVisible();
   await expect(card.locator('[aria-busy="true"]')).toHaveCount(0);
+  await expect(card.getByText('Loading 7 days…', { exact: true })).toHaveCount(0);
   expect(state.curatorMemberStatsRequests).toEqual([30, 7]);
 });
 

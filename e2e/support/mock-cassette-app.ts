@@ -1142,8 +1142,12 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       if (plan.status === 'draft') {
         return json(route, { message: 'Draft plans cannot be archived.' }, 409);
       }
-      // Ending memberships is curator-wide: the live offer stops selling too.
+      // Ending memberships is curator-wide: the live offer stops selling too,
+      // and every active member stops renewing.
       const stopping = action === 'archive' ? [plan] : state.curatorPlans;
+      if (action === 'end-memberships') {
+        state.curatorMemberCounts.notRenewingMembers = state.curatorMemberCounts.activeMembers;
+      }
       for (const candidate of stopping) {
         if (candidate.status === 'active') {
           Object.assign(candidate, {

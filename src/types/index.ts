@@ -78,6 +78,16 @@ export interface PaginatedActivityResponse {
   sponsoredPlacement?: SponsoredExplorePlacement;
 }
 
+/** One page of the viewer's subscription feed; `nextCursor` is null on the last page. */
+export interface SubscriptionFeedPage {
+  items: ActivityPost[];
+  nextCursor: string | null;
+  /** Curators whose memberships currently give the viewer access. */
+  subscribedCuratorCount: number;
+  /** True when the viewer has had a membership, current or ended. */
+  hasMembershipHistory: boolean;
+}
+
 export interface SponsoredExplorePlacement {
   placementType: 'sponsored_explore';
   label: 'Sponsored';

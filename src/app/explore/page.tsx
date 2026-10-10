@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { parseProfileLink, type ParsedProfileLink } from '@/lib/profile-links';
 import { ProfileLinkIcon } from '@/components/features/profile/profile-links';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,13 +12,18 @@ import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
+import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabUnderline } from '@/components/ui/tab-underline';
 import { BackButton } from '@/components/ui/back-button';
-import { ArrowRight, Loader2, Plus, Search, X, Star, Music2 } from 'lucide-react';
+import { ArrowRight, Loader2, LockKeyhole, Plus, Search, X, Star, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
 import type { SponsoredExplorePlacement } from '@/types';
 import { rememberViewedSponsoredExplorePost } from '@/services/sponsored-explore-rotation';
-import { useExploreCurators } from '@/hooks/use-profile';
+import { useExploreCurators, useSubscriptionFeed } from '@/hooks/use-profile';
+import { useAuthState } from '@/hooks/use-auth';
 import { captureClientEvent } from '@/lib/analytics/client';
 import {
   useExploreData,
@@ -45,23 +50,27 @@ const TAPE_COLORS = [
   'bg-info/60',
 ];
 
-export default function ExplorePage() {
-  const data = useExploreData();
-  const isInitialLoading = data.isLoadingPosts && data.allPosts.length === 0;
-  const sponsoredSectionType = sponsoredMusicElementType(data.sponsoredPlacement);
-  const hasExploreContent = data.allPosts.length > 0 || sponsoredSectionType !== null;
+type ExploreTab = 'discover' | 'subscriptions';
 
-  if (data.postsError) {
-    return (
-      <div className="min-h-svh bg-background">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <h1 className="font-teko text-5xl font-bold uppercase">Explore</h1>
-          <p className="mt-3 text-muted-foreground">Unable to load the explore feed right now.</p>
-        </div>
-      </div>
-    );
+const exploreTabStorageKey = 'cassette:explore-tab';
+
+function parseExploreTab(value: string | null): ExploreTab | null {
+  return value === 'discover' || value === 'subscriptions' ? value : null;
+}
+
+function readStoredExploreTab(): ExploreTab | null {
+  try {
+    return parseExploreTab(localStorage.getItem(exploreTabStorageKey));
+  } catch {
+    return null;
   }
+}
 
+// The stored tab only changes through this page, which also rewrites the URL,
+// so the snapshot never needs a change subscription.
+const subscribeToStoredExploreTab = () => () => {};
+
+export default function ExplorePage() {
   return (
     <div className="min-h-svh bg-background relative overflow-x-hidden">
       {/* Subtle dotted paper */}
@@ -104,50 +113,319 @@ export default function ExplorePage() {
         </motion.div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 space-y-20 relative">
-        <FeaturedCurators />
-
-        <CreatorsMarquee
-          users={data.users}
-          isLoading={data.isLoadingUsers && data.users.length === 0}
-          error={data.usersError}
-          searchValue={data.userSearch}
-          onSearchChange={data.setUserSearch}
-          onRetry={() => void data.refetchUsers()}
-          hasMore={!data.isSearchingUsers && data.totalUsers > data.visibleUsersCount || data.hasMoreUsers}
-          isLoadingMore={data.isLoadingMoreUsers}
-          onLoadMore={data.loadMoreUsers}
-        />
-
-        {isInitialLoading ? (
-          <PolaroidSkeleton />
-        ) : !hasExploreContent ? (
-          <div className="mx-auto max-w-md rotate-[-1.5deg] bg-card border-2 border-foreground px-6 py-10 text-center shadow-flat-6">
-            <p className="font-teko text-3xl uppercase">Nothing public — yet</p>
-            <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
-              Paste something in!
-            </p>
-          </div>
-        ) : (
-          MUSIC_SECTION_ORDER.map((type, idx) => (
-            <ZineSection
-              key={type}
-              title={MUSIC_SECTION_LABELS[type]}
-              accentIndex={idx}
-              posts={data.groupedPosts[type].slice(0, data.visiblePostsBySection[type])}
-              sponsoredPlacement={sponsoredSectionType === type ? data.sponsoredPlacement : undefined}
-              emptyText={MUSIC_SECTION_EMPTY_COPY[type]}
-              hasMore={
-                data.groupedPosts[type].length > data.visiblePostsBySection[type] ||
-                (data.hasMorePosts && data.sectionHasMorePotential[type])
-              }
-              isLoadingMore={data.isLoadingMoreBySection[type]}
-              onLoadMore={() => data.loadMorePostsForSection(type)}
-            />
-          ))
-        )}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 relative">
+        {/* The tab and filter live in the URL, which only the client knows. */}
+        <Suspense fallback={<ExploreFeedsSkeleton />}>
+          <ExploreFeeds />
+        </Suspense>
       </main>
     </div>
+  );
+}
+
+/**
+ * Discover and Subscriptions. An explicit choice (the URL, then the last tab
+ * picked on this device) wins; otherwise members land on Subscriptions and
+ * everyone else on Discover. The server decides membership and access; this
+ * only picks the first tab.
+ */
+function ExploreFeeds() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { user, isLoading: isAuthLoading } = useAuthState();
+  const viewerId = user?.id ?? null;
+  const storedTab = useSyncExternalStore(subscribeToStoredExploreTab, readStoredExploreTab, () => null);
+  const query = searchParams.toString();
+  // A choice applies at once; the URL owns it again as soon as it updates.
+  // Without this, a second arrow key press acts on the tab before the first.
+  const [pendingChoice, setPendingChoice] = useState<{ query: string; tab: ExploreTab; membersOnly: boolean } | null>(null);
+  const choice = pendingChoice?.query === query ? pendingChoice : null;
+  const explicitTab = choice?.tab ?? parseExploreTab(searchParams.get('tab')) ?? storedTab;
+  const membersOnly = choice ? choice.membersOnly : searchParams.get('filter') === 'members';
+  const feed = useSubscriptionFeed(viewerId, membersOnly, explicitTab !== 'discover');
+  const isMember = (feed.data?.pages[0]?.subscribedCuratorCount ?? 0) > 0;
+  const isResolvingDefault = explicitTab === null && (isAuthLoading || (viewerId !== null && feed.isPending));
+  const activeTab: ExploreTab = explicitTab ?? (isMember ? 'subscriptions' : 'discover');
+
+  const updateQuery = useCallback((tab: ExploreTab, nextMembersOnly: boolean) => {
+    setPendingChoice({ query, tab, membersOnly: tab === 'subscriptions' && nextMembersOnly });
+    try {
+      localStorage.setItem(exploreTabStorageKey, tab);
+    } catch {
+      // Without storage the URL still keeps the choice for this visit.
+    }
+    const params = new URLSearchParams(query);
+    params.set('tab', tab);
+    if (tab === 'subscriptions' && nextMembersOnly) params.set('filter', 'members');
+    else params.delete('filter');
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [pathname, query, router]);
+
+  return (
+    <>
+      {isResolvingDefault && <ExploreFeedsSkeleton />}
+      {/* Mounted while the first tab resolves so Discover's reads start at once. */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(next) => updateQuery(parseExploreTab(next) ?? 'discover', false)}
+        className={cn('gap-0', isResolvingDefault && 'hidden')}
+      >
+        <TabsList
+          aria-label="Explore feeds"
+          className="relative mb-12 flex h-auto w-full justify-start gap-1 rounded-none border-b border-border bg-transparent p-0"
+        >
+          {!isResolvingDefault && <TabUnderline value={activeTab} />}
+          {(['discover', 'subscriptions'] as const).map((tab) => {
+            const label = tab === 'discover' ? 'Discover' : 'Subscriptions';
+            return (
+              <TabsTrigger
+                key={tab}
+                value={tab}
+                className="h-11 flex-none rounded-none border-0 px-4 font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent"
+              >
+                <span className="tab-label" data-label={label}>{label}</span>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+
+        {/* Kept mounted so Discover's loaded pages survive a tab switch. */}
+        <TabsContent value="discover" forceMount className="data-[state=inactive]:hidden">
+          <DiscoverFeed />
+        </TabsContent>
+        <TabsContent value="subscriptions">
+          <SubscriptionFeed
+            feed={feed}
+            isSignedIn={viewerId !== null}
+            isAuthLoading={isAuthLoading}
+            membersOnly={membersOnly}
+            onMembersOnlyChange={(next) => updateQuery('subscriptions', next)}
+            onDiscover={() => updateQuery('discover', false)}
+          />
+        </TabsContent>
+      </Tabs>
+    </>
+  );
+}
+
+function ExploreFeedsSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading Explore">
+      <Skeleton className="mb-12 h-11 w-64 rounded-none" />
+      <PolaroidSkeleton />
+    </div>
+  );
+}
+
+function DiscoverFeed() {
+  const data = useExploreData();
+  const isInitialLoading = data.isLoadingPosts && data.allPosts.length === 0;
+  const sponsoredSectionType = sponsoredMusicElementType(data.sponsoredPlacement);
+  const hasExploreContent = data.allPosts.length > 0 || sponsoredSectionType !== null;
+
+  if (data.postsError) {
+    return <p className="text-muted-foreground">Unable to load the explore feed right now.</p>;
+  }
+
+  return (
+    <div className="space-y-20">
+      <FeaturedCurators />
+
+      <CreatorsMarquee
+        users={data.users}
+        isLoading={data.isLoadingUsers && data.users.length === 0}
+        error={data.usersError}
+        searchValue={data.userSearch}
+        onSearchChange={data.setUserSearch}
+        onRetry={() => void data.refetchUsers()}
+        hasMore={!data.isSearchingUsers && data.totalUsers > data.visibleUsersCount || data.hasMoreUsers}
+        isLoadingMore={data.isLoadingMoreUsers}
+        onLoadMore={data.loadMoreUsers}
+      />
+
+      {isInitialLoading ? (
+        <PolaroidSkeleton />
+      ) : !hasExploreContent ? (
+        <div className="mx-auto max-w-md rotate-[-1.5deg] bg-card border-2 border-foreground px-6 py-10 text-center shadow-flat-6">
+          <p className="font-teko text-3xl uppercase">Nothing public — yet</p>
+          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
+            Paste something in!
+          </p>
+        </div>
+      ) : (
+        MUSIC_SECTION_ORDER.map((type, idx) => (
+          <ZineSection
+            key={type}
+            title={MUSIC_SECTION_LABELS[type]}
+            accentIndex={idx}
+            posts={data.groupedPosts[type].slice(0, data.visiblePostsBySection[type])}
+            sponsoredPlacement={sponsoredSectionType === type ? data.sponsoredPlacement : undefined}
+            emptyText={MUSIC_SECTION_EMPTY_COPY[type]}
+            hasMore={
+              data.groupedPosts[type].length > data.visiblePostsBySection[type] ||
+              (data.hasMorePosts && data.sectionHasMorePotential[type])
+            }
+            isLoadingMore={data.isLoadingMoreBySection[type]}
+            onLoadMore={() => data.loadMorePostsForSection(type)}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+/**
+ * Posts from the curators the viewer is a member of, newest first. Every
+ * page is authorized by the server, so an ending membership drops that
+ * curator's posts from the next read. Billing stays on My memberships.
+ */
+function SubscriptionFeed({
+  feed,
+  isSignedIn,
+  isAuthLoading,
+  membersOnly,
+  onMembersOnlyChange,
+  onDiscover,
+}: {
+  feed: ReturnType<typeof useSubscriptionFeed>;
+  isSignedIn: boolean;
+  isAuthLoading: boolean;
+  membersOnly: boolean;
+  onMembersOnlyChange: (membersOnly: boolean) => void;
+  onDiscover: () => void;
+}) {
+  const discoverButton = (
+    <Button variant="outline" onClick={onDiscover}>
+      Discover curators
+    </Button>
+  );
+
+  if (isAuthLoading || (isSignedIn && feed.isPending)) {
+    return <PolaroidSkeleton />;
+  }
+
+  if (!isSignedIn) {
+    return (
+      <Empty>
+        <EmptyTitle>Sign in to see your subscriptions</EmptyTitle>
+        <EmptyDescription>
+          Posts from the curators you are a member of appear here, newest first.
+        </EmptyDescription>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button asChild>
+            <Link href={`/auth/signin?redirect=${encodeURIComponent('/explore?tab=subscriptions')}`}>Sign in</Link>
+          </Button>
+          {discoverButton}
+        </div>
+      </Empty>
+    );
+  }
+
+  if (feed.isError && !feed.data) {
+    return (
+      <Empty>
+        <EmptyTitle>Your subscriptions could not load</EmptyTitle>
+        <EmptyDescription>Check your connection, then try again.</EmptyDescription>
+        <Button variant="outline" onClick={() => void feed.refetch()}>
+          Try again
+        </Button>
+      </Empty>
+    );
+  }
+
+  const pages = feed.data?.pages ?? [];
+  const posts = pages.flatMap((page) => page.items);
+  const firstPage = pages.at(0);
+  const subscribedCuratorCount = firstPage?.subscribedCuratorCount ?? 0;
+  const hasMembershipHistory = firstPage?.hasMembershipHistory ?? false;
+
+  if (subscribedCuratorCount === 0) {
+    return hasMembershipHistory ? (
+      <Empty>
+        <EmptyTitle>Your memberships have ended</EmptyTitle>
+        <EmptyDescription>
+          Join a curator again to see their posts here. Billing and past memberships are in My memberships.
+        </EmptyDescription>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button asChild>
+            <Link href="/memberships">My memberships</Link>
+          </Button>
+          {discoverButton}
+        </div>
+      </Empty>
+    ) : (
+      <Empty>
+        <EmptyTitle>No memberships yet</EmptyTitle>
+        <EmptyDescription>
+          Join a curator to see their public and members-only posts here, newest first.
+        </EmptyDescription>
+        {discoverButton}
+      </Empty>
+    );
+  }
+
+  return (
+    <section aria-labelledby="subscription-feed-heading">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <h2
+          id="subscription-feed-heading"
+          className="font-teko text-5xl sm:text-6xl font-bold uppercase leading-none tracking-tight"
+        >
+          {membersOnly ? 'Member posts' : 'From your curators'}
+        </h2>
+        <fieldset className="flex gap-1">
+          <legend className="sr-only">Post filter</legend>
+          {([['All', false], ['Members only', true]] as const).map(([label, value]) => (
+            <Button
+              key={label}
+              size="sm"
+              variant={membersOnly === value ? 'default' : 'outline'}
+              aria-pressed={membersOnly === value}
+              onClick={() => onMembersOnlyChange(value)}
+            >
+              {label}
+            </Button>
+          ))}
+        </fieldset>
+      </div>
+
+      {posts.length === 0 ? (
+        <Empty>
+          <EmptyTitle>{membersOnly ? 'No member posts yet' : 'No posts yet'}</EmptyTitle>
+          <EmptyDescription>
+            {membersOnly
+              ? 'The curators you support have not shared members-only posts yet.'
+              : 'The curators you support have not posted yet. New posts appear here first.'}
+          </EmptyDescription>
+          {membersOnly ? (
+            <Button variant="outline" onClick={() => onMembersOnlyChange(false)}>
+              Show all posts
+            </Button>
+          ) : discoverButton}
+        </Empty>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
+          {posts.map((post, i) => (
+            <Polaroid key={post.postId} post={post} index={i} />
+          ))}
+        </div>
+      )}
+
+      {feed.isFetchNextPageError && (
+        <p role="alert" className="mt-10 text-center text-sm text-destructive">
+          More posts could not load.
+        </p>
+      )}
+      {feed.hasNextPage && (
+        <div className="mt-6 text-center">
+          <Button variant="outline" onClick={() => void feed.fetchNextPage()} disabled={feed.isFetchingNextPage}>
+            {feed.isFetchingNextPage && <Spinner size="sm" />}
+            {feed.isFetchNextPageError ? 'Try again' : 'Load more'}
+          </Button>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -371,6 +649,12 @@ function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
             <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 bg-foreground text-background px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]">
               <Star className="w-2.5 h-2.5" fill="currentColor" />
               repost
+            </span>
+          )}
+          {post.privacy === 'subscriber' && (
+            <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 bg-primary text-primary-foreground px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]">
+              <LockKeyhole aria-hidden className="w-2.5 h-2.5" />
+              Members only
             </span>
           )}
         </div>
@@ -630,12 +914,26 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
   // visible immediately; layout effect so neither the jump nor the initial
   // fan-out paints untransformed first. Deps deliberately exclude `curators`:
   // recentering on a data refresh would visibly yank the user's position.
+  // A hidden rail (Discover behind another Explore tab) has no layout, so it
+  // centers again each time it is shown; ResizeObserver runs before paint.
   useLayoutEffect(() => {
     const track = trackRef.current;
     if (!track || copies === 1) return;
-    const item = (track.children as HTMLCollectionOf<HTMLElement>)[midCopy * n];
-    track.scrollLeft = item.offsetLeft + item.offsetWidth / 2 - track.clientWidth / 2;
-    render(true);
+    let laidOut = track.clientWidth > 0;
+    const center = () => {
+      // SAFETY: the track renders only the HTML wrapper divs below.
+      const item = (track.children as HTMLCollectionOf<HTMLElement>)[midCopy * n];
+      track.scrollLeft = item.offsetLeft + item.offsetWidth / 2 - track.clientWidth / 2;
+      render(true);
+    };
+    if (laidOut) center();
+    const observer = new ResizeObserver(() => {
+      const shown = track.clientWidth > 0;
+      if (shown && !laidOut) center();
+      laidOut = shown;
+    });
+    observer.observe(track);
+    return () => observer.disconnect();
   }, [copies, midCopy, n, render]);
 
   // A changed featured set swaps card elements under the rail (react-query

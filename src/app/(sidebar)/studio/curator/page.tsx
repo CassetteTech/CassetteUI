@@ -255,7 +255,7 @@ function CuratorStudio() {
                 ) : profile.data === undefined ? (
                   /* Only a first read that failed replaces the overview; a failed background refresh keeps
                      the overview and plan card mounted with the last answer, so a draft in progress survives. */
-                  <StudioSection id="studio-overview-error" eyebrow="Overview" title="Curator Studio" headingId="studio-overview-error-title">
+                  <StudioSection id="studio-overview-error" title="Curator Studio" headingId="studio-overview-error-title">
                     <div className="space-y-4">
                       <p role="alert">Could not load your curator profile.</p>
                       <Button variant="outline" onClick={() => profile.refetch()}>Try again</Button>
@@ -288,10 +288,9 @@ function CuratorStudio() {
                 ) : (
                   <StudioSection
                     id="studio-earnings"
-                    eyebrow="Performance"
-                    title="Members & earnings"
+                    title="Members"
                     headingId="curator-earnings-title"
-                    description="Members and earnings show up here once you save a membership draft."
+                    description="Members and their payments show up here once you publish a plan."
                   >
                     <Button variant="outline" onClick={() => open.open('studio-plan')}>
                       Design your membership

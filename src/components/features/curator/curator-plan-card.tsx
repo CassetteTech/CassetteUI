@@ -40,15 +40,16 @@ import {
 } from '@/components/features/curator/curator-plan-preview';
 import {
   ReceiptRow,
-  StudioChip,
   StudioNotice,
   StudioSection,
   StudioStat,
   StudioStepsContext,
+  studioToneText,
   type StudioChipTone,
   type StudioNoticeTone,
 } from '@/components/features/curator/studio-shell';
 import { CopyButton } from '@/components/interior/copy-button';
+import { SegmentedControl } from '@/components/interior/segmented-control';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,7 +64,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ArrowUpRight, Check, ChevronDown, Plus } from 'lucide-react';
+import { ArrowUpRight, Check, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -106,7 +107,10 @@ const monthlyMinMinor = 500;
 const monthlyMaxMinor = 10_000;
 const defaultMonthlyPrice = '5.00';
 // Common price points inside the contract bounds; one tap sets the field.
-const suggestedMonthlyMinor = [500, 1000, 1500, 2500] as const;
+const suggestedMonthlyOptions = [5, 10, 15, 25].map((dollars) => ({
+  value: dollars.toFixed(2),
+  label: `$${dollars}`,
+}));
 
 function priceMinor(value: string): number | null {
   const amount = Number(value);
@@ -160,7 +164,7 @@ function planPrice(faceMinor: number, serviceFeeMinor: number | null, pricing: C
   };
 }
 
-const planChipTone = {
+const planStatusTone = {
   active: 'positive',
   draft: 'neutral',
   archived: 'neutral',
@@ -323,8 +327,8 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   const updateDraft = (change: Partial<PlanDraft>) => setDraft((current) => ({ ...current, ...change }));
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [notice, setNotice] = useState<PlanNotice | null>(null);
-  // null = follow the default (open only while the curator has no plans yet)
-  const [createOpen, setCreateOpen] = useState<boolean | null>(null);
+  // With no plans the form is always open; once plans exist the curator opens it.
+  const [createOpen, setCreateOpen] = useState(false);
   // Saved draft currently loaded into the form.
   const [editingId, setEditingId] = useState<string | null>(null);
   // With a live plan the card folds to a summary; the curator opens the tools on demand.
@@ -478,7 +482,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   // One membership pass for the whole Studio, portaled into the page rail: the
   // form's live estimate while it is open, else the active plan, else the draft.
   const passPlan = activePlan ?? plansData?.find((plan) => plan.status === 'draft') ?? null;
-  const formOpen = createOpen ?? plansData?.length === 0;
+  const formOpen = plansData?.length === 0 || createOpen;
   const curatorPass = {
     curatorName,
     curatorHandle: user?.username ?? '',
@@ -533,7 +537,6 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
     return (
       <StudioSection
         id="studio-plan"
-        eyebrow="Monetize"
         title="Fan membership plan"
         headingId="curator-plan-title"
         testId="curator-plan-card"
@@ -549,7 +552,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
             </div>
             <Button type="button" variant="outline" onClick={() => setExpanded(true)}>Manage plan</Button>
           </div>
-          <dl className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             <StudioStat
               label="Monthly price"
               value={money(activePlan.amountMinor, activePlan.currency)}
@@ -560,12 +563,15 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
               value={activePlan.annualAmountMinor === null ? '—' : money(activePlan.annualAmountMinor, activePlan.currency)}
               hint={activePlan.annualAmountMinor === null ? 'Not offered' : 'Billed once a year'}
             />
-            <StudioStat
-              label="Included features"
-              value={activePlan.featureKeys.length}
-              hint={activePlan.featureKeys.length === 0 ? 'None' : namesFor(activePlan.featureKeys).join(', ')}
-            />
           </dl>
+          {/* Features are words, not a count. */}
+          <p className="text-sm">
+            {activePlan.featureKeys.length === 0 ? (
+              <span className="text-muted-foreground">No features included.</span>
+            ) : (
+              <><span className="text-muted-foreground">Members get </span>{namesFor(activePlan.featureKeys).join(', ')}</>
+            )}
+          </p>
         </div>
       </StudioSection>
     );
@@ -574,7 +580,6 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   return (
     <StudioSection
       id="studio-plan"
-      eyebrow="Monetize"
       title="Fan membership plan"
       headingId="curator-plan-title"
       testId="curator-plan-card"
@@ -686,9 +691,9 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                         <h4 className="break-words text-base font-semibold leading-tight">{plan.name}</h4>
                         <p className="mt-1.5 text-sm text-muted-foreground">{plan.description || 'No description.'}</p>
                       </div>
-                      <StudioChip tone={planChipTone[plan.status]} className="capitalize">
+                      <p className={cn('shrink-0 text-xs font-medium capitalize', studioToneText[planStatusTone[plan.status]])}>
                         {editing ? 'Editing' : plan.status}
-                      </StudioChip>
+                      </p>
                     </div>
                     <div className="space-y-4 py-4">
                       <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
@@ -864,38 +869,28 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
             </section>
             )}
 
-            {/* Creating a plan is opt-in once plans exist; it opens automatically
-                for first-time curators so the next step is obvious. */}
+            {/* With no plans the form is the card; once plans exist, creating another is opt-in. */}
             <Collapsible
               open={formOpen}
               onOpenChange={setCreateOpen}
-              className={cn(plansData.length > 0 && 'border-t border-dashed border-border pt-6')}
+              className={cn(plansData.length > 0 && 'border-t border-border/70 pt-4')}
             >
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="group flex w-full items-center justify-between gap-4 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <span className="flex items-start gap-3">
-                    <span aria-hidden className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
-                      <Plus className="size-4 transition-transform group-data-[state=open]:rotate-45 motion-reduce:transition-none" />
-                    </span>
-                    <span>
-                      <span className="block text-sm font-semibold">
-                        {editingPlan ? `Edit draft: ${editingPlan.name}` : 'Create a draft'}
-                      </span>
-                      <span className="mt-0.5 block text-sm text-muted-foreground">
-                        The pass in the rail updates as you type.
-                      </span>
-                    </span>
-                  </span>
-                  <ChevronDown aria-hidden className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
-                </button>
-              </CollapsibleTrigger>
+              {plansData.length > 0 && (
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="group -mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {/* One indicator: the plus turns into a close mark while the form is open. */}
+                    <Plus aria-hidden className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-45 motion-reduce:transition-none" />
+                    {editingPlan ? `Edit draft: ${editingPlan.name}` : 'Create a draft'}
+                  </button>
+                </CollapsibleTrigger>
+              )}
               <CollapsibleContent>
                 <form
                   ref={formRef}
-                  className="grid gap-8 pt-6 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start"
+                  className={cn('max-w-xl space-y-7', plansData.length > 0 && 'pt-5')}
                   onSubmit={(event) => {
                     event.preventDefault();
                     setSubmitAttempted(true);
@@ -921,183 +916,185 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                     });
                   }}
                 >
-                  <div className="min-w-0 space-y-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="curator-plan-name">Plan name</Label>
-                      <Input
-                        id="curator-plan-name"
-                        required
-                        maxLength={150}
-                        placeholder={firstName ? `${firstName}'s Inner Circle` : 'Selector Club'}
-                        value={draft.name}
-                        onChange={(event) => updateDraft({ name: event.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="curator-plan-description">Description</Label>
-                      <Textarea
-                        id="curator-plan-description"
-                        maxLength={2000}
-                        placeholder="Two exclusive playlists every week, plus a monthly members-only mix."
-                        aria-describedby="curator-plan-description-help"
-                        value={draft.description}
-                        onChange={(event) => updateDraft({ description: event.target.value })}
-                      />
-                      <p id="curator-plan-description-help" className="text-xs text-muted-foreground">
-                        What members get and how often. Promise only what you will deliver.
-                      </p>
-                    </div>
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        {/* The field shows the currency itself; the parenthetical stays in the accessible name. */}
-                        <Label htmlFor="curator-plan-monthly">Monthly price<span className="sr-only"> (USD)</span></Label>
-                        <PriceField
-                          ref={monthlyRef}
-                          id="curator-plan-monthly"
-                          name="monthlyPrice"
-                          unit="/month"
-                          aria-required="true"
-                          aria-invalid={showMonthlyError || undefined}
-                          aria-describedby={showMonthlyError ? 'curator-plan-monthly-error' : undefined}
-                          value={draft.monthlyPrice}
-                          onChange={(event) => updateDraft({ monthlyPrice: event.target.value })}
-                        />
-                        {showMonthlyError && (
-                          <p id="curator-plan-monthly-error" className="text-xs text-destructive">
-                            {monthlyError}
-                          </p>
-                        )}
-                        <fieldset className="flex flex-wrap gap-1.5 pt-0.5">
-                          <legend className="sr-only">Suggested monthly prices</legend>
-                          {suggestedMonthlyMinor.map((minor) => (
-                            <Button
-                              key={minor}
-                              type="button"
-                              variant="outline"
-                              size="xs"
-                              aria-pressed={monthlyMinor === minor}
-                              className="rounded-full font-mono tabular-nums aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:text-foreground"
-                              onClick={() => updateDraft({ monthlyPrice: priceText(minor) })}
-                            >
-                              ${minor / 100}
-                            </Button>
-                          ))}
-                        </fieldset>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="curator-plan-annual">Annual price<span className="sr-only"> (USD, optional)</span></Label>
-                        <PriceField
-                          ref={annualRef}
-                          id="curator-plan-annual"
-                          name="annualPrice"
-                          unit="/year"
-                          aria-invalid={showAnnualError || undefined}
-                          aria-describedby={showAnnualError
-                            ? 'curator-plan-annual-error curator-plan-annual-help'
-                            : 'curator-plan-annual-help'}
-                          value={draft.annualPrice}
-                          onChange={(event) => updateDraft({ annualPrice: event.target.value })}
-                        />
-                        {showAnnualError && (
-                          <p id="curator-plan-annual-error" className="text-xs text-destructive">
-                            {annualError}
-                          </p>
-                        )}
-                        <p id="curator-plan-annual-help" className="text-xs text-muted-foreground">{annualHelp}</p>
-                      </div>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="curator-plan-name">Plan name</Label>
+                    <Input
+                      id="curator-plan-name"
+                      required
+                      maxLength={150}
+                      placeholder={firstName ? `${firstName}'s Inner Circle` : 'Selector Club'}
+                      value={draft.name}
+                      onChange={(event) => updateDraft({ name: event.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="curator-plan-description">Description</Label>
+                    <Textarea
+                      id="curator-plan-description"
+                      maxLength={2000}
+                      placeholder="Two exclusive playlists every week, plus a monthly members-only mix."
+                      aria-describedby="curator-plan-description-help"
+                      value={draft.description}
+                      onChange={(event) => updateDraft({ description: event.target.value })}
+                    />
+                    <p id="curator-plan-description-help" className="text-xs text-muted-foreground">
+                      What members get and how often. Promise only what you will deliver.
+                    </p>
+                  </div>
 
-                    <fieldset className="space-y-2.5">
-                      <legend className="pb-1 text-sm font-semibold">
-                        Included features
-                      </legend>
-                      {features.data.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No gated features are available.</p>
-                      ) : features.data.map((feature) => (
-                        <Label
-                          htmlFor={`curator-feature-${feature.featureKey}`}
-                          key={feature.featureKey}
-                          // data-state highlights the row when its checkbox is on
-                          className="flex items-start gap-3 rounded-lg border border-border p-3.5 text-sm font-normal transition-colors has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5"
-                        >
-                          <Checkbox
-                            id={`curator-feature-${feature.featureKey}`}
-                            className="mt-0.5"
-                            checked={draft.featureKeys.includes(feature.featureKey)}
-                            onCheckedChange={(checked) => setDraft((current) => ({
-                              ...current,
-                              featureKeys: checked === true
-                                ? [...current.featureKeys, feature.featureKey]
-                                : current.featureKeys.filter((key) => key !== feature.featureKey),
-                            }))}
-                          />
-                          <span><span className="font-medium">{feature.displayName}</span><span className="mt-1 block text-muted-foreground">{feature.description}</span></span>
-                        </Label>
-                      ))}
-                    </fieldset>
-
-                    {save.isError && (
-                      <p role="alert" className="text-sm text-destructive">
-                        {getUserFacingApiErrorMessage(save.error, 'The draft could not be saved.')}
-                        {' '}Review the refreshed saved plans before trying again.
-                      </p>
+                  {/* Plain rows on the panel: a checked box is the only selected state. */}
+                  <fieldset>
+                    <legend className="text-sm font-medium">Included features</legend>
+                    {features.data.length === 0 ? (
+                      <p className="mt-2 text-sm text-muted-foreground">No gated features are available.</p>
+                    ) : (
+                      <div className="mt-2 divide-y divide-border/60 border-y border-border/60">
+                        {features.data.map((feature) => (
+                          <Label
+                            htmlFor={`curator-feature-${feature.featureKey}`}
+                            key={feature.featureKey}
+                            className="flex cursor-pointer items-start gap-3 py-3 text-sm font-normal"
+                          >
+                            <Checkbox
+                              id={`curator-feature-${feature.featureKey}`}
+                              className="mt-0.5"
+                              checked={draft.featureKeys.includes(feature.featureKey)}
+                              onCheckedChange={(checked) => setDraft((current) => ({
+                                ...current,
+                                featureKeys: checked === true
+                                  ? [...current.featureKeys, feature.featureKey]
+                                  : current.featureKeys.filter((key) => key !== feature.featureKey),
+                              }))}
+                            />
+                            <span>
+                              <span className="font-medium">{feature.displayName}</span>
+                              <span className="mt-0.5 block text-muted-foreground">{feature.description}</span>
+                            </span>
+                          </Label>
+                        ))}
+                      </div>
                     )}
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      <Button
-                        type="submit"
-                        className="w-full sm:w-auto"
-                        disabled={busy}
-                      >
-                        {save.isPending
-                          ? 'Saving draft…'
-                          : editingPlan ? 'Save changes' : 'Save draft'}
-                      </Button>
-                      {editingPlan && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full sm:w-auto"
-                          disabled={busy}
-                          onClick={resetForm}
-                        >
-                          Cancel edit
-                        </Button>
+                  </fieldset>
+
+                  {/* Two columns only where the panel is wide: below lg, and from xl, where the rail leaves room. */}
+                  <div className="grid gap-5 sm:max-lg:grid-cols-2 xl:grid-cols-2">
+                    <div className="space-y-2">
+                      {/* The field shows the currency itself; the parenthetical stays in the accessible name. */}
+                      <Label htmlFor="curator-plan-monthly">Monthly price<span className="sr-only"> (USD)</span></Label>
+                      <PriceField
+                        ref={monthlyRef}
+                        id="curator-plan-monthly"
+                        name="monthlyPrice"
+                        unit="/month"
+                        aria-required="true"
+                        aria-invalid={showMonthlyError || undefined}
+                        aria-describedby={showMonthlyError ? 'curator-plan-monthly-error' : undefined}
+                        value={draft.monthlyPrice}
+                        onChange={(event) => updateDraft({ monthlyPrice: event.target.value })}
+                      />
+                      {showMonthlyError && (
+                        <p id="curator-plan-monthly-error" className="text-xs text-destructive">
+                          {monthlyError}
+                        </p>
                       )}
+                      {/* A typed price outside the presets checks none of them. */}
+                      <SegmentedControl
+                        label="Suggested monthly prices"
+                        options={suggestedMonthlyOptions}
+                        value={monthlyMinor === null ? '' : priceText(monthlyMinor)}
+                        onValueChange={(value) => updateDraft({ monthlyPrice: value })}
+                        className="font-mono tabular-nums"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="curator-plan-annual">Annual price<span className="sr-only"> (USD, optional)</span></Label>
+                      <PriceField
+                        ref={annualRef}
+                        id="curator-plan-annual"
+                        name="annualPrice"
+                        unit="/year"
+                        aria-invalid={showAnnualError || undefined}
+                        aria-describedby={showAnnualError
+                          ? 'curator-plan-annual-error curator-plan-annual-help'
+                          : 'curator-plan-annual-help'}
+                        value={draft.annualPrice}
+                        onChange={(event) => updateDraft({ annualPrice: event.target.value })}
+                      />
+                      {showAnnualError && (
+                        <p id="curator-plan-annual-error" className="text-xs text-destructive">
+                          {annualError}
+                        </p>
+                      )}
+                      <p id="curator-plan-annual-help" className="text-xs text-muted-foreground">{annualHelp}</p>
                     </div>
                   </div>
 
-                  {/* Live preview and estimate beside the form */}
-                  <aside aria-labelledby="economics-title" className="space-y-4 lg:sticky lg:top-24">
+                  {/* The receipt prints under the price it explains. */}
+                  <section aria-labelledby="economics-title" className="space-y-3">
                     <div>
-                      <h3 id="economics-title" className="text-sm font-semibold">
-                        What you earn
-                      </h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
+                      <h3 id="economics-title" className="text-sm font-medium">What you earn</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
                         Estimated under today’s policy. Fan charges freeze when you publish; your cut can still change with policy.
                       </p>
                     </div>
-                    {monthlyEconomics
-                      ? <EconomicsBreakdown economics={monthlyEconomics} currency={pricing.data.currency} interval="month" />
-                      : <p className="text-sm text-muted-foreground">Enter a monthly price to see the estimate.</p>}
-                    {annualEconomics && <EconomicsBreakdown economics={annualEconomics} currency={pricing.data.currency} interval="year" />}
-                    <dl className="divide-y divide-border/70 text-xs">
-                      <div className="py-2.5">
-                        <dt className="text-muted-foreground">Platform fee on fan payments</dt>
-                        <dd className="mt-1 font-mono text-sm tabular-nums">
-                          {feeFormatter.format(pricing.data.platformFeeBps / 10_000)}
-                        </dd>
-                      </div>
-                      <div className="py-2.5">
-                        <dt className="text-muted-foreground">Payouts</dt>
-                        <dd className="mt-1 text-sm">
-                          {/* capitalize only the cadence word, not the whole sentence */}
-                          <span className="capitalize">{pricing.data.payoutCadence}</span>
-                          , after your balance reaches{' '}
-                          <span className="font-mono tabular-nums">{money(pricing.data.minPayoutMinor, pricing.data.currency)}</span>. Smaller cleared balances are paid after 90 days.
-                        </dd>
-                      </div>
-                    </dl>
-                  </aside>
+                    {/* Receipts on the left, the policy that sets them on the right, where the panel is wide. */}
+                    <div className="grid items-start gap-x-6 gap-y-4 sm:max-lg:grid-cols-2 xl:grid-cols-2">
+                      {monthlyEconomics ? (
+                        <div className="space-y-4">
+                          <EconomicsBreakdown economics={monthlyEconomics} currency={pricing.data.currency} interval="month" />
+                          {annualEconomics && <EconomicsBreakdown economics={annualEconomics} currency={pricing.data.currency} interval="year" />}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Enter a monthly price to see the estimate.</p>
+                      )}
+                      <dl className="space-y-3 text-xs">
+                        <div>
+                          <dt className="text-muted-foreground">Platform fee on fan payments</dt>
+                          <dd className="mt-0.5 font-mono text-sm tabular-nums">
+                            {feeFormatter.format(pricing.data.platformFeeBps / 10_000)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted-foreground">Payouts</dt>
+                          <dd className="mt-0.5 text-sm">
+                            {/* capitalize only the cadence word, not the whole sentence */}
+                            <span className="capitalize">{pricing.data.payoutCadence}</span>
+                            , after your balance reaches{' '}
+                            <span className="font-mono tabular-nums">{money(pricing.data.minPayoutMinor, pricing.data.currency)}</span>. Smaller cleared balances are paid after 90 days.
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </section>
+
+                  {save.isError && (
+                    <p role="alert" className="text-sm text-destructive">
+                      {getUserFacingApiErrorMessage(save.error, 'The draft could not be saved.')}
+                      {' '}Review the refreshed saved plans before trying again.
+                    </p>
+                  )}
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <Button
+                      type="submit"
+                      className="w-full sm:w-auto"
+                      disabled={busy}
+                    >
+                      {save.isPending
+                        ? 'Saving draft…'
+                        : editingPlan ? 'Save changes' : 'Save draft'}
+                    </Button>
+                    {editingPlan && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        disabled={busy}
+                        onClick={resetForm}
+                      >
+                        Cancel edit
+                      </Button>
+                    )}
+                  </div>
                 </form>
               </CollapsibleContent>
             </Collapsible>

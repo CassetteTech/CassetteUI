@@ -419,7 +419,7 @@ export function EditProfileFormComponent({ initialData, onSuccess }: EditProfile
                 {/* The URL prefix and the input share one border, so the field reads as the page address. */}
                 <div
                   className={cn(
-                    'flex h-9 overflow-hidden rounded-md border border-input shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/30',
+                    'flex h-9 overflow-hidden rounded-md border border-input shadow-xs transition-[color,box-shadow] focus-within:border-foreground/60 focus-within:ring-[3px] focus-within:ring-foreground/[0.07] dark:bg-input/30',
                     usernameFieldError && 'border-destructive ring-destructive/20 dark:ring-destructive/40',
                   )}
                 >

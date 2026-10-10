@@ -150,7 +150,6 @@ export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
   return (
     <StudioSection
       id="studio-payouts"
-      eyebrow="Get paid"
       title="Payout setup"
       headingId="curator-payout-title"
       testId="curator-payout-card"

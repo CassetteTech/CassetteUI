@@ -236,7 +236,6 @@ export function CuratorProCard() {
   return (
     <StudioSection
       id="studio-pro"
-      eyebrow="Subscription"
       title="Curator Pro"
       headingId="curator-pro-title"
       testId="curator-pro-card"

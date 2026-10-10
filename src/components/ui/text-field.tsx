@@ -22,9 +22,9 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
 }, ref) => {
   const inputId = React.useId();
   const variants = {
-    default: 'border-border focus:border-primary',
-    auth: 'border-border focus:border-primary bg-card',
-    'music-search': 'border-border focus:border-primary bg-card',
+    default: 'border-border focus:border-foreground/60',
+    auth: 'border-border focus:border-foreground/60 bg-card',
+    'music-search': 'border-border focus:border-foreground/60 bg-card',
   };
 
   const sizes = {

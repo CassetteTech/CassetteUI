@@ -144,16 +144,18 @@ function MyMemberships() {
     retry: 1,
   });
   const activeCount = query.data?.filter((entry) => hasMembershipAccess(entry.membership)).length ?? 0;
+  const empty = query.data?.length === 0;
 
   return (
-    <div className="studio-surface mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:py-10">
+    // At least one screen tall (under the 4rem phone navbar), so an empty list can center in the free height.
+    <div className="studio-surface mx-auto flex min-h-[calc(100svh-4rem)] w-full max-w-3xl flex-col px-4 py-6 sm:px-6 sm:py-8 lg:min-h-full lg:py-10">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">
             My memberships
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            The curators you support. Open a pass to visit their page.
+            {empty ? 'The curators you support.' : 'The curators you support. Open a pass to visit their page.'}
           </p>
         </div>
         {query.data && query.data.length > 0 && (
@@ -163,7 +165,7 @@ function MyMemberships() {
           </p>
         )}
       </header>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 sm:items-start">
+      <div className={cn('mt-6 grid gap-4 sm:grid-cols-2 sm:items-start', empty && 'flex-1')}>
         {query.isPending ? (
           <>
             <output className="sr-only">Loading memberships…</output>
@@ -177,7 +179,8 @@ function MyMemberships() {
             <Button onClick={() => void query.refetch()} className="mt-3">Try again</Button>
           </Empty>
         ) : query.data.length === 0 ? (
-          <Empty className="sm:col-span-2" data-testid="my-memberships-empty">
+          // No box: the empty state sits in the middle of the free space, lifted a little toward the header.
+          <Empty className="border-none pb-24 sm:col-span-2 sm:self-stretch" data-testid="my-memberships-empty">
             <EmptyTitle>No memberships yet</EmptyTitle>
             <EmptyDescription>
               Join a curator to unlock members-only posts. Your memberships will show up here.

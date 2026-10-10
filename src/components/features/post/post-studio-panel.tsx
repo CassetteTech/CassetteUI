@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useReducedMotion } from 'framer-motion';
-import { LockKeyhole, XIcon } from 'lucide-react';
+import { XIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Area } from '@/components/dither-kit/area';
 import { AreaChart } from '@/components/dither-kit/area-chart';
@@ -19,17 +19,11 @@ import type { ChartConfig } from '@/components/dither-kit/chart-context';
 import { Grid } from '@/components/dither-kit/grid';
 import { Tooltip } from '@/components/dither-kit/tooltip';
 import { XAxis } from '@/components/dither-kit/x-axis';
-import { SegmentedControl } from '@/components/interior/segmented-control';
 import { AnnotatedText } from '@/components/ui/annotated-text';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  ownerVisibilities,
-  postVisibility,
-  visibilityOf,
-  type OwnerVisibility,
-} from '@/components/features/post/post-visibility';
-import { useMemberPostAccess } from '@/hooks/use-curator';
+import { visibilityOf, type OwnerVisibility } from '@/components/features/post/post-visibility';
+import { PostVisibilityControl } from '@/components/features/post/post-visibility-control';
 import { useUpdatePost } from '@/hooks/use-music';
 import { ApiError, apiService } from '@/services/api';
 import type { PostInsightsPlatformBreakdownItem, PostInsightsResponse, PostInsightsTrendPoint, PostPrivacy } from '@/types';
@@ -370,87 +364,6 @@ function InsightsSections({ postId, conversionSuccessCount }: { postId: string; 
   );
 }
 
-/* ─── Access ────────────────────────────────────────────────────────── */
-/** Three positions with the chosen one's summary beneath. Every summary sits in the same
-    grid cell and only the chosen one shows, so the cell keeps the tallest summary's height
-    and switching never moves what follows. */
-function VisibilityControl({
-  privacy,
-  access,
-  choose,
-}: {
-  privacy: PostPrivacy;
-  access: ReturnType<typeof useMemberPostAccess>;
-  choose: (next: OwnerVisibility) => void;
-}) {
-  const canLock = access.state === 'ready' || privacy === 'subscriber';
-  // Without a plan that unlocks member posts, "Members" carries a lock. Choosing it keeps the
-  // post's setting and shows where plans are set up instead.
-  const needsPlan = !canLock && access.state === 'needs-plan';
-  const [setupShown, setSetupShown] = useState(false);
-  const known = visibilityOf(privacy) !== undefined;
-  return (
-    <section>
-      <SectionHeading>Who can open it</SectionHeading>
-      <SegmentedControl
-        label="Post visibility"
-        className="mt-3 w-full"
-        value={privacy}
-        onValueChange={(next) => {
-          const value = ownerVisibilities.find((option) => option === next);
-          const locked = value === 'subscriber' && needsPlan;
-          setSetupShown(locked);
-          if (value && !locked) choose(value);
-        }}
-        options={ownerVisibilities.map((value) => ({
-          value,
-          // The headline above says "Members only"; the short label keeps the three segments even.
-          label: value === 'subscriber' ? 'Members' : postVisibility[value].label,
-          icon: value === 'subscriber' && needsPlan
-            ? <LockKeyhole aria-hidden className="mr-1 inline size-3 -translate-y-px" />
-            : undefined,
-          // While the plan check loads or fails, the option waits; the error row below offers a retry.
-          disabled: value === 'subscriber' && !canLock && !needsPlan,
-        }))}
-      />
-      <div className="mt-3 grid text-sm text-muted-foreground">
-        {ownerVisibilities.map((value) => (
-          <p
-            key={value}
-            aria-hidden={value !== privacy}
-            className={cn('col-start-1 row-start-1 transition-opacity duration-200 motion-reduce:transition-none', value !== privacy && 'invisible opacity-0')}
-          >
-            {postVisibility[value].summary}
-          </p>
-        ))}
-        {!known && (
-          <p className="col-start-1 row-start-1">This post uses an older setting. Choose who can open it.</p>
-        )}
-      </div>
-      {access.state === 'error' && (
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">Could not check your membership plans.</p>
-          <Button type="button" variant="outline" size="sm" onClick={access.refetch}>
-            Try again
-          </Button>
-        </div>
-      )}
-      {/* Plans live in Curator Studio; the post only points there. A live region, so the prompt
-          is announced when the locked option is chosen. */}
-      <div role="status">
-        {needsPlan && setupShown && (
-          <div className="mt-3 rounded-lg bg-muted/60 p-3 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
-            <p className="text-sm text-muted-foreground">To lock posts, publish a membership plan with member posts.</p>
-            <Button asChild size="sm" className="mt-2.5">
-              <Link href="/studio/curator" prefetch={false}>Set up memberships</Link>
-            </Button>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
 /* ─── Column and sheet ──────────────────────────────────────────────── */
 interface PostStudioContentProps {
   postId: string;
@@ -468,7 +381,6 @@ function PostStudioContent({
   action,
 }: PostStudioContentProps & { eyebrowAs?: ElementType; action?: ReactNode }) {
   const visibility = visibilityOf(privacy);
-  const access = useMemberPostAccess();
   const updatePost = useUpdatePost();
 
   const choose = (next: OwnerVisibility) => {
@@ -500,7 +412,7 @@ function PostStudioContent({
       </header>
       {/* Sections stack with a hairline between them. */}
       <div className="divide-y divide-border/70 px-6 pb-6 pt-5 [&>section+section]:pt-5 [&>section]:pb-4 [&>section:last-child]:pb-0">
-        <VisibilityControl privacy={privacy} access={access} choose={choose} />
+        <PostVisibilityControl privacy={privacy} choose={choose} />
         <InsightsAccess postId={postId} conversionSuccessCount={conversionSuccessCount} />
       </div>
     </>

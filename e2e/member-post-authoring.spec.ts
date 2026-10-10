@@ -27,9 +27,9 @@ test('lets a curator lock posts while an archived plan still has paying members'
   });
 
   await page.goto('/add-music');
-  await page.locator('#add-music-privacy:visible').click();
-  await expect(page.getByRole('option', { name: 'Members only', exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
+  await page.getByRole('radio', { name: 'Members' }).click();
+  await expect(page.getByRole('radio', { name: 'Members' })).toBeChecked();
+  await expect(page.getByRole('main').last()).not.toContainText('To lock posts');
 
   await page.goto('/post/post-owner-track');
   const studio = page.getByTestId('post-studio-panel');
@@ -74,6 +74,31 @@ test('keeps members-only posts closed when Bridge refuses member-post authoring'
   await expect(members).toBeFocused();
   await expect(members).not.toBeChecked();
   expect(updates).toBe(0);
+});
+
+// Add Music uses the post page's control, so a curator without member-post authoring
+// meets the same locked option and setup prompt before the post exists.
+test('shows the locked members option and setup prompt on Add Music', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.owner,
+    curatorProfile: fixtureActiveCuratorProfile,
+    curatorPlans: [archivedMemberPostPlan],
+    memberPostAuthoring: false,
+  });
+
+  await page.goto('/add-music');
+  const publicOption = page.getByRole('radio', { name: 'Public' });
+  const members = page.getByRole('radio', { name: 'Members' });
+  await expect(publicOption).toBeChecked();
+  await publicOption.press('ArrowRight');
+  await expect(members).toBeFocused();
+  await expect(members).not.toBeChecked();
+  await expect(page.getByRole('status').filter({ hasText: 'To lock posts' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Set up memberships' })).toHaveAttribute('href', '/studio/curator');
+
+  await members.press('ArrowRight');
+  await expect(page.getByRole('radio', { name: 'Private' })).toBeChecked();
+  await expect(page.getByRole('main').last()).not.toContainText('To lock posts');
 });
 
 // Without an answer from Bridge, nothing in the browser infers authoring from the

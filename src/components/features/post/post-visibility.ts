@@ -24,7 +24,7 @@ export const postVisibility = {
   private: {
     label: 'Private',
     icon: EyeOff,
-    summary: 'Off your profile. Only people with the link can open it.',
+    summary: 'Off your profile. Only you can open it.',
   },
 } satisfies Record<OwnerVisibility, { label: string; icon: LucideIcon; summary: string }>;
 

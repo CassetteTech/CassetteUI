@@ -784,11 +784,20 @@ test('shows member counts, the daily trend, and the previous-window baseline', a
     curatorProfile,
     curatorPlans: [fixtureActiveMemberPostPlan],
     curatorMemberCounts: fixtureCuratorMemberCounts,
+    // A different ledger count proves which source each tab reads.
+    curatorEarnings: {
+      activeMemberCount: 7, items: earningsItems.slice(0, 3),
+      balances: { currency: 'USD', earnedThisMonth: 0, accrued: 425, payable: 0,
+        blocked: 0, paidOut: 900, nextPayableAt: null },
+    },
   });
   const firstResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === '/api/v1/curators/me/member-stats');
 
   await page.goto(STUDIO_PATH);
+  // The Overview reads the earnings ledger; the Members tab reads member counts.
+  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByRole('button', { name: 'Active members 7', exact: true })).toBeVisible();
   await openStudioStep(page, 'studio-earnings');
 
   const card = page.getByTestId('curator-earnings-card');

@@ -39,7 +39,6 @@ import {
   money,
 } from '@/components/features/curator/curator-plan-preview';
 import {
-  ReceiptRow,
   StudioNotice,
   StudioSection,
   StudioStat,
@@ -176,6 +175,24 @@ function StepLink({ href, children }: { href: string; children: ReactNode }) {
     <a href={href} className="underline underline-offset-2" onClick={() => steps?.open(href.slice(1))}>
       {children}
     </a>
+  );
+}
+
+/** The fan price under a plan figure: frozen once published, set at publish before that. */
+function fanPriceHint(faceMinor: number, serviceFeeMinor: number | null, currency: string) {
+  return serviceFeeMinor === null
+    ? 'Fan price set at publish'
+    : `Fans pay ${money(faceMinor + serviceFeeMinor, currency)} (frozen)`;
+}
+
+/** What a plan unlocks, in words rather than a count. */
+function MemberFeatures({ names }: { names: string[] }) {
+  return (
+    <p className="text-sm">
+      {names.length === 0
+        ? <span className="text-muted-foreground">No features included.</span>
+        : <><span className="text-muted-foreground">Members get </span>{names.join(', ')}</>}
+    </p>
   );
 }
 
@@ -564,14 +581,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
               hint={activePlan.annualAmountMinor === null ? 'Not offered' : 'Billed once a year'}
             />
           </dl>
-          {/* Features are words, not a count. */}
-          <p className="text-sm">
-            {activePlan.featureKeys.length === 0 ? (
-              <span className="text-muted-foreground">No features included.</span>
-            ) : (
-              <><span className="text-muted-foreground">Members get </span>{namesFor(activePlan.featureKeys).join(', ')}</>
-            )}
-          </p>
+          <MemberFeatures names={namesFor(activePlan.featureKeys)} />
         </div>
       </StudioSection>
     );
@@ -630,46 +640,21 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
         ) : (
           <>
             {plansData.length > 0 && (
-            <section aria-labelledby="saved-plans-title" className="space-y-4">
-              <div>
-                <h3 id="saved-plans-title" className="text-sm font-semibold">Your plans</h3>
-                <p className="mt-1 text-sm text-muted-foreground">Published fan charges are frozen. Your cut can still change with policy.</p>
-              </div>
-              {/* Requirements surface only while a draft waits on payouts */}
-              {!payoutConfirmed && plansData.some((plan) => plan.status === 'draft') && (
-                <div className="space-y-2.5">
-                <dl aria-label="Publishing requirements" className="divide-y divide-border/70 text-sm">
-                  <ReceiptRow
-                    className="py-2.5"
-                    label="Payout setup"
-                    value={
-                      <RequirementValue
-                        met={payoutReady}
-                        pending={payout.isPending}
-                        onRetry={payout.isError ? () => void payout.refetch() : undefined}
-                        metLabel="Complete"
-                        unmetLabel={payout.data ? 'Finish payout setup' : 'Start payout setup'}
-                        href="#studio-payouts"
-                      />
-                    }
-                  />
-                </dl>
-                <p className="text-xs text-muted-foreground">
-                  Fans can join once Stripe has verified your payout account.
-                </p>
-                </div>
-              )}
+            // One plan per row on the panel itself: rules separate them, not nested boxes.
+            <section aria-labelledby="saved-plans-title">
+              <h3 id="saved-plans-title" className="sr-only">Your plans</h3>
               {change.isError && (
-                <p role="alert" className="text-sm text-destructive">
+                <p role="alert" className="mb-4 text-sm text-destructive">
                   The plan action could not be confirmed. Review the refreshed plan state and try again if needed.
                 </p>
               )}
               {remove.isError && (
-                <p role="alert" className="text-sm text-destructive">
+                <p role="alert" className="mb-4 text-sm text-destructive">
                   {getUserFacingApiErrorMessage(remove.error, 'The draft could not be deleted.')}
                   {' '}Review the refreshed plan state and try again if needed.
                 </p>
               )}
+              <div className="divide-y divide-border/70">
               {plansData.map((plan) => {
                 const blockedByActivePlan = activePlan !== null && activePlan.id !== plan.id;
                 const canPublish = plan.status === 'draft' && gatesConfirmed && !blockedByActivePlan;
@@ -679,49 +664,33 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                   <article
                     key={plan.id}
                     data-testid={`curator-plan-${plan.status}`}
-                    className={cn(
-                      'card-ink px-4 sm:px-5',
-                      plan.status === 'active' && 'border-primary/40',
-                      plan.status === 'archived' && 'opacity-70',
-                    )}
+                    className={cn('space-y-4 py-5 first:pt-0 last:pb-0', plan.status === 'archived' && 'opacity-70')}
                   >
-                    {/* Tier header: reads like the card a fan would see */}
-                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 py-4">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h4 className="break-words text-base font-semibold leading-tight">{plan.name}</h4>
-                        <p className="mt-1.5 text-sm text-muted-foreground">{plan.description || 'No description.'}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{plan.description || 'No description.'}</p>
                       </div>
                       <p className={cn('shrink-0 text-xs font-medium capitalize', studioToneText[planStatusTone[plan.status]])}>
                         {editing ? 'Editing' : plan.status}
                       </p>
                     </div>
-                    <div className="space-y-4 py-4">
-                      <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-                        <div className="flex items-baseline justify-between gap-4">
-                          <dt className="text-muted-foreground">Monthly price</dt>
-                          <dd className="font-mono font-semibold tabular-nums">{money(plan.amountMinor, plan.currency)}</dd>
-                        </div>
-                        <div className="flex items-baseline justify-between gap-4">
-                          <dt className="text-muted-foreground">Monthly fan charge</dt>
-                          <dd className="font-mono tabular-nums">{plan.serviceFeeMinor === null ? 'Set when published' : `${money(plan.amountMinor + plan.serviceFeeMinor, plan.currency)} (frozen)`}</dd>
-                        </div>
-                        {plan.annualAmountMinor !== null && (
-                          <>
-                            <div className="flex items-baseline justify-between gap-4">
-                              <dt className="text-muted-foreground">Annual price</dt>
-                              <dd className="font-mono font-semibold tabular-nums">{money(plan.annualAmountMinor, plan.currency)}</dd>
-                            </div>
-                            <div className="flex items-baseline justify-between gap-4">
-                              <dt className="text-muted-foreground">Annual fan charge</dt>
-                              <dd className="font-mono tabular-nums">{plan.annualServiceFeeMinor === null ? 'Set when published' : `${money(plan.annualAmountMinor + plan.annualServiceFeeMinor, plan.currency)} (frozen)`}</dd>
-                            </div>
-                          </>
-                        )}
-                      </dl>
-                      <p className="text-sm">
-                        <span className="text-muted-foreground">Features: </span>
-                        {plan.featureKeys.length === 0 ? 'None' : namesFor(plan.featureKeys).join(', ')}
-                      </p>
+                    {/* The live summary's figures: the curator's price, with the fan price under it. */}
+                    <dl className="grid grid-cols-2 gap-3">
+                      <StudioStat
+                        label="Monthly price"
+                        value={money(plan.amountMinor, plan.currency)}
+                        hint={fanPriceHint(plan.amountMinor, plan.serviceFeeMinor, plan.currency)}
+                      />
+                      <StudioStat
+                        label="Annual price"
+                        value={plan.annualAmountMinor === null ? '—' : money(plan.annualAmountMinor, plan.currency)}
+                        hint={plan.annualAmountMinor === null
+                          ? 'Not offered'
+                          : fanPriceHint(plan.annualAmountMinor, plan.annualServiceFeeMinor, plan.currency)}
+                      />
+                    </dl>
+                    <MemberFeatures names={namesFor(plan.featureKeys)} />
                     {plan.status === 'draft' && (
                       <div className="space-y-2">
                         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -763,7 +732,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                                 className="w-full text-destructive hover:text-destructive sm:w-auto"
                                 disabled={busy || change.isPending}
                               >
-                                Delete draft
+                                Delete
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -787,9 +756,18 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
+                        {/* The one publishing requirement, with the way to meet it. */}
                         {!payoutConfirmed && (
                           <p id={`plan-${plan.id}-gates`} className="text-xs text-muted-foreground">
-                            Publishing needs completed <StepLink href="#studio-payouts">payout setup</StepLink>.
+                            Fans can join once Stripe verifies your payout account.{' '}
+                            <RequirementValue
+                              met={payoutReady}
+                              pending={payout.isPending}
+                              onRetry={payout.isError ? () => void payout.refetch() : undefined}
+                              metLabel="Payout setup complete"
+                              unmetLabel={payout.data ? 'Finish payout setup' : 'Start payout setup'}
+                              href="#studio-payouts"
+                            />
                           </p>
                         )}
                         {blockedByActivePlan && <p id={`plan-${plan.id}-blocked`} className="text-xs text-muted-foreground">Archive the active plan before publishing this draft.</p>}
@@ -862,10 +840,13 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                       </AlertDialog>
                     </div>
                     )}
-                    </div>
                   </article>
                 );
               })}
+              </div>
+              {plansData.some((plan) => plan.status !== 'draft') && (
+                <p className="mt-4 text-xs text-muted-foreground">Published fan prices are frozen. Your cut can still change with policy.</p>
+              )}
             </section>
             )}
 
@@ -890,7 +871,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
               <CollapsibleContent>
                 <form
                   ref={formRef}
-                  className={cn('max-w-xl space-y-7', plansData.length > 0 && 'pt-5')}
+                  className={cn(plansData.length > 0 && 'pt-5')}
                   onSubmit={(event) => {
                     event.preventDefault();
                     setSubmitAttempted(true);
@@ -916,137 +897,134 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                     });
                   }}
                 >
-                  <div className="space-y-2">
-                    <Label htmlFor="curator-plan-name">Plan name</Label>
-                    <Input
-                      id="curator-plan-name"
-                      required
-                      maxLength={150}
-                      placeholder={firstName ? `${firstName}'s Inner Circle` : 'Selector Club'}
-                      value={draft.name}
-                      onChange={(event) => updateDraft({ name: event.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="curator-plan-description">Description</Label>
-                    <Textarea
-                      id="curator-plan-description"
-                      maxLength={2000}
-                      placeholder="Two exclusive playlists every week, plus a monthly members-only mix."
-                      aria-describedby="curator-plan-description-help"
-                      value={draft.description}
-                      onChange={(event) => updateDraft({ description: event.target.value })}
-                    />
-                    <p id="curator-plan-description-help" className="text-xs text-muted-foreground">
-                      What members get and how often. Promise only what you will deliver.
-                    </p>
-                  </div>
-
-                  {/* Plain rows on the panel: a checked box is the only selected state. */}
-                  <fieldset>
-                    <legend className="text-sm font-medium">Included features</legend>
-                    {features.data.length === 0 ? (
-                      <p className="mt-2 text-sm text-muted-foreground">No gated features are available.</p>
-                    ) : (
-                      <div className="mt-2 divide-y divide-border/60 border-y border-border/60">
-                        {features.data.map((feature) => (
-                          <Label
-                            htmlFor={`curator-feature-${feature.featureKey}`}
-                            key={feature.featureKey}
-                            className="flex cursor-pointer items-start gap-3 py-3 text-sm font-normal"
-                          >
-                            <Checkbox
-                              id={`curator-feature-${feature.featureKey}`}
-                              className="mt-0.5"
-                              checked={draft.featureKeys.includes(feature.featureKey)}
-                              onCheckedChange={(checked) => setDraft((current) => ({
-                                ...current,
-                                featureKeys: checked === true
-                                  ? [...current.featureKeys, feature.featureKey]
-                                  : current.featureKeys.filter((key) => key !== feature.featureKey),
-                              }))}
-                            />
-                            <span>
-                              <span className="font-medium">{feature.displayName}</span>
-                              <span className="mt-0.5 block text-muted-foreground">{feature.description}</span>
-                            </span>
-                          </Label>
-                        ))}
+                  {/* Fields on the left and the estimate on the right where the panel is wide enough beside the rail; one column elsewhere. */}
+                  <div className="grid gap-8 min-[1400px]:grid-cols-[minmax(0,40rem)_20rem] min-[1400px]:justify-between min-[1400px]:gap-10">
+                    <div className="min-w-0 space-y-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="curator-plan-name">Plan name</Label>
+                        <Input
+                          id="curator-plan-name"
+                          required
+                          maxLength={150}
+                          placeholder={firstName ? `${firstName}'s Inner Circle` : 'Selector Club'}
+                          value={draft.name}
+                          onChange={(event) => updateDraft({ name: event.target.value })}
+                        />
                       </div>
-                    )}
-                  </fieldset>
-
-                  {/* Two columns only where the panel is wide: below lg, and from xl, where the rail leaves room. */}
-                  <div className="grid gap-5 sm:max-lg:grid-cols-2 xl:grid-cols-2">
-                    <div className="space-y-2">
-                      {/* The field shows the currency itself; the parenthetical stays in the accessible name. */}
-                      <Label htmlFor="curator-plan-monthly">Monthly price<span className="sr-only"> (USD)</span></Label>
-                      <PriceField
-                        ref={monthlyRef}
-                        id="curator-plan-monthly"
-                        name="monthlyPrice"
-                        unit="/month"
-                        aria-required="true"
-                        aria-invalid={showMonthlyError || undefined}
-                        aria-describedby={showMonthlyError ? 'curator-plan-monthly-error' : undefined}
-                        value={draft.monthlyPrice}
-                        onChange={(event) => updateDraft({ monthlyPrice: event.target.value })}
-                      />
-                      {showMonthlyError && (
-                        <p id="curator-plan-monthly-error" className="text-xs text-destructive">
-                          {monthlyError}
+                      <div className="space-y-2">
+                        <Label htmlFor="curator-plan-description">Description</Label>
+                        <Textarea
+                          id="curator-plan-description"
+                          maxLength={2000}
+                          placeholder="Two exclusive playlists every week, plus a monthly members-only mix."
+                          aria-describedby="curator-plan-description-help"
+                          value={draft.description}
+                          onChange={(event) => updateDraft({ description: event.target.value })}
+                        />
+                        <p id="curator-plan-description-help" className="text-xs text-muted-foreground">
+                          What members get and how often. Promise only what you will deliver.
                         </p>
-                      )}
-                      {/* A typed price outside the presets checks none of them. */}
-                      <SegmentedControl
-                        label="Suggested monthly prices"
-                        options={suggestedMonthlyOptions}
-                        value={monthlyMinor === null ? '' : priceText(monthlyMinor)}
-                        onValueChange={(value) => updateDraft({ monthlyPrice: value })}
-                        className="font-mono tabular-nums"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="curator-plan-annual">Annual price<span className="sr-only"> (USD, optional)</span></Label>
-                      <PriceField
-                        ref={annualRef}
-                        id="curator-plan-annual"
-                        name="annualPrice"
-                        unit="/year"
-                        aria-invalid={showAnnualError || undefined}
-                        aria-describedby={showAnnualError
-                          ? 'curator-plan-annual-error curator-plan-annual-help'
-                          : 'curator-plan-annual-help'}
-                        value={draft.annualPrice}
-                        onChange={(event) => updateDraft({ annualPrice: event.target.value })}
-                      />
-                      {showAnnualError && (
-                        <p id="curator-plan-annual-error" className="text-xs text-destructive">
-                          {annualError}
-                        </p>
-                      )}
-                      <p id="curator-plan-annual-help" className="text-xs text-muted-foreground">{annualHelp}</p>
-                    </div>
-                  </div>
+                      </div>
 
-                  {/* The receipt prints under the price it explains. */}
-                  <section aria-labelledby="economics-title" className="space-y-3">
-                    <div>
-                      <h3 id="economics-title" className="text-sm font-medium">What you earn</h3>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Estimated under today’s policy. Fan charges freeze when you publish; your cut can still change with policy.
-                      </p>
-                    </div>
-                    {/* Receipts on the left, the policy that sets them on the right, where the panel is wide. */}
-                    <div className="grid items-start gap-x-6 gap-y-4 sm:max-lg:grid-cols-2 xl:grid-cols-2">
-                      {monthlyEconomics ? (
-                        <div className="space-y-4">
-                          <EconomicsBreakdown economics={monthlyEconomics} currency={pricing.data.currency} interval="month" />
-                          {annualEconomics && <EconomicsBreakdown economics={annualEconomics} currency={pricing.data.currency} interval="year" />}
+                      {/* Two columns only where the panel is wide: below lg, and from xl, where the rail leaves room. */}
+                      <div className="grid gap-5 sm:max-lg:grid-cols-2 xl:grid-cols-2">
+                        <div className="space-y-2">
+                          {/* The field shows the currency itself; the parenthetical stays in the accessible name. */}
+                          <Label htmlFor="curator-plan-monthly">Monthly price<span className="sr-only"> (USD)</span></Label>
+                          <PriceField
+                            ref={monthlyRef}
+                            id="curator-plan-monthly"
+                            name="monthlyPrice"
+                            unit="/month"
+                            aria-required="true"
+                            aria-invalid={showMonthlyError || undefined}
+                            aria-describedby={showMonthlyError ? 'curator-plan-monthly-error' : undefined}
+                            value={draft.monthlyPrice}
+                            onChange={(event) => updateDraft({ monthlyPrice: event.target.value })}
+                          />
+                          {showMonthlyError && (
+                            <p id="curator-plan-monthly-error" className="text-xs text-destructive">
+                              {monthlyError}
+                            </p>
+                          )}
+                          {/* A typed price outside the presets checks none of them. */}
+                          <SegmentedControl
+                            label="Suggested monthly prices"
+                            options={suggestedMonthlyOptions}
+                            value={monthlyMinor === null ? '' : priceText(monthlyMinor)}
+                            onValueChange={(value) => updateDraft({ monthlyPrice: value })}
+                            className="font-mono tabular-nums"
+                          />
                         </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">Enter a monthly price to see the estimate.</p>
-                      )}
+                        <div className="space-y-2">
+                          <Label htmlFor="curator-plan-annual">Annual price<span className="sr-only"> (USD, optional)</span></Label>
+                          <PriceField
+                            ref={annualRef}
+                            id="curator-plan-annual"
+                            name="annualPrice"
+                            unit="/year"
+                            aria-invalid={showAnnualError || undefined}
+                            aria-describedby={showAnnualError
+                              ? 'curator-plan-annual-error curator-plan-annual-help'
+                              : 'curator-plan-annual-help'}
+                            value={draft.annualPrice}
+                            onChange={(event) => updateDraft({ annualPrice: event.target.value })}
+                          />
+                          {showAnnualError && (
+                            <p id="curator-plan-annual-error" className="text-xs text-destructive">
+                              {annualError}
+                            </p>
+                          )}
+                          <p id="curator-plan-annual-help" className="text-xs text-muted-foreground">{annualHelp}</p>
+                        </div>
+                      </div>
+
+                      {/* Plain rows on the panel: a checked box is the only selected state. */}
+                      <fieldset>
+                        <legend className="text-sm font-medium">Included features</legend>
+                        {features.data.length === 0 ? (
+                          <p className="mt-2 text-sm text-muted-foreground">No gated features are available.</p>
+                        ) : (
+                          <div className="mt-2 divide-y divide-border/60 border-y border-border/60">
+                            {features.data.map((feature) => (
+                              <Label
+                                htmlFor={`curator-feature-${feature.featureKey}`}
+                                key={feature.featureKey}
+                                className="flex cursor-pointer items-start gap-3 py-3 text-sm font-normal"
+                              >
+                                <Checkbox
+                                  id={`curator-feature-${feature.featureKey}`}
+                                  className="mt-0.5"
+                                  checked={draft.featureKeys.includes(feature.featureKey)}
+                                  onCheckedChange={(checked) => setDraft((current) => ({
+                                    ...current,
+                                    featureKeys: checked === true
+                                      ? [...current.featureKeys, feature.featureKey]
+                                      : current.featureKeys.filter((key) => key !== feature.featureKey),
+                                  }))}
+                                />
+                                <span>
+                                  <span className="font-medium">{feature.displayName}</span>
+                                  <span className="mt-0.5 block text-muted-foreground">{feature.description}</span>
+                                </span>
+                              </Label>
+                            ))}
+                          </div>
+                        )}
+                      </fieldset>
+
+                    </div>
+                    {/* The curator's side of the price; the fan's side is the pass in the rail. */}
+                    <section aria-labelledby="economics-title" className="min-w-0 max-w-sm space-y-3 min-[1400px]:max-w-none">
+                      <div>
+                        <h3 id="economics-title" className="text-sm font-medium">What you earn</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Estimated under today’s policy. Fan charges freeze when you publish; your cut can still change with policy.
+                        </p>
+                      </div>
+                      {monthlyEconomics
+                        ? <EconomicsBreakdown monthly={monthlyEconomics} annual={annualEconomics} currency={pricing.data.currency} />
+                        : <p className="text-sm text-muted-foreground">Enter a monthly price to see the estimate.</p>}
                       <dl className="space-y-3 text-xs">
                         <div>
                           <dt className="text-muted-foreground">Platform fee on fan payments</dt>
@@ -1064,16 +1042,17 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                           </dd>
                         </div>
                       </dl>
-                    </div>
-                  </section>
+                    </section>
+                  </div>
 
                   {save.isError && (
-                    <p role="alert" className="text-sm text-destructive">
+                    <p role="alert" className="mt-6 text-sm text-destructive">
                       {getUserFacingApiErrorMessage(save.error, 'The draft could not be saved.')}
                       {' '}Review the refreshed saved plans before trying again.
                     </p>
                   )}
-                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  {/* The actions close the whole form, under both columns. */}
+                  <div className="mt-6 flex flex-col gap-2 border-t border-border/70 pt-5 sm:flex-row sm:flex-wrap">
                     <Button
                       type="submit"
                       className="w-full sm:w-auto"

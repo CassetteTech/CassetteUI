@@ -1,6 +1,6 @@
 'use client';
 
-/** Shared Curator Studio chrome: the view context, soft section cards, status chips, notices, figures, and receipt rows. */
+/** Shared Curator Studio chrome: the view context, soft section cards, status chips, notices, and figures. */
 
 import { createContext, useId, type ReactNode } from 'react';
 import { ArrowUpRight } from 'lucide-react';
@@ -214,38 +214,6 @@ export function StudioStat({
         ) : value}
       </dd>
       {hint && <dd className="mt-1.5 text-xs text-muted-foreground">{hint}</dd>}
-    </div>
-  );
-}
-
-/** One receipt line: label on the left, mono amount on the right.
-    The wrapping div is load-bearing — tests locate amounts via their parent row. */
-export function ReceiptRow({
-  label,
-  value,
-  emphasized,
-  deduction,
-  className,
-}: {
-  label: string;
-  value: ReactNode;
-  emphasized?: boolean;
-  deduction?: boolean;
-  className?: string;
-}) {
-  return (
-    <div className={cn('flex items-baseline justify-between gap-4', className)}>
-      {/* Long labels (plan names) wrap so the amount always stays in view. */}
-      <dt className={cn('min-w-0 break-words text-muted-foreground', emphasized && 'font-semibold text-foreground')}>{label}</dt>
-      <dd
-        className={cn(
-          'shrink-0 font-mono text-sm tabular-nums',
-          emphasized && 'font-semibold',
-          deduction && 'text-muted-foreground',
-        )}
-      >
-        {value}
-      </dd>
     </div>
   );
 }

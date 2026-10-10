@@ -126,10 +126,10 @@ test('the Members only filter asks the server for member posts', async ({ page }
   });
 
   await page.goto('/explore');
-  const filter = page.getByRole('button', { name: 'Members only' });
+  const filter = page.getByRole('radio', { name: 'Members only' });
   await filter.click();
 
-  await expect(filter).toHaveAttribute('aria-pressed', 'true');
+  await expect(filter).toHaveAttribute('aria-checked', 'true');
   await expect(page).toHaveURL(/tab=subscriptions&filter=members/);
   await expect(page.getByRole('heading', { name: 'Member posts' })).toBeVisible();
   await expect(page.getByRole('link', { name: /Feed track/ })).toHaveText([/Feed track 1/]);
@@ -273,7 +273,7 @@ test.describe('on a phone', () => {
     await page.goto('/explore');
     await expect(page.getByRole('link', { name: /Feed track 1/ })).toBeVisible();
     await expect(tab(page, 'Subscriptions')).toBeInViewport();
-    await expect(page.getByRole('button', { name: 'Members only' })).toBeInViewport();
+    await expect(page.getByRole('radio', { name: 'Members only' })).toBeInViewport();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });

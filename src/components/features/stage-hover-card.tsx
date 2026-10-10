@@ -32,7 +32,7 @@ export function StageHoverCard({ children }: StageHoverCardProps) {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Image
-              src="/images/cassette_logo.png"
+              src="/images/cassette_logo.svg"
               alt="Cassette"
               width={24}
               height={24}

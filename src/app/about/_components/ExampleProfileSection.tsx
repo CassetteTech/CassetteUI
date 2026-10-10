@@ -53,7 +53,7 @@ export function ExampleProfileSection() {
             <div className="flex items-center gap-4 sm:gap-5">
               <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 border-2 border-foreground rounded-full overflow-hidden bg-muted">
                 <Image
-                  src="/images/cassette_logo.png"
+                  src="/images/cassette_logo.svg"
                   alt="@matt avatar"
                   fill
                   className="object-contain p-2"

@@ -86,7 +86,7 @@ export function MarketingFooter() {
             <div className="flex flex-col items-center gap-4 px-6 pb-6 md:pb-10 text-center">
               <Link href="/" className="inline-flex items-center gap-2">
                 <Image
-                  src="/images/cassette_logo.png"
+                  src="/images/cassette_logo.svg"
                   alt="Cassette"
                   width={28}
                   height={28}

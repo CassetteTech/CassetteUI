@@ -3,7 +3,7 @@
 /** Segmented radio control with a sliding thumb. Adapted from interior.dev (MIT):
     motion imports come from framer-motion and colors from Cassette tokens. */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -11,7 +11,8 @@ const CELL = { type: 'spring', stiffness: 520, damping: 34, mass: 0.45 } as cons
 
 const SEG = 'px-3 py-[5px] text-center text-xs font-medium leading-[18px] whitespace-nowrap';
 
-export type SegmentedOption = { value: string; label: string; disabled?: boolean };
+/** `icon` renders before the label in the visible segment; the accessible name stays the label. */
+export type SegmentedOption = { value: string; label: string; icon?: ReactNode; disabled?: boolean };
 
 export function SegmentedControl({
   options,
@@ -59,10 +60,11 @@ export function SegmentedControl({
     return () => controls.stop();
   }, [index, reduced, pos]);
 
+  // Every selection emits, the current value included, so a caller can react to a re-click.
   const select = useCallback((next: string) => {
     if (!controlled) setInternal(next);
-    if (next !== current) emit.current?.(next);
-  }, [controlled, current]);
+    emit.current?.(next);
+  }, [controlled]);
 
   const seek = useCallback((from: number, dir: number) => {
     let i = from;
@@ -115,6 +117,7 @@ export function SegmentedControl({
                 : hovered === i && i !== index ? 'text-foreground' : 'text-muted-foreground',
             )}
           >
+            {option.icon}
             {option.label}
           </span>
         ))}
@@ -132,6 +135,7 @@ export function SegmentedControl({
             >
               {options.map((option) => (
                 <span key={option.value} className={cn(SEG, 'text-foreground')}>
+                  {option.icon}
                   {option.label}
                 </span>
               ))}

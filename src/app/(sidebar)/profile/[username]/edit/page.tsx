@@ -1,20 +1,20 @@
 'use client';
 
-/** Profile settings: one responsive column of sections. The sidebar shell
-    scrolls on desktop; the document scrolls on phones. */
+/** Profile settings: a title, then the tabbed settings form. The sidebar
+    shell scrolls on desktop; the document scrolls on phones. */
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
 import { EditProfileFormComponent } from '@/components/features/profile/edit-profile-form';
 import { EditProfileSkeleton } from '@/components/features/profile/edit-profile-skeleton';
-import { MusicConnectionsFlow } from '@/components/features/music/music-connections-flow';
 import { profileService } from '@/services/profile';
 import { UserBio } from '@/types';
 import { BackButton } from '@/components/ui/back-button';
+import { Button } from '@/components/ui/button';
 import { appLogger } from '@/lib/observability/logger';
-import { EmailPreferencesSettings } from '@/components/features/profile/email-preferences-settings';
-import { StudioSection } from '@/components/features/curator/studio-shell';
+import Link from 'next/link';
+import { ArrowUpRight } from 'lucide-react';
 
 export default function EditProfilePage() {
   const { username } = useParams();
@@ -71,11 +71,6 @@ export default function EditProfilePage() {
     router.push(`/profile/${updatedUsername}`);
   };
 
-  const handleCancel = () => {
-    // Navigate back to profile page
-    router.push(`/profile/${user?.username || userIdentifier}`);
-  };
-
   // Show skeleton while loading, actual content when ready
   const showSkeleton = isLoading && !userBio;
 
@@ -93,43 +88,29 @@ export default function EditProfilePage() {
     );
   }
 
+  const profilePath = `/profile/${user?.username || userIdentifier}`;
+
   return (
-    <div className="studio-surface mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 lg:py-10">
+    <div className="studio-surface mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 lg:py-10">
       <div className="mb-4 lg:hidden">
-        <BackButton route={`/profile/${user?.username || userIdentifier}`} />
+        <BackButton route={profilePath} />
       </div>
       {showSkeleton ? (
         <EditProfileSkeleton />
       ) : userBio ? (
         <>
-          <header className="mb-6">
-            <p className="text-sm text-muted-foreground">Profile settings</p>
-            <h1 className="mt-1 font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">
+          <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
+            <h1 className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">
               Edit profile
             </h1>
-            <p className="mt-2 max-w-prose text-sm text-muted-foreground">
-              What visitors see on your public page, plus your email and connected services.
-            </p>
+            <Button asChild variant="outline" size="sm">
+              <Link href={profilePath}>
+                View profile
+                <ArrowUpRight aria-hidden />
+              </Link>
+            </Button>
           </header>
-          <EditProfileFormComponent
-            initialData={userBio}
-            onSuccess={handleSuccess}
-            onCancel={handleCancel}
-            footerContent={
-              <>
-                <StudioSection
-                  id="profile-email"
-                  eyebrow="Account"
-                  title="Email"
-                  headingId="profile-email-title"
-                  description="Which Cassette emails reach your account address."
-                >
-                  <EmailPreferencesSettings />
-                </StudioSection>
-                <MusicConnectionsFlow className="mt-6" />
-              </>
-            }
-          />
+          <EditProfileFormComponent initialData={userBio} onSuccess={handleSuccess} />
         </>
       ) : null}
     </div>

@@ -3,7 +3,7 @@ import { fixtureUsers } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 const openDeleteModal = async (page: Page) => {
-  await page.goto('/profile/miagroove/edit');
+  await page.goto('/profile/miagroove/edit?tab=account');
   await page.getByRole('button', { name: 'Delete account' }).click();
 };
 
@@ -37,7 +37,7 @@ test.describe('account deletion', () => {
 
     // Still signed in, and the session survives a reload.
     await page.reload();
-    await expect(page).toHaveURL('/profile/miagroove/edit');
+    await expect(page).toHaveURL('/profile/miagroove/edit?tab=account');
   });
 
   test('signs the user out and lands them on a public route after deletion', async ({ page }) => {
@@ -67,7 +67,7 @@ test.describe('account deletion', () => {
     await confirmButton(page).click();
 
     await expect(page.getByText('Failed to delete account. Please try again.')).toBeVisible();
-    await expect(page).toHaveURL('/profile/miagroove/edit');
+    await expect(page).toHaveURL('/profile/miagroove/edit?tab=account');
 
     // The retry succeeds against the same open modal.
     await confirmButton(page).click();

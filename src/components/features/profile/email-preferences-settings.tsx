@@ -6,10 +6,12 @@ import {
   useContext,
   useEffect,
   useId,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { usePathname } from 'next/navigation';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useAuthState } from '@/hooks/use-auth';
@@ -129,22 +131,29 @@ export function EmailPreferencesSettings() {
     throw new Error('EmailPreferencesSettings must be rendered inside its provider.');
   }
 
-  const id = useId();
-  const headingId = `${id}-heading`;
-  const controlId = `${id}-product-updates`;
+  const controlId = `${useId()}-product-updates`;
+  const rowRef = useRef<HTMLDivElement>(null);
 
+  // A failed save can land after the person has moved to another settings tab,
+  // where the inline error below is hidden; tell them where to retry.
+  useEffect(() => {
+    if (model.error && model.hasSaveRetry && rowRef.current?.checkVisibility() === false) {
+      toast.error('Your email preference was not saved.', {
+        description: 'Open the Account tab to try again.',
+      });
+    }
+  }, [model.error, model.hasSaveRetry]);
+
+  // One settings row: label and description on the left, the switch on the right.
   return (
-    <section aria-labelledby={headingId}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 id={headingId} className="text-sm font-medium text-foreground">
+    <div ref={rowRef} className="py-5">
+      <div className="flex items-start justify-between gap-6">
+        <div className="min-w-0">
+          <label htmlFor={controlId} className="text-sm font-medium leading-none">
             Product updates and releases
-          </h3>
-          <label htmlFor={controlId} className="mt-1 block text-xs text-muted-foreground">
-            Cassette sends occasional product and release update emails to your account address by default. Turn this off any time to stop them.
           </label>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Turning this off does not affect account, security, or service emails.
+          <p className="mt-1.5 max-w-prose text-xs text-muted-foreground">
+            Occasional emails to your account address, on by default. Turning this off does not affect account, security, or service emails.
           </p>
         </div>
         <Switch
@@ -190,6 +199,6 @@ export function EmailPreferencesSettings() {
           </Button>
         </div>
       )}
-    </section>
+    </div>
   );
 }

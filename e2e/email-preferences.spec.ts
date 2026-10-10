@@ -45,7 +45,7 @@ test('shows product update email as on by default in account settings', async ({
     defaultEnrolledUserIds: [fixtureUsers.member.id],
   });
 
-  await page.goto('/profile/miagroove/edit');
+  await page.goto('/profile/miagroove/edit?tab=account');
   const preferenceSwitch = page.locator(
     '[data-testid="settings-product-updates-email"]:visible',
   );
@@ -60,7 +60,7 @@ test('lets account settings opt out of product update email and persists across 
     defaultEnrolledUserIds: [fixtureUsers.member.id],
   });
 
-  await page.goto('/profile/miagroove/edit');
+  await page.goto('/profile/miagroove/edit?tab=account');
   const preferenceSwitch = page.locator(
     '[data-testid="settings-product-updates-email"]:visible',
   );
@@ -102,7 +102,7 @@ test('lets a previously opted-out account re-enable product update email', async
     },
   });
 
-  await page.goto('/profile/miagroove/edit');
+  await page.goto('/profile/miagroove/edit?tab=account');
   const preferenceSwitch = page.locator(
     '[data-testid="settings-product-updates-email"]:visible',
   );
@@ -126,7 +126,7 @@ test('reverts a failed settings opt-out and retries the intended preference', as
     emailPreferenceUpdateFailures: 1,
   });
 
-  await page.goto('/profile/miagroove/edit');
+  await page.goto('/profile/miagroove/edit?tab=account');
   const preferenceSwitch = page.locator(
     '[data-testid="settings-product-updates-email"]:visible',
   );
@@ -154,4 +154,24 @@ test('reverts a failed settings opt-out and retries the intended preference', as
     { enabled: false, source: 'settings' },
   ]);
   expect(state.emailPreferencesByUserId.get(fixtureUsers.member.id)?.enabled).toBe(false);
+});
+
+test('reports a failed email save that lands after the person leaves the Account tab', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    defaultEnrolledUserIds: [fixtureUsers.member.id],
+    emailPreferenceUpdateFailures: 1,
+  });
+  // Hold the save long enough to switch tabs before it fails.
+  await page.route('**/api/v1/email/preferences/product_updates', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.fallback();
+  });
+
+  await page.goto('/profile/miagroove/edit?tab=account');
+  const main = page.getByRole('main').last();
+  await main.locator('[data-testid="settings-product-updates-email"]:visible').click();
+  await main.getByRole('tab', { name: 'Profile' }).click();
+
+  await expect(page.getByText('Your email preference was not saved.')).toBeVisible();
 });

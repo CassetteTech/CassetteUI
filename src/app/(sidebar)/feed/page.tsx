@@ -8,7 +8,7 @@
  * stays on Memberships.
  */
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -61,7 +61,9 @@ function CuratorFeed() {
   // Posts wait for a session read that is fresh for this visit and not being replaced.
   const sessionCurrent =
     !isRefreshingSession && sessionCheckedAt !== null && sessionCheckedAt + SESSION_MAX_AGE_MS > openedAt;
-  const feed = useCuratorFeed(viewerId, membersOnly, hasMemberships && sessionCurrent);
+  const feedEnabled = hasMemberships && sessionCurrent;
+  const feed = useCuratorFeed(viewerId, membersOnly, feedEnabled);
+  const { headingRef, recordFocus } = useResetFocusRecovery(feedEnabled && feed.data !== undefined);
 
   // Reads the session on entry when the last read is too old, then again each
   // time it ages out while the page is visible. Each read restarts the Feed
@@ -101,13 +103,27 @@ function CuratorFeed() {
   } else if (activeMembershipCount === 0) {
     content = <JoinCuratorPrompt viewerId={user.id} />;
   } else {
-    content = <FeedPosts feed={feed} membersOnly={membersOnly} onShowAll={() => setMembersOnly(false)} />;
+    content = (
+      <FeedPosts
+        feed={feed}
+        sessionCurrent={sessionCurrent}
+        membersOnly={membersOnly}
+        onShowAll={() => setMembersOnly(false)}
+      />
+    );
   }
 
   return (
-    <section aria-labelledby="feed-heading">
+    // The section only records where focus is, for focus recovery after a reset; it takes no input itself.
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+    <section aria-labelledby="feed-heading" onFocus={recordFocus}>
       <header className="mb-10 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-        <h1 id="feed-heading" className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">
+        <h1
+          ref={headingRef}
+          id="feed-heading"
+          tabIndex={-1}
+          className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl"
+        >
           From your curators
         </h1>
         {hasMemberships && (
@@ -125,6 +141,29 @@ function CuratorFeed() {
       {content}
     </section>
   );
+}
+
+/**
+ * A reset replaces the posts. If it removed the element that had focus, the
+ * browser drops focus to the page body; this puts it on the heading instead.
+ */
+function useResetFocusRecovery(postsShown: boolean) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const lastFocused = useRef<Element | null>(null);
+
+  useLayoutEffect(() => {
+    if (postsShown) return;
+    const previous = lastFocused.current;
+    lastFocused.current = null;
+    if (previous && !previous.isConnected && document.activeElement === document.body) {
+      headingRef.current?.focus({ preventScroll: true });
+    }
+  }, [postsShown]);
+
+  const recordFocus = (event: React.FocusEvent) => {
+    lastFocused.current = event.target;
+  };
+  return { headingRef, recordFocus };
 }
 
 function SignInPrompt({ membersOnly }: { membersOnly: boolean }) {
@@ -198,13 +237,21 @@ function JoinCuratorPrompt({ viewerId }: { viewerId: string }) {
 
 function FeedPosts({
   feed,
+  sessionCurrent,
   membersOnly,
   onShowAll,
 }: {
   feed: ReturnType<typeof useCuratorFeed>;
+  sessionCurrent: boolean;
   membersOnly: boolean;
   onShowAll: () => void;
 }) {
+  // Cached pages outlive the session read they followed. Until a current read
+  // replaces them, show the skeleton, never the earlier rows.
+  if (!sessionCurrent) {
+    return <PostGridSkeleton />;
+  }
+
   if (feed.isError && !feed.data) {
     return (
       <Empty>

@@ -508,6 +508,77 @@ test.describe('freshness', () => {
     expect(sessionRequests.length).toBe(initialReads + 1);
     expect(curatorFeedRequests).toHaveLength(1);
   });
+
+  test('returning to the Feed after the session ages out never shows the earlier rows', async ({ page }) => {
+    await page.clock.install();
+    const sessionRequests = trackRequests(page, SESSION_PATH);
+    let posts = [feedPost(1, 'subscriber', 'night-curator'), feedPost(2, 'public', 'day-curator')];
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      myMemberships: [],
+      curatorFeed: () => ({ body: feedPage(posts, null) }),
+    });
+
+    await page.goto('/feed');
+    await expect(postLinks(page)).toHaveText([/Feed track 1/, /Feed track 2/]);
+    await page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Memberships' }).click();
+    await expect(page.getByRole('heading', { name: 'Memberships', level: 1 })).toBeVisible();
+    const readsBefore = sessionRequests.length;
+
+    // No focus or visibility event: only the age of the last read changes.
+    await page.clock.fastForward('01:30');
+    posts = [feedPost(5, 'public', 'day-curator')];
+    // Records any DOM change that puts an earlier row on the page, even for one frame.
+    await page.evaluate(() => {
+      new MutationObserver(() => {
+        if (document.body.textContent?.includes('Feed track 1')) document.body.dataset.earlierRowShown = 'true';
+      }).observe(document.body, { childList: true, subtree: true, characterData: true });
+    });
+    await page.getByRole('link', { name: 'Feed', exact: true }).click();
+
+    await expect(postLinks(page)).toHaveText([/Feed track 5/]);
+    await expect(page.locator('body')).not.toHaveAttribute('data-earlier-row-shown');
+    expect(sessionRequests.length).toBe(readsBefore + 1);
+  });
+
+  test('a reset that removes the focused post moves focus to the Feed heading', async ({ page }) => {
+    await page.clock.install();
+    await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+
+    await page.goto('/feed');
+    await postLinks(page).first().focus();
+    await page.clock.fastForward('01:01');
+
+    const heading = page.getByRole('heading', { name: 'From your curators', level: 1 });
+    await expect(heading).toBeFocused();
+    await expect(postLinks(page)).toHaveCount(2);
+    await expect(heading).toBeFocused();
+  });
+
+  test('a reset leaves focus outside the posts where it was', async ({ page }) => {
+    await page.clock.install();
+    const sessionRequests = trackRequests(page, SESSION_PATH);
+    await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+
+    await page.goto('/feed');
+    await expect(postLinks(page)).toHaveCount(2);
+    const readsBefore = sessionRequests.length;
+
+    const filter = page.getByRole('radio', { name: 'All' });
+    await filter.focus();
+    await page.clock.fastForward('01:01');
+    await expect.poll(() => sessionRequests.length).toBe(readsBefore + 1);
+    await expect(postLinks(page)).toHaveCount(2);
+    await expect(filter).toBeFocused();
+
+    const navLink = page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Memberships' });
+    await postLinks(page).first().focus();
+    await navLink.focus();
+    await page.clock.fastForward('01:01');
+    await expect.poll(() => sessionRequests.length).toBe(readsBefore + 2);
+    await expect(postLinks(page)).toHaveCount(2);
+    await expect(navLink).toBeFocused();
+  });
 });
 
 test.describe('navigation', () => {

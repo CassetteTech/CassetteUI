@@ -63,6 +63,7 @@
     "src/services/__tests__/auth-session.test.ts",
     "src/stores/auth-store.ts",
     "src/stores/__tests__/auth-store.test.ts",
+    "src/services/__tests__/auth-sign-in-session.test.ts",
     "src/services/curator-pro.ts",
     "src/services/__tests__/curator-pro.test.ts",
     "src/services/paid-promotion-subject-contract.ts",

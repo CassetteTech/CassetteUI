@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { StudioChip } from '@/components/features/curator/studio-shell';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Music2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTopCharts, useMusicSearch, useMusicLinkConversion } from '@/hooks/use-music';
@@ -41,7 +40,7 @@ import {
   validateMusicLink,
 } from '@/utils/music-link-input';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
-import { useSubscriberPostEligibility } from '@/hooks/use-curator';
+import { PostVisibilityControl } from '@/components/features/post/post-visibility-control';
 import type { PostPrivacy } from '@/types';
 
 type SelectedItem = {
@@ -61,9 +60,6 @@ type ConvertingMeta = {
   fallbackLabel: string;
   headline: string;
 };
-
-const STANDARD_PRIVACY_OPTIONS: readonly PostPrivacy[] = ['public', 'private'];
-const SUBSCRIBER_PRIVACY_OPTIONS: readonly PostPrivacy[] = [...STANDARD_PRIVACY_OPTIONS, 'subscriber'];
 
 /** Shared props for the picker (bar, pending music, results) and the details form. */
 type PickerProps = {
@@ -346,7 +342,6 @@ const PostDetails = ({
   setDescription,
   privacy,
   setPrivacy,
-  privacyOptions,
   handleAddToProfile,
   errorMessage,
   isConverting,
@@ -357,27 +352,11 @@ const PostDetails = ({
   setDescription: (value: string) => void;
   privacy: PostPrivacy;
   setPrivacy: (value: PostPrivacy) => void;
-  privacyOptions: readonly PostPrivacy[];
   handleAddToProfile: () => void;
   errorMessage: string;
   isConverting: boolean;
   canSubmit: boolean;
 }) => {
-  const handlePrivacyChange = (value: string) => {
-    if (value === 'public' || value === 'private' || value === 'subscriber') {
-      setPrivacy(value);
-    }
-  };
-  const subscriberAllowed = privacyOptions.includes('subscriber');
-  const privacyHint =
-    privacy === 'private'
-      ? 'Only you can see it.'
-      : privacy === 'subscriber'
-        ? 'Only active members can open it.'
-        : subscriberAllowed
-          ? 'Anyone can see it.'
-          : 'Anyone can see it. Members-only posts need a published membership plan.';
-
   return (
     <motion.div
       initial={false}
@@ -403,22 +382,8 @@ const PostDetails = ({
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="add-music-privacy">Visibility</Label>
-              <Select value={privacy} onValueChange={handlePrivacyChange} disabled={isConverting}>
-                <SelectTrigger id="add-music-privacy" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {privacyOptions.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option === 'subscriber' ? 'Members only' : option === 'public' ? 'Public' : 'Private'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">{privacyHint}</p>
-            </div>
+            {/* The conversion request already carries the chosen setting, so it holds while converting. */}
+            <PostVisibilityControl privacy={privacy} choose={setPrivacy} disabled={isConverting} headingAs="h2" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border/70 px-5 py-4 sm:px-6">
             <Button
@@ -467,10 +432,6 @@ export default function AddMusicPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
   const resolvedReturnRoute = user?.username ? `/profile/${user.username}` : null;
   const linkConversion = useMusicLinkConversion();
-  const canUseSubscriberPosts = useSubscriberPostEligibility();
-  const privacyOptions = canUseSubscriberPosts
-    ? SUBSCRIBER_PRIVACY_OPTIONS
-    : STANDARD_PRIVACY_OPTIONS;
   const { label: conversionStageLabel } = useConversionStage(conversionKey);
   const isConverting = conversionKey != null;
   const { data: topCharts, isLoading: isLoadingCharts } = useTopCharts();
@@ -915,7 +876,6 @@ export default function AddMusicPage() {
     setDescription,
     privacy,
     setPrivacy,
-    privacyOptions,
     handleAddToProfile,
     errorMessage,
     isConverting,

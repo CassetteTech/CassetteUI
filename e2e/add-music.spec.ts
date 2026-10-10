@@ -29,12 +29,29 @@ test('creates a post from add-music search and shows it on the profile', async (
     .fill(
       'A permanent resident in my rotation.',
     );
-  await page.locator('#add-music-privacy:visible').click();
-  await page.getByRole('option', { name: 'Members only', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Who can open it', level: 2 })).toBeVisible();
+  await page.getByRole('radio', { name: 'Members' }).click();
+  await expect(page.getByRole('radio', { name: 'Members' })).toBeChecked();
+  // Hold the conversion so the in-flight form can be checked before the fixture answers.
+  let releaseConversion = () => {};
+  const conversionHeld = new Promise<void>((resolve) => {
+    releaseConversion = resolve;
+  });
+  await page.route('**/api/v1/convert', async (route) => {
+    await conversionHeld;
+    await route.fallback();
+  });
   const conversionRequest = page.waitForRequest((request) =>
     new URL(request.url()).pathname === '/api/v1/convert' && request.method() === 'POST');
   await page.locator('[data-testid="add-music-submit"]:not([disabled])').last().click();
   expect((await conversionRequest).postDataJSON()).toMatchObject({ privacy: 'subscriber' });
+  // The request already carries the setting, so the control holds until it settles.
+  for (const name of ['Public', 'Members', 'Private']) {
+    await expect(page.getByRole('radio', { name })).toHaveAttribute('aria-disabled', 'true');
+  }
+  await page.getByRole('radio', { name: 'Members' }).press('ArrowRight');
+  await expect(page.getByRole('radio', { name: 'Members' })).toBeChecked();
+  releaseConversion();
 
   await expect(page).toHaveURL(/\/post\/post-created-track(\?.*)?$/);
   await expect(page.getByRole('main').last()).toContainText('Blue Monday');

@@ -26,7 +26,7 @@ export function SidebarAccountRow({ user }: { user: AuthUser }) {
           <span className="mt-1 block truncate font-mono text-[10px] text-muted-foreground">@{user.username}</span>
         </span>
       </Link>
-      <NotificationMenu />
+      <NotificationMenu className="border-transparent bg-transparent text-muted-foreground hover:text-foreground" />
     </div>
   );
 }

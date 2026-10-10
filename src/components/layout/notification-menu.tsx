@@ -43,7 +43,7 @@ const getNotificationHref = (item: NotificationItem) => {
   return '/profile';
 };
 
-export function NotificationMenu() {
+export function NotificationMenu({ className }: { className?: string }) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { isAuthenticated, isLoading: isAuthLoading } = useAuthState();
@@ -105,7 +105,10 @@ export function NotificationMenu() {
               event.currentTarget.focus({ preventScroll: true });
             }
           }}
-          className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/30 bg-background text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className={cn(
+            'relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/30 bg-background text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            className
+          )}
           aria-label="Notifications"
         >
           <Inbox className="h-4 w-4" />

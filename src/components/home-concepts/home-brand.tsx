@@ -25,7 +25,7 @@ export function BetaBadge({ className }: { className?: string }) {
 /**
  * The folding wordmark with its beta badge. The SVG box carries empty
  * space above and below the lettering (its extrusion travel), so the
- * wrapper trims it and the badge sits on the lettering's baseline.
+ * wrapper trims it and the badge sits at the foot of the extrusion.
  */
 export function HomeBrand({ className }: { className?: string }) {
   return (
@@ -33,7 +33,7 @@ export function HomeBrand({ className }: { className?: string }) {
       <div className="min-w-0 flex-1" style={{ marginTop: '-4%', marginBottom: '-8%' }}>
         <HomeWordmark />
       </div>
-      <BetaBadge className="-ml-2 mb-[6%]" />
+      <BetaBadge className="-ml-2" />
     </div>
   );
 }

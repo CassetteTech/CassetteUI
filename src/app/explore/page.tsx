@@ -34,7 +34,25 @@ import {
   type MusicElementType,
 } from './_shared/use-explore-data';
 
-const POST_GRID = 'grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 sm:gap-5';
+// Deterministic pseudo-random from string so SSR/CSR stay in sync.
+function hashRand(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  return () => {
+    h = (h * 1664525 + 1013904223) | 0;
+    return (h >>> 0) / 0xffffffff;
+  };
+}
+
+const TAPE_COLORS = ['bg-primary/70', 'bg-accentRoyal/60', 'bg-warning/70', 'bg-info/60'];
+
+// Row gaps leave room for the tape above each card and the offset shadow below it.
+const POST_GRID = 'grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4 sm:gap-x-6 sm:gap-y-10';
+
+// The paper card shared by posts and skeletons: warm white in every theme.
+const PAPER_CARD = 'border-2 border-foreground bg-primary-foreground force-light-surface p-3 pb-4 text-foreground';
+
+const DASHED_NOTE = 'border-t-2 border-dashed border-foreground/30 py-4 text-center font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground';
 
 type ExploreTab = 'discover' | 'subscriptions';
 
@@ -60,18 +78,28 @@ export default function ExplorePage() {
   return (
     // The creator rail bleeds to the viewport edges, so the page clips any
     // sliver it adds past the scrollbar.
-    <div className="min-h-svh overflow-x-hidden bg-background">
-      <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-8">
+    <div className="relative min-h-svh overflow-x-hidden bg-background">
+      {/* Subtle dotted paper. Content blocks are positioned so they paint above it. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.35]"
+        style={{
+          backgroundImage: 'radial-gradient(hsl(var(--foreground) / 0.08) 1px, transparent 1px)',
+          backgroundSize: '18px 18px',
+        }}
+      />
+
+      <div className="relative mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-8">
         <BackButton fallbackRoute="/" />
       </div>
 
-      <header className="mx-auto max-w-6xl px-4 pb-8 pt-4 sm:px-6 lg:px-8">
+      <header className="relative mx-auto max-w-6xl px-4 pb-8 pt-4 sm:px-6 lg:px-8">
         <h1 className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">
           Explore
         </h1>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-24 sm:px-6 lg:px-8">
+      <main className="relative mx-auto max-w-6xl px-4 pb-24 sm:px-6 lg:px-8">
         {/* The tab and filter live in the URL, which only the client knows. */}
         <Suspense fallback={<ExploreFeedsSkeleton />}>
           <ExploreFeeds />
@@ -207,10 +235,12 @@ function DiscoverFeed() {
       {isInitialLoading ? (
         <PostGridSkeleton />
       ) : !hasExploreContent ? (
-        <Empty>
-          <EmptyTitle>Nothing public yet</EmptyTitle>
-          <EmptyDescription>Public posts appear here as creators share them.</EmptyDescription>
-        </Empty>
+        <div className="mx-auto max-w-md border-2 border-foreground bg-card px-6 py-10 text-center shadow-flat-6">
+          <p className="font-teko text-3xl uppercase">Nothing public yet</p>
+          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
+            Paste something in!
+          </p>
+        </div>
       ) : (
         MUSIC_SECTION_ORDER.map((type) => (
           <MusicSection
@@ -356,8 +386,8 @@ function SubscriptionFeed({
         </Empty>
       ) : (
         <div className={POST_GRID}>
-          {posts.map((post) => (
-            <PostCard key={post.postId} post={post} />
+          {posts.map((post, i) => (
+            <PostCard key={post.postId} post={post} index={i} />
           ))}
         </div>
       )}
@@ -369,7 +399,12 @@ function SubscriptionFeed({
       )}
       {feed.hasNextPage && (
         <div className="mt-6 text-center">
-          <Button variant="outline" onClick={() => void feed.fetchNextPage()} disabled={feed.isFetchingNextPage}>
+          <Button
+            variant="brutalist-outline"
+            onClick={() => void feed.fetchNextPage()}
+            disabled={feed.isFetchingNextPage}
+            className="rounded-none"
+          >
             {feed.isFetchingNextPage && <Spinner size="sm" />}
             {feed.isFetchNextPageError ? 'Try again' : 'Load more'}
           </Button>
@@ -429,9 +464,13 @@ function SponsoredPostCard({ placement }: { placement: SponsoredExplorePlacement
     <article ref={cardRef} data-testid="sponsored-explore">
       <PostCard
         post={placement.post}
+        index={0}
+        sponsored
         artworkTestId="sponsored-explore-artwork"
         kicker={
-          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-primary">{placement.label}</p>
+          <div className="mb-3 border-b border-foreground/25 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.18em]">
+            <span className="text-primary">{placement.label}</span>
+          </div>
         }
         onClick={() => {
           void captureClientEvent('sponsored_explore_opened', {
@@ -499,11 +538,12 @@ function MusicSection({
         action={
           hasMore && organicPosts.length > 0 ? (
             <Button
-              variant="outline"
+              variant="brutalist-outline"
               size="sm"
               onClick={onLoadMore}
               disabled={isLoadingMore}
               aria-label={`Load more ${title.toLowerCase()}`}
+              className="rounded-none"
             >
               {isLoadingMore && <Spinner size="sm" />}
               Load more
@@ -513,12 +553,12 @@ function MusicSection({
       />
 
       {!hasPosts ? (
-        <p className="text-sm text-muted-foreground">{emptyText}</p>
+        <p className={DASHED_NOTE}>— {emptyText} —</p>
       ) : (
         <div className={POST_GRID}>
           {sponsoredPlacement && <SponsoredPostCard placement={sponsoredPlacement} />}
-          {organicPosts.map((post) => (
-            <PostCard key={post.postId} post={post} />
+          {organicPosts.map((post, i) => (
+            <PostCard key={post.postId} post={post} index={i + (sponsoredPlacement ? 1 : 0)} />
           ))}
         </div>
       )}
@@ -526,21 +566,29 @@ function MusicSection({
   );
 }
 
-// Overlaid on artwork: the same chip as the profile post card's type label.
-const ARTWORK_BADGE =
-  'absolute bottom-2 inline-flex items-center gap-1 rounded bg-background/85 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.15em] text-foreground/80 ring-1 ring-border/50 backdrop-blur-md';
+const ARTWORK_CHIP = 'absolute bottom-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]';
 
+/**
+ * A polaroid: paper mat, ink border, offset shadow, and a strip of tape whose
+ * color and side cycle with the grid position. The grid stays straight; the
+ * card lifts on hover and its shadow turns brand red.
+ */
 function PostCard({
   post,
+  index,
   kicker,
   artworkTestId,
   onClick,
+  sponsored = false,
 }: {
   post: ActivityPost;
-  /** A line above the title, such as a sponsored label. */
+  index: number;
+  /** A strip above the artwork, such as the sponsored label. */
   kicker?: React.ReactNode;
   artworkTestId?: string;
   onClick?: () => void;
+  /** Red shadow and no tape: the disclosure is the card's only decoration. */
+  sponsored?: boolean;
 }) {
   const targetPostId = post.redirectPostId || post.postId;
   const href = targetPostId ? `/post/${targetPostId}` : '#';
@@ -550,48 +598,71 @@ function PostCard({
     : post.username;
 
   return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className="card-ink group block overflow-hidden transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <div data-testid={artworkTestId} className="relative aspect-square overflow-hidden bg-muted">
-        {post.imageUrl ? (
-          <Image
-            src={post.imageUrl}
-            alt={post.title}
-            fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <Music2 aria-hidden className="size-8 text-muted-foreground/50" />
-          </div>
+    <div className="group relative transition-transform duration-200 ease-out-quart hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+      {!sponsored && (
+        <span
+          aria-hidden
+          className={cn(
+            'absolute -top-2 z-10 h-5 w-16 rotate-[-6deg] border border-foreground/10 opacity-80',
+            TAPE_COLORS[index % TAPE_COLORS.length],
+            index % 2 === 0 ? 'left-3' : 'right-3',
+          )}
+        />
+      )}
+      <Link
+        href={href}
+        onClick={onClick}
+        className={cn(
+          PAPER_CARD,
+          'block transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+          sponsored
+            ? 'shadow-flat-primary-6 group-hover:shadow-flat-primary-8'
+            : 'shadow-flat-4 group-hover:shadow-flat-primary-6',
         )}
-        {post.isRepost && (
-          <span className={cn(ARTWORK_BADGE, 'left-2')}>
-            <Repeat2 aria-hidden className="size-2.5" />
-            Repost
-          </span>
-        )}
-        {post.privacy === 'subscriber' && (
-          <span className={cn(ARTWORK_BADGE, 'right-2')}>
-            <LockKeyhole aria-hidden className="size-2.5" />
-            Members only
-          </span>
-        )}
-      </div>
-
-      <div className="p-3">
+      >
         {kicker}
-        <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight line-clamp-2 transition-colors group-hover:text-primary">
-          {post.title}
-        </h3>
-        {detail && <p className="mt-1 line-clamp-1 text-xs italic text-muted-foreground">{detail}</p>}
-        <p className="mt-2 truncate font-mono text-xs text-muted-foreground">@{username}</p>
-      </div>
-    </Link>
+        <div data-testid={artworkTestId} className="relative aspect-square overflow-hidden bg-muted">
+          {post.imageUrl ? (
+            <Image
+              src={post.imageUrl}
+              alt={post.title}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <Music2 aria-hidden className="size-8 text-muted-foreground/50" />
+            </div>
+          )}
+          {post.isRepost && (
+            <span className={cn(ARTWORK_CHIP, 'left-1.5 bg-foreground text-background')}>
+              <Repeat2 aria-hidden className="size-2.5" />
+              Repost
+            </span>
+          )}
+          {post.privacy === 'subscriber' && (
+            <span className={cn(ARTWORK_CHIP, 'right-1.5 bg-primary text-primary-foreground')}>
+              <LockKeyhole aria-hidden className="size-2.5" />
+              Members only
+            </span>
+          )}
+        </div>
+
+        <div className="pt-3">
+          <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight line-clamp-2 transition-colors group-hover:text-primary">
+            {post.title}
+          </h3>
+          {detail && <p className="mt-1 line-clamp-1 text-xs italic text-muted-foreground">{detail}</p>}
+          <div className="mt-2 flex items-center gap-2">
+            <span className="h-px flex-1 bg-foreground/20" />
+            <span className="truncate font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              @{username}
+            </span>
+          </div>
+        </div>
+      </Link>
+    </div>
   );
 }
 
@@ -1140,21 +1211,21 @@ function CreatorsMarquee({
       <SectionHeading
         title="Creators"
         action={
-          <div className="relative w-full sm:w-72">
-            <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative w-full force-light-surface sm:w-80">
+            <Search aria-hidden className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchValue}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search creators"
               aria-label="Search creators"
-              className="h-10 pl-9 pr-9"
+              className="h-11 rounded-full border-2 border-foreground !bg-primary-foreground pl-10 pr-10 text-foreground shadow-flat-3 focus-visible:border-foreground focus-visible:ring-foreground/10"
             />
             {searchValue && (
               <button
                 type="button"
                 onClick={() => onSearchChange('')}
                 aria-label="Clear search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X className="size-4" />
               </button>
@@ -1165,11 +1236,11 @@ function CreatorsMarquee({
 
       {isLoading ? (
         <div
-          className="mx-[calc(50%-50vw)] flex gap-4 overflow-hidden px-10 py-2 sm:px-16"
+          className="mx-[calc(50%-50vw)] flex gap-5 overflow-hidden px-10 py-4 sm:px-16"
           style={RAIL_EDGE_FADE}
         >
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-[70px] w-[220px] shrink-0 rounded-lg" />
+            <Skeleton key={i} className="h-[72px] w-[220px] shrink-0 rounded-2xl" />
           ))}
         </div>
       ) : error ? (
@@ -1180,16 +1251,16 @@ function CreatorsMarquee({
           </Button>
         </div>
       ) : users.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No creators match.</p>
+        <p className={DASHED_NOTE}>— No creators match —</p>
       ) : (
         <div
           ref={railRef}
-          className="no-scrollbar mx-[calc(50%-50vw)] overflow-x-auto px-10 py-2 sm:px-16"
+          className="no-scrollbar mx-[calc(50%-50vw)] overflow-x-auto px-10 py-4 sm:px-16"
           style={RAIL_EDGE_FADE}
         >
-          <div className="flex gap-4">
-            {users.map((u) => (
-              <CreatorCard key={u.userId || u.username} user={u} />
+          <div className="flex gap-5">
+            {users.map((u, i) => (
+              <CreatorSticker key={u.userId || u.username} user={u} index={i} />
             ))}
             {hasMore && (
               <button
@@ -1197,9 +1268,9 @@ function CreatorsMarquee({
                 onClick={onLoadMore}
                 disabled={isLoadingMore}
                 aria-label="Load more creators"
-                className="card-ink group flex w-[220px] shrink-0 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                className="group flex w-[220px] shrink-0 rotate-[1.5deg] items-center gap-3 rounded-2xl border-2 border-foreground bg-primary-foreground force-light-surface px-4 py-3 text-left text-foreground shadow-flat-4 transition-shadow hover:shadow-flat-primary-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
               >
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-foreground">
                   {isLoadingMore ? <Spinner size="sm" /> : <Plus aria-hidden className="size-4" />}
                 </span>
                 <span className="text-sm font-semibold transition-colors group-hover:text-primary">Load more</span>
@@ -1212,15 +1283,18 @@ function CreatorsMarquee({
   );
 }
 
-function CreatorCard({ user }: { user: ExploreUser }) {
+function CreatorSticker({ user, index }: { user: ExploreUser; index: number }) {
+  const rand = hashRand(user.userId || user.username || String(index));
+  const rot = (rand() - 0.5) * 4;
   const initials = user.username?.charAt(0)?.toUpperCase() || 'U';
   const displayName = user.displayName?.trim() || user.username;
   return (
     <Link
       href={`/profile/${user.username}`}
-      className="card-ink group flex w-[220px] shrink-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group flex w-[220px] shrink-0 items-center gap-3 rounded-2xl border-2 border-foreground bg-primary-foreground force-light-surface px-4 py-3 text-foreground shadow-flat-4 transition-shadow hover:shadow-flat-primary-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      style={{ transform: `rotate(${rot}deg)` }}
     >
-      <Avatar className="size-11 shrink-0 ring-1 ring-border/40">
+      <Avatar className="size-11 shrink-0 border-2 border-foreground">
         <AvatarImage src={user.avatarUrl} alt={`@${user.username}`} />
         <AvatarFallback>{initials}</AvatarFallback>
       </Avatar>
@@ -1229,7 +1303,7 @@ function CreatorCard({ user }: { user: ExploreUser }) {
           <p className="truncate text-sm font-semibold transition-colors group-hover:text-primary">{displayName}</p>
           <VerificationBadge accountType={user.accountType} size="sm" showTooltip={false} />
         </div>
-        <p className="truncate font-mono text-xs text-muted-foreground">@{user.username}</p>
+        <p className="truncate font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">@{user.username}</p>
       </div>
     </Link>
   );
@@ -1239,12 +1313,10 @@ function PostGridSkeleton() {
   return (
     <div className={POST_GRID}>
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="card-ink overflow-hidden">
+        <div key={i} className={cn(PAPER_CARD, 'shadow-flat-4')}>
           <Skeleton className="aspect-square w-full rounded-none" />
-          <div className="p-3">
-            <Skeleton className="h-5 w-4/5" />
-            <Skeleton className="mt-2 h-3 w-3/5" />
-          </div>
+          <Skeleton className="mt-3 h-5 w-4/5" />
+          <Skeleton className="mt-2 h-3 w-3/5" />
         </div>
       ))}
     </div>

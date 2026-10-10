@@ -1033,6 +1033,23 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     return () => clearTimeout(timeout);
   }, [commentsSheetOpen]);
 
+  // The owner column centers on the post card while it is the shorter of the two; a taller
+  // column starts at the card's top. While the column stays within the post's height only the
+  // column moves; a taller one lengthens the page, which re-centers. The first placement lands
+  // before paint; later ones glide (data-recentered turns the transition on).
+  const postCardRef = useRef<HTMLDivElement>(null);
+  const centerOnPostCard = useCallback((column: HTMLElement | null) => {
+    const card = postCardRef.current;
+    if (!column || !card) return;
+    const observer = new ResizeObserver(() => {
+      if (column.style.marginTop) column.dataset.recentered = '';
+      column.style.marginTop = `${Math.max(0, (card.offsetHeight - column.offsetHeight) / 2)}px`;
+    });
+    observer.observe(card);
+    observer.observe(column);
+    return () => observer.disconnect();
+  }, []);
+
   // Show skeleton while loading
   if (!postData && !error) {
     return (
@@ -1346,15 +1363,14 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   </div>
                 </div>
               </div>
-              {/* The post and, for owners, the column share one top line. Top-aligned, so a change
-                  in either never moves the other. */}
+              {/* The post and, for owners, the column beside it, centered on the post card. */}
                 <div className={`grid items-start gap-x-8 ${ownerColumnBeside ? 'grid-cols-[minmax(0,1fr)_20rem]' : 'grid-cols-1'}`}>
                   <div className="min-w-0">
                     <div className="w-full">
                       <div className="space-y-6">
                         {/* The post as one object: the sleeve on the left, the label and the listen
                             links on the right. The author row sits at the card's foot. */}
-                        <div className="card-ink grid grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] overflow-hidden">
+                        <div ref={postCardRef} className="card-ink grid grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] overflow-hidden">
                           {/* The sleeve pane: a tonal step down from the card, the artwork flush to the
                               card's edges, and the person who shared it beneath. */}
                           <div className="flex flex-col bg-muted/40">
@@ -1481,7 +1497,13 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                       </div>
                     </div>
                   </div>
-                  {ownerColumnBeside && <PostStudioColumn {...ownerColumnProps} className="sticky top-20 w-auto" />}
+                  {ownerColumnBeside && (
+                    <PostStudioColumn
+                      {...ownerColumnProps}
+                      ref={centerOnPostCard}
+                      className="sticky top-20 w-auto motion-safe:data-[recentered]:transition-[margin-top] motion-safe:data-[recentered]:duration-300 motion-safe:data-[recentered]:ease-out-quart"
+                    />
+                  )}
                 </div>
               </div>
             </div>

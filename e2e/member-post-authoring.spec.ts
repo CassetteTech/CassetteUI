@@ -35,11 +35,11 @@ test('lets a curator lock posts while an archived plan still has paying members'
   const studio = page.getByTestId('post-studio-panel');
   await studio.getByRole('radio', { name: 'Members' }).click();
   await expect(studio.getByRole('heading', { name: 'Members only' })).toBeVisible();
-  await expect(studio).not.toContainText('To lock posts for members');
+  await expect(studio).not.toContainText('To lock posts');
 });
 
-// An archived plan with no paying members, or a suspended curator, gets no
-// members-only option; the post explains where plans are managed.
+// An archived plan with no paying members, or a suspended curator, gets a locked
+// members-only option: choosing it keeps the post's setting and points to Curator Studio.
 test('keeps members-only posts closed when Bridge refuses member-post authoring', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.owner,
@@ -49,10 +49,31 @@ test('keeps members-only posts closed when Bridge refuses member-post authoring'
     memberPostAuthoring: false,
   });
 
+  let updates = 0;
+  page.on('request', (request) => {
+    if (request.method() === 'PATCH' && request.url().includes('/social/posts/')) updates++;
+  });
   await page.goto('/post/post-owner-track');
   const studio = page.getByTestId('post-studio-panel');
-  await expect(studio).toContainText('To lock posts for members, publish a plan with member posts in Curator Studio.');
-  await expect(studio.getByRole('radio', { name: 'Members' })).toBeDisabled();
+  const members = studio.getByRole('radio', { name: 'Members' });
+  const prompt = 'To lock posts, publish a membership plan with member posts.';
+  await expect(studio).not.toContainText('To lock posts');
+  await members.click();
+  await expect(studio).toContainText(prompt);
+  await expect(studio.getByRole('link', { name: 'Set up memberships' })).toHaveAttribute('href', '/studio/curator');
+  await expect(members).not.toBeChecked();
+  await expect(studio.getByRole('heading', { name: 'Public' })).toBeVisible();
+
+  // Choosing the current setting again dismisses the prompt.
+  await studio.getByRole('radio', { name: 'Public' }).click();
+  await expect(studio).not.toContainText(prompt);
+
+  // Arrow keys reach the locked option the same way: the prompt, no save.
+  await studio.getByRole('radio', { name: 'Public' }).press('ArrowRight');
+  await expect(studio).toContainText(prompt);
+  await expect(members).toBeFocused();
+  await expect(members).not.toBeChecked();
+  expect(updates).toBe(0);
 });
 
 // Without an answer from Bridge, nothing in the browser infers authoring from the

@@ -4,13 +4,13 @@
     the headline, who can open it, and its insights. On wide screens the column sits in the page beside the post; below
     that the same content opens as a bottom sheet from the engagement bar. */
 
-import { useEffect, useState, type ElementType, type ReactNode } from 'react';
+import { useEffect, useState, type ElementType, type ReactNode, type Ref } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useReducedMotion } from 'framer-motion';
-import { XIcon } from 'lucide-react';
+import { LockKeyhole, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Area } from '@/components/dither-kit/area';
 import { AreaChart } from '@/components/dither-kit/area-chart';
@@ -384,6 +384,10 @@ function VisibilityControl({
   choose: (next: OwnerVisibility) => void;
 }) {
   const canLock = access.state === 'ready' || privacy === 'subscriber';
+  // Without a plan that unlocks member posts, "Members" carries a lock. Choosing it keeps the
+  // post's setting and shows where plans are set up instead.
+  const needsPlan = !canLock && access.state === 'needs-plan';
+  const [setupShown, setSetupShown] = useState(false);
   const known = visibilityOf(privacy) !== undefined;
   return (
     <section>
@@ -394,13 +398,19 @@ function VisibilityControl({
         value={privacy}
         onValueChange={(next) => {
           const value = ownerVisibilities.find((option) => option === next);
-          if (value) choose(value);
+          const locked = value === 'subscriber' && needsPlan;
+          setSetupShown(locked);
+          if (value && !locked) choose(value);
         }}
         options={ownerVisibilities.map((value) => ({
           value,
           // The headline above says "Members only"; the short label keeps the three segments even.
           label: value === 'subscriber' ? 'Members' : postVisibility[value].label,
-          disabled: value === 'subscriber' && !canLock,
+          icon: value === 'subscriber' && needsPlan
+            ? <LockKeyhole aria-hidden className="mr-1 inline size-3 -translate-y-px" />
+            : undefined,
+          // While the plan check loads or fails, the option waits; the error row below offers a retry.
+          disabled: value === 'subscriber' && !canLock && !needsPlan,
         }))}
       />
       <div className="mt-3 grid text-sm text-muted-foreground">
@@ -417,23 +427,26 @@ function VisibilityControl({
           <p className="col-start-1 row-start-1">This post uses an older setting. Choose who can open it.</p>
         )}
       </div>
-      {/* Plans live in Curator Studio. The post only explains why "Members" is unavailable. */}
-      {access.state === 'error' ? (
+      {access.state === 'error' && (
         <div className="mt-3 flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">Could not check your membership plans.</p>
           <Button type="button" variant="outline" size="sm" onClick={access.refetch}>
             Try again
           </Button>
         </div>
-      ) : access.state !== 'ready' && access.state !== 'loading' ? (
-        <p className="mt-3 text-sm text-muted-foreground">
-          To lock posts for members, publish a plan with member posts in{' '}
-          <Link href="/studio/curator" prefetch={false} className="font-medium text-foreground underline underline-offset-2">
-            Curator Studio
-          </Link>
-          .
-        </p>
-      ) : null}
+      )}
+      {/* Plans live in Curator Studio; the post only points there. A live region, so the prompt
+          is announced when the locked option is chosen. */}
+      <div role="status">
+        {needsPlan && setupShown && (
+          <div className="mt-3 rounded-lg bg-muted/60 p-3 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
+            <p className="text-sm text-muted-foreground">To lock posts, publish a membership plan with member posts.</p>
+            <Button asChild size="sm" className="mt-2.5">
+              <Link href="/studio/curator" prefetch={false}>Set up memberships</Link>
+            </Button>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -495,9 +508,14 @@ function PostStudioContent({
 }
 
 /** The owner column beside the post on wide screens. */
-export function PostStudioColumn({ className, ...props }: PostStudioContentProps & { className?: string }) {
+export function PostStudioColumn({
+  className,
+  ref,
+  ...props
+}: PostStudioContentProps & { className?: string; ref?: Ref<HTMLElement> }) {
   return (
     <aside
+      ref={ref}
       aria-label="Your post"
       data-testid="post-studio-panel"
       className={cn('card-quiet w-80 shrink-0 overflow-hidden', className)}

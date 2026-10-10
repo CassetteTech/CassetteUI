@@ -18,9 +18,9 @@ import { useMemberPostAccess } from '@/hooks/use-curator';
 import type { PostPrivacy } from '@/types';
 import { cn } from '@/lib/utils';
 
-/** Three positions with the chosen one's summary beneath. Every summary sits in the same
-    grid cell and only the chosen one shows, so the cell keeps the tallest summary's height
-    and switching never moves what follows. */
+/** Three positions with the chosen one's summary beneath. Every summary, and the locked
+    option's setup prompt, sits in the same grid cell and only one shows, so the cell keeps
+    the tallest one's height and switching never moves what follows. */
 export function PostVisibilityControl({
   privacy,
   choose,
@@ -40,6 +40,7 @@ export function PostVisibilityControl({
   // post's setting and shows where plans are set up instead.
   const needsPlan = !canLock && access.state === 'needs-plan';
   const [setupShown, setSetupShown] = useState(false);
+  const promptShown = needsPlan && setupShown && !disabled;
   const known = visibilityOf(privacy) !== undefined;
   return (
     <section>
@@ -69,14 +70,35 @@ export function PostVisibilityControl({
         {ownerVisibilities.map((value) => (
           <p
             key={value}
-            aria-hidden={value !== privacy}
-            className={cn('col-start-1 row-start-1 transition-opacity duration-200 motion-reduce:transition-none', value !== privacy && 'invisible opacity-0')}
+            aria-hidden={value !== privacy || promptShown}
+            className={cn('col-start-1 row-start-1 transition-opacity duration-200 motion-reduce:transition-none', (value !== privacy || promptShown) && 'invisible opacity-0')}
           >
             {postVisibility[value].summary}
           </p>
         ))}
         {!known && (
-          <p className="col-start-1 row-start-1">This post uses an older setting. Choose who can open it.</p>
+          <p
+            aria-hidden={promptShown}
+            className={cn('col-start-1 row-start-1', promptShown && 'invisible')}
+          >
+            This post uses an older setting. Choose who can open it.
+          </p>
+        )}
+        {/* Plans live in Curator Studio; the post only points there. The prompt stays in the cell
+            unseen so the cell is already its height, and shows inside a live region so choosing the
+            locked option is announced. */}
+        {needsPlan && !disabled && (
+          <div role="status" className="col-start-1 row-start-1">
+            <p
+              aria-hidden={!promptShown}
+              className={cn('transition-opacity duration-200 motion-reduce:transition-none', !promptShown && 'invisible opacity-0')}
+            >
+              To lock posts, publish a membership plan with member posts.{' '}
+              <Link href="/studio/curator" prefetch={false} className="font-medium text-foreground underline underline-offset-2">
+                Set up memberships
+              </Link>
+            </p>
+          </div>
         )}
       </div>
       {access.state === 'error' && (
@@ -87,18 +109,6 @@ export function PostVisibilityControl({
           </Button>
         </div>
       )}
-      {/* Plans live in Curator Studio; the post only points there. A live region, so the prompt
-          is announced when the locked option is chosen. */}
-      <div role="status">
-        {needsPlan && setupShown && !disabled && (
-          <div className="mt-3 rounded-lg bg-muted/60 p-3 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
-            <p className="text-sm text-muted-foreground">To lock posts, publish a membership plan with member posts.</p>
-            <Button asChild size="sm" className="mt-2.5">
-              <Link href="/studio/curator" prefetch={false}>Set up memberships</Link>
-            </Button>
-          </div>
-        )}
-      </div>
     </section>
   );
 }

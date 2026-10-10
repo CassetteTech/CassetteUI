@@ -83,7 +83,7 @@ export interface FixturePost {
   artworkUrl?: string;
   ownerId?: string;
   ownerUsername?: string;
-  privacy?: 'public' | 'private' | 'subscriber';
+  privacy?: 'public' | 'private' | 'friends' | 'subscriber';
   createdAt?: string;
   likeCount?: number;
   likedByCurrentUser?: boolean;

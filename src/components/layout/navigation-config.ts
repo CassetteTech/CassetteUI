@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Megaphone,
   Music,
+  Newspaper,
   Shield,
   User,
   Users,
@@ -39,6 +40,7 @@ export interface NavigationItemDefinition {
 
 export const primaryNavItems: NavigationItemDefinition[] = [
   { key: 'home', label: 'Home', icon: Home, href: '/' },
+  { key: 'feed', label: 'Feed', icon: Newspaper, href: '/feed', authRequired: true },
   { key: 'explore', label: 'Explore', icon: Compass, href: '/explore' },
   { key: 'add-music', label: 'Add Music', icon: Music, href: '/add-music', authRequired: true },
   { key: 'promote', label: 'Promote', icon: Megaphone, href: '/promote', requiresPaidPromotionSales: true },
@@ -47,7 +49,7 @@ export const primaryNavItems: NavigationItemDefinition[] = [
 export const accountNavItems: NavigationItemDefinition[] = [
   { key: 'profile', label: 'Profile', icon: User, href: '/profile', authRequired: true },
   { key: 'curator-studio', label: 'Curator Studio', icon: LayoutDashboard, href: '/studio/curator', authRequired: true },
-  { key: 'memberships', label: 'My Memberships', icon: BadgeCheck, href: '/memberships', authRequired: true },
+  { key: 'memberships', label: 'Memberships', icon: BadgeCheck, href: '/memberships', authRequired: true },
   { key: 'campaigns', label: 'Your Campaigns', icon: Megaphone, href: '/promote', authRequired: true, requiresPaidPromotionAccount: true },
   { key: 'internal', label: 'Internal', icon: Shield, href: '/internal', authRequired: true, internalOnly: true },
 ];

@@ -278,6 +278,9 @@ export async function readJsonResponse<T>(response: Response): Promise<T | null>
   return JSON.parse(text) as T;
 }
 
+/** Session responses carry per-viewer state, so no browser or shared cache may keep them. */
+export const PRIVATE_SESSION_HEADERS = { 'Cache-Control': 'private, no-store' } as const;
+
 export function stripInternalSessionFields<T extends Record<string, unknown> | null>(data: T): T {
   if (!data) {
     return data;

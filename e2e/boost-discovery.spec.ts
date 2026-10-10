@@ -49,7 +49,7 @@ test('hides Boost discovery while sales are closed and keeps the direct page', a
   await expect(promoteLinks(page)).toHaveCount(0);
 
   await visit(page, '/memberships');
-  await expect(page.getByRole('heading', { name: 'My memberships' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Memberships', level: 1 })).toBeVisible();
   await expect(promoteLinks(page)).toHaveCount(0);
 
   await page.setViewportSize({ width: 390, height: 844 });

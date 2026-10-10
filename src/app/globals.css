@@ -359,7 +359,7 @@
   }
 
   /* ─── Studio surface ─────────────────────────────────────────────────────
-     Curator Studio and My memberships soften every hairline toward the paper
+     Curator Studio and Memberships soften every hairline toward the paper
      tone so cards read by their shadow, not their outline. Scoped to the
      subtree only: dialogs and toasts keep the regular border. */
   .studio-surface {

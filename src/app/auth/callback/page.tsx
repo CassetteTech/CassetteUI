@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AccountCheckError } from '@/components/auth/account-check';
 import { authService } from '@/services/auth';
-import { useAuthStore } from '@/stores/auth-store';
 import { pendingActionService } from '@/utils/pending-action';
 import { PageLoader } from '@/components/ui/page-loader';
 import { authRedirectService } from '@/utils/auth-redirect';
@@ -13,19 +13,27 @@ export default function OAuthCallbackPage() {
   const router = useRouter();
   const [status] = useState('Checking session...');
   const [error, setError] = useState<string | null>(null);
-  const processed = useRef(false);
+  // A session outage keeps the pending return intent; Retry runs the callback again.
+  const [sessionOutage, setSessionOutage] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const processedAttempt = useRef(-1);
 
   useEffect(() => {
-    if (processed.current) return;
-    processed.current = true;
+    if (processedAttempt.current === attempt) return;
+    processedAttempt.current = attempt;
 
-    authService.getCurrentUser()
-      .then((currentUser) => {
-        if (!currentUser) {
+    authService.refreshSession()
+      .then((session) => {
+        if (session.kind === 'error') {
+          setSessionOutage(true);
+          return;
+        }
+        if (session.kind !== 'authenticated') {
           throw new Error('No valid authenticated session found');
         }
 
-        useAuthStore.getState().setUser(currentUser);
+        const currentUser = session.user;
+
         window.history.replaceState(null, '', window.location.pathname);
         if (!currentUser.isOnboarded) {
           router.replace('/onboarding');
@@ -51,7 +59,22 @@ export default function OAuthCallbackPage() {
         pendingActionService.clear();
         setError('We could not complete sign-in. Please try again.');
       });
-  }, [router]);
+  }, [router, attempt]);
+
+  if (sessionOutage) {
+    return (
+      <div className="flex min-h-svh items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <AccountCheckError
+            onRetry={() => {
+              setSessionOutage(false);
+              setAttempt((current) => current + 1);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (

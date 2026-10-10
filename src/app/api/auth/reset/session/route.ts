@@ -8,6 +8,7 @@ import {
   requireSameOrigin,
   setSessionCookie,
   stripInternalSessionFields,
+  PRIVATE_SESSION_HEADERS,
 } from '@/lib/server/auth-proxy';
 
 type ResetExchangeResponse = {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
   if (!sessionId) {
     return NextResponse.json(
       { success: false, message: 'No password reset session found' },
-      { status: 401 }
+      { status: 401, headers: PRIVATE_SESSION_HEADERS }
     );
   }
 
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
   const data = await readJsonResponse<Record<string, unknown>>(backendResponse);
   return NextResponse.json(
     stripInternalSessionFields(data ?? {}) ?? {},
-    { status: backendResponse.status }
+    { status: backendResponse.status, headers: PRIVATE_SESSION_HEADERS }
   );
 }
 
@@ -75,7 +76,10 @@ export async function POST(request: NextRequest) {
 
   const exchangeData = await readJsonResponse<ResetExchangeResponse>(backendExchange);
   if (!backendExchange.ok || !exchangeData?.exchangeCode) {
-    return NextResponse.json(exchangeData ?? {}, { status: backendExchange.status });
+    return NextResponse.json(stripInternalSessionFields(exchangeData) ?? {}, {
+      status: backendExchange.status,
+      headers: PRIVATE_SESSION_HEADERS,
+    });
   }
 
   const redeemResponse = await fetch(buildBackendUrl('/api/web-auth/exchange/redeem'), {
@@ -97,7 +101,7 @@ export async function POST(request: NextRequest) {
   const redeemData = await readJsonResponse<RedeemResponse>(redeemResponse);
   const response = NextResponse.json(
     stripInternalSessionFields(redeemData ?? {}) ?? {},
-    { status: redeemResponse.status }
+    { status: redeemResponse.status, headers: PRIVATE_SESSION_HEADERS }
   );
 
   if (redeemResponse.ok && redeemData?.sessionId) {

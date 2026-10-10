@@ -68,6 +68,8 @@ export interface FixtureUser {
   avatarUrl?: string;
   platformPreferences?: string[];
   musicConnections?: string[];
+  /** Curators whose memberships give this user access; every session read reports it. Defaults to 0. */
+  activeMembershipCount?: number;
 }
 
 export interface FixturePost {
@@ -369,6 +371,7 @@ export const fixtureUsers = {
     likedPostsPrivacy: 'public',
     platformPreferences: ['Spotify'],
     musicConnections: ['Spotify'],
+    activeMembershipCount: 2,
   },
   viewer: {
     id: 'user-viewer',
@@ -553,7 +556,7 @@ export const fixtureCuratorPage: FixtureCuratorPage = {
       {
         featureKey: 'member_posts',
         name: 'Member posts',
-        description: 'Unlock subscriber-only playlists and curator notes.',
+        description: 'Members-only posts are visible to members.',
       },
     ],
   },

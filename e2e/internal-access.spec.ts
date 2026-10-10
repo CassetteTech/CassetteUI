@@ -27,8 +27,10 @@ async function withSessionAccountTypes(
       contentType: 'application/json',
       body: JSON.stringify({
         success: true,
+        authenticated: true,
+        activeMembershipCount: 0,
         user: {
-          id: fixtureUsers.member.id,
+          userId: fixtureUsers.member.id,
           email: fixtureUsers.member.email,
           username: fixtureUsers.member.username,
           displayName: fixtureUsers.member.displayName,
@@ -112,8 +114,10 @@ test.describe('internal console access', () => {
         contentType: 'application/json',
         body: JSON.stringify({
           success: true,
+          authenticated: true,
+          activeMembershipCount: 0,
           user: {
-            id: fixtureUsers.member.id,
+            userId: fixtureUsers.member.id,
             email: fixtureUsers.member.email,
             username: fixtureUsers.member.username,
             displayName: fixtureUsers.member.displayName,

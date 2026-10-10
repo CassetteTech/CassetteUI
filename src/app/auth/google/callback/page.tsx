@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { AccountCheckError } from '@/components/auth/account-check';
 import { authService } from '@/services/auth';
-import { useAuthStore } from '@/stores/auth-store';
 import { useRouter } from 'next/navigation';
 import { pendingActionService } from '@/utils/pending-action';
 import { PageLoader } from '@/components/ui/page-loader';
@@ -14,6 +14,9 @@ import type { AuthUser } from '@/types';
 
 export default function GoogleCallbackPage() {
   const router = useRouter();
+  // A session outage keeps the pending return intent; Retry runs the callback again.
+  const [sessionOutage, setSessionOutage] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,26 +86,32 @@ export default function GoogleCallbackPage() {
           return;
         }
 
-        const currentUser = await authService.getCurrentUser();
-        if (currentUser) {
-          useAuthStore.getState().setUser(currentUser);
-          redirectToDestination(currentUser);
-        } else {
+        const session = await authService.refreshSession();
+        if (cancelled) {
+          return;
+        }
+
+        if (session.kind === 'authenticated') {
+          redirectToDestination(session.user);
+        } else if (session.kind === 'error') {
+          setSessionOutage(true);
+        } else if (session.kind === 'signed-out') {
           appLogger.warn('google_callback_session_missing');
           retryTimeout = window.setTimeout(async () => {
             if (cancelled) {
               return;
             }
 
-            const retryUser = await authService.getCurrentUser();
+            const retry = await authService.refreshSession();
             if (cancelled) {
               return;
             }
 
-            if (retryUser) {
-              useAuthStore.getState().setUser(retryUser);
-              redirectToDestination(retryUser);
-            } else {
+            if (retry.kind === 'authenticated') {
+              redirectToDestination(retry.user);
+            } else if (retry.kind === 'error') {
+              setSessionOutage(true);
+            } else if (retry.kind === 'signed-out') {
               appLogger.error('google_callback_session_missing_after_retry');
               pendingActionService.clear();
               router.push(signInErrorPath('callback-failed'));
@@ -124,7 +133,22 @@ export default function GoogleCallbackPage() {
         window.clearTimeout(retryTimeout);
       }
     };
-  }, [router]);
+  }, [router, attempt]);
+
+  if (sessionOutage) {
+    return (
+      <div className="flex min-h-svh items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <AccountCheckError
+            onRetry={() => {
+              setSessionOutage(false);
+              setAttempt((current) => current + 1);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <PageLoader

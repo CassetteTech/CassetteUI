@@ -132,9 +132,7 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
   const accountVisible = usePaidPromotionAccountVisible();
 
   const primaryItems = getVisibleNavItems(
-    primaryNavItems.filter(
-      (item) => item.key !== 'home' && item.key !== 'add-music',
-    ),
+    primaryNavItems.filter((item) => item.key !== 'add-music'),
     user,
     { salesEnabled },
   );

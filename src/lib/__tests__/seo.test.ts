@@ -30,6 +30,7 @@ test('robots disallow rules block private routes and subtrees', () => {
   assert.equal(isDisallowed('/profile'), true);
   assert.equal(isDisallowed('/profile/edit'), true);
   assert.equal(isDisallowed('/add-music'), true);
+  assert.equal(isDisallowed('/feed'), true);
   assert.equal(isDisallowed('/internal/users'), true);
   assert.equal(isDisallowed('/auth/signin'), true);
   assert.equal(isDisallowed('/api/v1/social/posts'), true);

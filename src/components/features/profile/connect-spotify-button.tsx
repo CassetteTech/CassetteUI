@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
 import { authService } from '@/services/auth';
-import { useAuthStore } from '@/stores/auth-store';
 import { apiService } from '@/services/api';
 import { appLogger } from '@/lib/observability/logger';
 
@@ -30,10 +29,7 @@ export function ConnectSpotifyButton({
       if (document.visibilityState === 'visible' && pendingOAuth) {
         // Clear pending state immediately to prevent re-fires during async call
         setPendingOAuth(false);
-        const updatedUser = await authService.getCurrentUser();
-        if (updatedUser) {
-          useAuthStore.getState().setUser(updatedUser);
-        }
+        await authService.refreshSession({ restart: true });
         setIsLoading(false);
       }
     };

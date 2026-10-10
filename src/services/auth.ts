@@ -1,7 +1,14 @@
 'use client';
 
-import { useAuthStore } from '@/stores/auth-store';
+import { SESSION_MAX_AGE_MS, useAuthStore } from '@/stores/auth-store';
 import { AuthUser, SignInForm, SignUpForm, ConnectedService, SignupAttribution } from '@/types';
+import {
+  readSessionResponse,
+  readSignedInBody,
+  type SessionRead,
+  type SessionUser,
+  type SignedInBody,
+} from '@/services/auth-session';
 import { prefetchProfileArtwork } from '@/services/profile-artwork-cache';
 import { platformConnectService } from '@/services/platform-connect';
 import { captureClientEvent } from '@/lib/analytics/client';
@@ -10,6 +17,17 @@ import { normalizeConnectedServicePayload } from '@/utils/platform-normalization
 import { appLogger } from '@/lib/observability/logger';
 
 const AUTH_API_BASE = '/api/auth';
+
+/**
+ * How a session read ended. `error` is an outage or a malformed answer with
+ * the session cookie possibly still valid; only `signed-out` means a 401.
+ * `superseded` means a sign-in or sign-out replaced the read before it ended.
+ */
+export type SessionRefresh =
+  | { kind: 'authenticated'; user: AuthUser }
+  | { kind: 'signed-out' }
+  | { kind: 'error' }
+  | { kind: 'superseded' };
 
 type ApiResponsePayload = {
   success?: boolean;
@@ -20,6 +38,9 @@ type ApiResponsePayload = {
 class AuthService {
   private initialized = false;
   private lastArtworkWarmupUserId: string | null = null;
+  private sessionRead: { promise: Promise<SessionRefresh>; controller: AbortController } | null = null;
+  /** The user object built from the last applied session payload, with that payload. */
+  private appliedSessionUser: { json: string; user: AuthUser } | null = null;
 
   private resolveAvatarUrl(userData: Record<string, unknown>): string {
     return String(
@@ -187,10 +208,9 @@ class AuthService {
       throw new Error(data.message || 'Failed to create account');
     }
 
-    if (data.success && data.authenticated === true && data.user) {
-      const user = this.mapToAuthUser(data.user);
-      useAuthStore.getState().setUser(user);
-      this.warmProfileArtworkCache(user);
+    const signedIn = readSignedInBody(data);
+    if (signedIn) {
+      const user = this.startSession(signedIn);
 
       void captureClientEvent('auth_signed_up', {
         source_surface: 'auth',
@@ -224,13 +244,12 @@ class AuthService {
     });
 
     const data = await response.json();
-    if (!response.ok || !data.success || data.authenticated !== true || !data.user) {
+    const signedIn = readSignedInBody(data);
+    if (!response.ok || !signedIn) {
       throw new Error(data.message || 'Failed to sign in');
     }
 
-    const user = this.mapToAuthUser(data.user);
-    useAuthStore.getState().setUser(user);
-    this.warmProfileArtworkCache(user);
+    this.startSession(signedIn);
     return data;
   }
 
@@ -248,6 +267,7 @@ class AuthService {
     }
 
     await this.clearTokens();
+    this.abortSessionRead();
     useAuthStore.getState().signOut();
   }
 
@@ -266,6 +286,7 @@ class AuthService {
     }
 
     await this.clearTokens();
+    this.abortSessionRead();
     useAuthStore.getState().signOut();
   }
 
@@ -383,10 +404,9 @@ class AuthService {
       throw new Error(data.message || 'Failed to update password');
     }
 
-    if (data.user) {
-      const user = this.mapToAuthUser(data.user);
-      useAuthStore.getState().setUser(user);
-      this.warmProfileArtworkCache(user);
+    const signedIn = readSignedInBody(data);
+    if (signedIn) {
+      this.startSession(signedIn);
     }
 
     return data;
@@ -432,25 +452,110 @@ class AuthService {
     return this.mapToAuthUser(userData);
   }
 
-  async getCurrentUser(): Promise<AuthUser | null> {
+  /**
+   * Applies the session that a sign-in, sign-up, or password update returned.
+   * A pending session read belongs to the previous identity, so it is dropped.
+   */
+  private startSession({ user: userData, activeMembershipCount }: SignedInBody): AuthUser {
+    this.abortSessionRead();
+    if (activeMembershipCount !== null) {
+      return this.applySession(userData, activeMembershipCount);
+    }
+    // Signed in, but without a valid membership count: the session is an error until a read succeeds.
+    const user = this.mapToAuthUser(userData);
+    useAuthStore.getState().setSessionError(user);
+    this.warmProfileArtworkCache(user);
+    return user;
+  }
+
+  private applySession(userData: SessionUser, activeMembershipCount: number): AuthUser {
+    const current = useAuthStore.getState().user;
+    const json = JSON.stringify(userData);
+    // An unchanged account keeps its user object, so a periodic read does not
+    // re-run the effects keyed on it (profile editing, page-view analytics).
+    // Only the object built from this same payload qualifies; a profile edit
+    // or another sign-in in between replaced it.
+    const applied = this.appliedSessionUser;
+    const user = applied && applied.user === current && applied.json === json
+      ? applied.user
+      : this.mapToAuthUser(userData);
+    this.appliedSessionUser = { json, user };
+    useAuthStore.getState().setSession({ user, activeMembershipCount });
+    this.warmProfileArtworkCache(user);
+    return user;
+  }
+
+  private abortSessionRead() {
+    this.sessionRead?.controller.abort();
+    this.sessionRead = null;
+    useAuthStore.getState().setRefreshingSession(false);
+  }
+
+  private async fetchSession(signal: AbortSignal): Promise<SessionRead> {
     try {
       const response = await fetch(`${AUTH_API_BASE}/session`, {
         credentials: 'include',
+        cache: 'no-store',
         headers: {
           'Content-Type': 'application/json',
         },
+        signal,
       });
-
-      if (!response.ok) {
-        return null;
-      }
-
-      const data = await response.json();
-      return data.success && data.user ? this.mapToAuthUser(data.user) : null;
+      // Only a 200 carries a session; any other answer is classified by its status alone.
+      const body: unknown = response.status === 200 ? await response.json().catch(() => null) : null;
+      return readSessionResponse(response.status, body);
     } catch (error) {
-      appLogger.warn('current_user_fetch_failed', { error });
-      return null;
+      if (!signal.aborted) {
+        appLogger.warn('session_fetch_failed', { error });
+      }
+      return { kind: 'error' };
     }
+  }
+
+  /**
+   * Reads the web session and applies it to the auth store. Callers share one
+   * pending read; `restart` replaces it with a read that starts now, for a
+   * caller whose own change (a profile save, a membership change) the pending
+   * read may predate.
+   */
+  refreshSession({ restart = false }: { restart?: boolean } = {}): Promise<SessionRefresh> {
+    if (this.sessionRead && !restart) {
+      return this.sessionRead.promise;
+    }
+
+    this.sessionRead?.controller.abort();
+    const controller = new AbortController();
+    useAuthStore.getState().setRefreshingSession(true);
+    const promise = this.fetchSession(controller.signal)
+      .then((read): SessionRefresh | Promise<SessionRefresh> => {
+        // A sign-in, sign-out, or newer read replaced this one; its answer is
+        // stale. A newer read answers for it.
+        if (controller.signal.aborted) {
+          return this.sessionRead?.promise ?? { kind: 'superseded' };
+        }
+        // The answer is in: a caller from here on starts a new read, never
+        // this one. The store sees the end of the read and its answer together.
+        this.endSessionRead(controller);
+        switch (read.kind) {
+          case 'authenticated':
+            return { kind: 'authenticated', user: this.applySession(read.user, read.activeMembershipCount) };
+          case 'signed-out':
+            useAuthStore.getState().signOut();
+            return read;
+          case 'error':
+            useAuthStore.getState().setSessionError();
+            return read;
+        }
+      })
+      .finally(() => this.endSessionRead(controller));
+    this.sessionRead = { promise, controller };
+    return promise;
+  }
+
+  private endSessionRead(controller: AbortController) {
+    if (this.sessionRead?.controller !== controller) return;
+    this.sessionRead = null;
+    useAuthStore.getState().setRefreshingSession(false);
   }
 
   initializeAuthListener() {
@@ -459,25 +564,23 @@ class AuthService {
     }
 
     this.initialized = true;
-    const { setUser, setLoading } = useAuthStore.getState();
-    setLoading(true);
+    void this.refreshSession();
 
-    let cancelled = false;
-    this.getCurrentUser()
-      .then((user) => {
-        if (cancelled) return;
-        setUser(user);
-        this.warmProfileArtworkCache(user);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
+    // A returning viewer gets a fresh session once the last read is too old.
+    const refreshIfStale = () => {
+      if (document.visibilityState !== 'visible') return;
+      const { user, sessionError, sessionCheckedAt } = useAuthStore.getState();
+      if (!user && !sessionError) return;
+      if (sessionCheckedAt !== null && Date.now() - sessionCheckedAt < SESSION_MAX_AGE_MS) return;
+      void this.refreshSession();
+    };
+    window.addEventListener('focus', refreshIfStale);
+    document.addEventListener('visibilitychange', refreshIfStale);
 
     return () => {
-      cancelled = true;
       this.initialized = false;
+      window.removeEventListener('focus', refreshIfStale);
+      document.removeEventListener('visibilitychange', refreshIfStale);
     };
   }
 }

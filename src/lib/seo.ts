@@ -40,6 +40,7 @@ export const PUBLIC_STATIC_ROUTES = [
  */
 export const NOINDEX_ROUTES = [
   '/add-music',
+  '/feed',
   '/onboarding',
   '/collections',
   '/profile',

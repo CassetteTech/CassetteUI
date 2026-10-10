@@ -1,32 +1,32 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { parseProfileLink, type ParsedProfileLink } from '@/lib/profile-links';
 import { ProfileLinkIcon } from '@/components/features/profile/profile-links';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
-import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
-import { SegmentedControl } from '@/components/ui/interior/segmented-control';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TabUnderline } from '@/components/ui/tab-underline';
 import { BackButton } from '@/components/ui/back-button';
-import { DitherEdge } from '@/components/features/marketing/dither-edge';
-import { ArrowRight, LockKeyhole, Plus, Repeat2, Search, X, Music2 } from 'lucide-react';
+import {
+  CreatorCard,
+  POST_GRID,
+  PostCard,
+  PostGridSkeleton,
+  SectionHeading,
+} from '@/components/features/explore/explore-cards';
+import { ArrowRight, Plus, Search, X, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
 import type { SponsoredExplorePlacement } from '@/types';
 import { rememberViewedSponsoredExplorePost } from '@/services/sponsored-explore-rotation';
-import { useExploreCurators, useSubscriptionFeed } from '@/hooks/use-profile';
-import { useAuthState } from '@/hooks/use-auth';
+import { useExploreCurators } from '@/hooks/use-profile';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { removeQueryParameters } from '@/utils/remove-query-parameters';
 import {
   useExploreData,
   MUSIC_SECTION_ORDER,
@@ -35,35 +35,12 @@ import {
   type MusicElementType,
 } from './_shared/use-explore-data';
 
-// Row gaps leave room for the offset shadow below each card.
-const POST_GRID = 'grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 sm:gap-x-6 sm:gap-y-8';
-
-// The paper card shared by posts and skeletons: warm white in every theme.
-const PAPER_CARD = 'border-2 border-foreground bg-primary-foreground force-light-surface text-foreground';
-
 const DASHED_NOTE = 'border-t-2 border-dashed border-foreground/30 py-4 text-center font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground';
 
-type ExploreTab = 'discover' | 'subscriptions';
-
-const exploreTabStorageKey = 'cassette:explore-tab';
-
-function parseExploreTab(value: string | null): ExploreTab | null {
-  return value === 'discover' || value === 'subscriptions' ? value : null;
-}
-
-function readStoredExploreTab(): ExploreTab | null {
-  try {
-    return parseExploreTab(localStorage.getItem(exploreTabStorageKey));
-  } catch {
-    return null;
-  }
-}
-
-// The stored tab only changes through this page, which also rewrites the URL,
-// so the snapshot never needs a change subscription.
-const subscribeToStoredExploreTab = () => () => {};
-
 export default function ExplorePage() {
+  // Explore was once split into tabs; an old link keeps working as plain Explore.
+  useEffect(() => removeQueryParameters('tab', 'filter'), []);
+
   return (
     // The creator rail bleeds to the viewport edges, so the page clips any
     // sliver it adds past the scrollbar.
@@ -89,108 +66,8 @@ export default function ExplorePage() {
       </header>
 
       <main className="relative mx-auto max-w-6xl px-4 pb-24 sm:px-6 lg:px-8">
-        {/* The tab and filter live in the URL, which only the client knows. */}
-        <Suspense fallback={<ExploreFeedsSkeleton />}>
-          <ExploreFeeds />
-        </Suspense>
+        <DiscoverFeed />
       </main>
-    </div>
-  );
-}
-
-/**
- * Discover and Subscriptions. An explicit choice (the URL, then the last tab
- * picked on this device) wins; otherwise members land on Subscriptions and
- * everyone else on Discover. The server decides membership and access; this
- * only picks the first tab.
- */
-function ExploreFeeds() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const { user, isLoading: isAuthLoading } = useAuthState();
-  const viewerId = user?.id ?? null;
-  const storedTab = useSyncExternalStore(subscribeToStoredExploreTab, readStoredExploreTab, () => null);
-  const query = searchParams.toString();
-  // A choice applies at once; the URL owns it again as soon as it updates.
-  // Without this, a second arrow key press acts on the tab before the first.
-  const [pendingChoice, setPendingChoice] = useState<{ query: string; tab: ExploreTab; membersOnly: boolean } | null>(null);
-  const choice = pendingChoice?.query === query ? pendingChoice : null;
-  const explicitTab = choice?.tab ?? parseExploreTab(searchParams.get('tab')) ?? storedTab;
-  const membersOnly = choice ? choice.membersOnly : searchParams.get('filter') === 'members';
-  const feed = useSubscriptionFeed(viewerId, membersOnly, explicitTab !== 'discover');
-  const isMember = (feed.data?.pages[0]?.subscribedCuratorCount ?? 0) > 0;
-  const isResolvingDefault = explicitTab === null && (isAuthLoading || (viewerId !== null && feed.isPending));
-  const activeTab: ExploreTab = explicitTab ?? (isMember ? 'subscriptions' : 'discover');
-
-  const updateQuery = useCallback((tab: ExploreTab, nextMembersOnly: boolean) => {
-    setPendingChoice({ query, tab, membersOnly: tab === 'subscriptions' && nextMembersOnly });
-    try {
-      localStorage.setItem(exploreTabStorageKey, tab);
-    } catch {
-      // Without storage the URL still keeps the choice for this visit.
-    }
-    const params = new URLSearchParams(query);
-    params.set('tab', tab);
-    if (tab === 'subscriptions' && nextMembersOnly) params.set('filter', 'members');
-    else params.delete('filter');
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [pathname, query, router]);
-
-  return (
-    <>
-      {isResolvingDefault && <ExploreFeedsSkeleton />}
-      {/* Mounted while the first tab resolves so Discover's reads start at once. */}
-      <Tabs
-        value={activeTab}
-        onValueChange={(next) => updateQuery(parseExploreTab(next) ?? 'discover', false)}
-        className={cn('gap-0', isResolvingDefault && 'hidden')}
-      >
-        {/* The same underline strip as the profile and Studio pages; the
-            negative margin lines the first label up with the page title. */}
-        <TabsList
-          aria-label="Explore feeds"
-          className="relative -mx-3 mb-10 flex h-auto w-auto justify-start gap-1 rounded-none border-b border-border bg-transparent p-0"
-        >
-          {!isResolvingDefault && <TabUnderline value={activeTab} />}
-          {(['discover', 'subscriptions'] as const).map((tab) => {
-            const label = tab === 'discover' ? 'Discover' : 'Subscriptions';
-            return (
-              <TabsTrigger
-                key={tab}
-                value={tab}
-                className="h-10 flex-none rounded-none border-0 px-3 text-sm font-normal text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent"
-              >
-                <span className="tab-label" data-label={label}>{label}</span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-
-        {/* Kept mounted so Discover's loaded pages survive a tab switch. */}
-        <TabsContent value="discover" forceMount className="data-[state=inactive]:hidden">
-          <DiscoverFeed />
-        </TabsContent>
-        <TabsContent value="subscriptions">
-          <SubscriptionFeed
-            feed={feed}
-            isSignedIn={viewerId !== null}
-            isAuthLoading={isAuthLoading}
-            membersOnly={membersOnly}
-            onMembersOnlyChange={(next) => updateQuery('subscriptions', next)}
-            onDiscover={() => updateQuery('discover', false)}
-          />
-        </TabsContent>
-      </Tabs>
-    </>
-  );
-}
-
-function ExploreFeedsSkeleton() {
-  return (
-    <div aria-busy="true" aria-label="Loading Explore">
-      <Skeleton className="mb-10 h-10 w-56" />
-      <PostGridSkeleton />
     </div>
   );
 }
@@ -248,158 +125,6 @@ function DiscoverFeed() {
         ))
       )}
     </div>
-  );
-}
-
-/**
- * Posts from the curators the viewer is a member of, newest first. Every
- * page is authorized by the server, so an ending membership drops that
- * curator's posts from the next read. Billing stays on My memberships.
- */
-function SubscriptionFeed({
-  feed,
-  isSignedIn,
-  isAuthLoading,
-  membersOnly,
-  onMembersOnlyChange,
-  onDiscover,
-}: {
-  feed: ReturnType<typeof useSubscriptionFeed>;
-  isSignedIn: boolean;
-  isAuthLoading: boolean;
-  membersOnly: boolean;
-  onMembersOnlyChange: (membersOnly: boolean) => void;
-  onDiscover: () => void;
-}) {
-  const discoverButton = (
-    <Button variant="outline" onClick={onDiscover}>
-      Discover curators
-    </Button>
-  );
-
-  if (isAuthLoading || (isSignedIn && feed.isPending)) {
-    return <PostGridSkeleton />;
-  }
-
-  if (!isSignedIn) {
-    return (
-      <Empty>
-        <EmptyTitle>Sign in to see your subscriptions</EmptyTitle>
-        <EmptyDescription>
-          Posts from the curators you are a member of appear here, newest first.
-        </EmptyDescription>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button asChild>
-            <Link href={`/auth/signin?redirect=${encodeURIComponent('/explore?tab=subscriptions')}`}>Sign in</Link>
-          </Button>
-          {discoverButton}
-        </div>
-      </Empty>
-    );
-  }
-
-  if (feed.isError && !feed.data) {
-    return (
-      <Empty>
-        <EmptyTitle>Your subscriptions could not load</EmptyTitle>
-        <EmptyDescription>Check your connection, then try again.</EmptyDescription>
-        <Button variant="outline" onClick={() => void feed.refetch()}>
-          Try again
-        </Button>
-      </Empty>
-    );
-  }
-
-  const pages = feed.data?.pages ?? [];
-  const posts = pages.flatMap((page) => page.items);
-  const firstPage = pages.at(0);
-  const subscribedCuratorCount = firstPage?.subscribedCuratorCount ?? 0;
-  const hasMembershipHistory = firstPage?.hasMembershipHistory ?? false;
-
-  if (subscribedCuratorCount === 0) {
-    return hasMembershipHistory ? (
-      <Empty>
-        <EmptyTitle>Your memberships have ended</EmptyTitle>
-        <EmptyDescription>
-          Join a curator again to see their posts here. Billing and past memberships are in My memberships.
-        </EmptyDescription>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button asChild>
-            <Link href="/memberships">My memberships</Link>
-          </Button>
-          {discoverButton}
-        </div>
-      </Empty>
-    ) : (
-      <Empty>
-        <EmptyTitle>No memberships yet</EmptyTitle>
-        <EmptyDescription>
-          Join a curator to see their public and members-only posts here, newest first.
-        </EmptyDescription>
-        {discoverButton}
-      </Empty>
-    );
-  }
-
-  return (
-    <section aria-labelledby="subscription-feed-heading">
-      <SectionHeading
-        id="subscription-feed-heading"
-        title={membersOnly ? 'Member posts' : 'From your curators'}
-        action={
-          <SegmentedControl
-            label="Post filter"
-            value={membersOnly ? 'members' : 'all'}
-            onValueChange={(next) => onMembersOnlyChange(next === 'members')}
-            options={[
-              { value: 'all', label: 'All' },
-              { value: 'members', label: 'Members only' },
-            ]}
-          />
-        }
-      />
-
-      {posts.length === 0 ? (
-        <Empty>
-          <EmptyTitle>{membersOnly ? 'No member posts yet' : 'No posts yet'}</EmptyTitle>
-          <EmptyDescription>
-            {membersOnly
-              ? 'The curators you support have not shared members-only posts yet.'
-              : 'The curators you support have not posted yet. New posts appear here first.'}
-          </EmptyDescription>
-          {membersOnly ? (
-            <Button variant="outline" onClick={() => onMembersOnlyChange(false)}>
-              Show all posts
-            </Button>
-          ) : discoverButton}
-        </Empty>
-      ) : (
-        <div className={POST_GRID}>
-          {posts.map((post) => (
-            <PostCard key={post.postId} post={post} />
-          ))}
-        </div>
-      )}
-
-      {feed.isFetchNextPageError && (
-        <p role="alert" className="mt-10 text-center text-sm text-destructive">
-          More posts could not load.
-        </p>
-      )}
-      {feed.hasNextPage && (
-        <div className="mt-6 text-center">
-          <Button
-            variant="brutalist-outline"
-            onClick={() => void feed.fetchNextPage()}
-            disabled={feed.isFetchingNextPage}
-            className="rounded-none"
-          >
-            {feed.isFetchingNextPage && <Spinner size="sm" />}
-            {feed.isFetchNextPageError ? 'Try again' : 'Load more'}
-          </Button>
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -469,25 +194,6 @@ function SponsoredPostCard({ placement }: { placement: SponsoredExplorePlacement
 
 /* ─── Sections ────────────────────────────────────────────────────────────── */
 
-function SectionHeading({
-  id,
-  title,
-  action,
-}: {
-  id?: string;
-  title: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-      <h2 id={id} className="font-teko text-3xl font-bold uppercase leading-none tracking-tight sm:text-4xl">
-        {title}
-      </h2>
-      {action}
-    </div>
-  );
-}
-
 function MusicSection({
   title,
   posts,
@@ -546,98 +252,6 @@ function MusicSection({
         </div>
       )}
     </motion.section>
-  );
-}
-
-const ARTWORK_CHIP = 'absolute top-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]';
-
-/**
- * A paper card: ink border, offset shadow, artwork flush at the top printing
- * into the paper through the brand's dither seam (the post page's label
- * device). Every card reserves the same title, detail, and footer lines, so a
- * grid row has one height whatever the copy. The card lifts on hover and its
- * shadow turns brand red.
- */
-function PostCard({
-  post,
-  label,
-  artworkTestId,
-  onClick,
-}: {
-  post: ActivityPost;
-  /** A disclosure printed in the footer, such as "Sponsored"; it also turns the shadow red. */
-  label?: string;
-  artworkTestId?: string;
-  onClick?: () => void;
-}) {
-  const targetPostId = post.redirectPostId || post.postId;
-  const href = targetPostId ? `/post/${targetPostId}` : '#';
-  const detail = (post.description && post.description.trim()) || post.subtitle;
-  const username = post.isRepost
-    ? post.originalPostOwnerUsername || post.originalUsername || post.username
-    : post.username;
-
-  return (
-    <div className="group flex transition-transform duration-200 ease-out-quart hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
-      <Link
-        href={href}
-        onClick={onClick}
-        className={cn(
-          PAPER_CARD,
-          'flex w-full flex-col transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-          label
-            ? 'shadow-flat-primary-6 group-hover:shadow-flat-primary-8'
-            : 'shadow-flat-4 group-hover:shadow-flat-primary-6',
-        )}
-      >
-        <div data-testid={artworkTestId} className="relative aspect-square overflow-hidden bg-muted">
-          {post.imageUrl ? (
-            <Image
-              src={post.imageUrl}
-              alt={post.title}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <Music2 aria-hidden className="size-8 text-muted-foreground/50" />
-            </div>
-          )}
-          {post.isRepost && (
-            <span className={cn(ARTWORK_CHIP, 'left-1.5 bg-foreground text-background')}>
-              <Repeat2 aria-hidden className="size-2.5" />
-              Repost
-            </span>
-          )}
-          {post.privacy === 'subscriber' && (
-            <span className={cn(ARTWORK_CHIP, 'right-1.5 bg-primary text-primary-foreground')}>
-              <LockKeyhole aria-hidden className="size-2.5" />
-              Members only
-            </span>
-          )}
-        </div>
-
-        {/* min-h holds two title lines, a detail line, and the footer, so a
-            one-line title leaves its slack above the pinned footer. */}
-        <div className="relative flex min-h-28 flex-1 flex-col px-3 pb-3 pt-3">
-          <DitherEdge color="hsl(var(--primary-foreground))" side="top" scale={0.5} />
-          <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight line-clamp-2 transition-colors group-hover:text-primary">
-            {post.title}
-          </h3>
-          {detail && <p className="mt-1 line-clamp-1 text-xs italic text-muted-foreground">{detail}</p>}
-          <div className="mt-auto flex items-center gap-2 pt-2">
-            {label && (
-              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-primary">{label}</span>
-            )}
-            <span className="h-px flex-1 bg-foreground/20" />
-            <span className="truncate font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              @{username}
-            </span>
-          </div>
-        </div>
-      </Link>
-    </div>
   );
 }
 
@@ -872,8 +486,8 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
   // visible immediately; layout effect so neither the jump nor the initial
   // fan-out paints untransformed first. Deps deliberately exclude `curators`:
   // recentering on a data refresh would visibly yank the user's position.
-  // A hidden rail (Discover behind another Explore tab) has no layout, so it
-  // centers again each time it is shown; ResizeObserver runs before paint.
+  // A rail mounted without layout (a hidden ancestor) centers again each time
+  // it is shown; ResizeObserver runs before paint.
   useLayoutEffect(() => {
     const track = trackRef.current;
     if (!track || copies === 1) return;
@@ -1255,45 +869,5 @@ function CreatorsMarquee({
         </div>
       )}
     </section>
-  );
-}
-
-function CreatorCard({ user }: { user: ExploreUser }) {
-  const initials = user.username?.charAt(0)?.toUpperCase() || 'U';
-  const displayName = user.displayName?.trim() || user.username;
-  return (
-    <Link
-      href={`/profile/${user.username}`}
-      className="group flex w-[220px] shrink-0 items-center gap-3 rounded-2xl border-2 border-foreground bg-primary-foreground force-light-surface px-4 py-3 text-foreground shadow-flat-4 transition-shadow hover:shadow-flat-primary-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <Avatar className="size-11 shrink-0 border-2 border-foreground">
-        <AvatarImage src={user.avatarUrl} alt={`@${user.username}`} />
-        <AvatarFallback>{initials}</AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1">
-          <p className="truncate text-sm font-semibold transition-colors group-hover:text-primary">{displayName}</p>
-          <VerificationBadge accountType={user.accountType} size="sm" showTooltip={false} />
-        </div>
-        <p className="truncate font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">@{user.username}</p>
-      </div>
-    </Link>
-  );
-}
-
-function PostGridSkeleton() {
-  return (
-    <div className={POST_GRID}>
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className={cn(PAPER_CARD, 'shadow-flat-4')}>
-          <Skeleton className="aspect-square w-full rounded-none" />
-          <div className="min-h-28 px-3 pb-3 pt-3">
-            <Skeleton className="h-5 w-4/5" />
-            <Skeleton className="mt-2 h-3 w-3/5" />
-            <Skeleton className="ml-auto mt-3 h-3 w-1/3" />
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }

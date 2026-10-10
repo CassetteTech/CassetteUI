@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuthState } from '@/hooks/use-auth';
 import { useCuratorPage } from '@/hooks/use-curator';
-import { useMembershipStatus } from '@/hooks/use-membership-status';
+import { refreshAfterMembershipChange, useMembershipStatus } from '@/hooks/use-membership-status';
 import {
   CuratorPageError,
   formatCuratorPlanPrice,
@@ -231,7 +231,7 @@ export function PublicCuratorPage({
         setActivated(true);
         setNotice('Your membership is active.');
         removeQueryParameters('membership', 'interval');
-        void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
+        refreshAfterMembershipChange(queryClient, username);
         return;
       }
       if (membership.status !== 'incomplete') {
@@ -266,7 +266,7 @@ export function PublicCuratorPage({
     setPollTimedOut(false);
     setNotice(null);
     removeQueryParameters('membership', 'interval');
-    void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
+    refreshAfterMembershipChange(queryClient, username);
     const cancellationObserved =
       (reference.status !== 'canceled' && current.status === 'canceled') ||
       (!reference.cancelAtPeriodEnd && current.cancelAtPeriodEnd);

@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery, useQueryClient, useMutation, type InfiniteData } from '@tanstack/react-query';
 import { profileService } from '@/services/profile';
-import { UserBio, PaginatedActivityResponse, PaginatedExploreUsersResponse, ExploreCurator, SubscriptionFeedPage } from '@/types';
+import { UserBio, PaginatedActivityResponse, PaginatedExploreUsersResponse, ExploreCurator, CuratorFeedPage } from '@/types';
 
 /**
  * Query keys for profile-related queries.
@@ -19,8 +19,9 @@ export const profileQueryKeys = {
   exploreUsers: (page?: number, pageSize?: number, q?: string) =>
     ['explore-users', page, pageSize, q ?? ''] as const,
   exploreCurators: () => ['explore-curators'] as const,
-  subscriptionFeed: (viewerId: string | null, membersOnly: boolean) =>
-    ['subscription-feed', viewerId, membersOnly] as const,
+  allCuratorFeeds: () => ['curator-feed'] as const,
+  curatorFeed: (viewerId: string | null, membersOnly: boolean) =>
+    ['curator-feed', viewerId, membersOnly] as const,
 };
 
 /**
@@ -162,22 +163,29 @@ export const useExploreActivity = (options: ExploreQueryOptions = {}) => {
   });
 };
 
-/** The viewer's subscription feed. Keyed by viewer so a session change never shows another account's posts. */
-export const useSubscriptionFeed = (viewerId: string | null, membersOnly: boolean, enabled: boolean) =>
+/**
+ * The viewer's curator Feed. Keyed by viewer so a session change never shows
+ * another account's posts. Session refreshes remove these pages and restart
+ * at the first page, so nothing refetches the loaded page chain on its own.
+ */
+export const useCuratorFeed = (viewerId: string | null, membersOnly: boolean, enabled: boolean) =>
   useInfiniteQuery<
-    SubscriptionFeedPage,
+    CuratorFeedPage,
     Error,
-    InfiniteData<SubscriptionFeedPage, string | undefined>,
-    ReturnType<typeof profileQueryKeys.subscriptionFeed>,
+    InfiniteData<CuratorFeedPage, string | undefined>,
+    ReturnType<typeof profileQueryKeys.curatorFeed>,
     string | undefined
   >({
-    queryKey: profileQueryKeys.subscriptionFeed(viewerId, membersOnly),
+    queryKey: profileQueryKeys.curatorFeed(viewerId, membersOnly),
     initialPageParam: undefined,
     queryFn: ({ pageParam, signal }) =>
-      profileService.fetchSubscriptionFeed({ cursor: pageParam, membersOnly, signal }),
+      profileService.fetchCuratorFeed({ cursor: pageParam, membersOnly, signal }),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: enabled && viewerId !== null,
     staleTime: 1000 * 60,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
 export const useExploreCurators = () => {

@@ -122,7 +122,7 @@ export function EditPostModal({
           >
             <option value="public">Public</option>
             <option value="private">Private</option>
-            {showSubscriberOption && <option value="subscriber">Subscribers only</option>}
+            {showSubscriberOption && <option value="subscriber">Members only</option>}
           </select>
           <p className="text-xs text-muted-foreground">
             {privacy === 'subscriber'

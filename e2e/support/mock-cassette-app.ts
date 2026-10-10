@@ -25,6 +25,7 @@ import type {
   CuratorPricing,
 } from '../../src/services/curator-plans';
 import type { MyMembership } from '../../src/services/membership';
+import type { ExploreCurator } from '../../src/types';
 import type {
   FixtureCuratorMemberCounts,
   FixturePost,
@@ -135,9 +136,9 @@ type MockCassetteOptions = {
   internalPaidPromotionSubjectsDelayMs?: number;
   accountDeleteFailures?: number;
   exploreResponse?: unknown;
-  /** Answers the signed-in subscription feed per page; the default is an account with no memberships. */
-  subscriptionFeed?: (query: { cursor: string | null; membersOnly: boolean }) => { status?: number; body?: unknown };
-  subscriptionFeedRequests?: string[];
+  exploreCurators?: ExploreCurator[];
+  /** Answers each Feed page; the default is an empty page that reports the session's membership count. */
+  curatorFeed?: (query: { cursor: string | null; membersOnly: boolean }) => { status?: number; body?: unknown };
 };
 
 type MockNotification = {
@@ -311,7 +312,7 @@ const defaultCuratorFeatures: CuratorFeature[] = [
   {
     featureKey: 'member_posts',
     displayName: 'Member-only posts',
-    description: 'Unlock subscriber-only posts.',
+    description: 'Members-only posts are visible to members.',
   },
 ];
 
@@ -892,9 +893,12 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         return json(route, { success: false, message: 'No authenticated session found' }, 401);
       }
 
+      const currentUser = getCurrentUserOrThrow(state);
       return json(route, {
         success: true,
-        user: toSessionUser(getCurrentUserOrThrow(state)),
+        authenticated: true,
+        user: toSessionUser(currentUser),
+        activeMembershipCount: currentUser.activeMembershipCount ?? 0,
       });
     }
 
@@ -910,21 +914,19 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       });
     }
 
-    if (pathname === '/api/v1/social/subscriptions/posts' && method === 'GET') {
-      options.subscriptionFeedRequests?.push(request.url());
+    if (pathname === '/api/v1/social/feed/posts' && method === 'GET') {
       if (!state.currentUser) {
         return json(route, 'User ID not found in claims', 401);
       }
       const query = new URL(request.url()).searchParams;
-      const answer = options.subscriptionFeed?.({
+      const answer = options.curatorFeed?.({
         cursor: query.get('cursor'),
         membersOnly: query.get('membersOnly') === 'true',
       }) ?? {};
       return json(route, answer.body ?? {
         items: [],
         nextCursor: null,
-        subscribedCuratorCount: 0,
-        hasMembershipHistory: false,
+        activeMembershipCount: state.currentUser.activeMembershipCount ?? 0,
       }, answer.status ?? 200);
     }
 
@@ -941,7 +943,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
     }
 
     if (pathname === '/api/v1/social/explore/curators' && method === 'GET') {
-      return json(route, { curators: [] });
+      return json(route, { curators: options.exploreCurators ?? [] });
     }
 
     // Both of these clear the session so a follow-up /session call reflects the
@@ -1492,7 +1494,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       ) {
         return json(route, {
           errorCode: 'membership_subscription_not_found',
-          message: 'Membership subscription not found.',
+          message: 'Membership not found.',
         }, 404);
       }
 

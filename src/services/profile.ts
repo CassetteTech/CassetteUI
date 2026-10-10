@@ -6,7 +6,7 @@ import {
   PaginatedExploreUsersResponse,
   PostPrivacy,
   SponsoredExplorePlacement,
-  SubscriptionFeedPage,
+  CuratorFeedPage,
   UserBio,
 } from '@/types';
 import { z } from 'zod';
@@ -98,11 +98,10 @@ interface ActivityApiResponse {
 
 // The feed metadata drives paging and the empty states, so a response without
 // it is an error, never an empty feed. The items keep the activity mapping.
-const subscriptionFeedMetadataSchema = z.object({
+const curatorFeedMetadataSchema = z.object({
   items: z.array(z.unknown()),
   nextCursor: z.string().min(1).nullable(),
-  subscribedCuratorCount: z.number().int().nonnegative(),
-  hasMembershipHistory: z.boolean(),
+  activeMembershipCount: z.number().int().nonnegative(),
 });
 
 interface ExploreUserPayload {
@@ -680,37 +679,36 @@ export class ProfileService {
   }
 
   /** Posts from the curators the signed-in viewer is a member of, newest first. */
-  async fetchSubscriptionFeed(
+  async fetchCuratorFeed(
     options: { cursor?: string; pageSize?: number; membersOnly?: boolean; signal?: AbortSignal } = {},
-  ): Promise<SubscriptionFeedPage> {
+  ): Promise<CuratorFeedPage> {
     const { cursor, pageSize = 20, membersOnly = false, signal } = options;
     const queryParams = new URLSearchParams({ pageSize: pageSize.toString() });
     if (cursor) queryParams.set('cursor', cursor);
     if (membersOnly) queryParams.set('membersOnly', 'true');
 
-    const response = await fetch(`${this.buildApiUrl('/api/v1/social/subscriptions/posts')}?${queryParams}`, {
+    const response = await fetch(`${this.buildApiUrl('/api/v1/social/feed/posts')}?${queryParams}`, {
       method: 'GET',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       signal,
     });
     if (response.status !== 200) {
-      appLogger.warn('subscription_feed_fetch_failed', { status: response.status });
-      throw new Error('Failed to load the subscription feed');
+      appLogger.warn('curator_feed_fetch_failed', { status: response.status });
+      throw new Error('Failed to load the Feed');
     }
 
-    const parsed = subscriptionFeedMetadataSchema.safeParse(await response.json());
+    const parsed = curatorFeedMetadataSchema.safeParse(await response.json());
     if (!parsed.success) {
-      appLogger.warn('subscription_feed_response_invalid', { issues: parsed.error.issues.length });
-      throw new Error('Failed to load the subscription feed');
+      appLogger.warn('curator_feed_response_invalid', { issues: parsed.error.issues.length });
+      throw new Error('Failed to load the Feed');
     }
-    const { nextCursor, subscribedCuratorCount, hasMembershipHistory } = parsed.data;
+    const { nextCursor, activeMembershipCount } = parsed.data;
     return {
       // SAFETY: the schema checked that items is an array; mapActivityResponse reads each item defensively.
       items: this.mapActivityResponse(parsed.data as ActivityApiResponse, 1, pageSize).items,
       nextCursor,
-      subscribedCuratorCount,
-      hasMembershipHistory,
+      activeMembershipCount,
     };
   }
 
@@ -833,6 +831,7 @@ export class ProfileService {
       profileLinks:
         curator.profileLinks ?? (curator as { ProfileLinks?: string[] }).ProfileLinks ?? [],
       topGenres: curator.topGenres ?? (curator as { TopGenres?: string[] }).TopGenres ?? [],
+      hasActiveMembershipPlan: curator.hasActiveMembershipPlan === true,
     }));
   }
 

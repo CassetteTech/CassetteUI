@@ -152,7 +152,7 @@ function MyMemberships() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">
-            My memberships
+            Memberships
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
             {empty ? 'The curators you support.' : 'The curators you support. Open a pass to visit their page.'}

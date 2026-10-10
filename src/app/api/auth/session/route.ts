@@ -6,6 +6,7 @@ import {
   getSessionIdFromCookies,
   readJsonResponse,
   stripInternalSessionFields,
+  PRIVATE_SESSION_HEADERS,
 } from '@/lib/server/auth-proxy';
 
 export async function GET(request: NextRequest) {
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
   if (!sessionId) {
     return NextResponse.json(
       { success: false, message: 'No authenticated session found' },
-      { status: 401 }
+      { status: 401, headers: PRIVATE_SESSION_HEADERS }
     );
   }
 
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
   const data = await readJsonResponse<Record<string, unknown>>(backendResponse);
   const response = NextResponse.json(
     stripInternalSessionFields(data ?? {}) ?? {},
-    { status: backendResponse.status }
+    { status: backendResponse.status, headers: PRIVATE_SESSION_HEADERS }
   );
   if (backendResponse.status === 401) {
     clearSessionCookie(response);

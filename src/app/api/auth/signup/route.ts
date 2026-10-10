@@ -8,6 +8,7 @@ import {
   readJsonResponse,
   setSessionCookie,
   stripInternalSessionFields,
+  PRIVATE_SESSION_HEADERS,
 } from '@/lib/server/auth-proxy';
 
 type AuthRouteResponse = {
@@ -45,7 +46,10 @@ export async function POST(request: NextRequest) {
   });
 
   const data = await readJsonResponse<AuthRouteResponse>(backendResponse);
-  const response = NextResponse.json(stripInternalSessionFields(data) ?? {}, { status: backendResponse.status });
+  const response = NextResponse.json(stripInternalSessionFields(data) ?? {}, {
+    status: backendResponse.status,
+    headers: PRIVATE_SESSION_HEADERS,
+  });
 
   if (backendResponse.ok && data?.authenticated === true && data.sessionId) {
     setSessionCookie(response, data.sessionId);

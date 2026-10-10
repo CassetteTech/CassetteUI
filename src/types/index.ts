@@ -78,14 +78,12 @@ export interface PaginatedActivityResponse {
   sponsoredPlacement?: SponsoredExplorePlacement;
 }
 
-/** One page of the viewer's subscription feed; `nextCursor` is null on the last page. */
-export interface SubscriptionFeedPage {
+/** One page of the viewer's curator Feed; `nextCursor` is null on the last page. */
+export interface CuratorFeedPage {
   items: ActivityPost[];
   nextCursor: string | null;
-  /** Curators whose memberships currently give the viewer access. */
-  subscribedCuratorCount: number;
-  /** True when the viewer has had a membership, current or ended. */
-  hasMembershipHistory: boolean;
+  /** Curators whose memberships give the viewer access, counted with this page. */
+  activeMembershipCount: number;
 }
 
 export interface SponsoredExplorePlacement {
@@ -115,6 +113,8 @@ export interface ExploreCurator {
   recentArtworkUrls: string[];
   profileLinks?: string[];
   topGenres?: string[];
+  /** The curator has a published plan open to new members. */
+  hasActiveMembershipPlan: boolean;
 }
 
 export interface PaginatedExploreUsersResponse {
@@ -911,6 +911,13 @@ export interface AuthUser {
   updatedAt: string;
   connectedServices?: ConnectedService[];
   signupAttribution?: SignupAttribution;
+}
+
+/** A signed-in web session: the viewer and their current membership count. */
+export interface AuthSession {
+  user: AuthUser;
+  /** Curators whose memberships give the viewer access now. A loading hint, never authorization. */
+  activeMembershipCount: number;
 }
 
 // Internal dashboard types

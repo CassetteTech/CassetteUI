@@ -76,7 +76,7 @@ export function CuratorMembershipCard({
 }) {
   const plan = page.membership;
   const membership = status?.membership;
-  // Keyed per curator so the matching pass on My memberships slides into this rail slot, and back.
+  // Keyed per curator so the matching pass on Memberships slides into this rail slot, and back.
   const memberPassRef = useRef<HTMLDivElement>(null);
   useSharedPosition(memberPassRef, `membership-pass:${page.curator.username}`);
   const planMatchesMembership = !membership || membership.planId === plan?.planId;
@@ -185,7 +185,7 @@ export function CuratorMembershipCard({
           </div>
           {displayedPlan && <BenefitList benefits={displayedPlan.benefits} />}
           <nav className="mt-5 flex flex-wrap gap-x-4 gap-y-1 text-sm" aria-label="Membership links">
-            <Link href="/memberships" className="underline underline-offset-4">My memberships</Link>
+            <Link href="/memberships" className="underline underline-offset-4">Memberships</Link>
             {activated && (
               <Link href="/profile/edit" className="underline underline-offset-4">Set up your profile</Link>
             )}
@@ -297,7 +297,7 @@ export function CuratorMembershipCard({
         )}
         {membership?.canManage && (
           <Link href="/memberships" className="block text-sm underline underline-offset-4">
-            My memberships
+            Memberships
           </Link>
         )}
       </div>

@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import Image from 'next/image';
 import { apiService } from '@/services/api';
 import { authService } from '@/services/auth';
-import { useAuthStore } from '@/stores/auth-store';
 import { platformConnectService } from '@/services/platform-connect';
 import { appLogger } from '@/lib/observability/logger';
 
@@ -69,10 +68,7 @@ export function ConnectAppleMusicButton({
 
       if (success) {
         // Refetch user to get updated connectedServices and update auth store
-        const updatedUser = await authService.getCurrentUser();
-        if (updatedUser) {
-          useAuthStore.getState().setUser(updatedUser);
-        }
+        await authService.refreshSession({ restart: true });
         onConnect?.();
       } else {
         throw new Error('Failed to connect to Apple Music');

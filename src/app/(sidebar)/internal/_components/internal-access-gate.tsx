@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 import { PageLoader } from '@/components/ui/page-loader';
+import { AccountCheckError } from '@/components/auth/account-check';
 import { authService } from '@/services/auth';
 
 /**
@@ -16,7 +17,7 @@ import { authService } from '@/services/auth';
  */
 export function InternalAccessGate({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { user, isLoading, isAuthenticated } = useAuthState();
+  const { user, isLoading, isAuthenticated, sessionError } = useAuthState();
   const canAccess = isCassetteInternalAccount(user?.accountType ?? null);
   const [isAccessResolved, setIsAccessResolved] = useState(false);
   const [canAccessResolved, setCanAccessResolved] = useState(false);
@@ -25,7 +26,8 @@ export function InternalAccessGate({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const resolveAccess = async () => {
-      if (isLoading) return;
+      // A failed session read decides nothing; the viewer can retry it.
+      if (isLoading || sessionError) return;
 
       if (!isAuthenticated) {
         router.replace('/auth/signin?redirect=/internal');
@@ -44,14 +46,16 @@ export function InternalAccessGate({ children }: { children: ReactNode }) {
       const hasUnknownAccountType =
         accountType == null || (typeof accountType === 'string' && accountType.trim().length === 0);
       if (hasUnknownAccountType) {
-        const refreshedUser = await authService.getCurrentUser();
+        const refreshed = await authService.refreshSession({ restart: true });
         if (cancelled) return;
 
-        if (isCassetteInternalAccount(refreshedUser?.accountType ?? null)) {
+        if (refreshed.kind === 'authenticated' && isCassetteInternalAccount(refreshed.user.accountType ?? null)) {
           setCanAccessResolved(true);
           setIsAccessResolved(true);
           return;
         }
+        // An outage shows the retry; a sign-out or another account re-runs this check.
+        if (refreshed.kind !== 'authenticated') return;
       }
 
       if (!cancelled) {
@@ -66,7 +70,15 @@ export function InternalAccessGate({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [isLoading, isAuthenticated, canAccess, user?.accountType, router]);
+  }, [isLoading, sessionError, isAuthenticated, canAccess, user?.accountType, router]);
+
+  if (sessionError && !isAccessResolved) {
+    return (
+      <div className="mx-auto w-full max-w-md px-4 py-16">
+        <AccountCheckError />
+      </div>
+    );
+  }
 
   if (isLoading || !isAuthenticated || !isAccessResolved || !canAccessResolved) {
     return <PageLoader message="Loading internal dashboard..." />;

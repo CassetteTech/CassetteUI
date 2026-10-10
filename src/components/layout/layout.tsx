@@ -39,9 +39,9 @@ useEffect(() => {
 
   const isAuthPage = pathname?.startsWith('/auth');
   const isOnboardingPage = pathname?.startsWith('/onboarding');
-  const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/curator') || pathname?.startsWith('/studio') || pathname?.startsWith('/memberships') || pathname?.startsWith('/add-music') || pathname?.startsWith('/internal');
+  const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/curator') || pathname?.startsWith('/studio') || pathname?.startsWith('/memberships') || pathname?.startsWith('/feed') || pathname?.startsWith('/add-music') || pathname?.startsWith('/internal');
   const isProfileRoute = pathname?.startsWith('/profile');
-  // Studio and My memberships are money surfaces: sidebar on desktop, no marketing footer or donation ask.
+  // Studio and Memberships are money surfaces: sidebar on desktop, no marketing footer or donation ask.
   const isStudioRoute = pathname?.startsWith('/studio') || pathname?.startsWith('/memberships');
   // The home page and its concepts at /1 … /11 own their hero and footer.
   const isHomePage = isHeroRoute(pathname);

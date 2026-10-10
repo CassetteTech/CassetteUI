@@ -1,0 +1,590 @@
+/** Verifies the curator Feed: session-gated states, filter, paging, retries, freshness resets, and navigation. */
+
+import { expect, type Page, type Route, test } from '@playwright/test';
+
+import { fixtureUsers } from './support/cassette-fixtures';
+import { mockCassetteApp } from './support/mock-cassette-app';
+
+const feedPost = (index: number, privacy: 'public' | 'subscriber', username: string) => ({
+  postId: `p_20261001120000_0000000000000${index}`,
+  redirectPostId: `p_20261001120000_0000000000000${index}`,
+  elementType: 'Track',
+  title: `Feed track ${index}`,
+  subtitle: `Feed artist ${index}`,
+  imageUrl: `https://example.com/feed-${index}.jpg`,
+  username,
+  userId: '33333333-3333-3333-3333-33333333333' + index,
+  createdAt: '2026-10-01T12:00:00Z',
+  privacy,
+});
+
+const feedPage = (items: unknown[], nextCursor: string | null, activeMembershipCount = 2) => ({
+  items,
+  nextCursor,
+  activeMembershipCount,
+});
+
+const memberFeed = ({ cursor, membersOnly }: { cursor: string | null; membersOnly: boolean }) => {
+  if (membersOnly) {
+    return { body: feedPage([feedPost(1, 'subscriber', 'night-curator')], null) };
+  }
+  return cursor === null
+    ? { body: feedPage([feedPost(1, 'subscriber', 'night-curator'), feedPost(2, 'public', 'day-curator')], 'cursor-page-2') }
+    : { body: feedPage([feedPost(3, 'public', 'night-curator')], null) };
+};
+
+const featuredCurator = (name: string, index: number, hasActiveMembershipPlan = true) => ({
+  userId: `44444444-4444-4444-4444-44444444444${index}`,
+  username: `${name}-curator`,
+  displayName: `${name} curator`,
+  publicPostCount: 3,
+  recentArtworkUrls: [],
+  hasActiveMembershipPlan,
+});
+
+const postLinks = (page: Page) => page.getByRole('link', { name: /Feed track/ });
+const skeleton = (page: Page) => page.getByTestId('post-grid-skeleton');
+const cursors = (requests: string[]) => requests.map((url) => new URL(url).searchParams.get('cursor'));
+
+const FEED_PATH = '/api/v1/social/feed/posts';
+const SESSION_PATH = '/api/auth/session';
+
+/** Every browser request to `pathname`, including requests a test holds or the app aborts. */
+function trackRequests(page: Page, pathname: string) {
+  const urls: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === pathname) urls.push(request.url());
+  });
+  return urls;
+}
+
+/** Holds matching requests while `hold()` is true at arrival, until `release` is called. */
+async function holdRoute(page: Page, matches: (url: URL) => boolean, hold: () => boolean) {
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.route(matches, async (route) => {
+    if (hold()) await released;
+    // A request the app aborted while held can no longer be answered.
+    await route.fallback().catch(() => {});
+  });
+  return () => release();
+}
+
+const isFeed = (url: URL) => url.pathname === FEED_PATH;
+const isSession = (url: URL) => url.pathname === SESSION_PATH;
+
+test('a member pages through newest posts in the Feed', async ({ page }) => {
+  const curatorFeedRequests = trackRequests(page, FEED_PATH);
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+  let holdNextPage = false;
+  const releaseNextPage = await holdRoute(page, isFeed, () => holdNextPage);
+
+  await page.goto('/feed');
+
+  await expect(page.getByRole('heading', { name: 'From your curators', level: 1 })).toBeVisible();
+  await expect(postLinks(page)).toHaveText([/Feed track 1/, /Feed track 2/]);
+  await expect(page.getByRole('link', { name: /Feed track 1/ })).toContainText('Members only');
+  await expect(page.getByRole('link', { name: /Feed track 2/ })).not.toContainText('Members only');
+
+  holdNextPage = true;
+  await page.getByRole('button', { name: 'Load more' }).click();
+  await expect(page.getByRole('button', { name: 'Load more' })).toBeDisabled();
+  await expect(postLinks(page)).toHaveCount(2);
+  releaseNextPage();
+
+  await expect(postLinks(page)).toHaveText([/Feed track 1/, /Feed track 2/, /Feed track 3/]);
+  await expect(page.getByRole('button', { name: 'Load more' })).toHaveCount(0);
+  expect(cursors(curatorFeedRequests)).toEqual([null, 'cursor-page-2']);
+});
+
+test('the Members only filter asks the server for member posts and keeps its URL', async ({ page }) => {
+  const curatorFeedRequests = trackRequests(page, FEED_PATH);
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+
+  await page.goto('/feed');
+  await expect(postLinks(page)).toHaveCount(2);
+  const filter = page.getByRole('radio', { name: 'Members only' });
+  await filter.click();
+
+  await expect(filter).toHaveAttribute('aria-checked', 'true');
+  await expect(page).toHaveURL('/feed?filter=members');
+  await expect(page.getByRole('heading', { name: 'From your curators', level: 1 })).toBeVisible();
+  await expect(postLinks(page)).toHaveText([/Feed track 1/]);
+  expect(new URL(curatorFeedRequests.at(-1)!).searchParams.get('membersOnly')).toBe('true');
+
+  await page.reload();
+  await expect(page.getByRole('radio', { name: 'Members only' })).toHaveAttribute('aria-checked', 'true');
+  await expect(postLinks(page)).toHaveText([/Feed track 1/]);
+});
+
+test('signed-out visitors are asked to sign in and return to the Feed', async ({ page }) => {
+  const curatorFeedRequests = trackRequests(page, FEED_PATH);
+  await mockCassetteApp(page, { curatorFeed: memberFeed });
+
+  await page.goto('/feed');
+  await expect(page.getByText('Sign in to see your Feed')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toHaveAttribute(
+    'href',
+    `/auth/signin?redirect=${encodeURIComponent('/feed')}`,
+  );
+
+  await page.goto('/feed?filter=members');
+  await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toHaveAttribute(
+    'href',
+    `/auth/signin?redirect=${encodeURIComponent('/feed?filter=members')}`,
+  );
+  await expect(page.getByRole('radio', { name: 'Members only' })).toHaveCount(0);
+  expect(curatorFeedRequests).toEqual([]);
+});
+
+test('a viewer without memberships sees Join a curator without a Feed request or post skeleton', async ({ page }) => {
+  const curatorFeedRequests = trackRequests(page, FEED_PATH);
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.viewer,
+    exploreCurators: [
+      featuredCurator('planless', 0, false),
+      { ...featuredCurator('self', 1), userId: fixtureUsers.viewer.id },
+      featuredCurator('first', 2),
+      featuredCurator('second', 3),
+      featuredCurator('third', 4),
+      featuredCurator('fourth', 5),
+    ],
+  });
+
+  await page.goto('/feed');
+
+  await expect(page.getByRole('heading', { name: 'Join a curator' })).toBeVisible();
+  const featured = page.getByRole('list', { name: 'Featured curators' }).getByRole('link');
+  await expect(featured).toHaveText([/first curator/, /second curator/, /third curator/]);
+  await expect(featured.first()).toHaveAttribute('href', '/profile/first-curator');
+  await expect(page.getByRole('link', { name: 'Explore curators' })).toHaveAttribute('href', '/explore');
+  await expect(page.getByRole('link', { name: 'Memberships', exact: true }).last()).toHaveAttribute('href', '/memberships');
+  await expect(page.getByRole('radio', { name: 'Members only' })).toHaveCount(0);
+  await expect(skeleton(page)).toHaveCount(0);
+  expect(curatorFeedRequests).toEqual([]);
+});
+
+test('a featured curator failure stays inside the join state', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.viewer });
+  await page.route('**/api/v1/social/explore/curators', (route) => route.fulfill({ status: 503, body: 'unavailable' }));
+
+  await page.goto('/feed');
+
+  await expect(page.getByText('Featured curators could not load.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Join a curator' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Explore curators' })).toBeVisible();
+});
+
+test('the Feed waits for the session, then shows the post skeleton only for a positive count', async ({ page }) => {
+  const curatorFeedRequests = trackRequests(page, FEED_PATH);
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+  const releaseSession = await holdRoute(page, isSession, () => true);
+  const releaseFeed = await holdRoute(page, isFeed, () => true);
+
+  await page.goto('/feed');
+  await page.waitForTimeout(500);
+  await expect(skeleton(page)).toHaveCount(0);
+  expect(curatorFeedRequests).toEqual([]);
+
+  releaseSession();
+  await expect(skeleton(page)).toBeVisible();
+  await expect.poll(() => curatorFeedRequests.length).toBe(1);
+
+  releaseFeed();
+  await expect(postLinks(page)).toHaveCount(2);
+  await expect(skeleton(page)).toHaveCount(0);
+});
+
+test('a session outage offers a retry, never the join state or sign-in', async ({ page }) => {
+  const curatorFeedRequests = trackRequests(page, FEED_PATH);
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+  let available = false;
+  await page.route('**/api/auth/session', (route) =>
+    available ? route.fallback() : route.fulfill({ status: 503, body: 'unavailable' }));
+
+  await page.goto('/feed');
+
+  await expect(page.getByText('Could not check your account')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
+  await expect(page.getByText('Sign in to see your Feed')).toHaveCount(0);
+  await expect(skeleton(page)).toHaveCount(0);
+  expect(curatorFeedRequests).toEqual([]);
+
+  available = true;
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(postLinks(page)).toHaveCount(2);
+});
+
+test('a session without a valid membership count is an error, not zero memberships', async ({ page }) => {
+  const curatorFeedRequests = trackRequests(page, FEED_PATH);
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+  await page.route('**/api/auth/session', (route) => route.fulfill({
+    json: {
+      success: true,
+      authenticated: true,
+      user: { userId: fixtureUsers.member.id, username: fixtureUsers.member.username, isOnboarded: true },
+      activeMembershipCount: 1.5,
+    },
+  }));
+
+  await page.goto('/feed');
+
+  await expect(page.getByText('Could not check your account')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
+  expect(curatorFeedRequests).toEqual([]);
+});
+
+test('a failed first page offers a retry', async ({ page }) => {
+  let available = false;
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorFeed: (query) => (available ? memberFeed(query) : { status: 503, body: 'unavailable' }),
+  });
+
+  await page.goto('/feed');
+  // The app retries a failed read with backoff before it shows the error.
+  await expect(page.getByText('Posts could not load')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('No posts yet')).toHaveCount(0);
+  available = true;
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByRole('link', { name: /Feed track 1/ })).toBeVisible();
+});
+
+test('a Feed response without its metadata is an error, not an empty Feed', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorFeed: () => ({ body: { items: [feedPost(1, 'subscriber', 'night-curator')] } }),
+  });
+
+  await page.goto('/feed');
+
+  await expect(page.getByText('Posts could not load')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /Feed track 1/ })).toHaveCount(0);
+});
+
+test('a failed next page keeps loaded rows and retries the same cursor', async ({ page }) => {
+  const curatorFeedRequests = trackRequests(page, FEED_PATH);
+  let nextPageAvailable = false;
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorFeed: (query) =>
+      query.cursor !== null && !nextPageAvailable ? { status: 503, body: 'unavailable' } : memberFeed(query),
+  });
+
+  await page.goto('/feed');
+  await page.getByRole('button', { name: 'Load more' }).click();
+
+  await expect(page.getByText('More posts could not load.')).toBeVisible({ timeout: 15_000 });
+  await expect(postLinks(page)).toHaveCount(2);
+  nextPageAvailable = true;
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(postLinks(page)).toHaveCount(3);
+  await expect(page.getByText('More posts could not load.')).toHaveCount(0);
+  expect(new Set(cursors(curatorFeedRequests).slice(1))).toEqual(new Set(['cursor-page-2']));
+});
+
+test('no posts reads differently from no memberships', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorFeed: () => ({ body: feedPage([], null) }),
+  });
+
+  await page.goto('/feed');
+  await expect(page.getByText('No posts yet')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
+
+  await page.getByRole('radio', { name: 'Members only' }).click();
+  await expect(page.getByText('No members-only posts yet')).toBeVisible();
+  await page.getByRole('button', { name: 'Show all posts' }).click();
+  await expect(page).toHaveURL('/feed');
+  await expect(page.getByText('No posts yet')).toBeVisible();
+});
+
+test.describe('freshness', () => {
+  test('each visible minute restarts the Feed even when the count stays the same', async ({ page }) => {
+    await page.clock.install();
+    const sessionRequests = trackRequests(page, SESSION_PATH);
+    const curatorFeedRequests = trackRequests(page, FEED_PATH);
+    let curator = 'night-curator';
+    await mockCassetteApp(page, {
+      currentUser: { ...fixtureUsers.member, activeMembershipCount: 1 },
+      curatorFeed: () => ({ body: feedPage([feedPost(1, 'subscriber', curator)], 'cursor-page-2', 1) }),
+    });
+
+    await page.goto('/feed');
+    await expect(postLinks(page)).toContainText(['@night-curator']);
+    const sessionsBefore = sessionRequests.length;
+
+    // One membership ended and another began: the count is still one.
+    curator = 'day-curator';
+    await page.clock.fastForward('01:01');
+
+    await expect(postLinks(page)).toContainText(['@day-curator']);
+    await expect(page.getByText('@night-curator')).toHaveCount(0);
+    expect(sessionRequests.length).toBe(sessionsBefore + 1);
+    expect(cursors(curatorFeedRequests)).toEqual([null, null]);
+  });
+
+  test('a membership that ends on its own clears the Feed at the next boundary', async ({ page }) => {
+    await page.clock.install();
+    const curatorFeedRequests = trackRequests(page, FEED_PATH);
+    const { state } = await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      curatorFeed: memberFeed,
+    });
+
+    await page.goto('/feed');
+    await expect(postLinks(page)).toHaveCount(2);
+
+    state.currentUser!.activeMembershipCount = 0;
+    await page.clock.fastForward('01:01');
+
+    await expect(page.getByRole('heading', { name: 'Join a curator' })).toBeVisible();
+    await expect(postLinks(page)).toHaveCount(0);
+    expect(curatorFeedRequests).toHaveLength(1);
+  });
+
+  test('a session failure at the boundary shows a retry instead of loaded posts', async ({ page }) => {
+    await page.clock.install();
+    await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+    let failing = false;
+    await page.route('**/api/auth/session', (route) =>
+      failing ? route.fulfill({ status: 502, body: 'bad gateway' }) : route.fallback());
+
+    await page.goto('/feed');
+    await expect(postLinks(page)).toHaveCount(2);
+
+    failing = true;
+    await page.clock.fastForward('01:01');
+
+    await expect(page.getByText('Could not check your account')).toBeVisible();
+    await expect(postLinks(page)).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
+  });
+
+  test('a page that answers after a reset never restores earlier rows', async ({ page }) => {
+    await page.clock.install();
+    const curatorFeedRequests = trackRequests(page, FEED_PATH);
+    await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+    let holdNextPage = false;
+    const releaseNextPage = await holdRoute(page, (url) => isFeed(url) && url.searchParams.has('cursor'), () => holdNextPage);
+
+    await page.goto('/feed');
+    await expect(postLinks(page)).toHaveCount(2);
+    holdNextPage = true;
+    await page.getByRole('button', { name: 'Load more' }).click();
+    await expect.poll(() => cursors(curatorFeedRequests)).toEqual([null, 'cursor-page-2']);
+
+    // The boundary read keeps the same count, yet the pending page belongs to the earlier set.
+    await page.clock.fastForward('01:01');
+    await expect.poll(() => cursors(curatorFeedRequests)).toEqual([null, 'cursor-page-2', null]);
+    await expect(postLinks(page)).toHaveCount(2);
+    releaseNextPage();
+
+    await page.waitForTimeout(500);
+    await expect(page.getByRole('link', { name: /Feed track 3/ })).toHaveCount(0);
+    await expect(postLinks(page)).toHaveCount(2);
+  });
+
+  test('a session answer that arrives after sign-out never restores the account', async ({ page }) => {
+    await page.clock.install();
+    await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+    let release = () => {};
+    const released = new Promise<void>((resolve) => { release = resolve; });
+    let holdSession = false;
+    await page.route('**/api/auth/session', async (route: Route) => {
+      if (!holdSession) return route.fallback();
+      // Bridge answered for the signed-in member before the sign-out.
+      const stale = {
+        success: true,
+        authenticated: true,
+        user: { userId: fixtureUsers.member.id, username: fixtureUsers.member.username, isOnboarded: true },
+        activeMembershipCount: 2,
+      };
+      await released;
+      await route.fulfill({ json: stale }).catch(() => {});
+    });
+
+    await page.goto('/feed');
+    await expect(postLinks(page)).toHaveCount(2);
+    holdSession = true;
+    await page.clock.fastForward('01:01');
+    await expect(postLinks(page)).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Sign Out' }).click();
+    await expect(page).toHaveURL('/auth/signin');
+    release();
+
+    await page.waitForTimeout(500);
+    await expect(page).toHaveURL('/auth/signin');
+    await expect(page.getByRole('heading', { name: 'Welcome back!' })).toBeVisible();
+  });
+
+  test('another account in the session replaces the Feed at the next read', async ({ page }) => {
+    await page.clock.install();
+    const curatorFeedRequests = trackRequests(page, FEED_PATH);
+    const { state } = await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      users: [fixtureUsers.viewer],
+      curatorFeed: memberFeed,
+    });
+
+    await page.goto('/feed');
+    await expect(postLinks(page)).toHaveCount(2);
+
+    state.currentUser = { ...fixtureUsers.viewer };
+    await page.clock.fastForward('01:01');
+
+    await expect(page.getByRole('heading', { name: 'Join a curator' })).toBeVisible();
+    await expect(postLinks(page)).toHaveCount(0);
+    await expect(page.locator('[data-sidebar="content"]').getByText('@samloops')).toBeVisible();
+    expect(curatorFeedRequests).toHaveLength(1);
+  });
+
+  test('a different count from a Feed page restarts at the first page; zero shows the join state', async ({ page }) => {
+    const curatorFeedRequests = trackRequests(page, FEED_PATH);
+    let feedCount = 3;
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      curatorFeed: () => ({ body: feedPage([feedPost(1, 'public', 'night-curator')], null, feedCount) }),
+    });
+
+    await page.goto('/feed');
+    await expect(postLinks(page)).toHaveCount(1);
+    await expect.poll(() => cursors(curatorFeedRequests)).toEqual([null, null]);
+
+    feedCount = 0;
+    await page.getByRole('radio', { name: 'Members only' }).click();
+    await expect(page.getByRole('heading', { name: 'Join a curator' })).toBeVisible();
+    await expect(postLinks(page)).toHaveCount(0);
+  });
+
+  test('focus refreshes a stale session, and a fresh session lets the Feed open without another read', async ({ page }) => {
+    await page.clock.install();
+    const sessionRequests = trackRequests(page, SESSION_PATH);
+    const curatorFeedRequests = trackRequests(page, FEED_PATH);
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      myMemberships: [],
+      curatorFeed: memberFeed,
+    });
+
+    await page.goto('/memberships');
+    await expect(page.getByRole('heading', { name: 'Memberships', level: 1 })).toBeVisible();
+    const initialReads = sessionRequests.length;
+
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.waitForTimeout(300);
+    expect(sessionRequests.length).toBe(initialReads);
+
+    await page.clock.fastForward('01:01');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect.poll(() => sessionRequests.length).toBe(initialReads + 1);
+
+    await page.getByRole('link', { name: 'Feed', exact: true }).click();
+    await expect(postLinks(page)).toHaveCount(2);
+    expect(sessionRequests.length).toBe(initialReads + 1);
+    expect(curatorFeedRequests).toHaveLength(1);
+  });
+
+  test('opening the Feed with a stale session reads the session before the posts', async ({ page }) => {
+    await page.clock.install();
+    const sessionRequests = trackRequests(page, SESSION_PATH);
+    const curatorFeedRequests = trackRequests(page, FEED_PATH);
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      myMemberships: [],
+      curatorFeed: memberFeed,
+    });
+
+    await page.goto('/memberships');
+    await expect(page.getByRole('heading', { name: 'Memberships', level: 1 })).toBeVisible();
+    const initialReads = sessionRequests.length;
+    await page.clock.fastForward('01:01');
+
+    await page.getByRole('link', { name: 'Feed', exact: true }).click();
+    await expect(postLinks(page)).toHaveCount(2);
+    expect(sessionRequests.length).toBe(initialReads + 1);
+    expect(curatorFeedRequests).toHaveLength(1);
+  });
+});
+
+test.describe('navigation', () => {
+  test('the sidebar puts Feed right after Home for a signed-in viewer only', async ({ page }) => {
+    await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+
+    await page.goto('/feed');
+    const sidebarLinks = page.locator('[data-sidebar="menu"]').getByRole('link');
+    await expect(sidebarLinks).toHaveText(['Home', 'Feed', 'Profile', 'Curator Studio', 'Add Music', 'Memberships']);
+    await expect(page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Feed' })).toHaveAttribute('data-active', 'true');
+
+    await page.getByRole('button', { name: 'Sign Out' }).click();
+    await expect(page).toHaveURL('/auth/signin');
+    await page.goto('/feed');
+    await expect(page.locator('[data-sidebar="menu"]').getByRole('link')).toHaveText(['Home']);
+  });
+
+  test.describe('on a phone', () => {
+    test.use({ viewport: { width: 390, height: 844 } });
+
+    test('the menu lists Home then Feed for a signed-in viewer and hides Feed when signed out', async ({ page }) => {
+      await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+
+      await page.goto('/explore');
+      await page.getByRole('button', { name: 'Open menu' }).click();
+      const browse = page.getByRole('region', { name: 'Browse' }).getByRole('link');
+      await expect(browse).toHaveText(['Home', 'Feed', 'Explore', 'Promote']);
+      await browse.filter({ hasText: 'Feed' }).click();
+      await expect(page).toHaveURL('/feed');
+      await expect(postLinks(page)).toHaveCount(2);
+    });
+
+    test('a signed-out menu has no Feed', async ({ page }) => {
+      await mockCassetteApp(page);
+
+      await page.goto('/explore');
+      await page.getByRole('button', { name: 'Open menu' }).click();
+      await expect(page.getByRole('region', { name: 'Browse' }).getByRole('link')).toHaveText(['Home', 'Explore', 'Promote']);
+    });
+
+    test('the Feed fits the screen', async ({ page }) => {
+      await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+
+      await page.goto('/feed');
+      await expect(page.getByRole('link', { name: /Feed track 1/ })).toBeVisible();
+      await expect(page.getByRole('radio', { name: 'Members only' })).toBeInViewport();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+
+    test('the join state fits the screen', async ({ page }) => {
+      await mockCassetteApp(page, {
+        currentUser: fixtureUsers.viewer,
+        exploreCurators: [featuredCurator('first', 0), featuredCurator('second', 1), featuredCurator('third', 2)],
+      });
+
+      await page.goto('/feed');
+      await expect(page.getByRole('list', { name: 'Featured curators' }).getByRole('link')).toHaveCount(3);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  });
+
+  test('the filter and paging work from the keyboard', async ({ page }) => {
+    await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+
+    await page.goto('/feed');
+    await expect(postLinks(page)).toHaveCount(2);
+    await page.getByRole('button', { name: 'Load more' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(postLinks(page)).toHaveCount(3);
+
+    await page.getByRole('radio', { name: 'All' }).focus();
+    await expect(page.getByRole('radio', { name: 'All' })).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(page).toHaveURL('/feed?filter=members');
+    await expect(page.getByRole('radio', { name: 'Members only' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('radiogroup', { name: 'Post filter' })).toBeVisible();
+  });
+});

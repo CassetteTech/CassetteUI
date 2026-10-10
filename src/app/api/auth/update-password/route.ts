@@ -8,6 +8,7 @@ import {
   requireSameOrigin,
   setSessionCookie,
   stripInternalSessionFields,
+  PRIVATE_SESSION_HEADERS,
 } from '@/lib/server/auth-proxy';
 
 type UpdatePasswordResponse = {
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
   const data = await readJsonResponse<UpdatePasswordResponse & Record<string, unknown>>(backendResponse);
   const response = NextResponse.json(
     stripInternalSessionFields(data ?? {}) ?? {},
-    { status: backendResponse.status }
+    { status: backendResponse.status, headers: PRIVATE_SESSION_HEADERS }
   );
 
   if (backendResponse.ok && data?.sessionId) {

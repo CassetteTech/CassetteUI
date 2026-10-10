@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { authService } from '@/services/auth';
+import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRouter } from 'next/navigation';
 import { appLogger } from '@/lib/observability/logger';
@@ -48,12 +49,15 @@ export const useUpdatePassword = () => {
   });
 };
 
-export const useAuthState = () => {
-  const { user, isLoading, isAuthenticated } = useAuthStore();
-
-  return {
-    user,
-    isLoading,
-    isAuthenticated,
-  };
-};
+export const useAuthState = () =>
+  useAuthStore(
+    useShallow((state) => ({
+      user: state.user,
+      isLoading: state.isLoading,
+      isAuthenticated: state.isAuthenticated,
+      activeMembershipCount: state.activeMembershipCount,
+      sessionCheckedAt: state.sessionCheckedAt,
+      sessionError: state.sessionError,
+      isRefreshingSession: state.isRefreshingSession,
+    })),
+  );

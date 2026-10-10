@@ -94,6 +94,15 @@ async function expectMembershipEvent(
   }
 }
 
+/** Every session read the browser makes; each page load makes one. */
+function trackSessionReads(page: Page) {
+  const reads: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/auth/session') reads.push(request.url());
+  });
+  return reads;
+}
+
 async function returnFromProvider(page: Page, providerUrl: string, returnPath: string) {
   const appOrigin = new URL(page.url()).origin;
   await page.route(providerUrl, (route) => route.fulfill({
@@ -153,6 +162,7 @@ test('unlocks subscriber content only after the polled membership becomes active
     membershipPollSequence: [fixtureActiveMembershipStatus],
     membershipActiveCuratorPage: fixtureMemberCuratorPage,
   });
+  const sessionReads = trackSessionReads(page);
 
   await page.goto(CURATOR_PATH);
   await returnFromProvider(
@@ -170,12 +180,14 @@ test('unlocks subscriber content only after the polled membership becomes active
   await expect.poll(() => state.membershipStatusRequests.length).toBeGreaterThanOrEqual(2);
   await expect(page).not.toHaveURL(/session_id=/);
   await expect(page.getByTestId('membership-notice')).toHaveText('Your membership is active.');
+  // Both page loads read the session; the confirmed activation reads it again, which restarts the Feed.
+  await expect.poll(() => sessionReads.length).toBe(3);
   await page.getByTestId('membership-view-posts').click();
   await expect(page.getByTestId('feed-filter-members')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-testid="curator-feed"] h3:visible')).toHaveCount(1);
   await expect(page.getByTestId('membership-billing')).toContainText('$5.50/month');
   await expect(
-    page.getByTestId('curator-membership-card').getByRole('link', { name: 'My memberships' }),
+    page.getByTestId('curator-membership-card').getByRole('link', { name: 'Memberships' }),
   ).toBeVisible();
   // Conversion is confirmed by the backend from paid subscriptions, never by the client return.
   expect(captures.some((capture) => capture.event === 'membership_started')).toBe(false);
@@ -190,6 +202,7 @@ test('opens the owned Billing Portal membership and trusts its cancellation webh
     membershipStatus: fixtureActiveMembershipStatus,
     membershipPollSequence: [fixtureCancelingMembershipStatus],
   });
+  const sessionReads = trackSessionReads(page);
 
   await page.goto(CURATOR_PATH);
   await returnFromProvider(page, PORTAL_URL, `${CURATOR_PATH}?membership=portal-return`);
@@ -204,6 +217,8 @@ test('opens the owned Billing Portal membership and trusts its cancellation webh
   );
   await expect(page.getByText('Member', { exact: true }).first()).toBeVisible();
   await expectMembershipEvent(captures, 'membership_canceled', true);
+  // Both page loads read the session; the confirmed Portal change reads it again, which restarts the Feed.
+  await expect.poll(() => sessionReads.length).toBe(3);
 });
 
 test('keeps manage available but never offers Join when the curator has no published plan', async ({ page }) => {
@@ -334,6 +349,20 @@ test('does not attribute a crafted return URL to a new membership', async ({ pag
   expect(captures.some((capture) =>
     capture.event === 'membership_started' || capture.event === 'membership_checkout_started',
   )).toBe(false);
+});
+
+test('a return URL alone does not read the session again', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.viewer,
+    curatorPage: fixtureCuratorPage,
+    membershipStatus: fixtureIncompleteMembershipStatus,
+  });
+  const sessionReads = trackSessionReads(page);
+
+  await page.goto(`${CURATOR_PATH}?membership=return`);
+  await expect(joinControl(page)).toBeVisible();
+  await page.waitForTimeout(3_000);
+  expect(sessionReads).toHaveLength(1);
 });
 
 // A Portal visit that changed nothing looks like a change still on its way. The

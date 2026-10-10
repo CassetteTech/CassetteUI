@@ -2,7 +2,9 @@
 
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { authService } from '@/services/auth';
+import { profileQueryKeys } from '@/hooks/use-profile';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   identifyClientUser,
@@ -15,6 +17,7 @@ import { setUiObservabilityContext } from '@/lib/observability/error-reporting';
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isLoading = useAuthStore((state) => state.isLoading);
@@ -23,6 +26,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const dispose = authService.initializeAuthListener();
     return () => dispose && dispose();
   }, []);
+
+  useEffect(
+    () =>
+      useAuthStore.subscribe((state, previous) => {
+        if (previous.user && state.user?.id !== previous.user.id) {
+          // Another account, or none, must never see the previous account's data.
+          // Clearing also cancels every pending read.
+          queryClient.clear();
+        } else if (state.isRefreshingSession && !previous.isRefreshingSession) {
+          // Feed pages are only as current as the session read before them: drop
+          // them, with any pending page read, and restart once the new answer lands.
+          queryClient.removeQueries({ queryKey: profileQueryKeys.allCuratorFeeds() });
+        }
+      }),
+    [queryClient],
+  );
 
   useEffect(() => {
     setClientAnalyticsContext({

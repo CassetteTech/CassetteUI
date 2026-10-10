@@ -49,7 +49,7 @@ type OnboardingPhase = 'welcome' | 'steps' | 'submitting' | 'complete';
 export default function OnboardingPage() {
   const router = useRouter();
   const { user, isLoading } = useAuthState();
-  const setUser = useAuthStore((state) => state.setUser);
+  const updateUser = useAuthStore((state) => state.updateUser);
   const apiUrl = getBrowserApiBaseUrl();
 
   // Stored auth intent is browser-only, so it is resolved after mount into an
@@ -179,6 +179,9 @@ export default function OnboardingPage() {
 
   const handleFinish = useCallback(async () => {
     setPhase('submitting');
+    // The account this profile is saved for. A later session for another
+    // account, or none, wins over this response.
+    const ownerId = useAuthStore.getState().user?.id;
 
     try {
       // Create FormData for file upload
@@ -226,25 +229,29 @@ export default function OnboardingPage() {
       const data = await response.json();
 
       if (data.success) {
-        // Refresh the session to get complete user data including connectedServices
-        // The profile update response may not include all user fields (like connectedServices)
-        const freshUser = await authService.getCurrentUser();
-
-        if (freshUser) {
-          setUser(freshUser);
-        } else if (data.user && typeof data.user === 'object') {
-          // Fallback to response data if session refresh fails
-          // Ensure auth store shape is normalized (profilePicture, connectedServices, etc.)
-          setUser(authService.normalizeAuthUser(data.user as Record<string, unknown>));
-        } else if (user) {
-          // Last resort fallback
-          const updatedUser = {
-            ...user,
-            username: formData.username,
-            displayName: formData.displayName,
-            isOnboarded: true,
-          };
-          setUser(updatedUser);
+        // Refresh the session to get complete user data including connectedServices.
+        // A successful read updates the auth store itself.
+        const refreshed = await authService.refreshSession({ restart: true });
+        const current = useAuthStore.getState().user;
+        if (refreshed.kind === 'signed-out' || refreshed.kind === 'superseded' || current?.id !== ownerId) {
+          // The session ended or changed while the profile saved; this response
+          // must not restore the earlier account. The auth state change routes on.
+          return;
+        }
+        if (refreshed.kind === 'error') {
+          // The session read failed, so keep this profile response for its account.
+          const updatedUser = data.user && typeof data.user === 'object'
+            // Ensure auth store shape is normalized (profilePicture, connectedServices, etc.)
+            ? authService.normalizeAuthUser(data.user as Record<string, unknown>)
+            : current && {
+                ...current,
+                username: formData.username,
+                displayName: formData.displayName,
+                isOnboarded: true,
+              };
+          if (current && updatedUser?.id === current.id) {
+            updateUser(updatedUser);
+          }
         }
 
         toast.success('Profile created successfully!');
@@ -264,7 +271,7 @@ export default function OnboardingPage() {
       });
       setPhase('steps');
     }
-  }, [formData, user, setUser, apiUrl, consumeOnboardingDestination]);
+  }, [formData, updateUser, apiUrl, consumeOnboardingDestination]);
 
   const handleGoToProfile = () => {
     // Check for pending action (e.g., user came from playlist page to convert)

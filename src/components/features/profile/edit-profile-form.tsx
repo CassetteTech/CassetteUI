@@ -14,7 +14,6 @@ import { z } from 'zod';
 import { UserBio } from '@/types';
 import { profileService } from '@/services/profile';
 import { authService } from '@/services/auth';
-import { useAuthStore } from '@/stores/auth-store';
 import { useInvalidateProfileQueries } from '@/hooks/use-profile';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -280,10 +279,7 @@ export function EditProfileFormComponent({ initialData, onSuccess }: EditProfile
       });
 
       // Refresh the auth store with updated user data (including bio)
-      const updatedUser = await authService.getCurrentUser();
-      if (updatedUser) {
-        useAuthStore.getState().setUser(updatedUser);
-      }
+      await authService.refreshSession({ restart: true });
 
       if (initialData?.id) void invalidateBio(initialData.id);
       if (initialData?.username) void invalidateBio(initialData.username);

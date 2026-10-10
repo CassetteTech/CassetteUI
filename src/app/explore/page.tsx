@@ -14,10 +14,11 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
+import { SegmentedControl } from '@/components/ui/interior/segmented-control';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { BackButton } from '@/components/ui/back-button';
-import { ArrowRight, Loader2, LockKeyhole, Plus, Search, X, Star, Music2 } from 'lucide-react';
+import { ArrowRight, LockKeyhole, Plus, Repeat2, Search, X, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
 import type { SponsoredExplorePlacement } from '@/types';
@@ -33,22 +34,7 @@ import {
   type MusicElementType,
 } from './_shared/use-explore-data';
 
-// Deterministic pseudo-random from string so SSR/CSR stay in sync.
-function hashRand(seed: string) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  return () => {
-    h = (h * 1664525 + 1013904223) | 0;
-    return (h >>> 0) / 0xffffffff;
-  };
-}
-
-const TAPE_COLORS = [
-  'bg-primary/70',
-  'bg-accentRoyal/60',
-  'bg-warning/70',
-  'bg-info/60',
-];
+const POST_GRID = 'grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 sm:gap-5';
 
 type ExploreTab = 'discover' | 'subscriptions';
 
@@ -72,48 +58,20 @@ const subscribeToStoredExploreTab = () => () => {};
 
 export default function ExplorePage() {
   return (
-    <div className="min-h-svh bg-background relative overflow-x-hidden">
-      {/* Subtle dotted paper */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.35]"
-        style={{
-          backgroundImage:
-            'radial-gradient(hsl(var(--foreground) / 0.08) 1px, transparent 1px)',
-          backgroundSize: '18px 18px',
-        }}
-      />
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2 relative z-20">
+    // The creator rail bleeds to the viewport edges, so the page clips any
+    // sliver it adds past the scrollbar.
+    <div className="min-h-svh overflow-x-hidden bg-background">
+      <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-8">
         <BackButton fallbackRoute="/" />
       </div>
 
-      {/* ─── Zine Cover ─────────────────────────────────────────────────── */}
-      <header className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-10 relative z-0">
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="relative"
-        >
-          <div className="relative inline-block max-w-full">
-            <h1 className="font-teko font-bold uppercase leading-[0.85] tracking-tight text-foreground text-[clamp(3.5rem,19vw,14rem)]">
-              EXPLORE
-            </h1>
-            <span
-              aria-hidden
-              className="absolute top-1 right-1 sm:top-2 sm:right-6 rotate-[14deg] bg-primary text-primary-foreground px-2.5 py-0.5 sm:px-4 sm:py-1 font-teko text-base sm:text-2xl uppercase tracking-widest shadow-flat-2 sm:shadow-flat-3"
-            >
-              Cassette
-            </span>
-          </div>
-          <p className="mt-8 max-w-md text-base text-muted-foreground italic">
-            The latest public mixes &amp; the creators behind them.
-          </p>
-        </motion.div>
+      <header className="mx-auto max-w-6xl px-4 pb-8 pt-4 sm:px-6 lg:px-8">
+        <h1 className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">
+          Explore
+        </h1>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 relative">
+      <main className="mx-auto max-w-6xl px-4 pb-24 sm:px-6 lg:px-8">
         {/* The tab and filter live in the URL, which only the client knows. */}
         <Suspense fallback={<ExploreFeedsSkeleton />}>
           <ExploreFeeds />
@@ -171,9 +129,11 @@ function ExploreFeeds() {
         onValueChange={(next) => updateQuery(parseExploreTab(next) ?? 'discover', false)}
         className={cn('gap-0', isResolvingDefault && 'hidden')}
       >
+        {/* The same underline strip as the profile and Studio pages; the
+            negative margin lines the first label up with the page title. */}
         <TabsList
           aria-label="Explore feeds"
-          className="relative mb-12 flex h-auto w-full justify-start gap-1 rounded-none border-b border-border bg-transparent p-0"
+          className="relative -mx-3 mb-10 flex h-auto w-auto justify-start gap-1 rounded-none border-b border-border bg-transparent p-0"
         >
           {!isResolvingDefault && <TabUnderline value={activeTab} />}
           {(['discover', 'subscriptions'] as const).map((tab) => {
@@ -182,7 +142,7 @@ function ExploreFeeds() {
               <TabsTrigger
                 key={tab}
                 value={tab}
-                className="h-11 flex-none rounded-none border-0 px-4 font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent"
+                className="h-10 flex-none rounded-none border-0 px-3 text-sm font-normal text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent"
               >
                 <span className="tab-label" data-label={label}>{label}</span>
               </TabsTrigger>
@@ -212,8 +172,8 @@ function ExploreFeeds() {
 function ExploreFeedsSkeleton() {
   return (
     <div aria-busy="true" aria-label="Loading Explore">
-      <Skeleton className="mb-12 h-11 w-64 rounded-none" />
-      <PolaroidSkeleton />
+      <Skeleton className="mb-10 h-10 w-56" />
+      <PostGridSkeleton />
     </div>
   );
 }
@@ -225,11 +185,11 @@ function DiscoverFeed() {
   const hasExploreContent = data.allPosts.length > 0 || sponsoredSectionType !== null;
 
   if (data.postsError) {
-    return <p className="text-muted-foreground">Unable to load the explore feed right now.</p>;
+    return <p className="text-sm text-muted-foreground">Unable to load the explore feed right now.</p>;
   }
 
   return (
-    <div className="space-y-20">
+    <div className="space-y-16">
       <FeaturedCurators />
 
       <CreatorsMarquee
@@ -245,20 +205,17 @@ function DiscoverFeed() {
       />
 
       {isInitialLoading ? (
-        <PolaroidSkeleton />
+        <PostGridSkeleton />
       ) : !hasExploreContent ? (
-        <div className="mx-auto max-w-md rotate-[-1.5deg] bg-card border-2 border-foreground px-6 py-10 text-center shadow-flat-6">
-          <p className="font-teko text-3xl uppercase">Nothing public — yet</p>
-          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
-            Paste something in!
-          </p>
-        </div>
+        <Empty>
+          <EmptyTitle>Nothing public yet</EmptyTitle>
+          <EmptyDescription>Public posts appear here as creators share them.</EmptyDescription>
+        </Empty>
       ) : (
-        MUSIC_SECTION_ORDER.map((type, idx) => (
-          <ZineSection
+        MUSIC_SECTION_ORDER.map((type) => (
+          <MusicSection
             key={type}
             title={MUSIC_SECTION_LABELS[type]}
-            accentIndex={idx}
             posts={data.groupedPosts[type].slice(0, data.visiblePostsBySection[type])}
             sponsoredPlacement={sponsoredSectionType === type ? data.sponsoredPlacement : undefined}
             emptyText={MUSIC_SECTION_EMPTY_COPY[type]}
@@ -302,7 +259,7 @@ function SubscriptionFeed({
   );
 
   if (isAuthLoading || (isSignedIn && feed.isPending)) {
-    return <PolaroidSkeleton />;
+    return <PostGridSkeleton />;
   }
 
   if (!isSignedIn) {
@@ -367,28 +324,21 @@ function SubscriptionFeed({
 
   return (
     <section aria-labelledby="subscription-feed-heading">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <h2
-          id="subscription-feed-heading"
-          className="font-teko text-5xl sm:text-6xl font-bold uppercase leading-none tracking-tight"
-        >
-          {membersOnly ? 'Member posts' : 'From your curators'}
-        </h2>
-        <fieldset className="flex gap-1">
-          <legend className="sr-only">Post filter</legend>
-          {([['All', false], ['Members only', true]] as const).map(([label, value]) => (
-            <Button
-              key={label}
-              size="sm"
-              variant={membersOnly === value ? 'default' : 'outline'}
-              aria-pressed={membersOnly === value}
-              onClick={() => onMembersOnlyChange(value)}
-            >
-              {label}
-            </Button>
-          ))}
-        </fieldset>
-      </div>
+      <SectionHeading
+        id="subscription-feed-heading"
+        title={membersOnly ? 'Member posts' : 'From your curators'}
+        action={
+          <SegmentedControl
+            label="Post filter"
+            value={membersOnly ? 'members' : 'all'}
+            onValueChange={(next) => onMembersOnlyChange(next === 'members')}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'members', label: 'Members only' },
+            ]}
+          />
+        }
+      />
 
       {posts.length === 0 ? (
         <Empty>
@@ -405,9 +355,9 @@ function SubscriptionFeed({
           ) : discoverButton}
         </Empty>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-          {posts.map((post, i) => (
-            <Polaroid key={post.postId} post={post} index={i} />
+        <div className={POST_GRID}>
+          {posts.map((post) => (
+            <PostCard key={post.postId} post={post} />
           ))}
         </div>
       )}
@@ -434,7 +384,7 @@ function sponsoredMusicElementType(placement?: SponsoredExplorePlacement): Music
   return MUSIC_SECTION_ORDER.includes(type as MusicElementType) ? type as MusicElementType : null;
 }
 
-function SponsoredPolaroid({ placement }: { placement: SponsoredExplorePlacement }) {
+function SponsoredPostCard({ placement }: { placement: SponsoredExplorePlacement }) {
   const cardRef = useRef<HTMLElement>(null);
   const impressionCaptured = useRef(false);
   const impressionPostId = useRef<string | null>(null);
@@ -475,61 +425,49 @@ function SponsoredPolaroid({ placement }: { placement: SponsoredExplorePlacement
     return () => observer.disconnect();
   }, [placement]);
 
-  const post = placement.post;
-  const href = `/post/${post.redirectPostId || post.postId}`;
   return (
-    <article ref={cardRef} data-testid="sponsored-explore" className="relative">
-      <Link
-        href={href}
+    <article ref={cardRef} data-testid="sponsored-explore">
+      <PostCard
+        post={placement.post}
+        artworkTestId="sponsored-explore-artwork"
+        kicker={
+          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-primary">{placement.label}</p>
+        }
         onClick={() => {
           void captureClientEvent('sponsored_explore_opened', {
             source_surface: 'explore',
             placement_type: placement.placementType,
-            post_id: post.postId,
+            post_id: placement.post.postId,
           });
         }}
-        className="group block border-2 border-foreground bg-primary-foreground force-light-surface p-3 pb-4 text-foreground shadow-flat-primary-6 transition-shadow hover:shadow-flat-primary-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <div className="mb-3 border-b border-foreground/25 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.18em]">
-          <span className="text-primary">{placement.label}</span>
-        </div>
-        <div data-testid="sponsored-explore-artwork" className="relative aspect-square overflow-hidden bg-muted">
-          {post.imageUrl ? (
-            <Image
-              src={post.imageUrl}
-              alt={post.title}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <Image src="/images/ic_music.png" alt="" width={40} height={40} className="opacity-30" />
-            </div>
-          )}
-        </div>
-        <div className="pt-3">
-          <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight line-clamp-2 transition-colors group-hover:text-primary">
-            {post.title}
-          </h3>
-          {post.subtitle && <p className="mt-1 text-xs italic text-muted-foreground line-clamp-1">{post.subtitle}</p>}
-          <div className="mt-2 flex items-center gap-2">
-            <span className="h-px flex-1 bg-foreground/20" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              @{post.username}
-            </span>
-          </div>
-        </div>
-      </Link>
+      />
     </article>
   );
 }
 
 /* ─── Sections ────────────────────────────────────────────────────────────── */
 
-function ZineSection({
+function SectionHeading({
+  id,
   title,
-  accentIndex,
+  action,
+}: {
+  id?: string;
+  title: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+      <h2 id={id} className="font-teko text-3xl font-bold uppercase leading-none tracking-tight sm:text-4xl">
+        {title}
+      </h2>
+      {action}
+    </div>
+  );
+}
+
+function MusicSection({
+  title,
   posts,
   sponsoredPlacement,
   emptyText,
@@ -538,7 +476,6 @@ function ZineSection({
   onLoadMore,
 }: {
   title: string;
-  accentIndex: number;
   posts: ActivityPost[];
   sponsoredPlacement?: SponsoredExplorePlacement;
   emptyText: string;
@@ -546,7 +483,6 @@ function ZineSection({
   isLoadingMore: boolean;
   onLoadMore: () => void;
 }) {
-  const titleRotate = accentIndex % 2 === 0 ? '-rotate-[2deg]' : 'rotate-[2deg]';
   const organicPosts = sponsoredPlacement
     ? posts.filter((post) => post.postId !== sponsoredPlacement.post.postId)
     : posts;
@@ -558,36 +494,31 @@ function ZineSection({
       viewport={{ once: true, margin: '-10%' }}
       transition={{ duration: 0.4 }}
     >
-      <div className="flex items-end justify-between gap-4 mb-8">
-        <div className={cn('inline-block', titleRotate)}>
-          <h2 className="font-teko text-5xl sm:text-6xl lg:text-7xl font-bold uppercase tracking-tight leading-none text-foreground">
-            {title}
-            <span
-              aria-hidden
-              className="ml-1 inline-block h-6 sm:h-8 lg:h-10 w-1.5 bg-primary align-baseline animate-pulse"
-            />
-          </h2>
-        </div>
-        {hasMore && organicPosts.length > 0 && (
-          <button
-            onClick={onLoadMore}
-            disabled={isLoadingMore}
-            className="shrink-0 rotate-[2deg] bg-background border-2 border-foreground px-4 py-2 font-mono text-[10px] uppercase tracking-[0.25em] hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors disabled:opacity-50 shadow-flat-3"
-          >
-            {isLoadingMore ? <Loader2 className="inline w-3 h-3 animate-spin" /> : 'More clips +'}
-          </button>
-        )}
-      </div>
+      <SectionHeading
+        title={title}
+        action={
+          hasMore && organicPosts.length > 0 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+              aria-label={`Load more ${title.toLowerCase()}`}
+            >
+              {isLoadingMore && <Spinner size="sm" />}
+              Load more
+            </Button>
+          ) : undefined
+        }
+      />
 
       {!hasPosts ? (
-        <p className="font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground border-t-2 border-dashed border-foreground/30 py-4 text-center">
-          — {emptyText} —
-        </p>
+        <p className="text-sm text-muted-foreground">{emptyText}</p>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-          {sponsoredPlacement && <SponsoredPolaroid placement={sponsoredPlacement} />}
-          {organicPosts.map((post, i) => (
-            <Polaroid key={post.postId} post={post} index={i + (sponsoredPlacement ? 1 : 0)} />
+        <div className={POST_GRID}>
+          {sponsoredPlacement && <SponsoredPostCard placement={sponsoredPlacement} />}
+          {organicPosts.map((post) => (
+            <PostCard key={post.postId} post={post} />
           ))}
         </div>
       )}
@@ -595,12 +526,22 @@ function ZineSection({
   );
 }
 
-function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
-  const rand = hashRand(post.postId || String(index));
-  const rot = (rand() - 0.5) * 5;
-  const tapeColor = TAPE_COLORS[index % TAPE_COLORS.length];
-  const tapeSide = index % 2 === 0 ? 'left' : 'right';
+// Overlaid on artwork: the same chip as the profile post card's type label.
+const ARTWORK_BADGE =
+  'absolute bottom-2 inline-flex items-center gap-1 rounded bg-background/85 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.15em] text-foreground/80 ring-1 ring-border/50 backdrop-blur-md';
 
+function PostCard({
+  post,
+  kicker,
+  artworkTestId,
+  onClick,
+}: {
+  post: ActivityPost;
+  /** A line above the title, such as a sponsored label. */
+  kicker?: React.ReactNode;
+  artworkTestId?: string;
+  onClick?: () => void;
+}) {
   const targetPostId = post.redirectPostId || post.postId;
   const href = targetPostId ? `/post/${targetPostId}` : '#';
   const detail = (post.description && post.description.trim()) || post.subtitle;
@@ -609,70 +550,48 @@ function Polaroid({ post, index }: { post: ActivityPost; index: number }) {
     : post.username;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20, rotate: 0 }}
-      whileInView={{ opacity: 1, y: 0, rotate: rot }}
-      whileHover={{ rotate: 0, y: -4, scale: 1.02 }}
-      viewport={{ once: true, margin: '-5%' }}
-      transition={{ duration: 0.4, delay: Math.min(index * 0.03, 0.2) }}
-      className="relative"
-      style={{ transformOrigin: 'center' }}
+    <Link
+      href={href}
+      onClick={onClick}
+      className="card-ink group block overflow-hidden transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <span
-        aria-hidden
-        className={cn(
-          'absolute -top-2 z-10 h-5 w-16 rotate-[-6deg] opacity-80 border border-foreground/10',
-          tapeColor,
-          tapeSide === 'left' ? 'left-3' : 'right-3'
-        )}
-      />
-
-      <Link
-        href={href}
-        className="group block bg-primary-foreground force-light-surface text-foreground border-2 border-foreground p-3 pb-4 shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow"
-      >
-        <div className="relative aspect-square overflow-hidden bg-muted">
-          {post.imageUrl ? (
-            <Image
-              src={post.imageUrl}
-              alt={post.title}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Image src="/images/ic_music.png" alt="" width={40} height={40} className="opacity-30" />
-            </div>
-          )}
-          {post.isRepost && (
-            <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 bg-foreground text-background px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]">
-              <Star className="w-2.5 h-2.5" fill="currentColor" />
-              repost
-            </span>
-          )}
-          {post.privacy === 'subscriber' && (
-            <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 bg-primary text-primary-foreground px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]">
-              <LockKeyhole aria-hidden className="w-2.5 h-2.5" />
-              Members only
-            </span>
-          )}
-        </div>
-
-        <div className="pt-3">
-          <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight line-clamp-2 group-hover:text-primary transition-colors">
-            {post.title}
-          </h3>
-          {detail && <p className="mt-1 text-xs text-muted-foreground line-clamp-1 italic">{detail}</p>}
-          <div className="mt-2 flex items-center gap-2">
-            <span className="h-px flex-1 bg-foreground/20" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              @{username}
-            </span>
+      <div data-testid={artworkTestId} className="relative aspect-square overflow-hidden bg-muted">
+        {post.imageUrl ? (
+          <Image
+            src={post.imageUrl}
+            alt={post.title}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <Music2 aria-hidden className="size-8 text-muted-foreground/50" />
           </div>
-        </div>
-      </Link>
-    </motion.div>
+        )}
+        {post.isRepost && (
+          <span className={cn(ARTWORK_BADGE, 'left-2')}>
+            <Repeat2 aria-hidden className="size-2.5" />
+            Repost
+          </span>
+        )}
+        {post.privacy === 'subscriber' && (
+          <span className={cn(ARTWORK_BADGE, 'right-2')}>
+            <LockKeyhole aria-hidden className="size-2.5" />
+            Members only
+          </span>
+        )}
+      </div>
+
+      <div className="p-3">
+        {kicker}
+        <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight line-clamp-2 transition-colors group-hover:text-primary">
+          {post.title}
+        </h3>
+        {detail && <p className="mt-1 line-clamp-1 text-xs italic text-muted-foreground">{detail}</p>}
+        <p className="mt-2 truncate font-mono text-xs text-muted-foreground">@{username}</p>
+      </div>
+    </Link>
   );
 }
 
@@ -693,14 +612,7 @@ function FeaturedCurators() {
       viewport={{ once: true, margin: '-10%' }}
       transition={{ duration: 0.4 }}
     >
-      <div className="mb-8 inline-block">
-        <h2 className="font-teko text-5xl sm:text-6xl font-bold uppercase leading-none tracking-tight">
-          Featured Curators
-        </h2>
-        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-          Hand-picked tastemakers on Cassette
-        </p>
-      </div>
+      <SectionHeading title="Featured curators" />
 
       {curators && curators.length > 0 ? (
         <CuratorCoverflow curators={curators} />
@@ -1225,85 +1137,72 @@ function CreatorsMarquee({
 
   return (
     <section>
-      <div className="flex items-end justify-between gap-4 mb-6">
-        <div className="-rotate-[1.5deg]">
-          <h2 className="font-teko text-5xl sm:text-6xl font-bold uppercase leading-none tracking-tight">
-            Creators
-          </h2>
-        </div>
-      </div>
-
-      <div className="relative mb-6 max-w-md force-light-surface">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          value={searchValue}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="who are you looking for?"
-          className="h-11 rounded-full border-2 border-foreground !bg-primary-foreground pl-9 pr-9 text-foreground shadow-flat-3 focus-visible:border-primary focus-visible:ring-0 focus-visible:shadow-flat-primary-3"
-        />
-        {searchValue && (
-          <button onClick={() => onSearchChange('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Clear">
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+      <SectionHeading
+        title="Creators"
+        action={
+          <div className="relative w-full sm:w-72">
+            <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchValue}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search creators"
+              aria-label="Search creators"
+              className="h-10 pl-9 pr-9"
+            />
+            {searchValue && (
+              <button
+                type="button"
+                onClick={() => onSearchChange('')}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+        }
+      />
 
       {isLoading ? (
         <div
-          className="mx-[calc(50%-50vw)] px-10 sm:px-16 flex gap-4 overflow-hidden"
+          className="mx-[calc(50%-50vw)] flex gap-4 overflow-hidden px-10 py-2 sm:px-16"
           style={RAIL_EDGE_FADE}
         >
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-52 rounded-2xl shrink-0" />
+            <Skeleton key={i} className="h-[70px] w-[220px] shrink-0 rounded-lg" />
           ))}
         </div>
       ) : error ? (
-        <div className="card-quiet border-destructive/40 px-5 py-4">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-destructive">
-            Unable to load creators right now.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRetry}
-            className="mt-3 border-foreground/30"
-          >
+        <div className="card-ink px-5 py-4">
+          <p className="text-sm text-destructive">Unable to load creators right now.</p>
+          <Button variant="outline" size="sm" onClick={onRetry} className="mt-3">
             Retry
           </Button>
         </div>
       ) : users.length === 0 ? (
-        <p className="font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground border-t-2 border-dashed border-foreground/30 py-4 text-center">
-          — No creators match —
-        </p>
+        <p className="text-sm text-muted-foreground">No creators match.</p>
       ) : (
         <div
           ref={railRef}
-          className="mx-[calc(50%-50vw)] px-10 sm:px-16 py-4 overflow-x-auto no-scrollbar"
+          className="no-scrollbar mx-[calc(50%-50vw)] overflow-x-auto px-10 py-2 sm:px-16"
           style={RAIL_EDGE_FADE}
         >
-          <div className="flex gap-5">
-            {users.map((u, i) => (
-              <CreatorSticker key={u.userId || u.username} user={u} index={i} />
+          <div className="flex gap-4">
+            {users.map((u) => (
+              <CreatorCard key={u.userId || u.username} user={u} />
             ))}
             {hasMore && (
               <button
+                type="button"
                 onClick={onLoadMore}
                 disabled={isLoadingMore}
-                className="group shrink-0 w-[220px] rotate-[1.5deg] bg-primary-foreground force-light-surface text-foreground border-2 border-foreground rounded-2xl px-4 py-3 shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow disabled:opacity-50"
+                aria-label="Load more creators"
+                className="card-ink group flex w-[220px] shrink-0 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
               >
-                <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-foreground">
-                    {isLoadingMore ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plus className="h-4 w-4" />
-                    )}
-                  </span>
-                  <div className="min-w-0 flex-1 text-left">
-                    <p className="text-sm font-semibold transition-colors group-hover:text-primary">Load more</p>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">creators</p>
-                  </div>
-                </div>
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border">
+                  {isLoadingMore ? <Spinner size="sm" /> : <Plus aria-hidden className="size-4" />}
+                </span>
+                <span className="text-sm font-semibold transition-colors group-hover:text-primary">Load more</span>
               </button>
             )}
           </div>
@@ -1313,42 +1212,39 @@ function CreatorsMarquee({
   );
 }
 
-function CreatorSticker({ user, index }: { user: ExploreUser; index: number }) {
-  const rand = hashRand(user.userId || user.username || String(index));
-  const rot = (rand() - 0.5) * 4;
+function CreatorCard({ user }: { user: ExploreUser }) {
   const initials = user.username?.charAt(0)?.toUpperCase() || 'U';
   const displayName = user.displayName?.trim() || user.username;
   return (
     <Link
       href={`/profile/${user.username}`}
-      className="group shrink-0 w-[220px] bg-primary-foreground force-light-surface text-foreground border-2 border-foreground rounded-2xl px-4 py-3 shadow-flat-4 hover:shadow-flat-primary-6 transition-shadow"
-      style={{ transform: `rotate(${rot}deg)` }}
+      className="card-ink group flex w-[220px] shrink-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <div className="flex items-center gap-3">
-        <Avatar className="h-11 w-11 border-2 border-foreground shrink-0">
-          <AvatarImage src={user.avatarUrl} alt={`@${user.username}`} />
-          <AvatarFallback>{initials}</AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1">
-            <p className="text-sm font-semibold truncate group-hover:text-primary transition-colors">{displayName}</p>
-            <VerificationBadge accountType={user.accountType} size="sm" showTooltip={false} />
-          </div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground truncate">@{user.username}</p>
+      <Avatar className="size-11 shrink-0 ring-1 ring-border/40">
+        <AvatarImage src={user.avatarUrl} alt={`@${user.username}`} />
+        <AvatarFallback>{initials}</AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1">
+          <p className="truncate text-sm font-semibold transition-colors group-hover:text-primary">{displayName}</p>
+          <VerificationBadge accountType={user.accountType} size="sm" showTooltip={false} />
         </div>
+        <p className="truncate font-mono text-xs text-muted-foreground">@{user.username}</p>
       </div>
     </Link>
   );
 }
 
-function PolaroidSkeleton() {
+function PostGridSkeleton() {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
+    <div className={POST_GRID}>
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="bg-primary-foreground force-light-surface border-2 border-foreground p-3 pb-4 shadow-flat-4">
+        <div key={i} className="card-ink overflow-hidden">
           <Skeleton className="aspect-square w-full rounded-none" />
-          <Skeleton className="h-5 w-4/5 mt-3" />
-          <Skeleton className="h-3 w-3/5 mt-2" />
+          <div className="p-3">
+            <Skeleton className="h-5 w-4/5" />
+            <Skeleton className="mt-2 h-3 w-3/5" />
+          </div>
         </div>
       ))}
     </div>

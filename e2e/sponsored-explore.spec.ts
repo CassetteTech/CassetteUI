@@ -115,7 +115,7 @@ test('renders sponsored-only inventory in its matching section', async ({ page }
 
   await expect(page.getByRole('heading', { name: 'Albums' })).toBeVisible();
   await expect(page.getByTestId('sponsored-explore')).toContainText('Signal Fire');
-  await expect(page.getByText('Nothing public — yet')).toHaveCount(0);
+  await expect(page.getByText('Nothing public yet')).toHaveCount(0);
 });
 
 test('sends the last viewed sponsor as the next Explore rotation cursor', async ({ page }) => {

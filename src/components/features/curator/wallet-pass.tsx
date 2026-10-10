@@ -77,16 +77,18 @@ export function WalletPass({
           <span className="truncate">{product}</span>
           <span className="shrink-0">{tier}</span>
         </div>
+        {/* Shared sizes: a pass with a summary prints a larger photo and name on wide screens,
+            so a handoff to or from a standard pass grows or shrinks them as the card moves. */}
         <div className="relative flex items-center gap-3">
-          <Avatar className={cn('size-12 border-2', summary && 'lg:size-16', active ? 'border-primary-foreground/30' : 'border-border')}>
+          <Avatar data-shared-size="avatar" className={cn('size-12 border-2', summary && 'lg:size-16', active ? 'border-primary-foreground/30' : 'border-border')}>
             <AvatarImage src={avatarUrl} alt="" />
             {/* Delay keeps a cached photo from flashing its initial when the pass remounts across pages. */}
-            <AvatarFallback delayMs={avatarUrl ? 400 : undefined} className={cn('bg-background font-teko text-xl font-bold text-foreground', summary && 'lg:text-2xl')}>
+            <AvatarFallback data-shared-size="initial" delayMs={avatarUrl ? 400 : undefined} className={cn('bg-background font-teko text-xl font-bold text-foreground', summary && 'lg:text-2xl')}>
               {holderName.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 text-left">
-            <p className={cn('truncate text-sm font-semibold underline-offset-4 group-hover:underline', summary && 'lg:text-base')}>{holderName}</p>
+            <p data-shared-size="name" className={cn('truncate text-sm font-semibold underline-offset-4 group-hover:underline', summary && 'lg:text-base')}>{holderName}</p>
             <p className="truncate font-mono text-[11px] opacity-75">@{holderHandle}</p>
           </div>
         </div>

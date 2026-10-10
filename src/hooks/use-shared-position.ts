@@ -3,7 +3,9 @@
     instead of two cards swapping. Positions are viewport-relative, so the two pages
     can scroll in different containers. Descendants marked `data-shared-tint="<part>"`
     also blend their colors and opacity from the same part of the departing element,
-    so a muted pass that hands off to a brand-red one changes color as it moves.
+    so a muted pass that hands off to a brand-red one changes color as it moves, and
+    descendants marked `data-shared-size="<part>"` ease their size and type size, so a
+    larger photo or name on one page shrinks or grows into the other instead of jumping.
 
     A page whose copy waits on a data read calls `useSharedPositionHold`: the departing
     element stays on screen as an inert copy, moves to the slot the new copy will fill,
@@ -12,14 +14,14 @@
 
 import { useLayoutEffect, type RefObject } from 'react';
 
-const tintProperties = ['backgroundColor', 'color', 'opacity'] as const;
-type Tint = Record<(typeof tintProperties)[number], string>;
+type PartStyle = Record<string, string>;
 type LastPosition = {
   top: number;
   left: number;
   width: number;
   at: number;
-  tints: Map<string, Tint>;
+  /** Computed styles of the shared parts, by kind and part name. */
+  parts: Map<string, PartStyle>;
   /** The departing element, held on screen while a page waits for its copy. */
   held: HTMLElement | null;
   /** Whether the held copy was painted, so taking it away is a change on screen. */
@@ -42,14 +44,32 @@ const releaseMs = 150;
 const dissolveMs = 180;
 const slideEasing = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
+// The properties each kind of shared part carries over a handoff, and how it eases: colors ease
+// in and out, sizes ease like the slide.
+const sharedKinds = [
+  { attribute: 'data-shared-tint', properties: ['backgroundColor', 'color', 'opacity'], easing: 'ease-in-out' },
+  { attribute: 'data-shared-size', properties: ['width', 'height', 'fontSize', 'lineHeight'], easing: slideEasing },
+] as const;
+
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function tintedParts(node: HTMLElement) {
-  return [...node.querySelectorAll<HTMLElement>('[data-shared-tint]')].map((part) => {
-    const style = getComputedStyle(part);
-    const tint = { backgroundColor: style.backgroundColor, color: style.color, opacity: style.opacity };
-    return { part, name: part.dataset.sharedTint ?? '', tint };
-  });
+/** Shared parts with their computed styles. The id is also the selector for the same part elsewhere. */
+function sharedParts(node: Element) {
+  return sharedKinds.flatMap(({ attribute, properties, easing }) =>
+    [...node.querySelectorAll(`[${attribute}]`)].map((part) => {
+      const computed = getComputedStyle(part);
+      const style = Object.fromEntries(properties.map((property) => [property, computed[property]]));
+      return { part, id: `[${attribute}="${part.getAttribute(attribute)}"]`, style, easing };
+    }));
+}
+
+/** Keyframes from a departed part's style to its counterpart's, with only the properties that differ. */
+function partChange(from: PartStyle | undefined, to: PartStyle) {
+  if (!from) return null;
+  const changed = Object.keys(to).filter((property) => from[property] !== to[property]);
+  if (changed.length === 0) return null;
+  const pick = (style: PartStyle) => Object.fromEntries(changed.map((property) => [property, style[property]]));
+  return [pick(from), pick(to)];
 }
 
 /** Animates `element` from a spot to where it is now, with the top-left corners matched. */
@@ -133,12 +153,14 @@ export function useSharedPosition(ref: RefObject<HTMLElement | null>, key: strin
       const scale = rect.width > 0 ? from.width / rect.width : 1;
       const slide = slideFrom(node, dx, dy, scale);
       if (slide) animations.push(slide);
-      // The blend is a change on screen, so it eases in and out across the slide.
-      for (const { part, name, tint } of tintedParts(node)) {
-        const from = previous.tints.get(name);
-        if (from && tintProperties.some((property) => from[property] !== tint[property])) {
-          animations.push(part.animate([from, tint], { duration: slideMs, easing: 'ease-in-out' }));
-        }
+      // Shared parts change across the slide. A held copy's matching parts make the same change,
+      // so the two cards stay in step while it fades.
+      for (const { part, id, style, easing } of sharedParts(node)) {
+        const keyframes = partChange(previous.parts.get(id), style);
+        if (!keyframes) continue;
+        animations.push(part.animate(keyframes, { duration: slideMs, easing }));
+        const heldPart = held?.querySelector(id);
+        if (heldPart) animations.push(heldPart.animate(keyframes, { duration: slideMs, easing, fill: 'forwards' }));
       }
       if (held) {
         // The held copy was on screen while the page loaded, so the two cards cross-fade: the copy
@@ -178,9 +200,9 @@ export function useSharedPosition(ref: RefObject<HTMLElement | null>, key: strin
       departedThisCommit.add(key);
       // React runs a commit's cleanups in one task, so a microtask clears the set after it.
       queueMicrotask(() => departedThisCommit.delete(key));
-      const tints = new Map(tintedParts(node).map(({ name, tint }) => [name, tint]));
+      const parts = new Map(sharedParts(node).map(({ id, style }) => [id, style]));
       const entry: LastPosition = {
-        top, left, width, at: Date.now(), tints, shown: false,
+        top, left, width, at: Date.now(), parts, shown: false,
         held: reducedMotion() ? null : holdCopy(node, top, left, width),
       };
       lastPositions.set(key, entry);

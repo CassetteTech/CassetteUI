@@ -26,6 +26,12 @@ test.describe('profile rail', () => {
     await expect(sidebar.getByText(`@${fixtureUsers.viewer.username}`)).toBeVisible();
     await expect(sidebar.getByText(`@${fixtureUsers.playlistCurator.username}`)).toHaveCount(0);
     await expect(sidebar.getByRole('button', { name: 'Notifications' })).toBeVisible();
+    // A double click opens and closes the menu, keeps focus on the button, and selects no nav label.
+    const inbox = sidebar.getByRole('button', { name: 'Notifications' });
+    await inbox.dblclick();
+    await expect(inbox).toHaveAttribute('aria-expanded', 'false');
+    await expect(inbox).toBeFocused();
+    expect(await page.evaluate(() => window.getSelection()?.toString().trim() ?? '')).toBe('');
 
     const pass = page.getByTestId('curator-membership-card');
     await expect(pass.getByText(fixtureUsers.playlistCurator.bio!)).toBeVisible();

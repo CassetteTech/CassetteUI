@@ -31,7 +31,11 @@ export function TabUnderline({ value }: { value: string }) {
   }, [value]);
 
   useEffect(() => {
-    if (box) setSettled(true);
+    if (!box) return;
+    // Two renders can land before the next frame. The forced style read commits the first
+    // position, or the transition starts from the unstyled bar at the left edge.
+    bar.current?.getBoundingClientRect();
+    setSettled(true);
   }, [box]);
 
   return (

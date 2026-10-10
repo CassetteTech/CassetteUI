@@ -1305,10 +1305,14 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       >
         {isDesktop ? (
             // Desktop: one layout for every post type
-            <div className="pt-16">
+            // A post shorter than the window (a track or an artist post) centers under the navbar:
+            // the two flex-1 pseudo-elements share the free space, and the container's 1rem padding
+            // matches the toolbar's above. A taller post starts at the top and scrolls, with the
+            // after spacer's 5rem minimum as its bottom space.
+            <div className="flex min-h-svh flex-col pt-16 before:flex-1 after:min-h-20 after:flex-1">
               {/* The toolbar and the post share one container, so Back and Share sit on the
                   content's edges. Visitors get a narrower container; the owner column widens it. */}
-              <div className={`mx-auto px-8 pb-24 ${ownerColumnBeside ? 'max-w-7xl' : 'max-w-[68rem]'}`}>
+              <div className={`mx-auto w-full px-8 pb-4 ${ownerColumnBeside ? 'max-w-7xl' : 'max-w-[68rem]'}`}>
                 <div className="pt-4 pb-6 relative z-20">
                 <div className="flex items-center justify-between gap-3">
                   <BackButton route={backRoute} fallbackRoute="/explore" />

@@ -237,7 +237,7 @@ function CuratorStudio() {
                 >
                   {/* Icons drop out on phones so all three views fit without scrolling. */}
                   <item.icon aria-hidden className="hidden size-4 shrink-0 sm:block" />
-                  {item.label}
+                  <span className="tab-label" data-label={item.label}>{item.label}</span>
                 </TabsTrigger>
               ))}
             </TabsList>

@@ -54,19 +54,25 @@ export function WalletPass({
 }) {
   return (
     <div className={cn('card-ink overflow-hidden', holderHref && 'group relative', className)} {...rest}>
-      <div className={cn('relative p-4', active ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground')}>
+      {/* Shared tints: on a handoff to a pass of the other color, the head and its bloom blend from the departing pass. */}
+      <div
+        data-shared-tint="head"
+        className={cn('relative p-4', active ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground')}
+      >
         {/* Active heads carry a warm ember bloom after the credit-card-glass reference. The mask
             fades the bloom out before the bottom edge so the dither seam below matches flat brand red. */}
-        {active && (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 overflow-hidden [mask-image:linear-gradient(to_bottom,black_45%,transparent)]"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-black/15" />
-            <div className="absolute -right-10 -top-20 size-48 rounded-full bg-amber-300/50 blur-3xl" />
-            <div className="absolute -left-12 bottom-0 size-40 rounded-full bg-rose-950/35 blur-3xl" />
-          </div>
-        )}
+        <div
+          aria-hidden
+          data-shared-tint="bloom"
+          className={cn(
+            'pointer-events-none absolute inset-0 overflow-hidden [mask-image:linear-gradient(to_bottom,black_45%,transparent)]',
+            !active && 'opacity-0',
+          )}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-black/15" />
+          <div className="absolute -right-10 -top-20 size-48 rounded-full bg-amber-300/50 blur-3xl" />
+          <div className="absolute -left-12 bottom-0 size-40 rounded-full bg-rose-950/35 blur-3xl" />
+        </div>
         <div className="relative mb-5 flex items-center justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.2em] opacity-75">
           <span className="truncate">{product}</span>
           <span className="shrink-0">{tier}</span>
@@ -84,8 +90,9 @@ export function WalletPass({
             <p className="truncate font-mono text-[11px] opacity-75">@{holderHandle}</p>
           </div>
         </div>
-        {/* The head dithers down into the strip, like a section band on the company pages. */}
-        <DitherEdge color={active ? 'hsl(var(--primary))' : 'hsl(var(--muted))'} side="bottom" />
+        {/* The head dithers down into the strip, like a section band on the company pages.
+            The seam inherits the head color, so it follows a handoff blend too. */}
+        <DitherEdge color="inherit" side="bottom" />
       </div>
       {summary && <div className="hidden px-4 pt-9 lg:block">{summary}</div>}
       {(validityLabel || price || priceNote) && (

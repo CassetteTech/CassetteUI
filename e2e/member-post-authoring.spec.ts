@@ -29,13 +29,13 @@ test('lets a curator lock posts while an archived plan still has paying members'
   await page.goto('/add-music');
   await page.getByRole('radio', { name: 'Members' }).click();
   await expect(page.getByRole('radio', { name: 'Members' })).toBeChecked();
-  await expect(page.getByRole('main').last()).not.toContainText('To lock posts');
+  await expect(page.getByText('To lock posts')).toHaveCount(0);
 
   await page.goto('/post/post-owner-track');
   const studio = page.getByTestId('post-studio-panel');
   await studio.getByRole('radio', { name: 'Members' }).click();
   await expect(studio.getByRole('heading', { name: 'Members only' })).toBeVisible();
-  await expect(studio).not.toContainText('To lock posts');
+  await expect(studio.getByText('To lock posts')).toHaveCount(0);
 });
 
 // An archived plan with no paying members, or a suspended curator, gets a locked
@@ -56,24 +56,48 @@ test('keeps members-only posts closed when Bridge refuses member-post authoring'
   await page.goto('/post/post-owner-track');
   const studio = page.getByTestId('post-studio-panel');
   const members = studio.getByRole('radio', { name: 'Members' });
-  const prompt = 'To lock posts, publish a membership plan with member posts.';
-  await expect(studio).not.toContainText('To lock posts');
+  const prompt = studio.getByText('To lock posts, publish a membership plan with member posts.');
+  await expect(prompt).toBeHidden();
+  // The prompt takes the summary's place, so neither the column nor what follows it moves.
+  const insights = studio.getByRole('heading', { name: 'Insights' });
+  const placed = { studio: await studio.boundingBox(), insights: await insights.boundingBox() };
   await members.click();
-  await expect(studio).toContainText(prompt);
+  await expect(prompt).toBeVisible();
   await expect(studio.getByRole('link', { name: 'Set up memberships' })).toHaveAttribute('href', '/studio/curator');
   await expect(members).not.toBeChecked();
   await expect(studio.getByRole('heading', { name: 'Public' })).toBeVisible();
+  expect({ studio: await studio.boundingBox(), insights: await insights.boundingBox() }).toEqual(placed);
 
   // Choosing the current setting again dismisses the prompt.
   await studio.getByRole('radio', { name: 'Public' }).click();
-  await expect(studio).not.toContainText(prompt);
+  await expect(prompt).toBeHidden();
+  expect({ studio: await studio.boundingBox(), insights: await insights.boundingBox() }).toEqual(placed);
 
   // Arrow keys reach the locked option the same way: the prompt, no save.
   await studio.getByRole('radio', { name: 'Public' }).press('ArrowRight');
-  await expect(studio).toContainText(prompt);
+  await expect(prompt).toBeVisible();
   await expect(members).toBeFocused();
   await expect(members).not.toBeChecked();
   expect(updates).toBe(0);
+});
+
+test('replaces an older visibility summary with the locked members prompt', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.owner,
+    posts: [{ ...fixturePosts.ownerTrack, privacy: 'friends' }],
+    curatorProfile: fixtureActiveCuratorProfile,
+    curatorPlans: [archivedMemberPostPlan],
+    memberPostAuthoring: false,
+  });
+
+  await page.goto('/post/post-owner-track');
+  const studio = page.getByTestId('post-studio-panel');
+  const summary = studio.getByText('This post uses an older setting. Choose who can open it.');
+  await expect(summary).toBeVisible();
+  await studio.getByRole('radio', { name: 'Members' }).click();
+  await expect(summary).toBeHidden();
+  await expect(studio.getByRole('link', { name: 'Set up memberships' })).toBeVisible();
+  await expect(studio.getByRole('radio', { name: 'Members' })).not.toBeChecked();
 });
 
 // Add Music uses the post page's control, so a curator without member-post authoring
@@ -93,12 +117,13 @@ test('shows the locked members option and setup prompt on Add Music', async ({ p
   await publicOption.press('ArrowRight');
   await expect(members).toBeFocused();
   await expect(members).not.toBeChecked();
-  await expect(page.getByRole('status').filter({ hasText: 'To lock posts' })).toBeVisible();
+  const prompt = page.getByRole('status').getByText('To lock posts');
+  await expect(prompt).toBeVisible();
   await expect(page.getByRole('link', { name: 'Set up memberships' })).toHaveAttribute('href', '/studio/curator');
 
   await members.press('ArrowRight');
   await expect(page.getByRole('radio', { name: 'Private' })).toBeChecked();
-  await expect(page.getByRole('main').last()).not.toContainText('To lock posts');
+  await expect(prompt).toBeHidden();
 });
 
 // Without an answer from Bridge, nothing in the browser infers authoring from the

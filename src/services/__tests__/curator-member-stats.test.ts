@@ -1,8 +1,8 @@
-/** Verifies curator member-count parsing and the authenticated request. */
+/** Verifies curator member-count parsing, the authenticated request, and the trend axis top. */
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fetchCuratorMemberStats, parseCuratorMemberStats } from '../curator-member-stats';
+import { fetchCuratorMemberStats, memberAxisMax, parseCuratorMemberStats } from '../curator-member-stats';
 
 const payload = {
   days: 7,
@@ -33,6 +33,14 @@ void test('parses counts only and rejects identities or inconsistent windows', (
   }
   assert.throws(() => parseCuratorMemberStats({ ...payload, notRenewingMembers: 4 }), /inconsistent/);
   assert.throws(() => parseCuratorMemberStats({ ...payload, endedMembers: -1 }));
+});
+
+void test('leaves headroom above the busiest day on a whole-number axis', () => {
+  const tops = [0, 1, 2, 3, 4, 5, 9, 18, 25, 100, 1234].map(memberAxisMax);
+  assert.deepEqual(tops, [2, 2, 3, 4, 6, 10, 15, 30, 40, 150, 2000]);
+  for (const [index, peak] of [0, 1, 2, 3, 4, 5, 9, 18, 25, 100, 1234].entries()) {
+    assert.ok(tops[index] > peak && Number.isInteger(tops[index]), `axis top ${tops[index]} for peak ${peak}`);
+  }
 });
 
 void test('loads one authenticated no-store window', async (t) => {

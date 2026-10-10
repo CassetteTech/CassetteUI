@@ -29,6 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthState } from '@/hooks/use-auth';
+import { useSharedPositionHold } from '@/hooks/use-shared-position';
 import {
   fetchCuratorPayoutAccount,
   fetchOwnCuratorProfile,
@@ -174,6 +175,9 @@ function CuratorStudio() {
   const touched = useRef(false);
   const [ready, setReady] = useState(false);
   const [passSlot, setPassSlot] = useState<HTMLElement | null>(null);
+  // The plan card, and with it the rail pass, mounts after this read; the pass leaving the
+  // previous page waits in the rail for it.
+  useSharedPositionHold('membership-pass', profile.isPending, passSlot);
   useEffect(() => {
     if (ready || defaultView === null) return;
     if (!touched.current) setView(defaultView);
@@ -302,11 +306,12 @@ function CuratorStudio() {
                 <CuratorProCard />
               </TabsContent>
             </div>
-            {/* The pass arrives by portal; leaving display:none restarts the rise, so it enters like the cards. */}
+            {/* The pass arrives by portal. On wide screens the empty slot keeps its box, so a pass held
+                over from the previous page can wait on the spot the plan pass will fill. */}
             <aside
               ref={setPassSlot}
               aria-label="Membership plan"
-              className="empty:hidden motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2.5 motion-safe:duration-450 motion-safe:ease-out-quart lg:sticky lg:top-6"
+              className="max-lg:empty:hidden lg:sticky lg:top-6"
             />
           </div>
         </Tabs>

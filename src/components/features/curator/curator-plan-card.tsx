@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
+import { useSharedPositionHold } from '@/hooks/use-shared-position';
 import {
   CuratorPageError,
   fetchCuratorPayoutAccount,
@@ -506,7 +507,15 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
       annual={passPlan.annualAmountMinor === null ? null : planPrice(passPlan.annualAmountMinor, passPlan.annualServiceFeeMinor, pricing.data)}
     />
   );
-  const rail = passSlot && pass ? createPortal(pass, passSlot) : null;
+  // The pass rises in like the cards; a handoff from another page finishes the rise and slides instead.
+  const rail = passSlot && pass ? createPortal(
+    <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2.5 motion-safe:duration-450 motion-safe:ease-out-quart">
+      {pass}
+    </div>,
+    passSlot,
+  ) : null;
+  // Until the reads behind the pass answer, the pass leaving the previous page waits in the rail for it.
+  useSharedPositionHold('membership-pass', !rail && (pricing.isPending || (profile !== null && plans.isPending)), passSlot);
 
   const startEditing = (plan: CuratorPlan) => {
     setEditingId(plan.id);

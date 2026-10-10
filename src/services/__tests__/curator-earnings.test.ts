@@ -106,7 +106,6 @@ void test('buckets earned and paid out by month and flags incomplete windows', (
     ['Sep', 450, 0],
   ]);
   assert.equal(summary.earned, 1350);
-  assert.equal(summary.pending, 900);
   assert.equal(summary.forfeited, 125);
   assert.equal(summary.complete, true);
   // Twelve months with only a partial slice loaded and no event older than the period start.

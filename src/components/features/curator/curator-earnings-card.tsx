@@ -31,8 +31,8 @@ const countFormatter = new Intl.NumberFormat('en-US');
 /** Day precision: the ledger reads as a statement, and times added noise to every row. */
 const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
 const allocationStatus = {
-  accrued: 'Accrued',
-  payable: 'Ready for payout',
+  accrued: 'Accruing',
+  payable: 'Ready to pay out',
   blocked: 'On hold',
   transferred: 'Transferred',
   forfeited: 'Not earned',
@@ -192,7 +192,8 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
               valueTestId="curator-active-member-count"
             />
             <StudioStat
-              label="Earned this month"
+              label="Earned"
+              hint="This month"
               value={money(earnings.balances.earnedThisMonth, earnings.balances.currency)}
             />
           </dl>

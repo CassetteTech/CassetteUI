@@ -5,7 +5,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Clock } from 'lucide-react';
-import { StudioNotice, StudioSection } from '@/components/features/curator/studio-shell';
+import { StudioNotice, StudioSection, studioFigureClassName } from '@/components/features/curator/studio-shell';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -31,7 +31,11 @@ function needsAttention(account: CuratorPayoutAccount) {
 /** One line that names the state and the next step; the state word leads. */
 function statusCopy(account: CuratorPayoutAccount | null) {
   if (!account) return 'Not started. Set up payouts before you publish a membership plan.';
-  if (account.transfersCapabilityStatus === 'active') return 'Ready. Earnings go out on your payout schedule.';
+  if (account.transfersCapabilityStatus === 'active') {
+    return account.capabilityCheckedAtUtc
+      ? `Ready. Last checked ${checkedAtFormatter.format(new Date(account.capabilityCheckedAtUtc))}.`
+      : 'Ready. Earnings go out on your payout schedule.';
+  }
   if (needsAttention(account)) return 'Needs attention. Stripe needs more information before you can publish a plan or receive payouts.';
   return 'Verifying. You can publish a plan and receive payouts once Stripe verifies your account.';
 }
@@ -138,10 +142,10 @@ export function CuratorPayoutCard() {
     <StudioSection
       id="studio-payouts"
       eyebrow="Get paid"
-      title="Payouts"
+      title="Payout setup"
       headingId="curator-payout-title"
       testId="curator-payout-card"
-      description="Free. Complete it before you publish a membership plan."
+      description={payoutsActive ? undefined : 'Free. Complete it before you publish a membership plan.'}
     >
       <StudioNotice testId="curator-payout-notice" className="mb-5">
         {flow === 'return' && !loading && !status.isError
@@ -152,7 +156,8 @@ export function CuratorPayoutCard() {
             ? 'Your secure payout setup link expired. Open a new link to continue.'
             : null}
       </StudioNotice>
-      <div className="space-y-5">
+      {/* Once payouts are active, setup is one line: the state, the last check, and the update action. */}
+      <div className={payoutsActive ? 'flex flex-wrap items-center justify-between gap-x-4 gap-y-3' : 'space-y-5'}>
         {loading ? (
           <output className="text-sm text-muted-foreground">Loading payout status…</output>
         ) : status.isError ? (
@@ -169,34 +174,29 @@ export function CuratorPayoutCard() {
           <>
             <p className="max-w-prose text-sm leading-relaxed">{statusCopy(account)}</p>
 
-            {account && payoutsActive && account.capabilityCheckedAtUtc && (
-              <p className="font-mono text-xs tabular-nums text-muted-foreground">
-                Last checked {checkedAtFormatter.format(new Date(account.capabilityCheckedAtUtc))}
-              </p>
-            )}
             {account && !payoutsActive && (
-              /* Setup in progress: the ring counts the steps, and each tile is the parent of its label and state. */
+              /* Setup in progress: the ring counts the steps, and each figure is the parent of its label and state. */
               <div className="grid gap-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
               <ReadinessRing done={1} total={2} />
-              <dl className="grid gap-3 md:grid-cols-3">
-                <div className="card-quiet px-4 py-3.5">
+              <dl className="grid gap-3 md:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                <div className={studioFigureClassName}>
                   <dt className="text-xs text-muted-foreground">Setup started</dt>
                   <dd className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-success-text">
                     <Check aria-hidden className="size-4" />
                     Done
                   </dd>
                 </div>
-                <div className="card-quiet px-4 py-3.5">
+                <div className={studioFigureClassName}>
                   <dt className="text-xs text-muted-foreground">Publish and receive payouts</dt>
                   <dd className={cn(
                     'mt-1 flex items-center gap-1.5 text-sm font-semibold',
-                    payoutsActive ? 'text-success-text' : needsAttention(account) ? 'text-warning-text' : 'text-foreground',
+                    needsAttention(account) ? 'text-warning-text' : 'text-foreground',
                   )}>
-                    {payoutsActive ? <Check aria-hidden className="size-4" /> : <Clock aria-hidden className="size-4" />}
-                    {payoutsActive ? 'Ready' : needsAttention(account) ? 'Needs your information' : 'Waiting for verification'}
+                    <Clock aria-hidden className="size-4" />
+                    {needsAttention(account) ? 'Needs your information' : 'Waiting for verification'}
                   </dd>
                 </div>
-                <div className="card-quiet px-4 py-3.5">
+                <div className={studioFigureClassName}>
                   <dt className="text-xs text-muted-foreground">Last checked</dt>
                   <dd className="mt-1 font-mono text-sm tabular-nums">
                     {account.capabilityCheckedAtUtc
@@ -209,7 +209,7 @@ export function CuratorPayoutCard() {
             )}
 
             {onboarding.isError && (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="basis-full text-sm text-destructive">
                 {getUserFacingApiErrorMessage(onboarding.error, 'We could not open secure payout setup.')}
                 {' '}Try again.
               </p>

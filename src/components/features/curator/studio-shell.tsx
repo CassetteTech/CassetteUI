@@ -1,8 +1,9 @@
 'use client';
 
-/** Shared Curator Studio chrome: the view context, soft section cards, status chips, notices, and receipt rows. */
+/** Shared Curator Studio chrome: the view context, soft section cards, status chips, notices, figures, and receipt rows. */
 
-import { createContext, type ReactNode } from 'react';
+import { createContext, useId, type ReactNode } from 'react';
+import { ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type StudioView = 'studio-overview' | 'studio-earnings' | 'studio-billing';
@@ -143,25 +144,61 @@ export function StudioNotice({
   );
 }
 
-/** One figure on a quiet tile: small label, big Teko number, optional hint.
-    Rendered as dt/dd, so the tile's div is the parent of both label and value. */
+/** A figure inside a section has no panel of its own: a hairline at its left
+    edge and the grid gap separate it from its neighbours. */
+export const studioFigureClassName = 'min-w-0 border-l border-border/70 pl-4';
+
+/** One figure: small label, big Teko number, optional hint. Rendered as dt/dd,
+    so the figure's div is the parent of both label and value. With `onClick`
+    the figure opens the view that owns the number: the button sits in the
+    value, and its ::after stretches the hit area over the whole figure. */
 export function StudioStat({
   label,
   value,
   hint,
   valueTestId,
   className,
+  onClick,
 }: {
   label: string;
   value: ReactNode;
   hint?: ReactNode;
   valueTestId?: string;
   className?: string;
+  onClick?: () => void;
 }) {
+  const labelId = useId();
+  const valueId = useId();
   return (
-    <div className={cn('card-quiet px-4 py-3.5', className)}>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-1 font-teko text-3xl font-bold leading-none tabular-nums" data-testid={valueTestId}>{value}</dd>
+    <div
+      className={cn(
+        studioFigureClassName,
+        onClick && 'group relative rounded-r-sm pr-6 transition-colors has-[button:hover]:border-foreground has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring has-[button:focus-visible]:ring-offset-2 has-[button:focus-visible]:ring-offset-background',
+        className,
+      )}
+    >
+      <dt id={labelId} className="text-xs text-muted-foreground">
+        {label}
+        {onClick && (
+          /* Corner arrow marks the figure as a way into the view behind the number. */
+          <ArrowUpRight
+            aria-hidden
+            className="absolute right-0 top-0 size-4 text-muted-foreground/60 transition-colors group-hover:text-foreground group-focus-within:text-foreground"
+          />
+        )}
+      </dt>
+      <dd id={valueId} className="mt-1 font-teko text-3xl font-bold leading-none tabular-nums" data-testid={valueTestId}>
+        {onClick ? (
+          <button
+            type="button"
+            onClick={onClick}
+            aria-labelledby={`${labelId} ${valueId}`}
+            className="text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
+          >
+            {value}
+          </button>
+        ) : value}
+      </dd>
       {hint && <dd className="mt-1.5 text-xs text-muted-foreground">{hint}</dd>}
     </div>
   );

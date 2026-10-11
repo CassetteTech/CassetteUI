@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
 import { appLogger } from '@/lib/observability/logger';
+import {
+  buildUpstreamCaptureHeaders,
+  enrichCapturePayload,
+  resolveIngestClientContext,
+} from '@/lib/server/posthog-ingest-forwarding';
 
 const DEFAULT_POSTHOG_HOST = 'https://app.posthog.com';
 
@@ -17,14 +22,13 @@ export async function POST(request: Request) {
   }
 
   const endpoint = `${getPosthogIngestHost().replace(/\/$/, '')}/capture/`;
+  const clientContext = resolveIngestClientContext(request.headers);
 
   try {
     const upstream = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body,
+      headers: buildUpstreamCaptureHeaders(clientContext),
+      body: enrichCapturePayload(body, clientContext),
       cache: 'no-store',
     });
 

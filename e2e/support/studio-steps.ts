@@ -1,6 +1,6 @@
 /** Helper for the Curator Studio dashboard: opens the URL of the view that
     hosts a section before a test interacts with its contents. The Overview,
-    Members, and Payouts views stay mounted but hidden on the other URLs, so
+    Membership, and Payouts views stay mounted but hidden on the other URLs, so
     this is only needed for visibility-dependent actions (fill, click,
     toBeVisible). */
 
@@ -8,7 +8,9 @@ import { expect, type Page } from '@playwright/test';
 
 /** Section ids resolve to the dashboard view that hosts them. */
 const viewOf = new Map([
-  ['studio-plan', 'studio-overview'],
+  ['studio-setup', 'studio-membership'],
+  ['studio-plan', 'studio-membership'],
+  ['studio-members', 'studio-membership'],
   ['studio-pro', 'studio-billing'],
   ['studio-payouts', 'studio-billing'],
 ]);

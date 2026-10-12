@@ -22,6 +22,7 @@ import {
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { BenefitList, MembershipOffer } from '@/components/features/membership/membership-offer';
 import { WalletPass } from '@/components/features/curator/wallet-pass';
+import { studioPaths } from '@/components/features/curator/studio-routes';
 import { StudioNotice } from '@/components/features/curator/studio-shell';
 import { CuratorFollowAction } from '@/components/features/curator/curator-follow-action';
 import { useSharedPosition } from '@/hooks/use-shared-position';
@@ -255,7 +256,7 @@ export function CuratorMembershipCard({
         {page.viewer.isOwner ? (
           <div className="rounded-lg border border-dashed border-border/70 px-3 py-2.5 text-sm text-muted-foreground">
             <p>This is your published plan. Visitors see it like this.</p>
-            <Link href="/studio" className="mt-1 inline-block font-medium text-primary underline-offset-4 hover:underline">
+            <Link href={studioPaths['studio-membership']} className="mt-1 inline-block font-medium text-primary underline-offset-4 hover:underline">
               Manage in Curator Studio
             </Link>
           </div>

@@ -1,7 +1,7 @@
 'use client';
 
 /** Curator Studio, shared by every dashboard URL: the header, the section links,
-    and the right rail. The Overview, Members, and Payouts & billing views live
+    and the right rail. The Overview, Membership, and Payouts & billing views live
     here and stay mounted, hidden while another URL is open, so section queries
     dedupe, a plan draft survives a section change, and Stripe return flows
     resolve on whichever view shows. Other sections, such as Music, are ordinary
@@ -9,17 +9,19 @@
     first plan draft or payout setup; it has no editable fields. */
 
 import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, Plus } from 'lucide-react';
 import { RequireAuth } from '@/components/auth/RequireAuth';
-import { CuratorEarningsCard } from '@/components/features/curator/curator-earnings-card';
 import { CuratorPayoutCard } from '@/components/features/curator/curator-payout-card';
 import { CuratorPayoutHistory } from '@/components/features/curator/curator-payout-history';
 import { CuratorProCard } from '@/components/features/curator/curator-pro-card';
-import { OverviewSkeleton, StudioOverview, type LaunchStep } from '@/components/features/curator/studio-overview';
-import { StudioSection, StudioStepsContext } from '@/components/features/curator/studio-shell';
+import { StudioMembership } from '@/components/features/curator/studio-membership';
+import { OverviewSkeleton, StudioOverview } from '@/components/features/curator/studio-overview';
+import { StudioStepsContext, type LaunchStep } from '@/components/features/curator/studio-shell';
+import { ProfileIdentityPass } from '@/components/features/profile/profile-identity-pass';
 import {
   addMusicHref,
   studioLabels,
@@ -35,6 +37,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { useAuthState } from '@/hooks/use-auth';
+import { useUserBio } from '@/hooks/use-profile';
 import { cn } from '@/lib/utils';
 import { useSharedPositionHold } from '@/hooks/use-shared-position';
 import {
@@ -57,7 +60,7 @@ function readPageLinkCopied(userId: string) {
   }
 }
 
-/** The first launch step. The owner's own read counts every post they made, so one item finishes it.
+/** The music step. The owner's own read counts every post they made, so one item finishes it.
     A failed first read says nothing about the page, so the step is left out until a retry answers.
     Under the activity key, so adding or deleting a post anywhere refreshes the step. */
 function useMusicStep(userId: string | null) {
@@ -94,9 +97,9 @@ function usePageLinkCopied(userId: string | null) {
   return [copied, markCopied] as const;
 }
 
-/** Launch-checklist state shared by the header, the overview, and the payout
-    card. Reads the same query keys the section cards use, so React Query
-    dedupes the requests and every surface stays in sync. */
+/** Setup state shared by the Overview, the Membership view, the payout card, and the rail. Reads
+    the same query keys the section cards use, so React Query dedupes the requests and every
+    surface stays in sync. */
 function useLaunchSteps(profile: CuratorProfile | null) {
   const { user } = useAuthState();
   const userId = user?.id ?? null;
@@ -123,31 +126,34 @@ function useLaunchSteps(profile: CuratorProfile | null) {
   const hasPlan = plans.data?.some((plan) => plan.status !== 'archived') === true;
   const hasActivePlan = plans.data?.some((plan) => plan.status === 'active') === true;
   const hasPublished = plans.data?.some((plan) => plan.status !== 'draft') === true;
-  const planSteps: LaunchStep[] = [
+  const setupSteps: LaunchStep[] = [
     { href: '#studio-plan', label: 'Design your membership', notice: 'You have no membership plan.', done: hasPlan },
     { href: '#studio-payouts', label: 'Set up payouts', notice: 'Payout setup is not complete.', done: payoutReady },
     { href: '#studio-plan', label: 'Publish your plan', notice: 'No membership plan is live.', done: hasActivePlan },
   ];
-  const musicSteps = music.step ? [music.step] : [];
-  // Content first for a new curator: the page needs music before a paid plan has anything to offer.
-  // After the first publish, payout recovery comes before content. Sharing comes last.
-  const steps: LaunchStep[] = [
-    ...(hasPublished ? [...planSteps, ...musicSteps] : [...musicSteps, ...planSteps]),
-    // Done once the page link is copied in this browser; the notice does not claim the page was never shared.
-    { href: '#studio-share', label: 'Share your page', notice: 'Copy your page link to share it with fans.', done: pageLinkCopied },
-  ];
-  const doneCount = steps.filter((step) => step.done).length;
-  const nextIndex = steps.findIndex((step) => !step.done);
+  // Done once the page link is copied in this browser; the notice does not claim the page was never shared.
+  const shareStep: LaunchStep = {
+    href: '#studio-share',
+    label: 'Share your page',
+    notice: 'Copy your page link to share it with fans.',
+    done: pageLinkCopied,
+  };
+  // Without a profile there is no plan; with one, the answer waits for the plan read.
+  const plansKnown = profile === null || plans.data !== undefined;
 
   return {
-    steps,
-    doneCount,
-    nextIndex,
+    setupSteps,
+    musicStep: music.step,
+    shareStep,
+    setupStarted: hasPlan || payoutStarted,
     payoutFlowActive,
     // Earnings exist only for a curator who has published at least once. Unknown
     // (null) while the first plan read is in flight, so the overview holds its
-    // skeleton instead of guessing at the launch checklist.
+    // skeleton instead of guessing at the next step.
     hasPublished: profile !== null && plans.isPending ? null : hasPublished,
+    // Null until the plans are read, so the rail never shows a pass it would swap.
+    hasActivePlan: plansKnown ? hasActivePlan : null,
+    plansKnown,
     payoutStarted,
     payoutReady,
     markPageLinkCopied,
@@ -155,8 +161,24 @@ function useLaunchSteps(profile: CuratorProfile | null) {
     retryMusic: music.retry,
     // False while a step input has no answer yet (pending, or failed with nothing cached),
     // so an unknown payout state never reads as an open step.
-    stepsKnown: payout.data !== undefined && (profile === null || plans.data !== undefined),
+    stepsKnown: payout.data !== undefined && plansKnown,
   };
+}
+
+/** The pass visitors see on the public page while no plan is live: the profile pass. The plan card
+    portals the live plan's pass instead, and the plan preview on the Membership view. */
+function StudioProfilePass({ slot, show }: { slot: HTMLElement | null; show: boolean }) {
+  const { user } = useAuthState();
+  const bio = useUserBio(show ? user?.username : undefined);
+  // Until the bio read answers, the pass leaving the previous page waits in the rail for it.
+  useSharedPositionHold('membership-pass', show && bio.isPending, slot);
+  if (!show || !slot || !bio.data) return null;
+  return createPortal(
+    <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2.5 motion-safe:duration-450 motion-safe:ease-out-quart">
+      <ProfileIdentityPass user={bio.data} />
+    </div>,
+    slot,
+  );
 }
 
 const todayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -312,9 +334,20 @@ function StudioDashboard({ children }: { children: ReactNode }) {
   }), [passSlot, router, view]);
   // After a payout return, the notice offers whichever plan step comes next.
   const planStep = launch.stepsKnown
-    ? launch.steps.find((step) => step.href === '#studio-plan' && !step.done)
+    ? launch.setupSteps.find((step) => step.href === '#studio-plan' && !step.done)
     : undefined;
   const payoutSetup = <CuratorPayoutCard key="payout-setup" nextStep={planStep} />;
+  // One message for a profile read that failed, above every view. A first read that failed leaves
+  // the Overview and Membership empty; a failed refresh keeps their last answer, so a draft in
+  // progress survives. "No profile" can go stale once a first draft creates one, so a failed read
+  // after it is said too.
+  const profileLoaded = !profile.isPending && profile.data !== undefined;
+  const profileError = !profile.isPending && (profile.data === undefined || (profile.isError && profile.data === null)) && (
+    <div className="mb-6 flex flex-wrap items-center gap-3">
+      <p role="alert" className="text-sm text-destructive">Could not load your curator profile.</p>
+      <Button variant="outline" size="sm" onClick={() => profile.refetch()}>Try again</Button>
+    </div>
+  );
   const payoutHistory = <CuratorPayoutHistory key="payout-history" enabled={launch.payoutStarted && Boolean(profile.data)} />;
 
   return (
@@ -326,28 +359,12 @@ function StudioDashboard({ children }: { children: ReactNode }) {
         {/* Below the links, the membership pass takes the same right rail as on the public page and stays put across views. */}
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
           <div className="min-w-0">
+            {profileError}
             <div className={cn('space-y-6', view !== 'studio-overview' && 'hidden')}>
               {profile.isPending ? (
                 <OverviewSkeleton />
-              ) : profile.data === undefined ? (
-                /* Only a first read that failed replaces the overview; a failed background refresh keeps
-                   the overview and plan card mounted with the last answer, so a draft in progress survives. */
-                <StudioSection id="studio-overview-error" title="Curator Studio" headingId="studio-overview-error-title">
-                  <div className="space-y-4">
-                    <p role="alert">Could not load your curator profile.</p>
-                    <Button variant="outline" onClick={() => profile.refetch()}>Try again</Button>
-                  </div>
-                </StudioSection>
-              ) : (
+              ) : profileLoaded && (
                 <>
-                  {/* "No profile" can go stale once a first draft creates one; if that read then fails,
-                      say so here rather than show an empty Studio. */}
-                  {profile.isError && profile.data === null && (
-                    <div className="flex flex-wrap items-center gap-3">
-                      <p role="alert" className="text-sm text-destructive">Could not load your curator profile.</p>
-                      <Button variant="outline" size="sm" onClick={() => profile.refetch()}>Try again</Button>
-                    </div>
-                  )}
                   {launch.retryMusic && (
                     <div className="flex flex-wrap items-center gap-3">
                       <p role="alert" className="text-sm text-destructive">Could not check the music on your page.</p>
@@ -355,30 +372,30 @@ function StudioDashboard({ children }: { children: ReactNode }) {
                     </div>
                   )}
                   <StudioOverview
+                    active={view === 'studio-overview'}
                     profile={profile.data ?? null}
-                    steps={launch.steps}
-                    doneCount={launch.doneCount}
-                    nextIndex={launch.nextIndex}
                     hasPublished={launch.hasPublished}
                     stepsKnown={launch.stepsKnown}
+                    setupSteps={launch.setupSteps}
+                    setupStarted={launch.setupStarted}
+                    musicStep={launch.musicStep}
+                    shareStep={launch.shareStep}
                   />
                 </>
               )}
             </div>
-            <div className={cn(view !== 'studio-earnings' && 'hidden')}>
-              {profile.data ? (
-                <CuratorEarningsCard profile={profile.data} />
-              ) : (
-                <StudioSection
-                  id="studio-earnings"
-                  title="Members"
-                  headingId="curator-earnings-title"
-                  description="Members and their payments show up here once you publish a plan."
-                >
-                  <Button variant="outline" onClick={() => open.open('studio-plan')}>
-                    Design your membership
-                  </Button>
-                </StudioSection>
+            <div className={cn('space-y-6', view !== 'studio-membership' && 'hidden')}>
+              {profile.isPending ? (
+                <Skeleton aria-hidden className="h-80 w-full rounded-xl" />
+              ) : profileLoaded && (
+                <>
+                  <StudioMembership
+                    profile={profile.data ?? null}
+                    setupSteps={launch.setupSteps}
+                    hasPublished={launch.plansKnown ? launch.hasPublished : null}
+                    preview={view === 'studio-membership'}
+                  />
+                </>
               )}
             </div>
             <div className={cn('space-y-6', view !== 'studio-billing' && 'hidden')}>
@@ -390,11 +407,15 @@ function StudioDashboard({ children }: { children: ReactNode }) {
             {children}
           </div>
           {/* The pass arrives by portal. On wide screens the empty slot keeps its box, so a pass held
-              over from the previous page can wait on the spot the plan pass will fill. */}
+              over from the previous page can wait on the spot the next pass will fill. */}
           <aside
             ref={setPassSlot}
-            aria-label="Membership plan"
+            aria-label={view === 'studio-membership' ? 'Membership plan' : 'Your public pass'}
             className="max-lg:empty:hidden lg:sticky lg:top-6"
+          />
+          <StudioProfilePass
+            slot={passSlot}
+            show={!profile.isPending && view !== 'studio-membership' && launch.hasActivePlan === false}
           />
         </div>
       </CoralGlow>

@@ -203,7 +203,7 @@ test('without a member plan, Members only points to plan setup', async ({ page }
   await expect(membersOption).toContainText('Needs a published plan with member posts.');
   await page.getByRole('menuitem', { name: 'Set up memberships' }).click();
 
-  await expect(page).toHaveURL('/studio');
+  await expect(page).toHaveURL('/studio/membership');
   await expect(page.getByTestId('curator-plan-card').getByLabel('Plan name')).toBeFocused();
 });
 

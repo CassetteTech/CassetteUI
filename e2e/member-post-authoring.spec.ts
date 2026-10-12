@@ -63,7 +63,7 @@ test('keeps members-only posts closed when Bridge refuses member-post authoring'
   const placed = { studio: await studio.boundingBox(), insights: await insights.boundingBox() };
   await members.click();
   await expect(prompt).toBeVisible();
-  await expect(studio.getByRole('link', { name: 'Set up memberships' })).toHaveAttribute('href', '/studio');
+  await expect(studio.getByRole('link', { name: 'Set up memberships' })).toHaveAttribute('href', '/studio/membership');
   await expect(members).not.toBeChecked();
   await expect(studio.getByRole('heading', { name: 'Public' })).toBeVisible();
   expect({ studio: await studio.boundingBox(), insights: await insights.boundingBox() }).toEqual(placed);
@@ -119,7 +119,7 @@ test('shows the locked members option and setup prompt on Add Music', async ({ p
   await expect(members).not.toBeChecked();
   const prompt = page.getByRole('status').getByText('To lock posts');
   await expect(prompt).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Set up memberships' })).toHaveAttribute('href', '/studio');
+  await expect(page.getByRole('link', { name: 'Set up memberships' })).toHaveAttribute('href', '/studio/membership');
 
   await members.press('ArrowRight');
   await expect(page.getByRole('radio', { name: 'Private' })).toBeChecked();

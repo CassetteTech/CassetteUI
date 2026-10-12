@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { LockKeyhole } from 'lucide-react';
+import { studioPaths } from '@/components/features/curator/studio-routes';
 import { SegmentedControl } from '@/components/interior/segmented-control';
 import { Button } from '@/components/ui/button';
 import {
@@ -94,7 +95,7 @@ export function PostVisibilityControl({
               className={cn('transition-opacity duration-200 motion-reduce:transition-none', !promptShown && 'invisible opacity-0')}
             >
               To lock posts, publish a membership plan with member posts.{' '}
-              <Link href="/studio" prefetch={false} className="font-medium text-foreground underline underline-offset-2">
+              <Link href={studioPaths['studio-membership']} prefetch={false} className="font-medium text-foreground underline underline-offset-2">
                 Set up memberships
               </Link>
             </p>

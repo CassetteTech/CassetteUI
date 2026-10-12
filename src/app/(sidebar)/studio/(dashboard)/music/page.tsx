@@ -4,17 +4,20 @@
     both live in the URL, so a post's Back returns to the same view. Each row shows the curation
     with its owner tools, and a saved change updates every cached list at once. */
 
-import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useContext, useRef, type ReactNode, type RefObject } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronDown, ListFilter } from 'lucide-react';
 import {
-  keepPreviousData,
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-  type InfiniteData,
-} from '@tanstack/react-query';
-import { ChevronDown, ListFilter, Plus } from 'lucide-react';
+  audienceDetails,
+  LibraryEmpty,
+  libraryPageSize,
+  nounsOf,
+  typeDetails,
+  useLibrary,
+  useLibraryRowTools,
+} from '@/components/features/curator/studio-music-library';
 import {
   StudioMusicRow,
   StudioMusicRowSkeleton,
@@ -22,16 +25,13 @@ import {
 } from '@/components/features/curator/studio-music-row';
 import { StudioSection, StudioStepsContext } from '@/components/features/curator/studio-shell';
 import {
-  addMusicHref,
   musicAudiences,
   musicTypes,
   studioMusicHref,
   type MusicAudience,
   type MusicType,
 } from '@/components/features/curator/studio-routes';
-import { DeletePostModal } from '@/components/features/post/delete-post-modal';
-import { EditPostModal } from '@/components/features/post/edit-post-modal';
-import { postVisibility, type OwnerVisibility } from '@/components/features/post/post-visibility';
+import { postVisibility } from '@/components/features/post/post-visibility';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -40,25 +40,14 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { filterPillClassName } from '@/components/ui/filter-pills';
 import { useAuthState } from '@/hooks/use-auth';
 import { useMemberPostAccess } from '@/hooks/use-curator';
-import { pagesShortened, patchMusicPages, uniquePosts } from '@/lib/studio-music-pages';
+import { pagesShortened } from '@/lib/studio-music-pages';
 import { cn } from '@/lib/utils';
 import { keepSecondPressOnTrigger } from '@/lib/utils/menu-trigger';
 import { profileService } from '@/services/profile';
-import type { ActivityPost, PaginatedActivityResponse } from '@/types';
-
-const pageSize = 20;
-
-/** Bridge's element type, the tab label, and the nouns for each type of music. */
-const typeDetails = {
-  playlists: { elementType: 'Playlist', label: 'Playlists', one: 'playlist', many: 'playlists' },
-  tracks: { elementType: 'Track', label: 'Tracks', one: 'track', many: 'tracks' },
-  albums: { elementType: 'Album', label: 'Albums', one: 'album', many: 'albums' },
-  artists: { elementType: 'Artist', label: 'Artists', one: 'artist', many: 'artists' },
-} satisfies Record<MusicType, { elementType: string; label: string; one: string; many: string }>;
+import type { ActivityPost } from '@/types';
 
 // Playlists lead, because most curator tools work on playlists.
 const typeTabs: ReadonlyArray<{ value: MusicType | null; label: string }> = [
@@ -66,48 +55,11 @@ const typeTabs: ReadonlyArray<{ value: MusicType | null; label: string }> = [
   ...musicTypes.map((value) => ({ value, label: typeDetails[value].label })),
 ];
 
-/** Bridge's privacy value and the word that describes each audience. */
-const audienceDetails = {
-  public: { privacy: 'public', adjective: 'public' },
-  members: { privacy: 'subscriber', adjective: 'members-only' },
-  private: { privacy: 'private', adjective: 'private' },
-} satisfies Record<MusicAudience, { privacy: OwnerVisibility; adjective: string }>;
-
-function nounsOf(type: MusicType | null) {
-  return type ? typeDetails[type] : { one: 'post', many: 'posts' };
-}
-
 /** What the count after the tabs counts, such as "members-only playlists". */
 function countedNoun(total: number, type: MusicType | null, audience: MusicAudience | null) {
   const nouns = nounsOf(type);
   const adjective = audience ? `${audienceDetails[audience].adjective} ` : '';
   return `${adjective}${total === 1 ? nouns.one : nouns.many}`;
-}
-
-type LibraryPages = InfiniteData<PaginatedActivityResponse, number>;
-
-// Under the activity key, so a post added, saved, or deleted anywhere refreshes the library; the
-// app's default freshness then spares a long list a refetch of every page on each window focus.
-const libraryKey = (userId: string | null) => ['user-activity', userId, 'studio-library'] as const;
-
-/** One view of the library: its pages, the posts without repeats, and the view's total. */
-function useLibrary(userId: string | null, type: MusicType | null, audience: MusicAudience | null) {
-  const library = useInfiniteQuery({
-    queryKey: [...libraryKey(userId), type ?? 'all', audience ? audienceDetails[audience].privacy : 'all'],
-    queryFn: ({ pageParam }) => profileService.fetchUserActivity(userId!, {
-      page: pageParam,
-      pageSize,
-      elementType: type ? typeDetails[type].elementType : undefined,
-      privacy: audience ? audienceDetails[audience].privacy : undefined,
-    }),
-    initialPageParam: 1,
-    getNextPageParam: (last) => (last.hasNext ? last.page + 1 : undefined),
-    enabled: userId !== null,
-    // A filter change keeps the last list on screen, inert and dimmed, until the new one lands.
-    placeholderData: keepPreviousData,
-  });
-  const posts = useMemo(() => uniquePosts(library.data?.pages ?? []), [library.data]);
-  return { library, posts, total: library.data?.pages[0]?.totalItems ?? 0 };
 }
 
 /** Artists are the rarest posts, so their tab shows once the library holds one, or while it is open. */
@@ -120,90 +72,17 @@ function useArtistsTab(userId: string | null, type: MusicType | null) {
   return type === 'artists' || (artists.data?.totalItems ?? 0) > 0;
 }
 
-/** Applies a saved change to every cached library list at once (see `patchMusicPages`). A patch
-    counts as fresh data, yet it cannot add a post that moved into a list, so every list is marked
-    stale again and reads Bridge the next time it shows. The save's own refresh covers the open one. */
-function useLibraryPatch(userId: string | null) {
-  const queryClient = useQueryClient();
-  return useCallback((postId: string, change: Partial<ActivityPost> | null) => {
-    for (const [key, data] of queryClient.getQueriesData<LibraryPages>({ queryKey: libraryKey(userId) })) {
-      // The key's last part is the list's audience: a privacy value, or 'all'.
-      if (data) queryClient.setQueryData<LibraryPages>(key, patchMusicPages(data, postId, change, String(key[4])));
-    }
-    void queryClient.invalidateQueries({ queryKey: libraryKey(userId), refetchType: 'none' });
-  }, [queryClient, userId]);
-}
-
 /** Reads the next page. Pages are read by offset, so when a post removed here left a loaded page
     short, or the total changed since the first page, the loaded pages are read again so nothing
     is skipped or repeated. */
 async function showMore(library: ReturnType<typeof useLibrary>['library']) {
-  if (pagesShortened(library.data?.pages ?? [], pageSize)) {
+  if (pagesShortened(library.data?.pages ?? [], libraryPageSize)) {
     const reread = await library.refetch();
     if (reread.isError || !reread.data?.pages.at(-1)?.hasNext) return;
   }
   const next = await library.fetchNextPage();
   const pages = next.data?.pages ?? [];
   if (pages.length > 1 && pages[pages.length - 1].totalItems !== pages[0].totalItems) await library.refetch();
-}
-
-/** The note and delete sheets, shared by every row. Radix focuses nothing when a sheet without a
-    trigger closes, so each opening records where focus returns: the opener, or the next post
-    when the post left the list. */
-function useRowSheets({ patch, leavesList, focusAfterRemoval }: {
-  patch: (postId: string, change: Partial<ActivityPost> | null) => void;
-  leavesList: (privacy: string | undefined) => boolean;
-  focusAfterRemoval: (postId: string) => () => void;
-}) {
-  const [editing, setEditing] = useState<{ post: ActivityPost; open: boolean } | null>(null);
-  const [deleting, setDeleting] = useState<{ post: ActivityPost; open: boolean } | null>(null);
-  const restoreFocus = useRef<(() => void) | null>(null);
-  const returnFocusOnClose = (event: Event) => {
-    event.preventDefault();
-    restoreFocus.current?.();
-    restoreFocus.current = null;
-  };
-  const opener = (open: (post: ActivityPost) => void) => (post: ActivityPost, returnFocus: HTMLElement | null) => {
-    restoreFocus.current = () => returnFocus?.focus();
-    open(post);
-  };
-
-  return {
-    onEdit: opener((post) => setEditing({ post, open: true })),
-    onDelete: opener((post) => setDeleting({ post, open: true })),
-    sheets: (
-      <>
-        {editing && (
-          <EditPostModal
-            open={editing.open}
-            onOpenChange={(open) => setEditing({ ...editing, open })}
-            postId={editing.post.postId}
-            currentDescription={editing.post.description ?? ''}
-            currentPrivacy={editing.post.privacy}
-            currentCommentsEnabled={editing.post.commentsEnabled ?? true}
-            onSuccess={(change) => {
-              if (leavesList(change.privacy)) restoreFocus.current = focusAfterRemoval(editing.post.postId);
-              patch(editing.post.postId, change);
-            }}
-            onCloseAutoFocus={returnFocusOnClose}
-          />
-        )}
-        {deleting && (
-          <DeletePostModal
-            open={deleting.open}
-            onOpenChange={(open) => setDeleting({ ...deleting, open })}
-            postId={deleting.post.postId}
-            postTitle={deleting.post.title}
-            onSuccess={() => {
-              restoreFocus.current = focusAfterRemoval(deleting.post.postId);
-              patch(deleting.post.postId, null);
-            }}
-            onCloseAutoFocus={returnFocusOnClose}
-          />
-        )}
-      </>
-    ),
-  };
 }
 
 /** Who can open it, as a secondary filter beside the section title. */
@@ -281,53 +160,6 @@ function TypeTabs({ type, audience, showArtists }: {
   );
 }
 
-/** One empty state per view: no music at all leads to Add music; an empty type offers to add
-    one; an empty audience offers the whole type back. */
-function LibraryEmpty({ type, audience, returnPath }: {
-  type: MusicType | null;
-  audience: MusicAudience | null;
-  returnPath: string;
-}) {
-  const nouns = nounsOf(type);
-  if (audience) {
-    return (
-      <Empty>
-        <EmptyTitle>{`No ${audienceDetails[audience].adjective} ${nouns.many}`}</EmptyTitle>
-        <EmptyDescription>Change who can open a post from its row.</EmptyDescription>
-        <Button asChild variant="outline">
-          <Link href={studioMusicHref({ type })} replace scroll={false}>{`Show all ${nouns.many}`}</Link>
-        </Button>
-      </Empty>
-    );
-  }
-  if (type) {
-    return (
-      <Empty>
-        <EmptyTitle>{`No ${nouns.many} yet`}</EmptyTitle>
-        <EmptyDescription>{`${typeDetails[type].label} you add show here.`}</EmptyDescription>
-        <Button asChild>
-          <Link href={addMusicHref(returnPath)}>
-            <Plus aria-hidden />
-            Add music
-          </Link>
-        </Button>
-      </Empty>
-    );
-  }
-  return (
-    <Empty>
-      <EmptyTitle>No music yet</EmptyTitle>
-      <EmptyDescription>Add a playlist, track, or album with a note. Fans see it on your page.</EmptyDescription>
-      <Button asChild>
-        <Link href={addMusicHref(returnPath)}>
-          <Plus aria-hidden />
-          Add your first music
-        </Link>
-      </Button>
-    </Empty>
-  );
-}
-
 /** The posts with their tools, then the next page. While a filter change loads, the last list
     stays inert and dimmed. */
 function LibraryRows({ listRef, posts, total, library, rowProps }: {
@@ -383,34 +215,16 @@ export default function StudioMusicPage() {
   const returnPath = studioMusicHref({ type, audience });
   const steps = useContext(StudioStepsContext);
   const access = useMemberPostAccess();
-  const patch = useLibraryPatch(userId);
   const { library, posts, total } = useLibrary(userId, type, audience);
   const showArtists = useArtistsTab(userId, type);
-
   const listRef = useRef<HTMLUListElement>(null);
-  /** Where focus goes once a row leaves: the next row's title, else the one before, else the section. */
-  const focusAfterRemoval = (postId: string) => {
-    const rows = [...(listRef.current?.querySelectorAll<HTMLElement>('[data-post-id]') ?? [])];
-    const index = rows.findIndex((row) => row.dataset.postId === postId);
-    const neighbor = rows[index + 1] ?? rows[index - 1];
-    return () => (neighbor?.querySelector<HTMLElement>('[data-row-title]') ?? document.getElementById('studio-music'))?.focus();
-  };
-  const leavesList = (privacy: string | undefined) =>
-    audience !== null && privacy !== undefined && privacy !== audienceDetails[audience].privacy;
-  const { onEdit, onDelete, sheets } = useRowSheets({ patch, leavesList, focusAfterRemoval });
-
-  // A row whose new setting leaves this list takes its control, or its still-open menu, with it,
-  // and the browser drops focus to the page. Once that render lands, focus moves to the next post.
-  const focusAfterDrop = useRef<(() => void) | null>(null);
-  useEffect(() => {
-    const refocus = focusAfterDrop.current;
-    focusAfterDrop.current = null;
-    if (refocus && (document.activeElement === null || document.activeElement === document.body)) refocus();
-  }, [posts]);
-  const onSaved = (post: ActivityPost, change: Partial<ActivityPost>) => {
-    if (leavesList(change.privacy)) focusAfterDrop.current = focusAfterRemoval(post.postId);
-    patch(post.postId, change);
-  };
+  const { onSaved, onEdit, onDelete, sheets } = useLibraryRowTools({
+    userId,
+    posts,
+    listRef,
+    sectionId: 'studio-music',
+    leavesList: (privacy) => audience !== null && privacy !== undefined && privacy !== audienceDetails[audience].privacy,
+  });
 
   let body: ReactNode;
   if (library.isPending) {

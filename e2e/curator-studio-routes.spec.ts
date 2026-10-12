@@ -8,13 +8,13 @@ import { mockCassetteApp } from './support/mock-cassette-app';
 test('opens each section at its own URL and keeps a plan draft across sections', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: fixtureUsers.member });
 
-  await page.goto('/studio');
+  await page.goto('/studio/membership');
   const planName = page.getByTestId('curator-plan-card').getByLabel('Plan name');
   await planName.fill('Early Club');
 
-  await page.getByTestId('studio-earnings-trigger').click();
-  await expect(page).toHaveURL('/studio/members');
-  await expect(page.getByTestId('studio-earnings-trigger')).toHaveAttribute('aria-current', 'page');
+  await page.getByTestId('studio-overview-trigger').click();
+  await expect(page).toHaveURL('/studio');
+  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-current', 'page');
   await expect(planName).toBeHidden();
 
   await page.getByTestId('studio-billing-trigger').click();
@@ -23,7 +23,7 @@ test('opens each section at its own URL and keeps a plan draft across sections',
 
   await page.goBack();
   await page.goBack();
-  await expect(page).toHaveURL('/studio');
+  await expect(page).toHaveURL('/studio/membership');
   await expect(planName).toHaveValue('Early Club');
 });
 
@@ -39,11 +39,11 @@ test('offers the first music from an empty Music section', async ({ page }) => {
 test('the Studio header opens Add music with a return to the open section', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: fixtureUsers.member });
 
-  await page.goto('/studio/members');
+  await page.goto('/studio/membership');
 
   const studioHeader = page.locator('header').filter({ hasText: 'Curator Studio' });
   await expect(studioHeader.getByRole('link', { name: 'Add music', exact: true }))
-    .toHaveAttribute('href', '/studio/music/new?from=%2Fstudio%2Fmembers');
+    .toHaveAttribute('href', '/studio/music/new?from=%2Fstudio%2Fmembership');
 });
 
 test('returns a post made from Studio to the section that opened Add music', async ({ page }) => {

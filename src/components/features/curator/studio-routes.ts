@@ -1,12 +1,12 @@
 /** Curator Studio URLs: one per dashboard view, the section anchors inside them, and Add music. */
 
-export type StudioView = 'studio-overview' | 'studio-music' | 'studio-earnings' | 'studio-billing';
+export type StudioView = 'studio-overview' | 'studio-music' | 'studio-membership' | 'studio-billing';
 
 /** Each Studio view has its own URL; the dashboard layout shows the view whose path is open. */
 export const studioPaths = {
   'studio-overview': '/studio',
   'studio-music': '/studio/music',
-  'studio-earnings': '/studio/members',
+  'studio-membership': '/studio/membership',
   'studio-billing': '/studio/payouts',
 } satisfies Record<StudioView, string>;
 
@@ -14,12 +14,12 @@ export const studioPaths = {
 export const studioLabels = {
   'studio-overview': 'Overview',
   'studio-music': 'Music',
-  'studio-earnings': 'Members',
+  'studio-membership': 'Membership',
   'studio-billing': 'Payouts & billing',
 } satisfies Record<StudioView, string>;
 
 /** The dashboard views, in the order of the section links. */
-export const studioViews: readonly StudioView[] = ['studio-overview', 'studio-music', 'studio-earnings', 'studio-billing'];
+export const studioViews: readonly StudioView[] = ['studio-overview', 'studio-music', 'studio-membership', 'studio-billing'];
 
 /** The view a Studio path shows, or null outside the dashboard views. */
 export function studioViewOfPath(pathname: string | null): StudioView | null {
@@ -27,14 +27,18 @@ export function studioViewOfPath(pathname: string | null): StudioView | null {
 }
 
 /** Resolves a section anchor (e.g. "#studio-pro") or a view id to the dashboard view that hosts it.
-    The membership plan lives on the overview. */
+    The membership setup, the plan, and the members live on the Membership view. */
 export function studioViewOf(sectionId: string): StudioView {
   switch (sectionId) {
     case 'studio-overview':
     case 'studio-music':
-    case 'studio-earnings':
+    case 'studio-membership':
     case 'studio-billing':
       return sectionId;
+    case 'studio-setup':
+    case 'studio-plan':
+    case 'studio-members':
+      return 'studio-membership';
     case 'studio-pro':
     case 'studio-payouts':
       return 'studio-billing';

@@ -30,7 +30,7 @@ async function returnFromProvider(page: Page, providerUrl: string, returnPath: s
   }));
 }
 
-test('shows default economics without taking away the launch checklist', async ({ page }) => {
+test('shows default economics without taking away the Overview', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProStatus: fixtureCuratorProAvailableStatus,
@@ -38,9 +38,9 @@ test('shows default economics without taking away the launch checklist', async (
 
   await page.goto(STUDIO_PATH);
 
-  // A curator without a profile lands on the overview checklist; billing is one rail click away.
-  await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Next: Add your first music' })).toBeVisible();
+  // A curator without a profile lands on the Overview's music; billing is one section link away.
+  await expect(page.getByRole('heading', { name: 'Recent music' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Add your first music' })).toBeVisible();
   await openStudioStep(page, 'studio-pro');
   const card = page.getByTestId('curator-pro-card');
   await expect(card).toBeVisible();
@@ -50,7 +50,7 @@ test('shows default economics without taking away the launch checklist', async (
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(card).toBeVisible();
   await openStudioStep(page, 'studio-overview');
-  await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Recent music' })).toBeVisible();
   const pageWidths = await page.evaluate(() => [
     document.documentElement.scrollWidth,
     document.body.scrollWidth,
@@ -248,7 +248,7 @@ test('shows a Billing Portal cancellation that reaches Bridge after the first st
   await expect(page.getByText(/up to date|unchanged/)).toHaveCount(0);
 });
 
-test('keeps Curator Pro hidden and the launch checklist usable when Pro status fails', async ({ page }) => {
+test('keeps Curator Pro hidden and the membership setup usable when Pro status fails', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProStatusFailures: 10,
@@ -259,8 +259,8 @@ test('keeps Curator Pro hidden and the launch checklist usable when Pro status f
 
   await expect(page.getByTestId('curator-payout-card')).toBeVisible();
   await expect(page.getByTestId('curator-pro-card')).toHaveCount(0);
-  await openStudioStep(page, 'studio-overview');
-  await page.getByRole('button', { name: 'Design your membership', exact: true }).click();
+  await openStudioStep(page, 'studio-membership');
+  await page.getByRole('button', { name: 'Next: Design your membership' }).click();
 
   await expect(page.getByTestId('curator-plan-card').getByLabel('Plan name')).toBeFocused();
 });
@@ -272,7 +272,7 @@ test('hides Curator Pro everywhere in Studio while it is not available', async (
   });
 
   await page.goto(STUDIO_PATH);
-  await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Recent music' })).toBeVisible();
   await expect(page.getByText(/Curator Pro/)).toHaveCount(0);
 
   await openStudioStep(page, 'studio-pro');

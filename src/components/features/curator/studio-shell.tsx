@@ -1,21 +1,48 @@
 'use client';
 
-/** Shared Curator Studio chrome: the view context, soft section cards, status chips, notices, and figures. */
+/** Shared Curator Studio chrome: the view context, setup steps, soft section cards, status chips,
+    notices, and figures. */
 
-import { createContext, useId, type ReactNode } from 'react';
-import { ArrowUpRight } from 'lucide-react';
+import { createContext, useContext, useId, type ComponentProps, type ReactNode } from 'react';
+import Link from 'next/link';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
+import { studioViewOf } from '@/components/features/curator/studio-routes';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 /** Lets any section link open the view that holds its target. The Overview,
-    Members, and Payouts views stay mounted (hidden when inactive) across the
+    Membership, and Payouts views stay mounted (hidden when inactive) across the
     Studio URLs, so queries, a plan draft, and provider return flows keep running
     regardless of which view is showing. */
 export const StudioStepsContext = createContext<{
   /** Opens the section's view, scrolls the section into view, and focuses its first field or the section. */
   open: (sectionId: string) => void;
-  /** Rail element the plan card portals the membership pass into; one fixed spot across every view. */
+  /** Rail element the pass is portaled into; one fixed spot across every view. */
   passSlot: HTMLElement | null;
 } | null>(null);
+
+/** `href` is a Studio section ("#studio-plan") or another page ("/studio/music/new").
+    `notice` is the one sentence a banner shows when the step is open. */
+export type LaunchStep = { href: string; label: string; notice: string; done: boolean };
+
+export const isPageStep = (step: LaunchStep) => step.href.startsWith('/');
+
+/** A forward arrow for a step on another page or view; a step on the current view scrolls in place. */
+export const stepArrow = (step: LaunchStep, view: string) =>
+  (isPageStep(step) || studioViewOf(step.href.slice(1)) !== view) && <ArrowRight aria-hidden />;
+
+/** A section step opens in Studio; a page step is a link to that page. */
+export function StepButton({ step, children, ...props }: { step: LaunchStep } & ComponentProps<typeof Button>) {
+  const views = useContext(StudioStepsContext);
+  if (isPageStep(step)) {
+    return (
+      <Button asChild {...props}>
+        <Link href={step.href}>{children}</Link>
+      </Button>
+    );
+  }
+  return <Button {...props} onClick={() => views?.open(step.href.slice(1))}>{children}</Button>;
+}
 
 export type StudioChipTone = 'neutral' | 'positive' | 'warning' | 'danger';
 

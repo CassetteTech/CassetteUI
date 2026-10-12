@@ -23,6 +23,8 @@ export function useCuratorPage(username: string, viewerKey: string | null) {
   });
 }
 
+export type MemberPostAccessState = 'error' | 'loading' | 'needs-plan' | 'ready';
+
 /** Whether the signed-in user may publish members-only posts, as Bridge decides it. */
 export function useMemberPostAccess(enabled = true) {
   const { user } = useAuthState();
@@ -33,7 +35,7 @@ export function useMemberPostAccess(enabled = true) {
     staleTime: 0,
   });
 
-  let state: 'error' | 'loading' | 'needs-plan' | 'ready' = 'loading';
+  let state: MemberPostAccessState = 'loading';
   if (authoring.isError) state = 'error';
   else if (authoring.data !== undefined) state = authoring.data ? 'ready' : 'needs-plan';
   return { state, refetch: () => void authoring.refetch() };

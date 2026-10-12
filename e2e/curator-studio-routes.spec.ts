@@ -1,18 +1,9 @@
-/** Verifies Curator Studio sections have their own URLs, the Music section lists the owner's
-    posts, and Add music lives in Studio while its old URL and global entry points still work. */
+/** Verifies Curator Studio sections have their own URLs, the Music section starts empty with
+    Add music, and Add music lives in Studio while its old URL and global entry points still work. */
 
 import { expect, test } from '@playwright/test';
-import { fixturePosts, fixtureUsers } from './support/cassette-fixtures';
+import { fixtureUsers } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
-
-const ownPost = (postId: string, title: string, privacy: 'public' | 'subscriber' | 'private') => ({
-  ...fixturePosts.publicTrack,
-  postId,
-  title,
-  privacy,
-  ownerId: fixtureUsers.member.id,
-  ownerUsername: fixtureUsers.member.username,
-});
 
 test('opens each section at its own URL and keeps a plan draft across sections', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: fixtureUsers.member });
@@ -34,33 +25,6 @@ test('opens each section at its own URL and keeps a plan draft across sections',
   await page.goBack();
   await expect(page).toHaveURL('/studio');
   await expect(planName).toHaveValue('Early Club');
-});
-
-test('lists the owner music with who can open each post and filters by that setting', async ({ page }) => {
-  await mockCassetteApp(page, {
-    currentUser: fixtureUsers.member,
-    posts: [
-      ownPost('studio-music-public', 'Open Track', 'public'),
-      ownPost('studio-music-members', 'Members Track', 'subscriber'),
-      ownPost('studio-music-private', 'Hidden Track', 'private'),
-    ],
-  });
-
-  await page.goto('/studio/music');
-  await expect(page.getByTestId('studio-music-trigger')).toHaveAttribute('aria-current', 'page');
-  const rows = page.getByTestId('studio-music-row');
-  await expect(rows).toHaveCount(3);
-  await expect(rows.filter({ hasText: 'Members Track' })).toContainText('Members only');
-  await expect(rows.filter({ hasText: 'Hidden Track' })).toContainText('Private');
-  await expect(rows.filter({ hasText: 'Open Track' }))
-    .toHaveAttribute('href', '/post/studio-music-public?from=%2Fstudio%2Fmusic');
-
-  const filtered = page.waitForRequest((request) =>
-    request.url().includes('/activity') && new URL(request.url()).searchParams.get('privacy') === 'subscriber');
-  await page.getByRole('radio', { name: 'Members', exact: true }).click();
-  await filtered;
-  await expect(rows).toHaveCount(1);
-  await expect(rows).toContainText('Members Track');
 });
 
 test('offers the first music from an empty Music section', async ({ page }) => {

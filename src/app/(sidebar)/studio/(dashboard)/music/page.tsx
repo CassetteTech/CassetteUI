@@ -1,153 +1,455 @@
 'use client';
 
-/** Studio Music: every post on the curator's page, newest first, with who can open each.
-    A row opens the post page, where the owner column changes visibility and shows insights. */
+/** Studio Music: the curator's library. Type tabs and a who-can-open-it filter narrow the list;
+    both live in the URL, so a post's Back returns to the same view. Each row shows the curation
+    with its owner tools, and a saved change updates every cached list at once. */
 
-import { useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import Link from 'next/link';
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
-import { StudioSection } from '@/components/features/curator/studio-shell';
-import { addMusicHref, studioPaths } from '@/components/features/curator/studio-routes';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  ownerVisibilities,
-  postVisibility,
-  visibilityOf,
-  type OwnerVisibility,
-} from '@/components/features/post/post-visibility';
-import { SegmentedControl } from '@/components/interior/segmented-control';
-import { ArtworkImage } from '@/components/ui/artwork-image';
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from '@tanstack/react-query';
+import { ChevronDown, ListFilter, Plus } from 'lucide-react';
+import {
+  keepSecondPressOnTrigger,
+  StudioMusicRow,
+  StudioMusicRowSkeleton,
+  type StudioMusicRowProps,
+} from '@/components/features/curator/studio-music-row';
+import { StudioSection, StudioStepsContext } from '@/components/features/curator/studio-shell';
+import {
+  addMusicHref,
+  musicAudiences,
+  musicTypes,
+  studioMusicHref,
+  type MusicAudience,
+  type MusicType,
+} from '@/components/features/curator/studio-routes';
+import { DeletePostModal } from '@/components/features/post/delete-post-modal';
+import { EditPostModal } from '@/components/features/post/edit-post-modal';
+import { postVisibility, type OwnerVisibility } from '@/components/features/post/post-visibility';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthState } from '@/hooks/use-auth';
-import { formatRelativeTime } from '@/lib/utils/format-date';
+import { useMemberPostAccess } from '@/hooks/use-curator';
+import { pagesShortened, patchMusicPages, uniquePosts } from '@/lib/studio-music-pages';
+import { cn } from '@/lib/utils';
 import { profileService } from '@/services/profile';
-import type { ActivityPost } from '@/types';
-
-type Audience = 'all' | OwnerVisibility;
+import type { ActivityPost, PaginatedActivityResponse } from '@/types';
 
 const pageSize = 20;
-const musicPath = studioPaths['studio-music'];
-const audiences: readonly Audience[] = ['all', ...ownerVisibilities];
-// Short labels, as on the Add music control, keep the four segments even on a phone.
-const audienceOptions = audiences.map((value) => ({
-  value,
-  label: value === 'all' ? 'All' : value === 'subscriber' ? 'Members' : postVisibility[value].label,
-}));
 
-function typeLabel(post: ActivityPost) {
-  const type = post.elementType.charAt(0).toUpperCase() + post.elementType.slice(1).toLowerCase();
-  return post.isRepost ? `${type} repost` : type;
+/** Bridge's element type, the tab label, and the nouns for each type of music. */
+const typeDetails = {
+  playlists: { elementType: 'Playlist', label: 'Playlists', one: 'playlist', many: 'playlists' },
+  tracks: { elementType: 'Track', label: 'Tracks', one: 'track', many: 'tracks' },
+  albums: { elementType: 'Album', label: 'Albums', one: 'album', many: 'albums' },
+  artists: { elementType: 'Artist', label: 'Artists', one: 'artist', many: 'artists' },
+} satisfies Record<MusicType, { elementType: string; label: string; one: string; many: string }>;
+
+// Playlists lead, because most curator tools work on playlists.
+const typeTabs: ReadonlyArray<{ value: MusicType | null; label: string }> = [
+  { value: null, label: 'All' },
+  ...musicTypes.map((value) => ({ value, label: typeDetails[value].label })),
+];
+
+/** Bridge's privacy value and the word that describes each audience. */
+const audienceDetails = {
+  public: { privacy: 'public', adjective: 'public' },
+  members: { privacy: 'subscriber', adjective: 'members-only' },
+  private: { privacy: 'private', adjective: 'private' },
+} satisfies Record<MusicAudience, { privacy: OwnerVisibility; adjective: string }>;
+
+function nounsOf(type: MusicType | null) {
+  return type ? typeDetails[type] : { one: 'post', many: 'posts' };
 }
 
-function MusicRow({ post }: { post: ActivityPost }) {
-  // A repost is public and opens the original post, so it has no setting the curator can change.
-  const visibility = post.isRepost ? undefined : visibilityOf(post.privacy);
-  const postId = post.redirectPostId || post.postId;
+/** What the count after the tabs counts, such as "members-only playlists". */
+function countedNoun(total: number, type: MusicType | null, audience: MusicAudience | null) {
+  const nouns = nounsOf(type);
+  const adjective = audience ? `${audienceDetails[audience].adjective} ` : '';
+  return `${adjective}${total === 1 ? nouns.one : nouns.many}`;
+}
+
+type LibraryPages = InfiniteData<PaginatedActivityResponse, number>;
+
+// Under the activity key, so a post added, saved, or deleted anywhere refreshes the library; the
+// app's default freshness then spares a long list a refetch of every page on each window focus.
+const libraryKey = (userId: string | null) => ['user-activity', userId, 'studio-library'] as const;
+
+/** One view of the library: its pages, the posts without repeats, and the view's total. */
+function useLibrary(userId: string | null, type: MusicType | null, audience: MusicAudience | null) {
+  const library = useInfiniteQuery({
+    queryKey: [...libraryKey(userId), type ?? 'all', audience ? audienceDetails[audience].privacy : 'all'],
+    queryFn: ({ pageParam }) => profileService.fetchUserActivity(userId!, {
+      page: pageParam,
+      pageSize,
+      elementType: type ? typeDetails[type].elementType : undefined,
+      privacy: audience ? audienceDetails[audience].privacy : undefined,
+    }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.hasNext ? last.page + 1 : undefined),
+    enabled: userId !== null,
+    // A filter change keeps the last list on screen, inert and dimmed, until the new one lands.
+    placeholderData: keepPreviousData,
+  });
+  const posts = useMemo(() => uniquePosts(library.data?.pages ?? []), [library.data]);
+  return { library, posts, total: library.data?.pages[0]?.totalItems ?? 0 };
+}
+
+/** Artists are the rarest posts, so their tab shows once the library holds one, or while it is open. */
+function useArtistsTab(userId: string | null, type: MusicType | null) {
+  const artists = useQuery({
+    queryKey: ['user-activity', userId, 'studio-artists'],
+    queryFn: () => profileService.fetchUserActivity(userId!, { pageSize: 1, elementType: typeDetails.artists.elementType }),
+    enabled: userId !== null,
+  });
+  return type === 'artists' || (artists.data?.totalItems ?? 0) > 0;
+}
+
+/** Applies a saved change to every cached library list at once (see `patchMusicPages`). Bridge's
+    own refresh follows and confirms the pages. */
+function useLibraryPatch(userId: string | null) {
+  const queryClient = useQueryClient();
+  return useCallback((postId: string, change: Partial<ActivityPost> | null) => {
+    for (const [key, data] of queryClient.getQueriesData<LibraryPages>({ queryKey: libraryKey(userId) })) {
+      // The key's last part is the list's audience: a privacy value, or 'all'.
+      if (data) queryClient.setQueryData<LibraryPages>(key, patchMusicPages(data, postId, change, String(key[4])));
+    }
+  }, [queryClient, userId]);
+}
+
+/** Reads the next page. Pages are read by offset, so when a post removed here left a loaded page
+    short, or the total changed since the first page, the loaded pages are read again so nothing
+    is skipped or repeated. */
+async function showMore(library: ReturnType<typeof useLibrary>['library']) {
+  if (pagesShortened(library.data?.pages ?? [], pageSize)) {
+    const reread = await library.refetch();
+    if (reread.isError || !reread.data?.pages.at(-1)?.hasNext) return;
+  }
+  const next = await library.fetchNextPage();
+  const pages = next.data?.pages ?? [];
+  if (pages.length > 1 && pages[pages.length - 1].totalItems !== pages[0].totalItems) await library.refetch();
+}
+
+/** The note and delete sheets, shared by every row. Radix focuses nothing when a sheet without a
+    trigger closes, so each opening records where focus returns: the opener, or the next post
+    when the post left the list. */
+function useRowSheets({ patch, leavesList, focusAfterRemoval }: {
+  patch: (postId: string, change: Partial<ActivityPost> | null) => void;
+  leavesList: (privacy: string | undefined) => boolean;
+  focusAfterRemoval: (postId: string) => () => void;
+}) {
+  const [editing, setEditing] = useState<{ post: ActivityPost; open: boolean } | null>(null);
+  const [deleting, setDeleting] = useState<{ post: ActivityPost; open: boolean } | null>(null);
+  const restoreFocus = useRef<(() => void) | null>(null);
+  const returnFocusOnClose = (event: Event) => {
+    event.preventDefault();
+    restoreFocus.current?.();
+    restoreFocus.current = null;
+  };
+  const opener = (open: (post: ActivityPost) => void) => (post: ActivityPost, returnFocus: HTMLElement | null) => {
+    restoreFocus.current = () => returnFocus?.focus();
+    open(post);
+  };
+
+  return {
+    onEdit: opener((post) => setEditing({ post, open: true })),
+    onDelete: opener((post) => setDeleting({ post, open: true })),
+    sheets: (
+      <>
+        {editing && (
+          <EditPostModal
+            open={editing.open}
+            onOpenChange={(open) => setEditing({ ...editing, open })}
+            postId={editing.post.postId}
+            currentDescription={editing.post.description ?? ''}
+            currentPrivacy={editing.post.privacy}
+            currentCommentsEnabled={editing.post.commentsEnabled ?? true}
+            onSuccess={(change) => {
+              if (leavesList(change.privacy)) restoreFocus.current = focusAfterRemoval(editing.post.postId);
+              patch(editing.post.postId, change);
+            }}
+            onCloseAutoFocus={returnFocusOnClose}
+          />
+        )}
+        {deleting && (
+          <DeletePostModal
+            open={deleting.open}
+            onOpenChange={(open) => setDeleting({ ...deleting, open })}
+            postId={deleting.post.postId}
+            postTitle={deleting.post.title}
+            onSuccess={() => {
+              restoreFocus.current = focusAfterRemoval(deleting.post.postId);
+              patch(deleting.post.postId, null);
+            }}
+            onCloseAutoFocus={returnFocusOnClose}
+          />
+        )}
+      </>
+    ),
+  };
+}
+
+/** Who can open it, as a secondary filter beside the section title. */
+function AudienceFilter({
+  audience,
+  onChange,
+}: {
+  audience: MusicAudience | null;
+  onChange: (next: MusicAudience | null) => void;
+}) {
+  const current = audience ? postVisibility[audienceDetails[audience].privacy] : null;
+  const Icon = current?.icon ?? ListFilter;
   return (
-    <li>
-      <Link
-        href={`/post/${postId}?from=${encodeURIComponent(musicPath)}`}
-        data-testid="studio-music-row"
-        className="flex items-center gap-4 rounded-lg px-2 py-3 outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring"
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          data-testid="studio-music-audience"
+          onMouseDown={keepSecondPressOnTrigger}
+          className={cn('bg-background/60', current && 'border-foreground/40')}
+        >
+          <Icon aria-hidden className="text-muted-foreground" />
+          <span className="text-muted-foreground">Who can open it:</span>
+          {current?.label ?? 'All'}
+          <ChevronDown aria-hidden className="text-muted-foreground" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-52">
+        <DropdownMenuRadioGroup
+          value={audience ?? 'all'}
+          onValueChange={(next) => onChange(musicAudiences.find((value) => value === next) ?? null)}
+        >
+          <DropdownMenuRadioItem value="all">All posts</DropdownMenuRadioItem>
+          {musicAudiences.map((value) => {
+            const setting = postVisibility[audienceDetails[value].privacy];
+            return (
+              <DropdownMenuRadioItem key={value} value={value} className="gap-2">
+                <setting.icon aria-hidden className="size-4 text-muted-foreground" />
+                {setting.label}
+              </DropdownMenuRadioItem>
+            );
+          })}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** The type of music, as links that keep the audience filter. They wrap rather than scroll, so
+    a narrow list never hides one. */
+function TypeTabs({ type, audience, showArtists }: {
+  type: MusicType | null;
+  audience: MusicAudience | null;
+  showArtists: boolean;
+}) {
+  return (
+    <nav aria-label="Type of music" className="flex flex-wrap gap-1.5">
+      {typeTabs.filter((tab) => tab.value !== 'artists' || showArtists).map((tab) => {
+        const active = tab.value === type;
+        return (
+          <Link
+            key={tab.label}
+            href={studioMusicHref({ type: tab.value, audience })}
+            replace
+            scroll={false}
+            aria-current={active ? 'page' : undefined}
+            className={cn(
+              'inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              active
+                ? 'bg-foreground font-medium text-background'
+                : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground',
+            )}
+          >
+            {tab.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** One empty state per view: no music at all leads to Add music; an empty type offers to add
+    one; an empty audience offers the whole type back. */
+function LibraryEmpty({ type, audience, returnPath }: {
+  type: MusicType | null;
+  audience: MusicAudience | null;
+  returnPath: string;
+}) {
+  const nouns = nounsOf(type);
+  if (audience) {
+    return (
+      <Empty>
+        <EmptyTitle>{`No ${audienceDetails[audience].adjective} ${nouns.many}`}</EmptyTitle>
+        <EmptyDescription>Change who can open a post from its row.</EmptyDescription>
+        <Button asChild variant="outline">
+          <Link href={studioMusicHref({ type })} replace scroll={false}>{`Show all ${nouns.many}`}</Link>
+        </Button>
+      </Empty>
+    );
+  }
+  if (type) {
+    return (
+      <Empty>
+        <EmptyTitle>{`No ${nouns.many} yet`}</EmptyTitle>
+        <EmptyDescription>{`${typeDetails[type].label} you add show here.`}</EmptyDescription>
+        <Button asChild>
+          <Link href={addMusicHref(returnPath)}>
+            <Plus aria-hidden />
+            Add music
+          </Link>
+        </Button>
+      </Empty>
+    );
+  }
+  return (
+    <Empty>
+      <EmptyTitle>No music yet</EmptyTitle>
+      <EmptyDescription>Add a playlist, track, or album with a note. Fans see it on your page.</EmptyDescription>
+      <Button asChild>
+        <Link href={addMusicHref(returnPath)}>
+          <Plus aria-hidden />
+          Add your first music
+        </Link>
+      </Button>
+    </Empty>
+  );
+}
+
+/** The posts with their tools, then the next page. While a filter change loads, the last list
+    stays inert and dimmed. */
+function LibraryRows({ listRef, posts, total, library, rowProps }: {
+  listRef: RefObject<HTMLUListElement | null>;
+  posts: ActivityPost[];
+  total: number;
+  library: ReturnType<typeof useLibrary>['library'];
+  rowProps: Omit<StudioMusicRowProps, 'post'>;
+}) {
+  const switching = library.isPlaceholderData;
+  return (
+    <>
+      <ul
+        ref={listRef}
+        inert={switching}
+        aria-busy={switching || undefined}
+        className={cn('divide-y divide-border/60 transition-opacity duration-150', switching && 'opacity-50')}
       >
-        <ArtworkImage
-          src={post.imageUrl}
-          alt=""
-          width={48}
-          height={48}
-          className="size-12 shrink-0 rounded-md object-cover ring-1 ring-border/40"
-          fallbackClassName="size-12 shrink-0 rounded-md bg-muted/60 ring-1 ring-border/40"
-          fallbackIconClassName="size-5 text-muted-foreground/50"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{post.title}</p>
-          <p className="truncate text-sm text-muted-foreground">
-            {[post.subtitle, typeLabel(post)].filter(Boolean).join(' · ')}
+        {posts.map((post) => <StudioMusicRow key={post.postId} post={post} {...rowProps} />)}
+      </ul>
+      {library.hasNextPage && !switching && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {/* Waits out a refresh, so the next page is read against current pages. */}
+          <Button variant="outline" disabled={library.isFetching} onClick={() => void showMore(library)}>
+            {library.isFetchingNextPage ? 'Loading…' : 'Show more'}
+          </Button>
+          <p aria-live="polite" className="text-xs tabular-nums text-muted-foreground">
+            {`${posts.length} of ${total}`}
           </p>
         </div>
-        {visibility && (
-          <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-            <visibility.icon aria-hidden className="size-3.5" />
-            {visibility.label}
-          </span>
-        )}
-        <time dateTime={post.createdAt} className="hidden w-24 shrink-0 text-right text-xs tabular-nums text-muted-foreground sm:block">
-          {formatRelativeTime(post.createdAt)}
-        </time>
-      </Link>
-    </li>
+      )}
+      {library.isFetchNextPageError && (
+        <p role="alert" className="mt-3 text-sm text-destructive">Could not load more music. Try again.</p>
+      )}
+      {/* A failed refresh keeps the list on screen; say so, since the list may be behind Bridge. */}
+      {library.isRefetchError && !library.isFetching && (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <p role="alert" className="text-sm text-destructive">Could not refresh your music.</p>
+          <Button variant="outline" size="sm" onClick={() => void library.refetch()}>Try again</Button>
+        </div>
+      )}
+    </>
   );
 }
 
 export default function StudioMusicPage() {
   const { user } = useAuthState();
   const userId = user?.id ?? null;
-  const [audience, setAudience] = useState<Audience>('all');
-  const music = useInfiniteQuery({
-    queryKey: ['curator-studio-music-list', userId, audience],
-    queryFn: ({ pageParam }) => profileService.fetchUserActivity(userId!, {
-      page: pageParam,
-      pageSize,
-      privacy: audience === 'all' ? undefined : audience,
-    }),
-    initialPageParam: 1,
-    getNextPageParam: (last) => (last.hasNext ? last.page + 1 : undefined),
-    enabled: userId !== null,
-    staleTime: 0,
-  });
-  const posts = music.data?.pages.flatMap((page) => page.items) ?? [];
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const type = musicTypes.find((value) => value === searchParams.get('type')) ?? null;
+  const audience = musicAudiences.find((value) => value === searchParams.get('audience')) ?? null;
+  const returnPath = studioMusicHref({ type, audience });
+  const steps = useContext(StudioStepsContext);
+  const access = useMemberPostAccess();
+  const patch = useLibraryPatch(userId);
+  const { library, posts, total } = useLibrary(userId, type, audience);
+  const showArtists = useArtistsTab(userId, type);
 
-  let body;
-  if (music.isPending) {
-    body = (
-      <div aria-hidden className="space-y-3">
-        {[0, 1, 2].map((index) => <Skeleton key={index} className="h-14 w-full rounded-lg" />)}
-      </div>
-    );
-  } else if (music.isError && posts.length === 0) {
-    body = (
-      <div className="flex flex-wrap items-center gap-3">
-        <p role="alert" className="text-sm text-destructive">Could not load your music.</p>
-        <Button variant="outline" size="sm" onClick={() => music.refetch()}>Try again</Button>
-      </div>
-    );
-  } else if (posts.length === 0 && audience === 'all') {
-    body = (
-      <Empty>
-        <EmptyTitle>No music yet</EmptyTitle>
-        <EmptyDescription>Add music to start your page. Fans see your posts there.</EmptyDescription>
-        <Button asChild>
-          <Link href={addMusicHref(musicPath)}>
-            <Plus aria-hidden />
-            Add your first music
-          </Link>
-        </Button>
-      </Empty>
-    );
-  } else if (posts.length === 0) {
-    body = <p className="text-sm text-muted-foreground">No posts with this setting.</p>;
-  } else {
+  const listRef = useRef<HTMLUListElement>(null);
+  /** Where focus goes once a row leaves: the next row's title, else the one before, else the section. */
+  const focusAfterRemoval = (postId: string) => {
+    const rows = [...(listRef.current?.querySelectorAll<HTMLElement>('[data-post-id]') ?? [])];
+    const index = rows.findIndex((row) => row.dataset.postId === postId);
+    const neighbor = rows[index + 1] ?? rows[index - 1];
+    return () => (neighbor?.querySelector<HTMLElement>('[data-row-title]') ?? document.getElementById('studio-music'))?.focus();
+  };
+  const leavesList = (privacy: string | undefined) =>
+    audience !== null && privacy !== undefined && privacy !== audienceDetails[audience].privacy;
+  const { onEdit, onDelete, sheets } = useRowSheets({ patch, leavesList, focusAfterRemoval });
+
+  // A row whose new setting leaves this list takes its control, or its still-open menu, with it,
+  // and the browser drops focus to the page. Once that render lands, focus moves to the next post.
+  const focusAfterDrop = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    const refocus = focusAfterDrop.current;
+    focusAfterDrop.current = null;
+    if (refocus && (document.activeElement === null || document.activeElement === document.body)) refocus();
+  }, [posts]);
+  const onSaved = (post: ActivityPost, change: Partial<ActivityPost>) => {
+    if (leavesList(change.privacy)) focusAfterDrop.current = focusAfterRemoval(post.postId);
+    patch(post.postId, change);
+  };
+
+  let body: ReactNode;
+  if (library.isPending) {
     body = (
       <>
-        <ul className="-mx-2 divide-y divide-border/60">
-          {posts.map((post) => <MusicRow key={post.postId} post={post} />)}
+        <output className="sr-only">Loading your music…</output>
+        <ul aria-hidden className="divide-y divide-border/60">
+          {[0, 1, 2].map((index) => <StudioMusicRowSkeleton key={index} />)}
         </ul>
-        {music.hasNextPage && (
-          <Button
-            variant="outline"
-            className="mt-4"
-            disabled={music.isFetchingNextPage}
-            onClick={() => void music.fetchNextPage()}
-          >
-            {music.isFetchingNextPage ? 'Loading…' : 'Show more'}
-          </Button>
-        )}
-        {music.isFetchNextPageError && (
-          <p role="alert" className="mt-3 text-sm text-destructive">Could not load more music. Try again.</p>
-        )}
       </>
+    );
+  } else if (posts.length === 0 && library.isError) {
+    body = (
+      <div className="flex flex-wrap items-center gap-3 py-2">
+        <p role="alert" className="text-sm text-destructive">Could not load your music.</p>
+        <Button variant="outline" size="sm" onClick={() => void library.refetch()}>Try again</Button>
+      </div>
+    );
+  } else if (posts.length === 0) {
+    body = <LibraryEmpty type={type} audience={audience} returnPath={returnPath} />;
+  } else {
+    body = (
+      <LibraryRows
+        listRef={listRef}
+        posts={posts}
+        total={total}
+        library={library}
+        rowProps={{
+          returnPath,
+          access: access.state,
+          retryAccess: access.refetch,
+          openPlanSetup: () => steps?.open('studio-plan'),
+          onSaved,
+          onEdit,
+          onDelete,
+        }}
+      />
     );
   }
 
@@ -156,18 +458,29 @@ export default function StudioMusicPage() {
       id="studio-music"
       title="Music"
       headingId="studio-music-title"
-      description="Everything on your page, newest first. Open your own post to change who can open it."
+      description="Everything on your page, newest first."
       chip={(
-        <SegmentedControl
-          label="Who can open it"
-          className="w-full sm:w-auto"
-          options={audienceOptions}
-          value={audience}
-          onValueChange={(value) => setAudience(audiences.find((option) => option === value) ?? 'all')}
+        <AudienceFilter
+          audience={audience}
+          onChange={(next) => router.replace(studioMusicHref({ type, audience: next }), { scroll: false })}
         />
       )}
     >
-      {body}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <TypeTabs type={type} audience={audience} showArtists={showArtists} />
+        {/* Stays mounted, so a new count after a filter change is announced. An empty list says it itself. */}
+        <p aria-live="polite" className="text-sm text-muted-foreground">
+          {library.data && !library.isPlaceholderData && total > 0 && (
+            <>
+              <span className="tabular-nums">{total}</span>
+              {` ${countedNoun(total, type, audience)}`}
+            </>
+          )}
+        </p>
+      </div>
+
+      <div className="mt-2 [container-type:inline-size]">{body}</div>
+      {sheets}
     </StudioSection>
   );
 }

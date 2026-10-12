@@ -413,13 +413,18 @@ const toProfileBio = (user: FixtureUser, state: MockState) => ({
 
 const toActivityItem = (post: FixturePost, state: MockState) => {
   const owner = post.ownerId ? state.usersById.get(post.ownerId) : undefined;
+  const original = post.originalPostId ? state.postsById.get(post.originalPostId) : undefined;
 
   return {
     postId: post.postId,
-    redirectPostId: post.postId,
-    isRepost: false,
+    redirectPostId: post.originalPostId ?? post.postId,
+    isRepost: Boolean(post.originalPostId),
+    originalPostId: post.originalPostId ?? null,
+    originalPostOwnerUsername: original?.ownerUsername ?? null,
     elementType: post.elementType,
     title: post.title,
+    // Bridge names the artist under tracks and albums only.
+    subtitle: post.elementType === 'Track' || post.elementType === 'Album' ? post.artist : undefined,
     description: post.description || '',
     username: post.ownerUsername || '',
     userId: post.ownerId || '',
@@ -2520,6 +2525,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       const requestedElementType = normalizeUsername(url.searchParams.get('elementType') || '');
       const requestedPrivacy = url.searchParams.get('privacy');
       const pageSize = Number(url.searchParams.get('pageSize') || 20);
+      const page = Math.max(1, Number(url.searchParams.get('page') || 1));
       const items = Array.from(state.postsById.values()).filter((post) => {
         if (post.ownerId !== user.id) return false;
         if (requestedPrivacy && (post.privacy || 'public') !== requestedPrivacy) return false;
@@ -2527,12 +2533,12 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         return normalizeUsername(post.elementType) === normalizeUsername(requestedElementType);
       });
 
+      // Bridge sends no page count; the client derives the next page from the total.
       return json(route, {
-        items: items.slice(0, pageSize).map((post) => toActivityItem(post, state)),
-        page: Number(url.searchParams.get('page') || 1),
+        items: items.slice((page - 1) * pageSize, page * pageSize).map((post) => toActivityItem(post, state)),
+        page,
         pageSize,
         totalItems: items.length,
-        totalPages: items.length > 0 ? 1 : 0,
       });
     }
 

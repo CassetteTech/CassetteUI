@@ -32,6 +32,8 @@ interface EditPostModalProps {
   currentPrivacy?: PostPrivacy;
   currentCommentsEnabled?: boolean;
   onSuccess?: (data: { description: string; privacy: PostPrivacy; commentsEnabled: boolean }) => void;
+  /** Without a sheet trigger, Radix focuses nothing on close; a caller can focus its real opener here. */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 export function EditPostModal({
@@ -42,6 +44,7 @@ export function EditPostModal({
   currentPrivacy = 'public',
   currentCommentsEnabled = true,
   onSuccess,
+  onCloseAutoFocus,
 }: EditPostModalProps) {
   const [description, setDescription] = useState(currentDescription);
   const [privacy, setPrivacy] = useState<PostPrivacy>(currentPrivacy);
@@ -60,9 +63,18 @@ export function EditPostModal({
   }, [open, currentDescription, currentPrivacy, currentCommentsEnabled]);
 
   const handleSave = async () => {
+    // Only what changed goes to Bridge, so a list item that carries a stale or default setting
+    // never overwrites the saved one.
+    const changes = {
+      description: description === currentDescription ? undefined : description,
+      privacy: privacy === currentPrivacy ? undefined : privacy,
+      commentsEnabled: commentsEnabled === currentCommentsEnabled ? undefined : commentsEnabled,
+    };
     try {
-      await updatePost.mutateAsync({ postId, description, privacy, commentsEnabled });
-      toast.success('Post updated successfully');
+      if (Object.values(changes).some((value) => value !== undefined)) {
+        await updatePost.mutateAsync({ postId, ...changes });
+        toast.success('Post updated successfully');
+      }
       onOpenChange(false);
       onSuccess?.({ description, privacy, commentsEnabled });
     } catch (error) {
@@ -90,7 +102,7 @@ export function EditPostModal({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-md">
+      <SheetContent side="right" className="w-full max-w-md" onCloseAutoFocus={onCloseAutoFocus}>
         <SheetHeader>
           <SheetTitle className="text-foreground">Edit Post</SheetTitle>
           <SheetDescription className="text-muted-foreground">

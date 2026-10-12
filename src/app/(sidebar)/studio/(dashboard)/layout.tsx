@@ -22,6 +22,7 @@ import { OverviewSkeleton, StudioOverview, type LaunchStep } from '@/components/
 import { StudioSection, StudioStepsContext } from '@/components/features/curator/studio-shell';
 import {
   addMusicHref,
+  studioLabels,
   studioPaths,
   studioViewOf,
   studioViewOfPath,
@@ -56,10 +57,11 @@ function readPageLinkCopied(userId: string) {
 }
 
 /** The first launch step. The owner's own read counts every post they made, so one item finishes it.
-    A failed first read says nothing about the page, so the step is left out until a retry answers. */
+    A failed first read says nothing about the page, so the step is left out until a retry answers.
+    Under the activity key, so adding or deleting a post anywhere refreshes the step. */
 function useMusicStep(userId: string | null) {
   const music = useQuery({
-    queryKey: ['curator-studio-music', userId],
+    queryKey: ['user-activity', userId, 'studio-has-music'],
     queryFn: () => profileService.fetchUserActivity(userId!, { pageSize: 1 }),
     enabled: userId !== null,
     staleTime: 0,
@@ -91,11 +93,11 @@ function usePageLinkCopied(userId: string | null) {
   return [copied, markCopied] as const;
 }
 
-const sections: ReadonlyArray<{ id: StudioView; label: string; icon: typeof LayoutDashboard }> = [
-  { id: 'studio-overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'studio-music', label: 'Music', icon: Music },
-  { id: 'studio-earnings', label: 'Members', icon: HandCoins },
-  { id: 'studio-billing', label: 'Payouts & billing', icon: CreditCard },
+const sections: ReadonlyArray<{ id: StudioView; icon: typeof LayoutDashboard }> = [
+  { id: 'studio-overview', icon: LayoutDashboard },
+  { id: 'studio-music', icon: Music },
+  { id: 'studio-earnings', icon: HandCoins },
+  { id: 'studio-billing', icon: CreditCard },
 ];
 
 /** Launch-checklist state shared by the header, the overview, and the payout
@@ -174,6 +176,11 @@ function greeting(hour: number) {
 function StudioHeader({ onPageLinkCopied }: { onPageLinkCopied: () => void }) {
   const { user } = useAuthState();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // Music keeps its filters, so a post added from a tab returns to that tab. Other views keep
+  // only their path; their queries belong to provider returns.
+  const musicQuery = pathname === studioPaths['studio-music'] ? searchParams.toString() : '';
+  const addMusicFrom = musicQuery ? `${pathname}?${musicQuery}` : pathname ?? studioPaths['studio-overview'];
   const username = user?.username ?? null;
   const publicPath = username ? `/profile/${encodeURIComponent(username)}` : null;
   const firstName = user?.displayName.trim().split(/\s+/)[0] || username;
@@ -218,7 +225,7 @@ function StudioHeader({ onPageLinkCopied }: { onPageLinkCopied: () => void }) {
           </div>
         )}
         <Button asChild size="sm">
-          <Link href={addMusicHref(pathname ?? studioPaths['studio-overview'])}>
+          <Link href={addMusicHref(addMusicFrom)}>
             <Plus aria-hidden />
             Add music
           </Link>
@@ -264,7 +271,7 @@ function StudioSectionLinks({ view }: { view: StudioView }) {
           >
             {/* Icons drop out on phones so the views fit with less scrolling. */}
             <item.icon aria-hidden className="hidden size-4 shrink-0 sm:block" />
-            <span className="tab-label" data-label={item.label}>{item.label}</span>
+            <span className="tab-label" data-label={studioLabels[item.id]}>{studioLabels[item.id]}</span>
           </Link>
         );
       })}

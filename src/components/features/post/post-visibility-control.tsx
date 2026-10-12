@@ -9,6 +9,7 @@ import { LockKeyhole } from 'lucide-react';
 import { SegmentedControl } from '@/components/interior/segmented-control';
 import { Button } from '@/components/ui/button';
 import {
+  membersOptionOf,
   ownerVisibilities,
   postVisibility,
   visibilityOf,
@@ -35,10 +36,9 @@ export function PostVisibilityControl({
   headingAs?: 'h2' | 'h3';
 }) {
   const access = useMemberPostAccess();
-  const canLock = access.state === 'ready' || privacy === 'subscriber';
   // Without a plan that unlocks member posts, "Members" carries a lock. Choosing it keeps the
   // post's setting and shows where plans are set up instead.
-  const needsPlan = !canLock && access.state === 'needs-plan';
+  const { needsPlan, waiting } = membersOptionOf(access.state, privacy);
   const [setupShown, setSetupShown] = useState(false);
   const promptShown = needsPlan && setupShown && !disabled;
   const known = visibilityOf(privacy) !== undefined;
@@ -63,7 +63,7 @@ export function PostVisibilityControl({
             ? <LockKeyhole aria-hidden className="mr-1 inline size-3 -translate-y-px" />
             : undefined,
           // While the plan check loads or fails, the option waits; the error row below offers a retry.
-          disabled: disabled || (value === 'subscriber' && !canLock && !needsPlan),
+          disabled: disabled || (value === 'subscriber' && waiting),
         }))}
       />
       <div className="mt-3 grid text-sm text-muted-foreground">

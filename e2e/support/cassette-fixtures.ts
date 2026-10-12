@@ -92,6 +92,8 @@ export interface FixturePost {
   likeCount?: number;
   likedByCurrentUser?: boolean;
   repostedByCurrentUser?: boolean;
+  /** Set on a repost: the post it points at. */
+  originalPostId?: string;
   commentsEnabled?: boolean;
   conversionSuccessCount?: number;
   originalUrl: string;

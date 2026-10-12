@@ -1,15 +1,18 @@
 'use client';
 
 /** Owner-only strip on the public profile: says the page is public, and offers
-    the link, the editor, and Curator Studio without leaving the page. */
+    the link, the editor, and the Studio library without leaving the page. */
 
 import Link from 'next/link';
 import { ArrowUpRight, Eye } from 'lucide-react';
+import { musicTypes, studioMusicHref } from '@/components/features/curator/studio-routes';
 import { CopyButton } from '@/components/interior/copy-button';
 import { Button } from '@/components/ui/button';
 
-export function ProfileOwnerBar({ username }: { username: string }) {
+/** `tab` is the open profile tab; a music tab opens the library at the same type. */
+export function ProfileOwnerBar({ username, tab }: { username: string; tab?: string }) {
   const publicPath = `/profile/${encodeURIComponent(username)}`;
+  const type = musicTypes.find((value) => value === tab) ?? null;
   return (
     <div
       data-testid="profile-owner-bar"
@@ -30,9 +33,9 @@ export function ProfileOwnerBar({ username }: { username: string }) {
         <Button asChild variant="ghost" size="sm" className="text-xs">
           <Link href={`${publicPath}/edit`}>Edit profile</Link>
         </Button>
-        <Button asChild variant="ghost" size="sm" className="text-xs text-primary hover:text-primary">
-          <Link href="/studio">
-            Open Curator Studio
+        <Button asChild variant="ghost" size="sm" className="text-xs">
+          <Link href={studioMusicHref({ type })}>
+            Manage in Studio
             <ArrowUpRight aria-hidden className="size-3.5" />
           </Link>
         </Button>

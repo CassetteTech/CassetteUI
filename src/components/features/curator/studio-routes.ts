@@ -10,6 +10,14 @@ export const studioPaths = {
   'studio-billing': '/studio/payouts',
 } satisfies Record<StudioView, string>;
 
+/** Each view's name, in the section links and in Back links that return to it. */
+export const studioLabels = {
+  'studio-overview': 'Overview',
+  'studio-music': 'Music',
+  'studio-earnings': 'Members',
+  'studio-billing': 'Payouts & billing',
+} satisfies Record<StudioView, string>;
+
 const studioViews: readonly StudioView[] = ['studio-overview', 'studio-music', 'studio-earnings', 'studio-billing'];
 
 /** The view a Studio path shows, or null outside the dashboard views. */
@@ -36,6 +44,21 @@ export function studioViewOf(sectionId: string): StudioView {
 
 /** The Add music page. `from` is the Studio URL its Back and its finished post return to. */
 export const addMusicHref = (from: string) => `/studio/music/new?from=${encodeURIComponent(from)}`;
+
+/** Music library filters as they appear in the URL; a missing value shows everything. */
+export const musicTypes = ['playlists', 'tracks', 'albums', 'artists'] as const;
+export type MusicType = (typeof musicTypes)[number];
+export const musicAudiences = ['public', 'members', 'private'] as const;
+export type MusicAudience = (typeof musicAudiences)[number];
+
+/** The Music library, narrowed to one type of music and to who can open it. */
+export function studioMusicHref({ type, audience }: { type?: MusicType | null; audience?: MusicAudience | null } = {}) {
+  const query = new URLSearchParams();
+  if (type) query.set('type', type);
+  if (audience) query.set('audience', audience);
+  const search = query.toString();
+  return search ? `${studioPaths['studio-music']}?${search}` : studioPaths['studio-music'];
+}
 
 /** The URL of a section, for links that also work in a new tab. */
 export const studioHref = (sectionId: string) => `${studioPaths[studioViewOf(sectionId)]}#${sectionId}`;

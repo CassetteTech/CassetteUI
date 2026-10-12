@@ -469,7 +469,7 @@ export default function ProfilePage() {
         showLikedTab={likedSectionVisible}
         likedTabVisibility={likedTabVisibility}
       />
-      {isCurrentUser && userBio && <ProfileOwnerBar username={userBio.username} />}
+      {isCurrentUser && userBio && <ProfileOwnerBar username={userBio.username} tab={activeTab} />}
       {isPostsTab && userBio ? (
         /* Same right rail as Curator Studio; the pass slides between the two pages' spots. */
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:px-8 lg:pt-6 lg:pb-10">

@@ -42,6 +42,7 @@ import {
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 import { normalizeAuthRedirect } from '@/utils/auth-redirect';
 import { PostVisibilityControl } from '@/components/features/post/post-visibility-control';
+import { studioLabels, studioViewOfPath } from '@/components/features/curator/studio-routes';
 import type { PostPrivacy } from '@/types';
 
 // Analytics keep the route name this page had before it moved into Curator Studio, so funnels stay continuous.
@@ -901,6 +902,10 @@ export default function AddMusicPage() {
     />
   );
 
+  // Back names the Studio section the page opened from, so the page reads as a step inside Studio.
+  const returnView = studioViewOfPath(resolvedReturnRoute?.split(/[?#]/)[0] ?? null);
+  const backLabel = returnView ? studioLabels[returnView] : 'Back';
+
   return (
     <>
       {/* Phones and tablets: bar first, details under it; the bar opens a search sheet. */}
@@ -914,7 +919,7 @@ export default function AddMusicPage() {
             <div className="mx-auto max-w-2xl px-4 pb-16 sm:px-6">
               <div className={`transition-opacity duration-500 ${dimmed}`}>
                 <div className="flex items-center justify-between py-5">
-                  <BackButton fallbackRoute={resolvedReturnRoute ?? '/'} label="Back" />
+                  <BackButton fallbackRoute={resolvedReturnRoute ?? '/'} label={backLabel} />
                 </div>
                 <h1 className="mb-5 font-teko text-4xl font-bold uppercase leading-none tracking-tight text-foreground">
                   Add music
@@ -927,17 +932,22 @@ export default function AddMusicPage() {
         </div>
       </div>
 
-      {/* Desktop: one Studio-width container; details on the left, the homepage
-          bar and open results on the right. Both columns share the header's
-          top edge and the container's gutters, so nothing hugs the window. */}
-      <div className="studio-surface relative hidden min-h-full lg:flex lg:px-8 lg:py-8">
+      {/* Desktop: one Studio-width container. The header spans the page, so more ways to
+          add music can sit under it later; below it, details on the left and the homepage
+          bar with open results on the right share one top edge. */}
+      <div className="studio-surface relative hidden min-h-full lg:block lg:px-8 lg:py-8">
         {paper}
-        <div className="relative z-10 mx-auto grid w-full max-w-6xl grid-cols-2 items-center gap-x-8 xl:grid-cols-[minmax(0,1fr)_28rem] xl:gap-x-16">
-          <div className={`transition-opacity duration-500 ${dimmed}`}>
-            <h1 className="mb-6 font-teko text-5xl font-bold uppercase leading-none tracking-tight text-foreground">Add music</h1>
-            <PostDetails collapsed={false} {...detailsProps} />
+        <div className="relative z-10 mx-auto w-full max-w-6xl">
+          <header className={`transition-opacity duration-500 ${dimmed}`}>
+            <BackButton fallbackRoute={resolvedReturnRoute ?? '/'} label={backLabel} />
+            <h1 className="mt-5 font-teko text-5xl font-bold uppercase leading-none tracking-tight text-foreground">Add music</h1>
+          </header>
+          <div className="mt-8 grid grid-cols-2 items-start gap-x-8 xl:grid-cols-[minmax(0,1fr)_28rem] xl:gap-x-16">
+            <div className={`transition-opacity duration-500 ${dimmed}`}>
+              <PostDetails collapsed={false} {...detailsProps} />
+            </div>
+            <MusicPicker {...pickerProps} rail />
           </div>
-          <MusicPicker {...pickerProps} rail />
         </div>
       </div>
     </>

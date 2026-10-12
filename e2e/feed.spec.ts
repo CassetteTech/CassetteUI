@@ -631,7 +631,9 @@ test.describe('navigation', () => {
     await page.goto('/feed');
     const sidebar = page.locator('[data-slot="sidebar"]');
     const sidebarLinks = page.locator('[data-sidebar="menu"]').getByRole('link');
-    await expect(sidebarLinks).toHaveText(['Feed', 'Explore', 'Curator Studio', 'Add Music', 'Memberships']);
+    // Add music is a button above the menu, not a menu row.
+    await expect(sidebarLinks).toHaveText(['Feed', 'Explore', 'Curator Studio', 'Memberships']);
+    await expect(sidebar.getByRole('link', { name: 'Add music', exact: true })).toHaveAttribute('href', '/studio/music/new');
     await expect(page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Feed' })).toHaveAttribute('data-active', 'true');
     await expect(sidebar.getByRole('link', { name: 'Support Us' })).toHaveCount(0);
 
@@ -659,7 +661,7 @@ test.describe('navigation', () => {
       await page.goto('/explore');
       await page.getByRole('button', { name: 'Open menu' }).click();
       const browse = page.getByRole('region', { name: 'Browse' }).getByRole('link');
-      await expect(browse).toHaveText(['Home', 'Feed', 'Explore', 'Promote']);
+      await expect(browse).toHaveText(['Home', 'Feed', 'Explore', 'Add Music', 'Promote']);
       await browse.filter({ hasText: 'Feed' }).click();
       await expect(page).toHaveURL('/feed');
       await expect(postLinks(page)).toHaveCount(2);

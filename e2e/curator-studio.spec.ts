@@ -18,7 +18,8 @@ import {
 import { mockCassetteApp } from './support/mock-cassette-app';
 import { openStudioStep } from './support/studio-steps';
 
-const STUDIO_PATH = '/studio/curator';
+const STUDIO_PATH = '/studio';
+const STUDIO_PAYOUTS_PATH = '/studio/payouts';
 const PAYOUT_URL = 'https://connect.stripe.test/payout-onboarding';
 
 const curatorProfile: CuratorProfile = {
@@ -152,7 +153,7 @@ test('starts an empty curator page with the first music step and finishes with s
   ]);
   // Add Music is another page, so the next step is a link with a forward arrow.
   const next = page.getByRole('link', { name: 'Next: Add your first music' });
-  await expect(next).toHaveAttribute('href', '/add-music');
+  await expect(next).toHaveAttribute('href', '/studio/music/new?from=%2Fstudio');
   await expect(next.locator('svg')).toHaveCount(1);
 
   // Sharing is the last step: copying the page link finishes it, and the browser remembers it.
@@ -166,7 +167,7 @@ test('starts an empty curator page with the first music step and finishes with s
   await expect(page.getByRole('link', { name: 'Next: Add your first music' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Next: Add your first music' }).click();
-  await expect(page).toHaveURL('/add-music');
+  await expect(page).toHaveURL('/studio/music/new?from=%2Fstudio');
   expect(state.curatorPlanCreateRequests).toEqual([]);
 });
 
@@ -302,7 +303,7 @@ test('refreshes capability truth after hosted onboarding returns', async ({ page
     curatorPayoutRefreshAccount: active,
   });
 
-  await page.goto(`${STUDIO_PATH}?payout=return`);
+  await page.goto(`${STUDIO_PAYOUTS_PATH}?payout=return`);
 
   await expect(page.getByTestId('curator-payout-notice')).toHaveText('Payout setup is complete.');
   await expect(page.getByTestId('curator-payout-card')).toContainText('Ready');
@@ -330,12 +331,14 @@ test('keeps the launch checklist on payout setup until Stripe verifies the accou
 
   await page.goto(STUDIO_PATH);
 
-  await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-selected', 'true');
+  // Studio opens on the URL the curator chose; the open step is offered there.
+  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-current', 'page');
+  await page.getByRole('button', { name: 'Next: Set up payouts' }).click();
+  await expect(page).toHaveURL(STUDIO_PAYOUTS_PATH);
+  await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-current', 'page');
   const payoutCard = page.getByTestId('curator-payout-card');
   await expect(payoutCard.getByText('Setup started').locator('..')).toContainText('Done');
   await expect(payoutCard.getByText('Publish and receive payouts').locator('..')).toContainText('Needs your information');
-  await openStudioStep(page, 'studio-overview');
-  await expect(page.getByRole('button', { name: 'Next: Set up payouts' })).toBeVisible();
 });
 
 test('opens the plan editor from the Members view before a profile exists', async ({ page }) => {
@@ -345,7 +348,7 @@ test('opens the plan editor from the Members view before a profile exists', asyn
   await openStudioStep(page, 'studio-earnings');
   await page.getByRole('button', { name: 'Design your membership', exact: true }).click();
 
-  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-current', 'page');
   const card = page.getByTestId('curator-plan-card');
   await expect(card.getByLabel('Plan name')).toBeFocused();
   await card.getByLabel('Plan name').fill('Early Club');
@@ -362,7 +365,7 @@ test('mints a new hosted link when the provider refresh URL returns', async ({ p
   });
   await hostPayoutPage(page, renewedUrl);
 
-  await page.goto(`${STUDIO_PATH}?payout=refresh`);
+  await page.goto(`${STUDIO_PAYOUTS_PATH}?payout=refresh`);
   await expect(page.getByText('Your secure payout setup link expired.')).toBeVisible();
   expect(state.curatorPayoutOnboardingRequests).toBe(0);
 
@@ -1204,14 +1207,12 @@ test('swaps the launch checklist for one banner after the first publish and orde
   });
 
   await page.goto(STUDIO_PATH);
-  await page.locator('[data-studio-steps-ready="true"]').waitFor();
-  await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-selected', 'true');
-  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByText('Payout setup is not complete.')).toBeVisible();
   await expect(page.getByText('Your page has no music yet.')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Launch checklist' })).toHaveCount(0);
   await page.getByRole('button', { name: /^Ready to pay out/ }).click();
-  await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-current', 'page');
   await expect.poll(() => billingOrder(page)).toEqual(['setup', 'history', 'pro']);
 
   state.curatorPayoutAccount = activePayout;
@@ -1220,7 +1221,7 @@ test('swaps the launch checklist for one banner after the first publish and orde
   await expect(page.getByRole('heading', { name: 'Earned' })).toBeVisible();
   await expect(page.getByText('Payout setup is not complete.')).toHaveCount(0);
   // With payouts ready, the open content step is the one banner.
-  await expect(page.getByRole('link', { name: 'Add your first music' })).toHaveAttribute('href', '/add-music');
+  await expect(page.getByRole('link', { name: 'Add your first music' })).toHaveAttribute('href', '/studio/music/new?from=%2Fstudio');
   await expect(page.getByText('Copy your page link to share it with fans.')).toHaveCount(0);
   await openStudioStep(page, 'studio-billing');
   await expect(page.getByTestId('curator-payout-card')).toContainText('Ready. Last checked');
@@ -1237,7 +1238,7 @@ test('keeps payout setup first after a payout return and offers the next plan st
     curatorProStatus: fixtureCuratorProAvailableStatus,
   });
 
-  await page.goto(`${STUDIO_PATH}?payout=return`);
+  await page.goto(`${STUDIO_PAYOUTS_PATH}?payout=return`);
 
   await expect(page.getByTestId('curator-payout-notice')).toHaveText('Payout setup is complete.');
   // Setup stays first for this visit, so the notice does not move when payouts turn active.
@@ -1245,7 +1246,7 @@ test('keeps payout setup first after a payout return and offers the next plan st
   expect(state.curatorPayoutStatusRequests.filter(Boolean)).toEqual([true]);
 
   await page.getByTestId('curator-payout-card').getByRole('button', { name: 'Publish your plan' }).click();
-  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByTestId('curator-plan-card')).toBeFocused();
   await expect(page.getByTestId('curator-plan-publish')).toBeEnabled();
 });
@@ -1277,8 +1278,9 @@ test('shows no setup banner while the payout state is unknown', async ({ page })
   state.curatorPayoutStatusFailuresRemaining = 10;
 
   await page.goto(STUDIO_PATH);
-  await expect(page.getByTestId('curator-payout-card').getByRole('alert')).toBeAttached({ timeout: 10_000 });
-  await openStudioStep(page, 'studio-overview');
+  // The payout card stays mounted, hidden, on the Overview URL; its read failure settles there.
+  await expect(page.getByTestId('curator-payout-card').locator('[role="alert"]')).toBeAttached({ timeout: 10_000 });
+  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('heading', { name: 'Earned' })).toBeVisible();
   await expect(page.getByText('Payout setup is not complete.')).toHaveCount(0);
 });

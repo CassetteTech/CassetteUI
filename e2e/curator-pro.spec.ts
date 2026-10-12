@@ -12,7 +12,8 @@ import {
 import { mockCassetteApp } from './support/mock-cassette-app';
 import { openStudioStep } from './support/studio-steps';
 
-const STUDIO_PATH = '/studio/curator';
+const STUDIO_PATH = '/studio';
+const STUDIO_PAYOUTS_PATH = '/studio/payouts';
 const CHECKOUT_URL = 'https://checkout.stripe.test/curator-pro-session';
 const PORTAL_URL = 'https://billing.stripe.test/curator-pro-session';
 
@@ -109,7 +110,7 @@ test('waits for polled subscription truth after Checkout returns', async ({ page
   await returnFromProvider(
     page,
     CHECKOUT_URL,
-    `${STUDIO_PATH}?pro=return&session_id=cs_secret_must_not_be_trusted`,
+    `${STUDIO_PAYOUTS_PATH}?pro=return&session_id=cs_secret_must_not_be_trusted`,
   );
   await openStudioStep(page, 'studio-pro');
   await page.getByTestId('curator-pro-subscribe').click();
@@ -184,7 +185,7 @@ test('reflects cancellation and reactivation only after Billing Portal mirror ch
   });
 
   await page.goto(STUDIO_PATH);
-  await returnFromProvider(page, PORTAL_URL, `${STUDIO_PATH}?pro=portal-return`);
+  await returnFromProvider(page, PORTAL_URL, `${STUDIO_PAYOUTS_PATH}?pro=portal-return`);
   await openStudioStep(page, 'studio-pro');
   await page.getByTestId('curator-pro-manage').click();
 
@@ -208,7 +209,7 @@ test('ends an unchanged Billing Portal return with neutral copy and a way to che
   });
 
   await page.goto(STUDIO_PATH);
-  await returnFromProvider(page, PORTAL_URL, `${STUDIO_PATH}?pro=portal-return`);
+  await returnFromProvider(page, PORTAL_URL, `${STUDIO_PAYOUTS_PATH}?pro=portal-return`);
   await openStudioStep(page, 'studio-pro');
   const card = page.getByTestId('curator-pro-card');
   await expect(card).toContainText('Your memberships and earnings are not affected.');
@@ -239,7 +240,7 @@ test('shows a Billing Portal cancellation that reaches Bridge after the first st
   });
 
   await page.goto(STUDIO_PATH);
-  await returnFromProvider(page, PORTAL_URL, `${STUDIO_PATH}?pro=portal-return`);
+  await returnFromProvider(page, PORTAL_URL, `${STUDIO_PAYOUTS_PATH}?pro=portal-return`);
   await openStudioStep(page, 'studio-pro');
   await page.getByTestId('curator-pro-manage').click();
 

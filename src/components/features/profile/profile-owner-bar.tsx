@@ -31,7 +31,7 @@ export function ProfileOwnerBar({ username }: { username: string }) {
           <Link href={`${publicPath}/edit`}>Edit profile</Link>
         </Button>
         <Button asChild variant="ghost" size="sm" className="text-xs text-primary hover:text-primary">
-          <Link href="/studio/curator">
+          <Link href="/studio">
             Open Curator Studio
             <ArrowUpRight aria-hidden className="size-3.5" />
           </Link>

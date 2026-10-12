@@ -90,7 +90,7 @@ export function ProfileActivity({
           <EmptyDescription>{description}</EmptyDescription>
           {isCurrentUser && activeTab !== 'liked' && (
             <Button asChild>
-              <Link href="/add-music">Add music</Link>
+              <Link href="/studio/music/new">Add music</Link>
             </Button>
           )}
         </Empty>

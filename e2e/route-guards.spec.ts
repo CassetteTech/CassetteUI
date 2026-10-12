@@ -88,7 +88,7 @@ test.describe('route guards and auth redirects', () => {
       googleAuthUser: fixtureUsers.member,
       googleAuthInitFailures: 1,
     });
-    await page.goto('/auth/signin?redirect=/add-music');
+    await page.goto('/auth/signin?redirect=/studio/music/new');
     await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
     await page.evaluate(() => {
       sessionStorage.setItem('cassette_pending_action', JSON.stringify({
@@ -101,7 +101,7 @@ test.describe('route guards and auth redirects', () => {
     });
 
     await page.goto('/auth/google/callback?error=access_denied');
-    await expect(page).toHaveURL('/auth/signin?error=oauth-error&redirect=%2Fadd-music');
+    await expect(page).toHaveURL('/auth/signin?error=oauth-error&redirect=%2Fstudio%2Fmusic%2Fnew');
     await expect(page.getByTestId('auth-error-message')).toContainText(
       'Google sign-in was canceled or could not be completed. Please try again.',
     );
@@ -115,7 +115,7 @@ test.describe('route guards and auth redirects', () => {
     );
 
     await page.getByRole('button', { name: 'Continue with Google' }).click();
-    await expect(page).toHaveURL('/add-music');
+    await expect(page).toHaveURL('/studio/music/new');
   });
 
   test('preserves add-music intent when switching from sign in to sign up', async ({ page }) => {
@@ -123,12 +123,12 @@ test.describe('route guards and auth redirects', () => {
       googleAuthUser: fixtureUsers.member,
     });
 
-    await page.goto('/auth/signin?redirect=/add-music');
+    await page.goto('/auth/signin?redirect=/studio/music/new');
     await page.getByRole('link', { name: /Sign Up/ }).click();
-    await expect(page).toHaveURL('/auth/signup?redirect=%2Fadd-music');
+    await expect(page).toHaveURL('/auth/signup?redirect=%2Fstudio%2Fmusic%2Fnew');
 
     await page.getByRole('button', { name: 'Continue with Google' }).click();
-    await expect(page).toHaveURL('/add-music');
+    await expect(page).toHaveURL('/studio/music/new');
   });
 
   test('shows a retryable error when Google sign-in cannot start', async ({ page }) => {
@@ -137,7 +137,7 @@ test.describe('route guards and auth redirects', () => {
       googleAuthInitFailures: 1,
     });
 
-    await page.goto('/auth/signin?redirect=/add-music');
+    await page.goto('/auth/signin?redirect=/studio/music/new');
     await page.getByRole('button', { name: 'Continue with Google' }).click();
 
     await expect(page.getByTestId('auth-error-message')).toContainText(
@@ -146,7 +146,7 @@ test.describe('route guards and auth redirects', () => {
     await expect(page.getByTestId('auth-error-message')).not.toContainText('configuration');
 
     await page.getByRole('button', { name: 'Continue with Google' }).click();
-    await expect(page).toHaveURL('/add-music');
+    await expect(page).toHaveURL('/studio/music/new');
   });
 
   test('keeps playlist resume intent while a newcomer completes onboarding', async ({ page }) => {
@@ -178,11 +178,11 @@ test.describe('route guards and auth redirects', () => {
       googleAuthUser: fixtureUsers.member,
     });
 
-    await page.goto('/add-music');
-    await expect(page).toHaveURL('/auth/signin?redirect=/add-music');
+    await page.goto('/studio/music/new');
+    await expect(page).toHaveURL('/auth/signin?redirect=/studio/music/new');
 
     await page.getByRole('button', { name: 'Continue with Google' }).click();
-    await expect(page).toHaveURL('/add-music');
+    await expect(page).toHaveURL('/studio/music/new');
     await expect(page.locator('[data-testid="add-music-input"]:visible')).toBeVisible();
   });
 });

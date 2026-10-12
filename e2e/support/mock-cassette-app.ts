@@ -2518,9 +2518,11 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       }
 
       const requestedElementType = normalizeUsername(url.searchParams.get('elementType') || '');
+      const requestedPrivacy = url.searchParams.get('privacy');
       const pageSize = Number(url.searchParams.get('pageSize') || 20);
       const items = Array.from(state.postsById.values()).filter((post) => {
         if (post.ownerId !== user.id) return false;
+        if (requestedPrivacy && (post.privacy || 'public') !== requestedPrivacy) return false;
         if (!requestedElementType) return true;
         return normalizeUsername(post.elementType) === normalizeUsername(requestedElementType);
       });

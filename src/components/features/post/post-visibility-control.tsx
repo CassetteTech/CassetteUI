@@ -94,7 +94,7 @@ export function PostVisibilityControl({
               className={cn('transition-opacity duration-200 motion-reduce:transition-none', !promptShown && 'invisible opacity-0')}
             >
               To lock posts, publish a membership plan with member posts.{' '}
-              <Link href="/studio/curator" prefetch={false} className="font-medium text-foreground underline underline-offset-2">
+              <Link href="/studio" prefetch={false} className="font-medium text-foreground underline underline-offset-2">
                 Set up memberships
               </Link>
             </p>

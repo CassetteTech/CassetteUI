@@ -1,6 +1,6 @@
 'use client';
 
-/** Sliding underline for an underline-style Radix TabsList. Rendered as the
+/** Sliding underline for an underline-style tab list or link row. Rendered as the
     first child of the list, it measures the active trigger and tweens
     transform and width between tabs (the transitions.dev tabs-sliding recipe).
     The first position is written without a transition, so the bar never grows

@@ -355,7 +355,7 @@ export default function ProfilePage() {
   }, [userBio, user]);
 
   const handleAddMusic = useCallback(() => {
-    router.push('/add-music');
+    router.push('/studio/music/new');
   }, [router]);
 
   // Compute loading states

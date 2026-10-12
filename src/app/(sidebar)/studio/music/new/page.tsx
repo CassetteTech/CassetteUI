@@ -40,8 +40,12 @@ import {
   validateMusicLink,
 } from '@/utils/music-link-input';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
+import { normalizeAuthRedirect } from '@/utils/auth-redirect';
 import { PostVisibilityControl } from '@/components/features/post/post-visibility-control';
 import type { PostPrivacy } from '@/types';
+
+// Analytics keep the route name this page had before it moved into Curator Studio, so funnels stay continuous.
+const ANALYTICS_ROUTE = '/add-music';
 
 type SelectedItem = {
   id: string;
@@ -430,7 +434,9 @@ export default function AddMusicPage() {
   const debouncedSearchTerm = useDebounce(musicUrl, 300); // matches the home page search feel
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
-  const resolvedReturnRoute = user?.username ? `/profile/${user.username}` : null;
+  // Back and the finished post return to the page that opened this one, else the curator's profile.
+  const resolvedReturnRoute = normalizeAuthRedirect(searchParams?.get('from'))
+    ?? (user?.username ? `/profile/${user.username}` : null);
   const linkConversion = useMusicLinkConversion();
   const { label: conversionStageLabel } = useConversionStage(conversionKey);
   const isConverting = conversionKey != null;
@@ -456,7 +462,7 @@ export default function AddMusicPage() {
   // Handle authentication redirect
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/auth/signin?redirect=/add-music');
+      router.push('/auth/signin?redirect=/studio/music/new');
     }
   }, [authLoading, isAuthenticated, router]);
 
@@ -513,7 +519,7 @@ export default function AddMusicPage() {
         setErrorMessage(validationError);
         setIsSearchActive(false);
         void captureClientEvent('unsupported_music_link_pasted', {
-          route: '/add-music',
+          route: ANALYTICS_ROUTE,
           source_surface: 'add_music',
           source_domain: sanitizeDomain(normalizedValue),
           source_platform: detected.platform,
@@ -526,7 +532,7 @@ export default function AddMusicPage() {
       if (isValidMusicUrl(normalizedValue)) {
         commitMusicLinkInput(normalizedValue);
         void captureClientEvent('music_link_pasted', {
-          route: '/add-music',
+          route: ANALYTICS_ROUTE,
           source_surface: 'add_music',
           source_domain: sanitizeDomain(normalizedValue),
           source_platform: detected.platform,
@@ -583,7 +589,7 @@ export default function AddMusicPage() {
       playErrorTone();
 
       void captureClientEvent('unsupported_music_link_pasted', {
-        route: '/add-music',
+        route: ANALYTICS_ROUTE,
         source_surface: 'add_music',
         source_domain: sanitizeDomain(pastedText),
         source_platform: detected.platform,
@@ -596,7 +602,7 @@ export default function AddMusicPage() {
     if (isValidMusicUrl(pastedText)) {
       commitMusicLinkInput(pastedText);
       void captureClientEvent('music_link_pasted', {
-        route: '/add-music',
+        route: ANALYTICS_ROUTE,
         source_surface: 'add_music',
         source_domain: sanitizeDomain(pastedText),
         source_platform: detected.platform,
@@ -605,7 +611,7 @@ export default function AddMusicPage() {
       });
     } else {
       void captureClientEvent('unsupported_music_link_pasted', {
-        route: '/add-music',
+        route: ANALYTICS_ROUTE,
         source_surface: 'add_music',
         source_domain: sanitizeDomain(pastedText),
         source_platform: detected.platform,
@@ -651,7 +657,7 @@ export default function AddMusicPage() {
   const handleSelectItem = (url: string, title: string, type: string) => {
     const detected = detectContentType(url);
     void captureClientEvent('search_result_selected', {
-      route: '/add-music',
+      route: ANALYTICS_ROUTE,
       source_surface: 'add_music',
       source_platform: detected.platform,
       element_type_guess: detected.type,
@@ -743,7 +749,7 @@ export default function AddMusicPage() {
     
     const detected = detectContentType(urlToConvert);
     void captureClientEvent('conversion_entry_started', {
-      route: '/add-music',
+      route: ANALYTICS_ROUTE,
       source_surface: 'add_music',
       source_platform: detected.platform,
       element_type_guess: detected.type,
@@ -832,7 +838,7 @@ export default function AddMusicPage() {
       (searchResultsData?.playlists?.length || 0);
 
     void captureClientEvent('search_submitted', {
-      route: '/add-music',
+      route: ANALYTICS_ROUTE,
       source_surface: 'add_music',
       result_count: resultCount,
       is_authenticated: true,
@@ -906,7 +912,7 @@ export default function AddMusicPage() {
             <div className="mx-auto max-w-2xl px-4 pb-16 sm:px-6">
               <div className={`transition-opacity duration-500 ${dimmed}`}>
                 <div className="flex items-center justify-between py-5">
-                  <BackButton fallbackRoute="/" label="Back" />
+                  <BackButton fallbackRoute={resolvedReturnRoute ?? '/'} label="Back" />
                 </div>
                 <h1 className="mb-5 font-teko text-4xl font-bold uppercase leading-none tracking-tight text-foreground">
                   Add music

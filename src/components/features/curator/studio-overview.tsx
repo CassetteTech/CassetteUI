@@ -23,7 +23,8 @@ import { Tooltip } from '@/components/dither-kit/tooltip';
 import { XAxis } from '@/components/dither-kit/x-axis';
 import { YAxis } from '@/components/dither-kit/y-axis';
 import { eventTitle } from '@/components/features/curator/curator-earnings-card';
-import { StudioStat, StudioStepsContext, studioFigureClassName, studioViewOf } from '@/components/features/curator/studio-shell';
+import { StudioStat, StudioStepsContext, studioFigureClassName } from '@/components/features/curator/studio-shell';
+import { studioViewOf } from '@/components/features/curator/studio-routes';
 import { useCuratorLedger } from '@/components/features/curator/use-curator-ledger';
 import { SegmentedControl } from '@/components/interior/segmented-control';
 import { TaskSteps } from '@/components/interior/task-steps';
@@ -37,7 +38,7 @@ import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecy
 import { AnnotatedText } from '@/components/ui/annotated-text';
 import { cn } from '@/lib/utils';
 
-/** `href` is a Studio section ("#studio-plan") or another page ("/add-music").
+/** `href` is a Studio section ("#studio-plan") or another page ("/studio/music/new").
     `notice` is the one sentence the overview shows when the step is open again after launch. */
 export type LaunchStep = { href: string; label: string; notice: string; done: boolean };
 

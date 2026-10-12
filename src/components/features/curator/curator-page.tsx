@@ -600,7 +600,7 @@ function EmptyFeed({ isOwner, memberFilter, displayName }: {
         <EmptyTitle>No posts yet</EmptyTitle>
         <EmptyDescription>Add music to start your page. Fans see your posts here.</EmptyDescription>
         <Button asChild>
-          <Link href="/add-music">Add your first music</Link>
+          <Link href="/studio/music/new">Add your first music</Link>
         </Button>
       </Empty>
     );

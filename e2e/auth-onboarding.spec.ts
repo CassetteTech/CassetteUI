@@ -112,8 +112,8 @@ test('resumes add-music after a gated visitor completes onboarding', async ({ pa
     googleAuthUser: fixtureUsers.newcomer,
   });
 
-  await page.goto('/add-music');
-  await expect(page).toHaveURL(/\/auth\/signin\?redirect=\/add-music$/);
+  await page.goto('/studio/music/new');
+  await expect(page).toHaveURL(/\/auth\/signin\?redirect=\/studio\/music\/new$/);
 
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   await expect(page).toHaveURL('/onboarding');
@@ -129,6 +129,6 @@ test('resumes add-music after a gated visitor completes onboarding', async ({ pa
   await page.getByTestId('onboarding-avatar-next').click();
   await page.getByTestId('onboarding-finish-setup').click();
 
-  await expect(page).toHaveURL('/add-music');
+  await expect(page).toHaveURL('/studio/music/new');
   await expect(page.locator('[data-testid="add-music-input"]:visible')).toBeVisible();
 });

@@ -47,6 +47,7 @@ import {
   type StudioChipTone,
   type StudioNoticeTone,
 } from '@/components/features/curator/studio-shell';
+import { studioHref } from '@/components/features/curator/studio-routes';
 import { CopyButton } from '@/components/interior/copy-button';
 import { SegmentedControl } from '@/components/interior/segmented-control';
 import {
@@ -176,10 +177,19 @@ const planStatusTone = {
 
 function StepLink({ href, children }: { href: string; children: ReactNode }) {
   const steps = useContext(StudioStepsContext);
+  const sectionId = href.slice(1);
   return (
-    <a href={href} className="underline underline-offset-2" onClick={() => steps?.open(href.slice(1))}>
+    // An in-app visit opens the section and focuses it; a new-tab click opens the section URL.
+    <Link
+      href={studioHref(sectionId)}
+      className="underline underline-offset-2"
+      onNavigate={(event) => {
+        event.preventDefault();
+        steps?.open(sectionId);
+      }}
+    >
       {children}
-    </a>
+    </Link>
   );
 }
 

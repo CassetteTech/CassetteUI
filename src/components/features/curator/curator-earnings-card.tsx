@@ -23,6 +23,7 @@ import {
   studioToneText,
   type StudioChipTone,
 } from '@/components/features/curator/studio-shell';
+import { studioHref } from '@/components/features/curator/studio-routes';
 import { SegmentedControl } from '@/components/interior/segmented-control';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
@@ -312,9 +313,15 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
         </Button>
       ) : (
         <Button asChild variant="outline">
-          <a href="#studio-plan" onClick={() => steps?.open('studio-plan')}>
+          <Link
+            href={studioHref('studio-plan')}
+            onNavigate={(event) => {
+              event.preventDefault();
+              steps?.open('studio-plan');
+            }}
+          >
             Set up a membership plan
-          </a>
+          </Link>
         </Button>
       )}
     </Empty>

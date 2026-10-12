@@ -16,7 +16,7 @@ test('creates a post from add-music search and shows it on the profile', async (
     curatorPlans: [fixtureActiveMemberPostPlan],
   });
 
-  await page.goto('/add-music');
+  await page.goto('/studio/music/new');
   await page.locator('[data-testid="add-music-input"]:visible').fill('blue monday');
   const firstSearchResult = page.locator('[data-testid="search-result-track-search-track-1"]:visible');
   await expect(firstSearchResult).toBeVisible();

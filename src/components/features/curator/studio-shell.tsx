@@ -6,29 +6,12 @@ import { createContext, useId, type ReactNode } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type StudioView = 'studio-overview' | 'studio-earnings' | 'studio-billing';
-
-/** Resolves a section anchor (e.g. "#studio-pro") or a view id to the dashboard view that hosts it.
-    The membership plan lives on the overview. */
-export function studioViewOf(sectionId: string): StudioView {
-  switch (sectionId) {
-    case 'studio-overview':
-    case 'studio-earnings':
-    case 'studio-billing':
-      return sectionId;
-    case 'studio-pro':
-    case 'studio-payouts':
-      return 'studio-billing';
-    default:
-      return 'studio-overview';
-  }
-}
-
-/** Lets any section link switch the dashboard to the view that holds its target.
-    Every view stays mounted (hidden when inactive) so queries and provider
-    return flows keep running regardless of which view is showing. */
+/** Lets any section link open the view that holds its target. The Overview,
+    Members, and Payouts views stay mounted (hidden when inactive) across the
+    Studio URLs, so queries, a plan draft, and provider return flows keep running
+    regardless of which view is showing. */
 export const StudioStepsContext = createContext<{
-  /** Shows the section's view, scrolls the section into view, and focuses its first field or the section. */
+  /** Opens the section's view, scrolls the section into view, and focuses its first field or the section. */
   open: (sectionId: string) => void;
   /** Rail element the plan card portals the membership pass into; one fixed spot across every view. */
   passSlot: HTMLElement | null;

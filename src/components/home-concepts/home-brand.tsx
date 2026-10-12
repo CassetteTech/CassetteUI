@@ -45,7 +45,7 @@ export const STREAMING_SERVICES = [
   { label: 'Deezer', logo: '/images/deezer_logo_colored.png' },
 ] as const;
 
-const CURATOR_STUDIO = '/studio/curator';
+const CURATOR_STUDIO = '/studio';
 
 /** The curator call to action. A new visitor signs up first, then lands in
     Curator Studio, where the free page starts with one click. */

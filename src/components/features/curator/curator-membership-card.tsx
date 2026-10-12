@@ -255,7 +255,7 @@ export function CuratorMembershipCard({
         {page.viewer.isOwner ? (
           <div className="rounded-lg border border-dashed border-border/70 px-3 py-2.5 text-sm text-muted-foreground">
             <p>This is your published plan. Visitors see it like this.</p>
-            <Link href="/studio/curator" className="mt-1 inline-block font-medium text-primary underline-offset-4 hover:underline">
+            <Link href="/studio" className="mt-1 inline-block font-medium text-primary underline-offset-4 hover:underline">
               Manage in Curator Studio
             </Link>
           </div>

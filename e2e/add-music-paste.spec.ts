@@ -10,7 +10,7 @@ test('converts a pasted add-music link with the drafted description and saves it
     currentUser: fixtureUsers.member,
   });
 
-  await page.goto('/add-music');
+  await page.goto('/studio/music/new');
   await page
     .locator(
       'textarea[placeholder="Tell us how you feel about the music"]:visible',
@@ -44,7 +44,7 @@ test('commits a typed add-music link on Enter so it can be submitted', async ({ 
     currentUser: fixtureUsers.member,
   });
 
-  await page.goto('/add-music');
+  await page.goto('/studio/music/new');
   const input = page.locator('[data-testid="add-music-input"]:visible');
   await input.pressSequentially(fixtureConvertTemplates.addMusicTrack.originalUrl);
   await input.press('Enter');
@@ -77,10 +77,10 @@ test('shows validation feedback for unsupported pasted links without leaving add
     currentUser: fixtureUsers.member,
   });
 
-  await page.goto('/add-music');
+  await page.goto('/studio/music/new');
   await dispatchPaste(page, 'add-music-input', 'https://www.youtube.com/watch?v=not-supported');
 
-  await expect(page).toHaveURL('/add-music');
+  await expect(page).toHaveURL('/studio/music/new');
   await expect(
     page.locator('p:visible').filter({
       hasText:
@@ -112,7 +112,7 @@ test('preserves the drafted post after a temporary conversion failure and retrie
     await route.fallback();
   });
 
-  await page.goto('/add-music');
+  await page.goto('/studio/music/new');
   const description = page.locator(
     'textarea[placeholder="Tell us how you feel about the music"]:visible',
   );
@@ -125,7 +125,7 @@ test('preserves the drafted post after a temporary conversion failure and retrie
 
   await page.locator('[data-testid="add-music-submit"]:not([disabled])').last().click();
 
-  await expect(page).toHaveURL('/add-music');
+  await expect(page).toHaveURL('/studio/music/new');
   await expect(
     page.locator('p:visible').filter({
       hasText: 'Cassette is temporarily unavailable. Please try again.',

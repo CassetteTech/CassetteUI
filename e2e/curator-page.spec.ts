@@ -111,7 +111,7 @@ test('offers the owner Add your first music on their own empty page', async ({ p
   await expect(feed).toContainText('No posts yet');
   await expect(feed).not.toContainText('Explore music from other curators');
   await expect(feed.getByRole('link', { name: 'Explore music' })).toHaveCount(0);
-  await expect(feed.getByRole('link', { name: 'Add your first music' })).toHaveAttribute('href', '/add-music');
+  await expect(feed.getByRole('link', { name: 'Add your first music' })).toHaveAttribute('href', '/studio/music/new');
 });
 
 test('keeps discovery copy for a visitor on an empty curator page', async ({ page }) => {

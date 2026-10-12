@@ -459,12 +459,14 @@ export default function AddMusicPage() {
   const normalizeUrlInput = normalizeMusicLinkInput;
   const isValidMusicUrl = isSupportedMusicLink;
 
-  // Handle authentication redirect
+  // Sign-in returns here with the same query, so a prefilled link and `from` survive it.
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/auth/signin?redirect=/studio/music/new');
+      const query = searchParams?.toString();
+      const target = query ? `/studio/music/new?${query}` : '/studio/music/new';
+      router.push(`/auth/signin?redirect=${encodeURIComponent(target)}`);
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, router, searchParams]);
 
   // Handle prefilled URL on mount
   useEffect(() => {

@@ -113,7 +113,7 @@ test('resumes add-music after a gated visitor completes onboarding', async ({ pa
   });
 
   await page.goto('/studio/music/new');
-  await expect(page).toHaveURL(/\/auth\/signin\?redirect=\/studio\/music\/new$/);
+  await expect(page).toHaveURL(/\/auth\/signin\?redirect=%2Fstudio%2Fmusic%2Fnew$/);
 
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   await expect(page).toHaveURL('/onboarding');

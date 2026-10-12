@@ -93,6 +93,16 @@ test('returns a post made from Studio to the section that opened Add music', asy
   await expect(page).toHaveURL('/post/post-created-track?from=%2Fstudio%2Fmusic');
 });
 
+test('keeps the Add music query through sign-in', async ({ page }) => {
+  await mockCassetteApp(page);
+
+  await page.goto('/studio/music/new?from=%2Fstudio%2Fmusic');
+
+  await expect(page).toHaveURL(
+    `/auth/signin?redirect=${encodeURIComponent('/studio/music/new?from=%2Fstudio%2Fmusic')}`,
+  );
+});
+
 test('redirects the old Add Music URL and keeps its query', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: fixtureUsers.member });
   const link = 'https://open.spotify.com/track/add-music-track-1';

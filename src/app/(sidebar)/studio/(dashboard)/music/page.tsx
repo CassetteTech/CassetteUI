@@ -42,7 +42,8 @@ function typeLabel(post: ActivityPost) {
 }
 
 function MusicRow({ post }: { post: ActivityPost }) {
-  const visibility = visibilityOf(post.privacy);
+  // A repost is public and opens the original post, so it has no setting the curator can change.
+  const visibility = post.isRepost ? undefined : visibilityOf(post.privacy);
   const postId = post.redirectPostId || post.postId;
   return (
     <li>
@@ -155,7 +156,7 @@ export default function StudioMusicPage() {
       id="studio-music"
       title="Music"
       headingId="studio-music-title"
-      description="Everything on your page, newest first. Open a post to change who can open it."
+      description="Everything on your page, newest first. Open your own post to change who can open it."
       chip={(
         <SegmentedControl
           label="Who can open it"

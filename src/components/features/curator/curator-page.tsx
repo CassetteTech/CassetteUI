@@ -761,6 +761,7 @@ function CuratorPost({
           postId={post.postId}
           currentDescription={post.description ?? ''}
           currentPrivacy={post.privacy}
+          currentCommentsEnabled={post.commentsEnabled}
         />
         <DeletePostModal
           open={deleteOpen}

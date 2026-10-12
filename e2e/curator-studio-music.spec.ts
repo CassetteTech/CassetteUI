@@ -170,6 +170,28 @@ test('drops a post from a filtered list once its setting leaves the filter, and 
   await expect(rowOf(page, 'First Track').getByRole('button', { name: 'Who can open First Track: Private' })).toBeVisible();
 });
 
+test('a list cached for another audience shows a post that moved into it', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: member,
+    posts: [own('moved-open', 'Open Track'), own('moved-hidden', 'Hidden Track', { privacy: 'private' })],
+  });
+
+  await page.goto('/studio/music?audience=private');
+  await expect(rowsOf(page)).toHaveCount(1);
+  await page.getByTestId('studio-music-audience').click();
+  await page.getByRole('menuitemradio', { name: 'Public', exact: true }).click();
+  await expect(page).toHaveURL('/studio/music?audience=public');
+  await rowOf(page, 'Open Track').getByRole('button', { name: 'Who can open Open Track: Public' }).click();
+  // The row menu's options carry their summaries, unlike the closing filter menu's.
+  await page.getByRole('menuitemradio', { name: /^Private Off your profile/ }).click();
+  await expect(rowsOf(page)).toHaveCount(0);
+
+  await page.getByTestId('studio-music-audience').click();
+  await page.getByRole('menuitemradio', { name: 'Private', exact: true }).click();
+  await expect(rowOf(page, 'Open Track')).toBeVisible();
+  await expect(rowsOf(page)).toHaveCount(2);
+});
+
 test('without a member plan, Members only points to plan setup', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: member, posts: [own('gate-track', 'Gate Track')] });
 
@@ -207,6 +229,41 @@ test('edits a note in place, sends only the note, and returns focus to it', asyn
   const noteButton = row.locator('[data-row-action="note"]');
   await expect(noteButton).toHaveAccessibleName('The bridge at 2:40 is the whole reason. Edit the note on Note Track');
   await expect(noteButton).toBeFocused();
+});
+
+test('saving the note sheet without a change sends nothing', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: member, posts: [own('unchanged-track', 'Unchanged Track')] });
+  const patches: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'PATCH') patches.push(request.url());
+  });
+
+  await page.goto('/studio/music');
+  await rowOf(page, 'Unchanged Track').getByRole('button', { name: 'Add a note to Unchanged Track' }).click();
+  await page.getByTestId('edit-post-save').click();
+
+  await expect(page.getByPlaceholder('Add a description...')).toBeHidden();
+  await expect(rowOf(page, 'Unchanged Track').getByRole('button', { name: 'Who can open Unchanged Track: Public' })).toBeVisible();
+  expect(patches).toEqual([]);
+});
+
+test('the profile edit sheet shows the saved comment setting and can turn comments back on', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: member,
+    posts: [own('profile-quiet', 'Quiet Track', { commentsEnabled: false })],
+  });
+
+  await page.goto(`/profile/${member.username}?tab=tracks`);
+  await page.getByRole('button', { name: 'More options' }).click();
+  await page.getByRole('menuitem', { name: 'Edit' }).click();
+  const comments = page.getByRole('switch', { name: 'Allow comments' });
+  await expect(comments).toHaveAttribute('aria-checked', 'false');
+  await comments.click();
+  const saved = page.waitForRequest((request) =>
+    request.method() === 'PATCH' && request.url().endsWith('/api/v1/social/posts/profile-quiet'));
+  await page.getByTestId('edit-post-save').click();
+
+  expect((await saved).postDataJSON()).toEqual({ commentsEnabled: true });
 });
 
 test('deletes a post from its row and moves focus to the next post', async ({ page }) => {

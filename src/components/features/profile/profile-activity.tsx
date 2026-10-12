@@ -371,6 +371,7 @@ function ActivityPostItem({
         postId={post.postId}
         currentDescription={post.description || ''}
         currentPrivacy={post.privacy}
+        currentCommentsEnabled={post.commentsEnabled}
       />
 
       {/* Delete Modal - always render to allow Radix UI animations */}

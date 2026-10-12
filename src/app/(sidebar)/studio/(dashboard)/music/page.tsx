@@ -119,8 +119,9 @@ function useArtistsTab(userId: string | null, type: MusicType | null) {
   return type === 'artists' || (artists.data?.totalItems ?? 0) > 0;
 }
 
-/** Applies a saved change to every cached library list at once (see `patchMusicPages`). Bridge's
-    own refresh follows and confirms the pages. */
+/** Applies a saved change to every cached library list at once (see `patchMusicPages`). A patch
+    counts as fresh data, yet it cannot add a post that moved into a list, so every list is marked
+    stale again and reads Bridge the next time it shows. The save's own refresh covers the open one. */
 function useLibraryPatch(userId: string | null) {
   const queryClient = useQueryClient();
   return useCallback((postId: string, change: Partial<ActivityPost> | null) => {
@@ -128,6 +129,7 @@ function useLibraryPatch(userId: string | null) {
       // The key's last part is the list's audience: a privacy value, or 'all'.
       if (data) queryClient.setQueryData<LibraryPages>(key, patchMusicPages(data, postId, change, String(key[4])));
     }
+    void queryClient.invalidateQueries({ queryKey: libraryKey(userId), refetchType: 'none' });
   }, [queryClient, userId]);
 }
 

@@ -53,6 +53,7 @@ const curatorPostSchema = z.object({
   description: nullableString,
   privacy: z.enum(['public', 'subscriber']),
   redirectPostId: z.string(),
+  commentsEnabled: z.boolean().optional(),
 });
 
 const postItemSchema = z.discriminatedUnion('kind', [

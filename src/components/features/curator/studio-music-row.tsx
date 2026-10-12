@@ -8,7 +8,7 @@
     a varying share of the window: narrow lists put the tools on a line under the post, wide
     lists put them in a column at the right. */
 
-import { useRef, type MouseEvent } from 'react';
+import { useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { ArrowUpRight, ChevronDown, Loader2, LockKeyhole, MoreHorizontal, Pencil, Plus, Repeat2, Share, Trash2 } from 'lucide-react';
@@ -38,18 +38,9 @@ import { useUpdatePost } from '@/hooks/use-music';
 import { appLogger } from '@/lib/observability/logger';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
+import { keepSecondPressOnTrigger } from '@/lib/utils/menu-trigger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import type { ActivityPost } from '@/types';
-
-/** A menu trigger keeps a double click's second press: without it, the press lands on the page
-    under the opening menu and selects the nearest word. Focus stays on the trigger for the menu's
-    focus return. */
-export function keepSecondPressOnTrigger(event: MouseEvent<HTMLElement>) {
-  if (event.detail > 1) {
-    event.preventDefault();
-    event.currentTarget.focus({ preventScroll: true });
-  }
-}
 
 function typeName(elementType: string) {
   return elementType.charAt(0).toUpperCase() + elementType.slice(1).toLowerCase();

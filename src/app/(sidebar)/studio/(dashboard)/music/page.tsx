@@ -16,7 +16,6 @@ import {
 } from '@tanstack/react-query';
 import { ChevronDown, ListFilter, Plus } from 'lucide-react';
 import {
-  keepSecondPressOnTrigger,
   StudioMusicRow,
   StudioMusicRowSkeleton,
   type StudioMusicRowProps,
@@ -46,6 +45,7 @@ import { useAuthState } from '@/hooks/use-auth';
 import { useMemberPostAccess } from '@/hooks/use-curator';
 import { pagesShortened, patchMusicPages, uniquePosts } from '@/lib/studio-music-pages';
 import { cn } from '@/lib/utils';
+import { keepSecondPressOnTrigger } from '@/lib/utils/menu-trigger';
 import { profileService } from '@/services/profile';
 import type { ActivityPost, PaginatedActivityResponse } from '@/types';
 

@@ -467,7 +467,7 @@ export default function ProfilePage() {
         onTabChange={filterByElementType}
         showPostsTab={hasCuratorPage}
         showLikedTab={likedSectionVisible}
-        likedTabVisibility={likedTabVisibility}
+        likedTabVisibility={isCurrentUser ? likedTabVisibility : undefined}
       />
       {isCurrentUser && userBio && <ProfileOwnerBar username={userBio.username} tab={activeTab} />}
       {isPostsTab && userBio ? (

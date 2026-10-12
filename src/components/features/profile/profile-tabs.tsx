@@ -1,10 +1,9 @@
 'use client';
 
-/** Profile content tabs in the Curator Studio underline style: Radix tabs, lucide icons, sentence case. */
+/** Profile content tabs in the Curator Studio underline style: Radix tabs, text only, sentence case. */
 
 import { useEffect, useRef } from 'react';
-import { Disc3, FileText, Globe, Heart, ListMusic, Lock, Music, User } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { Globe, Lock } from 'lucide-react';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -15,24 +14,16 @@ interface ProfileTabsProps {
   onTabChange: (tab: TabType) => void;
   showPostsTab?: boolean;
   showLikedTab?: boolean;
+  /** Who can see the owner's likes. Set only for the owner; a visitor sees Liked only when it is public. */
   likedTabVisibility?: 'public' | 'private';
 }
-
-const TAB_ICONS = {
-  posts: FileText,
-  playlists: ListMusic,
-  tracks: Music,
-  artists: User,
-  albums: Disc3,
-  liked: Heart,
-} satisfies Record<TabType, LucideIcon>;
 
 export function ProfileTabs({
   activeTab,
   onTabChange,
   showPostsTab = false,
   showLikedTab = true,
-  likedTabVisibility = 'public',
+  likedTabVisibility,
 }: ProfileTabsProps) {
   const tabs: { key: TabType; label: string }[] = [];
   if (showPostsTab) tabs.push({ key: 'posts', label: 'Posts' });
@@ -67,25 +58,21 @@ export function ProfileTabs({
         className="tab-scroll-fade relative -mx-3 flex h-auto w-auto justify-start gap-1 overflow-x-auto rounded-none border-b border-border bg-transparent px-3 py-0 sm:-mx-4 sm:px-4 lg:-mx-6 lg:px-6"
       >
         <TabUnderline value={activeTab} />
-        {tabs.map((tab) => {
-          const Icon = TAB_ICONS[tab.key];
-          return (
-            <TabsTrigger
-              key={tab.key}
-              value={tab.key}
-              className="h-10 flex-none gap-2 rounded-none border-0 px-3 text-sm font-normal text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent"
-            >
-              <Icon aria-hidden className="size-4 shrink-0" />
-              <span className="tab-label" data-label={tab.label}>{tab.label}</span>
-              {tab.key === 'liked' && (
-                <LikedVisibilityIcon
-                  aria-label={likedTabVisibility === 'private' ? 'Private' : 'Public'}
-                  className="size-3 shrink-0 text-muted-foreground/70"
-                />
-              )}
-            </TabsTrigger>
-          );
-        })}
+        {tabs.map((tab) => (
+          <TabsTrigger
+            key={tab.key}
+            value={tab.key}
+            className="h-10 flex-none gap-1.5 rounded-none border-0 px-3 text-sm font-normal text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent"
+          >
+            <span className="tab-label" data-label={tab.label}>{tab.label}</span>
+            {tab.key === 'liked' && likedTabVisibility && (
+              <LikedVisibilityIcon
+                aria-label={likedTabVisibility === 'private' ? 'Private' : 'Public'}
+                className="size-3 shrink-0 text-muted-foreground/70"
+              />
+            )}
+          </TabsTrigger>
+        ))}
       </TabsList>
     </Tabs>
   );

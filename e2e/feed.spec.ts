@@ -141,14 +141,14 @@ test('the Members only filter asks the server for member posts and keeps its URL
   const filter = page.getByRole('radio', { name: 'Members only' });
   await filter.click();
 
-  await expect(filter).toHaveAttribute('aria-checked', 'true');
+  await expect(filter).toBeChecked();
   await expect(page).toHaveURL('/feed?filter=members');
   await expect(page.getByRole('heading', { name: 'From your curators', level: 1 })).toBeVisible();
   await expect(postLinks(page)).toHaveText([/Feed track 1/]);
   expect(new URL(curatorFeedRequests.at(-1)!).searchParams.get('membersOnly')).toBe('true');
 
   await page.reload();
-  await expect(page.getByRole('radio', { name: 'Members only' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radio', { name: 'Members only' })).toBeChecked();
   await expect(postLinks(page)).toHaveText([/Feed track 1/]);
 });
 
@@ -711,7 +711,7 @@ test.describe('navigation', () => {
     await expect(page.getByRole('radio', { name: 'All' })).toBeFocused();
     await page.keyboard.press('ArrowRight');
     await expect(page).toHaveURL('/feed?filter=members');
-    await expect(page.getByRole('radio', { name: 'Members only' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('radio', { name: 'Members only' })).toBeChecked();
     await expect(page.getByRole('radiogroup', { name: 'Post filter' })).toBeVisible();
   });
 });

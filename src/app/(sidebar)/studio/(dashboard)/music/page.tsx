@@ -41,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
+import { filterPillClassName } from '@/components/ui/filter-pills';
 import { useAuthState } from '@/hooks/use-auth';
 import { useMemberPostAccess } from '@/hooks/use-curator';
 import { pagesShortened, patchMusicPages, uniquePosts } from '@/lib/studio-music-pages';
@@ -270,12 +271,7 @@ function TypeTabs({ type, audience, showArtists }: {
             replace
             scroll={false}
             aria-current={active ? 'page' : undefined}
-            className={cn(
-              'inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-              active
-                ? 'bg-foreground font-medium text-background'
-                : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground',
-            )}
+            className={filterPillClassName(active)}
           >
             {tab.label}
           </Link>

@@ -18,7 +18,8 @@ export const studioLabels = {
   'studio-billing': 'Payouts & billing',
 } satisfies Record<StudioView, string>;
 
-const studioViews: readonly StudioView[] = ['studio-overview', 'studio-music', 'studio-earnings', 'studio-billing'];
+/** The dashboard views, in the order of the section links. */
+export const studioViews: readonly StudioView[] = ['studio-overview', 'studio-music', 'studio-earnings', 'studio-billing'];
 
 /** The view a Studio path shows, or null outside the dashboard views. */
 export function studioViewOfPath(pathname: string | null): StudioView | null {

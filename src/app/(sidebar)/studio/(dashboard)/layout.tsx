@@ -12,7 +12,7 @@ import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from '
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, CreditCard, HandCoins, LayoutDashboard, Music, Plus } from 'lucide-react';
+import { ArrowUpRight, Plus } from 'lucide-react';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { CuratorEarningsCard } from '@/components/features/curator/curator-earnings-card';
 import { CuratorPayoutCard } from '@/components/features/curator/curator-payout-card';
@@ -26,6 +26,7 @@ import {
   studioPaths,
   studioViewOf,
   studioViewOfPath,
+  studioViews,
   type StudioView,
 } from '@/components/features/curator/studio-routes';
 import { CopyButton } from '@/components/interior/copy-button';
@@ -92,13 +93,6 @@ function usePageLinkCopied(userId: string | null) {
   };
   return [copied, markCopied] as const;
 }
-
-const sections: ReadonlyArray<{ id: StudioView; icon: typeof LayoutDashboard }> = [
-  { id: 'studio-overview', icon: LayoutDashboard },
-  { id: 'studio-music', icon: Music },
-  { id: 'studio-earnings', icon: HandCoins },
-  { id: 'studio-billing', icon: CreditCard },
-];
 
 /** Launch-checklist state shared by the header, the overview, and the payout
     card. Reads the same query keys the section cards use, so React Query
@@ -254,24 +248,22 @@ function StudioSectionLinks({ view }: { view: StudioView }) {
       className="tab-scroll-fade relative -mx-4 mt-6 flex gap-1 overflow-x-auto border-b border-border px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
     >
       <TabUnderline value={view} />
-      {sections.map((item) => {
-        const active = item.id === view;
+      {studioViews.map((id) => {
+        const active = id === view;
         return (
           <Link
-            key={item.id}
-            href={studioPaths[item.id]}
+            key={id}
+            href={studioPaths[id]}
             scroll={false}
             aria-current={active ? 'page' : undefined}
             data-state={active ? 'active' : 'inactive'}
-            data-testid={`${item.id}-trigger`}
+            data-testid={`${id}-trigger`}
             className={cn(
-              'inline-flex h-10 flex-none items-center gap-2 whitespace-nowrap px-3 text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+              'inline-flex h-10 flex-none items-center whitespace-nowrap px-3 text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
               active && 'font-medium text-foreground',
             )}
           >
-            {/* Icons drop out on phones so the views fit with less scrolling. */}
-            <item.icon aria-hidden className="hidden size-4 shrink-0 sm:block" />
-            <span className="tab-label" data-label={studioLabels[item.id]}>{studioLabels[item.id]}</span>
+            <span className="tab-label" data-label={studioLabels[id]}>{studioLabels[id]}</span>
           </Link>
         );
       })}

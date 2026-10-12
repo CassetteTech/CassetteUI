@@ -50,6 +50,7 @@ import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Empty, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import { FilterPills } from '@/components/ui/filter-pills';
 import { formatRelativeTime } from '@/lib/utils/format-date';
 
 function getPostIcon(elementType: string) {
@@ -531,21 +532,15 @@ function CuratorFeed({
           {memberFilter ? 'Member posts' : 'Latest posts'}
         </h2>
         {memberFilter !== null && (
-          <fieldset className="flex gap-1">
-            <legend className="sr-only">Post filter</legend>
-            {([['All', false], ['Members only', true]] as const).map(([label, membersOnly]) => (
-              <Button
-                key={label}
-                size="sm"
-                variant={memberFilter === membersOnly ? 'default' : 'outline'}
-                aria-pressed={memberFilter === membersOnly}
-                onClick={() => onMemberFilterChange(membersOnly)}
-                data-testid={membersOnly ? 'feed-filter-members' : 'feed-filter-all'}
-              >
-                {label}
-              </Button>
-            ))}
-          </fieldset>
+          <FilterPills
+            label="Post filter"
+            value={memberFilter ? 'members' : 'all'}
+            onValueChange={(next) => onMemberFilterChange(next === 'members')}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'members', label: 'Members only' },
+            ]}
+          />
         )}
       </div>
       {visible.length === 0 ? (

@@ -64,6 +64,7 @@
     "src/services/__tests__/internal-curators.test.ts",
     "src/services/membership.ts",
     "src/services/__tests__/membership.test.ts",
+    "src/services/__tests__/membership-checkout.test.ts",
     "src/services/auth-session.ts",
     "src/services/__tests__/auth-session.test.ts",
     "src/stores/auth-store.ts",

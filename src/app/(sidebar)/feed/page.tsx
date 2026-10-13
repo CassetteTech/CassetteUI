@@ -21,7 +21,6 @@ import {
   PostCard,
   PostGridSkeleton,
 } from '@/components/features/explore/explore-cards';
-import { MEMBERSHIP_OFFER_ID } from '@/components/features/curator/curator-membership-card';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { FilterPills } from '@/components/ui/filter-pills';
@@ -31,6 +30,7 @@ import { useAuthState } from '@/hooks/use-auth';
 import { useMembershipStatus } from '@/hooks/use-membership-status';
 import { profileQueryKeys, useCuratorFeed, useExploreCurators } from '@/hooks/use-profile';
 import { authService } from '@/services/auth';
+import { curatorMembershipHref } from '@/services/membership';
 import { SESSION_MAX_AGE_MS, useAuthStore } from '@/stores/auth-store';
 import type { CuratorFeedItem } from '@/types';
 
@@ -346,7 +346,7 @@ function LockedFeedPost({ item, viewerId }: { item: Extract<CuratorFeedItem, { k
     <LockedPostCard
       item={item}
       availability={availability}
-      joinHref={`/profile/${encodeURIComponent(item.curator.username)}#${MEMBERSHIP_OFFER_ID}`}
+      joinHref={curatorMembershipHref(item.curator.username, item.postId)}
     />
   );
 }

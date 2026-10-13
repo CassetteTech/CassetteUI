@@ -84,6 +84,7 @@ export function ProfileMusic({
   ownerAccountType,
   membershipId,
   showMembership = false,
+  onLockedPostSelect,
 }: {
   /** The section's id, for links that bring the list into view. */
   id?: string;
@@ -108,6 +109,8 @@ export function ProfileMusic({
   /** Where a locked card leads: the membership offer in the rail. */
   membershipId?: string;
   showMembership?: boolean;
+  /** A locked card opened the offer: its post is where the Join comes from. */
+  onLockedPostSelect?: (postId: string) => void;
 }) {
   const headingId = useId();
   let body;
@@ -133,6 +136,7 @@ export function ProfileMusic({
                 displayName={displayName}
                 membershipId={membershipId ?? ''}
                 showMembership={showMembership && Boolean(membershipId)}
+                onSelect={onLockedPostSelect && (() => onLockedPostSelect(item.postId))}
               />
             )
           : (

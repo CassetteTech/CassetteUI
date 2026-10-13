@@ -57,6 +57,8 @@ const lockedPost = (index: number, curatorId: string, username: string, displayN
 });
 
 const CRATE = { id: fixtureCuratorPage.curator.id, username: fixtureCuratorPage.curator.username };
+/** Join on Crate Keeper's locked row 2 carries that post as the membership source. */
+const crateJoinHref = `/profile/${CRATE.username}?source_post=${lockedPost(2, CRATE.id, CRATE.username).postId}#membership-offer`;
 const QUIET = { id: 'cpr_QuietCurator01', username: 'quiet-curator' };
 /** Follows two curators and joined none. */
 const follower = { ...fixtureUsers.viewer, activeMembershipCount: 0, feedCuratorCount: 2 };
@@ -785,9 +787,10 @@ test.describe('followed curators', () => {
     await expect(crate).toHaveAccessibleName('Members-only post from Crate Keeper');
     await expect(crate.getByRole('heading', { name: 'Members-only post' })).toBeVisible();
     await expect(crate).toContainText("For Crate Keeper's members.");
+    // Join carries the locked post, so a membership that starts there is attributed to it.
     await expect(crate.getByRole('link', { name: 'Join Crate Keeper' })).toHaveAttribute(
       'href',
-      `/profile/${CRATE.username}#membership-offer`,
+      crateJoinHref,
     );
     await expect(crate.getByRole('link', { name: `@${CRATE.username}`, exact: true })).toHaveAttribute('href', `/profile/${CRATE.username}`);
 
@@ -940,7 +943,7 @@ test.describe('followed curators', () => {
     await page.goto('/feed');
     await lockedCards(page).getByRole('link', { name: 'Join Crate Keeper' }).click();
 
-    await expect(page).toHaveURL(`/profile/${CRATE.username}#membership-offer`);
+    await expect(page).toHaveURL(crateJoinHref);
     const offer = page.locator('#membership-offer');
     await expect(offer).toBeVisible();
     await expect(offer.getByRole('button', { name: 'Join Crate Keeper' })).toBeVisible();
@@ -966,7 +969,7 @@ test.describe('followed curators', () => {
 
       await page.goto('/feed');
       await lockedCards(page).getByRole('link', { name: 'Join Crate Keeper' }).click();
-      await expect(page).toHaveURL(`/profile/${CRATE.username}#membership-offer`);
+      await expect(page).toHaveURL(crateJoinHref);
 
       const offer = page.locator('#membership-offer');
       await expect(offer.getByRole('button', { name: 'Join Crate Keeper' })).toBeVisible();
@@ -1008,6 +1011,6 @@ test.describe('followed curators', () => {
     await page.keyboard.press('Tab');
     await expect(lockedCards(page).getByRole('link', { name: 'Join Crate Keeper' })).toBeFocused();
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(`/profile/${CRATE.username}#membership-offer`);
+    await expect(page).toHaveURL(crateJoinHref);
   });
 });

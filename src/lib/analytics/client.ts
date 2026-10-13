@@ -440,6 +440,7 @@ export async function trackBrowserPageview(options: {
       distinct_id: distinctId,
       properties: {
         $lib: 'cassette-ui',
+        $host: window.location.host,
         $current_url: currentUrl,
         $pathname: route,
         route,
@@ -505,6 +506,8 @@ export async function captureClientEvent<E extends AnalyticsEventName>(
       properties: {
         ...sanitized,
         $lib: 'cassette-ui',
+        // The serving host names the deployment, so dashboards can keep production only.
+        $host: window.location.host,
       },
     },
     host,

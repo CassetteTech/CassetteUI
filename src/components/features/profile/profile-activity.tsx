@@ -418,11 +418,13 @@ export function LockedMusicCard({
   displayName,
   membershipId,
   showMembership,
+  onSelect,
 }: {
   createdAt: string;
   displayName: string;
   membershipId: string;
   showMembership: boolean;
+  onSelect?: () => void;
 }) {
   const card = (
     <Card quiet className="gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden font-atkinson">
@@ -452,6 +454,7 @@ export function LockedMusicCard({
       {showMembership ? (
         <a
           href={`#${membershipId}`}
+          onClick={onSelect}
           aria-label={`View ${displayName} membership`}
           className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >

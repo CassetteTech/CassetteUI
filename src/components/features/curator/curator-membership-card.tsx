@@ -28,8 +28,7 @@ import { CuratorFollowAction } from '@/components/features/curator/curator-follo
 import { useSharedPosition } from '@/hooks/use-shared-position';
 import { cn } from '@/lib/utils';
 
-/** The offer's stable anchor, so a link from another page, such as a locked Feed post, can name it. */
-export const MEMBERSHIP_OFFER_ID = 'membership-offer';
+export { MEMBERSHIP_OFFER_ID } from '@/services/membership';
 
 export function CuratorMembershipCard({
   page,

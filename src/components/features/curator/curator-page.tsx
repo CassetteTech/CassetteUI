@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuthState } from '@/hooks/use-auth';
@@ -27,6 +27,8 @@ import { apiService } from '@/services/api';
 import {
   grantsMembershipAccess,
   rememberMembershipPortalBaseline,
+  SOURCE_POST_PARAM,
+  sourcePostIdOf,
   takeMembershipPortalBaseline,
   type MembershipInterval,
   type MembershipPortalBaseline,
@@ -74,6 +76,16 @@ export function PublicCuratorPage({
   const membershipId = MEMBERSHIP_OFFER_ID;
   const router = useRouter();
   const queryClient = useQueryClient();
+  // The post a Join came from: named by a link from another page, or by a
+  // locked post selected here. The URL keeps it through tab changes, reloads,
+  // and sign-in. Bridge validates it before storing it.
+  const sourcePostId = sourcePostIdOf(useSearchParams().get(SOURCE_POST_PARAM));
+  const selectSourcePost = useCallback((postId: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set(SOURCE_POST_PARAM, postId);
+    // A null state lets the App Router copy its own state and update useSearchParams.
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+  }, []);
   const { user, isLoading: authLoading, isAuthenticated } = useAuthState();
   const viewerKey = authLoading ? null : (user?.id ?? 'anonymous');
   const query = useCuratorPage(username, viewerKey, curatorPageFilterOf(view));
@@ -114,15 +126,17 @@ export function PublicCuratorPage({
     planId: string,
     curatorProfileId: string,
     selectedInterval: MembershipInterval,
+    joinSourcePostId: string | undefined,
   ) => {
     setCheckoutPending(true);
     setActionError(null);
     try {
-      const checkout = await apiService.createMembershipCheckout(planId, selectedInterval);
+      const checkout = await apiService.createMembershipCheckout(planId, selectedInterval, joinSourcePostId);
       void captureClientEvent('membership_checkout_started', {
         route: '/profile/[username]',
         source_surface: 'curator',
         curator_id: curatorProfileId,
+        post_id: joinSourcePostId,
         membership_plan_id: checkout.planId,
         billing_interval: checkout.billingInterval,
         is_member_view: false,
@@ -324,7 +338,7 @@ export function PublicCuratorPage({
         setActionError('Annual billing is not available. Review the monthly option before joining.');
         return;
       }
-      void startCheckout(page.membership.planId, page.curator.id, checkoutInterval);
+      void startCheckout(page.membership.planId, page.curator.id, checkoutInterval, sourcePostId);
     } else {
       setNotice('You already have a membership with this curator.');
     }
@@ -334,6 +348,7 @@ export function PublicCuratorPage({
     isAuthenticated,
     membershipFlow,
     page,
+    sourcePostId,
     startCheckout,
     statusQuery.data,
   ]);
@@ -363,6 +378,7 @@ export function PublicCuratorPage({
       source_surface: 'curator',
       curator_id: page.curator.id,
       membership_plan_id: page.membership.planId,
+      post_id: sourcePostId,
       billing_interval: checkoutInterval,
       is_authenticated: isAuthenticated,
       is_member_view: false,
@@ -378,11 +394,13 @@ export function PublicCuratorPage({
       } catch {
         // The fan can select Join again after signing in.
       }
-      const returnPath = `/profile/${encodeURIComponent(username)}?membership=join&interval=${checkoutInterval}`;
+      const returnQuery = new URLSearchParams({ membership: 'join', interval: checkoutInterval });
+      if (sourcePostId) returnQuery.set(SOURCE_POST_PARAM, sourcePostId);
+      const returnPath = `/profile/${encodeURIComponent(username)}?${returnQuery}`;
       router.push(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
       return;
     }
-    void startCheckout(page.membership.planId, page.curator.id, checkoutInterval);
+    void startCheckout(page.membership.planId, page.curator.id, checkoutInterval, sourcePostId);
   };
 
   const items = query.data.pages.flatMap((result) => result.posts.items).map((item): ProfileMusicItem =>
@@ -447,6 +465,7 @@ export function PublicCuratorPage({
           ownerAccountType={page.curator.accountType}
           membershipId={membershipId}
           showMembership={showMembership}
+          onLockedPostSelect={selectSourcePost}
         />
         {showMembership && membershipSlot && createPortal(
           <CuratorMembershipCard

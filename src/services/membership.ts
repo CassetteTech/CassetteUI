@@ -110,6 +110,32 @@ export const parseMembershipPortal = (value: unknown): MembershipPortal =>
 export const parseMyMemberships = (value: unknown): MyMembership[] =>
   myMembershipsSchema.parse(value);
 
+/** The offer's stable anchor, so a link from another page, such as a locked Feed post, can name it. */
+export const MEMBERSHIP_OFFER_ID = 'membership-offer';
+
+/** The query parameter that carries the post a Join came from to the curator's offer. */
+export const SOURCE_POST_PARAM = 'source_post';
+
+// A post id as Bridge issues it: `p_`, a UTC timestamp, and 14 lowercase letters or digits.
+const sourcePostIdPattern = /^p_\d{14}_[0-9a-z]{14}$/;
+
+/** The post a Join came from, when the value is a well-formed post id. Bridge decides whether it counts. */
+export const sourcePostIdOf = (value: string | null | undefined): string | undefined =>
+  value && sourcePostIdPattern.test(value) ? value : undefined;
+
+/** The curator's membership offer; a Join from a post carries that post for attribution. */
+export function curatorMembershipHref(username: string, sourcePostId?: string): string {
+  const source = sourcePostIdOf(sourcePostId);
+  const query = source ? `?${new URLSearchParams({ [SOURCE_POST_PARAM]: source })}` : '';
+  return `/profile/${encodeURIComponent(username)}${query}#${MEMBERSHIP_OFFER_ID}`;
+}
+
+/** The membership Checkout request body; the source post is sent only when it is well formed. */
+export function membershipCheckoutRequest(planId: string, interval: MembershipInterval, sourcePostId?: string) {
+  const source = sourcePostIdOf(sourcePostId);
+  return source ? { planId, interval, sourcePostId: source } : { planId, interval };
+}
+
 const portalBaselinePrefix = 'cassette:membership-portal-baseline:';
 const portalBaselineSchema = z.object({
   status: membershipStatusSchema,

@@ -312,14 +312,17 @@ function StudioDashboard({ children }: { children: ReactNode }) {
   useSharedPositionHold('membership-pass', profile.isPending, passSlot);
 
   // A section on another view waits until that view's URL is open, then scrolls and takes focus.
+  // Behind a profile read in flight the Overview and Membership hold skeletons, so a section they
+  // render also waits for that read to settle.
   const pendingSection = useRef<string | null>(null);
   useEffect(() => {
     const sectionId = pendingSection.current;
     if (sectionId === null || studioViewOf(sectionId) !== view) return;
+    if (profile.isPending && !document.getElementById(sectionId)) return;
     pendingSection.current = null;
     // One frame lets a newly shown view lay out before its section scrolls into view.
     requestAnimationFrame(() => revealSection(sectionId));
-  }, [view]);
+  }, [view, profile.isPending]);
 
   const open = useMemo(() => ({
     open: (sectionId: string) => {

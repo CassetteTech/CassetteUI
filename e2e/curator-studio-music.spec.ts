@@ -223,6 +223,26 @@ test('after a failed profile read, Set up memberships moves focus to the profile
   await expect(page.locator('#studio-profile-error')).toBeFocused();
 });
 
+test('Set up memberships waits for a slow profile read, then focuses the plan form', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: member, posts: [own('gate-track', 'Gate Track')] });
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.route('**/api/v1/curators/me', async (route) => {
+    await released;
+    await route.fallback().catch(() => {});
+  });
+
+  await page.goto('/studio/music');
+  await rowOf(page, 'Gate Track').getByRole('button', { name: 'Who can open Gate Track: Public' }).click();
+  await page.getByRole('menuitem', { name: 'Set up memberships' }).click();
+  await expect(page).toHaveURL('/studio/membership');
+  // Membership holds its skeleton until the profile answers; the plan form then takes focus.
+  await expect(page.getByTestId('curator-plan-card')).toHaveCount(0);
+  release();
+
+  await expect(page.getByTestId('curator-plan-card').getByLabel('Plan name')).toBeFocused();
+});
+
 test('edits a note in place, sends only the note, and returns focus to it', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: member,

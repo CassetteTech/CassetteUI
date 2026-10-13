@@ -191,10 +191,12 @@ test.describe('profile tabs', () => {
     await page.goto('/profile/miagroove?tab=albums');
     await expect(page.getByRole('main').last()).toContainText('No albums yet');
     await expect(page.getByRole('main').last()).toContainText('Add albums to start building your profile.');
+    await expect(page.getByRole('main').last().getByRole('link', { name: 'Add music' })).toHaveAttribute('href', '/add-music');
 
     await page.goto('/profile/djaurora?tab=tracks');
     await expect(page.getByRole('main').last()).toContainText('No tracks yet');
     await expect(page.getByRole('main').last()).toContainText('@djaurora has not shared any tracks yet.');
+    await expect(page.getByRole('main').last().getByRole('link', { name: 'Add music' })).toHaveCount(0);
   });
 
   test('renders the profile not-found state instead of a generic error', async ({ page }) => {

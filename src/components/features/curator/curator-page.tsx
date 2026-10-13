@@ -549,19 +549,7 @@ function CuratorFeed({
         )}
       </div>
       {visible.length === 0 ? (
-        <Empty className="mt-3">
-          <EmptyTitle>{memberFilter ? 'No member posts yet' : 'No posts yet'}</EmptyTitle>
-          <EmptyDescription>
-            {memberFilter
-              ? `${displayName} has not shared any members-only posts yet. You will see them here first.`
-              : `${displayName} has not shared any posts. Explore music from other curators in the meantime.`}
-          </EmptyDescription>
-          {!memberFilter && (
-            <Button asChild variant="outline">
-              <Link href="/explore">Explore music</Link>
-            </Button>
-          )}
-        </Empty>
+        <EmptyFeed isOwner={isOwner} memberFilter={memberFilter} displayName={displayName} />
       ) : (
         <div className="mt-3 grid gap-3 motion-safe:animate-reveal">
           {visible.map((item) => item.kind === 'locked'
@@ -587,6 +575,46 @@ function CuratorFeed({
         </div>
       )}
     </section>
+  );
+}
+
+/** The owner's own empty page offers the first step; visitors get discovery copy. */
+function EmptyFeed({ isOwner, memberFilter, displayName }: {
+  isOwner: boolean;
+  memberFilter: boolean | null;
+  displayName: string;
+}) {
+  if (memberFilter) {
+    return (
+      <Empty className="mt-3">
+        <EmptyTitle>No member posts yet</EmptyTitle>
+        <EmptyDescription>
+          {`${displayName} has not shared any members-only posts yet. You will see them here first.`}
+        </EmptyDescription>
+      </Empty>
+    );
+  }
+  if (isOwner) {
+    return (
+      <Empty className="mt-3">
+        <EmptyTitle>No posts yet</EmptyTitle>
+        <EmptyDescription>Add music to start your page. Fans see your posts here.</EmptyDescription>
+        <Button asChild>
+          <Link href="/add-music">Add your first music</Link>
+        </Button>
+      </Empty>
+    );
+  }
+  return (
+    <Empty className="mt-3">
+      <EmptyTitle>No posts yet</EmptyTitle>
+      <EmptyDescription>
+        {`${displayName} has not shared any posts. Explore music from other curators in the meantime.`}
+      </EmptyDescription>
+      <Button asChild variant="outline">
+        <Link href="/explore">Explore music</Link>
+      </Button>
+    </Empty>
   );
 }
 

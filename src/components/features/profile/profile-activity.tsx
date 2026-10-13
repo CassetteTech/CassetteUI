@@ -88,6 +88,11 @@ export function ProfileActivity({
         <Empty className="motion-safe:animate-reveal">
           <EmptyTitle>{title}</EmptyTitle>
           <EmptyDescription>{description}</EmptyDescription>
+          {isCurrentUser && activeTab !== 'liked' && (
+            <Button asChild>
+              <Link href="/add-music">Add music</Link>
+            </Button>
+          )}
         </Empty>
       </div>
     );

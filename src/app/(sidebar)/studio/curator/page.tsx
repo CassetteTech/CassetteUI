@@ -36,8 +36,55 @@ import {
   type CuratorProfile,
 } from '@/services/curator';
 import { fetchCuratorPlans } from '@/services/curator-plans';
+import { profileService } from '@/services/profile';
 
 const profileQueryKey = ['curator-profile', 'me'] as const;
+// No server record says a page was shared, so this browser remembers the curator copying its link.
+const pageLinkCopiedKey = (userId: string) => `cassette:studio-page-link-copied:${userId}`;
+
+function readPageLinkCopied(userId: string) {
+  try {
+    return localStorage.getItem(pageLinkCopiedKey(userId)) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+/** The first launch step. The owner's own read counts every post they made, so one item finishes it.
+    A failed first read says nothing about the page, so the step is left out until a retry answers. */
+function useMusicStep(userId: string | null) {
+  const music = useQuery({
+    queryKey: ['curator-studio-music', userId],
+    queryFn: () => profileService.fetchUserActivity(userId!, { pageSize: 1 }),
+    enabled: userId !== null,
+    staleTime: 0,
+  });
+  const unknown = music.isError && music.data === undefined;
+  const step: LaunchStep | null = unknown ? null : {
+    href: '/add-music',
+    label: 'Add your first music',
+    notice: 'Your page has no music yet.',
+    done: (music.data?.totalItems ?? 0) > 0,
+  };
+  return { step, isPending: music.isPending, retry: unknown ? () => void music.refetch() : null };
+}
+
+/** Whether this user copied their page link in this browser. Read on each render, so a change of
+    signed-in user never carries another user's answer over; the state covers a visit without storage. */
+function usePageLinkCopied(userId: string | null) {
+  const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
+  const copied = userId !== null && (copiedUserId === userId || readPageLinkCopied(userId));
+  const markCopied = () => {
+    if (!userId) return;
+    setCopiedUserId(userId);
+    try {
+      localStorage.setItem(pageLinkCopiedKey(userId), 'true');
+    } catch {
+      // The step stays done for this visit.
+    }
+  };
+  return [copied, markCopied] as const;
+}
 
 const views: ReadonlyArray<{ id: StudioView; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'studio-overview', label: 'Overview', icon: LayoutDashboard },
@@ -49,6 +96,9 @@ const views: ReadonlyArray<{ id: StudioView; label: string; icon: typeof LayoutD
     view. Reads the same query keys the section cards use, so React Query
     dedupes the requests and every surface stays in sync. */
 function useLaunchSteps(profile: CuratorProfile | null) {
+  const { user } = useAuthState();
+  const userId = user?.id ?? null;
+  const music = useMusicStep(userId);
   const searchParams = useSearchParams();
   // Provider return flows land on their owning section. During a payout return,
   // the payout card owns the single refresh request.
@@ -68,21 +118,32 @@ function useLaunchSteps(profile: CuratorProfile | null) {
     enabled: Boolean(profile),
     staleTime: 0,
   });
+  const [pageLinkCopied, markPageLinkCopied] = usePageLinkCopied(userId);
 
   // Publishing needs a payout account Stripe has verified for transfers.
   const payoutStarted = payout.data != null;
   const payoutReady = payout.data?.transfersCapabilityStatus === 'active';
   const hasPlan = plans.data?.some((plan) => plan.status !== 'archived') === true;
   const hasActivePlan = plans.data?.some((plan) => plan.status === 'active') === true;
-  const steps: LaunchStep[] = [
+  const hasPublished = plans.data?.some((plan) => plan.status !== 'draft') === true;
+  const planSteps: LaunchStep[] = [
     { href: '#studio-plan', label: 'Design your membership', notice: 'You have no membership plan.', done: hasPlan },
     { href: '#studio-payouts', label: 'Set up payouts', notice: 'Payout setup is not complete.', done: payoutReady },
     { href: '#studio-plan', label: 'Publish your plan', notice: 'No membership plan is live.', done: hasActivePlan },
   ];
+  const musicSteps = music.step ? [music.step] : [];
+  // Content first for a new curator: the page needs music before a paid plan has anything to offer.
+  // After the first publish, payout recovery comes before content. Sharing comes last.
+  const steps: LaunchStep[] = [
+    ...(hasPublished ? [...planSteps, ...musicSteps] : [...musicSteps, ...planSteps]),
+    // Done once the page link is copied in this browser; the notice does not claim the page was never shared.
+    { href: '#studio-share', label: 'Share your page', notice: 'Copy your page link to share it with fans.', done: pageLinkCopied },
+  ];
   const doneCount = steps.filter((step) => step.done).length;
   const nextIndex = steps.findIndex((step) => !step.done);
   const isPending = !payoutFlowActive && payout.isPending ||
-    profile !== null && plans.isPending;
+    profile !== null && plans.isPending ||
+    music.isPending;
 
   return {
     steps,
@@ -93,11 +154,12 @@ function useLaunchSteps(profile: CuratorProfile | null) {
     // Earnings exist only for a curator who has published at least once. Unknown
     // (null) while the first plan read is in flight, so the overview holds its
     // skeleton instead of guessing at the launch checklist.
-    hasPublished: profile !== null && plans.isPending
-      ? null
-      : plans.data?.some((plan) => plan.status !== 'draft') === true,
+    hasPublished: profile !== null && plans.isPending ? null : hasPublished,
     payoutStarted,
     payoutReady,
+    markPageLinkCopied,
+    // Set only while the first music read has failed; cached music survives a failed refresh.
+    retryMusic: music.retry,
     // False while a step input has no answer yet (pending, or failed with nothing cached),
     // so an unknown payout state never reads as an open step.
     stepsKnown: payout.data !== undefined && (profile === null || plans.data !== undefined),
@@ -112,7 +174,7 @@ function greeting(hour: number) {
   return 'Good evening';
 }
 
-function StudioHeader() {
+function StudioHeader({ onPageLinkCopied }: { onPageLinkCopied: () => void }) {
   const { user } = useAuthState();
   const username = user?.username ?? null;
   const publicPath = username ? `/profile/${encodeURIComponent(username)}` : null;
@@ -136,11 +198,17 @@ function StudioHeader() {
         {username && <p className="mt-2.5 truncate font-mono text-xs text-muted-foreground">@{username}</p>}
       </div>
       {publicPath && (
-        <div className="flex flex-wrap items-center gap-2">
+        /* The Share your page step lands here; focusable so the step can move focus to it. */
+        <div
+          id="studio-share"
+          tabIndex={-1}
+          className="flex scroll-mt-24 flex-wrap items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
           <CopyButton
             label="Copy page link"
             copiedLabel="Link copied"
             value={() => `${window.location.origin}${publicPath}`}
+            onCopied={onPageLinkCopied}
           />
           <Button asChild variant="outline" size="sm">
             <Link href={publicPath}>
@@ -215,7 +283,7 @@ function CuratorStudio() {
         className="studio-surface min-h-full w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-10"
         data-studio-steps-ready={ready ? 'true' : undefined}
       >
-        <StudioHeader />
+        <StudioHeader onPageLinkCopied={launch.markPageLinkCopied} />
 
         {/* A tab only switches the view; focus stays on the tab for arrow-key navigation. */}
         <Tabs
@@ -269,6 +337,12 @@ function CuratorStudio() {
                       <div className="flex flex-wrap items-center gap-3">
                         <p role="alert" className="text-sm text-destructive">Could not load your curator profile.</p>
                         <Button variant="outline" size="sm" onClick={() => profile.refetch()}>Try again</Button>
+                      </div>
+                    )}
+                    {launch.retryMusic && (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <p role="alert" className="text-sm text-destructive">Could not check the music on your page.</p>
+                        <Button variant="outline" size="sm" onClick={launch.retryMusic}>Try again</Button>
                       </div>
                     )}
                     <StudioOverview

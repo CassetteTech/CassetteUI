@@ -26,10 +26,11 @@ function useCopyToClipboard() {
   const [status, setStatus] = useState<CopyStatus>('idle');
   const [ticket, setTicket] = useState(0);
 
-  const copy = useCallback(async (read: () => string) => {
+  const copy = useCallback(async (read: () => string, onCopied?: () => void) => {
     try {
       await writeClipboard(read());
       setStatus('copied');
+      onCopied?.();
     } catch {
       setStatus('error');
     }
@@ -52,6 +53,7 @@ export function CopyButton({
   copiedLabel = 'Copied',
   errorLabel = 'Copy failed',
   className,
+  onCopied,
 }: {
   /** Read on click, so callers can build the text from window.location. */
   value: () => string;
@@ -59,6 +61,8 @@ export function CopyButton({
   copiedLabel?: string;
   errorLabel?: string;
   className?: string;
+  /** Runs after the clipboard write succeeds. */
+  onCopied?: () => void;
 }) {
   const { copy, status } = useCopyToClipboard();
   const reduced = useReducedMotion();
@@ -75,7 +79,7 @@ export function CopyButton({
       type="button"
       aria-label={label}
       aria-live="polite"
-      onClick={() => void copy(value)}
+      onClick={() => void copy(value, onCopied)}
       whileTap={reduced ? undefined : { y: 1 }}
       transition={CELL}
       className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'relative', className)}

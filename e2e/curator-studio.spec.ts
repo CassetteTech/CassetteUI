@@ -145,6 +145,7 @@ test('starts an empty Studio with the first music on the Overview and the setup 
   await expect(page.getByRole('link', { name: 'Add your first music' }))
     .toHaveAttribute('href', '/studio/music/new?from=%2Fstudio');
   await expect(page.getByRole('heading', { name: 'Earn from your music' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Start earning from your music' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Membership setup' })).toHaveCount(0);
 
   await openStudioStep(page, 'studio-membership');

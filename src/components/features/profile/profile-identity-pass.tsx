@@ -3,11 +3,16 @@
 /** The viewed profile's identity for the desktop rail: the summary that prints inside
     a membership pass, and a pass-shaped card for profiles that sell no membership. */
 
-import { useRef } from 'react';
+import { useContext, useRef } from 'react';
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { ConnectedServices } from '@/components/features/profile/profile-header';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
 import { WalletPass } from '@/components/features/curator/wallet-pass';
 import { CuratorFollowAction } from '@/components/features/curator/curator-follow-action';
+import { studioHref } from '@/components/features/curator/studio-routes';
+import { StudioStepsContext } from '@/components/features/curator/studio-shell';
+import { Button } from '@/components/ui/button';
 import { useSharedPosition } from '@/hooks/use-shared-position';
 import type { UserBio } from '@/types';
 
@@ -23,9 +28,35 @@ export function ProfileSummary({ user }: { user: UserBio }) {
   );
 }
 
+/** The owner's way from the pass to membership setup. In Studio it opens the plan in place;
+    elsewhere it opens Studio's Membership view. */
+function MembershipSetupLink() {
+  const steps = useContext(StudioStepsContext);
+  return (
+    <Button asChild variant="outline" className="mt-4 w-full">
+      <Link
+        href={studioHref('studio-plan')}
+        onNavigate={(event) => {
+          if (!steps) return;
+          event.preventDefault();
+          steps.open('studio-plan');
+        }}
+      >
+        Start earning from your music
+        <ArrowRight aria-hidden />
+      </Link>
+    </Button>
+  );
+}
+
 /** A profile with no membership still gets one pass in the rail, on muted paper, with Follow
-    for a curator that sells nothing. */
-export function ProfileIdentityPass({ user, className }: { user: UserBio; className?: string }) {
+    for a curator that sells nothing. Its owner gets membership setup in Follow's place, when the
+    caller says the page could sell one. */
+export function ProfileIdentityPass({ user, offersMembershipSetup = false, className }: {
+  user: UserBio;
+  offersMembershipSetup?: boolean;
+  className?: string;
+}) {
   const likes = Number(user.totalLikesReceived ?? 0);
   // The membership pass key: this pass holds the same rail spot, so it slides (and turns
   // brand red) into Curator Studio's plan pass, and back.
@@ -45,7 +76,7 @@ export function ProfileIdentityPass({ user, className }: { user: UserBio; classN
       summary={<ProfileSummary user={user} />}
     >
       {/* The children slot keeps the pass's bottom padding when Follow renders nothing. */}
-      <CuratorFollowAction className="mt-4" />
+      {offersMembershipSetup ? <MembershipSetupLink /> : <CuratorFollowAction className="mt-4" />}
     </WalletPass>
   );
 }

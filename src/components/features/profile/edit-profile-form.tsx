@@ -348,14 +348,14 @@ export function EditProfileFormComponent({ initialData, onSuccess }: EditProfile
         >
           <TabsList
             aria-label="Settings"
-            className="relative flex h-auto w-full justify-start gap-6 rounded-none border-b border-border bg-transparent p-0"
+            className="relative flex h-auto w-full justify-start gap-1 rounded-none border-b border-border bg-transparent p-0"
           >
             <TabUnderline value={tab} />
             {([['profile', 'Profile'], ['account', 'Account']] as const).map(([value, label]) => (
               <TabsTrigger
                 key={value}
                 value={value}
-                className="h-10 flex-none rounded-none border-0 px-0 text-sm font-normal text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent"
+                className="h-10 flex-none rounded-none border-0 px-3 text-sm font-normal text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent"
               >
                 <span className="tab-label" data-label={label}>{label}</span>
               </TabsTrigger>

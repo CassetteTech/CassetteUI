@@ -50,7 +50,7 @@ export function curatorPageFilterOf(view: ProfileMusicView): CuratorPageFilter {
 
 /** The views a curator page offers. Members only, for a member, or for the owner of a live plan
     with member posts. A type, when the page holds two types or more; the open view always shows,
-    so a link to an empty type keeps its pill. */
+    so a link to an empty type keeps its tab. */
 export function curatorMusicViews(page: CuratorPage, open: ProfileMusicView): ProfileMusicView[] {
   const memberPosts = page.membership?.benefits.some((benefit) => benefit.featureKey === 'member_posts') === true;
   const counted = new Set(page.posts.typeCounts?.map((count) => count.elementType));

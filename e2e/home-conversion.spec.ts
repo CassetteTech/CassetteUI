@@ -11,7 +11,7 @@ test.describe('home conversion funnel', () => {
     await dispatchPaste(page, 'home-search-input', fixtureConvertTemplates.homeTrack.originalUrl);
 
     await expect(page).toHaveURL(/\/post\/post-home-converted$/);
-    await expect(page.getByText('Midnight City')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Midnight City' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Apple Music' })).toBeVisible();
   });
 
@@ -66,7 +66,7 @@ test.describe('home conversion funnel', () => {
     await expect(page).toHaveURL(
       `/post/post-home-converted?from=${encodeURIComponent(from)}`,
     );
-    await expect(page.getByText('Midnight City')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Midnight City' })).toBeVisible();
   });
 
   test('hands a signed-in paste to the conversion page with its session and the link as pasted', async ({ page, context, baseURL }) => {

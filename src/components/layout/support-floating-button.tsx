@@ -30,12 +30,13 @@ export function SupportFloatingButton() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // z-40: above the page, below the navbar and its menu, dialogs, and popovers (z-50).
   return (
     <button
       type="button"
       onClick={openKoFiSupport}
       className={cn(
-        'group fixed left-4 z-[60] flex h-12 items-center rounded-full bg-primary px-[14px] text-primary-foreground shadow-lg shadow-primary/30 transition-[transform,opacity,background-color] duration-300 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+        'group fixed left-4 z-40 flex h-12 items-center rounded-full bg-primary px-[14px] text-primary-foreground shadow-lg shadow-primary/30 transition-[transform,opacity,background-color] duration-300 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         'bottom-[calc(1.25rem+env(safe-area-inset-bottom))]',
         hidden && 'pointer-events-none translate-y-[200%] opacity-0'
       )}

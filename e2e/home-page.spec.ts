@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fixtureConvertTemplates } from './support/cassette-fixtures';
+import { fixtureConvertTemplates, fixtureUsers } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 test.describe('home page', () => {
@@ -31,6 +31,37 @@ test.describe('home page', () => {
 
     // Curator Pro shows only as later tools, never as the way to earn.
     await expect(page.getByText(/Curator Pro/)).toHaveText(['Coming later: Curator Pro, optional extra tools for curators.']);
+  });
+
+  test('links the signed-in pill to the public profile, with the account menu below 1024 px', async ({ page }) => {
+    await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+    await page.goto('/');
+
+    const pill = page.getByTestId('navbar-profile-link');
+    await expect(pill).toHaveAttribute('href', `/profile/${fixtureUsers.member.username}`);
+    await expect(pill).toHaveAccessibleName(/^Mia Groove\s*@miagroove$/);
+    await expect(page.getByRole('button', { name: 'Open menu' })).toBeHidden();
+
+    // Below 1024 px the app pages have no sidebar, so the menu holds the account routes.
+    await page.setViewportSize({ width: 900, height: 900 });
+    await expect(pill).toBeHidden();
+    await page.getByRole('button', { name: 'Open menu' }).click();
+    const menu = page.locator('#mobile-menu-panel');
+    await expect(menu.getByRole('link', { name: 'Curator Studio' })).toHaveAttribute('href', '/studio');
+    await expect(menu.getByRole('button', { name: 'Sign Out' })).toBeVisible();
+    // The open menu covers the floating Ko-fi button instead of sitting under it.
+    const kofi = await page.getByRole('button', { name: 'Support Cassette on Ko-fi' }).boundingBox();
+    expect(kofi).not.toBeNull();
+    expect(await page.evaluate(
+      ({ x, y }) => document.elementFromPoint(x, y)?.closest('#mobile-menu-panel') !== null,
+      { x: kofi!.x + kofi!.width / 2, y: kofi!.y + kofi!.height / 2 },
+    )).toBe(true);
+
+    // Growing past 1024 px closes the menu and gives the page its scroll back.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(menu).toBeHidden();
+    await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('');
+    await expect(page.getByRole('button', { name: 'Open menu' })).toBeHidden();
   });
 
   test('turns the link card only while motion is allowed', async ({ page }) => {

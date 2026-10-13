@@ -94,6 +94,40 @@ test('keeps an active curator without a published plan public-only', async ({ pa
   expect(await page.content()).not.toContain(CURATOR_SUBSCRIBER_SENTINEL);
 });
 
+const emptyCuratorPage = {
+  ...fixtureFreeCuratorPage,
+  posts: { ...fixtureFreeCuratorPage.posts, items: [], totalItems: 0 },
+};
+
+test('offers the owner Add your first music on their own empty page', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.playlistCurator,
+    curatorPage: { ...emptyCuratorPage, viewer: { isOwner: true, isMember: false, hasMemberBadge: false } },
+  });
+
+  await page.goto(CURATOR_PATH);
+
+  const feed = page.getByTestId('curator-feed');
+  await expect(feed).toContainText('No posts yet');
+  await expect(feed).not.toContainText('Explore music from other curators');
+  await expect(feed.getByRole('link', { name: 'Explore music' })).toHaveCount(0);
+  await expect(feed.getByRole('link', { name: 'Add your first music' })).toHaveAttribute('href', '/add-music');
+});
+
+test('keeps discovery copy for a visitor on an empty curator page', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.viewer,
+    curatorPage: emptyCuratorPage,
+  });
+
+  await page.goto(CURATOR_PATH);
+
+  const feed = page.getByTestId('curator-feed');
+  await expect(feed).toContainText(`${fixtureUsers.playlistCurator.displayName} has not shared any posts.`);
+  await expect(feed.getByRole('link', { name: 'Explore music' })).toHaveAttribute('href', '/explore');
+  await expect(feed.getByRole('link', { name: 'Add your first music' })).toHaveCount(0);
+});
+
 test('loads each curator feed page once without repeating earlier posts', async ({ page }) => {
   const firstPost = fixtureFreeCuratorPage.posts.items[0];
   if (firstPost.kind !== 'post') throw new Error('Expected a public curator post fixture');

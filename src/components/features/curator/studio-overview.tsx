@@ -6,7 +6,9 @@
     Before that: the launch checklist. Every curator then sees the current
     audience and the membership plan card. */
 
-import { useContext, useMemo, useState, type ReactNode } from 'react';
+import { useContext, useMemo, useState, type ComponentProps, type ReactNode } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
@@ -35,12 +37,28 @@ import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecy
 import { AnnotatedText } from '@/components/ui/annotated-text';
 import { cn } from '@/lib/utils';
 
-/** `notice` is the one sentence the overview shows when the step is open again after launch. */
+/** `href` is a Studio section ("#studio-plan") or another page ("/add-music").
+    `notice` is the one sentence the overview shows when the step is open again after launch. */
 export type LaunchStep = { href: string; label: string; notice: string; done: boolean };
 
-/** A forward arrow only for a step on another view; an overview step scrolls in place. */
+const isPageStep = (step: LaunchStep) => step.href.startsWith('/');
+
+/** A forward arrow only for a step on another view or page; an overview step scrolls in place. */
 const stepArrow = (step: LaunchStep) =>
-  studioViewOf(step.href.slice(1)) !== 'studio-overview' && <ArrowRight aria-hidden />;
+  (isPageStep(step) || studioViewOf(step.href.slice(1)) !== 'studio-overview') && <ArrowRight aria-hidden />;
+
+/** A section step opens in Studio; a page step is a link to that page. */
+function StepButton({ step, children, ...props }: { step: LaunchStep } & ComponentProps<typeof Button>) {
+  const views = useContext(StudioStepsContext);
+  if (isPageStep(step)) {
+    return (
+      <Button asChild {...props}>
+        <Link href={step.href}>{children}</Link>
+      </Button>
+    );
+  }
+  return <Button {...props} onClick={() => views?.open(step.href.slice(1))}>{children}</Button>;
+}
 
 const countFormatter = new Intl.NumberFormat('en-US');
 const dayFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -83,6 +101,7 @@ function Card({ title, action, children }: { title: string; action?: ReactNode; 
 
 function LaunchCard({ steps, doneCount, nextIndex }: { steps: LaunchStep[]; doneCount: number; nextIndex: number }) {
   const views = useContext(StudioStepsContext);
+  const router = useRouter();
   const next = steps[nextIndex];
   return (
     <Card
@@ -90,7 +109,7 @@ function LaunchCard({ steps, doneCount, nextIndex }: { steps: LaunchStep[]; done
       action={<span className="text-xs tabular-nums text-muted-foreground">{doneCount} of {steps.length} done</span>}
     >
       {doneCount === 0 && (
-        <p className="mb-3 text-sm text-muted-foreground">A membership lets fans support your curation with a monthly payment.</p>
+        <p className="mb-3 text-sm text-muted-foreground">Start with music on your page. A membership then lets fans support your curation with a monthly payment.</p>
       )}
       <Progress
         value={(doneCount / steps.length) * 100}
@@ -101,13 +120,17 @@ function LaunchCard({ steps, doneCount, nextIndex }: { steps: LaunchStep[]; done
         className="mt-4"
         label="Launch checklist"
         steps={steps.map((step, index) => ({ id: String(index), label: step.label, done: step.done }))}
-        onSelect={(id) => views?.open(steps[Number(id)].href.slice(1))}
+        onSelect={(id) => {
+          const step = steps[Number(id)];
+          if (isPageStep(step)) router.push(step.href);
+          else views?.open(step.href.slice(1));
+        }}
       />
       {next && (
-        <Button className="mt-4 w-full sm:w-auto" onClick={() => views?.open(next.href.slice(1))}>
+        <StepButton step={next} className="mt-4 w-full sm:w-auto">
           Next: {next.label}
           {stepArrow(next)}
-        </Button>
+        </StepButton>
       )}
     </Card>
   );
@@ -270,10 +293,10 @@ export function StudioOverview({
           <motion.div {...rise(0)}>
             <Alert className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-muted/40">
               <p>{openStep.notice}</p>
-              <Button size="sm" onClick={() => views?.open(openStep.href.slice(1))}>
+              <StepButton step={openStep} size="sm">
                 {openStep.label}
                 {stepArrow(openStep)}
-              </Button>
+              </StepButton>
             </Alert>
           </motion.div>
         )}

@@ -39,7 +39,7 @@ test('shows default economics without taking away the launch checklist', async (
 
   // A curator without a profile lands on the overview checklist; billing is one rail click away.
   await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Next: Design your membership' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Next: Add your first music' })).toBeVisible();
   await openStudioStep(page, 'studio-pro');
   const card = page.getByTestId('curator-pro-card');
   await expect(card).toBeVisible();
@@ -259,7 +259,7 @@ test('keeps Curator Pro hidden and the launch checklist usable when Pro status f
   await expect(page.getByTestId('curator-payout-card')).toBeVisible();
   await expect(page.getByTestId('curator-pro-card')).toHaveCount(0);
   await openStudioStep(page, 'studio-overview');
-  await page.getByRole('button', { name: 'Next: Design your membership' }).click();
+  await page.getByRole('button', { name: 'Design your membership', exact: true }).click();
 
   await expect(page.getByTestId('curator-plan-card').getByLabel('Plan name')).toBeFocused();
 });

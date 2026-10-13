@@ -12,6 +12,7 @@ import {
   fixtureCuratorMemberCounts,
   fixtureCuratorProActiveStatus,
   fixtureCuratorProAvailableStatus,
+  fixturePosts,
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
@@ -90,10 +91,18 @@ const draftPlan: CuratorPlan = {
   serviceFeeMinor: null,
   annualServiceFeeMinor: null,
   status: 'draft',
-  featureKeys: [],
+  featureKeys: ['member_posts'],
   createdAtUtc: '2026-08-16T12:00:00Z',
   publishedAtUtc: null,
   archivedAtUtc: null,
+};
+
+// One post on the curator's own page finishes the first launch step, so a test can start at the plan steps.
+const ownPost = {
+  ...fixturePosts.publicTrack,
+  postId: 'post-studio-own-track',
+  ownerId: fixtureUsers.member.id,
+  ownerUsername: fixtureUsers.member.username,
 };
 
 const payoutAccount = (
@@ -123,9 +132,77 @@ test('redirects anonymous visitors away from the curator studio', async ({ page 
   await expect(page.getByRole('link', { name: 'Curator Studio' })).toHaveCount(0);
 });
 
+test('starts an empty curator page with the first music step and finishes with sharing the page', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+  });
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+
+  await page.goto(STUDIO_PATH);
+
+  await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
+  await expect(page.getByText('0 of 5 done', { exact: true })).toBeVisible();
+  const steps = page.getByRole('list', { name: 'Launch checklist' }).getByRole('listitem');
+  await expect(steps).toHaveText([
+    'Add your first musicNext',
+    'Design your membership',
+    'Set up payouts',
+    'Publish your plan',
+    'Share your page',
+  ]);
+  // Add Music is another page, so the next step is a link with a forward arrow.
+  const next = page.getByRole('link', { name: 'Next: Add your first music' });
+  await expect(next).toHaveAttribute('href', '/add-music');
+  await expect(next.locator('svg')).toHaveCount(1);
+
+  // Sharing is the last step: copying the page link finishes it, and the browser remembers it.
+  await steps.filter({ hasText: 'Share your page' }).getByRole('button').click();
+  await expect(page.locator('#studio-share')).toBeFocused();
+  await page.getByRole('button', { name: 'Copy page link' }).click();
+  await expect(steps.last()).toContainText('(complete)');
+  await expect(page.getByText('1 of 5 done', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('1 of 5 done', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Next: Add your first music' })).toBeVisible();
+
+  await page.getByRole('link', { name: 'Next: Add your first music' }).click();
+  await expect(page).toHaveURL('/add-music');
+  expect(state.curatorPlanCreateRequests).toEqual([]);
+});
+
+test('treats a failed music read as unknown and recovers on retry', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    posts: [ownPost],
+  });
+  let musicFailures = 10;
+  await page.route('**/api/v1/profile/*/activity**', (route) => {
+    if (musicFailures === 0) return route.fallback();
+    musicFailures -= 1;
+    return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+  });
+
+  await page.goto(STUDIO_PATH);
+
+  await expect(page.getByRole('alert').filter({ hasText: 'Could not check the music on your page.' })).toBeVisible({ timeout: 10_000 });
+  const steps = page.getByRole('list', { name: 'Launch checklist' }).getByRole('listitem');
+  await expect(steps.filter({ hasText: 'Add your first music' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Next: Add your first music' })).toHaveCount(0);
+  // The plan steps stay usable while the music answer is missing.
+  await expect(page.getByRole('button', { name: 'Next: Design your membership' })).toBeVisible();
+
+  musicFailures = 0;
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByText('Could not check the music on your page.')).toHaveCount(0);
+  await expect(steps.first()).toContainText('Add your first music');
+  await expect(steps.first()).toContainText('(complete)');
+  await expect(page.getByText('1 of 5 done', { exact: true })).toBeVisible();
+});
+
 test('saves a first draft without a profile and advances the launch checklist', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
+    posts: [ownPost],
   });
 
   await page.goto(STUDIO_PATH);
@@ -133,7 +210,7 @@ test('saves a first draft without a profile and advances the launch checklist', 
   await expect(page.getByRole('heading', { level: 1, name: 'Curator Studio' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Curator Studio' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
-  await expect(page.getByText('0 of 3 done', { exact: true })).toBeVisible();
+  await expect(page.getByText('1 of 5 done', { exact: true })).toBeVisible();
 
   // The plan editor is on this view: the step has no forward arrow and focuses the first field.
   const next = page.getByRole('button', { name: 'Next: Design your membership' });
@@ -150,7 +227,7 @@ test('saves a first draft without a profile and advances the launch checklist', 
   await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft saved. Publishing remains optional.');
   await expect(card.getByTestId('curator-plan-draft')).toContainText('Early Club');
   expect(state.curatorProfile?.status).toBe('active');
-  await expect(page.getByText('1 of 3 done', { exact: true })).toBeVisible();
+  await expect(page.getByText('2 of 5 done', { exact: true })).toBeVisible();
   // Payout setup is on another view, so this step keeps its forward arrow.
   await expect(page.getByRole('button', { name: 'Next: Set up payouts' }).locator('svg')).toHaveCount(1);
   await expect(page.getByTestId('curator-plan-preview')).toContainText('Early Club');
@@ -189,6 +266,7 @@ test('says so when the profile read after a first draft fails, and recovers on r
 test('hands a user with no payout account to secure onboarding', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
+    posts: [ownPost],
   });
   await hostPayoutPage(page);
 
@@ -240,6 +318,7 @@ test('refreshes capability truth after hosted onboarding returns', async ({ page
 test('keeps the launch checklist on payout setup until Stripe verifies the account', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
+    posts: [ownPost],
     curatorProfile,
     curatorPlans: [draftPlan],
     curatorPayoutAccount: payoutAccount({
@@ -296,6 +375,7 @@ test('mints a new hosted link when the provider refresh URL returns', async ({ p
 test('keeps plan drafts usable through restricted and failed payout status', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
+    posts: [ownPost],
     curatorPayoutAccount: payoutAccount({
       onboardingStatus: 'restricted',
       transfersCapabilityStatus: 'restricted',
@@ -347,7 +427,8 @@ test('creates a free draft with policy economics before payouts', async ({ page 
 
   await card.getByLabel('Plan name').fill('Selector Club');
   await card.getByLabel('Description').fill('Member-only selections.');
-  await card.getByLabel(/Member-only posts/).check();
+  // A new draft includes member-only posts unless the curator clears it.
+  await expect(card.getByLabel(/Member-only posts/)).toBeChecked();
   await card.getByRole('button', { name: 'Save draft' }).click();
 
   await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft saved. Publishing remains optional.');
@@ -367,6 +448,85 @@ test('creates a free draft with policy economics before payouts', async ({ page 
     featureKeys: ['member_posts'],
   }]);
   await expect(page.getByTestId('curator-payout-onboarding')).toBeEnabled();
+});
+
+test('starts a new draft without member-only posts when the catalog does not offer them', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorFeatures: [{
+      featureKey: 'member_badge',
+      displayName: 'Member badge',
+      description: 'Show member identity on comments and likes.',
+    }],
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const card = page.getByTestId('curator-plan-card');
+  await card.getByLabel('Plan name').fill('Badge Club');
+  await expect(card.getByLabel(/Member-only posts/)).toHaveCount(0);
+  await expect(card.getByLabel(/Member badge/)).not.toBeChecked();
+  await card.getByLabel(/Member badge/).check();
+  await card.getByRole('button', { name: 'Save draft' }).click();
+
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft saved. Publishing remains optional.');
+  expect(state.curatorPlanCreateRequests.map((request) => request.featureKeys)).toEqual([['member_badge']]);
+});
+
+test('keeps member-only posts cleared when the curator unchecks the default', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const card = page.getByTestId('curator-plan-card');
+  const memberPosts = card.getByLabel(/Member-only posts/);
+  await expect(memberPosts).toBeChecked();
+  await memberPosts.uncheck();
+  await card.getByLabel('Plan name').fill('Open Club');
+  await expect(memberPosts).not.toBeChecked();
+  await card.getByRole('button', { name: 'Save draft' }).click();
+
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft saved. Publishing remains optional.');
+  expect(state.curatorPlanCreateRequests.map((request) => request.featureKeys)).toEqual([[]]);
+});
+
+test('refuses to publish a draft with no features and says features freeze at publish', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [{ ...draftPlan, featureKeys: [] }],
+    curatorPayoutAccount: payoutAccount({
+      onboardingStatus: 'active',
+      transfersCapabilityStatus: 'active',
+      capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
+    }),
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const card = page.getByTestId('curator-plan-card');
+  const publish = card.getByTestId('curator-plan-publish');
+  await expect(publish).toBeDisabled();
+  await expect(publish).toHaveAccessibleDescription(
+    'Features and fan prices freeze when you publish. Edit the draft to include at least one feature before you publish.',
+  );
+  await publish.click({ force: true });
+  expect(state.curatorPlanPublishRequests).toEqual([]);
+
+  await card.getByTestId('curator-plan-edit').click();
+  await card.getByLabel(/Member-only posts/).check();
+  await card.getByRole('button', { name: 'Save changes' }).click();
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft updated.');
+
+  await expect(publish).toBeEnabled();
+  await expect(card.getByText('Edit the draft to include at least one feature before you publish.')).toHaveCount(0);
+  await publish.click();
+  await expect(card.getByTestId('curator-plan-active')).toContainText('Member-only posts');
+  expect(state.curatorPlanPublishRequests).toEqual([draftPlan.id]);
 });
 
 test('edits and deletes drafts before publication', async ({ page }) => {
@@ -1034,6 +1194,7 @@ const activePayout = payoutAccount({
 });
 
 test('swaps the launch checklist for one banner after the first publish and orders billing by payout state', async ({ page }) => {
+  // No posts: payout recovery for a live plan still comes before the first music step.
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProfile,
@@ -1043,8 +1204,11 @@ test('swaps the launch checklist for one banner after the first publish and orde
   });
 
   await page.goto(STUDIO_PATH);
+  await page.locator('[data-studio-steps-ready="true"]').waitFor();
+  await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-selected', 'true');
   await openStudioStep(page, 'studio-overview');
   await expect(page.getByText('Payout setup is not complete.')).toBeVisible();
+  await expect(page.getByText('Your page has no music yet.')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Launch checklist' })).toHaveCount(0);
   await page.getByRole('button', { name: /^Ready to pay out/ }).click();
   await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-selected', 'true');
@@ -1055,6 +1219,9 @@ test('swaps the launch checklist for one banner after the first publish and orde
   await openStudioStep(page, 'studio-overview');
   await expect(page.getByRole('heading', { name: 'Earned' })).toBeVisible();
   await expect(page.getByText('Payout setup is not complete.')).toHaveCount(0);
+  // With payouts ready, the open content step is the one banner.
+  await expect(page.getByRole('link', { name: 'Add your first music' })).toHaveAttribute('href', '/add-music');
+  await expect(page.getByText('Copy your page link to share it with fans.')).toHaveCount(0);
   await openStudioStep(page, 'studio-billing');
   await expect(page.getByTestId('curator-payout-card')).toContainText('Ready. Last checked');
   await expect.poll(() => billingOrder(page)).toEqual(['history', 'setup', 'pro']);
@@ -1081,6 +1248,23 @@ test('keeps payout setup first after a payout return and offers the next plan st
   await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByTestId('curator-plan-card')).toBeFocused();
   await expect(page.getByTestId('curator-plan-publish')).toBeEnabled();
+});
+
+test('ends with the share banner for a live curator with music, and copying the link finishes it', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    posts: [ownPost],
+    curatorProfile,
+    curatorPlans: [publishedMonthlyPlan],
+    curatorPayoutAccount: activePayout,
+  });
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByText('Copy your page link to share it with fans.')).toBeVisible();
+  await page.getByRole('button', { name: 'Copy page link' }).click();
+  await expect(page.getByText('Copy your page link to share it with fans.')).toHaveCount(0);
 });
 
 test('shows no setup banner while the payout state is unknown', async ({ page }) => {

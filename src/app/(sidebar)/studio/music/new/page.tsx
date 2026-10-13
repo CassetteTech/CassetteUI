@@ -29,7 +29,7 @@ import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { apiService } from '@/services/api';
 import { savePrefetchedPost } from '@/lib/post-prefetch';
-import { handOffConversion } from '@/lib/conversion-handoff';
+import { HANDOFF_BEAT_MS, handOffConversion } from '@/lib/conversion-handoff';
 import { clearReturnedAddMusicDraft, holdAddMusicDraft, readReturnedAddMusicDraft } from '@/lib/add-music-draft';
 import { playErrorTone, playLinkRecognized } from '@/lib/sounds';
 import { detectContentType } from '@/utils/content-type-detection';
@@ -50,8 +50,6 @@ import { cn } from '@/lib/utils';
 
 // Analytics keep the route name this page had before it moved into Curator Studio, so funnels stay continuous.
 const ANALYTICS_ROUTE = '/add-music';
-// How long the card shows the music's real name before it grows into the post.
-const SOURCE_READ_BEAT_MS = 450;
 
 type SelectedItem = {
   id: string;
@@ -128,11 +126,7 @@ const MusicPicker = ({
   const sheetRef = useSheetViewportPin(isSearchActive);
   const showResults = musicUrl.length >= 2 && !musicUrl.includes('http');
   const pending = selectedItem || pastedLinkSource;
-  // While converting, the card names the music as soon as it is known.
-  const live = isConverting ? convertingMeta : null;
-  const cardArtwork = live?.artwork ?? selectedItem?.coverArtUrl;
-  const cardTitle = live?.title ?? (selectedItem ? selectedItem.title : `${pastedLinkSource} link pasted`);
-  const cardArtist = live?.artist ?? selectedItem?.artist;
+  const cardTitle = selectedItem ? selectedItem.title : `${pastedLinkSource} link pasted`;
 
   return (
     <div
@@ -257,9 +251,9 @@ const MusicPicker = ({
                   : '-rotate-1 elev-soft'
               }`}>
                 <div className="flex items-center gap-3">
-                  {cardArtwork ? (
+                  {selectedItem?.coverArtUrl ? (
                     <ArtworkImage
-                      src={cardArtwork}
+                      src={selectedItem.coverArtUrl}
                       alt={cardTitle}
                       width={48}
                       height={48}
@@ -274,7 +268,7 @@ const MusicPicker = ({
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-atkinson font-bold text-foreground">{cardTitle}</p>
-                    {cardArtist && <p className="truncate text-sm text-muted-foreground">{cardArtist}</p>}
+                    {selectedItem?.artist && <p className="truncate text-sm text-muted-foreground">{selectedItem.artist}</p>}
                     {isConverting ? (
                       <ConversionStageLabel label={conversionStageLabel} className="mt-1 block" />
                     ) : selectedItem ? (
@@ -470,23 +464,12 @@ export default function AddMusicPage() {
   const resolvedReturnRoute = normalizeAuthRedirect(searchParams?.get('from'))
     ?? (user?.username ? `/profile/${user.username}` : null);
   const linkConversion = useMusicLinkConversion();
-  const { label: conversionStageLabel, partialResult } = useConversionStage(conversionKey);
+  const { stage: conversionStage, label: conversionStageLabel, partialResult } = useConversionStage(conversionKey);
   const isConverting = conversionKey != null;
-  // What Bridge has read fills what the page did not know yet, such as a pasted link's title.
-  const liveSource = partialResult?.source;
-  const shownConvertingMeta = convertingMeta && liveSource?.title
-    ? {
-        ...convertingMeta,
-        title: convertingMeta.title ?? liveSource.title,
-        artist: convertingMeta.artist ?? (liveSource.artists?.join(', ') || undefined),
-        artwork: convertingMeta.artwork ?? liveSource.artworkUrl ?? undefined,
-      }
-    : convertingMeta;
 
-  // Once Bridge has read the music, the post builds on its own page: after a beat with
-  // the real name on the card, the card grows into the post skeleton, which fills in as
-  // Bridge reports the rest. A conversion that finishes first opens the finished post.
-  const sourceRead = Boolean(liveSource?.title);
+  // As on the home page, the post builds on its own page: after a short beat of the beam,
+  // the card grows into the post skeleton, which fills in as Bridge reports the music.
+  // A conversion that finishes or fails within the beat stays on the old path.
   const handOffToPost = useEffectEvent(() => {
     const running = runningRef.current;
     if (!running) return;
@@ -519,7 +502,7 @@ export default function AddMusicPage() {
       running: {
         idempotencyKey: running.key,
         result: running.result,
-        reported: { stageLabel: conversionStageLabel, partialResult },
+        reported: { stageLabel: conversionStage ? conversionStageLabel : null, partialResult },
       },
     });
     const fromQuery = resolvedReturnRoute ? `&from=${encodeURIComponent(resolvedReturnRoute)}` : '';
@@ -531,10 +514,10 @@ export default function AddMusicPage() {
     }
   });
   useEffect(() => {
-    if (!sourceRead) return;
-    const timer = window.setTimeout(handOffToPost, SOURCE_READ_BEAT_MS);
+    if (!conversionKey) return;
+    const timer = window.setTimeout(handOffToPost, HANDOFF_BEAT_MS);
     return () => window.clearTimeout(timer);
-  }, [sourceRead]);
+  }, [conversionKey]);
   const { data: topCharts, isLoading: isLoadingCharts } = useTopCharts();
   
   // Music search - only search if it's not a link and has sufficient length
@@ -988,7 +971,7 @@ export default function AddMusicPage() {
     handleSelectItem,
     closeSearch,
     isConverting,
-    convertingMeta: shownConvertingMeta,
+    convertingMeta,
     conversionStageLabel,
   };
   const detailsProps = {

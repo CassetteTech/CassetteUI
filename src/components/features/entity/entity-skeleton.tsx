@@ -14,6 +14,7 @@ import { StreamingLinks, streamingServices } from '@/components/features/entity/
 import { TrackList, formatTrackListStats, type TrackListItem } from '@/components/features/entity/track-list';
 import { ACTIVE_PLATFORM_UI_KEYS, type PlatformUiKey } from '@/lib/platforms';
 import { cn } from '@/lib/utils';
+import { ColorExtractor, type ColorPalette } from '@/services/color-extractor';
 
 /** A conversion in progress, as far as Bridge has reported it. */
 export interface StagedConversion {
@@ -107,6 +108,7 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
     ownPost: ownPost ?? continued?.ownPost ?? false,
   };
   const blueprint = staged ? stagedBlueprint(staged) : loadBlueprint(continued?.resolved ?? false);
+  const band = useArtworkBand(staged?.source?.artworkUrl);
   useRegistration({ resolved: blueprint.finished, conversion: staged, ...post });
 
   // A bar to grow from only comes with a home handoff, so this runs in the browser.
@@ -116,6 +118,7 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
     blueprint,
     staged,
     settled,
+    band,
     growing,
     sourceLabel,
     showTracklist: post.contentType === 'album' || post.contentType === 'playlist',
@@ -193,6 +196,59 @@ function useRegistration(state: Omit<SkeletonEntry, 'leftAt'>) {
       entry.leftAt = Date.now();
     };
   }, [resolved, conversion, contentType, showAuthor, ownPost]);
+}
+
+/** How long the label waits for the artwork's palette before it prints in the brand color. */
+const PALETTE_WAIT_MS = 1200;
+/**
+ * The band color each artwork's label printed in (undefined: the brand color, when the
+ * palette failed or took too long), so a skeleton that continues another starts there.
+ */
+const printedBands = new Map<string, string | undefined>();
+
+interface ArtworkBand {
+  /** The label can print: the palette is known, there is no artwork, or the wait ran out. */
+  ready: boolean;
+  /** The artwork's vibrant color, as the post's label uses it. */
+  tint?: string;
+}
+
+/**
+ * The label band's color: the artwork's palette, as the post prints it. The label waits
+ * for it, so the band never changes color in front of the reader, and the palette is
+ * remembered, so the finished post starts in the same color.
+ */
+function useArtworkBand(artworkUrl: string | null | undefined): ArtworkBand {
+  const [extracted, setExtracted] = useState<{ url: string; palette: ColorPalette } | null>(null);
+  const [waitedFor, setWaitedFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!artworkUrl || ColorExtractor.cachedPalette(artworkUrl) || printedBands.has(artworkUrl)) return;
+    let cancelled = false;
+    void ColorExtractor.extractPalette(artworkUrl).then((palette) => {
+      if (!cancelled) setExtracted({ url: artworkUrl, palette });
+    });
+    const timer = window.setTimeout(() => setWaitedFor(artworkUrl), PALETTE_WAIT_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [artworkUrl]);
+  const palette = artworkUrl
+    ? ColorExtractor.cachedPalette(artworkUrl) ?? (extracted?.url === artworkUrl ? extracted.palette : undefined)
+    : undefined;
+  const printed = artworkUrl ? printedBand(artworkUrl) : null;
+  const ready = !artworkUrl || Boolean(printed) || Boolean(palette) || waitedFor === artworkUrl;
+  // Once printed, the band keeps its color, even if the palette arrives after the wait.
+  const tint = printed ? printed.tint : palette?.vibrant;
+  useEffect(() => {
+    if (artworkUrl && ready && !printedBands.has(artworkUrl)) printedBands.set(artworkUrl, tint);
+  }, [artworkUrl, ready, tint]);
+  return { ready, tint };
+}
+
+/** The band a conversion's label printed for this artwork, if it printed one in this tab. */
+export function printedBand(artworkUrl: string): { tint?: string } | null {
+  return printedBands.has(artworkUrl) ? { tint: printedBands.get(artworkUrl) } : null;
 }
 
 type BlueprintSection = 'artwork' | 'links' | 'tracks';
@@ -346,6 +402,8 @@ const BarGrowth: React.FC<{ from: ViewportBox; onLanded: () => void }> = ({ from
 interface SkeletonLayoutProps {
   blueprint: Blueprint;
   staged?: StagedConversion;
+  /** The label band's color, once the artwork's palette is known. */
+  band: ArtworkBand;
   /** The staged content was already on screen in the skeleton this one continues: show it without a reveal. */
   settled: boolean;
   /** The bar is still growing into the card; the card waits under it. */
@@ -463,6 +521,9 @@ const Artwork: React.FC<{
           sizes={size === 'desktop' ? '352px' : '(max-width: 639px) 260px, 340px'}
           className="object-cover"
           unoptimized
+          // The post's hero image, and the next view mounts it again: load it first, draw it at once.
+          priority
+          decoding="sync"
         />
       )}
       {staged && !staged.ready && (
@@ -496,28 +557,30 @@ const LabelHead: React.FC<{
   blueprint: Blueprint;
   staged?: StagedConversion;
   settled: boolean;
+  band: ArtworkBand;
   next: () => number;
   compact?: boolean;
-}> = ({ blueprint, staged, settled, next, compact }) => {
+}> = ({ blueprint, staged, settled, band, next, compact }) => {
   const source = staged?.source;
-  if (source?.title) {
+  if (source?.title && band.ready) {
     const typeLabel = source.elementType
       ? source.elementType.charAt(0).toUpperCase() + source.elementType.slice(1)
       : undefined;
     return (
-      <div className={cn(!settled && 'motion-safe:animate-reveal')}>
+      <div className={cn(!settled && 'motion-safe:animate-focus-in')}>
         <PostLabelHead
           compact={compact}
           kicker={typeLabel && <span>{typeLabel}</span>}
           title={source.title}
           artist={source.artists.length > 0 && source.elementType !== 'artist' ? source.artists.join(', ') : undefined}
           source={source.elementType === 'playlist' ? playlistSource(staged?.sourceLink) : undefined}
+          tint={band.tint}
         />
       </div>
     );
   }
 
-  const { early } = blueprint;
+  const early = blueprint.early || Boolean(source?.title);
   const ink = 'bg-white/25';
   return (
     // SAFETY: CSSProperties has no custom-property keys; the value is a CSS color.
@@ -568,7 +631,7 @@ const PendingLink: React.FC<{ platform: PlatformUiKey; matching: boolean; order:
     <Part draft order={order} delay={delay} className={cn(LINK_ROW, 'flex items-center gap-2.5 px-3 sm:gap-3 sm:px-4')}>
       {service && (
         <>
-          <Image src={service.icon} alt="" width={20} height={20} className="h-4 w-4 object-contain opacity-40 grayscale sm:h-5 sm:w-5" />
+          <Image src={service.icon} alt="" width={20} height={20} loading="eager" decoding="sync" className="h-4 w-4 object-contain opacity-40 grayscale sm:h-5 sm:w-5" />
           <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground/70 sm:text-xs">
             {service.name}
           </span>
@@ -606,7 +669,7 @@ const ListenLinks: React.FC<{
                 <StreamingLinks
                   key={platform}
                   links={{ [platform]: url }}
-                  className={cn(!settled && 'motion-safe:animate-reveal')}
+                  className={cn(!settled && 'motion-safe:animate-focus-in')}
                 />
               ) : (
                 <PendingLink
@@ -666,7 +729,7 @@ const TracklistCard: React.FC<{
       // The beam renders a style element beside its child; the wrapper keeps it out of the parent's spacing.
       <div>
         <ConversionBeam active={blueprint.beam === 'tracks'}>
-          <div className={cn('card-ink overflow-hidden', !settled && 'motion-safe:animate-reveal')} inert>
+          <div className={cn('card-ink overflow-hidden', !settled && 'motion-safe:animate-focus-in')} inert>
             <div className={cn('flex items-baseline justify-between gap-3 border-b border-border', compact ? 'px-4 py-3' : 'px-5 py-4')}>
               <h3 className="text-sm font-semibold text-foreground">Tracklist</h3>
               <span className="text-sm tabular-nums text-muted-foreground">{formatTrackListStats(tracks)}</span>
@@ -768,6 +831,7 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
   blueprint,
   staged,
   settled,
+  band,
   growing,
   sourceLabel,
   showTracklist,
@@ -829,7 +893,7 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
                   early ? 'border-dotted border-foreground/30' : 'border-border/70'
                 )}
               >
-                <LabelHead blueprint={blueprint} staged={staged} settled={settled} next={next} />
+                <LabelHead blueprint={blueprint} staged={staged} settled={settled} band={band} next={next} />
                 <ListenLinks
                   blueprint={blueprint}
                   staged={staged}
@@ -861,6 +925,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
   blueprint,
   staged,
   settled,
+  band,
   growing,
   sourceLabel,
   showTracklist,
@@ -907,7 +972,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
           </div>
 
           <div {...draftProps(early, next(), 0, 'card-ink overflow-hidden')}>
-            <LabelHead blueprint={blueprint} staged={staged} settled={settled} next={next} compact />
+            <LabelHead blueprint={blueprint} staged={staged} settled={settled} band={band} next={next} compact />
             <ListenLinks
               blueprint={blueprint}
               staged={staged}

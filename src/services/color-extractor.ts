@@ -58,6 +58,14 @@ export class ColorExtractor {
     blue: '#3B82F6',
   };
 
+  // Palettes already extracted in this tab, so the next view of the same artwork starts in its colors.
+  private static readonly extractedPalettes = new Map<string, ColorPalette>();
+
+  /** The palette already extracted for this artwork in this tab, if any. */
+  static cachedPalette(imageUrl: string): ColorPalette | undefined {
+    return this.extractedPalettes.get(imageUrl);
+  }
+
   /**
    * Extract a full color palette from an image
    */
@@ -66,6 +74,10 @@ export class ColorExtractor {
     config: Partial<ExtractionConfig> = {}
   ): Promise<ColorPalette> {
     const cfg = { ...this.DEFAULT_CONFIG, ...config };
+    // Only the default extraction is remembered; a custom config gets a fresh palette.
+    const remembered = Object.keys(config).length === 0;
+    const cached = remembered ? this.extractedPalettes.get(imageUrl) : undefined;
+    if (cached) return cached;
 
     try {
       const imageData = await this.loadImage(imageUrl, cfg.canvasSize);
@@ -82,7 +94,9 @@ export class ColorExtractor {
       }
 
       const basePalette = this.assignPaletteRoles(clusters, cfg);
-      return this.generateHarmony(basePalette);
+      const palette = this.generateHarmony(basePalette);
+      if (remembered) this.extractedPalettes.set(imageUrl, palette);
+      return palette;
     } catch (error) {
       appLogger.warn('color_extraction_failed', { error });
       return this.getBrandPalette();

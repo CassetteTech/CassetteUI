@@ -23,10 +23,14 @@ export interface ConversionHandoff {
   running?: {
     idempotencyKey: string;
     result: Promise<MusicLinkConversion>;
-    reported: { stageLabel: string; partialResult: ConvertPartialResult | null };
+    /** `stageLabel` is null until Bridge reports a stage; /post then keeps its own time-based label. */
+    reported: { stageLabel: string | null; partialResult: ConvertPartialResult | null };
   };
   handedOffAt: number;
 }
+
+/** How long the beam runs on the home bar or the Add music card before it grows into the post. */
+export const HANDOFF_BEAT_MS = 450;
 
 /** Past this, the bar is long gone: convert as handed over, but do not grow out of it. */
 const GROWTH_WINDOW_MS = 5000;

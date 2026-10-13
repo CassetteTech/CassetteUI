@@ -166,16 +166,42 @@ test('centers pending music on the details card and keeps it there while it conv
   };
   await expect.poll(centerOffset).toBeLessThan(2);
 
-  await page.locator('[data-testid="add-music-submit"]:not([disabled]):visible').click();
-  // The heading sets itself above the card; the card stays where it was.
-  await expect(page.getByText('Converting Spotify track', { exact: true }).filter({ visible: true })).toBeVisible();
-  await expect.poll(centerOffset).toBeLessThan(2);
+  // The heading sets itself above the card and the card stays where it was. The form hands
+  // the conversion to the post page after a short beat, so it is measured in the same
+  // browser task as the click.
+  const converting = await page.evaluate(async () => {
+    const shown = (element: Element) => element.getClientRects().length > 0;
+    // React applies a click within microtasks; the handoff timer runs only in a later task.
+    const settle = async () => {
+      for (let turn = 0; turn < 5; turn += 1) await Promise.resolve();
+    };
+    const center = (element: Element | undefined) => {
+      const box = element?.getBoundingClientRect();
+      return box ? box.top + box.height / 2 : Number.NaN;
+    };
+    Array.from(document.querySelectorAll<HTMLButtonElement>('[data-testid="add-music-submit"]'))
+      .find((button) => shown(button) && !button.disabled)
+      ?.click();
+    await settle();
+    const card = Array.from(document.querySelectorAll('[data-search-region] .card-ink')).find(shown);
+    const details = Array.from(document.querySelectorAll('.card-quiet')).find(
+      (element) => shown(element) && element.querySelector('textarea'),
+    );
+    return {
+      heading: Array.from(document.querySelectorAll('p')).some(
+        (element) => shown(element) && element.textContent === 'Converting Spotify track',
+      ),
+      offset: Math.abs(center(card) - center(details)),
+    };
+  });
+  expect(converting.heading).toBe(true);
+  expect(converting.offset).toBeLessThan(2);
 
   releaseConversion();
   await expect(page).toHaveURL(/\/post\/post-created-track(\?.*)?$/);
 });
 
-test('moves to the post skeleton once Bridge reads the pasted link and follows the same conversion', async ({ page }) => {
+test('moves to the post skeleton right after Add to profile and follows the same conversion', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
   });

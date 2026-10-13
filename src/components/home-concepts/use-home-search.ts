@@ -7,7 +7,7 @@ import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
 import { CONVERSION_STAGE_LABELS } from '@/hooks/use-conversion-stage';
 import { captureClientEvent } from '@/lib/analytics/client';
-import { handOffConversion } from '@/lib/conversion-handoff';
+import { HANDOFF_BEAT_MS, handOffConversion } from '@/lib/conversion-handoff';
 import { apiService } from '@/services/api';
 import { playErrorTone, playLinkRecognized } from '@/lib/sounds';
 import { detectContentType } from '@/utils/content-type-detection';
@@ -26,9 +26,6 @@ export interface ConvertingMeta {
   fallbackLabel: string;
   headline: string;
 }
-
-/** How long the beam runs on the URL bar before the bar grows into the post. */
-const BAR_BEAT_MS = 450;
 
 /**
  * The home search and convert flow, lifted out of the home page so every
@@ -123,7 +120,7 @@ export function useHomeSearch() {
         barRect: bar ? { left: bar.left, top: bar.top, width: bar.width, height: bar.height } : null,
       });
       router.push(`/post?url=${encodeURIComponent(trimmed)}`);
-    }, BAR_BEAT_MS);
+    }, HANDOFF_BEAT_MS);
   }, [conversionKey, isAuthenticated, isAuthLoading, router, analyticsBase]);
 
   // A pasted value either converts (supported link), errors (unsupported), or

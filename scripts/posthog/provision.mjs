@@ -2,6 +2,13 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import {
+  FAN_MEMBERSHIPS_DASHBOARD_NAME,
+  TEST_ACCOUNTS_COHORT_NAME,
+  fanMembershipsDashboardDescription,
+  fanMembershipsDashboardRows,
+  releaseTimestamp,
+} from './fan-memberships-activation.mjs';
 
 function parseEnvLine(line) {
   const trimmed = line.trim();
@@ -47,6 +54,10 @@ const growthOnly = process.argv.includes('--growth-only');
 const playlistConversionsOnly = process.argv.includes('--playlist-conversions-only');
 const postsCreatedOnly = process.argv.includes('--posts-created-only');
 const redditBotOnly = process.argv.includes('--reddit-bot-only');
+const fanMembershipsOnly = process.argv.includes('--fan-memberships-only');
+const releaseUtcArgument = process.argv
+  .find((argument) => argument.startsWith('--release-utc='))
+  ?.slice('--release-utc='.length);
 
 const host = (
   process.env.POSTHOG_APP_HOST ||
@@ -3467,6 +3478,52 @@ function internalDashboardDescription() {
   return 'Auto-provisioned dashboard for Cassette internal team and operational attribution analytics.';
 }
 
+// The metrics read only events from the release onward, so the dashboard needs the release time.
+function fanMembershipsDashboardSpec() {
+  const release = releaseTimestamp(releaseUtcArgument);
+  const insights = [];
+  let y = 0;
+  for (const row of fanMembershipsDashboardRows(release)) {
+    let x = 0;
+    for (const [width, definition] of row) {
+      insights.push({ ...definition, dashboardLayout: dashboardLayout(x, y, width, 5) });
+      x += width;
+    }
+    y += 5;
+  }
+  return {
+    name: FAN_MEMBERSHIPS_DASHBOARD_NAME,
+    description: fanMembershipsDashboardDescription(release),
+    insights,
+    applyLayout: true,
+  };
+}
+
+// The metric queries exclude this cohort by name, so it must exist. The team
+// adds the production test and demo accounts to it in PostHog.
+async function ensureStaticCohort(name) {
+  const cohortsPath = `/api/projects/${projectId || environmentId}/cohorts/`;
+  const existing = (await listAll(cohortsPath)).find((cohort) => cohort.name === name && !cohort.deleted);
+  if (existing?.is_static === true) {
+    console.log(`Using existing cohort: ${name}`);
+    return;
+  }
+  // A dynamic cohort's rules could exclude real users from every metric.
+  if (existing) {
+    throw new Error(`Cohort "${name}" (${existing.id}) is not static; rename or delete it, then run again.`);
+  }
+
+  console.log(`Creating static cohort: ${name}`);
+  await api(cohortsPath, {
+    method: 'POST',
+    body: {
+      name,
+      is_static: true,
+      description: 'Production test and demo accounts that are not CassetteTeam. Excluded from Fan Memberships metrics.',
+    },
+  });
+}
+
 function shouldApplyDashboardLayout(dashboardSpec) {
   return dashboardSpec.applyLayout === true && !pmfOnly && !growthOnly && !playlistConversionsOnly && !postsCreatedOnly && !redditBotOnly;
 }
@@ -3487,7 +3544,9 @@ async function upsertDashboardInsights(dashboardSpec, dashboardId) {
 }
 
 async function main() {
-  const modeLabel = redditBotOnly
+  const modeLabel = fanMembershipsOnly
+    ? 'fan-memberships-only'
+    : redditBotOnly
     ? 'reddit-bot-only'
     : playlistConversionsOnly
       ? 'playlist-conversions-only'
@@ -3502,7 +3561,9 @@ async function main() {
   console.log(`Host: ${host}`);
   console.log(`Scope: ${scopePath}`);
 
-  const dashboardSpecs = redditBotOnly
+  const dashboardSpecs = fanMembershipsOnly
+    ? [fanMembershipsDashboardSpec()]
+    : redditBotOnly
     ? [
       {
         name: dashboardName,
@@ -3576,13 +3637,17 @@ async function main() {
       },
     ];
 
+  if (fanMembershipsOnly) {
+    await ensureStaticCohort(TEST_ACCOUNTS_COHORT_NAME);
+  }
+
   let totalInsights = 0;
   for (const dashboardSpec of dashboardSpecs) {
     const dashboard = await upsertDashboard(dashboardSpec.name, dashboardSpec.description);
     totalInsights += await upsertDashboardInsights(dashboardSpec, dashboard.id);
   }
 
-  if (!pmfOnly && !growthOnly && !playlistConversionsOnly && !postsCreatedOnly && !redditBotOnly) {
+  if (!pmfOnly && !growthOnly && !playlistConversionsOnly && !postsCreatedOnly && !redditBotOnly && !fanMembershipsOnly) {
     await detachDeprecatedInsights();
   }
 

@@ -6,7 +6,7 @@ import { MusicLinkConversion, ElementType, MediaListTrack } from '@/types';
 import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { useMusicLinkConversion } from '@/hooks/use-music';
 import { useSimulatedProgress } from '@/hooks/use-simulated-progress';
-import { detectContentType } from '@/utils/content-type-detection';
+import { detectContentType, getPlatformDisplayName } from '@/utils/content-type-detection';
 import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
@@ -374,6 +374,9 @@ function PostPageContent() {
   // Show unified skeleton with progress overlay while converting
   // This is the SAME skeleton that PostClientPage uses, ensuring no layout shift
   const showProgress = isConverting || !!urlParam;
+  const sourceLabel = contentInfo.platform === 'unknown'
+    ? contentInfo.type
+    : `${getPlatformDisplayName(contentInfo.platform)} · ${contentInfo.type}`;
 
   return (
     <EntitySkeleton
@@ -383,6 +386,7 @@ function PostPageContent() {
       progressStepName={progressState.currentStepName}
       progressStepIndex={progressState.currentStep}
       progressTotalSteps={progressState.totalSteps}
+      sourceLabel={sourceLabel}
       onCancel={() => router.back()}
     />
   );

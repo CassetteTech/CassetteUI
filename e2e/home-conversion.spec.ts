@@ -68,4 +68,23 @@ test.describe('home conversion funnel', () => {
     );
     await expect(page.getByText('Midnight City')).toBeVisible();
   });
+
+  test('advances the conversion steps while the response is pending', async ({ page }) => {
+    await mockCassetteApp(page);
+    let releaseConversion = () => {};
+    const conversionHeld = new Promise<void>((resolve) => {
+      releaseConversion = resolve;
+    });
+    await page.route('**/api/v1/convert', async (route) => {
+      await conversionHeld;
+      await route.fallback();
+    });
+
+    await page.goto(`/post?url=${encodeURIComponent(fixtureConvertTemplates.homeTrack.originalUrl)}`);
+
+    await expect(page.getByText('Matching streaming services')).toBeVisible();
+    await expect(page.getByText('Building your smart link')).toBeVisible();
+    releaseConversion();
+    await expect(page).toHaveURL(/\/post\/post-home-converted$/);
+  });
 });

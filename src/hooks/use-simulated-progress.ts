@@ -91,6 +91,13 @@ export const useSimulatedProgress = (
     apiCompleteRef.current = apiComplete;
   }, [apiComplete]);
 
+  // Callers pass inline callbacks. Read onComplete through a ref so a new
+  // callback each render does not restart the step timers.
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
@@ -240,7 +247,7 @@ export const useSimulatedProgress = (
 
       if (nextStep >= steps.length) {
         // Simulation complete
-        onComplete?.();
+        onCompleteRef.current?.();
         return {
           ...prev,
           currentStep: nextStep,
@@ -279,7 +286,7 @@ export const useSimulatedProgress = (
         isWaitingForApi: !apiDone
       };
     });
-  }, [contentType, onComplete, getStepDelay]);
+  }, [contentType, getStepDelay]);
 
   // Rapid completion when API finishes first
   const enterRapidCompletionMode = useCallback(() => {

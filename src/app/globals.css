@@ -557,6 +557,92 @@
   }
 }
 
+/* ─── Conversion blueprint ─────────────────────────────────────────────────
+   While a link converts, the post skeleton starts as a dotted blueprint on a
+   dot grid. A part keeps `data-drafting` until its conversion step is done,
+   then fades to its plain fill. `--blueprint-order` staggers the draw-in; the
+   element's inline transition-delay staggers the resolve. */
+.blueprint-grid {
+  background-image: radial-gradient(circle, hsl(var(--foreground) / 0.14) 1px, transparent 1.5px);
+  background-size: 18px 18px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 45%, black 35%, transparent 100%);
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 45%, black 35%, transparent 100%);
+  transition: opacity 400ms ease-in-out;
+}
+
+.blueprint-part {
+  position: relative;
+  transition-property: background-color, border-color;
+  transition-duration: 400ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* The dotted outline lives on ::after so it fades while the fill fades in.
+   ::before stays free for the skeleton shimmer. */
+.blueprint-part::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px dotted hsl(var(--foreground) / 0.34);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 400ms ease-in-out;
+  transition-delay: inherit;
+}
+
+/* Text bars draw as a dotted rule with a dot at each end. */
+.blueprint-part[data-text-rule]::after {
+  border: 0;
+  background:
+    radial-gradient(circle, hsl(var(--foreground) / 0.45) 2px, transparent 2.5px) left center / 5px 5px no-repeat,
+    radial-gradient(circle, hsl(var(--foreground) / 0.45) 2px, transparent 2.5px) right center / 5px 5px no-repeat,
+    radial-gradient(circle, hsl(var(--foreground) / 0.32) 0.75px, transparent 1.25px) center / 4px 4px repeat-x;
+}
+
+.blueprint-part[data-drafting] {
+  background-color: transparent;
+  border-color: transparent;
+  animation: blueprint-draw 450ms var(--ease-out-quart) both;
+  animation-delay: calc(var(--blueprint-order, 0) * 25ms);
+}
+
+.blueprint-part[data-drafting]::after {
+  opacity: 1;
+}
+
+.blueprint-part[data-drafting]::before {
+  opacity: 0;
+}
+
+@keyframes blueprint-draw {
+  from { opacity: 0; clip-path: inset(0 100% 0 0); }
+  to   { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+
+/* Print crop marks just outside the corners of a drafting frame. */
+.blueprint-crop {
+  position: absolute;
+  inset: -14px;
+  pointer-events: none;
+  color: hsl(var(--foreground) / 0.4);
+  background:
+    linear-gradient(currentColor, currentColor) left 0 top 14px / 10px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) left 14px top 0 / 1px 10px no-repeat,
+    linear-gradient(currentColor, currentColor) right 0 top 14px / 10px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) right 14px top 0 / 1px 10px no-repeat,
+    linear-gradient(currentColor, currentColor) left 0 bottom 14px / 10px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) left 14px bottom 0 / 1px 10px no-repeat,
+    linear-gradient(currentColor, currentColor) right 0 bottom 14px / 10px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) right 14px bottom 0 / 1px 10px no-repeat;
+  opacity: 0;
+  transition: opacity 400ms ease-in-out;
+}
+
+.blueprint-crop[data-drafting] {
+  opacity: 1;
+}
+
 
 /* Conversion overlay: shimmer sweep across active step label */
 @keyframes shimmer-sweep {
@@ -765,6 +851,18 @@
   .animate-shimmer,
   .before\:animate-shimmer::before {
     animation: none;
+  }
+
+  /* Conversion blueprint: no draw-in; parts swap to their fill at once. */
+  .blueprint-part[data-drafting] {
+    animation: none;
+  }
+
+  .blueprint-part,
+  .blueprint-part::after,
+  .blueprint-crop,
+  .blueprint-grid {
+    transition: none;
   }
 
   /* waveform-pulse is applied via inline style (no class hook), so neutralize

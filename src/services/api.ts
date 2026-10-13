@@ -101,6 +101,7 @@ import {
   type CuratorProPortal,
   type CuratorProStatus,
 } from './curator-pro';
+import { requestLambdaWarmup } from './lambda-warmup';
 
 // interface MusicConnection {
 //   id: string;
@@ -1595,28 +1596,13 @@ class ApiService {
     return this.request<{ developerToken: string }>('/api/v1/music-services/apple-music/developer-token');
   }
 
-  // Lambda warmup
-  async warmupLambdas() {
-    if (!clientConfig.features.enableLambdaWarmup) return;
-    const warmupSessionKey = 'cassette_lambda_warmup_attempted_v1';
-
-    if (typeof window !== 'undefined') {
-      try {
-        if (sessionStorage.getItem(warmupSessionKey) === '1') return;
-        sessionStorage.setItem(warmupSessionKey, '1');
-      } catch {
-        // Ignore session storage failures and proceed with best-effort warmup
-      }
-    }
-
-    try {
-      return this.request('/api/v1/convert/warmup', { method: 'GET', skipAuth: true, correlationId: createCorrelationId() });
-    } catch (error) {
-      appLogger.warn('lambda_warmup_failed', {
-        correlationId: error instanceof ApiError ? error.correlationId : undefined,
-        errorCode: error instanceof ApiError ? error.errorCode : undefined,
-      });
-    }
+  // Lambda warmup: fire-and-forget and throttled per tab, so any caller may request it freely.
+  warmupLambdas(): void {
+    requestLambdaWarmup({
+      enabled: clientConfig.features.enableLambdaWarmup,
+      getStorage: () => window.sessionStorage,
+      send: () => this.request('/api/v1/convert/warmup', { method: 'GET', skipAuth: true, correlationId: createCorrelationId() }),
+    });
   }
 
   // Issue reporting

@@ -160,6 +160,7 @@ export function useHomeSearch() {
   }, [acceptPaste]);
 
   const onPaste = useCallback((event: React.ClipboardEvent<HTMLInputElement>) => {
+    apiService.warmupLambdas();
     const pasted = normalizeMusicLinkInput(event.clipboardData.getData('text'));
     if (!pasted) return;
     event.preventDefault();
@@ -190,6 +191,7 @@ export function useHomeSearch() {
   }, [musicUrl, convertLink, close]);
 
   const onFocus = useCallback(() => {
+    apiService.warmupLambdas();
     if (!isConverting) setIsSearchActive(true);
   }, [isConverting]);
 

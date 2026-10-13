@@ -11,7 +11,6 @@ import { Navbar } from './navbar';
 import { Footer } from './footer';
 import { SupportFloatingButton } from './support-floating-button';
 import { PageLoader } from '@/components/ui/page-loader';
-import { appLogger } from '@/lib/observability/logger';
 import { isHeroRoute } from './hero-routes';
 
 interface LayoutProps {
@@ -25,12 +24,7 @@ export function Layout({ children }: LayoutProps) {
 
 useEffect(() => {
   const disposeAuthListener = authService.initializeAuthListener();
-  apiService.warmupLambdas().catch((error) => {
-    appLogger.warn('lambda_warmup_failed', {
-      error,
-      route: window.location.pathname,
-    });
-  });
+  apiService.warmupLambdas();
 
   return () => {
     disposeAuthListener();

@@ -1,0 +1,259 @@
+{
+  "contractVersion": 1,
+  "name": "amazon-music-link-matrix",
+  "description": "Shared table-driven cases for Amazon Music link parsing. Bridge (C#), MusicPlatformLambdas (Python), and CassetteUI (TypeScript) parsers must all produce the same normalized identifiers for these inputs. Source: CAS-673 (documentation half) and CAS-680.",
+  "rules": {
+    "hosts": {
+      "music.amazon.com": "US",
+      "music.amazon.co.uk": "GB",
+      "music.amazon.de": "DE",
+      "music.amazon.fr": "FR",
+      "music.amazon.it": "IT",
+      "music.amazon.es": "ES",
+      "music.amazon.co.jp": "JP",
+      "music.amazon.ca": "CA",
+      "music.amazon.com.au": "AU",
+      "music.amazon.com.br": "BR",
+      "music.amazon.com.mx": "MX",
+      "music.amazon.in": "IN"
+    },
+    "hostMatch": "exact match after lowercasing; no suffix matching; a leading 'www.' is accepted and dropped",
+    "asin": "^B0[A-Z0-9]{8}$ after uppercasing the path segment; CAS-673 live half confirms whether non-B0 music ASINs exist",
+    "userPlaylistId": "^[A-Za-z0-9]{20,64}$ provisional until CAS-673 observes real ids; compared case-sensitively",
+    "trackAsinPrecedence": "on /albums/{asin}?trackAsin={asin} the result is a track whose context.albumId is the album ASIN",
+    "strippedQuery": ["marketplaceId", "musicTerritory", "ref", "ref_", "tag", "do", "sc_", "utm_source", "utm_medium", "utm_campaign"],
+    "elementTypeSource": "the first path segment only; never inferred from id shape",
+    "rejectedPathPrefixes": ["podcasts", "stations", "search", "my", "live", "genres", "browse", "home", "settings", "forum"],
+    "codes": {
+      "AMZ_UNSUPPORTED_HOST": "host is not an Amazon Music host",
+      "AMZ_STORE_LINK_UNSUPPORTED": "amazon.com store / amzn.to / a.co link; v1 does not resolve store ASINs",
+      "AMZ_UNSUPPORTED_PATH": "Amazon Music host but a path Cassette does not convert",
+      "AMZ_UNSUPPORTED_CONTENT": "podcasts, stations, live",
+      "AMZ_INVALID_ID": "path shape is right but the id fails its rule"
+    }
+  },
+  "cases": [
+    {
+      "name": "track canonical",
+      "input": "https://music.amazon.com/tracks/B07LCDPN6L",
+      "expected": { "elementType": "track", "id": "B07LCDPN6L", "territoryHint": "US" }
+    },
+    {
+      "name": "track with share query",
+      "input": "https://music.amazon.com/tracks/B0BMPXP6VD?marketplaceId=ATVPDKIKX0DER&musicTerritory=US&ref=dm_sh_abc123",
+      "expected": { "elementType": "track", "id": "B0BMPXP6VD", "territoryHint": "US" }
+    },
+    {
+      "name": "track inside album via trackAsin",
+      "input": "https://music.amazon.com/albums/B0869N1S7F?trackAsin=B0869KQ2ZX",
+      "expected": { "elementType": "track", "id": "B0869KQ2ZX", "context": { "albumId": "B0869N1S7F" }, "territoryHint": "US" }
+    },
+    {
+      "name": "track inside album via trackAsin with noise and fragment",
+      "input": "https://music.amazon.com/albums/B0869N1S7F?marketplaceId=ATVPDKIKX0DER&trackAsin=B0869KQ2ZX&do=play#top",
+      "expected": { "elementType": "track", "id": "B0869KQ2ZX", "context": { "albumId": "B0869N1S7F" }, "territoryHint": "US" }
+    },
+    {
+      "name": "album canonical",
+      "input": "https://music.amazon.com/albums/B0064UPU4G",
+      "expected": { "elementType": "album", "id": "B0064UPU4G", "territoryHint": "US" }
+    },
+    {
+      "name": "album trailing slash",
+      "input": "https://music.amazon.com/albums/B0064UPU4G/",
+      "expected": { "elementType": "album", "id": "B0064UPU4G", "territoryHint": "US" }
+    },
+    {
+      "name": "artist with slug",
+      "input": "https://music.amazon.com/artists/B000QJPQ7U/daft-punk",
+      "expected": { "elementType": "artist", "id": "B000QJPQ7U", "territoryHint": "US" }
+    },
+    {
+      "name": "artist without slug",
+      "input": "https://music.amazon.com/artists/B000QJPQ7U",
+      "expected": { "elementType": "artist", "id": "B000QJPQ7U", "territoryHint": "US" }
+    },
+    {
+      "name": "curated playlist",
+      "input": "https://music.amazon.com/playlists/B07PZMR9PY",
+      "expected": { "elementType": "playlist", "id": "B07PZMR9PY", "playlistKind": "curated", "territoryHint": "US" }
+    },
+    {
+      "name": "user playlist",
+      "input": "https://music.amazon.com/user-playlists/9f1c0c2d6f3a4b8e9d0c1b2a3f4e5d6c",
+      "expected": { "elementType": "playlist", "id": "9f1c0c2d6f3a4b8e9d0c1b2a3f4e5d6c", "playlistKind": "user", "territoryHint": "US" }
+    },
+    {
+      "name": "user playlist with share query",
+      "input": "https://music.amazon.com/user-playlists/9f1c0c2d6f3a4b8e9d0c1b2a3f4e5d6c?ref=dm_sh_xyz&marketplaceId=ATVPDKIKX0DER",
+      "expected": { "elementType": "playlist", "id": "9f1c0c2d6f3a4b8e9d0c1b2a3f4e5d6c", "playlistKind": "user", "territoryHint": "US" }
+    },
+    {
+      "name": "localized host uk",
+      "input": "https://music.amazon.co.uk/albums/B0064UPU4G",
+      "expected": { "elementType": "album", "id": "B0064UPU4G", "territoryHint": "GB" }
+    },
+    {
+      "name": "localized host de track",
+      "input": "https://music.amazon.de/tracks/B07LCDPN6L?musicTerritory=DE",
+      "expected": { "elementType": "track", "id": "B07LCDPN6L", "territoryHint": "DE" }
+    },
+    {
+      "name": "localized host jp artist",
+      "input": "https://music.amazon.co.jp/artists/B000QJPQ7U/%E3%83%80%E3%83%95%E3%83%88%E3%83%BB%E3%83%91%E3%83%B3%E3%82%AF",
+      "expected": { "elementType": "artist", "id": "B000QJPQ7U", "territoryHint": "JP" }
+    },
+    {
+      "name": "localized host au playlist",
+      "input": "https://music.amazon.com.au/playlists/B07PZMR9PY",
+      "expected": { "elementType": "playlist", "id": "B07PZMR9PY", "playlistKind": "curated", "territoryHint": "AU" }
+    },
+    {
+      "name": "uppercase host and scheme",
+      "input": "HTTPS://MUSIC.AMAZON.COM/tracks/B07LCDPN6L",
+      "expected": { "elementType": "track", "id": "B07LCDPN6L", "territoryHint": "US" }
+    },
+    {
+      "name": "www prefix dropped",
+      "input": "https://www.music.amazon.com/albums/B0064UPU4G",
+      "expected": { "elementType": "album", "id": "B0064UPU4G", "territoryHint": "US" }
+    },
+    {
+      "name": "lowercase asin normalized",
+      "input": "https://music.amazon.com/tracks/b07lcdpn6l",
+      "expected": { "elementType": "track", "id": "B07LCDPN6L", "territoryHint": "US" }
+    },
+    {
+      "name": "http scheme accepted",
+      "input": "http://music.amazon.com/tracks/B07LCDPN6L",
+      "expected": { "elementType": "track", "id": "B07LCDPN6L", "territoryHint": "US" }
+    },
+    {
+      "name": "surrounding whitespace trimmed",
+      "input": "  https://music.amazon.com/tracks/B07LCDPN6L  ",
+      "expected": { "elementType": "track", "id": "B07LCDPN6L", "territoryHint": "US" }
+    },
+    {
+      "name": "reject store dp link",
+      "input": "https://www.amazon.com/dp/B0064UPU4G",
+      "expectedError": "AMZ_STORE_LINK_UNSUPPORTED"
+    },
+    {
+      "name": "reject store gp product link",
+      "input": "https://www.amazon.com/gp/product/B0064UPU4G",
+      "expectedError": "AMZ_STORE_LINK_UNSUPPORTED"
+    },
+    {
+      "name": "reject amzn.to short link",
+      "input": "https://amzn.to/3abcDEF",
+      "expectedError": "AMZ_STORE_LINK_UNSUPPORTED"
+    },
+    {
+      "name": "reject a.co short link",
+      "input": "https://a.co/d/0abcDEF",
+      "expectedError": "AMZ_STORE_LINK_UNSUPPORTED"
+    },
+    {
+      "name": "reject hostile suffix host",
+      "input": "https://music.amazon.com.evil.example/tracks/B07LCDPN6L",
+      "expectedError": "AMZ_UNSUPPORTED_HOST"
+    },
+    {
+      "name": "reject hostile prefix host",
+      "input": "https://notmusic.amazon.com/tracks/B07LCDPN6L",
+      "expectedError": "AMZ_UNSUPPORTED_HOST"
+    },
+    {
+      "name": "reject non amazon host",
+      "input": "https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh",
+      "expectedError": "AMZ_UNSUPPORTED_HOST"
+    },
+    {
+      "name": "reject podcast",
+      "input": "https://music.amazon.com/podcasts/5f6a1c7e-1d2b-4c3d-8e9f-0a1b2c3d4e5f/some-show",
+      "expectedError": "AMZ_UNSUPPORTED_CONTENT"
+    },
+    {
+      "name": "reject station",
+      "input": "https://music.amazon.com/stations/A1B2C3D4E5",
+      "expectedError": "AMZ_UNSUPPORTED_CONTENT"
+    },
+    {
+      "name": "reject live",
+      "input": "https://music.amazon.com/live/some-stream",
+      "expectedError": "AMZ_UNSUPPORTED_CONTENT"
+    },
+    {
+      "name": "reject search",
+      "input": "https://music.amazon.com/search/daft+punk",
+      "expectedError": "AMZ_UNSUPPORTED_PATH"
+    },
+    {
+      "name": "reject my library",
+      "input": "https://music.amazon.com/my/songs",
+      "expectedError": "AMZ_UNSUPPORTED_PATH"
+    },
+    {
+      "name": "reject root",
+      "input": "https://music.amazon.com/",
+      "expectedError": "AMZ_UNSUPPORTED_PATH"
+    },
+    {
+      "name": "reject unknown first segment",
+      "input": "https://music.amazon.com/videos/B07LCDPN6L",
+      "expectedError": "AMZ_UNSUPPORTED_PATH"
+    },
+    {
+      "name": "reject malformed asin too short",
+      "input": "https://music.amazon.com/tracks/B07LCDP",
+      "expectedError": "AMZ_INVALID_ID"
+    },
+    {
+      "name": "reject malformed asin wrong prefix",
+      "input": "https://music.amazon.com/tracks/X07LCDPN6L",
+      "expectedError": "AMZ_INVALID_ID"
+    },
+    {
+      "name": "reject malformed asin with symbols",
+      "input": "https://music.amazon.com/albums/B0064UP%2E4G",
+      "expectedError": "AMZ_INVALID_ID"
+    },
+    {
+      "name": "reject trackAsin malformed falls back to nothing",
+      "input": "https://music.amazon.com/albums/B0064UPU4G?trackAsin=nope",
+      "expectedError": "AMZ_INVALID_ID"
+    },
+    {
+      "name": "reject user playlist id too short",
+      "input": "https://music.amazon.com/user-playlists/abc",
+      "expectedError": "AMZ_INVALID_ID"
+    },
+    {
+      "name": "reject tracks without id",
+      "input": "https://music.amazon.com/tracks/",
+      "expectedError": "AMZ_UNSUPPORTED_PATH"
+    },
+    {
+      "name": "reject not a url",
+      "input": "B07LCDPN6L",
+      "expectedError": "AMZ_UNSUPPORTED_HOST"
+    }
+  ],
+  "unverified": [
+    {
+      "name": "legacy web player path on the store domain",
+      "input": "https://www.amazon.com/music/player/albums/B0064UPU4G",
+      "note": "Older share links used this form and redirect to music.amazon.com. CAS-673 live half decides whether to accept it as an album or keep rejecting it as a store link."
+    },
+    {
+      "name": "additional localized hosts",
+      "input": "https://music.amazon.nl/albums/B0064UPU4G",
+      "note": "Amazon Music territories beyond the twelve listed (for example NL, SE, PL, AE) are not in the host table until CAS-673 confirms the live domain list."
+    },
+    {
+      "name": "user playlist id shape",
+      "input": "https://music.amazon.com/user-playlists/<observed id>",
+      "note": "The provisional rule accepts 20–64 alphanumerics. Replace with the exact observed shape and length once CAS-673 captures real ids."
+    }
+  ]
+}

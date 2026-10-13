@@ -451,8 +451,9 @@ export function CuratorPlanCard({ profile, preview }: {
       setExpanded(true);
       setNotice(planActions[action.kind].notice);
       // A first publish swaps the setup steps above this card for the member figures,
-      // so bring the card and its live link back into view.
-      if (action.kind === 'publish') views?.open('studio-plan');
+      // so bring the card and its live link back into view, unless the person has moved
+      // to another view meanwhile. A pending mutation reads the latest render's options.
+      if (action.kind === 'publish' && preview) views?.open('studio-plan');
     },
     onError: () => Promise.all([
       queryClient.invalidateQueries({ queryKey: profileQueryKey }),

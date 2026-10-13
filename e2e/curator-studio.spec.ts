@@ -519,6 +519,42 @@ test('refuses to publish a draft with no features and says features freeze at pu
   expect(state.curatorPlanPublishRequests).toEqual([draftPlan.id]);
 });
 
+test('a publish that answers after the person moved to Music does not pull them back', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [draftPlan],
+    curatorPayoutAccount: payoutAccount({
+      onboardingStatus: 'active',
+      transfersCapabilityStatus: 'active',
+      capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
+    }),
+  });
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.route('**/api/v1/curators/plans/*/publish', async (route) => {
+    await released;
+    await route.fallback().catch(() => {});
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const publish = page.getByTestId('curator-plan-card').getByTestId('curator-plan-publish');
+  await expect(publish).toBeEnabled();
+  await publish.click();
+  await page.getByTestId('studio-music-trigger').click();
+  await expect(page).toHaveURL('/studio/music');
+  release();
+
+  await expect.poll(() => state.curatorPlanPublishRequests).toEqual([draftPlan.id]);
+  // The hidden plan card's notice is set in the same success handler that used to reopen
+  // Membership; once it shows, any such navigation has started and lands well within a second.
+  await expect(page.getByTestId('curator-plan-notice')).toHaveText("You're live. Fans can join from your public page.");
+  const reopened = await page.waitForURL('**/studio/membership', { timeout: 1_000 }).then(() => true, () => false);
+  expect(reopened).toBe(false);
+  await expect(page).toHaveURL('/studio/music');
+});
+
 test('edits and deletes drafts before publication', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,

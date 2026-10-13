@@ -109,3 +109,34 @@ test('the sidebar offers Add music as a button above the page links, in their bo
   expect(Math.abs(avatar!.x - feedIcon!.x)).toBeLessThanOrEqual(1);
   expect(Math.abs(signOutIcon!.x - feedIcon!.x)).toBeLessThanOrEqual(1);
 });
+
+test('one sidebar highlight follows the pointer over the page rows and returns to the active row', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+
+  await page.goto('/studio');
+  const menu = page.locator('[data-sidebar="menu"]');
+  const highlight = page.locator('[data-sidebar="menu-highlight"]');
+  const studio = menu.getByRole('link', { name: 'Curator Studio' });
+  const memberships = menu.getByRole('link', { name: 'Memberships' });
+  const highlightTop = async () => (await highlight.boundingBox())?.y;
+
+  // mockCassetteApp emulates reduced motion, so the highlight moves without a transition.
+  await expect(highlight).toHaveCSS('opacity', '1');
+  await expect.poll(highlightTop).toBe((await studio.boundingBox())!.y);
+
+  await memberships.hover();
+  await expect.poll(highlightTop).toBe((await memberships.boundingBox())!.y);
+  // The rows paint no fill of their own; the highlight is the only one.
+  await expect(memberships).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(studio).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+
+  await page.mouse.move(800, 400);
+  await expect.poll(highlightTop).toBe((await studio.boundingBox())!.y);
+
+  // The own profile has no active page row, so the highlight shows only under the pointer.
+  await page.goto(`/profile/${fixtureUsers.member.username}`);
+  await expect(highlight).toHaveCSS('opacity', '0');
+  await memberships.hover();
+  await expect(highlight).toHaveCSS('opacity', '1');
+  await expect.poll(highlightTop).toBe((await memberships.boundingBox())!.y);
+});

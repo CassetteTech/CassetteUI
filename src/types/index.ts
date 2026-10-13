@@ -325,6 +325,23 @@ export interface ConvertLifecycleResponse {
   errorCode?: string;
   message?: string;
   correlationId?: string;
+  /** What a processing track, album, or artist conversion already knows (ConvertPartialResultDto on Bridge). */
+  partialResult?: ConvertPartialResult | null;
+}
+
+export interface ConvertPartialResult {
+  /** The source element, once Bridge has read the link. */
+  source?: {
+    elementType?: string;
+    title?: string;
+    artists?: string[];
+    artworkUrl?: string | null;
+    platform?: string;
+    /** A playlist's tracks, in playlist order, read from the source before any is matched. */
+    tracks?: Array<{ title: string; artists?: string[]; duration?: string | null }> | null;
+  } | null;
+  /** Matched target links by Bridge platform key (spotify, applemusic, deezer), added as each lands. */
+  platforms?: Record<string, string> | null;
 }
 
 export type PaidPromotionPromoterKind =

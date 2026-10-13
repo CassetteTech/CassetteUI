@@ -6,6 +6,13 @@ import { Music2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
+/**
+ * Artwork already shown in this tab. Showing it again (the finished post after a
+ * conversion, or a revisit) skips the blur-up, so artwork the visitor has just
+ * seen does not fade out and back in.
+ */
+const shownArtwork = new Set<string>();
+
 type ArtworkImageProps = Omit<ImageProps, 'src' | 'alt'> & {
   src?: string | null;
   alt: string;
@@ -27,7 +34,7 @@ export function ArtworkImage({
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const failed = normalizedSrc !== '' && failedSrc === normalizedSrc;
-  const loaded = loadedSrc === normalizedSrc;
+  const loaded = loadedSrc === normalizedSrc || shownArtwork.has(normalizedSrc);
 
   if (!normalizedSrc || failed) {
     return (
@@ -57,6 +64,7 @@ export function ArtworkImage({
         className,
       )}
       onLoad={(event) => {
+        shownArtwork.add(normalizedSrc);
         setLoadedSrc(normalizedSrc);
         onLoad?.(event);
       }}

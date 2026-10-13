@@ -1,11 +1,16 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useRef, useEffect, useState, Suspense, useCallback } from 'react';
+import { useRef, useEffect, useState, Suspense, useCallback, useMemo } from 'react';
 import { MusicLinkConversion, ElementType, MediaListTrack } from '@/types';
-import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
+import { EntitySkeleton, type StagedConversion } from '@/components/features/entity/entity-skeleton';
 import { useMusicLinkConversion } from '@/hooks/use-music';
-import { useSimulatedProgress } from '@/hooks/use-simulated-progress';
+import { useConversionStage } from '@/hooks/use-conversion-stage';
+import { clearConversionHandoff, growthBox, readConversionHandoff } from '@/lib/conversion-handoff';
+import { returnAddMusicDraft } from '@/lib/add-music-draft';
+import { playErrorTone } from '@/lib/sounds';
+import { savePrefetchedPost } from '@/lib/post-prefetch';
+import { getPlatformDefinition } from '@/lib/platforms';
 import { detectContentType, getPlatformDisplayName } from '@/utils/content-type-detection';
 import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
@@ -26,6 +31,8 @@ function PostPageContent() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
+  // The post the conversion created; its page continues the staged content.
+  const [createdPostId, setCreatedPostId] = useState<string | null>(null);
 
   const postIdParam = searchParams.get('id');
   const fromParam = searchParams.get('from');
@@ -34,15 +41,60 @@ function PostPageContent() {
   const descriptionParam = searchParams.get('description');
   const fromAddMusic = searchParams.get('fromAddMusic') === 'true';
 
-  // Progress simulation for conversion
-  const currentUrl = urlParam ? decodeURIComponent(urlParam) : '';
+  // A conversion handed over by the home URL bar (convert the link exactly as the
+  // home page read it, with the auth scope it settled) or by Add music (follow the
+  // conversion it started). Either way the post grows out of the bar or card.
+  // The router has already decoded `url`, which is how both encoded it.
+  const [handoff] = useState(() => (urlParam ? readConversionHandoff(urlParam) : null));
+  const [growFrom] = useState(() => growthBox(handoff));
+  useEffect(() => {
+    if (handoff) clearConversionHandoff(handoff);
+  }, [handoff]);
+  const handedOff = handoff && handoff.url === urlParam ? handoff : null;
+  const currentUrl = handedOff?.url ?? (urlParam ? decodeURIComponent(urlParam) : '');
   const contentInfo = detectContentType(currentUrl, null);
-  const progressState = useSimulatedProgress(
-    { contentType: contentInfo.type, estimatedCount: contentInfo.estimatedCount },
-    () => {}, // onComplete - not needed since we handle via apiComplete
-    apiComplete
-  );
-  const progressPercent = Math.max(6, Math.min(100, Math.round(progressState.progress)));
+  const anonymous = handedOff ? handedOff.anonymous : !fromAddMusic;
+  // Add music writes the post under the signed-in person, where read lag has been seen.
+  const addMusicWrite = fromAddMusic || Boolean(handedOff?.running);
+  // Idempotency key of the running conversion; Bridge's job row is polled by it.
+  const [conversionKey, setConversionKey] = useState<string | null>(null);
+  const polled = useConversionStage(conversionKey, { anonymous, intervalMs: 500 });
+  // A handed-over conversion shows what Bridge already reported until the first poll returns.
+  const reported = handedOff?.running?.reported;
+  const partialResult = polled.partialResult ?? reported?.partialResult ?? null;
+  const stageLabel = polled.stage ? polled.label : reported?.stageLabel ?? polled.label;
+  const sourceLinkPlatform = getPlatformDefinition(contentInfo.platform)?.uiKey;
+  // What the post shows so far: the source link from the start, then the source
+  // details and each matched service as Bridge reports them.
+  const conversion = useMemo<StagedConversion>(() => {
+    const links: StagedConversion['links'] = {};
+    if (sourceLinkPlatform && currentUrl) links[sourceLinkPlatform] = currentUrl;
+    for (const [platform, url] of Object.entries(partialResult?.platforms ?? {})) {
+      const key = getPlatformDefinition(platform)?.uiKey;
+      if (key && url) links[key] = url;
+    }
+    const source = partialResult?.source;
+    return {
+      stageLabel,
+      source: source?.title
+        ? {
+            elementType: source.elementType,
+            title: source.title,
+            artists: source.artists ?? [],
+            artworkUrl: source.artworkUrl,
+            tracks: source.tracks?.map((track) => ({
+              title: track.title,
+              artists: track.artists,
+              duration: track.duration ?? undefined,
+            })),
+          }
+        : undefined,
+      sourceLink: sourceLinkPlatform && currentUrl ? { platform: sourceLinkPlatform, url: currentUrl } : undefined,
+      links,
+      ready: apiComplete,
+      postId: createdPostId ?? undefined,
+    };
+  }, [partialResult, stageLabel, apiComplete, createdPostId, currentUrl, sourceLinkPlatform]);
 
   // Guards against duplicate conversions
   const hasConvertedRef = useRef(false);
@@ -62,16 +114,19 @@ function PostPageContent() {
     return key;
   }, []);
 
+  // Reads the new post and stashes it for /post/[id], which then renders it at once
+  // in place of the staged one. Only the signed-in add-music flow retries, where
+  // write/read lag has been observed; elsewhere one read warms the handoff.
   const waitForPostAvailability = useCallback(async (postId: string) => {
-    // Only wait for authenticated add-music flow where write/read lag has been observed.
-    if (!fromAddMusic) return true;
-
-    const backoffMs = [200, 300, 500, 800, 1200, 1800];
+    const backoffMs = addMusicWrite ? [200, 300, 500, 800, 1200, 1800] : [0];
     for (let i = 0; i < backoffMs.length; i += 1) {
       if (!isMountedRef.current) return false;
       try {
         const response = await apiService.fetchPostById(postId);
-        if (response?.success) return true;
+        if (response?.success) {
+          savePrefetchedPost(postId, response);
+          return true;
+        }
       } catch (error) {
         const retryAfterMs = error instanceof ApiError && typeof error.retryAfterMs === 'number'
           ? error.retryAfterMs
@@ -84,8 +139,9 @@ function PostPageContent() {
       }
       await sleep(backoffMs[i]);
     }
-    return false;
-  }, [fromAddMusic]);
+    // Without the add-music lag, /post/[id] can load the post itself.
+    return !addMusicWrite;
+  }, [addMusicWrite]);
 
   const resolvePostAndRender = useCallback(async (postId: string) => {
     const isReady = await waitForPostAvailability(postId);
@@ -102,6 +158,7 @@ function PostPageContent() {
   const handleConvertSuccess = useCallback((result: Awaited<ReturnType<typeof apiService.convertMusicLink>>) => {
     setApiComplete(true);
     if (result.postId) {
+      setCreatedPostId(result.postId);
       void resolvePostAndRender(result.postId);
       return;
     }
@@ -109,9 +166,7 @@ function PostPageContent() {
   }, [resolvePostAndRender]);
 
   // Use the conversion mutation
-  const { mutateAsync: convertLink, isPending: isConverting } = useMusicLinkConversion({
-    anonymous: !fromAddMusic,
-  });
+  const { mutateAsync: convertLink, isPending: isConverting } = useMusicLinkConversion({ anonymous });
 
   const shouldRetryConvertError = (err: unknown) => {
     if (err instanceof ApiError) {
@@ -144,7 +199,7 @@ function PostPageContent() {
 
     // Handle ?url= conversion flow - render content directly, no redirect
     if (urlParam) {
-      const decodedUrl = decodeURIComponent(urlParam);
+      const decodedUrl = handedOff?.url ?? decodeURIComponent(urlParam);
       const detected = detectContentType(decodedUrl);
 
       // Prevent duplicate mutate calls
@@ -154,23 +209,58 @@ function PostPageContent() {
       convertRetryCountRef.current = 0;
       actionIdempotencyKeyRef.current = null;
 
-      void captureClientEvent('conversion_entry_started', {
-        route: '/post',
-        source_surface: fromAddMusic ? 'add_music' : 'post_direct',
-        source_platform: detected.platform,
-        element_type_guess: detected.type,
-        source_domain: sanitizeDomain(decodedUrl),
-        is_authenticated: fromAddMusic,
-      });
+      // The home page already counted a conversion it handed over.
+      if (!handedOff) {
+        void captureClientEvent('conversion_entry_started', {
+          route: '/post',
+          source_surface: fromAddMusic ? 'add_music' : 'post_direct',
+          source_platform: detected.platform,
+          element_type_guess: detected.type,
+          source_domain: sanitizeDomain(decodedUrl),
+          is_authenticated: !anonymous,
+        });
+      }
+
+      // Add music hands over a conversion it already started: follow it, do not start another.
+      const running = handedOff?.running;
+      if (running) {
+        setConversionKey(running.idempotencyKey);
+        const followConversion = async (): Promise<void> => {
+          try {
+            const result = await running.result;
+            if (isMountedRef.current) handleConvertSuccess(result);
+          } catch (err) {
+            if (!isMountedRef.current) return;
+            captureUiException(err, { route: '/post', operation: 'conversion_entry' });
+            const message = getUserFacingApiErrorMessage(err, 'Failed to convert this link. Please try again.');
+            // Add music gets its form back as it was left, with the error, to retry from.
+            const draft = returnAddMusicDraft(running.idempotencyKey, message);
+            if (draft) {
+              playErrorTone();
+              if (draft.pushed) {
+                router.back();
+              } else {
+                router.replace(draft.path);
+              }
+              return;
+            }
+            setApiComplete(true);
+            setError(message);
+          }
+        };
+        void followConversion();
+        return;
+      }
 
       const idempotencyKey = getOrCreateIdempotencyKey();
+      setConversionKey(idempotencyKey);
       const attemptConvert = async (): Promise<void> => {
         try {
           const result = await convertLink({
             url: decodedUrl,
             description: descriptionParam || undefined,
             idempotencyKey,
-            anonymous: !fromAddMusic,
+            anonymous,
           });
           handleConvertSuccess(result);
         } catch (err) {
@@ -295,13 +385,14 @@ function PostPageContent() {
           convertRetryCountRef.current = 0;
           actionIdempotencyKeyRef.current = null;
           const idempotencyKey = getOrCreateIdempotencyKey();
+          setConversionKey(idempotencyKey);
           const attemptConvert = async (): Promise<void> => {
             try {
               const result = await convertLink({
                 url: transformedFromData.originalUrl,
                 description: transformedFromData.description,
                 idempotencyKey,
-                anonymous: !fromAddMusic,
+                anonymous,
               });
               handleConvertSuccess(result);
             } catch (err) {
@@ -339,7 +430,7 @@ function PostPageContent() {
         setError('No data provided');
       }
     }
-  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, resolvePostAndRender, getOrCreateIdempotencyKey, handleConvertSuccess]);
+  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, anonymous, handedOff, resolvePostAndRender, getOrCreateIdempotencyKey, handleConvertSuccess]);
 
   // Show error state
   if (error) {
@@ -352,33 +443,28 @@ function PostPageContent() {
             </svg>
           </div>
           <h2 className="text-xl font-bold text-foreground mb-2">Unable to load content</h2>
-          <p className="text-muted-foreground mb-6">{error}</p>
+          <p role="alert" className="text-muted-foreground mb-6">{error}</p>
           <BackButton variant="button" buttonVariant="default" fallbackRoute="/" />
         </div>
       </div>
     );
   }
 
-  // Once we have a postId, render the content directly - no redirect needed!
-  // This provides a seamless skeleton → content transition
-  // Show unified skeleton with progress overlay while converting
-  // This is the SAME skeleton that PostClientPage uses, ensuring no layout shift
-  const showProgress = isConverting || !!urlParam;
+  // The same skeleton PostClientPage uses, filled with what Bridge has reported so
+  // far. The finished post then replaces it in place at /post/[id].
   const sourceLabel = contentInfo.platform === 'unknown'
     ? contentInfo.type
     : `${getPlatformDisplayName(contentInfo.platform)} · ${contentInfo.type}`;
 
   return (
     <EntitySkeleton
-      showProgress={!!showProgress}
-      progressPercent={progressPercent}
-      progressStepName={progressState.currentStepName}
-      progressStepIndex={progressState.currentStep}
-      progressTotalSteps={progressState.totalSteps}
+      conversion={isConverting || urlParam ? conversion : undefined}
+      growFrom={growFrom}
       sourceLabel={sourceLabel}
       contentType={contentInfo.type}
-      // Only the signed-in add-music flow converts as the user; other conversions are anonymous.
-      showAuthor={fromAddMusic}
+      showAuthor={!anonymous}
+      // A signed-in conversion creates the viewer's own post.
+      ownPost={!anonymous}
       onCancel={() => router.back()}
     />
   );

@@ -130,9 +130,9 @@ test.describe('home page', () => {
 
   test('runs a later linked music URL after a failed conversion', async ({ page }) => {
     await mockCassetteApp(page);
-    // No conversion template exists for this link, so it fails.
+    // No conversion template exists for this link, so it fails on the conversion page.
     await page.goto(`/?url=${encodeURIComponent('https://open.spotify.com/track/no-template')}`);
-    await expect(page.getByRole('button', { name: 'Show me how.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Unable to load content' })).toBeVisible();
 
     // Next.js follows the native History API, so this is a client-side visit.
     await page.evaluate((url) => window.history.pushState(null, '', `/?url=${encodeURIComponent(url)}`), fixtureConvertTemplates.homeTrack.originalUrl);

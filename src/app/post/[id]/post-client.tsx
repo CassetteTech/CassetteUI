@@ -280,6 +280,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const { mutate: addToProfile, isPending: isAddingToProfile } = useAddMusicToProfile();
   const [addStatus, setAddStatus] = useState<'idle' | 'added' | 'error'>('idle');
   const [postData, setPostData] = useState<PostPageData | null>(null);
+  // The post came from a conversion handoff, so its staged content was already on screen.
+  const [arrivedWarm, setArrivedWarm] = useState(false);
   const [error, setError] = useState<PostLoadError | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
@@ -693,6 +695,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         // prefetched payload simply resolves paidPromotionCampaignId to null.
         let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null =
           takePrefetchedPost(postId);
+        if (response) setArrivedWarm(true);
 
         while (!response && Date.now() - startedAt < maxWaitMs) {
           if (isCancelled) return;
@@ -1321,8 +1324,9 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         onDelete={() => setDeleteModalOpen(true)}
       >
       <div
-        // The post lands on its skeleton's outline and settles into focus.
-        className={`relative z-10 min-h-svh transition-[padding] duration-450 ease-out-quart motion-safe:animate-focus-in ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
+        // The post lands on its skeleton's outline and settles into focus. A post from a
+        // conversion replaces content that was already on screen, so it swaps in place.
+        className={`relative z-10 min-h-svh transition-[padding] duration-450 ease-out-quart ${arrivedWarm ? "" : "motion-safe:animate-focus-in"} ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
       >
         {isDesktop ? (
             // Desktop: one layout for every post type

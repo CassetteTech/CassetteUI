@@ -1,26 +1,56 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { BackButton } from '@/components/ui/back-button';
+import { ArtworkImage } from '@/components/ui/artwork-image';
 import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
 import { DitherEdge } from '@/components/features/marketing/dither-edge';
-import { bandColor } from '@/components/features/post/post-label-head';
+import { PostLabelHead, bandColor } from '@/components/features/post/post-label-head';
+import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
+import { TrackList, formatTrackListStats, type TrackListItem } from '@/components/features/entity/track-list';
+import { ACTIVE_PLATFORM_UI_KEYS, type PlatformUiKey } from '@/lib/platforms';
 import { cn } from '@/lib/utils';
 
+/** A conversion in progress, as far as Bridge has reported it. */
+export interface StagedConversion {
+  /** Bridge's current stage, for the readout. */
+  stageLabel: string;
+  /** The source element, once Bridge has read the link. */
+  source?: {
+    elementType?: string;
+    title?: string;
+    artists: string[];
+    artworkUrl?: string | null;
+    /** A playlist's tracks, read from the source before any is matched. */
+    tracks?: TrackListItem[];
+  };
+  /** The link being converted. A playlist's label links to it, as on the post. */
+  sourceLink?: { platform: PlatformUiKey; url: string };
+  /** Listen links known so far. The source link is known from the start. */
+  links: Partial<Record<PlatformUiKey, string>>;
+  /** Bridge reported the post ready; the finished post replaces this next. */
+  ready: boolean;
+  /** The post the conversion created, once ready. Only its page continues this content. */
+  postId?: string;
+}
+
+/** A box in viewport coordinates. */
+export interface ViewportBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 interface EntitySkeletonProps {
-  /** Show progress overlay on artwork (for conversion flow) */
-  showProgress?: boolean;
-  /** Progress percentage (0-100) */
-  progressPercent?: number;
-  /** Current step name to display */
-  progressStepName?: string;
-  /** Zero-based index of the current conversion step */
-  progressStepIndex?: number;
-  /** Total number of conversion steps */
-  progressTotalSteps?: number;
+  /** A conversion in progress (/post?url=): the skeleton fills with what Bridge has reported. */
+  conversion?: StagedConversion;
+  /** Grow the post card out of this box (the home URL bar) when the skeleton mounts. */
+  growFrom?: ViewportBox | null;
   /** Labels the blueprint, such as "Spotify · track" during a conversion */
   sourceLabel?: string;
   /**
@@ -33,6 +63,12 @@ interface EntitySkeletonProps {
    * Unknown: the skeleton this one continues decides, else true.
    */
   showAuthor?: boolean;
+  /**
+   * The viewer will own the post (a signed-in conversion): wide screens keep room for
+   * the owner column beside the card, and the foot has no sign-up or save offer.
+   * Unknown: the skeleton this one continues decides, else false.
+   */
+  ownPost?: boolean;
   /** Callback when back button is clicked */
   onCancel?: () => void;
 }
@@ -45,38 +81,48 @@ interface EntitySkeletonProps {
  * printed label and the listen links), so the post lands where its outline was.
  *
  * The blueprint is dotted outlines on a dot grid. A plain load keeps it until
- * the post arrives; a conversion resolves the parts step by step while the
- * conversion beam marks the section the current step builds.
+ * the post arrives. A conversion fills it with real content as Bridge reports
+ * it: the artwork and label when the source is read, each listen link when its
+ * service matches. The conversion beam marks the section being built.
  */
 export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
-  showProgress = false,
-  progressPercent = 0,
-  progressStepName,
-  progressStepIndex,
-  progressTotalSteps,
+  conversion,
+  growFrom,
   sourceLabel,
   contentType,
   showAuthor,
+  ownPost,
   onCancel
 }) => {
   const continued = useContinuation();
+  const pathname = usePathname();
+  // The skeletons on the created post's page keep showing what the conversion built, as is.
+  const builtPostId = continued?.conversion?.postId;
+  const carried = builtPostId && pathname === `/post/${builtPostId}` ? continued?.conversion : undefined;
+  const staged = conversion ?? carried;
+  const settled = !conversion && Boolean(carried);
   const post = {
-    contentType: contentType ?? continued?.contentType,
+    contentType: contentType ?? staged?.source?.elementType ?? continued?.contentType,
     showAuthor: showAuthor ?? continued?.showAuthor ?? true,
+    ownPost: ownPost ?? continued?.ownPost ?? false,
   };
-  const blueprint = showProgress
-    ? conversionBlueprint(progressStepIndex ?? 0, progressTotalSteps ?? 3, progressPercent >= 100)
-    : loadBlueprint(continued?.resolved ?? false);
-  useRegistration(blueprint.finished, post);
-  const progress = showProgress
-    ? { percent: progressPercent, stepName: progressStepName, stepIndex: progressStepIndex, totalSteps: progressTotalSteps }
-    : null;
+  const blueprint = staged ? stagedBlueprint(staged) : loadBlueprint(continued?.resolved ?? false);
+  useRegistration({ resolved: blueprint.finished, conversion: staged, ...post });
+
+  // A bar to grow from only comes with a home handoff, so this runs in the browser.
+  const [growing, setGrowing] = useState(() => Boolean(growFrom) && !prefersReducedMotion());
+  const handleLanded = useCallback(() => setGrowing(false), []);
   const layout: SkeletonLayoutProps = {
     blueprint,
-    progress,
+    staged,
+    settled,
+    growing,
     sourceLabel,
     showTracklist: post.contentType === 'album' || post.contentType === 'playlist',
+    // Playlists list their links differently (PlaylistStreamingLinks).
+    perServiceLinks: post.contentType !== 'playlist',
     showAuthor: post.showAuthor,
+    ownPost: post.ownPost,
     onCancel,
   };
 
@@ -99,9 +145,14 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
           <MobileSkeleton {...layout} />
         </div>
       </div>
+      {growing && growFrom && <BarGrowth from={growFrom} onLanded={handleLanded} />}
     </div>
   );
 };
+
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
 
 /**
  * A post skeleton often replaces another one: the route loading boundary hands
@@ -109,12 +160,14 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
  * The next skeleton renders before the one it replaces unmounts, so each
  * skeleton registers while mounted and stamps the time it leaves. A skeleton
  * that finds one mounted, or one that left moments ago, continues its state
- * instead of drawing the blueprint again.
+ * (and a conversion's staged content) instead of drawing the blueprint again.
  */
 interface SkeletonEntry {
   resolved: boolean;
+  conversion?: StagedConversion;
   contentType?: string;
   showAuthor: boolean;
+  ownPost: boolean;
   leftAt: number | null;
 }
 let lastSkeleton: SkeletonEntry | null = null;
@@ -130,50 +183,40 @@ function useContinuation() {
   return continued;
 }
 
-/**
- * Registers this skeleton for the one that replaces it. A finished conversion
- * hands off to its post, so that skeleton starts resolved.
- */
-function useRegistration(resolved: boolean, post: { contentType?: string; showAuthor: boolean }) {
-  const { contentType, showAuthor } = post;
+/** Registers this skeleton for the one that replaces it. */
+function useRegistration(state: Omit<SkeletonEntry, 'leftAt'>) {
+  const { resolved, conversion, contentType, showAuthor, ownPost } = state;
   useEffect(() => {
-    const entry: SkeletonEntry = { resolved, contentType, showAuthor, leftAt: null };
+    const entry: SkeletonEntry = { resolved, conversion, contentType, showAuthor, ownPost, leftAt: null };
     lastSkeleton = entry;
     return () => {
       entry.leftAt = Date.now();
     };
-  }, [resolved, contentType, showAuthor]);
+  }, [resolved, conversion, contentType, showAuthor, ownPost]);
 }
 
-type BlueprintSection = 'artwork' | 'links' | 'details';
+type BlueprintSection = 'artwork' | 'links' | 'tracks';
 
 interface Blueprint {
-  /**
-   * Parts that resolve when the first conversion step ends: the card, artwork,
-   * and label, and the listen links, which resolve one at a time while the
-   * matching step runs.
-   */
+  /** Parts that resolve when the source is read: the card, artwork, and label. */
   early: boolean;
-  /** Parts that resolve when the last step ends: the author row, toolbar, and foot. */
+  /** Parts that resolve when the post is ready: the author row, toolbar, and foot. */
   late: boolean;
   /** The section the conversion beam marks as being built now. */
   beam: BlueprintSection | null;
-  /** The conversion response arrived; the remaining steps sprint to the end. */
+  /** The post is ready (or loaded); the dot grid fades. */
   finished: boolean;
 }
 
 /**
- * Maps the conversion step to the blueprint. The first step reads the source
- * (artwork section), the middle steps match the streaming links (links
- * section), and the last step builds the remaining details (details section).
+ * Reading the link builds the artwork section; matching services builds the links,
+ * and a playlist's matching builds its tracklist.
  */
-function conversionBlueprint(step: number, totalSteps: number, finished: boolean): Blueprint {
-  const last = totalSteps - 1;
-  let beam: BlueprintSection | null = null;
-  if (!finished && step <= last) {
-    beam = step === 0 ? 'artwork' : step < last ? 'links' : 'details';
-  }
-  return { early: step < 1, late: step <= last, beam, finished };
+function stagedBlueprint(conversion: StagedConversion): Blueprint {
+  const sourceRead = Boolean(conversion.source) || conversion.ready;
+  const matching: BlueprintSection = conversion.source?.tracks ? 'tracks' : 'links';
+  const beam: BlueprintSection | null = conversion.ready ? null : sourceRead ? matching : 'artwork';
+  return { early: !sourceRead, late: !conversion.ready, beam, finished: conversion.ready };
 }
 
 /** A plain post load stays a blueprint until the post replaces it. */
@@ -207,8 +250,11 @@ const Part: React.FC<{
   /** Draw a text bar as a dotted rule instead of a dotted box. */
   line?: boolean;
   className: string;
-}> = ({ draft, order, delay = 0, line, className }) => (
-  <Skeleton {...draftProps(draft, order, delay, className)} data-text-rule={line || undefined} />
+  children?: React.ReactNode;
+}> = ({ draft, order, delay = 0, line, className, children }) => (
+  <Skeleton {...draftProps(draft, order, delay, className)} data-text-rule={line || undefined}>
+    {children}
+  </Skeleton>
 );
 
 /** One line of text: a bar centered in the line box the real text occupies. */
@@ -243,77 +289,130 @@ const CropMarks: React.FC<{ drafting: boolean; label?: string }> = ({ drafting, 
   </>
 );
 
-interface Progress {
-  percent: number;
-  stepName?: string;
-  stepIndex?: number;
-  totalSteps?: number;
-}
+/**
+ * The URL bar growing into the post card: a copy of the bar, beam running,
+ * moves and resizes from the bar's box to the card's, then fades as the card
+ * appears under it. The layouts mark their card with `data-grow-target`.
+ */
+const BarGrowth: React.FC<{ from: ViewportBox; onLanded: () => void }> = ({ from, onLanded }) => {
+  const [to, setTo] = useState<ViewportBox | null>(null);
+  const [landed, setLanded] = useState(false);
+  const [gone, setGone] = useState(false);
+
+  useLayoutEffect(() => {
+    const target = Array.from(document.querySelectorAll<HTMLElement>('[data-grow-target]')).find(
+      (element) => element.getClientRects().length > 0
+    );
+    if (!target) {
+      onLanded();
+      setGone(true);
+      return;
+    }
+    const box = target.getBoundingClientRect();
+    setTo({ left: box.left, top: box.top, width: box.width, height: box.height });
+  }, [onLanded]);
+
+  if (gone) return null;
+  return (
+    <motion.div
+      aria-hidden
+      className="pointer-events-none fixed z-20"
+      initial={{ ...from, opacity: 1, borderRadius: 16 }}
+      animate={to ? { ...to, opacity: landed ? 0 : 1, borderRadius: 8 } : undefined}
+      transition={landed ? { duration: 0.25, ease: 'easeOut' } : { duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      onAnimationComplete={() => {
+        if (!to) return;
+        if (landed) {
+          setGone(true);
+          return;
+        }
+        setLanded(true);
+        onLanded();
+      }}
+    >
+      <ConversionBeam active className="h-full w-full">
+        <div className="relative h-full w-full rounded-[inherit] border border-border/70">
+          <motion.div
+            className="force-light absolute inset-0 rounded-[inherit] bg-field shadow-[0_2px_6px_rgba(0,0,0,0.05),0_4px_42px_rgba(0,0,0,0.06)]"
+            animate={{ opacity: to ? 0 : 1 }}
+            transition={{ duration: 0.45, ease: 'easeOut' }}
+          />
+        </div>
+      </ConversionBeam>
+    </motion.div>
+  );
+};
 
 interface SkeletonLayoutProps {
   blueprint: Blueprint;
-  progress: Progress | null;
+  staged?: StagedConversion;
+  /** The staged content was already on screen in the skeleton this one continues: show it without a reveal. */
+  settled: boolean;
+  /** The bar is still growing into the card; the card waits under it. */
+  growing: boolean;
+  /** A pending row per service during a conversion, filled as each matches. */
+  perServiceLinks: boolean;
   sourceLabel?: string;
   showTracklist: boolean;
   showAuthor: boolean;
+  ownPost: boolean;
   onCancel?: () => void;
 }
 
 /**
- * Conversion overlay sitting on top of the artwork skeleton.
- *
- * The artwork skeleton stays visible under a light scrim — the post reads
- * as "under assembly" rather than blocked. A traveling border beam
- * (ConversionBeam, which the layouts move to the section being built) carries
- * the activity signal, so the overlay itself stays quiet: centered logo with a
- * breathing halo, and an editorial readout strip pinned to the bottom edge
- * (step counter, crossfading step name, percent) over a hairline progress
- * bar hugging the artwork's bottom edge.
+ * Conversion overlay on the artwork. Until the artwork arrives, the dotted
+ * frame shows the logo with a breathing halo; the readout strip at the bottom
+ * edge names Bridge's current stage until the post is ready. The traveling
+ * border beam carries the activity signal, so the overlay stays quiet.
  */
 const ProgressOverlay: React.FC<{
-  progress: Progress;
+  label: string;
+  /** No artwork yet: show the logo. */
+  emblem: boolean;
   size?: 'desktop' | 'mobile';
   /** The artwork under the overlay is a dotted draft; drop the scrim so its outline stays crisp. */
   drafting?: boolean;
-}> = ({ progress, size = 'desktop', drafting }) => {
-  const { percent, stepName, stepIndex, totalSteps } = progress;
+}> = ({ label, emblem, size = 'desktop', drafting }) => {
   const isDesktop = size === 'desktop';
   const logoSize = isDesktop ? 40 : 32;
-  const safePercent = Math.max(6, Math.min(100, Math.round(percent)));
-  const showCounter = stepIndex != null && totalSteps != null && totalSteps > 0;
 
   return (
     <div className="absolute inset-0 overflow-hidden">
-      {/* Light scrim: keep the skeleton shimmer visible underneath */}
       <div
         className={cn(
-          'absolute inset-0 bg-card/35 backdrop-blur-[2px] transition-opacity duration-400 ease-in-out motion-reduce:transition-none',
-          drafting && 'opacity-0'
+          'absolute inset-0 transition-opacity duration-400 ease-in-out motion-reduce:transition-none',
+          !emblem && 'opacity-0'
         )}
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            'radial-gradient(circle at 50% 42%, hsl(var(--primary) / 0.08), transparent 62%)'
-        }}
-      />
-
-      {/* Center emblem */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative flex items-center justify-center">
-          <span
-            aria-hidden
-            className="absolute inset-0 -m-2 rounded-full bg-primary/10 blur-md animate-progress-breath"
-          />
-          <Image
-            src="/images/cassette_logo.svg"
-            alt="Cassette Logo"
-            width={logoSize}
-            height={logoSize}
-            className="object-contain relative"
-          />
+      >
+        {/* Light scrim: keep the skeleton shimmer visible underneath */}
+        <div
+          className={cn(
+            'absolute inset-0 bg-card/35 backdrop-blur-[2px] transition-opacity duration-400 ease-in-out motion-reduce:transition-none',
+            drafting && 'opacity-0'
+          )}
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(circle at 50% 42%, hsl(var(--primary) / 0.08), transparent 62%)'
+          }}
+        />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative flex items-center justify-center">
+            <span
+              aria-hidden
+              className="absolute inset-0 -m-2 rounded-full bg-primary/10 blur-md animate-progress-breath"
+            />
+            <Image
+              src="/images/cassette_logo.svg"
+              alt="Cassette Logo"
+              width={logoSize}
+              height={logoSize}
+              className="object-contain relative"
+            />
+          </div>
         </div>
       </div>
 
@@ -321,47 +420,54 @@ const ProgressOverlay: React.FC<{
       <div className="absolute inset-x-0 bottom-0">
         <div
           className={`bg-gradient-to-t from-card/95 via-card/70 to-transparent ${
-            isDesktop ? 'px-4 pt-8 pb-2.5' : 'px-3 pt-6 pb-2'
+            isDesktop ? 'px-4 pt-8 pb-3' : 'px-3 pt-6 pb-2.5'
           }`}
         >
-          <div className="flex items-baseline gap-2 overflow-hidden">
-            {showCounter && (
-              <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 shrink-0">
-                {String((stepIndex ?? 0) + 1).padStart(2, '0')}
-                <span className="text-muted-foreground/40">
-                  {' / '}
-                  {String(totalSteps).padStart(2, '0')}
-                </span>
-              </span>
-            )}
+          <output className="block overflow-hidden">
             <AnimatePresence mode="wait">
               <motion.p
-                key={stepName || 'prep'}
+                key={label}
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="flex-1 text-xs text-foreground/80 truncate"
+                className="truncate text-xs text-foreground/80"
               >
-                {stepName || 'Preparing...'}
+                {label}
               </motion.p>
             </AnimatePresence>
-            <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 shrink-0">
-              {safePercent}%
-            </span>
-          </div>
-        </div>
-
-        {/* Hairline progress bar on the artwork's bottom edge */}
-        <div className="h-[3px] bg-muted/50">
-          <motion.div
-            className="h-full w-full origin-left bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.45)]"
-            initial={{ scaleX: 0.06 }}
-            animate={{ scaleX: safePercent / 100 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-          />
+          </output>
         </div>
       </div>
+    </div>
+  );
+};
+
+/** The artwork square: a dotted frame, the real artwork once known, and the conversion overlay. */
+const Artwork: React.FC<{
+  blueprint: Blueprint;
+  staged?: StagedConversion;
+  order: number;
+  className: string;
+  size: 'desktop' | 'mobile';
+}> = ({ blueprint, staged, order, className, size }) => {
+  const artworkUrl = staged?.source?.artworkUrl;
+  return (
+    <div className="relative">
+      <Part draft={blueprint.early} order={order} delay={60} className={className} />
+      {artworkUrl && (
+        <ArtworkImage
+          src={artworkUrl}
+          alt=""
+          fill
+          sizes={size === 'desktop' ? '352px' : '(max-width: 639px) 260px, 340px'}
+          className="object-cover"
+          unoptimized
+        />
+      )}
+      {staged && !staged.ready && (
+        <ProgressOverlay label={staged.stageLabel} emblem={!artworkUrl} size={size} drafting={blueprint.early} />
+      )}
     </div>
   );
 };
@@ -374,44 +480,71 @@ const LINK_COUNT = 3;
 const TRACK_ROW_COUNT = 6;
 
 /**
- * The printed label at the top of the post card (PostLabelHead): the band in
- * the brand color the post starts with, its text as bars in the band's ink.
+ * The printed label at the top of the post card. Once Bridge has read the
+ * source, it is the real PostLabelHead; until then, the band in the brand
+ * color the post starts with, its text as bars in the band's ink.
  */
+/** The service a playlist was shared from, for its label. */
+function playlistSource(link: StagedConversion['sourceLink']) {
+  const service = link ? streamingServices[link.platform] : undefined;
+  if (!link || !service) return undefined;
+  // The post records the open in analytics; a conversion in progress has no post to record it for.
+  return { href: link.url, name: service.name, icon: service.icon, onClick: () => {} };
+}
+
 const LabelHead: React.FC<{
   blueprint: Blueprint;
+  staged?: StagedConversion;
+  settled: boolean;
   next: () => number;
   compact?: boolean;
-}> = ({ blueprint, next, compact }) => {
+}> = ({ blueprint, staged, settled, next, compact }) => {
+  const source = staged?.source;
+  if (source?.title) {
+    const typeLabel = source.elementType
+      ? source.elementType.charAt(0).toUpperCase() + source.elementType.slice(1)
+      : undefined;
+    return (
+      <div className={cn(!settled && 'motion-safe:animate-reveal')}>
+        <PostLabelHead
+          compact={compact}
+          kicker={typeLabel && <span>{typeLabel}</span>}
+          title={source.title}
+          artist={source.artists.length > 0 && source.elementType !== 'artist' ? source.artists.join(', ') : undefined}
+          source={source.elementType === 'playlist' ? playlistSource(staged?.sourceLink) : undefined}
+        />
+      </div>
+    );
+  }
+
   const { early } = blueprint;
   const ink = 'bg-white/25';
   return (
     // SAFETY: CSSProperties has no custom-property keys; the value is a CSS color.
     <div className="relative" style={{ '--band': bandColor() } as React.CSSProperties}>
-      <ConversionBeam active={blueprint.beam === 'details'} borderRadius={0}>
-        <div {...draftProps(early, next(), 120, cn('bg-[var(--band)] text-left', compact ? 'px-4 pb-4 pt-4' : 'px-6 pb-6 pt-5'))}>
-          <TextLine
-            draft={early}
-            order={next()}
-            delay={160}
-            box={compact ? 'mb-3 h-[15px]' : 'mb-5 h-[16.5px]'}
-            bar={cn('h-2.5', compact ? 'w-28' : 'w-36', ink)}
-          />
-          <TextLine
-            draft={early}
-            order={next()}
-            delay={200}
-            box={compact ? 'h-8' : 'h-10'}
-            bar={cn(compact ? 'h-5 w-40' : 'h-7 w-3/5', ink)}
-          />
-          <TextLine
-            draft={early}
-            order={next()}
-            delay={240}
-            box={compact ? 'mt-2 h-5' : 'mt-2 h-6'}
-            bar={cn('h-3.5 w-28', ink)}
-          />
-        </div>
-      </ConversionBeam>
+      <div {...draftProps(early, next(), 120, cn('bg-[var(--band)] text-left', compact ? 'px-4 pb-4 pt-4' : 'px-6 pb-6 pt-5'))}>
+        <TextLine
+          draft={early}
+          order={next()}
+          delay={160}
+          box={compact ? 'mb-3 h-[15px]' : 'mb-5 h-[16.5px]'}
+          bar={cn('h-2.5', compact ? 'w-28' : 'w-36', ink)}
+        />
+        <TextLine
+          draft={early}
+          order={next()}
+          delay={200}
+          box={compact ? 'h-8' : 'h-10'}
+          bar={cn(compact ? 'h-5 w-40' : 'h-7 w-3/5', ink)}
+        />
+        <TextLine
+          draft={early}
+          order={next()}
+          delay={240}
+          box={compact ? 'mt-2 h-5' : 'mt-2 h-6'}
+          bar={cn('h-3.5 w-28', ink)}
+        />
+      </div>
       <DitherEdge
         color="var(--band)"
         side="bottom"
@@ -421,24 +554,79 @@ const LabelHead: React.FC<{
   );
 };
 
-/** The listen links (StreamingLinks): one row per service. */
-const ListenLinks: React.FC<{ blueprint: Blueprint; next: () => number; className: string }> = ({
-  blueprint,
-  next,
-  className,
-}) => (
+const LINK_ROW = 'h-[38.5px] rounded-md sm:h-[42px]';
+
+/** A service still matching: its name in a dotted row, the place its link will take. */
+const PendingLink: React.FC<{ platform: PlatformUiKey; matching: boolean; order: number; delay: number }> = ({
+  platform,
+  matching,
+  order,
+  delay,
+}) => {
+  const service = streamingServices[platform];
+  return (
+    <Part draft order={order} delay={delay} className={cn(LINK_ROW, 'flex items-center gap-2.5 px-3 sm:gap-3 sm:px-4')}>
+      {service && (
+        <>
+          <Image src={service.icon} alt="" width={20} height={20} className="h-4 w-4 object-contain opacity-40 grayscale sm:h-5 sm:w-5" />
+          <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground/70 sm:text-xs">
+            {service.name}
+          </span>
+          {matching && (
+            <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/60 motion-safe:animate-pulse">
+              Matching
+            </span>
+          )}
+        </>
+      )}
+    </Part>
+  );
+};
+
+/**
+ * The listen links (StreamingLinks): one row per service. During a track,
+ * album, or artist conversion each service has its place: a pending row until
+ * Bridge matches it, then the real link.
+ */
+const ListenLinks: React.FC<{
+  blueprint: Blueprint;
+  staged?: StagedConversion;
+  settled: boolean;
+  perService: boolean;
+  next: () => number;
+  className: string;
+}> = ({ blueprint, staged, settled, perService, next, className }) => (
   <ConversionBeam active={blueprint.beam === 'links'} borderRadius={0} className="flex flex-1 flex-col">
     <div className={className}>
       <div className="grid gap-2.5">
-        {Array.from({ length: LINK_COUNT }, (_, i) => (
-          <Part
-            key={i}
-            draft={blueprint.early}
-            order={next()}
-            delay={LINK_DELAY_MS + i * LINK_GAP_MS}
-            className="h-[38.5px] rounded-md sm:h-[42px]"
-          />
-        ))}
+        {staged && perService
+          ? ACTIVE_PLATFORM_UI_KEYS.map((platform, i) => {
+              const url = staged.links[platform];
+              return url ? (
+                <StreamingLinks
+                  key={platform}
+                  links={{ [platform]: url }}
+                  className={cn(!settled && 'motion-safe:animate-reveal')}
+                />
+              ) : (
+                <PendingLink
+                  key={platform}
+                  platform={platform}
+                  matching={Boolean(staged.source)}
+                  order={next()}
+                  delay={LINK_DELAY_MS + i * LINK_GAP_MS}
+                />
+              );
+            })
+          : Array.from({ length: LINK_COUNT }, (_, i) => (
+              <Part
+                key={i}
+                draft={blueprint.early}
+                order={next()}
+                delay={LINK_DELAY_MS + i * LINK_GAP_MS}
+                className={LINK_ROW}
+              />
+            ))}
       </div>
     </div>
   </ConversionBeam>
@@ -462,8 +650,39 @@ const AuthorRow: React.FC<{ blueprint: Blueprint; next: () => number }> = ({ blu
 };
 
 /** Album and playlist tracks, in a second card under the post. */
-const TracklistCard: React.FC<{ blueprint: Blueprint; next: () => number }> = ({ blueprint, next }) => {
+const TracklistCard: React.FC<{
+  blueprint: Blueprint;
+  staged?: StagedConversion;
+  settled: boolean;
+  next: () => number;
+  compact?: boolean;
+}> = ({ blueprint, staged, settled, next, compact }) => {
   const { late } = blueprint;
+  const tracks = staged?.source?.tracks;
+  // A playlist lists its tracks as soon as Bridge reads it; the beam stays on them while they match.
+  // The post's own track list, inert until the post replaces it.
+  if (tracks && tracks.length > 0) {
+    return (
+      // The beam renders a style element beside its child; the wrapper keeps it out of the parent's spacing.
+      <div>
+        <ConversionBeam active={blueprint.beam === 'tracks'}>
+          <div className={cn('card-ink overflow-hidden', !settled && 'motion-safe:animate-reveal')} inert>
+            <div className={cn('flex items-baseline justify-between gap-3 border-b border-border', compact ? 'px-4 py-3' : 'px-5 py-4')}>
+              <h3 className="text-sm font-semibold text-foreground">Tracklist</h3>
+              <span className="text-sm tabular-nums text-muted-foreground">{formatTrackListStats(tracks)}</span>
+            </div>
+            <TrackList
+              items={tracks}
+              variant="playlist"
+              compact={compact}
+              expandable
+              className="!border-0 !bg-transparent !shadow-none"
+            />
+          </div>
+        </ConversionBeam>
+      </div>
+    );
+  }
   return (
     <div {...draftProps(late, next(), 120, 'card-ink overflow-hidden')}>
       <div className="flex items-center justify-between gap-3 px-5 py-4">
@@ -480,9 +699,10 @@ const TracklistCard: React.FC<{ blueprint: Blueprint; next: () => number }> = ({
 };
 
 /** The post foot: one account action and the support and report links. */
-const Foot: React.FC<{ blueprint: Blueprint; next: () => number; className?: string }> = ({
+const Foot: React.FC<{ blueprint: Blueprint; next: () => number; offer: boolean; className?: string }> = ({
   blueprint,
   next,
+  offer,
   className,
 }) => {
   const { late } = blueprint;
@@ -494,10 +714,13 @@ const Foot: React.FC<{ blueprint: Blueprint; next: () => number; className?: str
         className
       )}
     >
-      <div className="flex items-center justify-between gap-4">
-        <TextLine draft={late} order={next()} delay={220} box="h-5" bar="h-3 w-64 max-w-full" />
-        <Part draft={late} order={next()} delay={260} className="h-9 w-28 shrink-0 rounded-md" />
-      </div>
+      {/* Sign-up for visitors, save-to-profile for a post without an owner; its owner gets neither. */}
+      {offer && (
+        <div className="flex items-center justify-between gap-4">
+          <TextLine draft={late} order={next()} delay={220} box="h-5" bar="h-3 w-64 max-w-full" />
+          <Part draft={late} order={next()} delay={260} className="h-9 w-28 shrink-0 rounded-md" />
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
         <TextLine draft={late} order={next()} delay={280} box="h-5" bar="h-3 w-44" />
         <TextLine draft={late} order={next()} delay={300} box="h-5" bar="h-3 w-32" />
@@ -506,16 +729,51 @@ const Foot: React.FC<{ blueprint: Blueprint; next: () => number; className?: str
   );
 };
 
+/** The owner column (PostStudioColumn): the visibility setting, then insights. */
+const OwnerColumn: React.FC<{ blueprint: Blueprint; next: () => number; className?: string }> = ({
+  blueprint,
+  next,
+  className,
+}) => {
+  const { late } = blueprint;
+  const rule = late ? 'border-dotted border-foreground/30' : 'border-border/70';
+  return (
+    <div {...draftProps(late, next(), 160, cn('card-quiet overflow-hidden', className))}>
+      <div className={cn('border-b px-6 pb-5 pt-5', rule)}>
+        <TextLine draft={late} order={next()} delay={180} box="h-4" bar="h-2.5 w-20" />
+        <Part draft={late} order={next()} delay={200} className="mt-5 h-7 w-28 rounded-sm" />
+      </div>
+      <div className="px-6 pb-6 pt-5">
+        <TextLine draft={late} order={next()} delay={220} box="h-5" bar="h-3 w-28" />
+        <Part draft={late} order={next()} delay={240} className="mt-3 h-9 w-full rounded-md" />
+        <TextLine draft={late} order={next()} delay={260} box="mt-3 h-10" bar="h-3 w-56" />
+        <div className={cn('mt-8 border-t pt-6', rule)}>
+          <TextLine draft={late} order={next()} delay={280} box="h-5" bar="h-3 w-20" />
+          <TextLine draft={late} order={next()} delay={300} box="mt-3 h-10" bar="h-3 w-48" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/** The card waits invisibly under the growing bar, then appears as the bar fades. */
+const growTargetClass = (growing: boolean) =>
+  cn('transition-opacity duration-300 ease-out motion-reduce:transition-none', growing && 'opacity-0');
+
 /**
  * Desktop skeleton layout - copies PostClientPage's desktop layout: the toolbar
  * and the post card in one container, centered under the navbar when short.
  */
 const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
   blueprint,
-  progress,
+  staged,
+  settled,
+  growing,
   sourceLabel,
   showTracklist,
   showAuthor,
+  ownPost,
+  perServiceLinks,
   onCancel
 }) => {
   const next = drawOrder();
@@ -523,17 +781,26 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
 
   return (
     <div className="flex min-h-svh flex-col pt-16 before:flex-1 after:min-h-20 after:flex-1">
-      <div className="mx-auto w-full max-w-[68rem] px-8 pb-4">
+      {/* The owner column widens the container from 1280px, as on the post page. */}
+      <div className={cn('mx-auto w-full max-w-[68rem] px-8 pb-4', ownPost && 'min-[1280px]:max-w-7xl')}>
         <div className="relative z-20 pb-6 pt-4">
           <div className="flex items-center justify-between gap-3">
             <BackButton onClick={onCancel} fallbackRoute="/explore" />
             <Part draft={late} order={next()} className="h-9 w-24 rounded-md" />
           </div>
         </div>
-        <div className="space-y-6">
-          <div className="relative">
+        <div
+          className={cn(
+            'grid grid-cols-1 gap-y-6',
+            ownPost && 'min-[1280px]:grid-cols-[minmax(0,1fr)_20rem] min-[1280px]:gap-x-8'
+          )}
+        >
+          <div className={cn('relative min-w-0', growTargetClass(growing))} inert={growing || undefined}>
             <CropMarks drafting={early} label={sourceLabel} />
-            <div {...draftProps(early, next(), 0, 'card-ink grid grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] overflow-hidden')}>
+            <div
+              data-grow-target
+              {...draftProps(early, next(), 0, 'card-ink grid grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] overflow-hidden')}
+            >
               {/* The sleeve pane: the artwork flush to the card's edges, the author beneath. */}
               <div
                 className={cn(
@@ -542,10 +809,13 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
                 )}
               >
                 <ConversionBeam active={blueprint.beam === 'artwork'} borderRadius={0}>
-                  <div className="relative">
-                    <Part draft={early} order={next()} delay={60} className="aspect-square w-full rounded-none" />
-                    {progress && <ProgressOverlay progress={progress} size="desktop" drafting={early} />}
-                  </div>
+                  <Artwork
+                    blueprint={blueprint}
+                    staged={staged}
+                    order={next()}
+                    size="desktop"
+                    className="aspect-square w-full rounded-none"
+                  />
                 </ConversionBeam>
                 {showAuthor && (
                   <div className="flex flex-1 flex-col gap-2.5 p-5">
@@ -559,17 +829,24 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
                   early ? 'border-dotted border-foreground/30' : 'border-border/70'
                 )}
               >
-                <LabelHead blueprint={blueprint} next={next} />
+                <LabelHead blueprint={blueprint} staged={staged} settled={settled} next={next} />
                 <ListenLinks
                   blueprint={blueprint}
+                  staged={staged}
+                  settled={settled}
+                  perService={perServiceLinks}
                   next={next}
                   className="flex flex-1 flex-col justify-center px-6 pb-6 pt-10"
                 />
               </div>
             </div>
           </div>
-          {showTracklist && <TracklistCard blueprint={blueprint} next={next} />}
-          <Foot blueprint={blueprint} next={next} />
+          {/* Centered on the card beside it, as PostStudioColumn is. */}
+          {ownPost && <OwnerColumn blueprint={blueprint} next={next} className="self-center max-[1279px]:hidden" />}
+          <div className="min-w-0 space-y-6 min-[1280px]:col-start-1">
+            {showTracklist && <TracklistCard blueprint={blueprint} staged={staged} settled={settled} next={next} />}
+            <Foot blueprint={blueprint} next={next} offer={!ownPost} />
+          </div>
         </div>
       </div>
     </div>
@@ -582,10 +859,14 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
  */
 const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
   blueprint,
-  progress,
+  staged,
+  settled,
+  growing,
   sourceLabel,
   showTracklist,
   showAuthor,
+  ownPost,
+  perServiceLinks,
   onCancel
 }) => {
   const next = drawOrder();
@@ -604,18 +885,21 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
         </div>
         <div className="flex flex-1 flex-col gap-1.5 sm:gap-6">
           <div className="flex flex-1 items-center justify-center">
-            <div className="relative">
+            <div className={cn('relative', growTargetClass(growing))} inert={growing || undefined}>
               <CropMarks drafting={early} label={sourceLabel} />
               <ConversionBeam active={blueprint.beam === 'artwork'} borderRadius={6}>
-                <div {...draftProps(early, next(), 0, 'rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10')}>
+                <div
+                  data-grow-target
+                  {...draftProps(early, next(), 0, 'rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10')}
+                >
                   <div className="relative overflow-hidden rounded-sm">
-                    <Part
-                      draft={early}
+                    <Artwork
+                      blueprint={blueprint}
+                      staged={staged}
                       order={next()}
-                      delay={60}
+                      size="mobile"
                       className="h-[260px] w-[260px] rounded-sm sm:h-[340px] sm:w-[340px]"
                     />
-                    {progress && <ProgressOverlay progress={progress} size="mobile" drafting={early} />}
                   </div>
                 </div>
               </ConversionBeam>
@@ -623,8 +907,15 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
           </div>
 
           <div {...draftProps(early, next(), 0, 'card-ink overflow-hidden')}>
-            <LabelHead blueprint={blueprint} next={next} compact />
-            <ListenLinks blueprint={blueprint} next={next} className="px-3 pb-3 pt-9 sm:px-5 sm:pb-5" />
+            <LabelHead blueprint={blueprint} staged={staged} settled={settled} next={next} compact />
+            <ListenLinks
+              blueprint={blueprint}
+              staged={staged}
+              settled={settled}
+              perService={perServiceLinks}
+              next={next}
+              className="px-3 pb-3 pt-9 sm:px-5 sm:pb-5"
+            />
           </div>
 
           {showAuthor && (
@@ -635,9 +926,10 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
         </div>
       </section>
 
-      <div className="mt-2 space-y-2 sm:mt-6 sm:space-y-6">
-        {showTracklist && <TracklistCard blueprint={blueprint} next={next} />}
-        <Foot blueprint={blueprint} next={next} />
+      {/* Centered text, as on the post's mobile layout. */}
+      <div className="mt-2 space-y-2 text-center sm:mt-6 sm:space-y-6">
+        {showTracklist && <TracklistCard blueprint={blueprint} staged={staged} settled={settled} next={next} compact />}
+        <Foot blueprint={blueprint} next={next} offer={!ownPost} />
       </div>
     </div>
   );

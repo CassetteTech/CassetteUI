@@ -5,13 +5,13 @@
     someone else's post, so it stays public and has no setting or note to change.
 
     Rows lay out by the list's width, not the window's, because the Studio rail and sidebar take
-    a varying share of the window: narrow lists put the tools on a line under the post, wide
-    lists put them in a column at the right. */
+    a varying share of the window: the tools are one group on one line, under the post in line
+    with its title in a narrow list, and at the top right in a wide one. */
 
 import { useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowUpRight, ChevronDown, Loader2, LockKeyhole, MoreHorizontal, Pencil, Plus, Repeat2, Share, Trash2 } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, ExternalLink, Loader2, LockKeyhole, MoreHorizontal, Pencil, Plus, Repeat2, Share, Trash2 } from 'lucide-react';
 import { PostQuickActions } from '@/components/features/post/post-quick-actions';
 import {
   membersOptionOf,
@@ -62,12 +62,21 @@ async function sharePost(post: ActivityPost) {
   }
 }
 
-// Hover and open states are ink, as everywhere in Studio, not the ghost button's brand tint.
-const rowIconButton = 'text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted data-[state=open]:bg-muted data-[state=open]:text-foreground';
+// Every tool is 32 px tall; the pseudo-element grows its hit area to 40 px, and the 8 px gaps
+// between tools keep those areas from overlapping.
+const rowToolHitArea = 'relative after:absolute after:-inset-1';
 
-/** The row's grid: the artwork and the post side by side, and the tools under them or, in a
-    wide list, in a column at the right. */
+// Hover and open states are ink, as everywhere in Studio, not the ghost button's brand tint.
+const rowIconButton = cn(
+  rowToolHitArea,
+  'text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted data-[state=open]:bg-muted data-[state=open]:text-foreground',
+);
+
+/** The row's grid: the artwork beside the post. A narrow list puts the tools on a second row
+    under the post, so the artwork spans both rows; a wide list gives them a third column. */
 const rowGrid = 'grid grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-x-4 gap-y-3 py-4 [@container(min-width:40rem)]:grid-cols-[6rem_minmax(0,1fr)_auto] [@container(min-width:40rem)]:gap-x-5';
+const rowArtwork = 'row-span-2 [@container(min-width:40rem)]:row-span-1';
+const rowTools = 'col-start-2 [@container(min-width:40rem)]:col-start-auto';
 
 /** Saves who can open the post. The row's menu and its right-click menu both save through here,
     so the library hears of every change. */
@@ -123,7 +132,10 @@ function VisibilityMenu({ post, access, retryAccess, openPlanSetup, choose, pend
           onMouseDown={keepSecondPressOnTrigger}
           aria-busy={pending || undefined}
           aria-label={`Who can open ${post.title}: ${label}`}
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border bg-background/60 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-muted"
+          className={cn(
+            rowToolHitArea,
+            'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border bg-background/60 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-muted',
+          )}
         >
           {Icon && <Icon aria-hidden className="size-3.5 text-muted-foreground" />}
           {label}
@@ -230,7 +242,7 @@ export function StudioMusicRow({
     >
       <li data-testid="studio-music-row" data-post-id={post.postId} className={cn('group/row', rowGrid)}>
         {/* The title link carries the name; the artwork repeats it for the pointer only. */}
-        <Link href={href} prefetch={false} tabIndex={-1} aria-hidden className="block overflow-hidden rounded-md">
+        <Link href={href} prefetch={false} tabIndex={-1} aria-hidden className={cn('block overflow-hidden rounded-md', rowArtwork)}>
           <ArtworkImage
             src={post.imageUrl}
             alt=""
@@ -264,7 +276,8 @@ export function StudioMusicRow({
               <span className="truncate">{repostedFrom ? `Reposted from @${repostedFrom}` : 'Reposted'}</span>
             </p>
           ) : (
-            /* The note is the curation, so it is also its own edit control. */
+            /* The note is the curation, so it is also its own edit control. Its icon leads, like
+               Add a note and the repost line, so it keeps one place however long the note runs. */
             <button
               type="button"
               data-row-action="note"
@@ -273,13 +286,13 @@ export function StudioMusicRow({
             >
               {note ? (
                 <>
+                  <Pencil aria-hidden className="mt-[0.1875rem] size-3.5 shrink-0 text-muted-foreground" />
                   <span className="line-clamp-2 text-foreground/85 [text-wrap:pretty]">{note}</span>
-                  <Pencil aria-hidden className="mt-[0.2rem] size-3.5 shrink-0 text-muted-foreground/70" />
                   <span className="sr-only">{` Edit the note on ${post.title}`}</span>
                 </>
               ) : (
                 <span className="flex items-center gap-1.5 text-muted-foreground">
-                  <Plus aria-hidden className="size-3.5" />
+                  <Plus aria-hidden className="size-3.5 shrink-0" />
                   Add a note
                   <span className="sr-only">{` to ${post.title}`}</span>
                 </span>
@@ -289,7 +302,9 @@ export function StudioMusicRow({
           {/* Each tool that works on a post (sync, health, schedule, copies) adds one status line here. */}
         </div>
 
-        <div className="col-span-2 flex items-center justify-between gap-3 [@container(min-width:40rem)]:col-span-1 [@container(min-width:40rem)]:flex-col [@container(min-width:40rem)]:items-end [@container(min-width:40rem)]:gap-2">
+        {/* In a wide list the last tool is a ghost button, so the group moves right by its padding
+            and the icon, not the empty button edge, lines up with the end of the row. */}
+        <div className={cn('flex items-center gap-2', rowTools, '[@container(min-width:40rem)]:-mr-2')}>
           {repost ? (
             <p className="flex h-8 items-center gap-1.5 text-xs text-muted-foreground">
               <Repeat2 aria-hidden className="size-3.5" />
@@ -305,55 +320,54 @@ export function StudioMusicRow({
               pending={visibility.pending}
             />
           )}
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              data-row-action="share"
-              aria-label={`Share ${post.title}`}
-              onClick={() => void sharePost(post)}
-              className={rowIconButton}
-            >
-              <Share aria-hidden />
-            </Button>
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  ref={moreRef}
-                  variant="ghost"
-                  size="icon"
-                  data-row-action="more"
-                  aria-label={`More actions for ${post.title}`}
-                  onMouseDown={keepSecondPressOnTrigger}
-                  className={rowIconButton}
-                >
-                  <MoreHorizontal aria-hidden />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-44">
-                <DropdownMenuItem asChild className="gap-2">
-                  <Link href={href} prefetch={false}>
-                    <ArrowUpRight aria-hidden className="size-4" />
-                    View post
-                  </Link>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            data-row-action="share"
+            aria-label={`Share ${post.title}`}
+            onClick={() => void sharePost(post)}
+            className={rowIconButton}
+          >
+            <Share aria-hidden />
+          </Button>
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                ref={moreRef}
+                variant="ghost"
+                size="icon-sm"
+                data-row-action="more"
+                aria-label={`More actions for ${post.title}`}
+                onMouseDown={keepSecondPressOnTrigger}
+                className={rowIconButton}
+              >
+                <MoreHorizontal aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44">
+              {/* Named and drawn like the row's right-click menu, which opens the same page. */}
+              <DropdownMenuItem asChild className="gap-2">
+                <Link href={href} prefetch={false}>
+                  <ExternalLink aria-hidden className="size-4" />
+                  Open post
+                </Link>
+              </DropdownMenuItem>
+              {!repost && (
+                <DropdownMenuItem onSelect={() => onEdit(post, moreRef.current)} className="gap-2">
+                  <Pencil aria-hidden className="size-4" />
+                  Edit note
                 </DropdownMenuItem>
-                {!repost && (
-                  <DropdownMenuItem onSelect={() => onEdit(post, moreRef.current)} className="gap-2">
-                    <Pencil aria-hidden className="size-4" />
-                    Edit note
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={() => onDelete(post, moreRef.current)}
-                  className="gap-2 text-destructive focus:text-destructive"
-                >
-                  <Trash2 aria-hidden className="size-4" />
-                  {repost ? 'Remove repost' : 'Delete post'}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => onDelete(post, moreRef.current)}
+                className="gap-2 text-destructive focus:text-destructive"
+              >
+                <Trash2 aria-hidden className="size-4" />
+                {repost ? 'Remove repost' : 'Delete post'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </li>
     </PostQuickActions>
@@ -363,13 +377,13 @@ export function StudioMusicRow({
 export function StudioMusicRowSkeleton() {
   return (
     <li className={rowGrid}>
-      <Skeleton className="aspect-square w-full rounded-md" />
+      <Skeleton className={cn('aspect-square w-full rounded-md', rowArtwork)} />
       <div className="space-y-2.5 pt-1">
         <Skeleton className="h-4 w-1/2" />
         <Skeleton className="h-3.5 w-1/3" />
         <Skeleton className="h-3.5 w-3/4" />
       </div>
-      <Skeleton className="col-span-2 h-8 w-28 [@container(min-width:40rem)]:col-span-1" />
+      <Skeleton className={cn('h-8 w-44', rowTools)} />
     </li>
   );
 }

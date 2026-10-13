@@ -160,6 +160,8 @@ function TypeTabs({ type, audience, showArtists }: {
             href={studioMusicHref({ type: tab.value, audience })}
             replace
             scroll={false}
+            // No browser link drag, so a click that moves a few pixels still opens the tab.
+            draggable={false}
             aria-current={active ? 'page' : undefined}
             className={cn(
               listTabClassName(active),

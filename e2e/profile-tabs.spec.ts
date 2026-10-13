@@ -196,6 +196,41 @@ test.describe('profile tabs', () => {
     await expect(music).toContainText('Dawn Tape');
   });
 
+  test('a drag across the page tabs or the list tabs selects no text', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      posts: [
+        buildOwnedPost({
+          postId: 'member-drag-track',
+          musicElementId: 'track-member-drag-1',
+          elementType: 'Track',
+          title: 'Daybreak Signal',
+          originalUrl: 'https://open.spotify.com/track/member-drag-1',
+        }),
+      ],
+    });
+
+    // A type in the URL gets its own tab beside All.
+    await page.goto('/profile/miagroove?type=tracks');
+    const strip = page.getByRole('tablist', { name: 'Profile content' });
+    const list = page.getByRole('radiogroup', { name: 'Music filter' });
+    await expect(list.getByRole('radio', { name: 'Tracks' })).toBeChecked();
+
+    // Each drag starts in the gap after the first tab, where a text selection would begin.
+    const selectedAfterDrag = async (from: typeof strip, to: typeof strip) => {
+      const start = await from.boundingBox();
+      const end = await to.boundingBox();
+      if (!start || !end) throw new Error('Expected laid-out tabs.');
+      await page.mouse.move(start.x + start.width + 2, start.y + start.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(end.x + end.width + 4, end.y + end.height / 2, { steps: 10 });
+      await page.mouse.up();
+      return page.evaluate(() => window.getSelection()?.toString() ?? '');
+    };
+    expect(await selectedAfterDrag(strip.getByRole('tab', { name: 'Music' }), strip.getByRole('tab', { name: /^Liked/ }))).toBe('');
+    expect(await selectedAfterDrag(list.getByRole('radio', { name: 'All' }), list.getByRole('radio', { name: 'Tracks' }))).toBe('');
+  });
+
   test('shows owner-aware empty copy on Music', async ({ page }) => {
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.member,

@@ -268,12 +268,14 @@ function revealSection(sectionId: string) {
   (field ?? section).focus({ preventScroll: true });
 }
 
-/** Underline links across the top; the active one carries the underline and aria-current. */
+/** Underline links across the top; the active one carries the underline and aria-current. They
+    are controls, so they start no browser link drag (a click that moves a few pixels still opens
+    the view) and a drag across them selects no text. */
 function StudioSectionLinks({ view }: { view: StudioView }) {
   return (
     <nav
       aria-label="Studio sections"
-      className="tab-scroll-fade relative -mx-4 mt-6 flex gap-1 overflow-x-auto border-b border-border px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
+      className="tab-scroll-fade relative -mx-4 mt-6 flex select-none gap-1 overflow-x-auto border-b border-border px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
     >
       <TabUnderline value={view} />
       {studioViews.map((id) => {
@@ -283,6 +285,7 @@ function StudioSectionLinks({ view }: { view: StudioView }) {
             key={id}
             href={studioPaths[id]}
             scroll={false}
+            draggable={false}
             aria-current={active ? 'page' : undefined}
             data-state={active ? 'active' : 'inactive'}
             data-testid={`${id}-trigger`}

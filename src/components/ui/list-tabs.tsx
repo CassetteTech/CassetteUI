@@ -10,8 +10,9 @@ import { useEffect, useId, useRef } from 'react';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { cn } from '@/lib/utils';
 
-/** -mx-1 sets the first label on the list's edge; the underline measures the label, not the padded tab. */
-export const listTabsRowClassName = 'no-scrollbar relative -mx-1 flex gap-4 overflow-x-auto';
+/** -mx-1 sets the first label on the list's edge; the underline measures the label, not the padded tab.
+    Tabs are controls, so a drag across the row selects no text. */
+export const listTabsRowClassName = 'no-scrollbar relative -mx-1 flex select-none gap-4 overflow-x-auto';
 
 export const listTabClassName = (active: boolean) => cn(
   'inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-sm px-1 text-sm text-muted-foreground transition-colors hover:text-foreground',

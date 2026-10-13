@@ -251,9 +251,10 @@ function StudioHeader({ onPageLinkCopied }: { onPageLinkCopied: () => void }) {
   );
 }
 
-/** Scrolls a section into view and focuses its first field, or the section itself. */
+/** Scrolls a section into view and focuses its first field, or the section itself. While the
+    profile read has failed, the views behind it render nothing, so its message takes focus. */
 function revealSection(sectionId: string) {
-  const section = document.getElementById(sectionId);
+  const section = document.getElementById(sectionId) ?? document.getElementById('studio-profile-error');
   if (!section) return;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   section.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
@@ -343,7 +344,11 @@ function StudioDashboard({ children }: { children: ReactNode }) {
   // after it is said too.
   const profileLoaded = !profile.isPending && profile.data !== undefined;
   const profileError = !profile.isPending && (profile.data === undefined || (profile.isError && profile.data === null)) && (
-    <div className="mb-6 flex flex-wrap items-center gap-3">
+    <div
+      id="studio-profile-error"
+      tabIndex={-1}
+      className="mb-6 flex scroll-mt-24 flex-wrap items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    >
       <p role="alert" className="text-sm text-destructive">Could not load your curator profile.</p>
       <Button variant="outline" size="sm" onClick={() => profile.refetch()}>Try again</Button>
     </div>

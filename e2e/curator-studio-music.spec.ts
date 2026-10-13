@@ -207,6 +207,22 @@ test('without a member plan, Members only points to plan setup', async ({ page }
   await expect(page.getByTestId('curator-plan-card').getByLabel('Plan name')).toBeFocused();
 });
 
+test('after a failed profile read, Set up memberships moves focus to the profile error', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: member, posts: [own('gate-track', 'Gate Track')] });
+  await page.route('**/api/v1/curators/me', (route) =>
+    route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"unavailable"}' }));
+
+  await page.goto('/studio/music');
+  // Membership renders no plan card behind a failed profile read; the shared error explains it.
+  await expect(page.getByText('Could not load your curator profile.')).toBeVisible({ timeout: 15_000 });
+  await rowOf(page, 'Gate Track').getByRole('button', { name: 'Who can open Gate Track: Public' }).click();
+  await page.getByRole('menuitem', { name: 'Set up memberships' }).click();
+
+  await expect(page).toHaveURL('/studio/membership');
+  await expect(page.getByTestId('curator-plan-card')).toHaveCount(0);
+  await expect(page.locator('#studio-profile-error')).toBeFocused();
+});
+
 test('edits a note in place, sends only the note, and returns focus to it', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: member,

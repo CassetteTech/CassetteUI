@@ -557,11 +557,12 @@
   }
 }
 
-/* ─── Conversion blueprint ─────────────────────────────────────────────────
-   While a link converts, the post skeleton starts as a dotted blueprint on a
-   dot grid. A part keeps `data-drafting` until its conversion step is done,
-   then fades to its plain fill. `--blueprint-order` staggers the draw-in; the
-   element's inline transition-delay staggers the resolve. */
+/* ─── Post blueprint ───────────────────────────────────────────────────────
+   The post skeleton is a dotted blueprint on a dot grid. A part keeps
+   `data-drafting` until the post arrives, or during a conversion until its
+   step is done, then fades to its plain fill. `--blueprint-order` staggers the
+   draw-in; the element's inline transition-delay staggers the resolve. A
+   skeleton that continues another (`data-continued`) does not draw in again. */
 .blueprint-grid {
   background-image: radial-gradient(circle, hsl(var(--foreground) / 0.14) 1px, transparent 1.5px);
   background-size: 18px 18px;
@@ -572,7 +573,7 @@
 
 .blueprint-part {
   position: relative;
-  transition-property: background-color, border-color;
+  transition-property: background-color, border-color, box-shadow;
   transition-duration: 400ms;
   transition-timing-function: ease-in-out;
 }
@@ -603,12 +604,23 @@
 .blueprint-part[data-drafting] {
   background-color: transparent;
   border-color: transparent;
+  box-shadow: none;
   animation: blueprint-draw 450ms var(--ease-out-quart) both;
   animation-delay: calc(var(--blueprint-order, 0) * 25ms);
 }
 
+[data-continued] .blueprint-part[data-drafting] {
+  animation: none;
+}
+
+/* Once drawn, the outlines breathe, so a slow load never looks stuck. */
 .blueprint-part[data-drafting]::after {
   opacity: 1;
+  animation: blueprint-breathe 2.4s ease-in-out 1.2s infinite;
+}
+
+@keyframes blueprint-breathe {
+  50% { opacity: 0.45; }
 }
 
 .blueprint-part[data-drafting]::before {
@@ -853,8 +865,9 @@
     animation: none;
   }
 
-  /* Conversion blueprint: no draw-in; parts swap to their fill at once. */
-  .blueprint-part[data-drafting] {
+  /* Post blueprint: static; no draw-in or breathing, and parts swap to their fill at once. */
+  .blueprint-part[data-drafting],
+  .blueprint-part[data-drafting]::after {
     animation: none;
   }
 

@@ -1,15 +1,16 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { BackButton } from '@/components/ui/back-button';
 import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
+import { DitherEdge } from '@/components/features/marketing/dither-edge';
+import { bandColor } from '@/components/features/post/post-label-head';
 import { cn } from '@/lib/utils';
 
 interface EntitySkeletonProps {
-  isDesktop?: boolean;
   /** Show progress overlay on artwork (for conversion flow) */
   showProgress?: boolean;
   /** Progress percentage (0-100) */
@@ -20,99 +21,140 @@ interface EntitySkeletonProps {
   progressStepIndex?: number;
   /** Total number of conversion steps */
   progressTotalSteps?: number;
-  /** Source of the converting link, such as "Spotify · track"; labels the blueprint */
+  /** Labels the blueprint, such as "Spotify · track" during a conversion */
   sourceLabel?: string;
+  /**
+   * Post type when known ("track", "album", ...); albums and playlists reserve
+   * the tracklist. Unknown: the skeleton this one continues decides.
+   */
+  contentType?: string;
+  /**
+   * The post shows who shared it; anonymous conversions have no author row.
+   * Unknown: the skeleton this one continues decides, else true.
+   */
+  showAuthor?: boolean;
   /** Callback when back button is clicked */
   onCancel?: () => void;
 }
 
 /**
- * EntitySkeleton - Unified loading skeleton for the post page
+ * EntitySkeleton - the loading state of the post page, drawn as a blueprint
  *
- * Used for both direct post loading AND link conversion.
- * The progress overlay is shown during conversion, then fades out.
- * This ensures ONE skeleton throughout the entire loading flow.
+ * Used for the route loading boundary, the client fetch, and link conversion.
+ * Its layouts copy the post page's (one card: the artwork pane beside the
+ * printed label and the listen links), so the post lands where its outline was.
  *
- * During a conversion the skeleton is a blueprint: dotted outlines on a dot
- * grid that resolve to the plain skeleton as the conversion steps finish,
- * while the conversion beam marks the section the current step builds.
+ * The blueprint is dotted outlines on a dot grid. A plain load keeps it until
+ * the post arrives; a conversion resolves the parts step by step while the
+ * conversion beam marks the section the current step builds.
  */
 export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
-  isDesktop,
   showProgress = false,
   progressPercent = 0,
   progressStepName,
   progressStepIndex,
   progressTotalSteps,
   sourceLabel,
+  contentType,
+  showAuthor,
   onCancel
 }) => {
-  // When isDesktop is undefined (e.g., SSR/Suspense), show both layouts and let CSS handle it
-  const showDesktop = isDesktop === undefined ? true : isDesktop;
-  const showMobile = isDesktop === undefined ? true : !isDesktop;
+  const continued = useContinuation();
+  const post = {
+    contentType: contentType ?? continued?.contentType,
+    showAuthor: showAuthor ?? continued?.showAuthor ?? true,
+  };
   const blueprint = showProgress
     ? conversionBlueprint(progressStepIndex ?? 0, progressTotalSteps ?? 3, progressPercent >= 100)
+    : loadBlueprint(continued?.resolved ?? false);
+  useRegistration(blueprint.finished, post);
+  const progress = showProgress
+    ? { percent: progressPercent, stepName: progressStepName, stepIndex: progressStepIndex, totalSteps: progressTotalSteps }
     : null;
+  const layout: SkeletonLayoutProps = {
+    blueprint,
+    progress,
+    sourceLabel,
+    showTracklist: post.contentType === 'album' || post.contentType === 'playlist',
+    showAuthor: post.showAuthor,
+    onCancel,
+  };
 
   return (
-    <div className="min-h-svh relative">
+    <div className="min-h-svh relative" data-continued={continued ? '' : undefined}>
       {/* Background with skeleton gradient */}
       <div className="fixed inset-0 z-0 bg-gradient-to-b from-muted/50 via-muted/30 to-background" />
-      {blueprint && (
-        <div
-          aria-hidden
-          className="blueprint-grid fixed inset-0 z-0 pointer-events-none"
-          style={{ opacity: blueprint.finished ? 0 : 1 }}
-        />
-      )}
+      <div
+        aria-hidden
+        className="blueprint-grid fixed inset-0 z-0 pointer-events-none"
+        style={{ opacity: blueprint.finished ? 0 : 1 }}
+      />
 
+      {/* The post page switches layouts above 900px; CSS matches it so the server HTML is already right. */}
       <div className="relative z-10 min-h-svh">
-        {/* Desktop Layout - hidden on mobile via CSS */}
-        {showDesktop && (
-          <div className={`${isDesktop === undefined ? 'hidden lg:block' : ''}`}>
-            <DesktopSkeleton
-              showProgress={showProgress}
-              progressPercent={progressPercent}
-              progressStepName={progressStepName}
-              progressStepIndex={progressStepIndex}
-              progressTotalSteps={progressTotalSteps}
-              blueprint={blueprint}
-              sourceLabel={sourceLabel}
-              onCancel={onCancel}
-            />
-          </div>
-        )}
-
-        {/* Mobile Layout - hidden on desktop via CSS */}
-        {showMobile && (
-          <div className={`${isDesktop === undefined ? 'lg:hidden' : ''}`}>
-            <MobileSkeleton
-              showProgress={showProgress}
-              progressPercent={progressPercent}
-              progressStepName={progressStepName}
-              progressStepIndex={progressStepIndex}
-              progressTotalSteps={progressTotalSteps}
-              blueprint={blueprint}
-              sourceLabel={sourceLabel}
-              onCancel={onCancel}
-            />
-          </div>
-        )}
+        <div className="max-[900px]:hidden">
+          <DesktopSkeleton {...layout} />
+        </div>
+        <div className="min-[901px]:hidden">
+          <MobileSkeleton {...layout} />
+        </div>
       </div>
     </div>
   );
 };
 
+/**
+ * A post skeleton often replaces another one: the route loading boundary hands
+ * off to the client fetch, and a finished conversion hands off to its post.
+ * The next skeleton renders before the one it replaces unmounts, so each
+ * skeleton registers while mounted and stamps the time it leaves. A skeleton
+ * that finds one mounted, or one that left moments ago, continues its state
+ * instead of drawing the blueprint again.
+ */
+interface SkeletonEntry {
+  resolved: boolean;
+  contentType?: string;
+  showAuthor: boolean;
+  leftAt: number | null;
+}
+let lastSkeleton: SkeletonEntry | null = null;
+const CONTINUATION_WINDOW_MS = 1000;
+
+/** The skeleton this one replaces, if any. */
+function useContinuation() {
+  const [continued] = useState(() =>
+    lastSkeleton && (lastSkeleton.leftAt === null || Date.now() - lastSkeleton.leftAt < CONTINUATION_WINDOW_MS)
+      ? lastSkeleton
+      : null
+  );
+  return continued;
+}
+
+/**
+ * Registers this skeleton for the one that replaces it. A finished conversion
+ * hands off to its post, so that skeleton starts resolved.
+ */
+function useRegistration(resolved: boolean, post: { contentType?: string; showAuthor: boolean }) {
+  const { contentType, showAuthor } = post;
+  useEffect(() => {
+    const entry: SkeletonEntry = { resolved, contentType, showAuthor, leftAt: null };
+    lastSkeleton = entry;
+    return () => {
+      entry.leftAt = Date.now();
+    };
+  }, [resolved, contentType, showAuthor]);
+}
+
 type BlueprintSection = 'artwork' | 'links' | 'details';
 
 interface Blueprint {
   /**
-   * Parts that resolve when the first step ends: the badge, artwork, title,
-   * and artist read from the source link, and the streaming links, which
-   * resolve one at a time while the matching step runs.
+   * Parts that resolve when the first conversion step ends: the card, artwork,
+   * and label, and the listen links, which resolve one at a time while the
+   * matching step runs.
    */
   early: boolean;
-  /** Parts that resolve when the last step ends: metadata, genres, and post actions. */
+  /** Parts that resolve when the last step ends: the author row, toolbar, and foot. */
   late: boolean;
   /** The section the conversion beam marks as being built now. */
   beam: BlueprintSection | null;
@@ -134,6 +176,11 @@ function conversionBlueprint(step: number, totalSteps: number, finished: boolean
   return { early: step < 1, late: step <= last, beam, finished };
 }
 
+/** A plain post load stays a blueprint until the post replaces it. */
+function loadBlueprint(resolved: boolean): Blueprint {
+  return { early: !resolved, late: !resolved, beam: null, finished: resolved };
+}
+
 /** Hands out draw-in positions in document order. */
 function drawOrder() {
   let position = 0;
@@ -141,12 +188,10 @@ function drawOrder() {
 }
 
 /**
- * Blueprint attributes for a part. Outside a conversion (`draft` undefined)
- * the part keeps its plain classes; during one it is a dotted outline while
- * `draft` is true and fades to its fill after `delay` ms once it is false.
+ * Blueprint attributes for a part: a dotted outline while `draft` is true,
+ * fading to its fill after `delay` ms once it is false.
  */
-function draftProps(draft: boolean | undefined, order: number, delay: number, className: string) {
-  if (draft === undefined) return { className };
+function draftProps(draft: boolean, order: number, delay: number, className: string) {
   return {
     className: cn('blueprint-part', className),
     'data-drafting': draft || undefined,
@@ -156,68 +201,61 @@ function draftProps(draft: boolean | undefined, order: number, delay: number, cl
 }
 
 const Part: React.FC<{
-  draft?: boolean;
+  draft: boolean;
   order: number;
   delay?: number;
   /** Draw a text bar as a dotted rule instead of a dotted box. */
   line?: boolean;
   className: string;
 }> = ({ draft, order, delay = 0, line, className }) => (
-  <Skeleton
-    {...draftProps(draft, order, delay, className)}
-    data-text-rule={(draft !== undefined && line) || undefined}
-  />
+  <Skeleton {...draftProps(draft, order, delay, className)} data-text-rule={line || undefined} />
 );
 
-/** Wraps a section in the conversion beam during a conversion; renders it bare otherwise. */
-const SectionBeam: React.FC<{
-  blueprint: Blueprint | null;
-  section: BlueprintSection;
-  children: React.ReactNode;
-}> = ({ blueprint, section, children }) =>
-  blueprint ? (
-    <ConversionBeam active={blueprint.beam === section}>{children}</ConversionBeam>
-  ) : (
-    <>{children}</>
-  );
+/** One line of text: a bar centered in the line box the real text occupies. */
+const TextLine: React.FC<{
+  draft: boolean;
+  order: number;
+  delay?: number;
+  /** Classes for the line box: its height and margins. */
+  box: string;
+  /** Classes for the bar: its height, width, and fill. */
+  bar: string;
+}> = ({ box, bar, ...part }) => (
+  <div className={cn('flex items-center', box)}>
+    <Part {...part} line className={bar} />
+  </div>
+);
 
-/** Crop marks and the source label around the drafting artwork frame. */
-const ArtworkMarks: React.FC<{ blueprint: Blueprint | null; sourceLabel?: string }> = ({
-  blueprint,
-  sourceLabel,
-}) => {
-  if (!blueprint) return null;
-  return (
-    <>
-      <span aria-hidden className="blueprint-crop" data-drafting={blueprint.early || undefined} />
-      {sourceLabel && (
-        <span className="absolute -top-[19px] left-4 whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
-          {sourceLabel}
-        </span>
-      )}
-    </>
-  );
-};
-
-/** Drop shadow under the artwork; hidden while the artwork frame is a transparent draft. */
-const ArtworkShadow: React.FC<{ blueprint: Blueprint | null }> = ({ blueprint }) => (
-  <div
-    className={cn(
-      'absolute inset-0 translate-x-3 translate-y-3 bg-black/25 rounded-xl blur-lg',
-      blueprint && 'transition-opacity duration-400 ease-in-out motion-reduce:transition-none',
-      blueprint?.early && 'opacity-0'
+/** Print crop marks around a drafting frame, with the blueprint's label above its top-left corner. */
+const CropMarks: React.FC<{ drafting: boolean; label?: string }> = ({ drafting, label }) => (
+  <>
+    <span aria-hidden className="blueprint-crop" data-drafting={drafting || undefined} />
+    {label && (
+      <span
+        className={cn(
+          'absolute -top-[19px] left-4 whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80 transition-opacity duration-400 ease-in-out motion-reduce:transition-none',
+          !drafting && 'opacity-0'
+        )}
+      >
+        {label}
+      </span>
     )}
-  />
+  </>
 );
+
+interface Progress {
+  percent: number;
+  stepName?: string;
+  stepIndex?: number;
+  totalSteps?: number;
+}
 
 interface SkeletonLayoutProps {
-  showProgress?: boolean;
-  progressPercent?: number;
-  progressStepName?: string;
-  progressStepIndex?: number;
-  progressTotalSteps?: number;
-  blueprint: Blueprint | null;
+  blueprint: Blueprint;
+  progress: Progress | null;
   sourceLabel?: string;
+  showTracklist: boolean;
+  showAuthor: boolean;
   onCancel?: () => void;
 }
 
@@ -230,245 +268,308 @@ interface SkeletonLayoutProps {
  * the activity signal, so the overlay itself stays quiet: centered logo with a
  * breathing halo, and an editorial readout strip pinned to the bottom edge
  * (step counter, crossfading step name, percent) over a hairline progress
- * bar hugging the card's bottom border.
+ * bar hugging the artwork's bottom edge.
  */
 const ProgressOverlay: React.FC<{
-  show: boolean;
-  percent: number;
-  stepName?: string;
-  stepIndex?: number;
-  totalSteps?: number;
+  progress: Progress;
   size?: 'desktop' | 'mobile';
   /** The artwork under the overlay is a dotted draft; drop the scrim so its outline stays crisp. */
   drafting?: boolean;
-}> = ({ show, percent, stepName, stepIndex, totalSteps, size = 'desktop', drafting }) => {
+}> = ({ progress, size = 'desktop', drafting }) => {
+  const { percent, stepName, stepIndex, totalSteps } = progress;
   const isDesktop = size === 'desktop';
   const logoSize = isDesktop ? 40 : 32;
   const safePercent = Math.max(6, Math.min(100, Math.round(percent)));
-  const showCounter = isDesktop && stepIndex != null && totalSteps != null && totalSteps > 0;
+  const showCounter = stepIndex != null && totalSteps != null && totalSteps > 0;
 
   return (
-    <AnimatePresence>
-      {show && (
-        <motion.div
-          initial={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="absolute inset-0 rounded-xl overflow-hidden"
-        >
-          {/* Light scrim: keep the skeleton shimmer visible underneath */}
-          <div
-            className={cn(
-              'absolute inset-0 bg-card/35 backdrop-blur-[2px] transition-opacity duration-400 ease-in-out motion-reduce:transition-none',
-              drafting && 'opacity-0'
-            )}
-          />
-          <div
+    <div className="absolute inset-0 overflow-hidden">
+      {/* Light scrim: keep the skeleton shimmer visible underneath */}
+      <div
+        className={cn(
+          'absolute inset-0 bg-card/35 backdrop-blur-[2px] transition-opacity duration-400 ease-in-out motion-reduce:transition-none',
+          drafting && 'opacity-0'
+        )}
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(circle at 50% 42%, hsl(var(--primary) / 0.08), transparent 62%)'
+        }}
+      />
+
+      {/* Center emblem */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="relative flex items-center justify-center">
+          <span
             aria-hidden
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                'radial-gradient(circle at 50% 42%, hsl(var(--primary) / 0.08), transparent 62%)'
-            }}
+            className="absolute inset-0 -m-2 rounded-full bg-primary/10 blur-md animate-progress-breath"
           />
-
-          {/* Center emblem */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="relative flex items-center justify-center">
-              <span
-                aria-hidden
-                className="absolute inset-0 -m-2 rounded-full bg-primary/10 blur-md animate-progress-breath"
-              />
-              <Image
-                src="/images/cassette_logo.svg"
-                alt="Cassette Logo"
-                width={logoSize}
-                height={logoSize}
-                className="object-contain relative"
-              />
-            </div>
-          </div>
-
-          {/* Bottom readout strip */}
-          <div className="absolute inset-x-0 bottom-0">
-            <div
-              className={`bg-gradient-to-t from-card/95 via-card/70 to-transparent ${
-                isDesktop ? 'px-4 pt-8 pb-2.5' : 'px-3 pt-6 pb-2'
-              }`}
-            >
-              <div className="flex items-baseline gap-2 overflow-hidden">
-                {showCounter && (
-                  <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 shrink-0">
-                    {String((stepIndex ?? 0) + 1).padStart(2, '0')}
-                    <span className="text-muted-foreground/40">
-                      {' / '}
-                      {String(totalSteps).padStart(2, '0')}
-                    </span>
-                  </span>
-                )}
-                <AnimatePresence mode="wait">
-                  <motion.p
-                    key={stepName || 'prep'}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                    className="flex-1 text-xs text-foreground/80 truncate"
-                  >
-                    {stepName || 'Preparing...'}
-                  </motion.p>
-                </AnimatePresence>
-                <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 shrink-0">
-                  {safePercent}%
-                </span>
-              </div>
-            </div>
-
-            {/* Hairline progress bar on the card's bottom edge */}
-            <div className="h-[3px] bg-muted/50">
-              <motion.div
-                className="h-full w-full origin-left bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.45)]"
-                initial={{ scaleX: 0.06 }}
-                animate={{ scaleX: safePercent / 100 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-              />
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
-
-/** Resolve delay of the first streaming link tile, and the gap between tiles. */
-const LINK_TILE_DELAY_MS = 300;
-const LINK_TILE_GAP_MS = 180;
-
-/**
- * Desktop skeleton layout - matches PostClientPage desktop track/artist layout exactly
- */
-const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
-  showProgress,
-  progressPercent,
-  progressStepName,
-  progressStepIndex,
-  progressTotalSteps,
-  blueprint,
-  sourceLabel,
-  onCancel
-}) => {
-  const next = drawOrder();
-  const early = blueprint?.early;
-  const late = blueprint?.late;
-
-  return (
-    <div className="pt-16">
-      {/* Header Toolbar - matches PostClientPage desktop header position */}
-      <div className="pt-4 pb-6 px-3 relative z-20 max-w-7xl mx-auto w-full">
-        <div className="flex items-center justify-between gap-3">
-          <BackButton onClick={onCancel} fallbackRoute="/explore" />
-          <Part draft={late} order={next()} className="h-9 w-28 rounded-full" />
+          <Image
+            src="/images/cassette_logo.svg"
+            alt="Cassette Logo"
+            width={logoSize}
+            height={logoSize}
+            className="object-contain relative"
+          />
         </div>
       </div>
 
-      <div className="px-8 max-w-7xl mx-auto">
-        <div className="flex gap-12">
-          {/* Left Column - Artwork (flex: 2) - matches PostClientPage sticky layout */}
-          <div className="flex-[2] sticky top-[120px] self-start">
-            <div className="flex flex-col items-center min-w-0 h-[calc(100svh-144px)] justify-center">
-              {/* Type Badge */}
-              <Part draft={early} order={next()} line className="h-6 w-20 mb-6" />
+      {/* Bottom readout strip */}
+      <div className="absolute inset-x-0 bottom-0">
+        <div
+          className={`bg-gradient-to-t from-card/95 via-card/70 to-transparent ${
+            isDesktop ? 'px-4 pt-8 pb-2.5' : 'px-3 pt-6 pb-2'
+          }`}
+        >
+          <div className="flex items-baseline gap-2 overflow-hidden">
+            {showCounter && (
+              <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 shrink-0">
+                {String((stepIndex ?? 0) + 1).padStart(2, '0')}
+                <span className="text-muted-foreground/40">
+                  {' / '}
+                  {String(totalSteps).padStart(2, '0')}
+                </span>
+              </span>
+            )}
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={stepName || 'prep'}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="flex-1 text-xs text-foreground/80 truncate"
+              >
+                {stepName || 'Preparing...'}
+              </motion.p>
+            </AnimatePresence>
+            <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 shrink-0">
+              {safePercent}%
+            </span>
+          </div>
+        </div>
 
-              {/* Album Art with Shadow - matches PostClientPage 360x360 */}
-              <div className="relative mb-6">
-                <ArtworkShadow blueprint={blueprint} />
-                <ArtworkMarks blueprint={blueprint} sourceLabel={sourceLabel} />
-                <ConversionBeam active={blueprint?.beam === 'artwork'} borderRadius={12}>
+        {/* Hairline progress bar on the artwork's bottom edge */}
+        <div className="h-[3px] bg-muted/50">
+          <motion.div
+            className="h-full w-full origin-left bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.45)]"
+            initial={{ scaleX: 0.06 }}
+            animate={{ scaleX: safePercent / 100 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/** Resolve delay of the first listen link, and the gap between links. */
+const LINK_DELAY_MS = 300;
+const LINK_GAP_MS = 180;
+/** Listen links reserved: most posts list Spotify, Apple Music, and Deezer. */
+const LINK_COUNT = 3;
+const TRACK_ROW_COUNT = 6;
+
+/**
+ * The printed label at the top of the post card (PostLabelHead): the band in
+ * the brand color the post starts with, its text as bars in the band's ink.
+ */
+const LabelHead: React.FC<{
+  blueprint: Blueprint;
+  next: () => number;
+  compact?: boolean;
+}> = ({ blueprint, next, compact }) => {
+  const { early } = blueprint;
+  const ink = 'bg-white/25';
+  return (
+    // SAFETY: CSSProperties has no custom-property keys; the value is a CSS color.
+    <div className="relative" style={{ '--band': bandColor() } as React.CSSProperties}>
+      <ConversionBeam active={blueprint.beam === 'details'} borderRadius={0}>
+        <div {...draftProps(early, next(), 120, cn('bg-[var(--band)] text-left', compact ? 'px-4 pb-4 pt-4' : 'px-6 pb-6 pt-5'))}>
+          <TextLine
+            draft={early}
+            order={next()}
+            delay={160}
+            box={compact ? 'mb-3 h-[15px]' : 'mb-5 h-[16.5px]'}
+            bar={cn('h-2.5', compact ? 'w-28' : 'w-36', ink)}
+          />
+          <TextLine
+            draft={early}
+            order={next()}
+            delay={200}
+            box={compact ? 'h-8' : 'h-10'}
+            bar={cn(compact ? 'h-5 w-40' : 'h-7 w-3/5', ink)}
+          />
+          <TextLine
+            draft={early}
+            order={next()}
+            delay={240}
+            box={compact ? 'mt-2 h-5' : 'mt-2 h-6'}
+            bar={cn('h-3.5 w-28', ink)}
+          />
+        </div>
+      </ConversionBeam>
+      <DitherEdge
+        color="var(--band)"
+        side="bottom"
+        className={cn('transition-opacity duration-400 ease-in-out motion-reduce:transition-none', early && 'opacity-0')}
+      />
+    </div>
+  );
+};
+
+/** The listen links (StreamingLinks): one row per service. */
+const ListenLinks: React.FC<{ blueprint: Blueprint; next: () => number; className: string }> = ({
+  blueprint,
+  next,
+  className,
+}) => (
+  <ConversionBeam active={blueprint.beam === 'links'} borderRadius={0} className="flex flex-1 flex-col">
+    <div className={className}>
+      <div className="grid gap-2.5">
+        {Array.from({ length: LINK_COUNT }, (_, i) => (
+          <Part
+            key={i}
+            draft={blueprint.early}
+            order={next()}
+            delay={LINK_DELAY_MS + i * LINK_GAP_MS}
+            className="h-[38.5px] rounded-md sm:h-[42px]"
+          />
+        ))}
+      </div>
+    </div>
+  </ConversionBeam>
+);
+
+/** Who shared the post (PostAuthorHeader and PostEngagementBar). */
+const AuthorRow: React.FC<{ blueprint: Blueprint; next: () => number }> = ({ blueprint, next }) => {
+  const { late } = blueprint;
+  return (
+    <>
+      <div className="flex items-start gap-2.5">
+        <Part draft={late} order={next()} delay={200} className="h-8 w-8 shrink-0 rounded-full" />
+        <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
+          <TextLine draft={late} order={next()} delay={220} box="h-5" bar="h-3 w-40" />
+          <TextLine draft={late} order={next()} delay={240} box="h-5" bar="h-3 w-48" />
+        </div>
+      </div>
+      <Part draft={late} order={next()} delay={260} className="h-7 w-28 self-start rounded-full" />
+    </>
+  );
+};
+
+/** Album and playlist tracks, in a second card under the post. */
+const TracklistCard: React.FC<{ blueprint: Blueprint; next: () => number }> = ({ blueprint, next }) => {
+  const { late } = blueprint;
+  return (
+    <div {...draftProps(late, next(), 120, 'card-ink overflow-hidden')}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4">
+        <TextLine draft={late} order={next()} delay={160} box="h-5" bar="h-3.5 w-20" />
+        <TextLine draft={late} order={next()} delay={180} box="h-5" bar="h-3 w-24" />
+      </div>
+      <div className="space-y-1 px-5 pb-4">
+        {Array.from({ length: TRACK_ROW_COUNT }, (_, i) => (
+          <TextLine key={i} draft={late} order={next()} delay={200 + i * 40} box="h-12" bar="h-3.5 w-2/3" />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/** The post foot: one account action and the support and report links. */
+const Foot: React.FC<{ blueprint: Blueprint; next: () => number; className?: string }> = ({
+  blueprint,
+  next,
+  className,
+}) => {
+  const { late } = blueprint;
+  return (
+    <footer
+      className={cn(
+        'space-y-4 border-t pt-5 transition-colors duration-400 ease-in-out motion-reduce:transition-none',
+        late ? 'border-dotted border-foreground/30' : 'border-border/70',
+        className
+      )}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <TextLine draft={late} order={next()} delay={220} box="h-5" bar="h-3 w-64 max-w-full" />
+        <Part draft={late} order={next()} delay={260} className="h-9 w-28 shrink-0 rounded-md" />
+      </div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <TextLine draft={late} order={next()} delay={280} box="h-5" bar="h-3 w-44" />
+        <TextLine draft={late} order={next()} delay={300} box="h-5" bar="h-3 w-32" />
+      </div>
+    </footer>
+  );
+};
+
+/**
+ * Desktop skeleton layout - copies PostClientPage's desktop layout: the toolbar
+ * and the post card in one container, centered under the navbar when short.
+ */
+const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
+  blueprint,
+  progress,
+  sourceLabel,
+  showTracklist,
+  showAuthor,
+  onCancel
+}) => {
+  const next = drawOrder();
+  const { early, late } = blueprint;
+
+  return (
+    <div className="flex min-h-svh flex-col pt-16 before:flex-1 after:min-h-20 after:flex-1">
+      <div className="mx-auto w-full max-w-[68rem] px-8 pb-4">
+        <div className="relative z-20 pb-6 pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <BackButton onClick={onCancel} fallbackRoute="/explore" />
+            <Part draft={late} order={next()} className="h-9 w-24 rounded-md" />
+          </div>
+        </div>
+        <div className="space-y-6">
+          <div className="relative">
+            <CropMarks drafting={early} label={sourceLabel} />
+            <div {...draftProps(early, next(), 0, 'card-ink grid grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] overflow-hidden')}>
+              {/* The sleeve pane: the artwork flush to the card's edges, the author beneath. */}
+              <div
+                className={cn(
+                  'flex flex-col transition-colors duration-400 ease-in-out motion-reduce:transition-none',
+                  !early && 'bg-muted/40'
+                )}
+              >
+                <ConversionBeam active={blueprint.beam === 'artwork'} borderRadius={0}>
                   <div className="relative">
-                    <Part draft={early} order={next()} delay={60} className="relative w-[360px] h-[360px] rounded-xl" />
-
-                    {/* Progress Overlay */}
-                    <ProgressOverlay
-                      show={showProgress || false}
-                      percent={progressPercent || 0}
-                      stepName={progressStepName}
-                      stepIndex={progressStepIndex}
-                      totalSteps={progressTotalSteps}
-                      size="desktop"
-                      drafting={blueprint?.early}
-                    />
+                    <Part draft={early} order={next()} delay={60} className="aspect-square w-full rounded-none" />
+                    {progress && <ProgressOverlay progress={progress} size="desktop" drafting={early} />}
                   </div>
                 </ConversionBeam>
+                {showAuthor && (
+                  <div className="flex flex-1 flex-col gap-2.5 p-5">
+                    <AuthorRow blueprint={blueprint} next={next} />
+                  </div>
+                )}
+              </div>
+              <div
+                className={cn(
+                  'flex min-w-0 flex-col border-l transition-colors duration-400 ease-in-out motion-reduce:transition-none',
+                  early ? 'border-dotted border-foreground/30' : 'border-border/70'
+                )}
+              >
+                <LabelHead blueprint={blueprint} next={next} />
+                <ListenLinks
+                  blueprint={blueprint}
+                  next={next}
+                  className="flex flex-1 flex-col justify-center px-6 pb-6 pt-10"
+                />
               </div>
             </div>
           </div>
-
-          {/* Right Column - Content (flex: 3) */}
-          <div className="flex-[3]">
-            <div className="py-8 pb-16 min-h-[calc(100svh-144px)] flex flex-col justify-center">
-              <div className="space-y-6">
-                {/* Track Information Card */}
-                <SectionBeam blueprint={blueprint} section="details">
-                  <div {...draftProps(early, next(), 120, 'p-5 card-quiet')}>
-                    <div className="space-y-3">
-                      {/* Title */}
-                      <Part draft={early} order={next()} delay={180} line className="h-6 w-48 mx-auto" />
-
-                      {/* Artist */}
-                      <Part draft={early} order={next()} delay={240} line className="h-4 w-32 mx-auto" />
-
-                      {/* Separator */}
-                      <div className="border-t border-border/30 mx-4" />
-
-                      {/* Metadata - Duration and Album */}
-                      <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm">
-                        <Part draft={late} order={next()} line className="h-4 w-24" />
-                        <span className="text-muted-foreground">•</span>
-                        <Part draft={late} order={next()} delay={50} line className="h-4 w-32" />
-                      </div>
-
-                      {/* Genres */}
-                      <div className="border-t border-border/30 mx-4" />
-                      <div className="flex flex-wrap gap-2 justify-center">
-                        {[0, 1, 2].map((i) => (
-                          <Part key={i} draft={late} order={next()} delay={100 + i * 40} className="h-6 w-16 rounded-full" />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </SectionBeam>
-
-                {/* Streaming Links Container */}
-                <SectionBeam blueprint={blueprint} section="links">
-                  <div {...draftProps(early, next(), 0, 'p-5 card-ink relative z-10')}>
-                    <Part draft={early} order={next()} delay={150} line className="h-5 w-24 mb-4" />
-                    <div className="grid grid-cols-3 gap-4">
-                      {[0, 1, 2, 3, 4, 5].map((i) => (
-                        <Part
-                          key={i}
-                          draft={early}
-                          order={next()}
-                          delay={LINK_TILE_DELAY_MS + i * LINK_TILE_GAP_MS}
-                          className="h-12 rounded-lg"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </SectionBeam>
-
-                {/* Support Us placeholder */}
-                <div className="flex items-center justify-between gap-4">
-                  <Part draft={late} order={next()} delay={220} line className="h-4 w-48" />
-                  <Part draft={late} order={next()} delay={260} className="h-9 w-20 rounded-lg" />
-                </div>
-
-                {/* Report Button */}
-                <div className="flex justify-center">
-                  <Part draft={late} order={next()} delay={300} className="w-40 h-10 rounded-lg" />
-                </div>
-              </div>
-            </div>
-          </div>
+          {showTracklist && <TracklistCard blueprint={blueprint} next={next} />}
+          <Foot blueprint={blueprint} next={next} />
         </div>
       </div>
     </div>
@@ -476,128 +577,67 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
 };
 
 /**
- * Mobile skeleton layout - matches PostClientPage mobile layout exactly
+ * Mobile skeleton layout - copies PostClientPage's mobile layout: the toolbar,
+ * the framed artwork centered in the space left, the post card, the author card.
  */
 const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
-  showProgress,
-  progressPercent,
-  progressStepName,
-  progressStepIndex,
-  progressTotalSteps,
   blueprint,
+  progress,
   sourceLabel,
+  showTracklist,
+  showAuthor,
   onCancel
 }) => {
   const next = drawOrder();
-  const early = blueprint?.early;
-  const late = blueprint?.late;
+  const { early, late } = blueprint;
 
   return (
-    <div className="px-4 sm:px-6 md:px-8 pb-8 pt-16 max-w-lg mx-auto">
-      {/* Header Toolbar - inside the main container, matching PostClientPage */}
-      <div className="pt-4 pb-6 max-w-7xl mx-auto w-full">
-        <div className="flex items-center justify-between gap-3">
-          <BackButton onClick={onCancel} fallbackRoute="/explore" />
-          <Part draft={late} order={next()} className="h-9 w-20 rounded-full" />
-        </div>
-      </div>
-
-      <div className="text-center space-y-4 sm:space-y-6">
-        {/* Element Type - matches PostClientPage structure */}
-        <div>
-          <Part draft={early} order={next()} line className="h-5 w-16 mx-auto mb-4 sm:mb-6" />
-        </div>
-
-        {/* Album Art Container - matches PostClientPage dimensions */}
-        <div>
-          <div className="relative inline-block">
-            <ArtworkShadow blueprint={blueprint} />
-            <ArtworkMarks blueprint={blueprint} sourceLabel={sourceLabel} />
-            <ConversionBeam active={blueprint?.beam === 'artwork'} borderRadius={12}>
-              <div className="relative">
-                <Part
-                  draft={early}
-                  order={next()}
-                  delay={60}
-                  className="relative w-[220px] h-[220px] sm:w-[280px] sm:h-[280px] rounded-xl"
-                />
-
-                {/* Progress Overlay */}
-                <ProgressOverlay
-                  show={showProgress || false}
-                  percent={progressPercent || 0}
-                  stepName={progressStepName}
-                  stepIndex={progressStepIndex}
-                  totalSteps={progressTotalSteps}
-                  size="mobile"
-                  drafting={blueprint?.early}
-                />
-              </div>
-            </ConversionBeam>
+    <div className="mx-auto max-w-lg px-4 pb-2 pt-16 sm:px-6 sm:pb-8 md:px-8">
+      <section className="flex min-h-[calc(100svh-6.5rem)] flex-col">
+        <div className="w-full shrink-0 pb-2 pt-2.5 sm:pb-4 sm:pt-4">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="justify-self-start">
+              <BackButton onClick={onCancel} fallbackRoute="/explore" />
+            </div>
+            <Part draft={late} order={next()} className="h-9 w-24 rounded-md" />
           </div>
         </div>
-
-        {/* Track Information Card - Mobile */}
-        <SectionBeam blueprint={blueprint} section="details">
-          <div {...draftProps(early, next(), 120, 'p-4 sm:p-5 card-quiet')}>
-            <div className="space-y-4">
-              {/* Title */}
-              <Part draft={early} order={next()} delay={180} line className="h-7 w-48 mx-auto" />
-
-              {/* Artist */}
-              <Part draft={early} order={next()} delay={240} line className="h-4 w-32 mx-auto" />
-
-              {/* Separator */}
-              <div className="border-t border-border/30" />
-
-              {/* Metadata */}
-              <div className="space-y-2 text-sm">
-                <div className="flex flex-wrap justify-center gap-3">
-                  <Part draft={late} order={next()} line className="h-4 w-24" />
-                  <span className="text-muted-foreground">•</span>
-                  <Part draft={late} order={next()} delay={50} line className="h-4 w-28" />
+        <div className="flex flex-1 flex-col gap-1.5 sm:gap-6">
+          <div className="flex flex-1 items-center justify-center">
+            <div className="relative">
+              <CropMarks drafting={early} label={sourceLabel} />
+              <ConversionBeam active={blueprint.beam === 'artwork'} borderRadius={6}>
+                <div {...draftProps(early, next(), 0, 'rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10')}>
+                  <div className="relative overflow-hidden rounded-sm">
+                    <Part
+                      draft={early}
+                      order={next()}
+                      delay={60}
+                      className="h-[260px] w-[260px] rounded-sm sm:h-[340px] sm:w-[340px]"
+                    />
+                    {progress && <ProgressOverlay progress={progress} size="mobile" drafting={early} />}
+                  </div>
                 </div>
-              </div>
-
-              {/* Genres */}
-              <div className="border-t border-border/30" />
-              <div className="flex flex-wrap gap-2 justify-center">
-                {[0, 1, 2].map((i) => (
-                  <Part key={i} draft={late} order={next()} delay={100 + i * 40} className="h-7 w-16 rounded-full" />
-                ))}
-              </div>
+              </ConversionBeam>
             </div>
           </div>
-        </SectionBeam>
 
-        {/* Streaming Links Container */}
-        <SectionBeam blueprint={blueprint} section="links">
-          <div {...draftProps(early, next(), 0, 'p-4 sm:p-5 card-ink relative z-10')}>
-            <Part draft={early} order={next()} delay={150} line className="h-5 w-24 mx-auto mb-4" />
-            <div className="grid grid-cols-3 gap-3">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <Part
-                  key={i}
-                  draft={early}
-                  order={next()}
-                  delay={LINK_TILE_DELAY_MS + i * LINK_TILE_GAP_MS}
-                  className="h-10 rounded-lg"
-                />
-              ))}
-            </div>
+          <div {...draftProps(early, next(), 0, 'card-ink overflow-hidden')}>
+            <LabelHead blueprint={blueprint} next={next} compact />
+            <ListenLinks blueprint={blueprint} next={next} className="px-3 pb-3 pt-9 sm:px-5 sm:pb-5" />
           </div>
-        </SectionBeam>
 
-        {/* Support Us placeholder */}
-        <div className="flex items-center justify-between gap-4">
-          <Part draft={late} order={next()} delay={220} line className="h-4 w-40" />
-          <Part draft={late} order={next()} delay={260} className="h-9 w-20 rounded-lg" />
+          {showAuthor && (
+            <div {...draftProps(late, next(), 180, 'card-ink flex flex-col gap-1.5 px-3 py-2.5 sm:gap-2.5 sm:p-4')}>
+              <AuthorRow blueprint={blueprint} next={next} />
+            </div>
+          )}
         </div>
+      </section>
 
-        {/* Report Button */}
-        <div>
-          <Part draft={late} order={next()} delay={300} className="w-40 h-12 rounded-lg mx-auto" />
-        </div>
+      <div className="mt-2 space-y-2 sm:mt-6 sm:space-y-6">
+        {showTracklist && <TracklistCard blueprint={blueprint} next={next} />}
+        <Foot blueprint={blueprint} next={next} />
       </div>
     </div>
   );

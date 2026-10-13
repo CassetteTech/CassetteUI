@@ -84,6 +84,8 @@ export const useSimulatedProgress = (
   const hasShownLongWaitMessageRef = useRef(false);
   const hasInitializedRef = useRef(false);
   const stateRef = useRef(state);
+  // The current step, updated as it advances; the state copy lags by a render.
+  const stepRef = useRef(0);
 
   // Use ref for apiComplete to avoid stale closure issues in scheduled timeouts
   const apiCompleteRef = useRef(apiComplete);
@@ -235,57 +237,59 @@ export const useSimulatedProgress = (
     trackMatchingIntervalRef.current = matchingInterval;
   }, [contentType, estimatedCount]);
 
-  // Advance to next step - uses refs to avoid stale closures
+  // Advance to next step - uses refs to avoid stale closures. The timers and the
+  // completion callback run here, not in a state updater: React can call an
+  // updater twice (StrictMode always does), which advanced two steps at once.
   const advanceStep = useCallback(() => {
-    setState(prev => {
-      if (prev.isComplete) {
-        return prev;
-      }
+    const steps = STEP_CONFIGS[contentType];
+    if (stepRef.current >= steps.length) {
+      return;
+    }
 
-      const nextStep = prev.currentStep + 1;
-      const steps = STEP_CONFIGS[contentType];
+    const nextStep = stepRef.current + 1;
+    stepRef.current = nextStep;
 
-      if (nextStep >= steps.length) {
-        // Simulation complete
-        onCompleteRef.current?.();
-        return {
-          ...prev,
-          currentStep: nextStep,
-          isComplete: true,
-          statusMessage: 'Conversion complete!',
-          isWaitingForApi: false
-        };
-      }
-
-      const currentStepConfig = steps[nextStep];
-      const isLastStep = nextStep === steps.length - 1;
-
-      // Read from ref to get latest API status
-      const apiDone = apiCompleteRef.current;
-
-      // Don't schedule next step if in rapid completion mode
-      if (!rapidCompletionRef.current) {
-        const delay = getStepDelay(nextStep, isLastStep);
-
-        if (delay !== null) {
-          // Schedule next step advancement
-          stepTimeoutRef.current = setTimeout(() => {
-            advanceStep();
-          }, delay);
-        } else {
-          // We're on the last step without API response - wait
-          appLogger.debug('conversion_progress_waiting_for_api');
-        }
-      }
-
-      return {
+    if (nextStep >= steps.length) {
+      // Simulation complete
+      onCompleteRef.current?.();
+      setState(prev => ({
         ...prev,
         currentStep: nextStep,
-        currentStepName: currentStepConfig.name,
-        statusMessage: `${currentStepConfig.name}...`,
-        isWaitingForApi: !apiDone
-      };
-    });
+        isComplete: true,
+        statusMessage: 'Conversion complete!',
+        isWaitingForApi: false
+      }));
+      return;
+    }
+
+    const currentStepConfig = steps[nextStep];
+    const isLastStep = nextStep === steps.length - 1;
+
+    // Read from ref to get latest API status
+    const apiDone = apiCompleteRef.current;
+
+    // Don't schedule next step if in rapid completion mode
+    if (!rapidCompletionRef.current) {
+      const delay = getStepDelay(nextStep, isLastStep);
+
+      if (delay !== null) {
+        // Schedule next step advancement
+        stepTimeoutRef.current = setTimeout(() => {
+          advanceStep();
+        }, delay);
+      } else {
+        // We're on the last step without API response - wait
+        appLogger.debug('conversion_progress_waiting_for_api');
+      }
+    }
+
+    setState(prev => ({
+      ...prev,
+      currentStep: nextStep,
+      currentStepName: currentStepConfig.name,
+      statusMessage: `${currentStepConfig.name}...`,
+      isWaitingForApi: !apiDone
+    }));
   }, [contentType, getStepDelay]);
 
   // Rapid completion when API finishes first
@@ -301,8 +305,7 @@ export const useSimulatedProgress = (
       appLogger.debug('conversion_progress_step_timeout_cleared');
     }
 
-    const { currentStep, totalSteps } = stateRef.current;
-    const remainingSteps = totalSteps - currentStep;
+    const remainingSteps = stateRef.current.totalSteps - stepRef.current;
     appLogger.debug('conversion_progress_remaining_steps', { remaining_steps: remainingSteps });
 
     for (let i = 1; i <= remainingSteps; i++) {

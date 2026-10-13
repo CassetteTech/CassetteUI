@@ -205,12 +205,19 @@ module.exports = {
           from: { opacity: "0", filter: "blur(2px)" },
           to: { opacity: "1", filter: "blur(0)" },
         },
+        // Content replacing a skeleton that already outlines it: un-blur only.
+        // A fade from zero would blink, as the skeleton is gone before it starts.
+        "focus-in": {
+          from: { filter: "blur(3px)" },
+          to: { filter: "blur(0)" },
+        },
       },
       animation: {
         shimmer: "shimmer 2s infinite",
         "collapsible-down": "collapsible-down 250ms cubic-bezier(0.22, 1, 0.36, 1)",
         "collapsible-up": "collapsible-up 250ms cubic-bezier(0.22, 1, 0.36, 1)",
         reveal: "reveal 400ms ease-in-out",
+        "focus-in": "focus-in 300ms cubic-bezier(0.22, 1, 0.36, 1)",
       },
     },
   },

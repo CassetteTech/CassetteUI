@@ -486,6 +486,7 @@ export default function AddMusicPage() {
   // no timers — the page underneath keeps its scroll position because the
   // sheet is an overlay, not a reflow.
   const handleSearchFocus = () => {
+    apiService.warmupLambdas();
     if (!selectedItem && !pastedLinkSource && !isConverting) {
       setIsSearchActive(true);
     }
@@ -574,6 +575,7 @@ export default function AddMusicPage() {
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    apiService.warmupLambdas();
     const pastedText = normalizeUrlInput(e.clipboardData.getData('text'));
     if (!pastedText) {
       return;

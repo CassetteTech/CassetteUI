@@ -77,13 +77,35 @@ test('redirects the old Add Music URL and keeps its query', async ({ page }) => 
   await expect(page.getByRole('heading', { name: 'Add music' }).first()).toBeVisible();
 });
 
-test('the sidebar offers Add music as a button above the page links', async ({ page }) => {
+test('the sidebar offers Add music as an action row above the page links, on their left edge', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: fixtureUsers.member });
 
-  await page.goto('/studio');
+  await page.goto('/studio/music/new');
   const sidebar = page.locator('[data-slot="sidebar"]');
+  const addMusic = sidebar.getByRole('link', { name: 'Add music', exact: true });
+  const studio = sidebar.getByRole('link', { name: 'Curator Studio' });
+  const feed = sidebar.getByRole('link', { name: 'Feed' });
 
-  await expect(sidebar.getByRole('link', { name: 'Add music', exact: true })).toHaveAttribute('href', '/studio/music/new');
-  await expect(sidebar.getByRole('link', { name: 'Curator Studio' })).toHaveAttribute('href', '/studio');
+  await expect(addMusic).toHaveAttribute('href', '/studio/music/new');
+  await expect(studio).toHaveAttribute('href', '/studio');
   await expect(sidebar.getByRole('link', { name: 'Add Music', exact: true })).toHaveCount(0);
+  // An action, not a place: on its own page, Studio keeps the active row.
+  await expect(addMusic).toHaveAttribute('data-active', 'false');
+  await expect(studio).toHaveAttribute('data-active', 'true');
+
+  // The action row has a page row's box and sits above the rows; the avatar and the footer icons
+  // share the rows' icon edge.
+  const [action, row, avatar, feedIcon, signOutIcon] = await Promise.all([
+    addMusic.boundingBox(),
+    feed.boundingBox(),
+    sidebar.locator('a[href="/profile/miagroove"] [data-slot="avatar"]').boundingBox(),
+    feed.locator('svg').first().boundingBox(),
+    sidebar.locator('[data-slot="sidebar-footer"]').getByRole('button', { name: 'Sign Out' }).locator('svg').boundingBox(),
+  ]);
+  expect(action!.x).toBe(row!.x);
+  expect(action!.width).toBe(row!.width);
+  expect(action!.height).toBe(row!.height);
+  expect(action!.y).toBeLessThan(row!.y);
+  expect(Math.abs(avatar!.x - feedIcon!.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(signOutIcon!.x - feedIcon!.x)).toBeLessThanOrEqual(1);
 });

@@ -631,7 +631,7 @@ test.describe('navigation', () => {
     await page.goto('/feed');
     const sidebar = page.locator('[data-slot="sidebar"]');
     const sidebarLinks = page.locator('[data-sidebar="menu"]').getByRole('link');
-    // Add music is a button above the menu, not a menu row.
+    // Add music is an action above the menu, not one of its page rows.
     await expect(sidebarLinks).toHaveText(['Feed', 'Explore', 'Curator Studio', 'Memberships']);
     await expect(sidebar.getByRole('link', { name: 'Add music', exact: true })).toHaveAttribute('href', '/studio/music/new');
     await expect(page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Feed' })).toHaveAttribute('data-active', 'true');

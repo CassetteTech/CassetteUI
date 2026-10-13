@@ -1325,9 +1325,11 @@ test.describe('audience', () => {
     await expect(section.getByText('Audience', { exact: true })).toBeVisible();
     await expect(section).toContainText('4');
     await expect(section.getByRole('button', { name: 'Members 0', exact: true })).toBeVisible();
-    await expect(section).toContainText('everyone who follows you, plus your active members');
-    // No published plan: the music leads, and the audience still shows.
+    await expect(section).toContainText('Followers and members');
+    await expect(section).toContainText('Each person counts once. Only you see these numbers.');
+    // No published plan: the music leads, the audience still shows, and there is no activity yet.
     await expect(page.getByRole('heading', { name: 'Recent music' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Latest activity' })).toHaveCount(0);
     expect(state.curatorAudienceRequests).toBeGreaterThan(0);
 
     // There are no member figures before a publish, so Members opens the setup steps and focus follows.

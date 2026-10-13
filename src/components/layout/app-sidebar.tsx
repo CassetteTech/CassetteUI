@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ThemeSegmentedControl } from '@/components/layout/theme-switcher';
 import { SidebarAccountRow, SidebarAccountRowSkeleton } from '@/components/layout/sidebar-account-row';
+import { NotificationMenu } from '@/components/layout/notification-menu';
 import { usePathname } from 'next/navigation';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import {
@@ -108,8 +109,9 @@ export function AppSidebar({ className }: AppSidebarProps) {
   return (
     <Sidebar collapsible="none" className={`h-screen border-r border-sidebar-border/50 ${className}`}>
       <SidebarHeader>
-        {/* The logo shares the left edge of the account row and the page rows. */}
-        <div className="px-2 py-4 flex items-center">
+        {/* The logo shares the left edge of the account row and the page rows; the inbox sits at
+            the right end, so the account row below can take the full width when it is active. */}
+        <div className="px-2 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Image
               src="/images/app_logo.svg"
@@ -119,6 +121,9 @@ export function AppSidebar({ className }: AppSidebarProps) {
               className="h-10 w-auto"
             />
           </Link>
+          {user && (
+            <NotificationMenu className="border-transparent bg-transparent text-muted-foreground hover:text-foreground" />
+          )}
         </div>
       </SidebarHeader>
       

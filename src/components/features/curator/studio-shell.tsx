@@ -25,23 +25,21 @@ export const StudioStepsContext = createContext<{
     `notice` is the one sentence a banner shows when the step is open. */
 export type LaunchStep = { href: string; label: string; notice: string; done: boolean };
 
-export const isPageStep = (step: LaunchStep) => step.href.startsWith('/');
+const isPageStep = (step: LaunchStep) => step.href.startsWith('/');
 
-/** A forward arrow for a step on another page or view; a step on the current view scrolls in place. */
-export const stepArrow = (step: LaunchStep, view: string) =>
-  (isPageStep(step) || studioViewOf(step.href.slice(1)) !== view) && <ArrowRight aria-hidden />;
-
-/** A section step opens in Studio; a page step is a link to that page. */
-export function StepButton({ step, children, ...props }: { step: LaunchStep } & ComponentProps<typeof Button>) {
+/** A section step opens in Studio; a page step is a link to that page. A step on another page or
+    view ends in a forward arrow; a step on `view`, the view showing it, scrolls in place. */
+export function StepButton({ step, view, children, ...props }: { step: LaunchStep; view: string } & ComponentProps<typeof Button>) {
   const views = useContext(StudioStepsContext);
+  const arrow = (isPageStep(step) || studioViewOf(step.href.slice(1)) !== view) && <ArrowRight aria-hidden />;
   if (isPageStep(step)) {
     return (
       <Button asChild {...props}>
-        <Link href={step.href}>{children}</Link>
+        <Link href={step.href}>{children}{arrow}</Link>
       </Button>
     );
   }
-  return <Button {...props} onClick={() => views?.open(step.href.slice(1))}>{children}</Button>;
+  return <Button {...props} onClick={() => views?.open(step.href.slice(1))}>{children}{arrow}</Button>;
 }
 
 export type StudioChipTone = 'neutral' | 'positive' | 'warning' | 'danger';

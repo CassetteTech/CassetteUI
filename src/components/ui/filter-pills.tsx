@@ -4,19 +4,27 @@
     underline (`TabUnderline`); a filter keeps the page and narrows what it lists. Pills wrap
     rather than scroll, so a narrow list never hides one. */
 
-import { useId } from 'react';
+import { useId, type ComponentProps } from 'react';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 const pillBase = 'inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-sm transition-colors';
 const pillOn = 'bg-foreground font-medium text-background';
 const pillOff = 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground';
 
-/** One pill. Shared by filters that are links, such as Studio Music's types. */
-export function filterPillClassName(active: boolean) {
-  return cn(
-    pillBase,
-    'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-    active ? pillOn : pillOff,
+/** A pill that is a link, for a filter that lives in the URL, such as Studio Music's types. */
+export function FilterPillLink({ active, className, ...props }: ComponentProps<typeof Link> & { active: boolean }) {
+  return (
+    <Link
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        pillBase,
+        'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        active ? pillOn : pillOff,
+        className,
+      )}
+      {...props}
+    />
   );
 }
 

@@ -126,6 +126,15 @@ export function ProfileActivity({
   );
 }
 
+function typeIconOf(elementType: string): LucideIcon {
+  switch (elementType.toLowerCase()) {
+    case 'playlist': return ListMusic;
+    case 'artist': return User;
+    case 'album': return Disc3;
+    default: return Music;
+  }
+}
+
 /** The fields a music card reads; profile activity and curator page posts both carry them. */
 export type MusicCardPost = Pick<
   ActivityPost,
@@ -171,16 +180,7 @@ export function MusicPostCard({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const getTypeIcon = (type: string): LucideIcon => {
-    const iconMap: Record<string, LucideIcon> = {
-      track: Music,
-      playlist: ListMusic,
-      artist: User,
-      album: Disc3,
-    };
-    return iconMap[type.toLowerCase()] || Music;
-  };
-  const TypeIcon = getTypeIcon(post.elementType);
+  const TypeIcon = typeIconOf(post.elementType);
 
   const getNavigationPath = (post: MusicCardPost) => {
     const targetPostId = post.redirectPostId || post.postId;

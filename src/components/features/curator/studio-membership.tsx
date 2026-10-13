@@ -10,7 +10,6 @@ import {
   StepButton,
   StudioSection,
   StudioStepsContext,
-  stepArrow,
   type LaunchStep,
 } from '@/components/features/curator/studio-shell';
 import { TaskSteps } from '@/components/interior/task-steps';
@@ -46,9 +45,8 @@ function MembershipSetupCard({ steps }: { steps: LaunchStep[] }) {
         onSelect={(id) => views?.open(steps[Number(id)].href.slice(1))}
       />
       {next && (
-        <StepButton step={next} className="mt-4 w-full sm:w-auto">
+        <StepButton step={next} view="studio-membership" className="mt-4 w-full sm:w-auto">
           Next: {next.label}
-          {stepArrow(next, 'studio-membership')}
         </StepButton>
       )}
     </StudioSection>

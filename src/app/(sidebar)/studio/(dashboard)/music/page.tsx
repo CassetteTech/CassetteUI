@@ -5,16 +5,13 @@
     with its owner tools, and a saved change updates every cached list at once. */
 
 import { useContext, useRef, type ReactNode, type RefObject } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, ListFilter } from 'lucide-react';
+import { audienceDetails, nounsOf, typeDetails } from '@/components/features/curator/studio-music-filters';
 import {
-  audienceDetails,
   LibraryEmpty,
   libraryPageSize,
-  nounsOf,
-  typeDetails,
   useLibrary,
   useLibraryRowTools,
 } from '@/components/features/curator/studio-music-library';
@@ -40,7 +37,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { filterPillClassName } from '@/components/ui/filter-pills';
+import { FilterPillLink } from '@/components/ui/filter-pills';
 import { useAuthState } from '@/hooks/use-auth';
 import { useMemberPostAccess } from '@/hooks/use-curator';
 import { pagesShortened } from '@/lib/studio-music-pages';
@@ -144,16 +141,15 @@ function TypeTabs({ type, audience, showArtists }: {
       {typeTabs.filter((tab) => tab.value !== 'artists' || showArtists).map((tab) => {
         const active = tab.value === type;
         return (
-          <Link
+          <FilterPillLink
             key={tab.label}
             href={studioMusicHref({ type: tab.value, audience })}
             replace
             scroll={false}
-            aria-current={active ? 'page' : undefined}
-            className={filterPillClassName(active)}
+            active={active}
           >
             {tab.label}
-          </Link>
+          </FilterPillLink>
         );
       })}
     </nav>

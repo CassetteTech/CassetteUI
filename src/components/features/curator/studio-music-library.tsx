@@ -12,6 +12,7 @@ import {
   type InfiniteData,
 } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
+import { audienceDetails, nounsOf, typeDetails } from '@/components/features/curator/studio-music-filters';
 import {
   addMusicHref,
   studioMusicHref,
@@ -20,7 +21,6 @@ import {
 } from '@/components/features/curator/studio-routes';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
-import type { OwnerVisibility } from '@/components/features/post/post-visibility';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { patchMusicPages, uniquePosts } from '@/lib/studio-music-pages';
@@ -28,25 +28,6 @@ import { profileService } from '@/services/profile';
 import type { ActivityPost, PaginatedActivityResponse } from '@/types';
 
 export const libraryPageSize = 20;
-
-/** Bridge's element type, the tab label, and the nouns for each type of music. */
-export const typeDetails = {
-  playlists: { elementType: 'Playlist', label: 'Playlists', one: 'playlist', many: 'playlists' },
-  tracks: { elementType: 'Track', label: 'Tracks', one: 'track', many: 'tracks' },
-  albums: { elementType: 'Album', label: 'Albums', one: 'album', many: 'albums' },
-  artists: { elementType: 'Artist', label: 'Artists', one: 'artist', many: 'artists' },
-} satisfies Record<MusicType, { elementType: string; label: string; one: string; many: string }>;
-
-/** Bridge's privacy value and the word that describes each audience. */
-export const audienceDetails = {
-  public: { privacy: 'public', adjective: 'public' },
-  members: { privacy: 'subscriber', adjective: 'members-only' },
-  private: { privacy: 'private', adjective: 'private' },
-} satisfies Record<MusicAudience, { privacy: OwnerVisibility; adjective: string }>;
-
-export function nounsOf(type: MusicType | null) {
-  return type ? typeDetails[type] : { one: 'post', many: 'posts' };
-}
 
 type LibraryPages = InfiniteData<PaginatedActivityResponse, number>;
 

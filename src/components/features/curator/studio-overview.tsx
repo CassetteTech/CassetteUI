@@ -28,7 +28,6 @@ import {
   StepButton,
   StudioStat,
   StudioStepsContext,
-  stepArrow,
   studioFigureClassName,
   type LaunchStep,
 } from '@/components/features/curator/studio-shell';
@@ -171,9 +170,8 @@ function StepBanner({ step }: { step: LaunchStep }) {
   return (
     <Alert className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-muted/40">
       <p>{step.notice}</p>
-      <StepButton step={step} size="sm">
+      <StepButton step={step} view="studio-overview" size="sm">
         {step.label}
-        {stepArrow(step, 'studio-overview')}
       </StepButton>
     </Alert>
   );
@@ -408,9 +406,8 @@ export function StudioOverview({
           <NextStepCard
             title="Finish your membership"
             action={(
-              <StepButton step={setupNext} size="sm">
+              <StepButton step={setupNext} view="studio-overview" size="sm">
                 {setupNext.label}
-                {stepArrow(setupNext, 'studio-overview')}
               </StepButton>
             )}
           >

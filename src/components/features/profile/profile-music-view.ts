@@ -54,10 +54,10 @@ export function curatorPageFilterOf(view: ProfileMusicView): CuratorPageFilter {
 export function curatorMusicViews(page: CuratorPage, open: ProfileMusicView): ProfileMusicView[] {
   const memberPosts = page.membership?.benefits.some((benefit) => benefit.featureKey === 'member_posts') === true;
   const counted = new Set(page.posts.typeCounts?.map((count) => count.elementType));
-  const types = musicTypes.filter((type) => counted.has(elementTypeOf[type]));
+  const types = new Set(musicTypes.filter((type) => counted.has(elementTypeOf[type])));
   return [
     'all',
     ...(page.viewer.isMember || (page.viewer.isOwner && memberPosts) || open === 'members' ? ['members' as const] : []),
-    ...musicTypes.filter((type) => (types.length > 1 && types.includes(type)) || type === open),
+    ...musicTypes.filter((type) => (types.size > 1 && types.has(type)) || type === open),
   ];
 }

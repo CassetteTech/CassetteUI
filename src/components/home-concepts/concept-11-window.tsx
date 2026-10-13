@@ -311,10 +311,14 @@ const SERVICE_LINKS = [
   { service: appleMusic, link: 'music.apple.com/…' },
   { service: deezer, link: 'deezer.com/…' },
 ];
-// "Converts to" loops through all three services; after each loop, the
-// pasted link turns to the next service. The loop starts one service on,
-// so the card opens on Spotify to Apple Music.
-const CARD_STEPS = SERVICE_LINKS.length ** 2;
+// "Converts to" loops through the services. When it reaches the pasted
+// service, "You paste" takes the service it just left, so the two rows
+// never show the same service. Six turns show every pair once.
+type CardPair = { pasted: number; converted: number };
+const nextPair = ({ pasted, converted }: CardPair): CardPair => {
+  const next = (converted + 1) % SERVICE_LINKS.length;
+  return { pasted: next === pasted ? converted : pasted, converted: next };
+};
 const CARD_TURN_MS = 1500;
 const CARD_LABEL = 'font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground';
 const CARD_CHIP = 'flex h-7 items-center gap-2 rounded-md border px-2 font-mono text-xs';
@@ -354,13 +358,11 @@ function TurningChip({ service, still, testId }: { service: number; still: numbe
     services converts to the same music on the other two, and one Cassette
     link opens in all three. An illustration, not a post. */
 function LinkCard() {
-  const [step, setStep] = useState(0);
+  const [{ pasted, converted }, setPair] = useState<CardPair>({ pasted: 0, converted: 1 });
   useEffect(() => {
-    const timer = setInterval(() => setStep((value) => (value + 1) % CARD_STEPS), CARD_TURN_MS);
+    const timer = setInterval(() => setPair(nextPair), CARD_TURN_MS);
     return () => clearInterval(timer);
   }, []);
-  const source = Math.floor(step / SERVICE_LINKS.length);
-  const target = (step + 1) % SERVICE_LINKS.length;
   return (
     <figure className="rounded-lg border border-border bg-card/90 p-3 text-card-foreground elev-soft">
       <figcaption className="sr-only">
@@ -368,9 +370,9 @@ function LinkCard() {
       </figcaption>
       <div aria-hidden className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
         <span className={CARD_LABEL}>You paste</span>
-        <TurningChip service={source} still={0} testId="link-card-pasted" />
+        <TurningChip service={pasted} still={0} testId="link-card-pasted" />
         <span className={CARD_LABEL}>Converts to</span>
-        <TurningChip service={target} still={1} testId="link-card-converted" />
+        <TurningChip service={converted} still={1} testId="link-card-converted" />
         <span className={CARD_LABEL}>You share</span>
         <span className={cn(CARD_CHIP, 'border-primary/40 bg-primary/10 font-semibold text-foreground')}>
           <Image src="/images/cassette_logo.svg" alt="" width={14} height={14} className="h-3.5 w-3.5 shrink-0 object-contain" />

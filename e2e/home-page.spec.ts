@@ -76,17 +76,16 @@ test.describe('home page', () => {
     const pastedStill = card.getByTestId('link-card-pasted-still');
     const convertedStill = card.getByTestId('link-card-converted-still');
 
-    // The converted link loops through all three services while the pasted
-    // link stays on Spotify; then the pasted link turns to Apple Music.
+    // The converted link loops through the services. When it reaches
+    // Spotify, the pasted link takes Deezer, the service it just left.
     await expect(pastedStill).toBeHidden();
     await expect(convertedStill).toBeHidden();
     await expect(pasted.getByText('open.spotify.com/…')).toBeVisible();
     await expect(converted.getByText('music.apple.com/…')).toBeVisible();
     await expect(converted.getByText('deezer.com/…')).toBeVisible({ timeout: 4000 });
-    await expect(converted.getByText('open.spotify.com/…')).toBeVisible({ timeout: 4000 });
     await expect(pasted.getByText('open.spotify.com/…')).toBeVisible();
-    await expect(pasted.getByText('music.apple.com/…')).toBeVisible({ timeout: 4000 });
-    await expect(converted.getByText('music.apple.com/…')).toBeVisible();
+    await expect(converted.getByText('open.spotify.com/…')).toBeVisible({ timeout: 4000 });
+    await expect(pasted.getByText('deezer.com/…')).toBeVisible();
 
     // Reduced motion switched on mid-session swaps in the still Spotify to Apple Music pair.
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -98,11 +97,11 @@ test.describe('home page', () => {
     expect(await pasted.isVisible()).toBe(false);
     expect(await convertedStill.isVisible()).toBe(true);
 
-    // Switched off again, both rows turn again, through to a pasted Deezer link.
+    // Switched off again, both rows turn again, through to a pasted Apple Music link.
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await expect(pastedStill).toBeHidden();
     await expect(convertedStill).toBeHidden();
-    await expect(pasted.getByText('deezer.com/…')).toBeVisible({ timeout: 15000 });
+    await expect(pasted.getByText('music.apple.com/…')).toBeVisible({ timeout: 10000 });
   });
 
   test('waits for the session before it converts a linked music URL', async ({ page }) => {

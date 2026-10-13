@@ -267,6 +267,7 @@ export default function StudioMusicPage() {
       title="Music"
       headingId="studio-music-title"
       description="Everything on your page, newest first."
+      plain
       chip={(
         <AudienceFilter
           audience={audience}
@@ -274,7 +275,7 @@ export default function StudioMusicPage() {
         />
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-2">
         <TypeTabs type={type} audience={audience} showArtists={showArtists} />
         {/* Stays mounted, so a new count after a filter change is announced. An empty list says it itself. */}
         <p aria-live="polite" className="text-sm text-muted-foreground">

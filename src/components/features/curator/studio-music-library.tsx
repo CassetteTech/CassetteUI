@@ -165,7 +165,8 @@ export function useLibraryRowTools({ userId, posts, listRef, sectionId, leavesLi
 }
 
 /** One empty state per view: no music at all leads to Add music; an empty type offers to add
-    one; an empty audience offers the whole type back. */
+    one; an empty audience offers the whole type back. Its top margin keeps the dashed box
+    clear of the rule under an unboxed section title. */
 export function LibraryEmpty({ type, audience, returnPath }: {
   type: MusicType | null;
   audience: MusicAudience | null;
@@ -174,7 +175,7 @@ export function LibraryEmpty({ type, audience, returnPath }: {
   const nouns = nounsOf(type);
   if (audience) {
     return (
-      <Empty>
+      <Empty className="mt-2">
         <EmptyTitle>{`No ${audienceDetails[audience].adjective} ${nouns.many}`}</EmptyTitle>
         <EmptyDescription>Change who can open a post from its row.</EmptyDescription>
         <Button asChild variant="outline">
@@ -185,7 +186,7 @@ export function LibraryEmpty({ type, audience, returnPath }: {
   }
   if (type) {
     return (
-      <Empty>
+      <Empty className="mt-2">
         <EmptyTitle>{`No ${nouns.many} yet`}</EmptyTitle>
         <EmptyDescription>{`${typeDetails[type].label} you add show here.`}</EmptyDescription>
         <Button asChild>
@@ -198,7 +199,7 @@ export function LibraryEmpty({ type, audience, returnPath }: {
     );
   }
   return (
-    <Empty>
+    <Empty className="mt-2">
       <EmptyTitle>No music yet</EmptyTitle>
       <EmptyDescription>Add a playlist, track, or album with a note. Fans see it on your page.</EmptyDescription>
       <Button asChild>

@@ -78,6 +78,7 @@ export function StudioRecentMusic() {
       id="studio-recent-music"
       title="Recent music"
       headingId="studio-recent-music-title"
+      plain
       chip={posts.length > 0 && (
         <Button asChild variant="outline" size="sm" className="bg-background/60">
           <Link href={studioPaths['studio-music']}>All music</Link>

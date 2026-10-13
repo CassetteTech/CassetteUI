@@ -76,7 +76,8 @@ export function StudioChip({
 
 /** One studio section: a soft card with a title, an optional trailing control,
     and a description. Sections are always expanded; the dashboard decides which
-    view (and therefore which sections) is visible. */
+    view (and therefore which sections) is visible. A plain section drops the card
+    and keeps the title over a rule, for lists of music that read as the page itself. */
 export function StudioSection({
   id,
   title,
@@ -84,6 +85,7 @@ export function StudioSection({
   description,
   chip,
   testId,
+  plain = false,
   children,
 }: {
   id: string;
@@ -92,6 +94,7 @@ export function StudioSection({
   description?: ReactNode;
   chip?: ReactNode;
   testId?: string;
+  plain?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -101,9 +104,17 @@ export function StudioSection({
       aria-labelledby={headingId}
       // Focusable so a step link can move focus here; scroll-mt keeps anchored jumps clear of any sticky chrome above.
       tabIndex={-1}
-      className="scroll-mt-24 card-quiet outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className={cn(
+        'scroll-mt-24 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        plain ? 'rounded-md' : 'card-quiet',
+      )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-border/70 px-5 py-4 sm:px-6">
+      <div
+        className={cn(
+          'flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-border/70',
+          plain ? 'pb-4' : 'px-5 py-4 sm:px-6',
+        )}
+      >
         <div className="min-w-0">
           <h2 id={headingId} className="text-lg font-semibold leading-tight tracking-tight">
             {title}
@@ -116,7 +127,7 @@ export function StudioSection({
         </div>
         {chip}
       </div>
-      <div className="px-5 py-5 sm:px-6 sm:py-6">{children}</div>
+      <div className={plain ? 'pt-2' : 'px-5 py-5 sm:px-6 sm:py-6'}>{children}</div>
     </section>
   );
 }

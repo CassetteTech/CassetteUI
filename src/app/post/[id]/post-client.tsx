@@ -1455,14 +1455,14 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                               {trackListStats}
                             </span>
                             <span className="whitespace-nowrap [grid-area:1/1] opacity-[var(--counter-swap,0)] motion-safe:[transform:translateY(calc((1_-_var(--counter-swap,0))*20px))]">
-                              <span ref={trackCounterRef} className="font-semibold" style={{ color: bandTone(palette?.vibrant) }} />
+                              <span ref={trackCounterRef} className="font-semibold" style={{ color: bandTone(labelTint) }} />
                               {trackListDuration && ` · ${trackListDuration}`}
                             </span>
                           </div>
                         </div>
                         <div
                           className="absolute inset-x-0 bottom-0 h-[3px] origin-left opacity-[var(--counter-swap,0)] [transform:translateY(var(--list-exit,0px))_scaleX(var(--list-progress,0))]"
-                          style={{ backgroundColor: bandTone(palette?.vibrant) }}
+                          style={{ backgroundColor: bandTone(labelTint) }}
                         />
                       </>
                     )}

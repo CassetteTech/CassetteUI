@@ -77,13 +77,15 @@ export function StudioChip({
 /** One studio section: a soft card with a title, an optional trailing control,
     and a description. Sections are always expanded; the dashboard decides which
     view (and therefore which sections) is visible. A plain section drops the card
-    and keeps the title over a rule, for lists of music that read as the page itself. */
+    and keeps the title over a rule, for lists of music that read as the page itself;
+    its tabs, when given, sit on that rule. */
 export function StudioSection({
   id,
   title,
   headingId,
   description,
   chip,
+  tabs,
   testId,
   plain = false,
   children,
@@ -93,6 +95,8 @@ export function StudioSection({
   headingId: string;
   description?: ReactNode;
   chip?: ReactNode;
+  /** Plain sections only: a tab row whose active underline covers the header rule. */
+  tabs?: ReactNode;
   testId?: string;
   plain?: boolean;
   children: ReactNode;
@@ -109,23 +113,22 @@ export function StudioSection({
         plain ? 'rounded-md' : 'card-quiet',
       )}
     >
-      <div
-        className={cn(
-          'flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-border/70',
-          plain ? 'pb-4' : 'px-5 py-4 sm:px-6',
-        )}
-      >
-        <div className="min-w-0">
-          <h2 id={headingId} className="text-lg font-semibold leading-tight tracking-tight">
-            {title}
-          </h2>
-          {description && (
-            <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              {description}
-            </p>
-          )}
+      <div className={cn('border-b border-border/70', plain ? (tabs ? null : 'pb-4') : 'px-5 py-4 sm:px-6')}>
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+          <div className="min-w-0">
+            <h2 id={headingId} className="text-lg font-semibold leading-tight tracking-tight">
+              {title}
+            </h2>
+            {description && (
+              <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                {description}
+              </p>
+            )}
+          </div>
+          {chip}
         </div>
-        {chip}
+        {/* -mb-px lays the tab row's bottom on the rule, so the active underline covers it. */}
+        {plain && tabs && <div className="mt-3 -mb-px">{tabs}</div>}
       </div>
       <div className={plain ? 'pt-2' : 'px-5 py-5 sm:px-6 sm:py-6'}>{children}</div>
     </section>

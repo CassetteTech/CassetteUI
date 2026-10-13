@@ -171,20 +171,15 @@ export function AppSidebar({ className }: AppSidebarProps) {
           <SidebarGroup>
             <SidebarGroupContent className="space-y-2">
               <SidebarAccountRow user={user} active={isOwnProfilePath(pathname, user)} />
-              {/* Adding music is an action, not a place, so it stays out of the page rows' menu. It has a
-                  row's size and left edge, and a filled brand-red mark centered on the row icons. It
-                  never takes the active marker; the Add music page belongs to Studio. */}
-              <SidebarMenuButton asChild>
+              {/* Adding music is the main action, not a place: a full-width ink button with a page
+                  row's box, outside the page rows' menu, so it never takes the active marker. Ink,
+                  not brand red, so it never doubles the red Add music in the Studio header. */}
+              <Button asChild size="sm" className="w-full bg-foreground text-background hover:bg-foreground/90">
                 <Link href="/studio/music/new">
-                  <span
-                    aria-hidden
-                    className="-ml-0.5 mr-1.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
-                  >
-                    <Plus className="size-3" strokeWidth={3} />
-                  </span>
-                  <span>Add music</span>
+                  <Plus aria-hidden />
+                  Add music
                 </Link>
-              </SidebarMenuButton>
+              </Button>
             </SidebarGroupContent>
           </SidebarGroup>
         ) : null}

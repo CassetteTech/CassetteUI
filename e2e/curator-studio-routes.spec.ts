@@ -77,7 +77,7 @@ test('redirects the old Add Music URL and keeps its query', async ({ page }) => 
   await expect(page.getByRole('heading', { name: 'Add music' }).first()).toBeVisible();
 });
 
-test('the sidebar offers Add music as an action row above the page links, on their left edge', async ({ page }) => {
+test('the sidebar offers Add music as a button above the page links, in their box', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: fixtureUsers.member });
 
   await page.goto('/studio/music/new');
@@ -90,10 +90,10 @@ test('the sidebar offers Add music as an action row above the page links, on the
   await expect(studio).toHaveAttribute('href', '/studio');
   await expect(sidebar.getByRole('link', { name: 'Add Music', exact: true })).toHaveCount(0);
   // An action, not a place: on its own page, Studio keeps the active row.
-  await expect(addMusic).toHaveAttribute('data-active', 'false');
+  await expect(addMusic).not.toHaveAttribute('data-active', 'true');
   await expect(studio).toHaveAttribute('data-active', 'true');
 
-  // The action row has a page row's box and sits above the rows; the avatar and the footer icons
+  // The button has a page row's box and sits above the rows; the avatar and the footer icons
   // share the rows' icon edge.
   const [action, row, avatar, feedIcon, signOutIcon] = await Promise.all([
     addMusic.boundingBox(),

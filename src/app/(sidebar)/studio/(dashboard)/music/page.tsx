@@ -4,10 +4,12 @@
     both live in the URL, so a post's Back returns to the same view. Each row shows the curation
     with its owner tools, and a saved change updates every cached list at once. */
 
-import { useContext, useRef, type ReactNode, type RefObject } from 'react';
+import { useContext, useRef, useState, type ReactNode, type RefObject } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, ListFilter } from 'lucide-react';
+import { TextMorph } from 'torph/react';
 import { audienceDetails, nounsOf, typeDetails } from '@/components/features/curator/studio-music-filters';
 import {
   LibraryEmpty,
@@ -37,7 +39,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { FilterPillLink } from '@/components/ui/filter-pills';
+import { TabUnderline } from '@/components/ui/tab-underline';
 import { useAuthState } from '@/hooks/use-auth';
 import { useMemberPostAccess } from '@/hooks/use-curator';
 import { pagesShortened } from '@/lib/studio-music-pages';
@@ -52,11 +54,21 @@ const typeTabs: ReadonlyArray<{ value: MusicType | null; label: string }> = [
   ...musicTypes.map((value) => ({ value, label: typeDetails[value].label })),
 ];
 
-/** What the count after the tabs counts, such as "members-only playlists". */
+/** What the count in the description counts, such as "members-only playlists". */
 function countedNoun(total: number, type: MusicType | null, audience: MusicAudience | null) {
   const nouns = nounsOf(type);
   const adjective = audience ? `${audienceDetails[audience].adjective} ` : '';
   return `${adjective}${total === 1 ? nouns.one : nouns.many}`;
+}
+
+const uncountedLine = 'Everything on your page, newest first.';
+
+/** The description counts the list on screen once it has settled, so a filter change keeps the
+    last line while the next list loads instead of flickering. */
+function useCountLine(settledLine: string | null) {
+  const [line, setLine] = useState(uncountedLine);
+  if (settledLine !== null && settledLine !== line) setLine(settledLine);
+  return line;
 }
 
 /** Artists are the rarest posts, so their tab shows once the library holds one, or while it is open. */
@@ -104,7 +116,7 @@ function AudienceFilter({
         >
           <Icon aria-hidden className="text-muted-foreground" />
           <span className="text-muted-foreground">Who can open it:</span>
-          {current?.label ?? 'All'}
+          <TextMorph>{current?.label ?? 'All'}</TextMorph>
           <ChevronDown aria-hidden className="text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
@@ -129,27 +141,36 @@ function AudienceFilter({
   );
 }
 
-/** The type of music, as links that keep the audience filter. They wrap rather than scroll, so
-    a narrow list never hides one. */
+/** The type of music, as text tabs on the section rule with a sliding ink underline. They are
+    links that keep the audience filter. A narrow list scrolls them sideways, so the underline stays
+    on one line. -mx-1 sets the first label on the title's edge, and the underline measures the
+    label, not the padded link, so it starts where the rule starts. */
 function TypeTabs({ type, audience, showArtists }: {
   type: MusicType | null;
   audience: MusicAudience | null;
   showArtists: boolean;
 }) {
   return (
-    <nav aria-label="Type of music" className="flex flex-wrap gap-1.5">
+    <nav aria-label="Type of music" className="no-scrollbar relative -mx-1 flex gap-4 overflow-x-auto">
+      <TabUnderline value={type ?? 'all'} />
       {typeTabs.filter((tab) => tab.value !== 'artists' || showArtists).map((tab) => {
         const active = tab.value === type;
         return (
-          <FilterPillLink
+          <Link
             key={tab.label}
             href={studioMusicHref({ type: tab.value, audience })}
             replace
             scroll={false}
-            active={active}
+            aria-current={active ? 'page' : undefined}
+            className={cn(
+              'inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-sm px-1 text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+              active && 'font-medium text-foreground',
+            )}
           >
-            {tab.label}
-          </FilterPillLink>
+            <span className="tab-label" data-label={tab.label} data-state={active ? 'active' : 'inactive'}>
+              {tab.label}
+            </span>
+          </Link>
         );
       })}
     </nav>
@@ -213,6 +234,11 @@ export default function StudioMusicPage() {
   const access = useMemberPostAccess();
   const { library, posts, total } = useLibrary(userId, type, audience);
   const showArtists = useArtistsTab(userId, type);
+  // An empty list explains itself below, so the description falls back to the general line.
+  const countLine = useCountLine(!library.data || library.isPlaceholderData ? null
+    : total > 1 ? `${total} ${countedNoun(total, type, audience)}, newest first.`
+    : total === 1 ? `1 ${countedNoun(1, type, audience)}.`
+    : uncountedLine);
   const listRef = useRef<HTMLUListElement>(null);
   const { onSaved, onEdit, onDelete, sheets } = useLibraryRowTools({
     userId,
@@ -266,7 +292,9 @@ export default function StudioMusicPage() {
       id="studio-music"
       title="Music"
       headingId="studio-music-title"
-      description="Everything on your page, newest first."
+      // Stays mounted, so a new count after a filter change is announced. The morph keeps a
+      // plain copy of the line for screen readers and hides its moving letters.
+      description={<span aria-live="polite" className="tabular-nums"><TextMorph>{countLine}</TextMorph></span>}
       plain
       chip={(
         <AudienceFilter
@@ -274,21 +302,9 @@ export default function StudioMusicPage() {
           onChange={(next) => router.replace(studioMusicHref({ type, audience: next }), { scroll: false })}
         />
       )}
+      tabs={<TypeTabs type={type} audience={audience} showArtists={showArtists} />}
     >
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-2">
-        <TypeTabs type={type} audience={audience} showArtists={showArtists} />
-        {/* Stays mounted, so a new count after a filter change is announced. An empty list says it itself. */}
-        <p aria-live="polite" className="text-sm text-muted-foreground">
-          {library.data && !library.isPlaceholderData && total > 0 && (
-            <>
-              <span className="tabular-nums">{total}</span>
-              {` ${countedNoun(total, type, audience)}`}
-            </>
-          )}
-        </p>
-      </div>
-
-      <div className="mt-2 [container-type:inline-size]">{body}</div>
+      <div className="[container-type:inline-size]">{body}</div>
       {sheets}
     </StudioSection>
   );

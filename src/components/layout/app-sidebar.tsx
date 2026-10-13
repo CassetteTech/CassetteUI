@@ -38,13 +38,16 @@ import {
 // Interleaved sidebar ordering across primary + account groups. The logo links
 // home and the account row links to the own profile, so neither has a row here.
 // Feed shows only to a signed-in viewer, so Explore leads for a visitor. Add music
-// is a button under the account row, not a row.
+// is an action, so it sits under the account row rather than among these page rows.
 const SIDEBAR_NAV_ORDER = ['feed', 'explore', 'curator-studio', 'memberships', 'internal'] as const;
 // Explore leaves the sidebar shell, so its row carries an exit marker.
 const SIDEBAR_EXIT_KEYS: readonly string[] = ['explore'];
 // Both lead to /promote, so the footer shows only the first visible one: Promote
 // while Boost sales are open, then Your Campaigns for a user who still has campaigns.
 const SIDEBAR_PROMOTE_ORDER = ['promote', 'campaigns'] as const;
+// Footer buttons share the page rows' edges: the icon padding drops to the rows' 8 px, and the
+// icon gap (mr-2.5 on each icon) puts the label on the rows' label column.
+const footerButtonClassName = 'w-full justify-start text-muted-foreground hover:text-foreground has-[>svg]:px-2';
 
 function getSidebarNavItems(
   user: NavUser,
@@ -126,7 +129,8 @@ export function AppSidebar({ className }: AppSidebarProps) {
   return (
     <Sidebar collapsible="none" className={`h-screen border-r border-sidebar-border/50 ${className}`}>
       <SidebarHeader>
-        <div className="p-4 flex items-center">
+        {/* The logo shares the left edge of the account row and the page rows. */}
+        <div className="px-2 py-4 flex items-center">
           <Link href="/" className="flex items-center gap-2">
             <Image
               src="/images/app_logo.svg"
@@ -167,14 +171,20 @@ export function AppSidebar({ className }: AppSidebarProps) {
           <SidebarGroup>
             <SidebarGroupContent className="space-y-2">
               <SidebarAccountRow user={user} active={isOwnProfilePath(pathname, user)} />
-              {/* Adding music is an action, not a place, so it is a button above the page links. Outline
-                  keeps persistent chrome quieter than the primary action on the page itself. */}
-              <Button asChild variant="outline" size="sm" className="w-full">
+              {/* Adding music is an action, not a place, so it stays out of the page rows' menu. It has a
+                  row's size and left edge, and a filled brand-red mark centered on the row icons. It
+                  never takes the active marker; the Add music page belongs to Studio. */}
+              <SidebarMenuButton asChild>
                 <Link href="/studio/music/new">
-                  <Plus aria-hidden />
-                  Add music
+                  <span
+                    aria-hidden
+                    className="-ml-0.5 mr-1.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                  >
+                    <Plus className="size-3" strokeWidth={3} />
+                  </span>
+                  <span>Add music</span>
                 </Link>
-              </Button>
+              </SidebarMenuButton>
             </SidebarGroupContent>
           </SidebarGroup>
         ) : null}
@@ -221,17 +231,12 @@ export function AppSidebar({ className }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t p-4 space-y-2">
+      <SidebarFooter className="border-t px-2 py-4 space-y-2">
         {/* Promote leaves the sidebar shell */}
         {promoteItem && (
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-muted-foreground hover:text-foreground"
-          >
+          <Button asChild variant="ghost" size="sm" className={footerButtonClassName}>
             <Link href={promoteItem.href}>
-              <promoteItem.icon className="mr-2 h-4 w-4" />
+              <promoteItem.icon className="mr-2.5 h-4 w-4" />
               <span>{promoteItem.label}</span>
               <ArrowUpRight aria-hidden className="ml-auto h-3 w-3 opacity-40" />
             </Link>
@@ -239,24 +244,14 @@ export function AppSidebar({ className }: AppSidebarProps) {
         )}
 
         {/* Report a Problem */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start text-muted-foreground hover:text-foreground"
-          onClick={() => openReportModal()}
-        >
-          <AlertCircle className="mr-2 h-4 w-4" />
+        <Button variant="ghost" size="sm" className={footerButtonClassName} onClick={() => openReportModal()}>
+          <AlertCircle className="mr-2.5 h-4 w-4" />
           <span>Report a Problem</span>
         </Button>
 
         {user && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-muted-foreground hover:text-foreground"
-            onClick={() => signOut()}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
+          <Button variant="ghost" size="sm" className={footerButtonClassName} onClick={() => signOut()}>
+            <LogOut className="mr-2.5 h-4 w-4" />
             <span>Sign Out</span>
           </Button>
         )}

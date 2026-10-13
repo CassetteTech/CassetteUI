@@ -7,11 +7,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NotificationMenu } from '@/components/layout/notification-menu';
 import type { AuthUser } from '@/types';
 
-/** active marks the own profile page; the sidebar's sliding indicator follows data-active. */
+/** active marks the own profile page; the sidebar's sliding indicator follows data-active.
+    The avatar shares the left edge of the sidebar's page rows. */
 export function SidebarAccountRow({ user, active = false }: { user: AuthUser; active?: boolean }) {
   const name = user.displayName || user.username;
   return (
-    <div className="mx-2 flex items-center gap-2">
+    <div className="flex items-center gap-2">
       <Link
         href={`/profile/${user.username}`}
         data-active={active}
@@ -36,7 +37,7 @@ export function SidebarAccountRow({ user, active = false }: { user: AuthUser; ac
 
 export function SidebarAccountRowSkeleton() {
   return (
-    <div className="mx-2 flex items-center gap-2.5 px-2 py-1.5">
+    <div className="flex items-center gap-2.5 px-2 py-1.5">
       <div className="size-8 animate-pulse rounded-full bg-muted" />
       <div className="space-y-1.5">
         <div className="h-3 w-24 animate-pulse rounded bg-muted" />

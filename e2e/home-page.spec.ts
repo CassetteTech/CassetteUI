@@ -14,7 +14,7 @@ test.describe('home page', () => {
 
     await expect(page.locator('h1')).toHaveText(/Get paid for your playlists\.\s*Share music with anyone\./);
     await expect(page.getByText('Any music you share opens in Spotify, Apple Music, or Deezer.', { exact: false })).toBeInViewport();
-    await expect(page.getByRole('figure', { name: /Paste a Spotify link/ })).toBeInViewport();
+    await expect(page.getByRole('figure', { name: /Paste a Spotify, Apple Music, or Deezer link/ })).toBeInViewport();
 
     const start = page.getByRole('link', { name: 'Start your free page' });
     await expect(start.first()).toBeInViewport();
@@ -70,28 +70,35 @@ test.describe('home page', () => {
     // After the shared mocks, which turn reduced motion on.
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await page.goto('/');
-    const card = page.getByRole('figure', { name: /Paste a Spotify link/ });
-    const turning = card.getByTestId('link-card-turning');
-    const still = card.getByTestId('link-card-still');
+    const card = page.getByRole('figure', { name: /Paste a Spotify, Apple Music, or Deezer link/ });
+    const pasted = card.getByTestId('link-card-pasted-turning');
+    const converted = card.getByTestId('link-card-converted-turning');
+    const pastedStill = card.getByTestId('link-card-pasted-still');
+    const convertedStill = card.getByTestId('link-card-converted-still');
 
-    // The converted link turns from Apple Music to Deezer.
-    await expect(still).toBeHidden();
-    await expect(turning.getByText('deezer.com/…')).toBeVisible({ timeout: 6000 });
+    // The pasted Spotify link converts to Apple Music, then Deezer; then the
+    // pasted link turns to Apple Music.
+    await expect(pastedStill).toBeHidden();
+    await expect(convertedStill).toBeHidden();
+    await expect(pasted.getByText('open.spotify.com/…')).toBeVisible();
+    await expect(converted.getByText('deezer.com/…')).toBeVisible({ timeout: 4000 });
+    await expect(pasted.getByText('music.apple.com/…')).toBeVisible({ timeout: 4000 });
 
-    // Reduced motion switched on mid-session swaps in the still Apple Music link.
+    // Reduced motion switched on mid-session swaps in the still Spotify to Apple Music pair.
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await expect(turning).toBeHidden();
-    await expect(still).toHaveText('music.apple.com/…');
-    await expect(still).toBeVisible();
+    await expect(pasted).toBeHidden();
+    await expect(converted).toBeHidden();
+    await expect(pastedStill).toHaveText('open.spotify.com/…');
+    await expect(convertedStill).toHaveText('music.apple.com/…');
     await page.waitForTimeout(3000);
-    expect(await turning.isVisible()).toBe(false);
-    expect(await still.isVisible()).toBe(true);
+    expect(await pasted.isVisible()).toBe(false);
+    expect(await convertedStill.isVisible()).toBe(true);
 
-    // Switched off again, the link turns through both services again.
+    // Switched off again, both rows turn again, through to a pasted Deezer link.
     await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await expect(still).toBeHidden();
-    await expect(turning.getByText('music.apple.com/…')).toBeVisible({ timeout: 6000 });
-    await expect(turning.getByText('deezer.com/…')).toBeVisible({ timeout: 6000 });
+    await expect(pastedStill).toBeHidden();
+    await expect(convertedStill).toBeHidden();
+    await expect(pasted.getByText('deezer.com/…')).toBeVisible({ timeout: 10000 });
   });
 
   test('waits for the session before it converts a linked music URL', async ({ page }) => {

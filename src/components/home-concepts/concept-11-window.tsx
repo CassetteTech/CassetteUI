@@ -306,12 +306,16 @@ function Departing({ ref, ...props }: HTMLMotionProps<'div'> & { ref?: Ref<HTMLD
 }
 
 const [spotify, appleMusic, deezer] = STREAMING_SERVICES;
-// A Spotify link converts to its match on each of the other services in turn.
-const CONVERTED_LINKS = [
+const SERVICE_LINKS = [
+  { service: spotify, link: 'open.spotify.com/…' },
   { service: appleMusic, link: 'music.apple.com/…' },
   { service: deezer, link: 'deezer.com/…' },
 ];
-const CONVERT_TURN_MS = 2500;
+// Each pasted link converts to its match on every other service in turn;
+// then the pasted link turns to the next service. Each step moves one row.
+const TARGETS_PER_SOURCE = SERVICE_LINKS.length - 1;
+const CARD_STEPS = SERVICE_LINKS.length * TARGETS_PER_SOURCE;
+const CARD_TURN_MS = 1500;
 const CARD_LABEL = 'font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground';
 const CARD_CHIP = 'flex h-7 items-center gap-2 rounded-md border px-2 font-mono text-xs';
 
@@ -322,42 +326,54 @@ const linkChip = (entry: { service: (typeof STREAMING_SERVICES)[number]; link: s
   </span>
 );
 
-/** What the bar does, as input and output: a Spotify link converts to the
-    same music on Apple Music and Deezer, and one Cassette link opens in all
-    three. An illustration, not a post. Under reduced motion, CSS swaps the
-    turning chip for a still one, so a change mid-session applies at once. */
+/** A link chip that turns to each new service. Under reduced motion, CSS
+    swaps it for a still chip, so a change mid-session applies at once. */
+function TurningChip({ service, still, testId }: { service: number; still: number; testId: string }) {
+  return (
+    <>
+      <span data-testid={`${testId}-turning`} className="relative h-7 overflow-hidden motion-reduce:hidden">
+        <AnimatePresence initial={false}>
+          <motion.span
+            key={service}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.25, ease: EASE_OUT_QUART }}
+            className="absolute inset-0"
+          >
+            {linkChip(SERVICE_LINKS[service])}
+          </motion.span>
+        </AnimatePresence>
+      </span>
+      <span data-testid={`${testId}-still`} className="hidden motion-reduce:block">{linkChip(SERVICE_LINKS[still])}</span>
+    </>
+  );
+}
+
+/** What the bar does, as input and output: a link from any of the three
+    services converts to the same music on the other two, and one Cassette
+    link opens in all three. An illustration, not a post. */
 function LinkCard() {
-  const [turn, setTurn] = useState(0);
+  const [step, setStep] = useState(0);
   useEffect(() => {
-    const timer = setInterval(() => setTurn((value) => (value + 1) % CONVERTED_LINKS.length), CONVERT_TURN_MS);
+    const timer = setInterval(() => setStep((value) => (value + 1) % CARD_STEPS), CARD_TURN_MS);
     return () => clearInterval(timer);
   }, []);
+  const source = Math.floor(step / TARGETS_PER_SOURCE);
+  const target = (source + 1 + (step % TARGETS_PER_SOURCE)) % SERVICE_LINKS.length;
   return (
     <figure className="rounded-lg border border-border bg-card/90 p-3 text-card-foreground elev-soft">
       <figcaption className="sr-only">
-        Paste a Spotify link. Cassette finds the same music on Apple Music and Deezer, and gives you one link that opens in all three.
+        Paste a Spotify, Apple Music, or Deezer link. Cassette finds the same music on the other two, and gives you one link that opens in all three.
       </figcaption>
       <div aria-hidden className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
         <span className={CARD_LABEL}>You paste</span>
-        {linkChip({ service: spotify, link: 'open.spotify.com/…' })}
+        <TurningChip service={source} still={0} testId="link-card-pasted" />
         <span className={CARD_LABEL}>Converts to</span>
-        <span data-testid="link-card-turning" className="relative h-7 overflow-hidden motion-reduce:hidden">
-          <AnimatePresence initial={false}>
-            <motion.span
-              key={turn}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.25, ease: EASE_OUT_QUART }}
-              className="absolute inset-0"
-            >
-              {linkChip(CONVERTED_LINKS[turn])}
-            </motion.span>
-          </AnimatePresence>
-        </span>
-        <span data-testid="link-card-still" className="hidden motion-reduce:block">{linkChip(CONVERTED_LINKS[0])}</span>
+        <TurningChip service={target} still={1} testId="link-card-converted" />
         <span className={CARD_LABEL}>You share</span>
         <span className={cn(CARD_CHIP, 'border-primary/40 bg-primary/10 font-semibold text-foreground')}>
+          <Image src="/images/cassette_logo.svg" alt="" width={14} height={14} className="h-3.5 w-3.5 shrink-0 object-contain" />
           <span className="truncate">cassette.tech/post/…</span>
           <span className="ml-auto hidden shrink-0 gap-1 sm:flex">
             {STREAMING_SERVICES.map((service) => (

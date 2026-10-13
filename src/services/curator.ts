@@ -55,6 +55,9 @@ const curatorPostSchema = z.object({
   redirectPostId: z.string(),
   commentsEnabled: z.boolean().optional(),
   isRepost: z.boolean().optional(),
+  // A repost names its original author; the card shows the reposter above it.
+  originalPostOwnerUsername: nullableString.optional(),
+  originalPostOwnerAccountType: nullableString.optional(),
 });
 
 /** Bridge's element types, the values of the page's type filter. */

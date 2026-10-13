@@ -94,6 +94,39 @@ test('keeps an active curator without a published plan public-only', async ({ pa
   expect(await page.content()).not.toContain(CURATOR_SUBSCRIBER_SENTINEL);
 });
 
+test('names the original author on a repost and the curator as the reposter', async ({ page }) => {
+  const [publicItem] = fixtureFreeCuratorPage.posts.items;
+  if (publicItem.kind !== 'post') throw new Error('Expected the free page to open with a full post');
+  const author = fixtureUsers.member.username;
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.viewer,
+    curatorPage: {
+      ...fixtureFreeCuratorPage,
+      posts: {
+        ...fixtureFreeCuratorPage.posts,
+        items: [{
+          kind: 'post',
+          post: {
+            ...publicItem.post,
+            postId: 'post-curator-repost',
+            redirectPostId: 'post-original-by-author',
+            title: 'Borrowed Light',
+            isRepost: true,
+            originalPostOwnerUsername: author,
+            originalPostOwnerAccountType: 'Regular',
+          },
+        }],
+      },
+    },
+  });
+
+  await page.goto(CURATOR_PATH);
+
+  const card = page.getByTestId('profile-music').filter({ visible: true }).first();
+  await expect(card.getByText(`reposted by @${fixtureCuratorPage.curator.username}`)).toBeVisible();
+  await expect(card.getByText(`@${author}`, { exact: true })).toBeVisible();
+});
+
 const emptyCuratorPage = {
   ...fixtureFreeCuratorPage,
   posts: { ...fixtureFreeCuratorPage.posts, items: [], totalItems: 0 },

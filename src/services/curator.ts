@@ -54,7 +54,12 @@ const curatorPostSchema = z.object({
   privacy: z.enum(['public', 'subscriber']),
   redirectPostId: z.string(),
   commentsEnabled: z.boolean().optional(),
+  isRepost: z.boolean().optional(),
 });
+
+/** Bridge's element types, the values of the page's type filter. */
+export const curatorElementTypes = ['Playlist', 'Track', 'Album', 'Artist'] as const;
+export type CuratorElementType = (typeof curatorElementTypes)[number];
 
 const postItemSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('post'), post: curatorPostSchema }).strict(),
@@ -117,6 +122,11 @@ const curatorPageSchema = z.object({
     totalItems: z.number().int().nonnegative(),
     page: z.number().int().positive(),
     pageSize: z.number().int().min(1).max(50),
+    // On the first page: the posts of each type the viewer can open.
+    typeCounts: z.array(z.object({
+      elementType: z.enum(curatorElementTypes),
+      count: z.number().int().positive(),
+    })).optional(),
   }),
 }).refine(
   // A retained member on an archived plan sees member content with no public offer;
@@ -193,8 +203,20 @@ export function parseCuratorPayoutOnboarding(value: unknown): CuratorPayoutOnboa
   return curatorPayoutOnboardingSchema.parse(value);
 }
 
-export function buildCuratorPagePath(username: string, page: number, pageSize: number): string {
+/** Narrows a curator page's posts. Locked teasers show only without a type. */
+export type CuratorPageFilter = { elementType: CuratorElementType | null; membersOnly: boolean };
+
+export const unfilteredCuratorPage: CuratorPageFilter = { elementType: null, membersOnly: false };
+
+export function buildCuratorPagePath(
+  username: string,
+  page: number,
+  pageSize: number,
+  filter: CuratorPageFilter = unfilteredCuratorPage,
+): string {
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (filter.elementType) query.set('elementType', filter.elementType);
+  if (filter.membersOnly) query.set('membersOnly', 'true');
   return `/api/v1/curators/${encodeURIComponent(username.trim())}/page?${query}`;
 }
 
@@ -204,8 +226,9 @@ export async function fetchCuratorPage(
   pageSize: number,
   baseUrl = '',
   signal?: AbortSignal,
+  filter: CuratorPageFilter = unfilteredCuratorPage,
 ): Promise<CuratorPage> {
-  const response = await fetch(`${baseUrl}${buildCuratorPagePath(username, page, pageSize)}`, {
+  const response = await fetch(`${baseUrl}${buildCuratorPagePath(username, page, pageSize, filter)}`, {
     cache: 'no-store',
     credentials: 'include',
     signal,

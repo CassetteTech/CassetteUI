@@ -107,8 +107,8 @@ test('offers the owner Add your first music on their own empty page', async ({ p
 
   await page.goto(CURATOR_PATH);
 
-  const feed = page.getByTestId('curator-feed');
-  await expect(feed).toContainText('No posts yet');
+  const feed = page.getByTestId('profile-music');
+  await expect(feed).toContainText('No music yet');
   await expect(feed).not.toContainText('Explore music from other curators');
   await expect(feed.getByRole('link', { name: 'Explore music' })).toHaveCount(0);
   await expect(feed.getByRole('link', { name: 'Add your first music' })).toHaveAttribute('href', '/studio/music/new');
@@ -122,13 +122,13 @@ test('keeps discovery copy for a visitor on an empty curator page', async ({ pag
 
   await page.goto(CURATOR_PATH);
 
-  const feed = page.getByTestId('curator-feed');
-  await expect(feed).toContainText(`${fixtureUsers.playlistCurator.displayName} has not shared any posts.`);
+  const feed = page.getByTestId('profile-music');
+  await expect(feed).toContainText(`${fixtureUsers.playlistCurator.displayName} has not shared any music yet.`);
   await expect(feed.getByRole('link', { name: 'Explore music' })).toHaveAttribute('href', '/explore');
   await expect(feed.getByRole('link', { name: 'Add your first music' })).toHaveCount(0);
 });
 
-test('loads each curator feed page once without repeating earlier posts', async ({ page }) => {
+test('loads each curator page of music once without repeating earlier posts', async ({ page }) => {
   const firstPost = fixtureFreeCuratorPage.posts.items[0];
   if (firstPost.kind !== 'post') throw new Error('Expected a public curator post fixture');
   const items = Array.from({ length: 21 }, (_, index) => ({
@@ -235,7 +235,7 @@ test('keeps the curator page accessible and responsive on mobile and desktop', a
 
   await page.setViewportSize({ width: 1440, height: 900 });
 
-  const feedBounds = await page.locator('[data-testid="curator-feed"]:visible').first().boundingBox();
+  const feedBounds = await page.locator('[data-testid="profile-music"]:visible').first().boundingBox();
   const membershipBounds = await page.locator('[data-testid="curator-membership-card"]:visible').first().boundingBox();
   expect(feedBounds).not.toBeNull();
   expect(membershipBounds).not.toBeNull();

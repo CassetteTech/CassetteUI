@@ -8,13 +8,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import {
-  Disc3,
-  ListMusic,
-  LockKeyhole,
-  Music,
-  User,
-} from 'lucide-react';
 import { useAuthState } from '@/hooks/use-auth';
 import { useCuratorPage } from '@/hooks/use-curator';
 import { refreshAfterMembershipChange, useMembershipStatus } from '@/hooks/use-membership-status';
@@ -23,6 +16,13 @@ import {
   formatCuratorPlanPrice,
   type CuratorPostItem,
 } from '@/services/curator';
+import { ActivitySkeleton, type MusicCardPost } from '@/components/features/profile/profile-activity';
+import { ProfileMusic, type ProfileMusicItem } from '@/components/features/profile/profile-music';
+import {
+  curatorMusicViews,
+  curatorPageFilterOf,
+  type ProfileMusicView,
+} from '@/components/features/profile/profile-music-view';
 import { apiService } from '@/services/api';
 import {
   grantsMembershipAccess,
@@ -34,33 +34,11 @@ import {
 } from '@/services/membership';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { getDeviceCategory, getUserCohort } from '@/lib/analytics/audience';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { ArtworkImage } from '@/components/ui/artwork-image';
 import { CuratorMembershipCard, MEMBERSHIP_OFFER_ID } from '@/components/features/curator/curator-membership-card';
-import { PostQuickActions } from '@/components/features/post/post-quick-actions';
-import { EditPostModal } from '@/components/features/post/edit-post-modal';
-import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { useSubscriberPostEligibility } from '@/hooks/use-curator';
-import { appLogger } from '@/lib/observability/logger';
 import { removeQueryParameters } from '@/utils/remove-query-parameters';
-import { canShareWebContent, shareWebContent } from '@/utils/web-share';
-import { VerificationBadge } from '@/components/ui/verification-badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Spinner } from '@/components/ui/spinner';
 import { Empty, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
-import { FilterPills } from '@/components/ui/filter-pills';
-import { formatRelativeTime } from '@/lib/utils/format-date';
-
-function getPostIcon(elementType: string) {
-  switch (elementType.toLowerCase()) {
-    case 'playlist': return ListMusic;
-    case 'artist': return User;
-    case 'album': return Disc3;
-    default: return Music;
-  }
-}
 
 type MembershipFlow = 'join' | 'return' | 'canceled' | 'portal-return' | null;
 const joinIntentPrefix = 'cassette:membership-join-intent:';
@@ -76,6 +54,8 @@ export function PublicCuratorPage({
   initialInterval,
   membershipSlot,
   identitySummary,
+  view,
+  onViewChange,
 }: {
   username: string;
   membershipFlow: MembershipFlow;
@@ -84,17 +64,22 @@ export function PublicCuratorPage({
   membershipSlot: HTMLElement | null;
   /** The profile's bio, services, and links, printed inside the pass on wide screens. */
   identitySummary?: ReactNode;
+  /** The Music view in the URL. */
+  view: ProfileMusicView;
+  onViewChange: (view: ProfileMusicView) => void;
 }) {
   const instanceId = useId();
   const curatorNameId = `curator-name-${instanceId}`;
-  const feedHeadingId = `curator-feed-heading-${instanceId}`;
+  const musicId = `curator-music-${instanceId}`;
   const membershipId = MEMBERSHIP_OFFER_ID;
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, isLoading: authLoading, isAuthenticated } = useAuthState();
   const viewerKey = authLoading ? null : (user?.id ?? 'anonymous');
-  const query = useCuratorPage(username, viewerKey);
+  const query = useCuratorPage(username, viewerKey, curatorPageFilterOf(view));
   const page = query.data?.pages[0];
+  // One shared read for the whole list; React Query dedupes it across cards.
+  const canLockPosts = useSubscriberPostEligibility(page?.viewer.isOwner ?? false);
   const [interval, setBillingInterval] = useState(initialInterval);
   // A Portal change reaches Bridge by webhook, possibly after the fan is back,
   // so a Portal return also polls for a bounded time.
@@ -107,7 +92,6 @@ export function PublicCuratorPage({
   const [portalPending, setPortalPending] = useState(false);
   const [pollTimedOut, setPollTimedOut] = useState(false);
   const [activated, setActivated] = useState(false);
-  const [membersOnly, setMembersOnly] = useState(false);
   const pageViewCaptured = useRef(false);
   const flowHandled = useRef(false);
   const portalReturn = useRef<PortalReturnReference | null>(null);
@@ -401,7 +385,8 @@ export function PublicCuratorPage({
     void startCheckout(page.membership.planId, page.curator.id, checkoutInterval);
   };
 
-  const posts = query.data.pages.flatMap((result) => result.posts.items);
+  const items = query.data.pages.flatMap((result) => result.posts.items).map((item): ProfileMusicItem =>
+    item.kind === 'locked' ? item : { kind: 'post', post: toMusicCardPost(item.post) });
   const displayName = page.curator.displayName?.trim() || page.curator.username;
   const showMembership = Boolean(page.membership || statusQuery.data?.membership?.canManage);
   const bannerInterval = checkoutIntervalAvailable ? checkoutInterval : 'month';
@@ -418,7 +403,7 @@ export function PublicCuratorPage({
       ));
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:max-w-none lg:px-0 lg:py-0">
+    <div className="w-full">
       <h1 className="sr-only" id={curatorNameId}>{displayName}</h1>
 
       <div className="grid gap-6">
@@ -442,25 +427,33 @@ export function PublicCuratorPage({
             </span>
           </a>
         )}
-        <CuratorFeed
-          items={posts}
+        <ProfileMusic
+          id={musicId}
+          views={curatorMusicViews(page, view)}
+          view={view}
+          onViewChange={onViewChange}
+          items={items}
+          pending={false}
+          switching={query.isPlaceholderData}
+          hasMore={query.hasNextPage}
+          loadingMore={query.isFetchingNextPage}
+          onLoadMore={() => void query.fetchNextPage()}
           isOwner={page.viewer.isOwner}
+          canLockPosts={canLockPosts}
+          // The page carries only public and members-only posts.
+          visibilities={['public', 'subscriber']}
           displayName={displayName}
-          headingId={feedHeadingId}
+          ownerUsername={page.curator.username}
+          ownerAccountType={page.curator.accountType}
           membershipId={membershipId}
           showMembership={showMembership}
-          memberFilter={page.viewer.isMember ? membersOnly : null}
-          onMemberFilterChange={setMembersOnly}
-          hasNextPage={query.hasNextPage}
-          isFetchingNextPage={query.isFetchingNextPage}
-          onLoadMore={() => void query.fetchNextPage()}
         />
         {showMembership && membershipSlot && createPortal(
           <CuratorMembershipCard
             page={page}
             displayName={displayName}
             membershipId={membershipId}
-            feedHeadingId={feedHeadingId}
+            feedHeadingId={musicId}
             interval={bannerInterval}
             status={statusQuery.data ?? null}
             statusLoading={statusQuery.isPending}
@@ -484,7 +477,7 @@ export function PublicCuratorPage({
             onJoin={join}
             onManage={(membership) => void manage(membership)}
             onCheckStatus={() => void statusQuery.refetch()}
-            onViewMemberPosts={() => setMembersOnly(true)}
+            onViewMemberPosts={() => onViewChange('members')}
             summary={identitySummary}
           />,
           membershipSlot,
@@ -494,280 +487,16 @@ export function PublicCuratorPage({
   );
 }
 
-function CuratorFeed({
-  items,
-  isOwner,
-  displayName,
-  headingId,
-  membershipId,
-  showMembership,
-  memberFilter,
-  onMemberFilterChange,
-  hasNextPage,
-  isFetchingNextPage,
-  onLoadMore,
-}: {
-  items: CuratorPostItem[];
-  isOwner: boolean;
-  displayName: string;
-  headingId: string;
-  membershipId: string;
-  showMembership: boolean;
-  memberFilter: boolean | null;
-  onMemberFilterChange: (membersOnly: boolean) => void;
-  hasNextPage: boolean;
-  isFetchingNextPage: boolean;
-  onLoadMore: () => void;
-}) {
-  // One shared read for the whole feed; React Query dedupes it across cards.
-  const canLockPosts = useSubscriberPostEligibility(isOwner);
-  // Client-side filter over the pages loaded so far; Load more keeps extending it.
-  const visible = memberFilter
-    ? items.filter((item) => item.kind === 'locked' || item.post.privacy === 'subscriber')
-    : items;
-  return (
-    <section data-testid="curator-feed" aria-labelledby={headingId} className="min-w-0 max-w-2xl">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id={headingId} className="font-teko text-3xl font-bold uppercase">
-          {memberFilter ? 'Member posts' : 'Latest posts'}
-        </h2>
-        {memberFilter !== null && (
-          <FilterPills
-            label="Post filter"
-            value={memberFilter ? 'members' : 'all'}
-            onValueChange={(next) => onMemberFilterChange(next === 'members')}
-            options={[
-              { value: 'all', label: 'All' },
-              { value: 'members', label: 'Members only' },
-            ]}
-          />
-        )}
-      </div>
-      {visible.length === 0 ? (
-        <EmptyFeed isOwner={isOwner} memberFilter={memberFilter} displayName={displayName} />
-      ) : (
-        <div className="mt-3 grid gap-3 motion-safe:animate-reveal">
-          {visible.map((item) => item.kind === 'locked'
-            ? (
-                <LockedPost
-                  key={item.postId}
-                  createdAt={item.createdAt}
-                  displayName={displayName}
-                  membershipId={membershipId}
-                  showMembership={showMembership}
-                />
-              )
-            : <CuratorPost key={item.post.postId} post={item.post} isOwner={isOwner} canLockPosts={canLockPosts} />)}
-        </div>
-      )}
-
-      {hasNextPage && (
-        <div className="mt-6 text-center">
-          <Button variant="outline" onClick={onLoadMore} disabled={isFetchingNextPage}>
-            {isFetchingNextPage && <Spinner size="sm" />}
-            Load more
-          </Button>
-        </div>
-      )}
-    </section>
-  );
-}
-
-/** The owner's own empty page offers the first step; visitors get discovery copy. */
-function EmptyFeed({ isOwner, memberFilter, displayName }: {
-  isOwner: boolean;
-  memberFilter: boolean | null;
-  displayName: string;
-}) {
-  if (memberFilter) {
-    return (
-      <Empty className="mt-3">
-        <EmptyTitle>No member posts yet</EmptyTitle>
-        <EmptyDescription>
-          {`${displayName} has not shared any members-only posts yet. You will see them here first.`}
-        </EmptyDescription>
-      </Empty>
-    );
-  }
-  if (isOwner) {
-    return (
-      <Empty className="mt-3">
-        <EmptyTitle>No posts yet</EmptyTitle>
-        <EmptyDescription>Add music to start your page. Fans see your posts here.</EmptyDescription>
-        <Button asChild>
-          <Link href="/studio/music/new">Add your first music</Link>
-        </Button>
-      </Empty>
-    );
-  }
-  return (
-    <Empty className="mt-3">
-      <EmptyTitle>No posts yet</EmptyTitle>
-      <EmptyDescription>
-        {`${displayName} has not shared any posts. Explore music from other curators in the meantime.`}
-      </EmptyDescription>
-      <Button asChild variant="outline">
-        <Link href="/explore">Explore music</Link>
-      </Button>
-    </Empty>
-  );
-}
-
-function LockedPost({
-  createdAt,
-  displayName,
-  membershipId,
-  showMembership,
-}: {
-  createdAt: string;
-  displayName: string;
-  membershipId: string;
-  showMembership: boolean;
-}) {
-  const card = (
-    <Card className="flex-row gap-0 overflow-hidden p-0 sm:gap-0 sm:py-0">
-      {/* Obscured artwork slot, flush to the card's left edge */}
-      <div className="relative flex size-24 shrink-0 items-center justify-center bg-gradient-to-br from-primary/15 via-primary/5 to-transparent sm:size-28">
-        <LockKeyhole className="size-8 text-primary/60" aria-hidden />
-      </div>
-      <div className="min-w-0 flex-1 py-3 pr-3 pl-3 sm:py-4 sm:pr-4 sm:pl-4">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
-            <LockKeyhole aria-hidden />
-            Members only
-          </Badge>
-          <time dateTime={createdAt} className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-            {formatRelativeTime(createdAt)}
-          </time>
-        </div>
-        <h3 className="mt-1.5 text-base font-semibold leading-snug sm:text-lg">Members-only post</h3>
-        <p className="mt-1 text-sm leading-snug text-muted-foreground">
-          Join {displayName} to unlock this post.
-        </p>
-      </div>
-    </Card>
-  );
-
-  return (
-    <article data-testid="curator-locked-post" aria-label="Members-only post">
-      {showMembership ? (
-        <a
-          href={`#${membershipId}`}
-          aria-label={`View ${displayName} membership`}
-          className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          {card}
-        </a>
-      ) : card}
-    </article>
-  );
-}
-
-function CuratorPost({
-  post,
-  isOwner,
-  canLockPosts,
-}: {
-  post: Extract<CuratorPostItem, { kind: 'post' }>['post'];
-  isOwner: boolean;
-  canLockPosts: boolean;
-}) {
-  const TypeIcon = getPostIcon(post.elementType);
-  const targetPostId = post.redirectPostId || post.postId;
-  const title = post.title.trim() || `${post.elementType} post`;
-  const detail = post.description?.trim() || post.subtitle?.trim();
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const share = async () => {
-    const url = `${window.location.origin}/post/${targetPostId}`;
-    try {
-      if (canShareWebContent()) {
-        await shareWebContent({ title, text: `Check out "${title}" on Cassette`, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        toast.success('Link copied.');
-      }
-    } catch (error) {
-      appLogger.warn('curator_post_share_failed', { error, route: '/profile/[username]' });
-    }
+/** A curator page post in the shape the music card reads. */
+function toMusicCardPost(post: Extract<CuratorPostItem, { kind: 'post' }>['post']): MusicCardPost {
+  return {
+    ...post,
+    title: post.title.trim() || `${post.elementType} post`,
+    subtitle: post.subtitle ?? undefined,
+    description: post.description ?? undefined,
+    imageUrl: post.imageUrl ?? undefined,
+    accountType: post.accountType ?? undefined,
   };
-
-  return (
-    <>
-    <PostQuickActions
-      postId={post.postId}
-      title={title}
-      href={`/post/${targetPostId}`}
-      onShare={() => void share()}
-      isOwner={isOwner}
-      privacy={post.privacy}
-      // The curator feed contract only carries public and members-only rows.
-      visibilities={['public', 'subscriber']}
-      canLockPosts={canLockPosts}
-      onEdit={() => setEditOpen(true)}
-      onDelete={() => setDeleteOpen(true)}
-    >
-    <Card className="gap-0 overflow-hidden p-0 sm:gap-0 sm:py-0">
-      <Link href={`/post/${targetPostId}`} prefetch={false} className="flex gap-3 sm:gap-4">
-        {/* Artwork flush to the card's left edge; outer card corners do the rounding */}
-        <div className="relative size-24 shrink-0 sm:size-28">
-          <ArtworkImage
-            src={post.imageUrl}
-            alt={title}
-            width={112}
-            height={112}
-            className="size-full object-cover"
-          />
-          <Badge className="absolute bottom-1.5 left-1.5 bg-background/90 text-foreground" variant="outline">
-            <TypeIcon aria-hidden />
-            {post.elementType}
-          </Badge>
-        </div>
-        <div className="min-w-0 flex-1 py-3 pr-3 sm:py-4 sm:pr-4">
-          <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-            <span className="truncate font-bold text-foreground/80">@{post.username}</span>
-            <VerificationBadge accountType={post.accountType ?? undefined} size="sm" />
-            <span>/ {formatRelativeTime(post.createdAt)}</span>
-          </div>
-          <h3 className="mt-1.5 line-clamp-2 break-words text-base font-semibold leading-snug sm:text-lg">
-            {title}
-          </h3>
-          {detail && (
-            <p className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground">
-              {detail}
-            </p>
-          )}
-          {post.privacy === 'subscriber' && (
-            <Badge variant="outline" className="mt-2 border-primary/40 bg-primary/10 text-primary">
-              <LockKeyhole aria-hidden />
-              Members
-            </Badge>
-          )}
-        </div>
-      </Link>
-    </Card>
-    </PostQuickActions>
-    {isOwner && (
-      <>
-        <EditPostModal
-          open={editOpen}
-          onOpenChange={setEditOpen}
-          postId={post.postId}
-          currentDescription={post.description ?? ''}
-          currentPrivacy={post.privacy}
-          currentCommentsEnabled={post.commentsEnabled}
-        />
-        <DeletePostModal
-          open={deleteOpen}
-          onOpenChange={setDeleteOpen}
-          postId={post.postId}
-          postTitle={title}
-        />
-      </>
-    )}
-    </>
-  );
 }
 
 function CuratorNotFound() {
@@ -800,17 +529,11 @@ function CuratorLoadError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
+/** The music list's skeleton; the profile page draws the rail. */
 function CuratorPageSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:max-w-none lg:px-8 lg:py-10" aria-label="Loading curator">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="space-y-3">
-          <Skeleton className="h-8 w-36" />
-          <Skeleton className="h-36 w-full rounded-xl" />
-          <Skeleton className="h-36 w-full rounded-xl" />
-        </div>
-        <Skeleton className="h-72 rounded-xl" />
-      </div>
+    <div aria-label="Loading curator">
+      <ActivitySkeleton count={6} />
     </div>
   );
 }

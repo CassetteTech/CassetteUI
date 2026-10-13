@@ -1426,13 +1426,29 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       const page = Math.max(1, Number(url.searchParams.get('page') || 1));
       const pageSize = Math.min(50, Math.max(1, Number(url.searchParams.get('pageSize') || 20)));
       const offset = (page - 1) * pageSize;
+      // Bridge's filters: a type lists the open posts of that type, so locked teasers show only
+      // unfiltered; membersOnly keeps members-only posts and their teasers.
+      const elementType = url.searchParams.get('elementType');
+      const membersOnly = url.searchParams.get('membersOnly') === 'true';
+      const allItems = state.curatorPage.posts.items;
+      const items = allItems.filter((item) =>
+        (!elementType || (item.kind === 'post' && item.post.elementType === elementType)) &&
+        (!membersOnly || item.kind === 'locked' || item.post.privacy === 'subscriber'));
+      const filtered = Boolean(elementType) || membersOnly;
+      const counts = new Map<string, number>();
+      for (const item of allItems) {
+        if (item.kind === 'post') counts.set(item.post.elementType, (counts.get(item.post.elementType) ?? 0) + 1);
+      }
       return json(route, {
         ...state.curatorPage,
         posts: {
-          items: state.curatorPage.posts.items.slice(offset, offset + pageSize),
-          totalItems: state.curatorPage.posts.totalItems,
+          items: items.slice(offset, offset + pageSize),
+          totalItems: filtered ? items.length : state.curatorPage.posts.totalItems,
           page,
           pageSize,
+          ...(page === 1 && {
+            typeCounts: [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([type, count]) => ({ elementType: type, count })),
+          }),
         },
       });
     }

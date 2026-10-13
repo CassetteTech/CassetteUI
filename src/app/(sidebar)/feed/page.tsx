@@ -346,7 +346,7 @@ function LockedFeedPost({ item, viewerId }: { item: Extract<CuratorFeedItem, { k
     <LockedPostCard
       item={item}
       availability={availability}
-      joinHref={`/profile/${encodeURIComponent(item.curator.username)}?tab=posts#${MEMBERSHIP_OFFER_ID}`}
+      joinHref={`/profile/${encodeURIComponent(item.curator.username)}#${MEMBERSHIP_OFFER_ID}`}
     />
   );
 }

@@ -787,7 +787,7 @@ test.describe('followed curators', () => {
     await expect(crate).toContainText("For Crate Keeper's members.");
     await expect(crate.getByRole('link', { name: 'Join Crate Keeper' })).toHaveAttribute(
       'href',
-      `/profile/${CRATE.username}?tab=posts#membership-offer`,
+      `/profile/${CRATE.username}#membership-offer`,
     );
     await expect(crate.getByRole('link', { name: `@${CRATE.username}`, exact: true })).toHaveAttribute('href', `/profile/${CRATE.username}`);
 
@@ -940,7 +940,7 @@ test.describe('followed curators', () => {
     await page.goto('/feed');
     await lockedCards(page).getByRole('link', { name: 'Join Crate Keeper' }).click();
 
-    await expect(page).toHaveURL(`/profile/${CRATE.username}?tab=posts#membership-offer`);
+    await expect(page).toHaveURL(`/profile/${CRATE.username}#membership-offer`);
     const offer = page.locator('#membership-offer');
     await expect(offer).toBeVisible();
     await expect(offer.getByRole('button', { name: 'Join Crate Keeper' })).toBeVisible();
@@ -966,7 +966,7 @@ test.describe('followed curators', () => {
 
       await page.goto('/feed');
       await lockedCards(page).getByRole('link', { name: 'Join Crate Keeper' }).click();
-      await expect(page).toHaveURL(`/profile/${CRATE.username}?tab=posts#membership-offer`);
+      await expect(page).toHaveURL(`/profile/${CRATE.username}#membership-offer`);
 
       const offer = page.locator('#membership-offer');
       await expect(offer.getByRole('button', { name: 'Join Crate Keeper' })).toBeVisible();
@@ -1008,6 +1008,6 @@ test.describe('followed curators', () => {
     await page.keyboard.press('Tab');
     await expect(lockedCards(page).getByRole('link', { name: 'Join Crate Keeper' })).toBeFocused();
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(`/profile/${CRATE.username}?tab=posts#membership-offer`);
+    await expect(page).toHaveURL(`/profile/${CRATE.username}#membership-offer`);
   });
 });

@@ -1,18 +1,18 @@
 'use client';
 
-/** Profile content tabs in the Curator Studio underline style: Radix tabs, text only, sentence case. */
+/** Profile content tabs in the Curator Studio underline style: Radix tabs, text only, sentence case.
+    Music holds everything the account posted, narrowed by filter pills; Liked holds what it liked. */
 
 import { useEffect, useRef } from 'react';
 import { Globe, Lock } from 'lucide-react';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-export type TabType = 'posts' | 'playlists' | 'tracks' | 'artists' | 'albums' | 'liked';
+export type TabType = 'music' | 'liked';
 
 interface ProfileTabsProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
-  showPostsTab?: boolean;
   showLikedTab?: boolean;
   /** Who can see the owner's likes. Set only for the owner; a visitor sees Liked only when it is public. */
   likedTabVisibility?: 'public' | 'private';
@@ -21,18 +21,10 @@ interface ProfileTabsProps {
 export function ProfileTabs({
   activeTab,
   onTabChange,
-  showPostsTab = false,
   showLikedTab = true,
   likedTabVisibility,
 }: ProfileTabsProps) {
-  const tabs: { key: TabType; label: string }[] = [];
-  if (showPostsTab) tabs.push({ key: 'posts', label: 'Posts' });
-  tabs.push(
-    { key: 'playlists', label: 'Playlists' },
-    { key: 'tracks', label: 'Tracks' },
-    { key: 'artists', label: 'Artists' },
-    { key: 'albums', label: 'Albums' },
-  );
+  const tabs: { key: TabType; label: string }[] = [{ key: 'music', label: 'Music' }];
   if (showLikedTab) tabs.push({ key: 'liked', label: 'Liked' });
 
   const LikedVisibilityIcon = likedTabVisibility === 'private' ? Lock : Globe;

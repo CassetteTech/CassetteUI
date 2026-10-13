@@ -6,13 +6,14 @@
 import Link from 'next/link';
 import { ArrowUpRight, Eye } from 'lucide-react';
 import { musicTypes, studioMusicHref } from '@/components/features/curator/studio-routes';
+import type { ProfileMusicView } from '@/components/features/profile/profile-music-view';
 import { CopyButton } from '@/components/interior/copy-button';
 import { Button } from '@/components/ui/button';
 
-/** `tab` is the open profile tab; a music tab opens the library at the same type. */
-export function ProfileOwnerBar({ username, tab }: { username: string; tab?: string }) {
+/** `musicView` is the open Music view, or null on Liked; a type opens the library at that type. */
+export function ProfileOwnerBar({ username, musicView }: { username: string; musicView: ProfileMusicView | null }) {
   const publicPath = `/profile/${encodeURIComponent(username)}`;
-  const type = musicTypes.find((value) => value === tab) ?? null;
+  const type = musicTypes.find((value) => value === musicView) ?? null;
   return (
     <div
       data-testid="profile-owner-bar"

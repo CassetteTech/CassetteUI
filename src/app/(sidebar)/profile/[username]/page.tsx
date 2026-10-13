@@ -1,20 +1,30 @@
 'use client';
 
-/** Renders the canonical public profile, enriching it with curator membership content when active. */
+/** Renders the canonical public profile: one structure for every account. Music lists the
+    account's posts, narrowed by type pills, and Liked lists what it liked. A curator page adds its
+    membership offer and locked posts; the pass in the rail is the only other difference. */
 
 import { useEffect, useState, useCallback, useMemo, type ComponentProps } from 'react';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
-import { useUserBio, useUserActivity, useUserLikedPosts, profileQueryKeys } from '@/hooks/use-profile';
+import { useUserBio, useUserLikedPosts } from '@/hooks/use-profile';
 import { ProfileHeader } from '@/components/features/profile/profile-header';
 import { ProfileOwnerBar } from '@/components/features/profile/profile-owner-bar';
 import { ProfileIdentityPass, ProfileSummary } from '@/components/features/profile/profile-identity-pass';
 import { ProfileHeaderSkeleton } from '@/components/features/profile/profile-header-skeleton';
-import { ProfileTabs, TabType } from '@/components/features/profile/profile-tabs';
+import { ProfileTabs, type TabType } from '@/components/features/profile/profile-tabs';
 import { ProfileActivity, ActivitySkeleton } from '@/components/features/profile/profile-activity';
+import { ProfileMusic, type ProfileMusicItem } from '@/components/features/profile/profile-music';
+import {
+  curatorPageFilterOf,
+  profileMusicViewOf,
+  withProfileMusicView,
+  type ProfileMusicView,
+} from '@/components/features/profile/profile-music-view';
 import { profileService } from '@/services/profile';
 import { applyCachedArtwork } from '@/services/profile-artwork-cache';
+import { CuratorPageError } from '@/services/curator';
 import { ActivityPost } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Container } from '@/components/ui/container';
@@ -24,33 +34,26 @@ import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { PublicCuratorPage } from '@/components/features/curator/curator-page';
 import { CuratorFollowContext } from '@/components/features/curator/curator-follow-action';
-import { useCuratorPage } from '@/hooks/use-curator';
+import { useCuratorPage, useSubscriberPostEligibility } from '@/hooks/use-curator';
 import { useCuratorFollow } from '@/hooks/use-curator-follow';
 import { toast } from 'sonner';
 import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
 
-const TAB_ELEMENT_TYPE: Partial<Record<TabType, string>> = {
-  playlists: 'Playlist',
-  tracks: 'Track',
-  artists: 'Artist',
-  albums: 'Album',
-};
-
 const membershipFlows = ['join', 'return', 'canceled', 'portal-return'] as const;
+// Older links named a type, or the curator feed, with `tab`; they open the Music tab.
+const legacyMusicTabs = new Set(['posts', 'playlists', 'tracks', 'albums', 'artists']);
+const musicPageSize = 20;
 
 export default function ProfilePage() {
   const { username } = useParams();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
   const { user, isLoading: authLoading } = useAuthState();
 
-  const [chosenTab, setActiveTab] = useState<TabType>('playlists');
-  const [hasResolvedInitialTab, setHasResolvedInitialTab] = useState(false);
-  const [additionalPosts, setAdditionalPosts] = useState<ActivityPost[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [additionalLikedPosts, setAdditionalLikedPosts] = useState<ActivityPost[]>([]);
+  const [likedPage, setLikedPage] = useState(1);
+  const [isLoadingMoreLiked, setIsLoadingMoreLiked] = useState(false);
   const [membershipSlot, setMembershipSlot] = useState<HTMLElement | null>(null);
 
   const userIdentifier = Array.isArray(username) ? username[0] : username;
@@ -62,30 +65,18 @@ export default function ProfilePage() {
     isEditMode ? '' : (userIdentifier ?? ''),
     isEditMode || authLoading ? null : (user?.id ?? 'anonymous'),
   );
-  const hasCuratorPage = Boolean(curatorQuery.data?.pages[0]);
-  // A cached curator page resolves to the posts feed on first paint, so the
-  // membership rail does not flash in after the playlists layout.
-  const tabParam = searchParams.get('tab');
-  const activeTab: TabType = !hasResolvedInitialTab && hasCuratorPage && (tabParam === null || tabParam === 'posts')
-    ? 'posts'
-    : chosenTab;
+  const curatorPage = curatorQuery.data?.pages[0];
+  // No curator profile: the account has posted nothing since profiles began with a first post, or
+  // its curator profile is suspended or retired. Music then lists its public posts directly.
+  const noCuratorPage = isEditMode || (
+    curatorQuery.isError && curatorQuery.error instanceof CuratorPageError && curatorQuery.error.status === 404
+  );
   const membership = membershipFlows.find(
     (flow) => flow === searchParams.get('membership'),
   ) ?? null;
   const membershipInterval = searchParams.get('interval') === 'year' ? 'year' : 'month';
-  // One Follow state for every place the profile shows its control.
-  const curatorPage = curatorQuery.data?.pages[0];
-  const follow = useCuratorFollow(
-    curatorPage ? {
-      id: curatorPage.curator.id,
-      username: curatorPage.curator.username,
-      displayName: curatorPage.curator.displayName?.trim() || curatorPage.curator.username,
-    } : null,
-    curatorPage?.viewer.isOwner ?? false,
-    activeTab,
-  );
 
-  // Use React Query for bio and activity - handles deduplication automatically
+  // Use React Query for the bio - handles deduplication automatically
   const {
     data: userBio,
     isLoading: isLoadingBio,
@@ -108,19 +99,80 @@ export default function ProfilePage() {
   const likedTabVisibility: 'public' | 'private' =
     userBio?.likedPostsPrivacy || userBio?.likedPostsVisibility || (userBio?.showLikedPosts === false ? 'private' : 'public');
 
+  // The tab and the Music view live in the URL. A Liked link waits for the bio before it decides.
+  const tabParam = searchParams.get('tab');
+  const activeTab: TabType = tabParam === 'liked' && (likedSectionVisible || isLoadingBio) ? 'liked' : 'music';
   const isLikedTab = activeTab === 'liked';
-  const likedPostsUserId = userBio?.id || (isEditMode && user ? user.id : undefined);
+  const musicView = profileMusicViewOf(searchParams);
 
-  const {
-    data: regularActivityData,
-    isLoading: isLoadingRegularActivity,
-    error: regularActivityError
-  } = useUserActivity(userIdToFetch, {
-    page: 1,
-    elementType: TAB_ELEMENT_TYPE[activeTab],
-    enabled: !isLikedTab && activeTab !== 'posts' && Boolean(userBio)
+  // One Follow state for every place the profile shows its control.
+  const follow = useCuratorFollow(
+    curatorPage ? {
+      id: curatorPage.curator.id,
+      username: curatorPage.curator.username,
+      displayName: curatorPage.curator.displayName?.trim() || curatorPage.curator.username,
+    } : null,
+    curatorPage?.viewer.isOwner ?? false,
+    isLikedTab ? 'tab=liked' : withProfileMusicView(new URLSearchParams(), musicView).toString(),
+  );
+
+  // The hash stays, so a link to the membership offer keeps its target.
+  const replaceQuery = useCallback((next: URLSearchParams) => {
+    if (!pathname) return;
+    const query = next.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ''}${window.location.hash}`, { scroll: false });
+  }, [pathname, router]);
+
+  // An older `?tab=` link becomes the Music tab and its type. A membership or Follow return strips
+  // its own values from the URL, and a concurrent replace could bring them back, so it waits.
+  const returning = membership !== null || searchParams.has('follow');
+  useEffect(() => {
+    if (returning || !tabParam || !legacyMusicTabs.has(tabParam)) return;
+    replaceQuery(withProfileMusicView(searchParams, profileMusicViewOf(searchParams)));
+  }, [replaceQuery, returning, searchParams, tabParam]);
+
+  // A Liked link to likes that are not public opens Music.
+  useEffect(() => {
+    if (tabParam !== 'liked' || isLoadingBio || likedSectionVisible) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('tab');
+    replaceQuery(next);
+  }, [isLoadingBio, likedSectionVisible, replaceQuery, searchParams, tabParam]);
+
+  const changeTab = useCallback((tab: TabType) => {
+    if (tab === activeTab) return;
+    const next = withProfileMusicView(searchParams, 'all');
+    if (tab === 'liked') next.set('tab', 'liked');
+    replaceQuery(next);
+  }, [activeTab, replaceQuery, searchParams]);
+
+  const changeMusicView = useCallback((view: ProfileMusicView) => {
+    replaceQuery(withProfileMusicView(searchParams, view));
+  }, [replaceQuery, searchParams]);
+
+  // Music for an account without a curator page: its public posts, newest first. Bridge sends no
+  // type counts here, so only a type named in the URL gets a pill, beside All.
+  const plainType = musicView === 'all' || musicView === 'members' ? null : musicView;
+  const plainMusic = useInfiniteQuery({
+    queryKey: ['user-activity', userIdToFetch, 'profile-music', plainType ?? 'all'],
+    queryFn: ({ pageParam }) => profileService.fetchUserActivity(userIdToFetch!, {
+      page: pageParam,
+      pageSize: musicPageSize,
+      elementType: plainType ? curatorPageFilterOf(plainType).elementType ?? undefined : undefined,
+    }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.hasNext ? last.page + 1 : undefined),
+    enabled: noCuratorPage && Boolean(userIdToFetch) && Boolean(userBio) && !isLikedTab,
   });
+  const plainItems = useMemo((): ProfileMusicItem[] =>
+    applyCachedArtwork((plainMusic.data?.pages ?? []).flatMap((page) => page.items))
+      // The public page shows what visitors see; the owner manages private posts in Studio.
+      .filter((post) => post.privacy?.toLowerCase() !== 'private')
+      .map((post) => ({ kind: 'post', post })),
+  [plainMusic.data]);
+  const canLockPlainPosts = useSubscriberPostEligibility(isCurrentUser && noCuratorPage);
 
+  const likedPostsUserId = userBio?.id || (isEditMode && user ? user.id : undefined);
   const {
     data: likedActivityData,
     isLoading: isLoadingLikedActivity,
@@ -129,187 +181,33 @@ export default function ProfilePage() {
     page: 1,
     enabled: isLikedTab && likedSectionVisible
   });
+  const isLikedTabPrivateError = isLikedTab && likedActivityError?.message === 'Liked posts are private';
+  const likedPosts = useMemo(() => {
+    const initialPosts = likedActivityData?.items ?? [];
+    return applyCachedArtwork([...initialPosts, ...additionalLikedPosts]);
+  }, [likedActivityData?.items, additionalLikedPosts]);
+  const likedTotal = likedActivityData?.totalItems ?? 0;
 
-  const activityData = isLikedTab ? likedActivityData : regularActivityData;
-  const isLoadingActivity = isLikedTab ? isLoadingLikedActivity : isLoadingRegularActivity;
-  const activityError = isLikedTab ? likedActivityError : regularActivityError;
-  const isLikedTabPrivateError = isLikedTab && activityError?.message === 'Liked posts are private';
-
-  // Combine initial activity with paginated additional posts
-  const allActivityPosts = useMemo(() => {
-    const initialPosts = activityData?.items ?? [];
-    return applyCachedArtwork([...initialPosts, ...additionalPosts]);
-  }, [activityData?.items, additionalPosts]);
-
-  const totalItems = activityData?.totalItems ?? 0;
-
-  const updateUrlForTab = useCallback((tab: TabType) => {
-    if (!pathname) return;
-    const currentTab = searchParams.get('tab');
-    if (currentTab === tab) return;
-
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.set('tab', tab);
-    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
-  }, [pathname, router, searchParams]);
-
+  // Reset the Liked pages when the profile changes
   useEffect(() => {
-    setHasResolvedInitialTab(false);
+    setAdditionalLikedPosts([]);
+    setLikedPage(1);
   }, [userIdToFetch]);
 
-  useEffect(() => {
-    if (hasResolvedInitialTab || !userIdToFetch) return;
-    if (!isEditMode && curatorQuery.isPending) return;
-
-    const validTabs: TabType[] = [
-      ...(hasCuratorPage ? ['posts' as TabType] : []),
-      'playlists', 'tracks', 'artists', 'albums', 'liked',
-    ];
-    const hasValidTabParam = tabParam && validTabs.includes(tabParam as TabType);
-    const canUseTabParam = hasValidTabParam && !(tabParam === 'liked' && !likedSectionVisible);
-    if (canUseTabParam) {
-      setActiveTab(tabParam as TabType);
-      setHasResolvedInitialTab(true);
-      return;
-    }
-
-    // Curators land on their posts feed (also the membership checkout return surface).
-    // Skip the URL write during membership flows: the curator page strips those
-    // params itself and a concurrent router.replace could resurrect them.
-    if (hasCuratorPage) {
-      setActiveTab('posts');
-      setHasResolvedInitialTab(true);
-      if (!membership) updateUrlForTab('posts');
-      return;
-    }
-
-    // Probe only after the bio has settled: likedSectionVisible and
-    // likedPostsUserId derive from it, and rerunning before then restarts the
-    // chain with stale liked-tab inputs.
-    if (isLoadingBio || !userBio) return;
-
-    const tabOrder: Array<{ tab: TabType; elementType?: string }> = [
-      { tab: 'playlists', elementType: 'Playlist' },
-      { tab: 'tracks', elementType: 'Track' },
-      { tab: 'artists', elementType: 'Artist' },
-      { tab: 'albums', elementType: 'Album' },
-      ...(likedSectionVisible ? [{ tab: 'liked' as TabType }] : []),
-    ];
-
-    // fetchQuery dedupes concurrent and recently-completed probes, so a
-    // rerun of this effect never re-issues a request for the same tab.
-    const PROBE_STALE_TIME = 60 * 1000;
-    const probeTab = (candidate: { tab: TabType; elementType?: string }) => {
-      if (candidate.tab === 'liked') {
-        if (!likedPostsUserId) return Promise.resolve(null);
-        return queryClient.fetchQuery({
-          queryKey: profileQueryKeys.tabProbe(likedPostsUserId, 'liked'),
-          queryFn: () => profileService.fetchUserLikedPosts(likedPostsUserId, { page: 1, pageSize: 1 }),
-          staleTime: PROBE_STALE_TIME,
-          retry: false,
-        });
-      }
-      return queryClient.fetchQuery({
-        queryKey: profileQueryKeys.tabProbe(userIdToFetch, candidate.elementType ?? ''),
-        queryFn: () => profileService.fetchUserActivity(userIdToFetch, {
-          page: 1,
-          pageSize: 1,
-          elementType: candidate.elementType,
-        }),
-        staleTime: PROBE_STALE_TIME,
-        retry: false,
-      });
-    };
-
-    let isCancelled = false;
-    const resolveInitialTab = async () => {
-      for (const candidate of tabOrder) {
-        if (isCancelled) return;
-        try {
-          const response = await probeTab(candidate);
-          if (isCancelled) return;
-          if (response && response.totalItems > 0) {
-            setActiveTab(candidate.tab);
-            setHasResolvedInitialTab(true);
-            updateUrlForTab(candidate.tab);
-            return;
-          }
-        } catch {
-          // Ignore per-tab fetch errors and continue to next candidate.
-        }
-      }
-
-      if (isCancelled) return;
-      setActiveTab('playlists');
-      setHasResolvedInitialTab(true);
-      updateUrlForTab('playlists');
-    };
-
-    void resolveInitialTab();
-    return () => {
-      isCancelled = true;
-    };
-  }, [curatorQuery.isPending, hasCuratorPage, hasResolvedInitialTab, isEditMode, isLoadingBio, likedPostsUserId, likedSectionVisible, membership, queryClient, tabParam, updateUrlForTab, userBio, userIdToFetch]);
-
-  useEffect(() => {
-    if (!likedSectionVisible && activeTab === 'liked') {
-      setActiveTab('playlists');
-      updateUrlForTab('playlists');
-    }
-  }, [activeTab, likedSectionVisible, updateUrlForTab]);
-
-  // Reset tab pagination when user or tab changes
-  useEffect(() => {
-    setAdditionalPosts([]);
-    setCurrentPage(1);
-  }, [userIdToFetch, activeTab]);
-
-  // Load more posts (pagination)
-  const loadMore = useCallback(async () => {
-    if (isLoadingMore || allActivityPosts.length >= totalItems) return;
-
+  const loadMoreLiked = useCallback(async () => {
+    if (isLoadingMoreLiked || !likedPostsUserId || likedPosts.length >= likedTotal) return;
     try {
-      setIsLoadingMore(true);
-      const nextPage = currentPage + 1;
-      const moreActivity = isLikedTab
-        ? (
-            likedPostsUserId
-              ? await profileService.fetchUserLikedPosts(likedPostsUserId, { page: nextPage })
-              : { items: [] }
-          )
-        : (
-            userIdToFetch
-              ? await profileService.fetchUserActivity(userIdToFetch, {
-                  page: nextPage,
-                  elementType: TAB_ELEMENT_TYPE[activeTab],
-                })
-              : { items: [] }
-          );
-
-      setAdditionalPosts(prev => [...prev, ...moreActivity.items]);
-      setCurrentPage(nextPage);
+      setIsLoadingMoreLiked(true);
+      const nextPage = likedPage + 1;
+      const more = await profileService.fetchUserLikedPosts(likedPostsUserId, { page: nextPage });
+      setAdditionalLikedPosts(prev => [...prev, ...more.items]);
+      setLikedPage(nextPage);
     } catch (e) {
       appLogger.error('profile_activity_load_more_failed', { error: e, route: '/profile/[username]' });
     } finally {
-      setIsLoadingMore(false);
+      setIsLoadingMoreLiked(false);
     }
-  }, [
-    activeTab,
-    allActivityPosts.length,
-    currentPage,
-    isLikedTab,
-    isLoadingMore,
-    likedPostsUserId,
-    totalItems,
-    userIdToFetch
-  ]);
-
-  const filterByElementType = useCallback((type: TabType) => {
-    if (activeTab === type) return;
-    if (!hasResolvedInitialTab) setHasResolvedInitialTab(true);
-    setActiveTab(type);
-    updateUrlForTab(type);
-  }, [activeTab, hasResolvedInitialTab, updateUrlForTab]);
+  }, [isLoadingMoreLiked, likedPage, likedPosts.length, likedPostsUserId, likedTotal]);
 
   const { copy: copyShareLink, copied: shareLinkCopied } = useCopyToClipboard({
     onError: (error) => {
@@ -360,14 +258,6 @@ export default function ProfilePage() {
 
   // Compute loading states
   const showHeaderSkeleton = isLoadingBio && !userBio;
-  const showActivitySkeleton = (isLoadingBio || isLoadingActivity) && allActivityPosts.length === 0;
-
-  // Keep privacy filtering on the selected tab payload
-  const filteredPosts = allActivityPosts.filter(post => {
-    if (!isCurrentUser && post.privacy?.toLowerCase() === 'private') return false;
-    return true;
-  });
-  const displayPosts = filteredPosts;
 
   // Handle edit mode without auth
   if (isEditMode && !user) {
@@ -384,7 +274,9 @@ export default function ProfilePage() {
 
   // Handle errors
   const isProfileNotFound = bioError?.message === 'User not found';
-  const error = (isProfileNotFound ? undefined : bioError?.message) || (isLikedTabPrivateError ? undefined : activityError?.message);
+  const error = (isProfileNotFound ? undefined : bioError?.message)
+    || (isLikedTab && !isLikedTabPrivateError ? likedActivityError?.message : undefined)
+    || (!isLikedTab && noCuratorPage ? plainMusic.error?.message : undefined);
   if (error) {
     return (
       <>
@@ -432,11 +324,67 @@ export default function ProfilePage() {
     );
   }
 
-  const isPostsTab = activeTab === 'posts' && hasCuratorPage;
-  const showRail = Boolean(curatorQuery.data?.pages[0]?.membership);
+  // The curator page owns the membership pass and portals it into the rail; every other view shows
+  // the profile pass there.
+  const curatorMusic = !isLikedTab && !noCuratorPage;
+  const showMembershipRail = curatorMusic && Boolean(curatorPage?.membership);
+  let content;
+  if (isLikedTab) {
+    content = (isLoadingBio || isLoadingLikedActivity) && likedPosts.length === 0 ? (
+      <ActivitySkeleton count={6} />
+    ) : isLikedTabPrivateError ? (
+      <div className="p-8 text-center text-muted-foreground">
+        Liked posts are private
+      </div>
+    ) : (
+      <ProfileActivity
+        posts={likedPosts}
+        activeTab="liked"
+        isLoading={isLoadingMoreLiked}
+        onLoadMore={loadMoreLiked}
+        hasMore={likedPosts.length < likedTotal}
+        ownerAccountType={userBio?.accountType}
+        ownerUsername={userBio?.username}
+        isCurrentUser={isCurrentUser}
+        currentUserId={user?.id}
+      />
+    );
+  } else if (noCuratorPage) {
+    content = userBio && (
+      <ProfileMusic
+        views={plainType ? ['all', plainType] : ['all']}
+        view={plainType ?? 'all'}
+        onViewChange={changeMusicView}
+        items={plainItems}
+        pending={plainMusic.isPending}
+        hasMore={plainMusic.hasNextPage}
+        loadingMore={plainMusic.isFetchingNextPage}
+        onLoadMore={() => void plainMusic.fetchNextPage()}
+        isOwner={isCurrentUser}
+        canLockPosts={canLockPlainPosts}
+        displayName={userBio.displayName || userBio.username}
+        ownerUsername={userBio.username}
+        ownerAccountType={userBio.accountType}
+      />
+    );
+  } else if (curatorQuery.isPending || !userBio) {
+    content = <ActivitySkeleton count={6} />;
+  } else {
+    content = (
+      <PublicCuratorPage
+        username={userBio.username}
+        membershipFlow={membership}
+        initialInterval={membershipInterval}
+        membershipSlot={membershipSlot}
+        identitySummary={<ProfileSummary user={userBio} />}
+        view={musicView}
+        onViewChange={changeMusicView}
+      />
+    );
+  }
 
-  // One responsive tree for every tab: the tab strip stays mounted when Posts swaps in, so its
-  // underline slides, and the curator posts pane, which owns the Stripe flow effects, mounts once.
+  // One responsive tree for every tab: the tab strip stays mounted when the tab changes, so its
+  // underline slides, and the curator page, which owns the Stripe flow effects, mounts once.
   return (
     <CuratorFollowContext.Provider value={follow}>
     <div className="studio-surface min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
@@ -464,76 +412,37 @@ export default function ProfilePage() {
       <ProfileTabStrip
         showBack={!isCurrentUser && Boolean(userBio)}
         activeTab={activeTab}
-        onTabChange={filterByElementType}
-        showPostsTab={hasCuratorPage}
+        onTabChange={changeTab}
         showLikedTab={likedSectionVisible}
         likedTabVisibility={isCurrentUser ? likedTabVisibility : undefined}
       />
-      {isCurrentUser && userBio && <ProfileOwnerBar username={userBio.username} tab={activeTab} />}
-      {isPostsTab && userBio ? (
-        /* Same right rail as Curator Studio; the pass slides between the two pages' spots. */
-        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:px-8 lg:pt-6 lg:pb-10">
-          <div className="min-w-0">
-            <PublicCuratorPage
-              username={userBio.username}
-              membershipFlow={membership}
-              initialInterval={membershipInterval}
-              membershipSlot={membershipSlot}
-              identitySummary={<ProfileSummary user={userBio} />}
-            />
-          </div>
-          {/* One pass in the rail: the membership pass by portal when the curator sells one, else
-              the profile pass. The has() guard covers a lapsed member whose manage pass arrives late.
-              The top offset clears the sticky tab strip and sits just above the rail's resting spot,
-              so a tall column never pushes the pass down on one tab and not the other. */}
-          <div className="group lg:sticky lg:top-[5.25rem]">
+      {isCurrentUser && userBio && (
+        <ProfileOwnerBar username={userBio.username} musicView={isLikedTab ? null : musicView} />
+      )}
+      {/* Same right rail as Curator Studio; the pass slides between the two pages' spots. */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:px-8 lg:pt-6 lg:pb-10">
+        <div className="min-w-0 px-4 py-6 sm:px-6 lg:p-0">
+          {content}
+        </div>
+        {/* One pass in the rail: the membership pass by portal when the curator sells one, else
+            the profile pass. The has() guard covers a lapsed member whose manage pass arrives late.
+            The top offset clears the sticky tab strip, so the pass holds still across tabs. */}
+        <div className="group lg:sticky lg:top-[5.25rem]">
+          {curatorMusic && (
             <aside
               ref={setMembershipSlot}
               aria-label="Membership"
               className="membership-slot empty:hidden px-4 pb-6 sm:px-6 sm:pb-8 lg:p-0"
             />
-            {!showRail && (
-              <ProfileIdentityPass
-                user={userBio}
-                className="hidden lg:block group-has-[.membership-slot:not(:empty)]:hidden"
-              />
-            )}
-          </div>
-        </div>
-      ) : (
-        /* The music tabs keep the activity grid's own padding; the rail matches its top edge. A margin,
-           not padding, so the rail sticks at the same spot as on Posts and the pass holds still across tabs. */
-        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:pr-8">
-          <div className="mx-auto min-w-0 max-w-4xl lg:mx-0 lg:max-w-none">
-            {showActivitySkeleton ? (
-              <div className="p-3 sm:p-4 md:p-6 lg:p-8">
-                <ActivitySkeleton count={6} />
-              </div>
-            ) : isLikedTabPrivateError ? (
-              <div className="p-8 text-center text-muted-foreground">
-                Liked posts are private
-              </div>
-            ) : (
-              <ProfileActivity
-                posts={displayPosts}
-                activeTab={activeTab}
-                isLoading={isLoadingMore}
-                onLoadMore={loadMore}
-                hasMore={allActivityPosts.length < totalItems}
-                ownerAccountType={userBio?.accountType}
-                ownerUsername={userBio?.username}
-                isCurrentUser={isCurrentUser}
-                currentUserId={user?.id}
-              />
-            )}
-          </div>
-          {userBio && (
-            <div className="hidden lg:sticky lg:top-[5.25rem] lg:mt-6 lg:block">
-              <ProfileIdentityPass user={userBio} />
-            </div>
+          )}
+          {userBio && !showMembershipRail && (
+            <ProfileIdentityPass
+              user={userBio}
+              className="hidden lg:block group-has-[.membership-slot:not(:empty)]:hidden"
+            />
           )}
         </div>
-      )}
+      </div>
     </div>
     </CuratorFollowContext.Provider>
   );

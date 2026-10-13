@@ -217,6 +217,34 @@ test.describe('profile tabs', () => {
     await expect(main.getByRole('link', { name: /Add/ })).toHaveCount(0);
   });
 
+  test('lists an older public post behind a full page of newer private ones', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      posts: [
+        ...Array.from({ length: 21 }, (_, index) => buildOwnedPost({
+          postId: `member-private-post-${index + 1}`,
+          musicElementId: `track-member-private-${index + 1}`,
+          elementType: 'Track',
+          title: `Private Draft ${index + 1}`,
+          originalUrl: `https://open.spotify.com/track/member-private-${index + 1}`,
+          privacy: 'private',
+        })),
+        buildOwnedPost({
+          postId: 'member-public-keeper',
+          musicElementId: 'track-member-public-keeper',
+          elementType: 'Track',
+          title: 'Public Keeper',
+          originalUrl: 'https://open.spotify.com/track/member-public-keeper',
+        }),
+      ],
+    });
+
+    await page.goto('/profile/miagroove');
+    const music = page.getByTestId('profile-music');
+    await expect(music).toContainText('Public Keeper');
+    await expect(music).not.toContainText('Private Draft');
+  });
+
   test('renders the profile not-found state instead of a generic error', async ({ page }) => {
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.member,

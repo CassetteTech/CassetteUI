@@ -150,8 +150,9 @@ export default function ProfilePage() {
     replaceQuery(withProfileMusicView(searchParams, view));
   }, [replaceQuery, searchParams]);
 
-  // Music for an account without a curator page: its public posts, newest first. Bridge sends no
-  // type counts here, so only a type named in the URL gets a pill, beside All.
+  // Music for an account without a curator page: its public posts, newest first. Bridge narrows them
+  // before it pages, so the owner's private posts never leave a page short. Bridge sends no type
+  // counts here, so only a type named in the URL gets a pill, beside All.
   const plainType = musicView === 'all' || musicView === 'members' ? null : musicView;
   const plainMusic = useInfiniteQuery({
     queryKey: ['user-activity', userIdToFetch, 'profile-music', plainType ?? 'all'],
@@ -159,15 +160,15 @@ export default function ProfilePage() {
       page: pageParam,
       pageSize: musicPageSize,
       elementType: plainType ? curatorPageFilterOf(plainType).elementType ?? undefined : undefined,
+      privacy: 'public',
     }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.hasNext ? last.page + 1 : undefined),
     enabled: noCuratorPage && Boolean(userIdToFetch) && Boolean(userBio) && !isLikedTab,
   });
+  // The public page shows what visitors see; the owner manages other posts in Studio.
   const plainItems = useMemo((): ProfileMusicItem[] =>
     applyCachedArtwork((plainMusic.data?.pages ?? []).flatMap((page) => page.items))
-      // The public page shows what visitors see; the owner manages private posts in Studio.
-      .filter((post) => post.privacy?.toLowerCase() !== 'private')
       .map((post) => ({ kind: 'post', post })),
   [plainMusic.data]);
   const canLockPlainPosts = useSubscriberPostEligibility(isCurrentUser && noCuratorPage);

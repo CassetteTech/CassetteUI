@@ -1,67 +1,19 @@
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
+import {
+  EmailPreferenceRequestError,
+  parseEmailPreferencesResponse,
+  type EmailPreferenceSource,
+  type EmailPreferencesResponse,
+} from './email-preferences-contract';
 
-export type EmailPreferenceSource = 'settings';
+export {
+  EmailPreferenceRequestError,
+  type EmailPreferenceSource,
+  type EmailPreferencesResponse,
+  type EmailPreferenceView,
+} from './email-preferences-contract';
 
-export interface ProductUpdatesEmailPreference {
-  enabled: boolean;
-  consentSource: string | null;
-  consentTextVersion: string | null;
-  consentedAtUtc: string | null;
-  lastChangedSource: string | null;
-  updatedAtUtc: string | null;
-}
-
-export interface EmailPreferencesResponse {
-  product_updates: ProductUpdatesEmailPreference;
-}
-
-export class EmailPreferenceRequestError extends Error {
-  readonly status: number;
-
-  constructor(status: number) {
-    super('Email preference request failed.');
-    this.name = 'EmailPreferenceRequestError';
-    this.status = status;
-  }
-}
-
-function isNullableString(value: unknown): value is string | null {
-  return value === null || typeof value === 'string';
-}
-
-function parseResponse(value: unknown): EmailPreferencesResponse {
-  if (!value || typeof value !== 'object') {
-    throw new EmailPreferenceRequestError(502);
-  }
-
-  const preference = (value as Record<string, unknown>).product_updates;
-  if (!preference || typeof preference !== 'object') {
-    throw new EmailPreferenceRequestError(502);
-  }
-
-  const productUpdates = preference as Record<string, unknown>;
-  if (
-    typeof productUpdates.enabled !== 'boolean' ||
-    !isNullableString(productUpdates.consentSource) ||
-    !isNullableString(productUpdates.consentTextVersion) ||
-    !isNullableString(productUpdates.consentedAtUtc) ||
-    !isNullableString(productUpdates.lastChangedSource) ||
-    !isNullableString(productUpdates.updatedAtUtc)
-  ) {
-    throw new EmailPreferenceRequestError(502);
-  }
-
-  return {
-    product_updates: {
-      enabled: productUpdates.enabled,
-      consentSource: productUpdates.consentSource,
-      consentTextVersion: productUpdates.consentTextVersion,
-      consentedAtUtc: productUpdates.consentedAtUtc,
-      lastChangedSource: productUpdates.lastChangedSource,
-      updatedAtUtc: productUpdates.updatedAtUtc,
-    },
-  };
-}
+export type EmailPreferenceCategory = 'product_updates' | 'curator_digest';
 
 class EmailPreferencesService {
   private readonly baseUrl = getBrowserApiBaseUrl();
@@ -70,12 +22,13 @@ class EmailPreferencesService {
     return this.request('/api/v1/email/preferences', { method: 'GET', signal });
   }
 
-  async updateProductUpdates(
+  async update(
+    category: EmailPreferenceCategory,
     enabled: boolean,
     source: EmailPreferenceSource,
     signal?: AbortSignal,
   ): Promise<EmailPreferencesResponse> {
-    return this.request('/api/v1/email/preferences/product_updates', {
+    return this.request(`/api/v1/email/preferences/${category}`, {
       method: 'PUT',
       signal,
       headers: { 'Content-Type': 'application/json' },
@@ -95,7 +48,7 @@ class EmailPreferencesService {
     const body: unknown = await response.json().catch(() => {
       throw new EmailPreferenceRequestError(502);
     });
-    return parseResponse(body);
+    return parseEmailPreferencesResponse(body);
   }
 }
 

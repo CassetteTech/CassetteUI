@@ -1,6 +1,6 @@
 /** Emulates Bridge and platform routes so end-to-end tests can assert stateful UI workflows. */
 
-import type { Page, Route } from '@playwright/test';
+import type { Page, Request, Route } from '@playwright/test';
 import { z } from 'zod';
 import type {
   CuratorPage,
@@ -105,6 +105,11 @@ type MockCassetteOptions = {
   emailPreferencesByUserId?: Record<string, boolean>;
   defaultEnrolledUserIds?: string[];
   emailPreferenceUpdateFailures?: number;
+  // Users who turned the curator digest on in settings; it is off for everyone else.
+  curatorDigestEnabledUserIds?: string[];
+  curatorDigestUpdateFailures?: number;
+  // The preferences read answers 503 this many times.
+  emailPreferenceLoadFailures?: number;
   profileUpdateFailures?: number;
   issueReportFailures?: number;
   googleAuthInitFailures?: number;
@@ -241,6 +246,10 @@ type MockState = {
   emailPreferenceGetCount: number;
   emailPreferenceUpdateAttempts: Array<{ enabled: boolean; source: string }>;
   emailPreferenceUpdateFailuresRemaining: number;
+  curatorDigestByUserId: Map<string, MockEmailPreference>;
+  curatorDigestUpdateAttempts: Array<{ enabled: boolean; source: string }>;
+  curatorDigestUpdateFailuresRemaining: number;
+  emailPreferenceLoadFailuresRemaining: number;
   profileUpdateFailuresRemaining: number;
   issueReportFailuresRemaining: number;
   googleAuthInitFailuresRemaining: number;
@@ -736,6 +745,10 @@ const buildState = (options: MockCassetteOptions): MockState => {
     emailPreferenceGetCount: 0,
     emailPreferenceUpdateAttempts: [],
     emailPreferenceUpdateFailuresRemaining: options.emailPreferenceUpdateFailures ?? 0,
+    curatorDigestByUserId: new Map<string, MockEmailPreference>(),
+    curatorDigestUpdateAttempts: [],
+    curatorDigestUpdateFailuresRemaining: options.curatorDigestUpdateFailures ?? 0,
+    emailPreferenceLoadFailuresRemaining: options.emailPreferenceLoadFailures ?? 0,
     profileUpdateFailuresRemaining: options.profileUpdateFailures ?? 0,
     issueReportFailuresRemaining: options.issueReportFailures ?? 0,
     googleAuthInitFailuresRemaining: options.googleAuthInitFailures ?? 0,
@@ -819,6 +832,16 @@ const buildState = (options: MockCassetteOptions): MockState => {
       updatedAtUtc: FIXTURE_TIMESTAMP,
     });
   }
+  for (const userId of options.curatorDigestEnabledUserIds || []) {
+    state.curatorDigestByUserId.set(userId, {
+      enabled: true,
+      consentSource: 'settings',
+      consentTextVersion: 'curator_digest_v1',
+      consentedAtUtc: FIXTURE_TIMESTAMP,
+      lastChangedSource: 'settings',
+      updatedAtUtc: FIXTURE_TIMESTAMP,
+    });
+  }
   // Default enrollment (CAS-386): signup and backfill give every user an
   // enabled row with lastChangedSource 'account_default' and no affirmative
   // consent. Seed those rows here; a genuinely missing row stays fail-closed.
@@ -888,6 +911,30 @@ const toInternalPaidPromotionAction = (campaign: FixtureInternalPaidPromotionCam
   currency: campaign.currency,
   updatedAtUtc: campaign.updatedAtUtc,
 });
+
+// The body of a preference PUT, or null when Bridge would reject it.
+function readEmailPreferenceUpdate(request: Request): { enabled: boolean; source: 'settings' } | null {
+  const payload = request.postDataJSON() as { enabled?: unknown; source?: unknown };
+  return typeof payload.enabled === 'boolean' && payload.source === 'settings'
+    ? { enabled: payload.enabled, source: payload.source }
+    : null;
+}
+
+// Fail-closed, matching Bridge: a missing row is a disabled preference.
+function emailPreferencesBody(state: MockState, userId: string) {
+  const missing: MockEmailPreference = {
+    enabled: false,
+    consentSource: null,
+    consentTextVersion: null,
+    consentedAtUtc: null,
+    lastChangedSource: null,
+    updatedAtUtc: null,
+  };
+  return {
+    product_updates: state.emailPreferencesByUserId.get(userId) || missing,
+    curator_digest: state.curatorDigestByUserId.get(userId) || missing,
+  };
+}
 
 export async function mockCassetteApp(page: Page, options: MockCassetteOptions = {}) {
   const state = buildState(options);
@@ -1632,21 +1679,49 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       // Fail-closed, matching Bridge: a user with no stored preference row is
       // not enabled and never send-eligible. Default-on is modeled by seeding
       // default-enrolled rows via defaultEnrolledUserIds, not by this fallback.
-      const preference = state.emailPreferencesByUserId.get(currentUser.id) || {
-        enabled: false,
-        consentSource: null,
-        consentTextVersion: null,
-        consentedAtUtc: null,
-        lastChangedSource: null,
-        updatedAtUtc: null,
-      };
-      return json(route, { product_updates: preference });
+      if (state.emailPreferenceLoadFailuresRemaining > 0) {
+        state.emailPreferenceLoadFailuresRemaining -= 1;
+        return json(route, { message: 'Internal email provider configuration details' }, 503);
+      }
+      return json(route, emailPreferencesBody(state, currentUser.id));
+    }
+
+    // Mirrors Bridge: only an explicit settings choice writes the digest, and
+    // it never changes product updates.
+    if (pathname === '/api/v1/email/preferences/curator_digest' && method === 'PUT') {
+      const currentUser = getCurrentUserOrThrow(state);
+      const payload = readEmailPreferenceUpdate(request);
+      if (payload === null) {
+        return json(route, { message: 'Invalid email preference request' }, 400);
+      }
+
+      state.curatorDigestUpdateAttempts.push({
+        enabled: payload.enabled,
+        source: payload.source,
+      });
+      if (state.curatorDigestUpdateFailuresRemaining > 0) {
+        state.curatorDigestUpdateFailuresRemaining -= 1;
+        return json(route, { message: 'Internal email provider configuration details' }, 503);
+      }
+
+      const previous = state.curatorDigestByUserId.get(currentUser.id);
+      state.curatorDigestByUserId.set(currentUser.id, {
+        enabled: payload.enabled,
+        consentSource: payload.enabled ? payload.source : previous?.consentSource || null,
+        consentTextVersion: payload.enabled
+          ? 'curator_digest_v1'
+          : previous?.consentTextVersion || null,
+        consentedAtUtc: payload.enabled ? FIXTURE_TIMESTAMP : previous?.consentedAtUtc || null,
+        lastChangedSource: payload.source,
+        updatedAtUtc: FIXTURE_TIMESTAMP,
+      });
+      return json(route, emailPreferencesBody(state, currentUser.id));
     }
 
     if (pathname === '/api/v1/email/preferences/product_updates' && method === 'PUT') {
       const currentUser = getCurrentUserOrThrow(state);
-      const payload = request.postDataJSON() as { enabled?: unknown; source?: unknown };
-      if (typeof payload.enabled !== 'boolean' || payload.source !== 'settings') {
+      const payload = readEmailPreferenceUpdate(request);
+      if (payload === null) {
         return json(route, { message: 'Invalid email preference request' }, 400);
       }
 
@@ -1671,7 +1746,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         updatedAtUtc: FIXTURE_TIMESTAMP,
       };
       state.emailPreferencesByUserId.set(currentUser.id, preference);
-      return json(route, { product_updates: preference });
+      return json(route, emailPreferencesBody(state, currentUser.id));
     }
 
     if (pathname === '/api/v1/profile' && method === 'PUT') {

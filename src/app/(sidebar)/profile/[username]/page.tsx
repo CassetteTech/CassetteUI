@@ -329,6 +329,8 @@ export default function ProfilePage() {
   // the profile pass there.
   const curatorMusic = !isLikedTab && !noCuratorPage;
   const showMembershipRail = curatorMusic && Boolean(curatorPage?.membership);
+  // A page that sells no membership offers its owner the setup from the profile pass.
+  const offersMembershipSetup = curatorPage?.viewer.isOwner === true && !curatorPage.membership;
   let content;
   if (isLikedTab) {
     content = (isLoadingBio || isLoadingLikedActivity) && likedPosts.length === 0 ? (
@@ -439,6 +441,7 @@ export default function ProfilePage() {
           {userBio && !showMembershipRail && (
             <ProfileIdentityPass
               user={userBio}
+              offersMembershipSetup={offersMembershipSetup}
               className="hidden lg:block group-has-[.membership-slot:not(:empty)]:hidden"
             />
           )}

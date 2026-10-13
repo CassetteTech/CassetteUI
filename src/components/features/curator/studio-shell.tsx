@@ -1,13 +1,14 @@
 'use client';
 
-/** Shared Curator Studio chrome: the view context, setup steps, soft section cards, status chips,
-    notices, and figures. */
+/** Shared Curator Studio chrome: the view context, setup steps, the membership invitation, soft
+    section cards, status chips, notices, and figures. */
 
 import { createContext, useContext, useId, type ComponentProps, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import { studioViewOf } from '@/components/features/curator/studio-routes';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
 /** Lets any section link open the view that holds its target. The Overview,
@@ -40,6 +41,76 @@ export function StepButton({ step, view, children, ...props }: { step: LaunchSte
     );
   }
   return <Button {...props} onClick={() => views?.open(step.href.slice(1))}>{children}{arrow}</Button>;
+}
+
+/** One next step as a quiet card: what it is, one line on why, and its button. */
+function NextStepCard({ title, action, children }: { title: string; action: ReactNode; children: ReactNode }) {
+  const headingId = useId();
+  return (
+    <section
+      aria-labelledby={headingId}
+      className="card-quiet flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-4 sm:px-6"
+    >
+      <div className="min-w-0">
+        <h2 id={headingId} className="text-sm font-semibold">{title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{children}</p>
+      </div>
+      {action}
+    </section>
+  );
+}
+
+/** The membership invitation above the section links until a plan is published: once the page has
+    music, an invitation to set one up; with setup under way, its progress and next step. It shows
+    on every view, so the links never move between views. The setup reads answer after the first
+    paint, so the card opens in place and the links slide down; a cached answer shows it from the
+    first paint. */
+export function MembershipInvitation({ show, setupSteps, setupStarted, hasMusic, view }: {
+  /** False until every setup answer is in, and once a plan is published. */
+  show: boolean;
+  /** Design your membership, Set up payouts, Publish your plan. */
+  setupSteps: LaunchStep[];
+  /** A plan draft or a payout account exists. */
+  setupStarted: boolean;
+  hasMusic: boolean;
+  /** The view showing, so the next step's button knows whether it leaves it. */
+  view: string;
+}) {
+  const views = useContext(StudioStepsContext);
+  const next = setupSteps.find((step) => !step.done);
+  let card: ReactNode = null;
+  if (show && setupStarted && next) {
+    card = (
+      <NextStepCard
+        title="Finish your membership"
+        action={<StepButton step={next} view={view} size="sm">{next.label}</StepButton>}
+      >
+        {`${setupSteps.filter((step) => step.done).length} of ${setupSteps.length} steps done.`}
+      </NextStepCard>
+    );
+  } else if (show && !setupStarted && hasMusic) {
+    card = (
+      <NextStepCard
+        title="Earn from your music"
+        action={(
+          <Button variant="outline" size="sm" onClick={() => views?.open('studio-plan')}>
+            Set up a membership
+            <ArrowRight aria-hidden />
+          </Button>
+        )}
+      >
+        {/* Not the setup card's sentence: both show on the Membership view. */}
+        Fans pay you monthly to open your members-only posts.
+      </NextStepCard>
+    );
+  }
+  return (
+    <Collapsible open={card !== null}>
+      <CollapsibleContent className="motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none">
+        <div className="pt-6">{card}</div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 export type StudioChipTone = 'neutral' | 'positive' | 'warning' | 'danger';

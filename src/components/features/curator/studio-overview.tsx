@@ -473,10 +473,16 @@ export function StudioOverview({
         </motion.div>
       )}
 
-      {/* A curator without a plan has an audience too, so it does not wait for the plan read. */}
+      {/* A curator without a plan has an audience too, so it does not wait for the plan read.
+          Member figures exist only after a publish; before it, Members opens the setup steps,
+          and while the plan read has no answer, the plan card that explains it. */}
       {profile && (
         <motion.div {...rise(4)}>
-          <AudienceCard onOpenMembers={() => views?.open('studio-members')} />
+          <AudienceCard
+            onOpenMembers={() => views?.open(
+              hasPublished ? 'studio-members' : hasPublished === false ? 'studio-setup' : 'studio-plan',
+            )}
+          />
         </motion.div>
       )}
     </div>

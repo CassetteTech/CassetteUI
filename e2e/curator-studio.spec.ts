@@ -1293,6 +1293,11 @@ test.describe('audience', () => {
     // No published plan: the music leads, and the audience still shows.
     await expect(page.getByRole('heading', { name: 'Recent music' })).toBeVisible();
     expect(state.curatorAudienceRequests).toBeGreaterThan(0);
+
+    // There are no member figures before a publish, so Members opens the setup steps and focus follows.
+    await section.getByRole('button', { name: 'Members 0', exact: true }).click();
+    await expect(page).toHaveURL(/\/studio\/membership$/);
+    await expect(page.locator('#studio-setup')).toBeFocused();
   });
 
   test('a curator with a published plan and Curator Pro sees the same private counts beside earnings', async ({ page }) => {

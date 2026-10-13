@@ -18,6 +18,8 @@
     "src/utils/deep-link.ts",
     "src/utils/__tests__/deep-link.test.ts",
     "src/utils/music-link-input.ts",
+    "src/utils/amazon-music-link.ts",
+    "src/utils/__tests__/amazon-music-link.test.ts",
     "src/utils/__tests__/music-link-parsing.test.ts",
     "src/utils/auth-redirect.ts",
     "src/utils/__tests__/auth-redirect.test.ts",

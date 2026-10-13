@@ -1,0 +1,6 @@
+{
+  "contractVersion": 1,
+  "name": "amazon-music-link-contract-fixtures",
+  "description": "Shared Amazon Music link-parsing cases for CassetteBridge, MusicPlatformLambdas, and CassetteUI (CAS-680). The platform is not active in the UI until the rollout gate opens.",
+  "fixtures": ["amazon-music-link-matrix.v1.json"]
+}

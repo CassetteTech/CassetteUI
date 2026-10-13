@@ -311,10 +311,10 @@ const SERVICE_LINKS = [
   { service: appleMusic, link: 'music.apple.com/…' },
   { service: deezer, link: 'deezer.com/…' },
 ];
-// Each pasted link converts to its match on every other service in turn;
-// then the pasted link turns to the next service. Each step moves one row.
-const TARGETS_PER_SOURCE = SERVICE_LINKS.length - 1;
-const CARD_STEPS = SERVICE_LINKS.length * TARGETS_PER_SOURCE;
+// "Converts to" loops through all three services; after each loop, the
+// pasted link turns to the next service. The loop starts one service on,
+// so the card opens on Spotify to Apple Music.
+const CARD_STEPS = SERVICE_LINKS.length ** 2;
 const CARD_TURN_MS = 1500;
 const CARD_LABEL = 'font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground';
 const CARD_CHIP = 'flex h-7 items-center gap-2 rounded-md border px-2 font-mono text-xs';
@@ -359,8 +359,8 @@ function LinkCard() {
     const timer = setInterval(() => setStep((value) => (value + 1) % CARD_STEPS), CARD_TURN_MS);
     return () => clearInterval(timer);
   }, []);
-  const source = Math.floor(step / TARGETS_PER_SOURCE);
-  const target = (source + 1 + (step % TARGETS_PER_SOURCE)) % SERVICE_LINKS.length;
+  const source = Math.floor(step / SERVICE_LINKS.length);
+  const target = (step + 1) % SERVICE_LINKS.length;
   return (
     <figure className="rounded-lg border border-border bg-card/90 p-3 text-card-foreground elev-soft">
       <figcaption className="sr-only">

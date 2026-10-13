@@ -218,6 +218,7 @@ export function StudioOverview({
   active,
   profile,
   hasPublished,
+  plansKnown,
   stepsKnown,
   setupSteps,
   setupStarted,
@@ -228,8 +229,10 @@ export function StudioOverview({
       doubles the rows of Studio Music. */
   active: boolean;
   profile: CuratorProfile | null;
-  /** null while the first plan read is in flight. */
+  /** null while the first plan read is in flight; false also after that read failed. */
   hasPublished: boolean | null;
+  /** False while the plan read has no answer (pending, or failed with nothing cached). */
+  plansKnown: boolean;
   /** False until every step's state has been read. */
   stepsKnown: boolean;
   /** Design your membership, Set up payouts, Publish your plan. */
@@ -480,7 +483,7 @@ export function StudioOverview({
         <motion.div {...rise(4)}>
           <AudienceCard
             onOpenMembers={() => views?.open(
-              hasPublished ? 'studio-members' : hasPublished === false ? 'studio-setup' : 'studio-plan',
+              hasPublished ? 'studio-members' : plansKnown ? 'studio-setup' : 'studio-plan',
             )}
           />
         </motion.div>

@@ -1300,6 +1300,28 @@ test.describe('audience', () => {
     await expect(page.locator('#studio-setup')).toBeFocused();
   });
 
+  test('Members opens the plan card that explains a failed plan read', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      curatorProfile,
+      curatorAudience: { audienceCount: 4, activeMemberCount: 0 },
+    });
+    await page.route('**/api/v1/curators/plans', (route) =>
+      route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"unavailable"}' }));
+
+    await page.goto(STUDIO_PATH);
+    await openStudioStep(page, 'studio-overview');
+    // The hidden Membership view stays mounted: once its plan card shows the error, the read has
+    // failed, the Overview reads it as not published, and Membership shows no setup steps.
+    await expect(page.getByTestId('curator-plan-card').getByRole('alert', { includeHidden: true }))
+      .toBeAttached({ timeout: 15_000 });
+
+    await audienceSection(page).getByRole('button', { name: 'Members 0', exact: true }).click();
+    await expect(page).toHaveURL(/\/studio\/membership$/);
+    await expect(page.locator('#studio-plan')).toBeFocused();
+    await expect(page.getByTestId('curator-plan-card').getByRole('alert')).toBeVisible();
+  });
+
   test('a curator with a published plan and Curator Pro sees the same private counts beside earnings', async ({ page }) => {
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.member,

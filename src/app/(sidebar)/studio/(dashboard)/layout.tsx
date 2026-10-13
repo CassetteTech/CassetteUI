@@ -375,6 +375,7 @@ function StudioDashboard({ children }: { children: ReactNode }) {
                     active={view === 'studio-overview'}
                     profile={profile.data ?? null}
                     hasPublished={launch.hasPublished}
+                    plansKnown={launch.plansKnown}
                     stepsKnown={launch.stepsKnown}
                     setupSteps={launch.setupSteps}
                     setupStarted={launch.setupStarted}

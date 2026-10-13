@@ -307,9 +307,13 @@ function StudioDashboard({ children }: { children: ReactNode }) {
   // A visit that starts from a payout return keeps setup first, so its notice and next step stay put when payouts turn active.
   const [payoutReturn] = useState(launch.payoutFlowActive);
   const [passSlot, setPassSlot] = useState<HTMLElement | null>(null);
+  const [overviewRail, setOverviewRail] = useState<HTMLElement | null>(null);
   // The plan card, and with it the rail pass, mounts after this read; the pass leaving the
   // previous page waits in the rail for it.
   useSharedPositionHold('membership-pass', profile.isPending, passSlot);
+  // After a publish the Overview rail also lists the latest activity, which makes it taller than
+  // many laptop windows, so there it scrolls with the page and every row stays in reach.
+  const railSticks = view !== 'studio-overview' || launch.hasPublished !== true;
 
   // A section on another view waits until that view's URL is open, then scrolls and takes focus.
   // Behind a profile read in flight the Overview and Membership hold skeletons, so a section they
@@ -388,6 +392,7 @@ function StudioDashboard({ children }: { children: ReactNode }) {
                   )}
                   <StudioOverview
                     active={view === 'studio-overview'}
+                    railSlot={overviewRail}
                     profile={profile.data ?? null}
                     hasPublished={launch.hasPublished}
                     plansKnown={launch.plansKnown}
@@ -422,13 +427,24 @@ function StudioDashboard({ children }: { children: ReactNode }) {
             </div>
             {children}
           </div>
-          {/* The pass arrives by portal. On wide screens the empty slot keeps its box, so a pass held
-              over from the previous page can wait on the spot the next pass will fill. */}
-          <aside
-            ref={setPassSlot}
-            aria-label={view === 'studio-membership' ? 'Membership plan' : 'Your public pass'}
-            className="max-lg:empty:hidden lg:sticky lg:top-6"
-          />
+          {/* The rail: the pass, then on the Overview its own side column. Phones stack both slots
+              under the main column. */}
+          <div className={cn('max-lg:contents lg:flex lg:flex-col lg:gap-6', railSticks && 'lg:sticky lg:top-6')}>
+            {/* The pass arrives by portal. On wide screens the empty slot keeps its box, so a pass held
+                over from the previous page can wait on the spot the next pass will fill. */}
+            <aside
+              ref={setPassSlot}
+              aria-label={view === 'studio-membership' ? 'Membership plan' : 'Your public pass'}
+              className="peer max-lg:empty:hidden"
+            />
+            {/* The Overview portals its audience and latest activity here. They wait while a pass is
+                still loading above them, so the pass never pushes them down, and they stay mounted,
+                hidden, on the other views. */}
+            <div
+              ref={setOverviewRail}
+              className={cn('empty:hidden peer-data-[shared-pending]:hidden', view !== 'studio-overview' && 'hidden')}
+            />
+          </div>
           <StudioProfilePass
             slot={passSlot}
             show={!profile.isPending && view !== 'studio-membership' && launch.hasActivePlan === false}

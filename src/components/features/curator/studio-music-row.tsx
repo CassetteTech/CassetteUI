@@ -12,6 +12,7 @@ import { useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { ArrowUpRight, ChevronDown, ExternalLink, Loader2, LockKeyhole, MoreHorizontal, Pencil, Plus, Repeat2, Share, Trash2 } from 'lucide-react';
+import { TextMorph } from 'torph/react';
 import { PostQuickActions } from '@/components/features/post/post-quick-actions';
 import {
   membersOptionOf,
@@ -138,7 +139,7 @@ function VisibilityMenu({ post, access, retryAccess, openPlanSetup, choose, pend
           )}
         >
           {Icon && <Icon aria-hidden className="size-3.5 text-muted-foreground" />}
-          {label}
+          <TextMorph>{label}</TextMorph>
           {pending
             ? <Loader2 aria-hidden className="size-3.5 animate-spin text-muted-foreground" />
             : <ChevronDown aria-hidden className="size-3.5 text-muted-foreground" />}

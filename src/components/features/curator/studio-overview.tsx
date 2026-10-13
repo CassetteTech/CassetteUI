@@ -3,11 +3,13 @@
 /** Curator Studio landing view, the same structure for every account. Music comes first: the
     recent posts with their row tools. One next step at a time sits above them: membership setup
     that is under way, or, after the first publish, an open setup step, the members-only post
-    nudge, or sharing the page. A published curator also sees the earnings hero, the dithered
-    earned-versus-paid chart, and the latest activity. A curator with no plan gets one invitation
-    to set one up, under the music. The plan itself lives on the Membership view. */
+    nudge, or sharing the page. A published curator also sees the earnings hero and the dithered
+    earned-versus-paid chart. A curator with no plan gets one invitation to set one up, under the
+    music. The rail, under the pass, holds the audience and, after a publish, the latest activity.
+    The plan itself lives on the Membership view. */
 
 import { useContext, useId, useMemo, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
@@ -31,7 +33,7 @@ import {
   studioFigureClassName,
   type LaunchStep,
 } from '@/components/features/curator/studio-shell';
-import { useCuratorLedger } from '@/components/features/curator/use-curator-ledger';
+import { useCuratorLedger, type CuratorLedger } from '@/components/features/curator/use-curator-ledger';
 import { SegmentedControl } from '@/components/interior/segmented-control';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -72,14 +74,63 @@ function nextPayout(balances: CuratorEarningsBalances) {
 }
 
 function Card({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+  const headingId = useId();
   return (
-    <section className="card-quiet">
-      <div className="flex items-center justify-between gap-3 px-5 pt-4">
-        <h2 className="text-sm font-semibold">{title}</h2>
+    <section aria-labelledby={headingId} className="card-quiet">
+      <div className="flex items-center justify-between gap-3 px-4 pt-4">
+        <h2 id={headingId} className="text-sm font-semibold">{title}</h2>
         {action}
       </div>
-      <div className="px-5 pb-5 pt-3">{children}</div>
+      <div className="px-4 pb-3 pt-2">{children}</div>
     </section>
+  );
+}
+
+const latestActivityCount = 5;
+
+/** The newest ledger events as statement lines, the same reading as the full statement on Membership. */
+function LatestActivity({ ledger, pending, onViewAll }: {
+  ledger: CuratorLedger | undefined;
+  pending: boolean;
+  onViewAll: () => void;
+}) {
+  let body: ReactNode;
+  if (pending) {
+    body = <output className="block py-1 text-sm text-muted-foreground">Loading activity…</output>;
+  } else if (!ledger) {
+    // A failed read is not an empty ledger, so it never says that nothing happened.
+    body = <p className="py-1 text-sm text-muted-foreground">Activity is unavailable right now.</p>;
+  } else if (ledger.items.length === 0) {
+    body = (
+      <p className="py-1 text-sm text-muted-foreground">
+        Activity shows up here <AnnotatedText variant="highlight" className="text-accent">as fans join your plan</AnnotatedText>.
+      </p>
+    );
+  } else {
+    body = (
+      <ul className="divide-y divide-border/70">
+        {ledger.items.slice(0, latestActivityCount).map((item, index) => (
+          <li
+            key={`${item.kind}-${item.occurredAtUtc}-${index}`}
+            className="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-baseline gap-x-3 py-2.5"
+          >
+            <time dateTime={item.occurredAtUtc} className="font-mono text-xs uppercase tabular-nums text-muted-foreground">
+              {dayFormatter.format(new Date(item.occurredAtUtc))}
+            </time>
+            <p className="truncate text-sm">{eventTitle(item)}</p>
+            <p className="font-mono text-sm tabular-nums">{money(item.amountMinor, item.currency)}</p>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return (
+    <Card
+      title="Latest activity"
+      action={<Button variant="link" size="xs" className="-mr-2" onClick={onViewAll}>View all</Button>}
+    >
+      {body}
+    </Card>
   );
 }
 
@@ -98,7 +149,7 @@ function AudienceCard({ onOpenMembers }: { onOpenMembers: () => void }) {
     hint: count !== undefined ? hint : audience.isError ? 'Unavailable right now' : 'Loading…',
   });
   return (
-    <section aria-label="Audience" className="card-quiet px-5 py-5 sm:px-6">
+    <section aria-label="Audience" className="card-quiet p-4">
       <dl className="grid gap-4 sm:grid-cols-2">
         <StudioStat label="Audience" {...figure(audience.data?.audienceCount, 'Followers and members')} />
         <StudioStat
@@ -108,8 +159,7 @@ function AudienceCard({ onOpenMembers }: { onOpenMembers: () => void }) {
         />
       </dl>
       <p className="mt-4 text-xs text-muted-foreground">
-        Your audience counts each person once: everyone who follows you, plus your active members. Only you see
-        these numbers.
+        Each person counts once. Only you see these numbers.
       </p>
       {audience.isError && (
         <Button variant="outline" size="sm" className="mt-3" onClick={() => void audience.refetch()}>
@@ -216,6 +266,7 @@ function NextStepCard({ title, action, children }: { title: string; action: Reac
 
 export function StudioOverview({
   active,
+  railSlot,
   profile,
   hasPublished,
   plansKnown,
@@ -228,6 +279,8 @@ export function StudioOverview({
   /** Whether the Overview is showing. Its music rows render only then, so a hidden copy never
       doubles the rows of Studio Music. */
   active: boolean;
+  /** The Overview's part of the page rail, under the pass. The layout hides it on other views. */
+  railSlot: HTMLElement | null;
   profile: CuratorProfile | null;
   /** null while the first plan read is in flight; false also after that read failed. */
   hasPublished: boolean | null;
@@ -247,6 +300,8 @@ export function StudioOverview({
   const access = useMemberPostAccess();
   const earnings = useCuratorLedger(hasPublished === true && profile !== null);
   const ledger = earnings.data;
+  // The rail rises in with the pass the first time it shows; a return to the Overview shows it at once.
+  const [railEntered, setRailEntered] = useState(false);
   const [months, setMonths] = useState('6');
   const period = useMemo(
     () => ledger ? periodSummary(ledger.items, ledger.totalItems, Number(months)) : null,
@@ -424,41 +479,6 @@ export function StudioOverview({
         {active && <StudioRecentMusic />}
       </motion.div>
 
-      {hasPublished && (
-        <motion.div {...rise(3)}>
-          <Card
-            title="Latest activity"
-            action={
-              <Button variant="link" size="xs" className="-mr-2" onClick={() => views?.open('studio-members')}>
-                View all
-              </Button>
-            }
-          >
-            {earnings.isPending ? (
-              <output className="text-sm text-muted-foreground">Loading activity…</output>
-            ) : ledger && ledger.items.length > 0 ? (
-              <ul className="divide-y divide-border/70">
-                {ledger.items.slice(0, 8).map((item, index) => (
-                  <li key={`${item.kind}-${item.occurredAtUtc}-${index}`} className="flex items-center justify-between gap-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm">{eventTitle(item)}</p>
-                      <time dateTime={item.occurredAtUtc} className="text-xs text-muted-foreground">
-                        {dayFormatter.format(new Date(item.occurredAtUtc))}
-                      </time>
-                    </div>
-                    <p className="shrink-0 font-mono text-sm tabular-nums">{money(item.amountMinor, item.currency)}</p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Activity shows up here <AnnotatedText variant="highlight" className="text-accent">as fans join your plan</AnnotatedText>.
-              </p>
-            )}
-          </Card>
-        </motion.div>
-      )}
-
       {/* Music first: the invitation waits until the page has some, and until every setup answer is in. */}
       {stepsKnown && hasPublished === false && !setupStarted && musicStep?.done && (
         <motion.div {...rise(3)}>
@@ -476,17 +496,34 @@ export function StudioOverview({
         </motion.div>
       )}
 
-      {/* A curator without a plan has an audience too, so it does not wait for the plan read.
-          Member figures exist only after a publish; before it, Members opens the setup steps,
-          and while the plan read has no answer, the plan card that explains it. */}
-      {profile && (
-        <motion.div {...rise(4)}>
+      {/* Under the pass in the rail: who the page reaches, then, after a publish, what happened
+          lately. A curator without a plan has an audience too, so it does not wait for the plan
+          read. Member figures exist only after a publish; before it, Members opens the setup
+          steps, and while the plan read has no answer, the plan card that explains it. */}
+      {railSlot && profile && createPortal(
+        <div
+          className={cn(
+            'flex flex-col gap-6',
+            !railEntered && 'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2.5 motion-safe:duration-450 motion-safe:ease-out-quart',
+          )}
+          onAnimationEnd={(event) => {
+            if (event.target === event.currentTarget) setRailEntered(true);
+          }}
+        >
           <AudienceCard
             onOpenMembers={() => views?.open(
               hasPublished ? 'studio-members' : plansKnown ? 'studio-setup' : 'studio-plan',
             )}
           />
-        </motion.div>
+          {hasPublished && (
+            <LatestActivity
+              ledger={ledger}
+              pending={earnings.isPending}
+              onViewAll={() => views?.open('studio-members')}
+            />
+          )}
+        </div>,
+        railSlot,
       )}
     </div>
   );

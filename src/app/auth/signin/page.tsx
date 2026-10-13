@@ -18,6 +18,9 @@ import { PendingLabel } from '@/components/ui/interior/loading-button';
 import { authRedirectService } from '@/utils/auth-redirect';
 import { pendingActionService } from '@/utils/pending-action';
 import { useAuthIntent } from '@/hooks/use-auth-intent';
+import { useInAppBrowser } from '@/hooks/use-in-app-browser';
+import { InAppBrowserSignIn } from '@/components/features/auth/in-app-browser-sign-in';
+import { browserHandoffPath } from '@/utils/profile-action-intent';
 import { MembershipPurchaseSummary } from '@/components/features/auth/membership-purchase-summary';
 
 export default function SignInPage() {
@@ -28,6 +31,7 @@ export default function SignInPage() {
     error: providerSignInError,
   } = useSignInWithProvider();
   const redirect = searchParams.get('redirect');
+  const inAppBrowser = useInAppBrowser();
   const oauthError = searchParams.get('error');
   const signUpHref = redirect
     ? `/auth/signup?redirect=${encodeURIComponent(redirect)}`
@@ -115,29 +119,33 @@ export default function SignInPage() {
               </p>
             )}
 
-            {/* Google Sign In */}
-            <div className="flex flex-col gap-4 mb-6">
-              <Button
-                onClick={handleGoogleSignIn}
-                disabled={isSigningInWithProvider}
-                aria-busy={isSigningInWithProvider}
-                className="w-full h-11 rounded-none border-2 border-foreground bg-[hsl(var(--cassette-white))] dark:bg-background text-foreground font-bold text-sm shadow-flat-3 hover:-translate-y-0.5 hover:shadow-flat-5 transition-[transform,box-shadow]"
-              >
-                <PendingLabel
-                  pending={isSigningInWithProvider}
-                  label={
-                    <>
-                      <GoogleGIcon className="mr-2 h-4 w-4" />
-                      Continue with Google
-                    </>
-                  }
-                  pendingLabel="Connecting to Google…"
-                />
-              </Button>
-              <p className="text-xs text-muted-foreground text-center">
-                Google is currently the only sign-in option. No password to remember.
-              </p>
-            </div>
+            {/* Google Sign In. Google refuses it in a social app's embedded browser. */}
+            {inAppBrowser ? (
+              <InAppBrowserSignIn browser={inAppBrowser} handoffPath={browserHandoffPath(redirect)} className="mb-6" />
+            ) : (
+              <div className="flex flex-col gap-4 mb-6">
+                <Button
+                  onClick={handleGoogleSignIn}
+                  disabled={isSigningInWithProvider}
+                  aria-busy={isSigningInWithProvider}
+                  className="w-full h-11 rounded-none border-2 border-foreground bg-[hsl(var(--cassette-white))] dark:bg-background text-foreground font-bold text-sm shadow-flat-3 hover:-translate-y-0.5 hover:shadow-flat-5 transition-[transform,box-shadow]"
+                >
+                  <PendingLabel
+                    pending={isSigningInWithProvider}
+                    label={
+                      <>
+                        <GoogleGIcon className="mr-2 h-4 w-4" />
+                        Continue with Google
+                      </>
+                    }
+                    pendingLabel="Connecting to Google…"
+                  />
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Google is currently the only sign-in option. No password to remember.
+                </p>
+              </div>
+            )}
 
               <div className="text-center text-sm mt-4 font-roboto text-muted-foreground">
                 Don&apos;t have an account?{' '}

@@ -9,6 +9,8 @@ import {
   SheetDescription,
   SheetFooter,
 } from '@/components/ui/sheet';
+import { InAppBrowserSignIn } from '@/components/features/auth/in-app-browser-sign-in';
+import { useInAppBrowser } from '@/hooks/use-in-app-browser';
 import { Button } from '@/components/ui/button';
 import { Music2 } from 'lucide-react';
 
@@ -30,6 +32,7 @@ export function AuthPromptModal({
   onBeforeNavigate,
 }: AuthPromptModalProps) {
   const router = useRouter();
+  const inAppBrowser = useInAppBrowser();
 
   const handleSignUp = () => {
     onBeforeNavigate?.();
@@ -69,23 +72,28 @@ export function AuthPromptModal({
           </SheetDescription>
         </SheetHeader>
 
-        <SheetFooter className="flex flex-col gap-3 sm:flex-col">
-          <Button
-            onClick={handleSignUp}
-            data-testid="auth-prompt-signup"
-            className="w-full h-11 font-semibold bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            Sign Up
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={handleSignIn}
-            data-testid="auth-prompt-signin"
-            className="w-full text-muted-foreground hover:text-foreground"
-          >
-            Already have an account? Sign in
-          </Button>
-        </SheetFooter>
+        {/* Google refuses sign-in in a social app's embedded browser: sign-in continues in the device browser. */}
+        {inAppBrowser ? (
+          <InAppBrowserSignIn browser={inAppBrowser} className="mt-auto p-4" />
+        ) : (
+          <SheetFooter className="flex flex-col gap-3 sm:flex-col">
+            <Button
+              onClick={handleSignUp}
+              data-testid="auth-prompt-signup"
+              className="w-full h-11 font-semibold bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Sign Up
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleSignIn}
+              data-testid="auth-prompt-signin"
+              className="w-full text-muted-foreground hover:text-foreground"
+            >
+              Already have an account? Sign in
+            </Button>
+          </SheetFooter>
+        )}
       </SheetContent>
     </Sheet>
   );

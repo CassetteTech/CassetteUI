@@ -51,7 +51,7 @@ test('shows each post as its curation with who can open it', async ({ page }) =>
   // The post page's Back returns to the library.
   await expect(track.getByRole('link', { name: 'Open Track', exact: true }))
     .toHaveAttribute('href', '/post/music-track?from=%2Fstudio%2Fmusic');
-  await expect(library(page).getByText('2 posts', { exact: true })).toBeVisible();
+  await expect(library(page).getByText('2 posts, newest first.', { exact: true })).toBeVisible();
 });
 
 test('narrows the library by type and by who can open it, both kept in the URL', async ({ page }) => {
@@ -81,7 +81,7 @@ test('narrows the library by type and by who can open it, both kept in the URL',
   await expect(page).toHaveURL('/studio/music?type=playlists');
   await expect(types.getByRole('link', { name: 'Playlists' })).toHaveAttribute('aria-current', 'page');
   await expect(rowsOf(page)).toHaveCount(2);
-  await expect(library(page).getByText('2 playlists', { exact: true })).toBeVisible();
+  await expect(library(page).getByText('2 playlists, newest first.', { exact: true })).toBeVisible();
 
   const membersRead = page.waitForRequest((request) => {
     const url = new URL(request.url());
@@ -94,7 +94,7 @@ test('narrows the library by type and by who can open it, both kept in the URL',
   await expect(page).toHaveURL('/studio/music?type=playlists&audience=members');
   await expect(page.getByTestId('studio-music-audience')).toHaveAccessibleName('Who can open it: Members only');
   await expect(rowsOf(page)).toHaveCount(1);
-  await expect(library(page).getByText('1 members-only playlist', { exact: true })).toBeVisible();
+  await expect(library(page).getByText('1 members-only playlist.', { exact: true })).toBeVisible();
   // The post page's Back returns to the same view.
   await expect(rowOf(page, 'Members Mix').getByRole('link', { name: 'Members Mix', exact: true })).toHaveAttribute(
     'href',
@@ -110,6 +110,39 @@ test('narrows the library by type and by who can open it, both kept in the URL',
     'href',
     `/studio/music/new?from=${encodeURIComponent('/studio/music?type=playlists&audience=members')}`,
   );
+});
+
+test('keeps the last count while another type loads, then counts the new list', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: member,
+    posts: [
+      own('count-mix', 'Count Mix', { elementType: 'Playlist' }),
+      own('count-track', 'Count Track'),
+      own('count-album', 'Count Album', { elementType: 'Album' }),
+    ],
+  });
+  let albumsRequested = () => {};
+  const albumsInFlight = new Promise<void>((resolve) => { albumsRequested = resolve; });
+  let releaseAlbums = () => {};
+  const albumsHeld = new Promise<void>((resolve) => { releaseAlbums = resolve; });
+  await page.route('**/api/v1/profile/*/activity**', async (route) => {
+    if (new URL(route.request().url()).searchParams.get('elementType') === 'Album') {
+      albumsRequested();
+      await albumsHeld;
+    }
+    await route.fallback();
+  });
+
+  await page.goto('/studio/music');
+  const lastCount = library(page).getByText('3 posts, newest first.', { exact: true });
+  await expect(lastCount).toBeVisible();
+  await page.getByRole('navigation', { name: 'Type of music' }).getByRole('link', { name: 'Albums' }).click();
+  await albumsInFlight;
+  // The line neither blanks nor falls back while the albums load.
+  await expect(lastCount).toBeVisible();
+  releaseAlbums();
+  await expect(library(page).getByText('1 album.', { exact: true })).toBeVisible();
+  await expect(rowsOf(page)).toHaveCount(1);
 });
 
 test('shows the Artists tab once the library holds an artist', async ({ page }) => {
@@ -154,13 +187,13 @@ test('drops a post from a filtered list once its setting leaves the filter, and 
   });
 
   await page.goto('/studio/music?audience=public');
-  await expect(library(page).getByText('3 public posts', { exact: true })).toBeVisible();
+  await expect(library(page).getByText('3 public posts, newest first.', { exact: true })).toBeVisible();
 
   await rowOf(page, 'First Track').getByRole('button', { name: 'Who can open First Track: Public' }).click();
   await page.getByRole('menuitemradio', { name: /^Private/ }).click();
 
   await expect(rowsOf(page)).toHaveCount(2);
-  await expect(library(page).getByText('2 public posts', { exact: true })).toBeVisible();
+  await expect(library(page).getByText('2 public posts, newest first.', { exact: true })).toBeVisible();
   await expect(rowOf(page, 'Second Track').getByRole('link', { name: 'Second Track', exact: true })).toBeFocused();
 
   // The unfiltered list keeps the post with its new setting.
@@ -343,7 +376,7 @@ test('deletes a post from its row and moves focus to the next post', async ({ pa
   await page.getByRole('button', { name: 'Delete Post' }).click();
 
   await expect(rowsOf(page)).toHaveCount(1);
-  await expect(library(page).getByText('1 post', { exact: true })).toBeVisible();
+  await expect(library(page).getByText('1 post.', { exact: true })).toBeVisible();
   await expect(rowOf(page, 'Second Track').getByRole('link', { name: 'Second Track', exact: true })).toBeFocused();
 });
 
@@ -358,7 +391,7 @@ test('a right-click change saves like the row control and keeps a filtered list 
   await page.getByTestId('post-quick-actions').getByRole('menuitem', { name: 'Private' }).click();
 
   await expect(rowsOf(page)).toHaveCount(1);
-  await expect(library(page).getByText('1 public post', { exact: true })).toBeVisible();
+  await expect(library(page).getByText('1 public post.', { exact: true })).toBeVisible();
 });
 
 test('a repost stays public and opens the original post', async ({ page }) => {

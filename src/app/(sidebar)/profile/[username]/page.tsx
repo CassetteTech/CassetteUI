@@ -33,7 +33,7 @@ import { captureClientEvent } from '@/lib/analytics/client';
 import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { PublicCuratorPage } from '@/components/features/curator/curator-page';
-import { CuratorFollowContext } from '@/components/features/curator/curator-follow-action';
+import { CuratorFollowConfirmation, CuratorFollowContext } from '@/components/features/curator/curator-follow-action';
 import { useCuratorPage, useSubscriberPostEligibility } from '@/hooks/use-curator';
 import { useCuratorFollow } from '@/hooks/use-curator-follow';
 import { toast } from 'sonner';
@@ -125,15 +125,15 @@ export default function ProfilePage() {
 
   // An older `?tab=` link becomes the Music tab and its type. A membership or Follow return strips
   // its own values from the URL, and a concurrent replace could bring them back, so it waits.
-  const returning = membership !== null || searchParams.has('follow');
+  const returning = membership !== null || searchParams.has('follow') || searchParams.has('intent');
   useEffect(() => {
     if (returning || !tabParam || !legacyMusicTabs.has(tabParam)) return;
     replaceQuery(withProfileMusicView(searchParams, profileMusicViewOf(searchParams)));
   }, [replaceQuery, returning, searchParams, tabParam]);
 
-  // A Liked link to likes that are not public opens Music.
+  // A Liked link to likes that are not public opens Music. A carried Follow or Join is consumed first.
   useEffect(() => {
-    if (tabParam !== 'liked' || isLoadingBio || likedSectionVisible) return;
+    if (searchParams.has('intent') || tabParam !== 'liked' || isLoadingBio || likedSectionVisible) return;
     const next = new URLSearchParams(searchParams);
     next.delete('tab');
     replaceQuery(next);
@@ -444,6 +444,7 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+    <CuratorFollowConfirmation />
     </div>
     </CuratorFollowContext.Provider>
   );

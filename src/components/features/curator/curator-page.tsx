@@ -39,12 +39,34 @@ import { getDeviceCategory, getUserCohort } from '@/lib/analytics/audience';
 import { Button } from '@/components/ui/button';
 import { CuratorMembershipCard, MEMBERSHIP_OFFER_ID } from '@/components/features/curator/curator-membership-card';
 import { useSubscriberPostEligibility } from '@/hooks/use-curator';
-import { removeQueryParameters } from '@/utils/remove-query-parameters';
+import { removeQueryParameters, removeQueryParametersFromRouter } from '@/utils/remove-query-parameters';
+import { parseProfileActionIntent } from '@/utils/profile-action-intent';
+import { CarriedActionConfirmation } from '@/components/features/curator/carried-action-confirmation';
 import { Empty, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 
 type MembershipFlow = 'join' | 'return' | 'canceled' | 'portal-return' | null;
 const joinIntentPrefix = 'cassette:membership-join-intent:';
 const joinIntentLifetimeMs = 10 * 60 * 1_000;
+
+/** A signed-out Join: this tab remembers the click, and sign-in returns with `membership=join`
+    and the source post, if any. */
+function signInToJoin(
+  router: ReturnType<typeof useRouter>,
+  username: string,
+  planId: string,
+  interval: MembershipInterval,
+  sourcePostId: string | undefined,
+) {
+  try {
+    sessionStorage.setItem(`${joinIntentPrefix}${planId}:${interval}`, String(Date.now()));
+  } catch {
+    // The fan can select Join again after signing in.
+  }
+  const returnQuery = new URLSearchParams({ membership: 'join', interval });
+  if (sourcePostId) returnQuery.set(SOURCE_POST_PARAM, sourcePostId);
+  const returnPath = `/profile/${encodeURIComponent(username)}?${returnQuery}`;
+  router.push(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
+}
 
 /** What a Portal return compares status reads with: the membership as the fan opened the
     Portal when that baseline survived, otherwise the first read after the return. */
@@ -86,7 +108,11 @@ export function PublicCuratorPage({
     // A null state lets the App Router copy its own state and update useSearchParams.
     window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
   }, []);
-  const { user, isLoading: authLoading, isAuthenticated } = useAuthState();
+  const { user, isLoading: authLoading, isAuthenticated, sessionError } = useAuthState();
+  const carried = parseProfileActionIntent(useSearchParams());
+  const carriedJoinInterval = carried?.action === 'join' ? carried.interval : null;
+  const [confirmingJoin, setConfirmingJoin] = useState(false);
+  const carriedJoinHandled = useRef(false);
   const viewerKey = authLoading ? null : (user?.id ?? 'anonymous');
   const query = useCuratorPage(username, viewerKey, curatorPageFilterOf(view));
   const page = query.data?.pages[0];
@@ -353,6 +379,36 @@ export function PublicCuratorPage({
     statusQuery.data,
   ]);
 
+  // A Join carried from an in-app browser (`intent=join`) arrives without this
+  // tab's intent. Signed out, it starts the same sign-in as a Join click; signed
+  // in, the fan confirms it, so a link never starts checkout by itself.
+  useEffect(() => {
+    if (!carriedJoinInterval || carriedJoinHandled.current || authLoading || !page) return;
+    const done = () => {
+      carriedJoinHandled.current = true;
+      removeQueryParametersFromRouter('intent', 'interval');
+    };
+    if (!page.membership || page.viewer.isOwner) {
+      done();
+      return;
+    }
+    if (!isAuthenticated) {
+      if (sessionError) return;
+      done();
+      signInToJoin(router, username, page.membership.planId, carriedJoinInterval, sourcePostId);
+      return;
+    }
+    if (!statusQuery.data) return;
+
+    done();
+    if (!statusQuery.data.canSubscribe) {
+      setNotice('You already have a membership with this curator.');
+      return;
+    }
+    setBillingInterval(carriedJoinInterval);
+    setConfirmingJoin(true);
+  }, [authLoading, carriedJoinInterval, isAuthenticated, page, router, sessionError, sourcePostId, statusQuery.data, username]);
+
   if (authLoading || query.isPending) {
     return <CuratorPageSkeleton />;
   }
@@ -367,7 +423,7 @@ export function PublicCuratorPage({
   if (!page) return <CuratorLoadError onRetry={() => void query.refetch()} />;
 
   const join = () => {
-    if (!page.membership) return;
+    if (!page.membership || checkoutPending) return;
     if (!checkoutIntervalAvailable) {
       setBillingInterval('month');
       setActionError('Annual billing is not available. Review the monthly option before joining.');
@@ -386,18 +442,7 @@ export function PublicCuratorPage({
       device_category: getDeviceCategory(),
     });
     if (!isAuthenticated) {
-      try {
-        sessionStorage.setItem(
-          `${joinIntentPrefix}${page.membership.planId}:${checkoutInterval}`,
-          String(Date.now()),
-        );
-      } catch {
-        // The fan can select Join again after signing in.
-      }
-      const returnQuery = new URLSearchParams({ membership: 'join', interval: checkoutInterval });
-      if (sourcePostId) returnQuery.set(SOURCE_POST_PARAM, sourcePostId);
-      const returnPath = `/profile/${encodeURIComponent(username)}?${returnQuery}`;
-      router.push(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
+      signInToJoin(router, username, page.membership.planId, checkoutInterval, sourcePostId);
       return;
     }
     void startCheckout(page.membership.planId, page.curator.id, checkoutInterval, sourcePostId);
@@ -500,6 +545,17 @@ export function PublicCuratorPage({
             summary={identitySummary}
           />,
           membershipSlot,
+        )}
+        {page.membership && (
+          <CarriedActionConfirmation
+            open={confirmingJoin}
+            onDismiss={() => setConfirmingJoin(false)}
+            onConfirm={join}
+            title={`Join ${displayName}?`}
+            description={`${page.membership.name} · ${bannerPrice}/${bannerInterval}. You review and pay on the next page.`}
+            confirmLabel="Continue to payment"
+            returnFocusSelector='[data-testid="membership-join"]'
+          />
         )}
       </div>
     </div>

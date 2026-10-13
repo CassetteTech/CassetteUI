@@ -1,32 +1,15 @@
 'use client';
 
-/** Ink pills for a filter that narrows a list. Section tabs change the page and use the
-    underline (`TabUnderline`); a filter keeps the page and narrows what it lists. Pills wrap
-    rather than scroll, so a narrow list never hides one. */
+/** Ink pills for a filter that narrows a list, such as the public page's music. Section tabs,
+    and the type tabs on Studio Music's section rule, use the underline (`TabUnderline`). Pills
+    wrap rather than scroll, so a narrow list never hides one. */
 
-import { useId, type ComponentProps } from 'react';
-import Link from 'next/link';
+import { useId } from 'react';
 import { cn } from '@/lib/utils';
 
 const pillBase = 'inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-sm transition-colors';
 const pillOn = 'bg-foreground font-medium text-background';
 const pillOff = 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground';
-
-/** A pill that is a link, for a filter that lives in the URL, such as Studio Music's types. */
-export function FilterPillLink({ active, className, ...props }: ComponentProps<typeof Link> & { active: boolean }) {
-  return (
-    <Link
-      aria-current={active ? 'page' : undefined}
-      className={cn(
-        pillBase,
-        'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        active ? pillOn : pillOff,
-        className,
-      )}
-      {...props}
-    />
-  );
-}
 
 /** One choice at a time. Native radios give the group its arrow keys and its checked state. */
 export function FilterPills<T extends string>({

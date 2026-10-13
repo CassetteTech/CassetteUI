@@ -211,6 +211,11 @@ module.exports = {
           from: { filter: "blur(3px)" },
           to: { filter: "blur(0)" },
         },
+        // TextLoader letters: a staggered rise and fall that stays readable at its dimmest.
+        "letter-wave": {
+          "0%, 100%": { opacity: "0.6" },
+          "50%": { opacity: "1" },
+        },
       },
       animation: {
         shimmer: "shimmer 2s infinite",
@@ -218,6 +223,7 @@ module.exports = {
         "collapsible-up": "collapsible-up 250ms cubic-bezier(0.22, 1, 0.36, 1)",
         reveal: "reveal 400ms ease-in-out",
         "focus-in": "focus-in 300ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "letter-wave": "letter-wave 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
     },
   },

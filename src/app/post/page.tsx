@@ -26,7 +26,6 @@ function PostPageContent() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
 
   const postIdParam = searchParams.get('id');
   const fromParam = searchParams.get('from');
@@ -127,15 +126,6 @@ function PostPageContent() {
 
     return false;
   };
-
-  useEffect(() => {
-    const checkDesktop = () => {
-      setIsDesktop(window.innerWidth > 900);
-    };
-    checkDesktop();
-    window.addEventListener('resize', checkDesktop);
-    return () => window.removeEventListener('resize', checkDesktop);
-  }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -380,13 +370,15 @@ function PostPageContent() {
 
   return (
     <EntitySkeleton
-      isDesktop={isDesktop}
       showProgress={!!showProgress}
       progressPercent={progressPercent}
       progressStepName={progressState.currentStepName}
       progressStepIndex={progressState.currentStep}
       progressTotalSteps={progressState.totalSteps}
       sourceLabel={sourceLabel}
+      contentType={contentInfo.type}
+      // Only the signed-in add-music flow converts as the user; other conversions are anonymous.
+      showAuthor={fromAddMusic}
       onCancel={() => router.back()}
     />
   );

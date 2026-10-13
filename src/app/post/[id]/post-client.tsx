@@ -1057,7 +1057,10 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
             {initialMetadata.title}. {initialMetadata.description}
           </span>
         )}
-        <EntitySkeleton isDesktop={isDesktop} />
+        <EntitySkeleton
+          contentType={initialMetadata?.elementType?.toLowerCase()}
+          sourceLabel={initialMetadata?.elementType}
+        />
       </>
     );
   }
@@ -1316,7 +1319,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         onDelete={() => setDeleteModalOpen(true)}
       >
       <div
-        className={`relative z-10 min-h-svh transition-[padding] duration-450 ease-out-quart ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
+        // The post lands on its skeleton's outline and settles into focus.
+        className={`relative z-10 min-h-svh transition-[padding] duration-450 ease-out-quart motion-safe:animate-focus-in ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
       >
         {isDesktop ? (
             // Desktop: one layout for every post type

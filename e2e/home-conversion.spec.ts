@@ -82,8 +82,9 @@ test.describe('home conversion funnel', () => {
 
     await page.goto(`/post?url=${encodeURIComponent(fixtureConvertTemplates.homeTrack.originalUrl)}`);
 
-    await expect(page.getByText('Matching streaming services')).toBeVisible();
-    await expect(page.getByText('Building your smart link')).toBeVisible();
+    // The skeleton renders both layouts and CSS shows the one for the viewport.
+    await expect(page.getByText('Matching streaming services').filter({ visible: true })).toBeVisible();
+    await expect(page.getByText('Building your smart link').filter({ visible: true })).toBeVisible();
     releaseConversion();
     await expect(page).toHaveURL(/\/post\/post-home-converted$/);
   });

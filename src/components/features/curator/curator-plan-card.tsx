@@ -47,6 +47,7 @@ import {
   type StudioChipTone,
   type StudioNoticeTone,
 } from '@/components/features/curator/studio-shell';
+import { studioHref } from '@/components/features/curator/studio-routes';
 import { CopyButton } from '@/components/interior/copy-button';
 import { SegmentedControl } from '@/components/interior/segmented-control';
 import {
@@ -129,15 +130,20 @@ type PlanDraft = {
   description: string;
   monthlyPrice: string;
   annualPrice: string;
-  featureKeys: string[];
+  /** null until the curator picks features for a new draft; the form then shows the default selection. */
+  featureKeys: string[] | null;
 };
+
+// Member-only posts are what a membership unlocks, and features freeze at publish,
+// so a new draft starts with them selected when the feature catalog offers them.
+const defaultFeatureKey = 'member_posts';
 
 const emptyDraft: PlanDraft = {
   name: '',
   description: '',
   monthlyPrice: defaultMonthlyPrice,
   annualPrice: '',
-  featureKeys: [],
+  featureKeys: null,
 };
 
 const draftOf = (plan: CuratorPlan): PlanDraft => ({
@@ -171,10 +177,19 @@ const planStatusTone = {
 
 function StepLink({ href, children }: { href: string; children: ReactNode }) {
   const steps = useContext(StudioStepsContext);
+  const sectionId = href.slice(1);
   return (
-    <a href={href} className="underline underline-offset-2" onClick={() => steps?.open(href.slice(1))}>
+    // An in-app visit opens the section and focuses it; a new-tab click opens the section URL.
+    <Link
+      href={studioHref(sectionId)}
+      className="underline underline-offset-2"
+      onNavigate={(event) => {
+        event.preventDefault();
+        steps?.open(sectionId);
+      }}
+    >
       {children}
-    </a>
+    </Link>
   );
 }
 
@@ -328,7 +343,12 @@ function AnnualPriceAdder({ plan, refresh, onAdded }: {
   );
 }
 
-export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null }) {
+export function CuratorPlanCard({ profile, preview }: {
+  profile: CuratorProfile | null;
+  /** Whether the Membership view is showing. There the rail previews the plan being designed;
+      elsewhere it shows what visitors see now. */
+  preview: boolean;
+}) {
   const { user } = useAuthState();
   const views = useContext(StudioStepsContext);
   const passSlot = views?.passSlot ?? null;
@@ -430,9 +450,10 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
       }
       setExpanded(true);
       setNotice(planActions[action.kind].notice);
-      // A first publish swaps the checklist for the earnings dashboard above this card,
-      // so bring the card and its live link back into view.
-      if (action.kind === 'publish') views?.open('studio-plan');
+      // A first publish swaps the setup steps above this card for the member figures,
+      // so bring the card and its live link back into view, unless the person has moved
+      // to another view meanwhile. A pending mutation reads the latest render's options.
+      if (action.kind === 'publish' && preview) views?.open('studio-plan');
     },
     onError: () => Promise.all([
       queryClient.invalidateQueries({ queryKey: profileQueryKey }),
@@ -482,6 +503,8 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   // A suspended profile is explained by the overview's suspension alert.
   const gatesConfirmed = profileReady && payoutConfirmed;
   const featureByKey = new Map(features.data?.map((feature) => [feature.featureKey, feature]));
+  // Bridge refuses an inactive feature key, so the default applies only to a feature the form can show and clear.
+  const draftFeatureKeys = draft.featureKeys ?? (featureByKey.has(defaultFeatureKey) ? [defaultFeatureKey] : []);
   const namesFor = (keys: string[]) => keys.map((key) => featureByKey.get(key)?.displayName ?? key);
   const benefitsFor = (keys: string[]) => keys.map((key) => ({
     featureKey: key,
@@ -496,21 +519,25 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   const coreError = (profile !== null && plans.isError) || features.isError || pricing.isError;
   const busy = save.isPending || remove.isPending;
 
-  // One membership pass for the whole Studio, portaled into the page rail: the
-  // form's live estimate while it is open, else the active plan, else the draft.
-  const passPlan = activePlan ?? plansData?.find((plan) => plan.status === 'draft') ?? null;
+  // One membership pass for the whole Studio, portaled into the page rail. On the Membership view it
+  // previews the plan: the form's live estimate while it is open, else the active plan, else the
+  // draft. Other views show what visitors see now: the live plan's pass, else the dashboard's
+  // profile pass.
+  const passPlan = preview
+    ? activePlan ?? plansData?.find((plan) => plan.status === 'draft') ?? null
+    : activePlan;
   const formOpen = plansData?.length === 0 || createOpen;
   const curatorPass = {
     curatorName,
     curatorHandle: user?.username ?? '',
     curatorAvatarUrl: user?.profilePicture,
   };
-  const pass = !pricing.data ? null : formOpen ? (
+  const pass = !pricing.data ? null : preview && formOpen ? (
     <FanPreview
       {...curatorPass}
       name={draft.name}
       description={draft.description}
-      benefits={benefitsFor(draft.featureKeys)}
+      benefits={benefitsFor(draftFeatureKeys)}
       currency={pricing.data.currency}
       frozen={false}
       monthly={monthlyEconomics && { faceMinor: monthlyEconomics.faceMinor, serviceFeeMinor: monthlyEconomics.serviceFeeMinor }}
@@ -657,7 +684,9 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
               <div className="divide-y divide-border/70">
               {plansData.map((plan) => {
                 const blockedByActivePlan = activePlan !== null && activePlan.id !== plan.id;
-                const canPublish = plan.status === 'draft' && gatesConfirmed && !blockedByActivePlan;
+                // Bridge refuses to publish a plan with no features; they cannot change after publish.
+                const missingFeatures = plan.featureKeys.length === 0;
+                const canPublish = plan.status === 'draft' && gatesConfirmed && !blockedByActivePlan && !missingFeatures;
                 const changing = change.isPending && change.variables?.planId === plan.id;
                 const editing = editingPlan?.id === plan.id;
                 return (
@@ -701,9 +730,11 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                             // requirement text stays reachable; the click is guarded.
                             aria-disabled={!canPublish || change.isPending || editing ? true : undefined}
                             aria-describedby={[
+                              `plan-${plan.id}-freeze`,
+                              missingFeatures && `plan-${plan.id}-features`,
                               !payoutConfirmed && `plan-${plan.id}-gates`,
                               blockedByActivePlan && `plan-${plan.id}-blocked`,
-                            ].filter(Boolean).join(' ') || undefined}
+                            ].filter(Boolean).join(' ')}
                             className="w-full sm:w-auto aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                             onClick={() => {
                               if (!canPublish || change.isPending || editing) return;
@@ -756,7 +787,15 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
-                        {/* The one publishing requirement, with the way to meet it. */}
+                        <p id={`plan-${plan.id}-freeze`} className="text-xs text-muted-foreground">
+                          Features and fan prices freeze when you publish.
+                        </p>
+                        {missingFeatures && (
+                          <p id={`plan-${plan.id}-features`} className="text-xs text-muted-foreground">
+                            Edit the draft to include at least one feature before you publish.
+                          </p>
+                        )}
+                        {/* The payout requirement, with the way to meet it. */}
                         {!payoutConfirmed && (
                           <p id={`plan-${plan.id}-gates`} className="text-xs text-muted-foreground">
                             Fans can join once Stripe verifies your payout account.{' '}
@@ -892,7 +931,7 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                         description: draft.description,
                         amountMinor: monthlyMinor,
                         annualAmountMinor: annualEntered ? annualMinor : null,
-                        featureKeys: draft.featureKeys,
+                        featureKeys: draftFeatureKeys,
                       },
                     });
                   }}
@@ -995,13 +1034,16 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
                                 <Checkbox
                                   id={`curator-feature-${feature.featureKey}`}
                                   className="mt-0.5"
-                                  checked={draft.featureKeys.includes(feature.featureKey)}
-                                  onCheckedChange={(checked) => setDraft((current) => ({
-                                    ...current,
-                                    featureKeys: checked === true
-                                      ? [...current.featureKeys, feature.featureKey]
-                                      : current.featureKeys.filter((key) => key !== feature.featureKey),
-                                  }))}
+                                  checked={draftFeatureKeys.includes(feature.featureKey)}
+                                  onCheckedChange={(checked) => setDraft((current) => {
+                                    const selected = current.featureKeys ?? draftFeatureKeys;
+                                    return {
+                                      ...current,
+                                      featureKeys: checked === true
+                                        ? [...selected, feature.featureKey]
+                                        : selected.filter((key) => key !== feature.featureKey),
+                                    };
+                                  })}
                                 />
                                 <span>
                                   <span className="font-medium">{feature.displayName}</span>

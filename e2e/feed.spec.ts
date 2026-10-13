@@ -141,14 +141,14 @@ test('the Members only filter asks the server for member posts and keeps its URL
   const filter = page.getByRole('radio', { name: 'Members only' });
   await filter.click();
 
-  await expect(filter).toHaveAttribute('aria-checked', 'true');
+  await expect(filter).toBeChecked();
   await expect(page).toHaveURL('/feed?filter=members');
   await expect(page.getByRole('heading', { name: 'From your curators', level: 1 })).toBeVisible();
   await expect(postLinks(page)).toHaveText([/Feed track 1/]);
   expect(new URL(curatorFeedRequests.at(-1)!).searchParams.get('membersOnly')).toBe('true');
 
   await page.reload();
-  await expect(page.getByRole('radio', { name: 'Members only' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radio', { name: 'Members only' })).toBeChecked();
   await expect(postLinks(page)).toHaveText([/Feed track 1/]);
 });
 
@@ -625,18 +625,31 @@ test.describe('freshness', () => {
 });
 
 test.describe('navigation', () => {
-  test('the sidebar puts Feed right after Home for a signed-in viewer only', async ({ page }) => {
+  test('the sidebar puts Feed first for a signed-in viewer only and has no Home, Profile, or Support Us row', async ({ page }) => {
     await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
 
     await page.goto('/feed');
+    const sidebar = page.locator('[data-slot="sidebar"]');
     const sidebarLinks = page.locator('[data-sidebar="menu"]').getByRole('link');
-    await expect(sidebarLinks).toHaveText(['Home', 'Feed', 'Profile', 'Curator Studio', 'Add Music', 'Memberships']);
+    // Add music is a button above the menu, not a menu row.
+    await expect(sidebarLinks).toHaveText(['Feed', 'Explore', 'Curator Studio', 'Memberships']);
+    await expect(sidebar.getByRole('link', { name: 'Add music', exact: true })).toHaveAttribute('href', '/studio/music/new');
     await expect(page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Feed' })).toHaveAttribute('data-active', 'true');
+    await expect(sidebar.getByRole('link', { name: 'Support Us' })).toHaveCount(0);
+
+    // The account row is the only way to the own profile, so it carries the active state there.
+    const accountRow = sidebar.locator(`a[href="/profile/${fixtureUsers.member.username}"]`);
+    await expect(accountRow).toHaveCount(1);
+    await expect(accountRow).toHaveAttribute('data-active', 'false');
+    await accountRow.click();
+    await expect(accountRow).toHaveAttribute('aria-current', 'page');
+    await expect(sidebar.locator('[data-active="true"]')).toHaveCount(1);
 
     await page.getByRole('button', { name: 'Sign Out' }).click();
     await expect(page).toHaveURL('/auth/signin');
     await page.goto('/feed');
-    await expect(page.locator('[data-sidebar="menu"]').getByRole('link')).toHaveText(['Home']);
+    await expect(sidebar.getByRole('link', { name: 'Sign In' })).toBeVisible();
+    await expect(page.locator('[data-sidebar="menu"]').getByRole('link')).toHaveText(['Explore']);
   });
 
   test.describe('on a phone', () => {
@@ -648,7 +661,7 @@ test.describe('navigation', () => {
       await page.goto('/explore');
       await page.getByRole('button', { name: 'Open menu' }).click();
       const browse = page.getByRole('region', { name: 'Browse' }).getByRole('link');
-      await expect(browse).toHaveText(['Home', 'Feed', 'Explore', 'Promote']);
+      await expect(browse).toHaveText(['Home', 'Feed', 'Explore', 'Add Music', 'Promote']);
       await browse.filter({ hasText: 'Feed' }).click();
       await expect(page).toHaveURL('/feed');
       await expect(postLinks(page)).toHaveCount(2);
@@ -698,7 +711,7 @@ test.describe('navigation', () => {
     await expect(page.getByRole('radio', { name: 'All' })).toBeFocused();
     await page.keyboard.press('ArrowRight');
     await expect(page).toHaveURL('/feed?filter=members');
-    await expect(page.getByRole('radio', { name: 'Members only' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('radio', { name: 'Members only' })).toBeChecked();
     await expect(page.getByRole('radiogroup', { name: 'Post filter' })).toBeVisible();
   });
 });
@@ -774,7 +787,7 @@ test.describe('followed curators', () => {
     await expect(crate).toContainText("For Crate Keeper's members.");
     await expect(crate.getByRole('link', { name: 'Join Crate Keeper' })).toHaveAttribute(
       'href',
-      `/profile/${CRATE.username}?tab=posts#membership-offer`,
+      `/profile/${CRATE.username}#membership-offer`,
     );
     await expect(crate.getByRole('link', { name: `@${CRATE.username}`, exact: true })).toHaveAttribute('href', `/profile/${CRATE.username}`);
 
@@ -927,7 +940,7 @@ test.describe('followed curators', () => {
     await page.goto('/feed');
     await lockedCards(page).getByRole('link', { name: 'Join Crate Keeper' }).click();
 
-    await expect(page).toHaveURL(`/profile/${CRATE.username}?tab=posts#membership-offer`);
+    await expect(page).toHaveURL(`/profile/${CRATE.username}#membership-offer`);
     const offer = page.locator('#membership-offer');
     await expect(offer).toBeVisible();
     await expect(offer.getByRole('button', { name: 'Join Crate Keeper' })).toBeVisible();
@@ -953,7 +966,7 @@ test.describe('followed curators', () => {
 
       await page.goto('/feed');
       await lockedCards(page).getByRole('link', { name: 'Join Crate Keeper' }).click();
-      await expect(page).toHaveURL(`/profile/${CRATE.username}?tab=posts#membership-offer`);
+      await expect(page).toHaveURL(`/profile/${CRATE.username}#membership-offer`);
 
       const offer = page.locator('#membership-offer');
       await expect(offer.getByRole('button', { name: 'Join Crate Keeper' })).toBeVisible();
@@ -995,6 +1008,6 @@ test.describe('followed curators', () => {
     await page.keyboard.press('Tab');
     await expect(lockedCards(page).getByRole('link', { name: 'Join Crate Keeper' })).toBeFocused();
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(`/profile/${CRATE.username}?tab=posts#membership-offer`);
+    await expect(page).toHaveURL(`/profile/${CRATE.username}#membership-offer`);
   });
 });

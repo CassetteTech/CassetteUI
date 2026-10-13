@@ -46,8 +46,8 @@ function refreshAfterFollowChange(queryClient: QueryClient, username: string) {
 export function useCuratorFollow(
   curator: { id: string; username: string; displayName: string } | null,
   isOwner: boolean,
-  /** The profile tab a signed-out viewer returns to after signing in. */
-  returnTab: string,
+  /** The profile query a signed-out viewer returns to after signing in, such as `tab=liked`. */
+  returnQuery: string,
 ): CuratorFollow | null {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -123,7 +123,8 @@ export function useCuratorFollow(
     } catch {
       // The viewer can select Follow again after signing in.
     }
-    const query = new URLSearchParams({ tab: returnTab, follow: '1' });
+    const query = new URLSearchParams(returnQuery);
+    query.set('follow', '1');
     const returnPath = `/profile/${encodeURIComponent(curator.username)}?${query}`;
     router.push(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
   };

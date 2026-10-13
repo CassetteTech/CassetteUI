@@ -257,7 +257,7 @@ function InsightsAccess(props: { postId: string; conversionSuccessCount?: number
       </p>
       {pro.isError && <Button variant="outline" size="sm" className="mt-3" onClick={() => void pro.refetch()}>Try again</Button>}
       {!pro.isError && status?.available && status.canSubscribe && (
-        <Link href="/studio/curator" prefetch={false} className="mt-3 inline-block text-sm underline underline-offset-2">
+        <Link href="/studio/payouts" prefetch={false} className="mt-3 inline-block text-sm underline underline-offset-2">
           View Curator Pro
         </Link>
       )}

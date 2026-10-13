@@ -7,13 +7,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NotificationMenu } from '@/components/layout/notification-menu';
 import type { AuthUser } from '@/types';
 
-export function SidebarAccountRow({ user }: { user: AuthUser }) {
+/** active marks the own profile page; the sidebar's sliding indicator follows data-active. */
+export function SidebarAccountRow({ user, active = false }: { user: AuthUser; active?: boolean }) {
   const name = user.displayName || user.username;
   return (
     <div className="mx-2 flex items-center gap-2">
       <Link
         href={`/profile/${user.username}`}
-        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        data-active={active}
+        aria-current={active ? 'page' : undefined}
+        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
       >
         <Avatar className="size-8 border border-border/70">
           <AvatarImage src={user.profilePicture} alt="" />

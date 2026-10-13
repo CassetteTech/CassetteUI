@@ -42,13 +42,13 @@ export const primaryNavItems: NavigationItemDefinition[] = [
   { key: 'home', label: 'Home', icon: Home, href: '/' },
   { key: 'feed', label: 'Feed', icon: Newspaper, href: '/feed', authRequired: true },
   { key: 'explore', label: 'Explore', icon: Compass, href: '/explore' },
-  { key: 'add-music', label: 'Add Music', icon: Music, href: '/add-music', authRequired: true },
+  { key: 'add-music', label: 'Add Music', icon: Music, href: '/studio/music/new', authRequired: true },
   { key: 'promote', label: 'Promote', icon: Megaphone, href: '/promote', requiresPaidPromotionSales: true },
 ];
 
 export const accountNavItems: NavigationItemDefinition[] = [
   { key: 'profile', label: 'Profile', icon: User, href: '/profile', authRequired: true },
-  { key: 'curator-studio', label: 'Curator Studio', icon: LayoutDashboard, href: '/studio/curator', authRequired: true },
+  { key: 'curator-studio', label: 'Curator Studio', icon: LayoutDashboard, href: '/studio', authRequired: true },
   { key: 'memberships', label: 'Memberships', icon: BadgeCheck, href: '/memberships', authRequired: true },
   { key: 'campaigns', label: 'Your Campaigns', icon: Megaphone, href: '/promote', authRequired: true, requiresPaidPromotionAccount: true },
   { key: 'internal', label: 'Internal', icon: Shield, href: '/internal', authRequired: true, internalOnly: true },
@@ -87,7 +87,7 @@ export function resolveNavHref(item: NavigationItemDefinition, user: NavUser) {
   return item.href;
 }
 
-function isOwnProfilePath(pathname: string, user: NavUser) {
+export function isOwnProfilePath(pathname: string, user: NavUser) {
   if (!user?.username) return false;
 
   const ownProfilePath = `/profile/${user.username}`;

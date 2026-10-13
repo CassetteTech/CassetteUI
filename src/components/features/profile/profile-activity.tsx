@@ -1,5 +1,8 @@
 'use client';
 
+/** The profile's music cards: one card for every type of music, on the Music and Liked tabs, plus
+    the locked card a visitor sees for a members-only post. */
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -19,13 +22,14 @@ import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { PostQuickActions } from '@/components/features/post/post-quick-actions';
 import { useSubscriberPostEligibility } from '@/hooks/use-curator';
 import { formatRelativeTime } from '@/lib/utils/format-date';
-import { Disc3, ListMusic, Lock, MoreHorizontal, Music, Pencil, Repeat2, Share, Trash2, User } from 'lucide-react';
+import { Disc3, ListMusic, Lock, LockKeyhole, MoreHorizontal, Music, Pencil, Repeat2, Share, Trash2, User } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { TabType } from './profile-tabs';
 import { ArtworkImage } from '@/components/ui/artwork-image';
 import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { PendingLabel } from '@/components/ui/interior/loading-button';
+import type { OwnerVisibility } from '@/components/features/post/post-visibility';
 
 interface ProfileActivityProps {
   posts: ActivityPost[];
@@ -39,14 +43,10 @@ interface ProfileActivityProps {
   currentUserId?: string;
 }
 
-const TAB_LABELS: Record<TabType, string> = {
-  posts: 'posts',
-  playlists: 'playlists',
-  tracks: 'tracks',
-  artists: 'artists',
-  albums: 'albums',
+const TAB_LABELS = {
+  music: 'music',
   liked: 'liked posts',
-};
+} satisfies Record<TabType, string>;
 
 export function ProfileActivity({
   posts,
@@ -63,13 +63,7 @@ export function ProfileActivity({
   const canLockPosts = useSubscriberPostEligibility(isCurrentUser);
 
   if (isLoading && posts.length === 0) {
-    return (
-      <div className="lg:h-full">
-        <div className="p-3 sm:p-4 md:p-6 lg:p-8">
-          <ActivitySkeleton />
-        </div>
-      </div>
-    );
+    return <ActivitySkeleton />;
   }
 
   if (posts.length === 0) {
@@ -84,10 +78,15 @@ export function ProfileActivity({
         : `@${ownerUsername || 'this user'} has not shared any ${label} yet.`;
 
     return (
-      <div className="p-3 sm:p-4 md:p-6">
+      <div>
         <Empty className="motion-safe:animate-reveal">
           <EmptyTitle>{title}</EmptyTitle>
           <EmptyDescription>{description}</EmptyDescription>
+          {isCurrentUser && activeTab !== 'liked' && (
+            <Button asChild>
+              <Link href="/studio/music/new">Add music</Link>
+            </Button>
+          )}
         </Empty>
       </div>
     );
@@ -95,11 +94,11 @@ export function ProfileActivity({
 
   return (
     <div>
-      <div className="p-3 sm:p-4 lg:p-6">
+      <div>
         {/* The grid mounts after the skeleton, so it reveals in place. */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 motion-safe:animate-reveal">
           {posts.map((post) => (
-            <ActivityPostItem
+            <MusicPostCard
               key={post.postId}
               post={post}
               ownerAccountType={ownerAccountType}
@@ -127,18 +126,53 @@ export function ProfileActivity({
   );
 }
 
-function ActivityPostItem({
+function typeIconOf(elementType: string): LucideIcon {
+  switch (elementType.toLowerCase()) {
+    case 'playlist': return ListMusic;
+    case 'artist': return User;
+    case 'album': return Disc3;
+    default: return Music;
+  }
+}
+
+/** The fields a music card reads; profile activity and curator page posts both carry them. */
+export type MusicCardPost = Pick<
+  ActivityPost,
+  | 'postId'
+  | 'redirectPostId'
+  | 'isRepost'
+  | 'originalUsername'
+  | 'originalPostOwnerUsername'
+  | 'originalPostOwnerAccountType'
+  | 'elementType'
+  | 'title'
+  | 'subtitle'
+  | 'description'
+  | 'imageUrl'
+  | 'privacy'
+  | 'username'
+  | 'createdAt'
+  | 'commentsEnabled'
+  | 'accountType'
+>;
+
+const allVisibilities: readonly OwnerVisibility[] = ['public', 'subscriber', 'private'];
+
+export function MusicPostCard({
   post,
   ownerAccountType,
   ownerUsername,
   isOwnPost = false,
   canLockPosts = false,
+  visibilities = allVisibilities,
 }: {
-  post: ActivityPost;
+  post: MusicCardPost;
   ownerAccountType?: AccountType | number | string;
   ownerUsername?: string;
   isOwnPost?: boolean;
   canLockPosts?: boolean;
+  /** Who-can-open-it choices the owner's quick actions offer on this list. */
+  visibilities?: readonly OwnerVisibility[];
 }) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -146,18 +180,9 @@ function ActivityPostItem({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const getTypeIcon = (type: string): LucideIcon => {
-    const iconMap: Record<string, LucideIcon> = {
-      track: Music,
-      playlist: ListMusic,
-      artist: User,
-      album: Disc3,
-    };
-    return iconMap[type.toLowerCase()] || Music;
-  };
-  const TypeIcon = getTypeIcon(post.elementType);
+  const TypeIcon = typeIconOf(post.elementType);
 
-  const getNavigationPath = (post: ActivityPost) => {
+  const getNavigationPath = (post: MusicCardPost) => {
     const targetPostId = post.redirectPostId || post.postId;
     if (!targetPostId) return '#';
     const currentPath = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
@@ -271,7 +296,7 @@ function ActivityPostItem({
         onShare={() => void handleShare()}
         isOwner={isOwnPost}
         privacy={post.privacy}
-        visibilities={['public', 'subscriber', 'private']}
+        visibilities={visibilities}
         canLockPosts={canLockPosts}
         onEdit={() => setEditModalOpen(true)}
         onDelete={() => setDeleteModalOpen(true)}
@@ -353,6 +378,13 @@ function ActivityPostItem({
                   Private
                 </span>
               )}
+              {/* Only members and the owner receive a members-only post in full. */}
+              {post.privacy === 'subscriber' && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 font-mono text-[9px] uppercase tracking-[0.15em] text-primary ring-1 ring-primary/40 self-start mt-1.5">
+                  <LockKeyhole className="h-2.5 w-2.5" aria-hidden="true" />
+                  Members only
+                </span>
+              )}
             </div>
           </div>
         </Link>
@@ -366,6 +398,7 @@ function ActivityPostItem({
         postId={post.postId}
         currentDescription={post.description || ''}
         currentPrivacy={post.privacy}
+        currentCommentsEnabled={post.commentsEnabled}
       />
 
       {/* Delete Modal - always render to allow Radix UI animations */}
@@ -376,6 +409,56 @@ function ActivityPostItem({
         postTitle={post.title}
       />
     </>
+  );
+}
+
+/** A members-only post a visitor cannot open: its date, and the way to the membership. */
+export function LockedMusicCard({
+  createdAt,
+  displayName,
+  membershipId,
+  showMembership,
+}: {
+  createdAt: string;
+  displayName: string;
+  membershipId: string;
+  showMembership: boolean;
+}) {
+  const card = (
+    <Card quiet className="gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden font-atkinson">
+      <div className="flex gap-3 sm:gap-4 items-start px-3 sm:px-4 py-3">
+        <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center rounded-md bg-gradient-to-br from-primary/15 via-primary/5 to-transparent ring-1 ring-border/40">
+          <LockKeyhole className="size-8 text-primary/60" aria-hidden />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+            <span className="font-bold text-primary">Members only</span>
+            <span className="text-muted-foreground/50">/</span>
+            <time dateTime={createdAt}>{formatRelativeTime(createdAt)}</time>
+          </div>
+          <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight text-foreground mt-1.5">
+            Members-only post
+          </h3>
+          <p className="text-muted-foreground text-sm italic leading-snug mt-1">
+            Join {displayName} to open this post.
+          </p>
+        </div>
+      </div>
+    </Card>
+  );
+
+  return (
+    <article data-testid="curator-locked-post" aria-label="Members-only post">
+      {showMembership ? (
+        <a
+          href={`#${membershipId}`}
+          aria-label={`View ${displayName} membership`}
+          className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          {card}
+        </a>
+      ) : card}
+    </article>
   );
 }
 

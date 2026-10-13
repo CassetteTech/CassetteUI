@@ -85,7 +85,7 @@ test('does not carry a report draft to a different post with the same source lin
   await page.getByRole('button', { name: 'Cancel' }).click();
 
   await page.locator('a[href="/profile/djaurora"]').first().click();
-  await expect(page).toHaveURL(/\/profile\/djaurora\?tab=tracks$/);
+  await expect(page).toHaveURL(/\/profile\/djaurora$/);
   await page.locator('[data-testid="profile-content-pane"]:visible')
     .first()
     .locator('a[href^="/post/post-report-second"]')

@@ -24,7 +24,7 @@ import {
 import { MEMBERSHIP_OFFER_ID } from '@/components/features/curator/curator-membership-card';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
-import { SegmentedControl } from '@/components/ui/interior/segmented-control';
+import { FilterPills } from '@/components/ui/filter-pills';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuthState } from '@/hooks/use-auth';
@@ -139,7 +139,7 @@ function CuratorFeed() {
           From your curators
         </h1>
         {hasSources && (
-          <SegmentedControl
+          <FilterPills
             label="Post filter"
             value={membersOnly ? 'members' : 'all'}
             onValueChange={(next) => setMembersOnly(next === 'members')}
@@ -346,7 +346,7 @@ function LockedFeedPost({ item, viewerId }: { item: Extract<CuratorFeedItem, { k
     <LockedPostCard
       item={item}
       availability={availability}
-      joinHref={`/profile/${encodeURIComponent(item.curator.username)}?tab=posts#${MEMBERSHIP_OFFER_ID}`}
+      joinHref={`/profile/${encodeURIComponent(item.curator.username)}#${MEMBERSHIP_OFFER_ID}`}
     />
   );
 }

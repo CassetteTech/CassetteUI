@@ -34,7 +34,7 @@ const ReportIssueContext = createContext<ReportIssueContextValue | null>(null);
 function getSourceContextFromPath(pathname: string): string {
   if (pathname.startsWith('/post/')) return 'post_view';
   if (pathname.startsWith('/profile/')) return 'profile';
-  if (pathname === '/add-music') return 'add_music';
+  if (pathname === '/studio/music/new') return 'add_music';
   if (pathname === '/') return 'home';
   return pathname;
 }

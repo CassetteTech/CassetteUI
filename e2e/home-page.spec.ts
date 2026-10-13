@@ -19,7 +19,7 @@ test.describe('home page', () => {
     const start = page.getByRole('link', { name: 'Start your free page' });
     await expect(start.first()).toBeInViewport();
     for (const link of await start.all()) {
-      await expect(link).toHaveAttribute('href', '/auth/signup?redirect=%2Fstudio%2Fcurator');
+      await expect(link).toHaveAttribute('href', '/auth/signup?redirect=%2Fstudio');
     }
 
     await page.getByRole('link', { name: 'See how it works' }).click();

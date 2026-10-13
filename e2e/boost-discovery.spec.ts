@@ -91,6 +91,11 @@ test('keeps the campaign link for a customer with campaigns while sales are clos
   await expect(page.getByTestId('paid-promotion-campaign-status')).toContainText('refunded in full');
   await expect(page.getByTestId('paid-promotion-reopen-checkout')).toHaveCount(0);
 
+  await visit(page, '/memberships');
+  const sidebarFooter = page.locator('[data-slot="sidebar-footer"]');
+  await expect(sidebarFooter.getByRole('link', { name: 'Your Campaigns' })).toHaveAttribute('href', '/promote');
+  await expect(sidebarFooter.getByRole('link', { name: 'Promote', exact: true })).toHaveCount(0);
+
   await page.setViewportSize({ width: 390, height: 844 });
   await visit(page, '/explore');
   await page.getByRole('button', { name: 'Open menu' }).click();
@@ -107,4 +112,11 @@ test('shows Boost discovery once sales are open', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Promote your music' })).toBeVisible();
   await page.getByTestId('user-menu-trigger').click();
   await expect(page.getByRole('menuitem', { name: 'Your Campaigns' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // The sidebar shows one row for /promote: Promote while sales are open.
+  await visit(page, '/memberships');
+  const sidebarFooter = page.locator('[data-slot="sidebar-footer"]');
+  await expect(sidebarFooter.getByRole('link', { name: 'Promote', exact: true })).toHaveAttribute('href', '/promote');
+  await expect(sidebarFooter.getByRole('link', { name: 'Your Campaigns' })).toHaveCount(0);
 });

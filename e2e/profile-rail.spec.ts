@@ -28,6 +28,33 @@ test.describe('profile rail', () => {
     await expect(page.locator('html')).toHaveClass(/\bdark\b/);
   });
 
+  test('cross-fades a theme change unless the user reduces motion', async ({ page }) => {
+    await mockCassetteApp(page, { currentUser: fixtureUsers.viewer, curatorPage: fixtureCuratorPage });
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    // Counts view transitions on <html> without changing how they run.
+    await page.addInitScript(() => {
+      const start = document.startViewTransition.bind(document);
+      document.startViewTransition = (update) => {
+        const html = document.documentElement;
+        html.dataset.viewTransitions = String(Number(html.dataset.viewTransitions ?? 0) + 1);
+        return start(update);
+      };
+    });
+
+    await page.goto(`/profile/${fixtureUsers.playlistCurator.username}`);
+
+    const html = page.locator('html');
+    const theme = page.locator('[data-slot="sidebar-footer"]').getByRole('radiogroup', { name: 'Theme' });
+    await theme.getByRole('radio', { name: 'Dark' }).click();
+    await expect(html).toHaveClass(/\bdark\b/);
+    await expect(html).toHaveAttribute('data-view-transitions', '1');
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await theme.getByRole('radio', { name: 'Light' }).click();
+    await expect(html).not.toHaveClass(/\bdark\b/);
+    await expect(html).toHaveAttribute('data-view-transitions', '1');
+  });
+
   test('keeps the signed-in user in the sidebar and puts the curator in the membership pass', async ({ page }) => {
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.viewer,
@@ -60,7 +87,7 @@ test.describe('profile rail', () => {
     });
 
     await page.goto(`/profile/${fixtureUsers.creator.username}`);
-    await expect(page).toHaveURL(/tab=tracks/);
+    await expect(page.getByTestId('profile-music')).toBeVisible();
 
     const pass = page.getByTestId('profile-identity-pass');
     await expect(pass.getByText(fixtureUsers.creator.bio!)).toBeVisible();

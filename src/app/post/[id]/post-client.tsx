@@ -13,7 +13,7 @@ import { PostAuthorHeader } from '@/components/features/post/post-author-header'
 import { PostEngagementBar } from '@/components/features/post/post-engagement-bar';
 import { PostCommentsSheet } from '@/components/features/post/post-comments-sheet';
 import { PostStudioColumn, PostStudioSheet } from '@/components/features/post/post-studio-panel';
-import { EditPostModal } from '@/components/features/post/edit-post-modal';
+import { EditPostModal, type PostChanges } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
 import { PostShareMenu } from '@/components/features/post/post-share-menu';
@@ -373,10 +373,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   }, [router, postData?.username]);
 
   // Handle edit success - update local state with new description
-  const handleEditSuccess = useCallback((updated: { description: string; privacy: string; commentsEnabled: boolean }) => {
-    setPostData((prev) =>
-      prev ? { ...prev, description: updated.description, privacy: updated.privacy, commentsEnabled: updated.commentsEnabled } : prev
-    );
+  const handleEditSuccess = useCallback((changes: PostChanges) => {
+    setPostData((prev) => (prev ? { ...prev, ...changes } : prev));
   }, []);
 
   // Ref to track the source URL for add-to-profile

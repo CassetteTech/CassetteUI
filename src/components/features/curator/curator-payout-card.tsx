@@ -5,12 +5,12 @@
 import { useContext, useEffect, useId, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Check, Clock } from 'lucide-react';
-import type { LaunchStep } from '@/components/features/curator/studio-overview';
 import {
   StudioNotice,
   StudioSection,
   StudioStepsContext,
   studioFigureClassName,
+  type LaunchStep,
 } from '@/components/features/curator/studio-shell';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -93,7 +93,7 @@ function ReadinessRing({ done, total }: { done: number; total: number }) {
   );
 }
 
-/** `nextStep` is the plan step a completed payout return offers; it lives on the overview. */
+/** `nextStep` is the plan step a completed payout return offers; it lives on the Membership view. */
 export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
   const views = useContext(StudioStepsContext);
   const queryClient = useQueryClient();

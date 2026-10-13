@@ -77,6 +77,6 @@ test('lets a post owner edit and delete a post', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/profile\/recordsmith(?:\?tab=playlists)?$/);
   const profileMain = page.getByRole('main').last();
-  await expect(profileMain).toContainText('No playlists yet');
+  await expect(profileMain).toContainText('No music yet');
   await expect(profileMain).not.toContainText('Paper Hearts');
 });

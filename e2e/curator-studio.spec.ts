@@ -12,12 +12,14 @@ import {
   fixtureCuratorMemberCounts,
   fixtureCuratorProActiveStatus,
   fixtureCuratorProAvailableStatus,
+  fixturePosts,
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 import { openStudioStep } from './support/studio-steps';
 
-const STUDIO_PATH = '/studio/curator';
+const STUDIO_PATH = '/studio';
+const STUDIO_PAYOUTS_PATH = '/studio/payouts';
 const PAYOUT_URL = 'https://connect.stripe.test/payout-onboarding';
 
 const curatorProfile: CuratorProfile = {
@@ -90,10 +92,18 @@ const draftPlan: CuratorPlan = {
   serviceFeeMinor: null,
   annualServiceFeeMinor: null,
   status: 'draft',
-  featureKeys: [],
+  featureKeys: ['member_posts'],
   createdAtUtc: '2026-08-16T12:00:00Z',
   publishedAtUtc: null,
   archivedAtUtc: null,
+};
+
+// One post on the curator's own page finishes the first launch step, so a test can start at the plan steps.
+const ownPost = {
+  ...fixturePosts.publicTrack,
+  postId: 'post-studio-own-track',
+  ownerId: fixtureUsers.member.id,
+  ownerUsername: fixtureUsers.member.username,
 };
 
 const payoutAccount = (
@@ -123,25 +133,75 @@ test('redirects anonymous visitors away from the curator studio', async ({ page 
   await expect(page.getByRole('link', { name: 'Curator Studio' })).toHaveCount(0);
 });
 
-test('saves a first draft without a profile and advances the launch checklist', async ({ page }) => {
+test('starts an empty Studio with the first music on the Overview and the setup steps on Membership', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
   });
 
   await page.goto(STUDIO_PATH);
 
+  // Music comes first: no checklist, and no membership invitation before the page has music.
+  await expect(page.getByRole('heading', { name: 'Recent music' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Add your first music' }))
+    .toHaveAttribute('href', '/studio/music/new?from=%2Fstudio');
+  await expect(page.getByRole('heading', { name: 'Earn from your music' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Membership setup' })).toHaveCount(0);
+
+  await openStudioStep(page, 'studio-membership');
+  await expect(page.getByRole('heading', { name: 'Membership setup' })).toBeVisible();
+  await expect(page.getByText('0 of 3 done', { exact: true })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Membership setup' }).getByRole('listitem')).toHaveText([
+    'Design your membershipNext',
+    'Set up payouts',
+    'Publish your plan',
+  ]);
+  expect(state.curatorPlanCreateRequests).toEqual([]);
+});
+
+test('treats a failed music read as unknown and recovers on retry', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    posts: [ownPost],
+  });
+  let musicFailures = 10;
+  await page.route('**/api/v1/profile/*/activity**', (route) => {
+    if (musicFailures === 0) return route.fallback();
+    musicFailures -= 1;
+    return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+  });
+
+  await page.goto(STUDIO_PATH);
+
+  const musicAlert = page.getByRole('alert').filter({ hasText: 'Could not check the music on your page.' });
+  await expect(musicAlert).toBeVisible({ timeout: 10_000 });
+  // Without an answer about the music, the Overview offers no membership invitation.
+  await expect(page.getByRole('heading', { name: 'Earn from your music' })).toHaveCount(0);
+
+  musicFailures = 0;
+  await musicAlert.locator('..').getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByText('Could not check the music on your page.')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Earn from your music' })).toBeVisible();
+});
+
+test('saves a first draft without a profile and advances the membership setup', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    posts: [ownPost],
+  });
+
+  await page.goto(STUDIO_PATH);
+
   await expect(page.getByRole('heading', { level: 1, name: 'Curator Studio' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Curator Studio' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
-  await expect(page.getByText('0 of 3 done', { exact: true })).toBeVisible();
-
-  // The plan editor is on this view: the step has no forward arrow and focuses the first field.
-  const next = page.getByRole('button', { name: 'Next: Design your membership' });
-  await expect(next.locator('svg')).toHaveCount(0);
-  await next.click();
+  // A page with music gets one invitation; the plan editor is on the Membership view.
+  await page.getByRole('button', { name: 'Set up a membership' }).click();
+  await expect(page).toHaveURL('/studio/membership');
   const card = page.getByTestId('curator-plan-card');
   await expect(card.getByLabel('Plan name')).toBeFocused();
   await expect(card.getByLabel('Plan name')).toHaveAttribute('placeholder', "Mia's Inner Circle");
+  await expect(page.getByText('0 of 3 done', { exact: true })).toBeVisible();
+  // The plan editor is on this view, so its step has no forward arrow.
+  await expect(page.getByRole('button', { name: 'Next: Design your membership' }).locator('svg')).toHaveCount(0);
 
   await card.getByLabel('Plan name').fill('Early Club');
   await expect(page.getByTestId('curator-plan-preview')).toContainText('Early Club');
@@ -155,9 +215,13 @@ test('saves a first draft without a profile and advances the launch checklist', 
   await expect(page.getByRole('button', { name: 'Next: Set up payouts' }).locator('svg')).toHaveCount(1);
   await expect(page.getByTestId('curator-plan-preview')).toContainText('Early Club');
 
+  // Back on the Overview, the setup under way leads with its next step, and the invitation is gone.
   await page.reload();
   await openStudioStep(page, 'studio-overview');
-  await expect(page.getByRole('button', { name: 'Next: Set up payouts' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Finish your membership' })).toBeVisible();
+  await expect(page.getByText('1 of 3 steps done.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Set up payouts', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Earn from your music' })).toHaveCount(0);
   // No plan was published, so member counts were never requested.
   expect(state.curatorMemberStatsRequests).toEqual([]);
 });
@@ -189,6 +253,7 @@ test('says so when the profile read after a first draft fails, and recovers on r
 test('hands a user with no payout account to secure onboarding', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
+    posts: [ownPost],
   });
   await hostPayoutPage(page);
 
@@ -198,7 +263,7 @@ test('hands a user with no payout account to secure onboarding', async ({ page }
   await expect(card).toContainText('Not started');
   // The handoff says what Stripe asks for and why.
   await expect(card).toContainText('Social Security number because Cassette sends you a 1099 tax form');
-  await expect(page.getByRole('button', { name: 'Next: Design your membership' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Set up a membership' })).toBeEnabled();
 
   state.curatorPayoutOnboardingFailuresRemaining = 1;
   await openStudioStep(page, 'studio-payouts');
@@ -224,7 +289,7 @@ test('refreshes capability truth after hosted onboarding returns', async ({ page
     curatorPayoutRefreshAccount: active,
   });
 
-  await page.goto(`${STUDIO_PATH}?payout=return`);
+  await page.goto(`${STUDIO_PAYOUTS_PATH}?payout=return`);
 
   await expect(page.getByTestId('curator-payout-notice')).toHaveText('Payout setup is complete.');
   await expect(page.getByTestId('curator-payout-card')).toContainText('Ready');
@@ -237,9 +302,10 @@ test('refreshes capability truth after hosted onboarding returns', async ({ page
   expect(state.curatorPayoutAccount).toEqual(active);
 });
 
-test('keeps the launch checklist on payout setup until Stripe verifies the account', async ({ page }) => {
+test('keeps the membership setup on payout setup until Stripe verifies the account', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
+    posts: [ownPost],
     curatorProfile,
     curatorPlans: [draftPlan],
     curatorPayoutAccount: payoutAccount({
@@ -251,22 +317,25 @@ test('keeps the launch checklist on payout setup until Stripe verifies the accou
 
   await page.goto(STUDIO_PATH);
 
-  await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-selected', 'true');
+  // Studio opens on the URL the curator chose; the setup under way offers its next step there.
+  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByText('1 of 3 steps done.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Set up payouts', exact: true }).click();
+  await expect(page).toHaveURL(STUDIO_PAYOUTS_PATH);
+  await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-current', 'page');
   const payoutCard = page.getByTestId('curator-payout-card');
   await expect(payoutCard.getByText('Setup started').locator('..')).toContainText('Done');
   await expect(payoutCard.getByText('Publish and receive payouts').locator('..')).toContainText('Needs your information');
-  await openStudioStep(page, 'studio-overview');
-  await expect(page.getByRole('button', { name: 'Next: Set up payouts' })).toBeVisible();
 });
 
-test('opens the plan editor from the Members view before a profile exists', async ({ page }) => {
+test('opens the plan editor on the Membership view before a profile exists', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: fixtureUsers.member });
 
   await page.goto(STUDIO_PATH);
-  await openStudioStep(page, 'studio-earnings');
-  await page.getByRole('button', { name: 'Design your membership', exact: true }).click();
+  await openStudioStep(page, 'studio-membership');
+  await page.getByRole('button', { name: 'Next: Design your membership' }).click();
 
-  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('studio-membership-trigger')).toHaveAttribute('aria-current', 'page');
   const card = page.getByTestId('curator-plan-card');
   await expect(card.getByLabel('Plan name')).toBeFocused();
   await card.getByLabel('Plan name').fill('Early Club');
@@ -283,7 +352,7 @@ test('mints a new hosted link when the provider refresh URL returns', async ({ p
   });
   await hostPayoutPage(page, renewedUrl);
 
-  await page.goto(`${STUDIO_PATH}?payout=refresh`);
+  await page.goto(`${STUDIO_PAYOUTS_PATH}?payout=refresh`);
   await expect(page.getByText('Your secure payout setup link expired.')).toBeVisible();
   expect(state.curatorPayoutOnboardingRequests).toBe(0);
 
@@ -296,6 +365,7 @@ test('mints a new hosted link when the provider refresh URL returns', async ({ p
 test('keeps plan drafts usable through restricted and failed payout status', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
+    posts: [ownPost],
     curatorPayoutAccount: payoutAccount({
       onboardingStatus: 'restricted',
       transfersCapabilityStatus: 'restricted',
@@ -315,7 +385,7 @@ test('keeps plan drafts usable through restricted and failed payout status', asy
   await openStudioStep(page, 'studio-payouts');
   await expect(card.getByRole('alert')).toBeVisible({ timeout: 10_000 });
 
-  await openStudioStep(page, 'studio-overview');
+  await openStudioStep(page, 'studio-membership');
   await page.getByRole('button', { name: 'Next: Design your membership' }).click();
   const plan = page.getByTestId('curator-plan-card');
   await plan.getByLabel('Plan name').fill('Steady Club');
@@ -347,7 +417,8 @@ test('creates a free draft with policy economics before payouts', async ({ page 
 
   await card.getByLabel('Plan name').fill('Selector Club');
   await card.getByLabel('Description').fill('Member-only selections.');
-  await card.getByLabel(/Member-only posts/).check();
+  // A new draft includes member-only posts unless the curator clears it.
+  await expect(card.getByLabel(/Member-only posts/)).toBeChecked();
   await card.getByRole('button', { name: 'Save draft' }).click();
 
   await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft saved. Publishing remains optional.');
@@ -367,6 +438,121 @@ test('creates a free draft with policy economics before payouts', async ({ page 
     featureKeys: ['member_posts'],
   }]);
   await expect(page.getByTestId('curator-payout-onboarding')).toBeEnabled();
+});
+
+test('starts a new draft without member-only posts when the catalog does not offer them', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorFeatures: [{
+      featureKey: 'member_badge',
+      displayName: 'Member badge',
+      description: 'Show member identity on comments and likes.',
+    }],
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const card = page.getByTestId('curator-plan-card');
+  await card.getByLabel('Plan name').fill('Badge Club');
+  await expect(card.getByLabel(/Member-only posts/)).toHaveCount(0);
+  await expect(card.getByLabel(/Member badge/)).not.toBeChecked();
+  await card.getByLabel(/Member badge/).check();
+  await card.getByRole('button', { name: 'Save draft' }).click();
+
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft saved. Publishing remains optional.');
+  expect(state.curatorPlanCreateRequests.map((request) => request.featureKeys)).toEqual([['member_badge']]);
+});
+
+test('keeps member-only posts cleared when the curator unchecks the default', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const card = page.getByTestId('curator-plan-card');
+  const memberPosts = card.getByLabel(/Member-only posts/);
+  await expect(memberPosts).toBeChecked();
+  await memberPosts.uncheck();
+  await card.getByLabel('Plan name').fill('Open Club');
+  await expect(memberPosts).not.toBeChecked();
+  await card.getByRole('button', { name: 'Save draft' }).click();
+
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft saved. Publishing remains optional.');
+  expect(state.curatorPlanCreateRequests.map((request) => request.featureKeys)).toEqual([[]]);
+});
+
+test('refuses to publish a draft with no features and says features freeze at publish', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [{ ...draftPlan, featureKeys: [] }],
+    curatorPayoutAccount: payoutAccount({
+      onboardingStatus: 'active',
+      transfersCapabilityStatus: 'active',
+      capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
+    }),
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const card = page.getByTestId('curator-plan-card');
+  const publish = card.getByTestId('curator-plan-publish');
+  await expect(publish).toBeDisabled();
+  await expect(publish).toHaveAccessibleDescription(
+    'Features and fan prices freeze when you publish. Edit the draft to include at least one feature before you publish.',
+  );
+  await publish.click({ force: true });
+  expect(state.curatorPlanPublishRequests).toEqual([]);
+
+  await card.getByTestId('curator-plan-edit').click();
+  await card.getByLabel(/Member-only posts/).check();
+  await card.getByRole('button', { name: 'Save changes' }).click();
+  await expect(card.getByTestId('curator-plan-notice')).toHaveText('Draft updated.');
+
+  await expect(publish).toBeEnabled();
+  await expect(card.getByText('Edit the draft to include at least one feature before you publish.')).toHaveCount(0);
+  await publish.click();
+  await expect(card.getByTestId('curator-plan-active')).toContainText('Member-only posts');
+  expect(state.curatorPlanPublishRequests).toEqual([draftPlan.id]);
+});
+
+test('a publish that answers after the person moved to Music does not pull them back', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [draftPlan],
+    curatorPayoutAccount: payoutAccount({
+      onboardingStatus: 'active',
+      transfersCapabilityStatus: 'active',
+      capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
+    }),
+  });
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.route('**/api/v1/curators/plans/*/publish', async (route) => {
+    await released;
+    await route.fallback().catch(() => {});
+  });
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const publish = page.getByTestId('curator-plan-card').getByTestId('curator-plan-publish');
+  await expect(publish).toBeEnabled();
+  await publish.click();
+  await page.getByTestId('studio-music-trigger').click();
+  await expect(page).toHaveURL('/studio/music');
+  release();
+
+  await expect.poll(() => state.curatorPlanPublishRequests).toEqual([draftPlan.id]);
+  // The hidden plan card's notice is set in the same success handler that used to reopen
+  // Membership; once it shows, any such navigation has started and lands well within a second.
+  await expect(page.getByTestId('curator-plan-notice')).toHaveText("You're live. Fans can join from your public page.");
+  const reopened = await page.waitForURL('**/studio/membership', { timeout: 1_000 }).then(() => true, () => false);
+  expect(reopened).toBe(false);
+  await expect(page).toHaveURL('/studio/music');
 });
 
 test('edits and deletes drafts before publication', async ({ page }) => {
@@ -505,7 +691,7 @@ test('publishes without Curator Pro after payout onboarding completes and archiv
   await expect(card.getByTestId('curator-plan-notice')).toHaveText("You're live. Fans can join from your public page.");
   await expect(card.getByRole('link', { name: /\/profile\/miagroove$/ })).toHaveAttribute('href', '/profile/miagroove');
   await expect(card.getByRole('button', { name: 'Copy page link' })).toBeVisible();
-  // The dashboard replaces the checklist above the card, so focus returns to the card.
+  // The member figures replace the setup steps above the card, so focus returns to the card.
   await expect(card).toBeFocused();
 
   await card.getByRole('button', { name: 'Archive plan' }).click();
@@ -562,7 +748,7 @@ test('ends memberships after a confirmation that states the effect on members', 
 
   // The always-mounted Members tab reads its counts again after the ending.
   await expect.poll(() => state.curatorMemberStatsRequests).toEqual([30, 30]);
-  await openStudioStep(page, 'studio-earnings');
+  await openStudioStep(page, 'studio-members');
   await expect(page.getByTestId('curator-earnings-card').getByText('3 members will not renew.', { exact: true }))
     .toBeVisible();
 });
@@ -791,6 +977,8 @@ test('shows private paginated earnings without Curator Pro', async ({ page }) =>
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProfile,
+    // Published once, then archived: the members and their earnings stay, with no live offer.
+    curatorPlans: [{ ...publishedMonthlyPlan, status: 'archived', archivedAtUtc: '2026-08-20T12:00:00Z' }],
     curatorEarnings: {
       activeMemberCount: 3, items: earningsItems,
       balances: { currency: 'USD', earnedThisMonth: 0, accrued: 2053, payable: 0,
@@ -803,13 +991,10 @@ test('shows private paginated earnings without Curator Pro', async ({ page }) =>
   });
 
   await page.goto(STUDIO_PATH);
-  await openStudioStep(page, 'studio-earnings');
+  await openStudioStep(page, 'studio-members');
 
   const card = page.getByTestId('curator-earnings-card');
   await expect(card).toBeVisible();
-  // No plan has been published, so there are no members to count or request.
-  await expect(card.getByText('No members yet', { exact: true })).toBeVisible();
-  await expect(card.getByRole('radiogroup', { name: 'Member window' })).toHaveCount(0);
 
   const terminalAllocation = card.getByText('$1.25', { exact: true }).locator('..').locator('..');
   await expect(terminalAllocation).toContainText('Earning forfeited');
@@ -830,11 +1015,11 @@ test('shows private paginated earnings without Curator Pro', async ({ page }) =>
   await card.getByRole('button', { name: 'Next' }).click();
   await expect(card.getByText(/Page 2/)).toBeVisible();
   await expect(card.getByText('$2.07', { exact: true })).toBeVisible();
-  expect(state.curatorEarningsRequests).toEqual([
+  // The members card pages by ten; the Overview's earnings hero reads its own window.
+  expect(state.curatorEarningsRequests.filter((request) => request.pageSize === 10)).toEqual([
     { page: 1, pageSize: 10 },
     { page: 2, pageSize: 10 },
   ]);
-  expect(state.curatorMemberStatsRequests).toEqual([]);
 });
 
 test('shows member counts, the daily trend, and the previous-window baseline', async ({ page }) => {
@@ -860,7 +1045,7 @@ test('shows member counts, the daily trend, and the previous-window baseline', a
   await expect(page.getByRole('button', { name: 'Members 5', exact: true })).toBeVisible();
   // The hidden Members tab keeps its own historical "Active members" figure.
   await expect(page.getByText('Active members', { exact: true }).filter({ visible: true })).toHaveCount(0);
-  await openStudioStep(page, 'studio-earnings');
+  await openStudioStep(page, 'studio-members');
 
   const card = page.getByTestId('curator-earnings-card');
   await expect(card.getByTestId('curator-active-member-count')).toHaveText('3');
@@ -911,7 +1096,7 @@ test('says when a published plan has no members in the window', async ({ page })
   });
 
   await page.goto(STUDIO_PATH);
-  await openStudioStep(page, 'studio-earnings');
+  await openStudioStep(page, 'studio-members');
 
   const card = page.getByTestId('curator-earnings-card');
   await expect(card.getByText('No active members', { exact: true })).toBeVisible();
@@ -921,7 +1106,7 @@ test('says when a published plan has no members in the window', async ({ page })
   expect(state.curatorMemberStatsRequests).toEqual([30]);
 });
 
-test('says member counts are unavailable when the plans cannot load', async ({ page }) => {
+test('leaves the plan card to explain a failed plan read, with no members or setup steps', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProfile,
@@ -931,11 +1116,11 @@ test('says member counts are unavailable when the plans cannot load', async ({ p
     route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"unavailable"}' }));
 
   await page.goto(STUDIO_PATH);
-  await openStudioStep(page, 'studio-earnings');
+  await openStudioStep(page, 'studio-membership');
 
-  const card = page.getByTestId('curator-earnings-card');
-  await expect(card.getByRole('alert').first()).toContainText('Your other Studio tools still work.', { timeout: 10_000 });
-  await expect(card.getByText('No members yet', { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('curator-plan-card').getByRole('alert')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('curator-earnings-card')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Membership setup' })).toHaveCount(0);
   expect(state.curatorMemberStatsRequests).toEqual([]);
 });
 
@@ -953,7 +1138,7 @@ test('keeps the activity list when member counts fail, then retries them', async
   });
 
   await page.goto(STUDIO_PATH);
-  await openStudioStep(page, 'studio-earnings');
+  await openStudioStep(page, 'studio-members');
 
   const card = page.getByTestId('curator-earnings-card');
   await expect(card.getByRole('alert')).toContainText('Your other Studio tools still work.', { timeout: 10_000 });
@@ -1033,7 +1218,8 @@ const activePayout = payoutAccount({
   capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
 });
 
-test('swaps the launch checklist for one banner after the first publish and orders billing by payout state', async ({ page }) => {
+test('shows one banner after the first publish and orders billing by payout state', async ({ page }) => {
+  // No posts: payout recovery for a live plan still comes before the first music step.
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProfile,
@@ -1043,11 +1229,11 @@ test('swaps the launch checklist for one banner after the first publish and orde
   });
 
   await page.goto(STUDIO_PATH);
-  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByText('Payout setup is not complete.')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Launch checklist' })).toHaveCount(0);
+  await expect(page.getByText('Your page has no music yet.')).toHaveCount(0);
   await page.getByRole('button', { name: /^Ready to pay out/ }).click();
-  await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-current', 'page');
   await expect.poll(() => billingOrder(page)).toEqual(['setup', 'history', 'pro']);
 
   state.curatorPayoutAccount = activePayout;
@@ -1055,6 +1241,10 @@ test('swaps the launch checklist for one banner after the first publish and orde
   await openStudioStep(page, 'studio-overview');
   await expect(page.getByRole('heading', { name: 'Earned' })).toBeVisible();
   await expect(page.getByText('Payout setup is not complete.')).toHaveCount(0);
+  // With payouts ready, the open content step is the one banner.
+  await expect(page.getByRole('status').filter({ hasText: 'Your page has no music yet.' }).getByRole('link', { name: 'Add your first music' }))
+    .toHaveAttribute('href', '/studio/music/new?from=%2Fstudio');
+  await expect(page.getByText('Copy your page link to share it with fans.')).toHaveCount(0);
   await openStudioStep(page, 'studio-billing');
   await expect(page.getByTestId('curator-payout-card')).toContainText('Ready. Last checked');
   await expect.poll(() => billingOrder(page)).toEqual(['history', 'setup', 'pro']);
@@ -1070,7 +1260,7 @@ test('keeps payout setup first after a payout return and offers the next plan st
     curatorProStatus: fixtureCuratorProAvailableStatus,
   });
 
-  await page.goto(`${STUDIO_PATH}?payout=return`);
+  await page.goto(`${STUDIO_PAYOUTS_PATH}?payout=return`);
 
   await expect(page.getByTestId('curator-payout-notice')).toHaveText('Payout setup is complete.');
   // Setup stays first for this visit, so the notice does not move when payouts turn active.
@@ -1078,9 +1268,27 @@ test('keeps payout setup first after a payout return and offers the next plan st
   expect(state.curatorPayoutStatusRequests.filter(Boolean)).toEqual([true]);
 
   await page.getByTestId('curator-payout-card').getByRole('button', { name: 'Publish your plan' }).click();
-  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('studio-membership-trigger')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByTestId('curator-plan-card')).toBeFocused();
   await expect(page.getByTestId('curator-plan-publish')).toBeEnabled();
+});
+
+test('ends with the share banner for a live curator with music, and copying the link finishes it', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    // A fresh members-only post: no members-only nudge, so sharing is the open step.
+    posts: [ownPost, { ...ownPost, postId: 'post-studio-members-fresh', privacy: 'subscriber', createdAt: new Date().toISOString() }],
+    curatorProfile,
+    curatorPlans: [publishedMonthlyPlan],
+    curatorPayoutAccount: activePayout,
+  });
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-overview');
+  await expect(page.getByText('Copy your page link to share it with fans.')).toBeVisible();
+  await page.getByRole('button', { name: 'Copy page link' }).click();
+  await expect(page.getByText('Copy your page link to share it with fans.')).toHaveCount(0);
 });
 
 test('shows no setup banner while the payout state is unknown', async ({ page }) => {
@@ -1093,8 +1301,9 @@ test('shows no setup banner while the payout state is unknown', async ({ page })
   state.curatorPayoutStatusFailuresRemaining = 10;
 
   await page.goto(STUDIO_PATH);
-  await expect(page.getByTestId('curator-payout-card').getByRole('alert')).toBeAttached({ timeout: 10_000 });
-  await openStudioStep(page, 'studio-overview');
+  // The payout card stays mounted, hidden, on the Overview URL; its read failure settles there.
+  await expect(page.getByTestId('curator-payout-card').locator('[role="alert"]')).toBeAttached({ timeout: 10_000 });
+  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('heading', { name: 'Earned' })).toBeVisible();
   await expect(page.getByText('Payout setup is not complete.')).toHaveCount(0);
 });
@@ -1117,9 +1326,36 @@ test.describe('audience', () => {
     await expect(section).toContainText('4');
     await expect(section.getByRole('button', { name: 'Members 0', exact: true })).toBeVisible();
     await expect(section).toContainText('everyone who follows you, plus your active members');
-    // No published plan: the checklist leads, and the audience still shows.
-    await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
+    // No published plan: the music leads, and the audience still shows.
+    await expect(page.getByRole('heading', { name: 'Recent music' })).toBeVisible();
     expect(state.curatorAudienceRequests).toBeGreaterThan(0);
+
+    // There are no member figures before a publish, so Members opens the setup steps and focus follows.
+    await section.getByRole('button', { name: 'Members 0', exact: true }).click();
+    await expect(page).toHaveURL(/\/studio\/membership$/);
+    await expect(page.locator('#studio-setup')).toBeFocused();
+  });
+
+  test('Members opens the plan card that explains a failed plan read', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      curatorProfile,
+      curatorAudience: { audienceCount: 4, activeMemberCount: 0 },
+    });
+    await page.route('**/api/v1/curators/plans', (route) =>
+      route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"unavailable"}' }));
+
+    await page.goto(STUDIO_PATH);
+    await openStudioStep(page, 'studio-overview');
+    // The hidden Membership view stays mounted: once its plan card shows the error, the read has
+    // failed, the Overview reads it as not published, and Membership shows no setup steps.
+    await expect(page.getByTestId('curator-plan-card').getByRole('alert', { includeHidden: true }))
+      .toBeAttached({ timeout: 15_000 });
+
+    await audienceSection(page).getByRole('button', { name: 'Members 0', exact: true }).click();
+    await expect(page).toHaveURL(/\/studio\/membership$/);
+    await expect(page.locator('#studio-plan')).toBeFocused();
+    await expect(page.getByTestId('curator-plan-card').getByRole('alert')).toBeVisible();
   });
 
   test('a curator with a published plan and Curator Pro sees the same private counts beside earnings', async ({ page }) => {

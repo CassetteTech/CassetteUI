@@ -2,7 +2,7 @@
 
 /** Lets a post owner update its caption, visibility, and comment setting. */
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -24,6 +24,8 @@ import { useSubscriberPostEligibility } from '@/hooks/use-curator';
 
 const MAX_DESCRIPTION_LENGTH = 500;
 
+export type PostChanges = { description?: string; privacy?: PostPrivacy; commentsEnabled?: boolean };
+
 interface EditPostModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -31,7 +33,10 @@ interface EditPostModalProps {
   currentDescription: string;
   currentPrivacy?: PostPrivacy;
   currentCommentsEnabled?: boolean;
-  onSuccess?: (data: { description: string; privacy: PostPrivacy; commentsEnabled: boolean }) => void;
+  /** Runs after a save with only the fields that changed. */
+  onSuccess?: (changes: PostChanges) => void;
+  /** Without a sheet trigger, Radix focuses nothing on close; a caller can focus its real opener here. */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 export function EditPostModal({
@@ -42,10 +47,14 @@ export function EditPostModal({
   currentPrivacy = 'public',
   currentCommentsEnabled = true,
   onSuccess,
+  onCloseAutoFocus,
 }: EditPostModalProps) {
   const [description, setDescription] = useState(currentDescription);
   const [privacy, setPrivacy] = useState<PostPrivacy>(currentPrivacy);
   const [commentsEnabled, setCommentsEnabled] = useState(currentCommentsEnabled);
+  // A caller can open the sheet without knowing a setting (a list item may carry a default), so a
+  // control counts as changed once touched, and is then saved as shown.
+  const touched = useRef({ privacy: false, commentsEnabled: false });
   const updatePost = useUpdatePost();
   const canUseSubscriberPosts = useSubscriberPostEligibility(open);
   const showSubscriberOption = canUseSubscriberPosts || currentPrivacy === 'subscriber';
@@ -56,15 +65,26 @@ export function EditPostModal({
       setDescription(currentDescription);
       setPrivacy(currentPrivacy);
       setCommentsEnabled(currentCommentsEnabled);
+      touched.current = { privacy: false, commentsEnabled: false };
     }
   }, [open, currentDescription, currentPrivacy, currentCommentsEnabled]);
 
   const handleSave = async () => {
+    // Only what the owner changed goes to Bridge, so a stale or default setting from the caller
+    // never overwrites the saved one.
+    const changes: PostChanges = {};
+    if (description !== currentDescription) changes.description = description;
+    if (touched.current.privacy) changes.privacy = privacy;
+    if (touched.current.commentsEnabled) changes.commentsEnabled = commentsEnabled;
+    if (Object.keys(changes).length === 0) {
+      onOpenChange(false);
+      return;
+    }
     try {
-      await updatePost.mutateAsync({ postId, description, privacy, commentsEnabled });
+      await updatePost.mutateAsync({ postId, ...changes });
       toast.success('Post updated successfully');
       onOpenChange(false);
-      onSuccess?.({ description, privacy, commentsEnabled });
+      onSuccess?.(changes);
     } catch (error) {
       appLogger.error('post_update_failed', { error, route: '/post/[id]', post_id: postId });
       toast.error('Failed to update post. Please try again.');
@@ -82,6 +102,7 @@ export function EditPostModal({
     const value = event.target.value;
     if (value === 'public' || value === 'private' || value === 'subscriber') {
       setPrivacy(value);
+      touched.current.privacy = true;
     }
   };
 
@@ -90,7 +111,7 @@ export function EditPostModal({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-md">
+      <SheetContent side="right" className="w-full max-w-md" onCloseAutoFocus={onCloseAutoFocus}>
         <SheetHeader>
           <SheetTitle className="text-foreground">Edit Post</SheetTitle>
           <SheetDescription className="text-muted-foreground">
@@ -140,7 +161,10 @@ export function EditPostModal({
             <Switch
               id="post-comments-enabled"
               checked={commentsEnabled}
-              onCheckedChange={setCommentsEnabled}
+              onCheckedChange={(checked) => {
+                setCommentsEnabled(checked);
+                touched.current.commentsEnabled = true;
+              }}
               disabled={updatePost.isPending}
             />
           </div>

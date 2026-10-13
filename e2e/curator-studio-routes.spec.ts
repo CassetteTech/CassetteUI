@@ -108,6 +108,22 @@ test('the sidebar offers Add music as a button above the page links, in their bo
   expect(action!.y).toBeLessThan(row!.y);
   expect(Math.abs(avatar!.x - feedIcon!.x)).toBeLessThanOrEqual(1);
   expect(Math.abs(signOutIcon!.x - feedIcon!.x)).toBeLessThanOrEqual(1);
+
+  // Add music leads the page rows: 20 px under the account row, 12 px above the first row. The
+  // footer rows share the page rows' pitch.
+  const footer = sidebar.locator('[data-slot="sidebar-footer"]');
+  const [account, firstRow, report, signOut, inbox] = await Promise.all([
+    sidebar.locator('a[href="/profile/miagroove"]').boundingBox(),
+    studio.boundingBox(),
+    footer.getByRole('button', { name: 'Report a Problem' }).boundingBox(),
+    footer.getByRole('button', { name: 'Sign Out' }).boundingBox(),
+    sidebar.locator('[data-slot="sidebar-header"]').getByRole('button', { name: 'Notifications' }).boundingBox(),
+  ]);
+  expect(action!.y - (account!.y + account!.height)).toBe(20);
+  expect(firstRow!.y - (action!.y + action!.height)).toBe(12);
+  expect(signOut!.y - report!.y).toBe(row!.y - firstRow!.y);
+  // The header inbox ends on the rows' right edge.
+  expect(inbox!.x + inbox!.width).toBe(row!.x + row!.width);
 });
 
 test('one sidebar highlight follows the pointer over the page rows and returns to the active row', async ({ page }) => {

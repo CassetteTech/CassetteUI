@@ -67,7 +67,6 @@ test.describe('profile rail', () => {
     const addMusic = sidebar.getByRole('link', { name: 'Add music' });
     const [rowBox, buttonBox] = await Promise.all([accountRow.boundingBox(), addMusic.boundingBox()]);
     expect(rowBox?.width).toBe(buttonBox?.width);
-    await page.screenshot({ path: 'test-results/sidebar-own-profile.png', clip: { x: 0, y: 0, width: 320, height: 420 } });
   });
 
   test('keeps the signed-in user in the sidebar and puts the curator in the membership pass', async ({ page }) => {

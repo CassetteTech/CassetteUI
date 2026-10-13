@@ -185,8 +185,10 @@ export function AppSidebar({ className }: AppSidebarProps) {
     <Sidebar collapsible="none" className={`h-screen border-r border-sidebar-border/50 ${className}`}>
       <SidebarHeader>
         {/* The logo shares the left edge of the account row and the page rows; the inbox sits at
-            the right end, so the account row below can take the full width when it is active. */}
-        <div className="px-2 py-4 flex items-center justify-between">
+            the right end, on the rows' right edge, so the account row below can take the full width
+            when it is active. The logo box spans 20–60 px, so its center meets the profile page's
+            tab labels. */}
+        <div className="pl-2 pt-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Image
               src="/images/app_logo.svg"
@@ -227,8 +229,10 @@ export function AppSidebar({ className }: AppSidebarProps) {
             </SidebarGroupContent>
           </SidebarGroup>
         ) : user ? (
-          <SidebarGroup>
-            <SidebarGroupContent className="space-y-2">
+          // pb-1 here and pt-0 on the page rows' group leave 12 px (with the content gap) between
+          // Add music and the first page row, against 20 px above it: Add music leads the pages.
+          <SidebarGroup className="pb-1">
+            <SidebarGroupContent className="space-y-5">
               <SidebarAccountRow user={user} active={isOwnProfilePath(pathname, user)} />
               {/* Adding music is the main action, not a place: a full-width ink button with a page
                   row's box, outside the page rows' menu, so it never takes the active marker. Ink,
@@ -264,12 +268,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
         )}
         
         {/* Navigation */}
-        <SidebarGroup>
+        <SidebarGroup className="pt-0">
           <SidebarPageMenu items={sidebarNavItems} pathname={pathname} user={user} />
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t px-2 py-4 space-y-2">
+      {/* gap-1 puts the footer rows on the page rows' 36 px pitch. */}
+      <SidebarFooter className="border-t px-2 py-3 gap-1">
         {/* Promote leaves the sidebar shell */}
         {promoteItem && (
           <Button asChild variant="ghost" size="sm" className={footerButtonClassName}>

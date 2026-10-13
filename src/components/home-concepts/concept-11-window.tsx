@@ -319,7 +319,7 @@ const nextPair = ({ pasted, converted }: CardPair): CardPair => {
   const next = (converted + 1) % SERVICE_LINKS.length;
   return { pasted: next === pasted ? converted : pasted, converted: next };
 };
-const CARD_TURN_MS = 1500;
+const CARD_TURN_MS = 1725;
 const CARD_LABEL = 'font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground';
 const CARD_CHIP = 'flex h-7 items-center gap-2 rounded-md border px-2 font-mono text-xs';
 

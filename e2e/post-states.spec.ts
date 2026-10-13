@@ -88,3 +88,48 @@ test('keeps mobile post cover art at a stable size', async ({ page }) => {
   await page.setViewportSize({ width: 640, height: 900 });
   await expectArtworkSize(340);
 });
+
+test('keeps the post and a track counter in the desktop toolbar over a long tracklist', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const playlist: FixturePost = {
+    ...fixturePosts.playlistSource,
+    postId: 'post-docked-toolbar',
+    tracks: Array.from({ length: 20 }, (_, index) => ({
+      title: `Night Track ${index + 1}`,
+      trackNumber: index + 1,
+      artists: ['Crate Keeper'],
+    })),
+  };
+  await mockCassetteApp(page, { currentUser: fixtureUsers.playlistCurator, posts: [playlist] });
+
+  await page.goto('/post/post-docked-toolbar');
+
+  const toolbar = page.locator('[data-post-toolbar]');
+  await expect(page.getByRole('heading', { name: playlist.title })).toBeVisible();
+  await expect(toolbar).not.toHaveAttribute('data-dock');
+
+  await page.getByRole('button', { name: 'Show all 20 tracks' }).click();
+  const scrollTo = (top: number) =>
+    expect.poll(() => page.evaluate((y) => { window.scrollTo(0, y); return window.scrollY; }, top)).toBe(top);
+  await scrollTo(1000);
+
+  await expect(toolbar).toHaveAttribute('data-dock', 'docked');
+  await expect(page.getByRole('button', { name: 'Share' })).toBeInViewport();
+  const counter = toolbar.getByText(/^Track \d{2} of 20$/);
+  await expect(counter).toHaveCount(1);
+  const trackAt = async () => Number((await counter.textContent())?.match(/\d+/)?.[0]);
+  const earlier = await trackAt();
+  await scrollTo(1200);
+  await expect.poll(trackAt).toBeGreaterThan(earlier);
+  await scrollTo(1000);
+  await expect.poll(trackAt).toBe(earlier);
+
+  const toolbarBox = await toolbar.boundingBox();
+  const columnBox = await page.getByRole('complementary', { name: 'Your post' }).boundingBox();
+  // The lid reaches 0.5rem below the toolbar row; the column sticks beneath it.
+  expect(columnBox!.y).toBeGreaterThanOrEqual(toolbarBox!.y + toolbarBox!.height + 8);
+
+  await page.getByRole('button', { name: 'Back to the top of the post' }).click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(toolbar).not.toHaveAttribute('data-dock');
+});

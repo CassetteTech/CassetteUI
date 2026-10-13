@@ -631,6 +631,30 @@ const createOwnedPostFromTemplate = (
     ...overrides,
   };
   upsertPost(state, nextPost);
+  // Bridge lists the new post on the owner's curator page too; private posts never show there.
+  const ownPage = state.curatorPage;
+  if (
+    currentUser && ownPage && nextPost.privacy !== 'private' &&
+    normalizeUsername(ownPage.curator.username) === normalizeUsername(currentUser.username)
+  ) {
+    ownPage.posts.items.unshift({
+      kind: 'post',
+      post: {
+        postId: nextPost.postId,
+        redirectPostId: nextPost.postId,
+        elementType: nextPost.elementType,
+        title: nextPost.title,
+        subtitle: nextPost.artist ?? null,
+        description: nextPost.description ?? null,
+        imageUrl: null,
+        username: ownPage.curator.username,
+        createdAt: nextPost.createdAt ?? new Date().toISOString(),
+        privacy: nextPost.privacy === 'subscriber' ? 'subscriber' : 'public',
+        accountType: ownPage.curator.accountType,
+      },
+    });
+    ownPage.posts.totalItems += 1;
+  }
   return nextPost;
 };
 

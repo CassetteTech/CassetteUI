@@ -55,6 +55,20 @@ test.describe('profile rail', () => {
     await expect(html).toHaveAttribute('data-view-transitions', '1');
   });
 
+  test('puts the inbox in the sidebar header and gives the own-profile row the full width', async ({ page }) => {
+    await mockCassetteApp(page, { currentUser: fixtureUsers.viewer, curatorPage: fixtureCuratorPage });
+
+    await page.goto(`/profile/${fixtureUsers.viewer.username}`);
+
+    const sidebar = page.locator('[data-slot="sidebar"]');
+    await expect(sidebar.locator('[data-slot="sidebar-header"]').getByRole('button', { name: 'Notifications' })).toBeVisible();
+    const accountRow = sidebar.locator('a[aria-current="page"]', { hasText: `@${fixtureUsers.viewer.username}` });
+    await expect(accountRow).toBeVisible();
+    const addMusic = sidebar.getByRole('link', { name: 'Add music' });
+    const [rowBox, buttonBox] = await Promise.all([accountRow.boundingBox(), addMusic.boundingBox()]);
+    expect(rowBox?.width).toBe(buttonBox?.width);
+  });
+
   test('keeps the signed-in user in the sidebar and puts the curator in the membership pass', async ({ page }) => {
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.viewer,

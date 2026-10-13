@@ -51,6 +51,7 @@ export function HomeSearchBar({
       </AnimatePresence>
       <ConversionBeam active={isConverting}>
         <UrlBar
+          ref={search.barRef}
           variant="dark"
           className={cn('w-full', heights[size])}
           hasError={!!search.urlError}

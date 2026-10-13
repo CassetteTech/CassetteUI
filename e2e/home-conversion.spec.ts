@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fixtureConvertTemplates } from './support/cassette-fixtures';
+import { fixtureConvertTemplates, fixtureUsers } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 import { dispatchPaste } from './support/paste';
 
@@ -69,8 +69,33 @@ test.describe('home conversion funnel', () => {
     await expect(page.getByText('Midnight City')).toBeVisible();
   });
 
-  test('advances the conversion steps while the response is pending', async ({ page }) => {
-    await mockCassetteApp(page);
+  test('hands a signed-in paste to the conversion page with its session and the link as pasted', async ({ page, context, baseURL }) => {
+    // Percent-encoded characters are common in Apple Music links; the router decodes the query once.
+    const link = 'https://music.apple.com/us/album/caf%C3%A9-nights/303030?i=303031';
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.viewer,
+      convertTemplates: [{ ...fixtureConvertTemplates.homeTrack, originalUrl: link }],
+    });
+    // The session cookie travels only with a signed-in request (anonymous ones omit credentials).
+    await context.addCookies([{ name: 'e2e_session_marker', value: 'signed-in', url: baseURL! }]);
+    const convert = page.waitForRequest(
+      (request) => request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/convert',
+    );
+
+    const session = page.waitForResponse('**/api/auth/session');
+    await page.goto('/');
+    await session;
+    await dispatchPaste(page, 'home-search-input', link);
+
+    const request = await convert;
+    expect(request.postDataJSON().sourceLink).toBe(link);
+    expect((await request.allHeaders()).cookie ?? '').toContain('e2e_session_marker=signed-in');
+    await expect(page).toHaveURL(/\/post\/post-home-converted$/);
+  });
+
+  test("draws a signed-in conversion where the owner's post lands", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await mockCassetteApp(page, { currentUser: fixtureUsers.member });
     let releaseConversion = () => {};
     const conversionHeld = new Promise<void>((resolve) => {
       releaseConversion = resolve;
@@ -80,12 +105,121 @@ test.describe('home conversion funnel', () => {
       await route.fallback();
     });
 
-    await page.goto(`/post?url=${encodeURIComponent(fixtureConvertTemplates.homeTrack.originalUrl)}`);
+    const session = page.waitForResponse('**/api/auth/session');
+    await page.goto('/');
+    await session;
+    await dispatchPaste(page, 'home-search-input', fixtureConvertTemplates.homeTrack.originalUrl);
+    await expect(page).toHaveURL(/\/post\?url=/);
 
-    // The skeleton renders both layouts and CSS shows the one for the viewport.
-    await expect(page.getByText('Matching streaming services').filter({ visible: true })).toBeVisible();
-    await expect(page.getByText('Building your smart link').filter({ visible: true })).toBeVisible();
+    // The owner's post has its column beside the card, so the skeleton keeps room for it.
+    const drawnCard = await page.locator('[data-grow-target]').filter({ visible: true }).boundingBox();
     releaseConversion();
     await expect(page).toHaveURL(/\/post\/post-home-converted$/);
+    await expect(page.getByTestId('post-studio-panel')).toBeVisible();
+    const postCard = await page.getByRole('main').last().locator('.card-ink').first().boundingBox();
+    expect(Math.abs(postCard!.x - drawnCard!.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(postCard!.width - drawnCard!.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(postCard!.y - drawnCard!.y)).toBeLessThanOrEqual(8);
+  });
+
+  test("shows a playlist's name and tracks while its songs are matched", async ({ page }) => {
+    const playlistUrl = 'https://open.spotify.com/playlist/staged-playlist-1';
+    const tracks = [
+      { title: 'Blue Monday', artists: ['New Order'], duration: '7:29' },
+      { title: 'Nightcall', artists: ['Kavinsky'], duration: '4:18' },
+    ];
+    await mockCassetteApp(page, {
+      convertTemplates: [{
+        ...fixtureConvertTemplates.homeTrack,
+        postId: 'post-home-playlist',
+        musicElementId: 'playlist-home-1',
+        elementType: 'Playlist',
+        title: 'Late Drives',
+        artist: '',
+        originalUrl: playlistUrl,
+        convertedUrls: { spotify: playlistUrl },
+        trackCount: tracks.length,
+        tracks,
+      }],
+    });
+    let releaseConversion = () => {};
+    const conversionHeld = new Promise<void>((resolve) => {
+      releaseConversion = resolve;
+    });
+    await page.route('**/api/v1/convert', async (route) => {
+      await conversionHeld;
+      await route.fallback();
+    });
+    const source = { elementType: 'playlist', title: 'Late Drives', artists: [], platform: 'spotify', tracks };
+    // What Bridge reports at each step; the test advances the step.
+    const reported = [
+      { stage: 'fetching_source', partialResult: null },
+      { stage: 'matching_tracks', tracksProcessed: 1, tracksTotal: 2, partialResult: { source } },
+    ];
+    let step = 0;
+    await page.route('**/api/v1/convert/jobs/by-key/**', (route) =>
+      route.fulfill({ status: 202, json: { success: false, status: 'processing', jobId: 'job_playlist', ...reported[step] } }),
+    );
+
+    await page.goto('/');
+    await dispatchPaste(page, 'home-search-input', playlistUrl);
+    await expect(page).toHaveURL(/\/post\?url=/);
+
+    step = 1;
+    await expect(page.getByRole('heading', { name: 'Late Drives' }).filter({ visible: true })).toBeVisible();
+    for (const track of tracks) {
+      await expect(page.getByText(track.title, { exact: true }).filter({ visible: true })).toBeVisible();
+    }
+    await expect(page.getByText('2 tracks, 12 min', { exact: true }).filter({ visible: true })).toBeVisible();
+
+    releaseConversion();
+    await expect(page).toHaveURL(/\/post\/post-home-playlist$/);
+    await expect(page.getByText('Nightcall', { exact: true }).filter({ visible: true })).toBeVisible();
+  });
+
+  test('builds the post in stages from the conversion job while the response is pending', async ({ page }) => {
+    const track = fixtureConvertTemplates.homeTrack;
+    await mockCassetteApp(page);
+    let releaseConversion = () => {};
+    const conversionHeld = new Promise<void>((resolve) => {
+      releaseConversion = resolve;
+    });
+    await page.route('**/api/v1/convert', async (route) => {
+      await conversionHeld;
+      await route.fallback();
+    });
+    const source = { elementType: 'track', title: track.title, artists: [track.artist], platform: 'spotify' };
+    // What Bridge reports at each step; the test advances the step.
+    const reported = [
+      { stage: 'parsing_source', partialResult: null },
+      { stage: 'matching_platforms', partialResult: { source } },
+      { stage: 'matching_platforms', partialResult: { source, platforms: { applemusic: track.convertedUrls.appleMusic } } },
+    ];
+    let step = 0;
+    await page.route('**/api/v1/convert/jobs/by-key/**', (route) =>
+      route.fulfill({ status: 202, json: { success: false, status: 'processing', jobId: 'job_staged', ...reported[step] } }),
+    );
+
+    await page.goto('/');
+    await dispatchPaste(page, 'home-search-input', track.originalUrl);
+    await expect(page).toHaveURL(/\/post\?url=/);
+
+    // The skeleton renders both layouts and CSS shows the one for the viewport.
+    const visible = (text: string) => page.getByText(text, { exact: true }).filter({ visible: true });
+    await expect(visible('Reading your link')).toBeVisible();
+    // The source link is known from the start; the other services wait for their match.
+    await expect(page.getByRole('link', { name: 'Spotify' }).filter({ visible: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Apple Music' })).toHaveCount(0);
+
+    step = 1;
+    await expect(page.getByRole('heading', { name: track.title }).filter({ visible: true })).toBeVisible();
+    await expect(visible('Matching across services')).toBeVisible();
+
+    step = 2;
+    await expect(page.getByRole('link', { name: 'Apple Music' }).filter({ visible: true })).toBeVisible();
+
+    releaseConversion();
+    await expect(page).toHaveURL(/\/post\/post-home-converted$/);
+    await expect(page.getByRole('link', { name: 'Deezer' }).filter({ visible: true })).toBeVisible();
   });
 });

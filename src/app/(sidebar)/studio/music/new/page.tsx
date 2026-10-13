@@ -2,7 +2,7 @@
 
 /** Creates a music post from search or a provider link, including its caption and visibility. */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useEffectEvent, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { UrlBar } from '@/components/ui/url-bar';
 import { Button } from '@/components/ui/button';
@@ -24,11 +24,13 @@ import { SearchResults } from '@/components/features/search-results';
 import { MusicSearchResult } from '@/types';
 import { PageLoader } from '@/components/ui/page-loader';
 import { Skeleton } from '@/components/ui/skeleton';
-import Image from 'next/image';
+import { ArtworkImage } from '@/components/ui/artwork-image';
 import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { apiService } from '@/services/api';
 import { savePrefetchedPost } from '@/lib/post-prefetch';
+import { handOffConversion } from '@/lib/conversion-handoff';
+import { clearReturnedAddMusicDraft, holdAddMusicDraft, readReturnedAddMusicDraft } from '@/lib/add-music-draft';
 import { playErrorTone, playLinkRecognized } from '@/lib/sounds';
 import { detectContentType } from '@/utils/content-type-detection';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
@@ -43,10 +45,13 @@ import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 import { normalizeAuthRedirect } from '@/utils/auth-redirect';
 import { PostVisibilityControl } from '@/components/features/post/post-visibility-control';
 import { studioLabels, studioViewOfPath } from '@/components/features/curator/studio-routes';
-import type { PostPrivacy } from '@/types';
+import type { MusicLinkConversion, PostPrivacy } from '@/types';
+import { cn } from '@/lib/utils';
 
 // Analytics keep the route name this page had before it moved into Curator Studio, so funnels stay continuous.
 const ANALYTICS_ROUTE = '/add-music';
+// How long the card shows the music's real name before it grows into the post.
+const SOURCE_READ_BEAT_MS = 450;
 
 type SelectedItem = {
   id: string;
@@ -123,6 +128,11 @@ const MusicPicker = ({
   const sheetRef = useSheetViewportPin(isSearchActive);
   const showResults = musicUrl.length >= 2 && !musicUrl.includes('http');
   const pending = selectedItem || pastedLinkSource;
+  // While converting, the card names the music as soon as it is known.
+  const live = isConverting ? convertingMeta : null;
+  const cardArtwork = live?.artwork ?? selectedItem?.coverArtUrl;
+  const cardTitle = live?.title ?? (selectedItem ? selectedItem.title : `${pastedLinkSource} link pasted`);
+  const cardArtist = live?.artist ?? selectedItem?.artist;
 
   return (
     <div
@@ -132,7 +142,8 @@ const MusicPicker = ({
         isSearchActive && !rail
           ? 'fixed inset-0 z-[60] flex flex-col'
           : rail
-            ? 'flex min-h-0 flex-col'
+            // Pending music centers on the details card beside it; the open bar shares its top edge.
+            ? cn('flex min-h-0 flex-col', pending && 'self-stretch justify-center')
             : 'mb-6'
       }
       style={{ overscrollBehavior: 'contain' }}
@@ -161,18 +172,28 @@ const MusicPicker = ({
         className={
           isSearchActive && !rail
             ? 'w-full px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2'
-            : rail ? 'mb-4 w-full' : 'mb-4'
+            : rail ? cn('relative w-full', !pending && 'mb-4') : 'mb-4'
         }
       >
-        {/* Converting: kicker + headline narrate above the beamed card */}
+        {/* Converting: kicker + headline narrate above the beamed card. The rail keeps
+            the card where it is and sets the heading above it; the page column opens
+            room for the heading, so the card and the details glide down instead of jumping. */}
         <AnimatePresence>
           {isConverting && convertingMeta && (
-            <ConversionHeading
+            <motion.div
               key="conversion-heading"
-              kicker={convertingMeta.kicker}
-              headline={convertingMeta.headline}
-              className="mb-5"
-            />
+              initial={rail ? false : { height: 0 }}
+              animate={rail ? undefined : { height: 'auto' }}
+              exit={rail ? undefined : { height: 0 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className={rail ? 'absolute inset-x-0 bottom-full mb-5' : 'overflow-hidden'}
+            >
+              <ConversionHeading
+                kicker={convertingMeta.kicker}
+                headline={convertingMeta.headline}
+                className={rail ? undefined : 'pb-5'}
+              />
+            </motion.div>
           )}
         </AnimatePresence>
 
@@ -192,7 +213,7 @@ const MusicPicker = ({
               transition={{ duration: 0.15, ease: 'easeOut' }}
             >
               <ConversionBeam active={isConverting}>
-                <UrlBar variant="light" beamActive={isConverting} className="w-full">
+                <UrlBar variant="light" beamActive={isConverting} className="w-full" data-converting-card={isConverting || undefined}>
                   {isConverting ? (
                     <div className="flex h-full w-full flex-col items-center justify-center px-4 sm:px-6">
                       <span className="w-full truncate text-center text-sm sm:text-base font-semibold text-foreground">
@@ -230,19 +251,21 @@ const MusicPicker = ({
               {/* Pending music — a tilted ticket that straightens while
                   converting so the beam's clip matches the card's corners */}
               <ConversionBeam active={isConverting}>
-              <div className={`card-ink p-4 transition-[transform,box-shadow] duration-300 ${
+              <div data-converting-card={isConverting || undefined} className={`card-ink p-4 transition-[transform,box-shadow] duration-300 ${
                 isConverting
                   ? 'shadow-[0_2px_6px_rgba(0,0,0,0.05),0_4px_42px_rgba(0,0,0,0.06)]'
                   : '-rotate-1 elev-soft'
               }`}>
                 <div className="flex items-center gap-3">
-                  {selectedItem?.coverArtUrl ? (
-                    <Image
-                      src={selectedItem.coverArtUrl}
-                      alt={selectedItem.title}
+                  {cardArtwork ? (
+                    <ArtworkImage
+                      src={cardArtwork}
+                      alt={cardTitle}
                       width={48}
                       height={48}
-                      className="rounded-md ring-1 ring-border/40"
+                      unoptimized
+                      className="size-12 shrink-0 rounded-md object-cover ring-1 ring-border/40"
+                      fallbackClassName="size-12 shrink-0 rounded-md"
                     />
                   ) : (
                     <div className={`flex size-12 shrink-0 items-center justify-center rounded-md ${selectedItem ? 'bg-muted' : 'rounded-full bg-success/10'}`}>
@@ -250,10 +273,8 @@ const MusicPicker = ({
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-atkinson font-bold text-foreground">
-                      {selectedItem ? selectedItem.title : `${pastedLinkSource} link pasted`}
-                    </p>
-                    {selectedItem?.artist && <p className="truncate text-sm text-muted-foreground">{selectedItem.artist}</p>}
+                    <p className="truncate font-atkinson font-bold text-foreground">{cardTitle}</p>
+                    {cardArtist && <p className="truncate text-sm text-muted-foreground">{cardArtist}</p>}
                     {isConverting ? (
                       <ConversionStageLabel label={conversionStageLabel} className="mt-1 block" />
                     ) : selectedItem ? (
@@ -417,14 +438,21 @@ export default function AddMusicPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefilledUrl = searchParams?.get('url') || '';
-  
-  const [musicUrl, setMusicUrl] = useState(prefilledUrl);
-  const [description, setDescription] = useState('');
-  const [privacy, setPrivacy] = useState<PostPrivacy>('public');
+  // A conversion that failed after the post page took it over comes back here as it was left.
+  const [returnedDraft] = useState(readReturnedAddMusicDraft);
+  const returnedSelection = returnedDraft?.selection;
+
+  const [musicUrl, setMusicUrl] = useState(returnedSelection?.title ?? returnedDraft?.link ?? prefilledUrl);
+  const [description, setDescription] = useState(returnedDraft?.description ?? '');
+  const [privacy, setPrivacy] = useState<PostPrivacy>(returnedDraft?.privacy ?? 'public');
   const [isSearchActive, setIsSearchActive] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
-  const [pastedLinkSource, setPastedLinkSource] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(() =>
+    returnedSelection ? { id: `selected-${Date.now()}`, ...returnedSelection } : null,
+  );
+  const [pastedLinkSource, setPastedLinkSource] = useState<string | null>(() =>
+    returnedDraft && !returnedSelection ? getMusicSourceLabel(returnedDraft.link) : null,
+  );
+  const [errorMessage, setErrorMessage] = useState(returnedDraft?.errorMessage ?? '');
   // Idempotency key of the in-flight conversion; doubles as the "converting" flag.
   const [conversionKey, setConversionKey] = useState<string | null>(null);
   // What's being converted, for the in-place beamed card copy.
@@ -432,6 +460,9 @@ export default function AddMusicPage() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const lastTrackedSearchRef = useRef<string>('');
+  // The conversion in flight, until it finishes here or is handed to the post page.
+  const runningRef = useRef<{ url: string; key: string; result: Promise<MusicLinkConversion> } | null>(null);
+  const handedOffRef = useRef(false);
   const debouncedSearchTerm = useDebounce(musicUrl, 300); // matches the home page search feel
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
@@ -439,8 +470,71 @@ export default function AddMusicPage() {
   const resolvedReturnRoute = normalizeAuthRedirect(searchParams?.get('from'))
     ?? (user?.username ? `/profile/${user.username}` : null);
   const linkConversion = useMusicLinkConversion();
-  const { label: conversionStageLabel } = useConversionStage(conversionKey);
+  const { label: conversionStageLabel, partialResult } = useConversionStage(conversionKey);
   const isConverting = conversionKey != null;
+  // What Bridge has read fills what the page did not know yet, such as a pasted link's title.
+  const liveSource = partialResult?.source;
+  const shownConvertingMeta = convertingMeta && liveSource?.title
+    ? {
+        ...convertingMeta,
+        title: convertingMeta.title ?? liveSource.title,
+        artist: convertingMeta.artist ?? (liveSource.artists?.join(', ') || undefined),
+        artwork: convertingMeta.artwork ?? liveSource.artworkUrl ?? undefined,
+      }
+    : convertingMeta;
+
+  // Once Bridge has read the music, the post builds on its own page: after a beat with
+  // the real name on the card, the card grows into the post skeleton, which fills in as
+  // Bridge reports the rest. A conversion that finishes first opens the finished post.
+  const sourceRead = Boolean(liveSource?.title);
+  const handOffToPost = useEffectEvent(() => {
+    const running = runningRef.current;
+    if (!running) return;
+    handedOffRef.current = true;
+    const query = searchParams?.toString();
+    holdAddMusicDraft(running.key, {
+      path: query ? `/studio/music/new?${query}` : '/studio/music/new',
+      link: running.url,
+      selection: selectedItem
+        ? {
+            title: selectedItem.title,
+            artist: selectedItem.artist,
+            type: selectedItem.type,
+            url: selectedItem.url,
+            coverArtUrl: selectedItem.coverArtUrl,
+          }
+        : null,
+      description,
+      privacy,
+      pushed: !resolvedReturnRoute,
+    });
+    const card = Array.from(document.querySelectorAll<HTMLElement>('[data-converting-card]')).find(
+      (element) => element.getClientRects().length > 0,
+    );
+    const box = card?.getBoundingClientRect();
+    handOffConversion({
+      url: running.url,
+      anonymous: false,
+      barRect: box ? { left: box.left, top: box.top, width: box.width, height: box.height } : null,
+      running: {
+        idempotencyKey: running.key,
+        result: running.result,
+        reported: { stageLabel: conversionStageLabel, partialResult },
+      },
+    });
+    const fromQuery = resolvedReturnRoute ? `&from=${encodeURIComponent(resolvedReturnRoute)}` : '';
+    const target = `/post?url=${encodeURIComponent(running.url)}${fromQuery}`;
+    if (resolvedReturnRoute) {
+      router.replace(target);
+    } else {
+      router.push(target);
+    }
+  });
+  useEffect(() => {
+    if (!sourceRead) return;
+    const timer = window.setTimeout(handOffToPost, SOURCE_READ_BEAT_MS);
+    return () => window.clearTimeout(timer);
+  }, [sourceRead]);
   const { data: topCharts, isLoading: isLoadingCharts } = useTopCharts();
   
   // Music search - only search if it's not a link and has sufficient length
@@ -469,8 +563,13 @@ export default function AddMusicPage() {
     }
   }, [authLoading, isAuthenticated, router, searchParams]);
 
+  useEffect(() => {
+    if (returnedDraft) clearReturnedAddMusicDraft(returnedDraft);
+  }, [returnedDraft]);
+
   // Handle prefilled URL on mount
   useEffect(() => {
+    if (returnedDraft) return;
     if (prefilledUrl && isSupportedMusicLink(prefilledUrl)) {
       const source = getMusicSourceLabel(prefilledUrl);
       setPastedLinkSource(source);
@@ -478,7 +577,7 @@ export default function AddMusicPage() {
       setIsSearchActive(false);
       setErrorMessage('');
     }
-  }, [prefilledUrl]);
+  }, [prefilledUrl, returnedDraft]);
 
   // Opening is just a state flip: the same input node stays mounted (so the
   // iOS keyboard stays up) while its container becomes a full-screen sheet
@@ -786,13 +885,21 @@ export default function AddMusicPage() {
         : `key-${Date.now()}-${Math.random()}`;
     setConversionKey(key);
 
+    // The post page may take this conversion over; load its route now.
+    router.prefetch('/post');
+    const conversion = linkConversion.mutateAsync({
+      url: urlToConvert,
+      description: description.trim() || undefined,
+      idempotencyKey: key,
+      privacy,
+    });
+    runningRef.current = { url: urlToConvert, key, result: conversion };
+
     try {
-      const result = await linkConversion.mutateAsync({
-        url: urlToConvert,
-        description: description.trim() || undefined,
-        idempotencyKey: key,
-        privacy,
-      });
+      const result = await conversion;
+      // Handed over: the post page follows the conversion to its end.
+      if (handedOffRef.current) return;
+      runningRef.current = null;
 
       // Warm handoff: prefetch the route and stash the post payload so
       // /post/[id] renders real content immediately — no skeleton phase.
@@ -816,6 +923,8 @@ export default function AddMusicPage() {
         router.push(target);
       }
     } catch (error) {
+      if (handedOffRef.current) return;
+      runningRef.current = null;
       setConversionKey(null);
       setConvertingMeta(null);
       playErrorTone();
@@ -879,7 +988,7 @@ export default function AddMusicPage() {
     handleSelectItem,
     closeSearch,
     isConverting,
-    convertingMeta,
+    convertingMeta: shownConvertingMeta,
     conversionStageLabel,
   };
   const detailsProps = {

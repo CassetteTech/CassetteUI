@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useTopCharts, useMusicSearch, useMusicLinkConversion } from '@/hooks/use-music';
+import { useTopCharts, useMusicSearch } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
-import { useConversionStage } from '@/hooks/use-conversion-stage';
+import { CONVERSION_STAGE_LABELS } from '@/hooks/use-conversion-stage';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { handOffConversion } from '@/lib/conversion-handoff';
 import { apiService } from '@/services/api';
-import { savePrefetchedPost } from '@/lib/post-prefetch';
 import { playErrorTone, playLinkRecognized } from '@/lib/sounds';
 import { detectContentType } from '@/utils/content-type-detection';
 import { sanitizeDomain } from '@/lib/analytics/sanitize';
@@ -18,7 +18,6 @@ import {
   isPasteLikeInputEvent,
   validateMusicLink,
 } from '@/utils/music-link-input';
-import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 import { PLATFORM_LABELS, pickConvertingHeadline } from '@/components/features/conversion/conversion-copy';
 
 export interface ConvertingMeta {
@@ -28,34 +27,38 @@ export interface ConvertingMeta {
   headline: string;
 }
 
+/** How long the beam runs on the URL bar before the bar grows into the post. */
+const BAR_BEAT_MS = 450;
+
 /**
  * The home search and convert flow, lifted out of the home page so every
  * hero layout shares one behaviour: type to search the catalog, paste a
- * Spotify, Apple Music, or Deezer link to convert in place, pick a result
- * to convert it, and land on the finished post. `/?url=` still starts a
- * conversion directly.
+ * Spotify, Apple Music, or Deezer link or pick a result to convert it.
+ * The bar lights up, then hands the conversion to /post?url=, where the bar
+ * grows into the post and the post builds as Bridge reports results.
+ * `/?url=` still starts a conversion directly.
  */
 export function useHomeSearch() {
   const router = useRouter();
   const pathname = usePathname() ?? '/';
   const [musicUrl, setMusicUrl] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
-  // Idempotency key of the in-flight conversion; doubles as the converting flag.
+  // Set while the bar hands a conversion to /post; doubles as the converting flag.
   const [conversionKey, setConversionKey] = useState<string | null>(null);
   const [convertingMeta, setConvertingMeta] = useState<ConvertingMeta | null>(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  // The URL bar box: /post grows the post out of it.
+  const barRef = useRef<HTMLDivElement>(null);
+  const handoffTimerRef = useRef<number | undefined>(undefined);
   const lastTrackedSearchRef = useRef('');
   const debouncedSearchTerm = useDebounce(musicUrl, 300);
 
   const { isAuthenticated, isLoading: isAuthLoading } = useAuthState();
-  const linkConversion = useMusicLinkConversion();
   const isConverting = conversionKey != null;
-  const { label: conversionStageLabel } = useConversionStage(conversionKey, {
-    anonymous: !isAuthenticated,
-  });
+  const conversionStageLabel = CONVERSION_STAGE_LABELS.parsing_source;
   const { data: topCharts, isLoading: isLoadingCharts } = useTopCharts();
 
   const isQuery = debouncedSearchTerm.length >= 2 && !debouncedSearchTerm.includes('http');
@@ -75,7 +78,14 @@ export function useHomeSearch() {
     };
   }, [pathname, isAuthenticated]);
 
-  const convertLink = useCallback(async (url: string, item?: { title: string; type: string }) => {
+  // The conversion page loads before the bar's beat ends. A visitor who leaves
+  // during the beat does not get sent to /post afterwards.
+  useEffect(() => {
+    router.prefetch('/post');
+    return () => window.clearTimeout(handoffTimerRef.current);
+  }, [router]);
+
+  const convertLink = useCallback((url: string, item?: { title: string; type: string }) => {
     const trimmed = normalizeMusicLinkInput(url);
     // Until the auth store settles, a signed-in user would convert anonymously:
     // the post would not attach to their profile, and stage polling would use the
@@ -103,32 +113,18 @@ export function useHomeSearch() {
     setIsSearchActive(false);
     inputRef.current?.blur();
 
-    try {
-      const result = await linkConversion.mutateAsync({
+    // /post runs the conversion, shows its errors, and lands on the finished post.
+    handoffTimerRef.current = window.setTimeout(() => {
+      // Measured now: the converting heading moves the bar during the beat.
+      const bar = barRef.current?.getBoundingClientRect();
+      handOffConversion({
         url: trimmed,
-        idempotencyKey: key,
         anonymous: !isAuthenticated,
+        barRect: bar ? { left: bar.left, top: bar.top, width: bar.width, height: bar.height } : null,
       });
-      router.prefetch(`/post/${result.postId}`);
-      if (result.postId) {
-        try {
-          const post = await apiService.fetchPostById(result.postId);
-          if (post?.success) savePrefetchedPost(result.postId, post);
-        } catch {
-          // The post page retries its own fetch.
-        }
-      }
-      router.push(`/post/${result.postId}`);
-    } catch (error) {
-      setConversionKey(null);
-      setConvertingMeta(null);
-      playErrorTone();
-      setUrlError(getUserFacingApiErrorMessage(
-        error,
-        'Something went wrong while converting your link. Please try again.',
-      ));
-    }
-  }, [conversionKey, isAuthenticated, isAuthLoading, linkConversion, router, analyticsBase]);
+      router.push(`/post?url=${encodeURIComponent(trimmed)}`);
+    }, BAR_BEAT_MS);
+  }, [conversionKey, isAuthenticated, isAuthLoading, router, analyticsBase]);
 
   // A pasted value either converts (supported link), errors (unsupported), or
   // is left alone (plain text). Returns true when it was handled as a paste.
@@ -144,7 +140,7 @@ export function useHomeSearch() {
     if (isSupportedMusicLink(value)) {
       playLinkRecognized();
       void captureClientEvent('music_link_pasted', analyticsBase(value));
-      void convertLink(value);
+      convertLink(value);
       return true;
     }
     return false;
@@ -186,7 +182,7 @@ export function useHomeSearch() {
     if (event.key === 'Enter' && musicUrl.trim()) {
       const validationError = validateMusicLink(musicUrl);
       setUrlError(validationError);
-      if (!validationError && musicUrl.includes('http')) void convertLink(musicUrl.trim());
+      if (!validationError && musicUrl.includes('http')) convertLink(musicUrl.trim());
     }
   }, [musicUrl, convertLink, close]);
 
@@ -197,7 +193,7 @@ export function useHomeSearch() {
 
   const selectItem = useCallback((url: string, title: string, type: string) => {
     void captureClientEvent('search_result_selected', analyticsBase(url));
-    void convertLink(url, { title, type: type.toLowerCase() });
+    convertLink(url, { title, type: type.toLowerCase() });
   }, [analyticsBase, convertLink]);
 
   // /?url=<music link> starts the conversion directly, once auth has settled.
@@ -217,7 +213,7 @@ export function useHomeSearch() {
     const normalized = normalizeMusicLinkInput(prefill);
     if (!normalized || !isSupportedMusicLink(normalized)) return;
     setMusicUrl(normalized);
-    void convertLink(normalized);
+    convertLink(normalized);
     router.replace(pathname, { scroll: false });
   }, [searchParams, isAuthLoading, isConverting, convertLink, router, pathname]);
 
@@ -240,6 +236,7 @@ export function useHomeSearch() {
 
   return {
     inputRef,
+    barRef,
     musicUrl,
     urlError,
     isConverting,

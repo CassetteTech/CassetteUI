@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiService } from '@/services/api';
+import type { ConvertPartialResult } from '@/types';
 
 /**
  * Human-readable labels for the coarse conversion stages Bridge persists on
@@ -34,6 +35,8 @@ export interface ConversionStageState {
   label: string;
   /** Playlist track progress reported by Bridge, or null when not applicable. */
   progress: { processed: number; total: number } | null;
+  /** What Bridge already knows about a track, album, or artist conversion; null until reported. */
+  partialResult: ConvertPartialResult | null;
 }
 
 /**
@@ -49,16 +52,19 @@ export function useConversionStage(
 ): ConversionStageState {
   const [stage, setStage] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null);
+  const [partialResult, setPartialResult] = useState<ConvertPartialResult | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const startedAtRef = useRef<number>(0);
   const anonymous = options?.anonymous;
   const intervalMs = options?.intervalMs ?? 700;
 
   useEffect(() => {
+    // A new key (or scope) is a new conversion: drop what the last one reported.
+    setStage(null);
+    setProgress(null);
+    setPartialResult(null);
+    setElapsedMs(0);
     if (!idempotencyKey) {
-      setStage(null);
-      setProgress(null);
-      setElapsedMs(0);
       return;
     }
 
@@ -80,6 +86,11 @@ export function useConversionStage(
         consecutiveMisses = 0;
         if (job.stage) {
           setStage((prev) => (prev === job.stage ? prev : job.stage ?? prev));
+        }
+        // Keep the last known result: a ready job answers without one.
+        if (job.partialResult) {
+          const next = job.partialResult;
+          setPartialResult((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
         }
         if (job.tracksTotal) {
           const next = { processed: job.tracksProcessed ?? 0, total: job.tracksTotal };
@@ -123,5 +134,5 @@ export function useConversionStage(
       ? `${stageLabel} · ${progress.processed} of ${progress.total}`
       : stageLabel;
 
-  return { stage, label, progress };
+  return { stage, label, progress, partialResult };
 }

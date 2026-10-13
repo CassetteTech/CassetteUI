@@ -313,11 +313,18 @@ function StudioDashboard({ children }: { children: ReactNode }) {
 
   // A section on another view waits until that view's URL is open, then scrolls and takes focus.
   // Behind a profile read in flight the Overview and Membership hold skeletons, so a section they
-  // render also waits for that read to settle.
+  // render also waits for that read to settle. A move to any other view cancels the request.
   const pendingSection = useRef<string | null>(null);
+  const shownView = useRef(view);
   useEffect(() => {
+    const viewChanged = shownView.current !== view;
+    shownView.current = view;
     const sectionId = pendingSection.current;
-    if (sectionId === null || studioViewOf(sectionId) !== view) return;
+    if (sectionId === null) return;
+    if (studioViewOf(sectionId) !== view) {
+      if (viewChanged) pendingSection.current = null;
+      return;
+    }
     if (profile.isPending && !document.getElementById(sectionId)) return;
     pendingSection.current = null;
     // One frame lets a newly shown view lay out before its section scrolls into view.

@@ -243,6 +243,32 @@ test('Set up memberships waits for a slow profile read, then focuses the plan fo
   await expect(page.getByTestId('curator-plan-card').getByLabel('Plan name')).toBeFocused();
 });
 
+test('leaving Membership before a slow profile read answers cancels its focus request', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: member, posts: [own('gate-track', 'Gate Track')] });
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.route('**/api/v1/curators/me', async (route) => {
+    await released;
+    await route.fallback().catch(() => {});
+  });
+
+  await page.goto('/studio/music');
+  await rowOf(page, 'Gate Track').getByRole('button', { name: 'Who can open Gate Track: Public' }).click();
+  await page.getByRole('menuitem', { name: 'Set up memberships' }).click();
+  await expect(page).toHaveURL('/studio/membership');
+  await page.getByTestId('studio-music-trigger').click();
+  await expect(page).toHaveURL('/studio/music');
+  release();
+
+  // A later visit through the section link is not the earlier request, so focus stays put.
+  await page.getByTestId('studio-membership-trigger').click();
+  const planName = page.getByTestId('curator-plan-card').getByLabel('Plan name');
+  await expect(planName).toBeVisible();
+  // A reveal runs one frame after the view shows; two frames later it would have moved focus.
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await expect(planName).not.toBeFocused();
+});
+
 test('edits a note in place, sends only the note, and returns focus to it', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: member,

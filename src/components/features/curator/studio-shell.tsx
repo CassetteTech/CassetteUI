@@ -1,38 +1,46 @@
 'use client';
 
-/** Shared Curator Studio chrome: the view context, soft section cards, status chips, notices, and figures. */
+/** Shared Curator Studio chrome: the view context, setup steps, soft section cards, status chips,
+    notices, and figures. */
 
-import { createContext, useId, type ReactNode } from 'react';
-import { ArrowUpRight } from 'lucide-react';
+import { createContext, useContext, useId, type ComponentProps, type ReactNode } from 'react';
+import Link from 'next/link';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
+import { studioViewOf } from '@/components/features/curator/studio-routes';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-export type StudioView = 'studio-overview' | 'studio-earnings' | 'studio-billing';
-
-/** Resolves a section anchor (e.g. "#studio-pro") or a view id to the dashboard view that hosts it.
-    The membership plan lives on the overview. */
-export function studioViewOf(sectionId: string): StudioView {
-  switch (sectionId) {
-    case 'studio-overview':
-    case 'studio-earnings':
-    case 'studio-billing':
-      return sectionId;
-    case 'studio-pro':
-    case 'studio-payouts':
-      return 'studio-billing';
-    default:
-      return 'studio-overview';
-  }
-}
-
-/** Lets any section link switch the dashboard to the view that holds its target.
-    Every view stays mounted (hidden when inactive) so queries and provider
-    return flows keep running regardless of which view is showing. */
+/** Lets any section link open the view that holds its target. The Overview,
+    Membership, and Payouts views stay mounted (hidden when inactive) across the
+    Studio URLs, so queries, a plan draft, and provider return flows keep running
+    regardless of which view is showing. */
 export const StudioStepsContext = createContext<{
-  /** Shows the section's view, scrolls the section into view, and focuses its first field or the section. */
+  /** Opens the section's view, scrolls the section into view, and focuses its first field or the section. */
   open: (sectionId: string) => void;
-  /** Rail element the plan card portals the membership pass into; one fixed spot across every view. */
+  /** Rail element the pass is portaled into; one fixed spot across every view. */
   passSlot: HTMLElement | null;
 } | null>(null);
+
+/** `href` is a Studio section ("#studio-plan") or another page ("/studio/music/new").
+    `notice` is the one sentence a banner shows when the step is open. */
+export type LaunchStep = { href: string; label: string; notice: string; done: boolean };
+
+const isPageStep = (step: LaunchStep) => step.href.startsWith('/');
+
+/** A section step opens in Studio; a page step is a link to that page. A step on another page or
+    view ends in a forward arrow; a step on `view`, the view showing it, scrolls in place. */
+export function StepButton({ step, view, children, ...props }: { step: LaunchStep; view: string } & ComponentProps<typeof Button>) {
+  const views = useContext(StudioStepsContext);
+  const arrow = (isPageStep(step) || studioViewOf(step.href.slice(1)) !== view) && <ArrowRight aria-hidden />;
+  if (isPageStep(step)) {
+    return (
+      <Button asChild {...props}>
+        <Link href={step.href}>{children}{arrow}</Link>
+      </Button>
+    );
+  }
+  return <Button {...props} onClick={() => views?.open(step.href.slice(1))}>{children}{arrow}</Button>;
+}
 
 export type StudioChipTone = 'neutral' | 'positive' | 'warning' | 'danger';
 
@@ -68,7 +76,8 @@ export function StudioChip({
 
 /** One studio section: a soft card with a title, an optional trailing control,
     and a description. Sections are always expanded; the dashboard decides which
-    view (and therefore which sections) is visible. */
+    view (and therefore which sections) is visible. A plain section drops the card
+    and keeps the title over a rule, for lists of music that read as the page itself. */
 export function StudioSection({
   id,
   title,
@@ -76,6 +85,7 @@ export function StudioSection({
   description,
   chip,
   testId,
+  plain = false,
   children,
 }: {
   id: string;
@@ -84,6 +94,7 @@ export function StudioSection({
   description?: ReactNode;
   chip?: ReactNode;
   testId?: string;
+  plain?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -93,9 +104,17 @@ export function StudioSection({
       aria-labelledby={headingId}
       // Focusable so a step link can move focus here; scroll-mt keeps anchored jumps clear of any sticky chrome above.
       tabIndex={-1}
-      className="scroll-mt-24 card-quiet outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className={cn(
+        'scroll-mt-24 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        plain ? 'rounded-md' : 'card-quiet',
+      )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-border/70 px-5 py-4 sm:px-6">
+      <div
+        className={cn(
+          'flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-border/70',
+          plain ? 'pb-4' : 'px-5 py-4 sm:px-6',
+        )}
+      >
         <div className="min-w-0">
           <h2 id={headingId} className="text-lg font-semibold leading-tight tracking-tight">
             {title}
@@ -108,7 +127,7 @@ export function StudioSection({
         </div>
         {chip}
       </div>
-      <div className="px-5 py-5 sm:px-6 sm:py-6">{children}</div>
+      <div className={plain ? 'pt-2' : 'px-5 py-5 sm:px-6 sm:py-6'}>{children}</div>
     </section>
   );
 }

@@ -16,7 +16,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { AlertCircle, ArrowUpRight, LogOut } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, LogOut, Plus } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -37,8 +37,9 @@ import {
 
 // Interleaved sidebar ordering across primary + account groups. The logo links
 // home and the account row links to the own profile, so neither has a row here.
-// Feed shows only to a signed-in viewer, so Explore leads for a visitor.
-const SIDEBAR_NAV_ORDER = ['feed', 'explore', 'curator-studio', 'add-music', 'memberships', 'internal'] as const;
+// Feed shows only to a signed-in viewer, so Explore leads for a visitor. Add music
+// is a button under the account row, not a row.
+const SIDEBAR_NAV_ORDER = ['feed', 'explore', 'curator-studio', 'memberships', 'internal'] as const;
 // Explore leaves the sidebar shell, so its row carries an exit marker.
 const SIDEBAR_EXIT_KEYS: readonly string[] = ['explore'];
 // Both lead to /promote, so the footer shows only the first visible one: Promote
@@ -164,8 +165,16 @@ export function AppSidebar({ className }: AppSidebarProps) {
           </SidebarGroup>
         ) : user ? (
           <SidebarGroup>
-            <SidebarGroupContent>
+            <SidebarGroupContent className="space-y-2">
               <SidebarAccountRow user={user} active={isOwnProfilePath(pathname, user)} />
+              {/* Adding music is an action, not a place, so it is a button above the page links. Outline
+                  keeps persistent chrome quieter than the primary action on the page itself. */}
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link href="/studio/music/new">
+                  <Plus aria-hidden />
+                  Add music
+                </Link>
+              </Button>
             </SidebarGroupContent>
           </SidebarGroup>
         ) : null}

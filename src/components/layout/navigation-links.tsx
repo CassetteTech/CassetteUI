@@ -131,11 +131,7 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
   const salesEnabled = usePaidPromotionSalesEnabled();
   const accountVisible = usePaidPromotionAccountVisible();
 
-  const primaryItems = getVisibleNavItems(
-    primaryNavItems.filter((item) => item.key !== 'add-music'),
-    user,
-    { salesEnabled },
-  );
+  const primaryItems = getVisibleNavItems(primaryNavItems, user, { salesEnabled });
   const accountItems = getVisibleNavItems(accountNavItems, user, { accountVisible });
   const companyItems = getVisibleNavItems(companyNavItems, user);
 

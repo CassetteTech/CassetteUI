@@ -413,13 +413,18 @@ const toProfileBio = (user: FixtureUser, state: MockState) => ({
 
 const toActivityItem = (post: FixturePost, state: MockState) => {
   const owner = post.ownerId ? state.usersById.get(post.ownerId) : undefined;
+  const original = post.originalPostId ? state.postsById.get(post.originalPostId) : undefined;
 
   return {
     postId: post.postId,
-    redirectPostId: post.postId,
-    isRepost: false,
+    redirectPostId: post.originalPostId ?? post.postId,
+    isRepost: Boolean(post.originalPostId),
+    originalPostId: post.originalPostId ?? null,
+    originalPostOwnerUsername: original?.ownerUsername ?? null,
     elementType: post.elementType,
     title: post.title,
+    // Bridge names the artist under tracks and albums only.
+    subtitle: post.elementType === 'Track' || post.elementType === 'Album' ? post.artist : undefined,
     description: post.description || '',
     username: post.ownerUsername || '',
     userId: post.ownerId || '',
@@ -626,6 +631,30 @@ const createOwnedPostFromTemplate = (
     ...overrides,
   };
   upsertPost(state, nextPost);
+  // Bridge lists the new post on the owner's curator page too; private posts never show there.
+  const ownPage = state.curatorPage;
+  if (
+    currentUser && ownPage && nextPost.privacy !== 'private' &&
+    normalizeUsername(ownPage.curator.username) === normalizeUsername(currentUser.username)
+  ) {
+    ownPage.posts.items.unshift({
+      kind: 'post',
+      post: {
+        postId: nextPost.postId,
+        redirectPostId: nextPost.postId,
+        elementType: nextPost.elementType,
+        title: nextPost.title,
+        subtitle: nextPost.artist ?? null,
+        description: nextPost.description ?? null,
+        imageUrl: null,
+        username: ownPage.curator.username,
+        createdAt: nextPost.createdAt ?? new Date().toISOString(),
+        privacy: nextPost.privacy === 'subscriber' ? 'subscriber' : 'public',
+        accountType: ownPage.curator.accountType,
+      },
+    });
+    ownPage.posts.totalItems += 1;
+  }
   return nextPost;
 };
 
@@ -1421,13 +1450,29 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       const page = Math.max(1, Number(url.searchParams.get('page') || 1));
       const pageSize = Math.min(50, Math.max(1, Number(url.searchParams.get('pageSize') || 20)));
       const offset = (page - 1) * pageSize;
+      // Bridge's filters: a type lists the open posts of that type, so locked teasers show only
+      // unfiltered; membersOnly keeps members-only posts and their teasers.
+      const elementType = url.searchParams.get('elementType');
+      const membersOnly = url.searchParams.get('membersOnly') === 'true';
+      const allItems = state.curatorPage.posts.items;
+      const items = allItems.filter((item) =>
+        (!elementType || (item.kind === 'post' && item.post.elementType === elementType)) &&
+        (!membersOnly || item.kind === 'locked' || item.post.privacy === 'subscriber'));
+      const filtered = Boolean(elementType) || membersOnly;
+      const counts = new Map<string, number>();
+      for (const item of allItems) {
+        if (item.kind === 'post') counts.set(item.post.elementType, (counts.get(item.post.elementType) ?? 0) + 1);
+      }
       return json(route, {
         ...state.curatorPage,
         posts: {
-          items: state.curatorPage.posts.items.slice(offset, offset + pageSize),
-          totalItems: state.curatorPage.posts.totalItems,
+          items: items.slice(offset, offset + pageSize),
+          totalItems: filtered ? items.length : state.curatorPage.posts.totalItems,
           page,
           pageSize,
+          ...(page === 1 && {
+            typeCounts: [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([type, count]) => ({ elementType: type, count })),
+          }),
         },
       });
     }
@@ -2518,19 +2563,22 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       }
 
       const requestedElementType = normalizeUsername(url.searchParams.get('elementType') || '');
+      const requestedPrivacy = url.searchParams.get('privacy');
       const pageSize = Number(url.searchParams.get('pageSize') || 20);
+      const page = Math.max(1, Number(url.searchParams.get('page') || 1));
       const items = Array.from(state.postsById.values()).filter((post) => {
         if (post.ownerId !== user.id) return false;
+        if (requestedPrivacy && (post.privacy || 'public') !== requestedPrivacy) return false;
         if (!requestedElementType) return true;
         return normalizeUsername(post.elementType) === normalizeUsername(requestedElementType);
       });
 
+      // Bridge sends no page count; the client derives the next page from the total.
       return json(route, {
-        items: items.slice(0, pageSize).map((post) => toActivityItem(post, state)),
-        page: Number(url.searchParams.get('page') || 1),
+        items: items.slice((page - 1) * pageSize, page * pageSize).map((post) => toActivityItem(post, state)),
+        page,
         pageSize,
         totalItems: items.length,
-        totalPages: items.length > 0 ? 1 : 0,
       });
     }
 

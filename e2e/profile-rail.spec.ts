@@ -87,7 +87,7 @@ test.describe('profile rail', () => {
     });
 
     await page.goto(`/profile/${fixtureUsers.creator.username}`);
-    await expect(page).toHaveURL(/tab=tracks/);
+    await expect(page.getByTestId('profile-music')).toBeVisible();
 
     const pass = page.getByTestId('profile-identity-pass');
     await expect(pass.getByText(fixtureUsers.creator.bio!)).toBeVisible();

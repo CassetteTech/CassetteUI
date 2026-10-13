@@ -37,7 +37,7 @@ test('keeps core beta surfaces within a narrow mobile viewport', async ({ page }
       ready: () => page.getByText(fixturePosts.publicTrack.title, { exact: true }).first(),
     },
     {
-      path: '/add-music',
+      path: '/studio/music/new',
       ready: () => page.locator('[data-testid="add-music-input"]:visible').first(),
     },
     {

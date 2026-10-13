@@ -34,6 +34,8 @@ interface PostQuickActionsProps {
   /** Which visibilities this list can show; a list that only ever renders public and members-only omits private. */
   visibilities: readonly QuickVisibility[];
   canLockPosts: boolean;
+  /** Saves a new setting the caller's way; without it, the menu saves the setting itself. */
+  onVisibilityChange?: (next: QuickVisibility) => void;
   onEdit: () => void;
   onDelete: () => void;
   children: React.ReactNode;
@@ -48,6 +50,7 @@ export function PostQuickActions({
   privacy,
   visibilities,
   canLockPosts,
+  onVisibilityChange,
   onEdit,
   onDelete,
   children,
@@ -57,7 +60,12 @@ export function PostQuickActions({
   const current = privacy?.toLowerCase() ?? 'public';
 
   const setVisibility = (next: QuickVisibility) => {
-    if (next === current || updatePost.isPending) return;
+    if (next === current) return;
+    if (onVisibilityChange) {
+      onVisibilityChange(next);
+      return;
+    }
+    if (updatePost.isPending) return;
     updatePost.mutate({ postId, privacy: next }, {
       onSuccess: () => toast.success(next === 'subscriber' ? 'Post locked for members.' : 'Post visibility updated.'),
       onError: () => toast.error('Failed to update post visibility. Please try again.'),

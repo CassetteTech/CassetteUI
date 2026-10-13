@@ -5,6 +5,7 @@ import {
   fixtureConvertTemplates,
   fixtureActiveCuratorProfile,
   fixtureActiveMemberPostPlan,
+  fixtureCuratorPage,
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
@@ -14,9 +15,16 @@ test('creates a post from add-music search and shows it on the profile', async (
     currentUser: fixtureUsers.member,
     curatorProfile: fixtureActiveCuratorProfile,
     curatorPlans: [fixtureActiveMemberPostPlan],
+    // A curator who can lock posts has a curator page; it starts empty and the new post joins it.
+    curatorPage: {
+      ...fixtureCuratorPage,
+      curator: { ...fixtureCuratorPage.curator, username: fixtureUsers.member.username },
+      viewer: { isOwner: true, isMember: false, hasMemberBadge: false },
+      posts: { ...fixtureCuratorPage.posts, items: [], totalItems: 0 },
+    },
   });
 
-  await page.goto('/add-music');
+  await page.goto('/studio/music/new');
   await page.locator('[data-testid="add-music-input"]:visible').fill('blue monday');
   const firstSearchResult = page.locator('[data-testid="search-result-track-search-track-1"]:visible');
   await expect(firstSearchResult).toBeVisible();

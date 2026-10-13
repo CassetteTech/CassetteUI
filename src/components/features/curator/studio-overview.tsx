@@ -1,19 +1,18 @@
 'use client';
 
-/** Curator Studio landing view. Once a plan has been published: one hero
-    figure (earned in the chosen period) with two payout figures under it, a
-    dithered earned-versus-paid chart at full width, and the latest activity.
-    Before that: the launch checklist. Every curator then sees the current
-    audience and the membership plan card. */
+/** Curator Studio landing view, the same structure for every account. Music comes first: the
+    recent posts with their row tools. One next step at a time sits above them: membership setup
+    that is under way, or, after the first publish, an open setup step, the members-only post
+    nudge, or sharing the page. A published curator also sees the earnings hero, the dithered
+    earned-versus-paid chart, and the latest activity. A curator with no plan gets one invitation
+    to set one up, under the music. The plan itself lives on the Membership view. */
 
-import { useContext, useMemo, useState, type ComponentProps, type ReactNode } from 'react';
+import { useContext, useId, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CuratorPlanCard } from '@/components/features/curator/curator-plan-card';
 import { Area } from '@/components/dither-kit/area';
 import { AreaChart } from '@/components/dither-kit/area-chart';
 import { BlockLegend } from '@/components/dither-kit/block-legend';
@@ -23,42 +22,27 @@ import { Tooltip } from '@/components/dither-kit/tooltip';
 import { XAxis } from '@/components/dither-kit/x-axis';
 import { YAxis } from '@/components/dither-kit/y-axis';
 import { eventTitle } from '@/components/features/curator/curator-earnings-card';
-import { StudioStat, StudioStepsContext, studioFigureClassName, studioViewOf } from '@/components/features/curator/studio-shell';
+import { StudioRecentMusic } from '@/components/features/curator/studio-recent-music';
+import { addMusicHref, studioMusicHref, studioPaths } from '@/components/features/curator/studio-routes';
+import {
+  StepButton,
+  StudioStat,
+  StudioStepsContext,
+  studioFigureClassName,
+  type LaunchStep,
+} from '@/components/features/curator/studio-shell';
 import { useCuratorLedger } from '@/components/features/curator/use-curator-ledger';
 import { SegmentedControl } from '@/components/interior/segmented-control';
-import { TaskSteps } from '@/components/interior/task-steps';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthState } from '@/hooks/use-auth';
+import { useMemberPostAccess } from '@/hooks/use-curator';
 import { fetchCuratorAudience, type CuratorProfile } from '@/services/curator';
 import { periodSummary, type CuratorEarningsBalances } from '@/services/curator-earnings';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
+import { profileService } from '@/services/profile';
 import { AnnotatedText } from '@/components/ui/annotated-text';
 import { cn } from '@/lib/utils';
-
-/** `href` is a Studio section ("#studio-plan") or another page ("/add-music").
-    `notice` is the one sentence the overview shows when the step is open again after launch. */
-export type LaunchStep = { href: string; label: string; notice: string; done: boolean };
-
-const isPageStep = (step: LaunchStep) => step.href.startsWith('/');
-
-/** A forward arrow only for a step on another view or page; an overview step scrolls in place. */
-const stepArrow = (step: LaunchStep) =>
-  (isPageStep(step) || studioViewOf(step.href.slice(1)) !== 'studio-overview') && <ArrowRight aria-hidden />;
-
-/** A section step opens in Studio; a page step is a link to that page. */
-function StepButton({ step, children, ...props }: { step: LaunchStep } & ComponentProps<typeof Button>) {
-  const views = useContext(StudioStepsContext);
-  if (isPageStep(step)) {
-    return (
-      <Button asChild {...props}>
-        <Link href={step.href}>{children}</Link>
-      </Button>
-    );
-  }
-  return <Button {...props} onClick={() => views?.open(step.href.slice(1))}>{children}</Button>;
-}
 
 const countFormatter = new Intl.NumberFormat('en-US');
 const dayFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -96,43 +80,6 @@ function Card({ title, action, children }: { title: string; action?: ReactNode; 
       </div>
       <div className="px-5 pb-5 pt-3">{children}</div>
     </section>
-  );
-}
-
-function LaunchCard({ steps, doneCount, nextIndex }: { steps: LaunchStep[]; doneCount: number; nextIndex: number }) {
-  const views = useContext(StudioStepsContext);
-  const router = useRouter();
-  const next = steps[nextIndex];
-  return (
-    <Card
-      title="Launch checklist"
-      action={<span className="text-xs tabular-nums text-muted-foreground">{doneCount} of {steps.length} done</span>}
-    >
-      {doneCount === 0 && (
-        <p className="mb-3 text-sm text-muted-foreground">Start with music on your page. A membership then lets fans support your curation with a monthly payment.</p>
-      )}
-      <Progress
-        value={(doneCount / steps.length) * 100}
-        aria-label={`Launch progress: ${doneCount} of ${steps.length} steps complete`}
-        className="h-1.5"
-      />
-      <TaskSteps
-        className="mt-4"
-        label="Launch checklist"
-        steps={steps.map((step, index) => ({ id: String(index), label: step.label, done: step.done }))}
-        onSelect={(id) => {
-          const step = steps[Number(id)];
-          if (isPageStep(step)) router.push(step.href);
-          else views?.open(step.href.slice(1));
-        }}
-      />
-      {next && (
-        <StepButton step={next} className="mt-4 w-full sm:w-auto">
-          Next: {next.label}
-          {stepArrow(next)}
-        </StepButton>
-      )}
-    </Card>
   );
 }
 
@@ -195,24 +142,109 @@ export function OverviewSkeleton() {
   );
 }
 
+const membersPostNudgeDays = 14;
+const dayMs = 24 * 60 * 60 * 1000;
+
+/** Days since the newest members-only post once they reach `membersPostNudgeDays`, 'never' when
+    there is none, else null. Read only for a curator who can post members-only. */
+function useMembersPostGap(enabled: boolean) {
+  const { user } = useAuthState();
+  const userId = user?.id ?? null;
+  // Newest first, so one item is the latest members-only post. Under the activity key, so a new
+  // post anywhere refreshes it.
+  const latest = useQuery({
+    queryKey: ['user-activity', userId, 'studio-members-latest'],
+    queryFn: () => profileService.fetchUserActivity(userId!, { pageSize: 1, privacy: 'subscriber' }),
+    enabled: enabled && userId !== null,
+    staleTime: 0,
+  });
+  if (!enabled || !latest.data) return null;
+  const newest = latest.data.items[0];
+  if (!newest) return 'never' as const;
+  const days = Math.floor((Date.now() - Date.parse(newest.createdAt)) / dayMs);
+  return days >= membersPostNudgeDays ? days : null;
+}
+
+/** An open step as one banner: its notice and the button that starts it. */
+function StepBanner({ step }: { step: LaunchStep }) {
+  return (
+    <Alert className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-muted/40">
+      <p>{step.notice}</p>
+      <StepButton step={step} view="studio-overview" size="sm">
+        {step.label}
+      </StepButton>
+    </Alert>
+  );
+}
+
+/** Members pay for the posts only they can open, so a long gap since the last one gets a banner. */
+function MembersPostNudge({ gap }: { gap: number | 'never' }) {
+  return (
+    <Alert className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-muted/40">
+      <p>
+        {gap === 'never' ? 'You have no members-only posts yet.' : `No new members-only post in ${gap} days.`}
+        {' '}Members join for the posts only they can open.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild size="sm">
+          <Link href={addMusicHref(studioPaths['studio-overview'])}>Add music</Link>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href={studioMusicHref({ audience: 'public' })}>Choose a public post</Link>
+        </Button>
+      </div>
+    </Alert>
+  );
+}
+
+/** One next step as a quiet card: what it is, one line on why, and its button. */
+function NextStepCard({ title, action, children }: { title: string; action: ReactNode; children: ReactNode }) {
+  const headingId = useId();
+  return (
+    <section
+      aria-labelledby={headingId}
+      className="card-quiet flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-4 sm:px-6"
+    >
+      <div className="min-w-0">
+        <h2 id={headingId} className="text-sm font-semibold">{title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{children}</p>
+      </div>
+      {action}
+    </section>
+  );
+}
+
 export function StudioOverview({
+  active,
   profile,
-  steps,
-  doneCount,
-  nextIndex,
   hasPublished,
+  plansKnown,
   stepsKnown,
+  setupSteps,
+  setupStarted,
+  musicStep,
+  shareStep,
 }: {
+  /** Whether the Overview is showing. Its music rows render only then, so a hidden copy never
+      doubles the rows of Studio Music. */
+  active: boolean;
   profile: CuratorProfile | null;
-  steps: LaunchStep[];
-  doneCount: number;
-  nextIndex: number;
-  /** null while the first plan read is in flight. */
+  /** null while the first plan read is in flight; false also after that read failed. */
   hasPublished: boolean | null;
+  /** False while the plan read has no answer (pending, or failed with nothing cached). */
+  plansKnown: boolean;
   /** False until every step's state has been read. */
   stepsKnown: boolean;
+  /** Design your membership, Set up payouts, Publish your plan. */
+  setupSteps: LaunchStep[];
+  /** A plan draft or a payout account exists. */
+  setupStarted: boolean;
+  /** Null while the first music read has failed. */
+  musicStep: LaunchStep | null;
+  shareStep: LaunchStep;
 }) {
   const views = useContext(StudioStepsContext);
+  const access = useMemberPostAccess();
   const earnings = useCuratorLedger(hasPublished === true && profile !== null);
   const ledger = earnings.data;
   const [months, setMonths] = useState('6');
@@ -223,8 +255,20 @@ export function StudioOverview({
   const balances = ledger?.balances;
   const currency = balances?.currency ?? 'USD';
   const axis = useMemo(() => axisMoney(currency), [currency]);
-  // After launch an open setup step is one banner, not the checklist; an unread step is not open.
-  const openStep = stepsKnown ? steps[nextIndex] : undefined;
+  // After launch, one banner: an open setup or music step, then the members-only post nudge, then
+  // sharing. A step whose state is still unread is not open.
+  const openStep = stepsKnown
+    ? [...setupSteps, ...(musicStep ? [musicStep] : [])].find((step) => !step.done)
+    : undefined;
+  const membersGap = useMembersPostGap(hasPublished === true && access.state === 'ready');
+  const banner = openStep
+    ? <StepBanner step={openStep} />
+    : membersGap !== null
+      ? <MembersPostNudge gap={membersGap} />
+      : stepsKnown && !shareStep.done && <StepBanner step={shareStep} />;
+  // Before launch, setup under way leads; with nothing started, one invitation follows the music.
+  const setupNext = setupSteps.find((step) => !step.done);
+  const setupDone = setupSteps.filter((step) => step.done).length;
   // The ledger is read newest-first up to a page cap; say so when the window is cut short.
   const windowHint = ledger && !ledger.coversWindow
     ? `From your latest ${countFormatter.format(ledger.items.length)} ledger events`
@@ -273,33 +317,17 @@ export function StudioOverview({
       ]
     : [];
 
-  // The plan card keeps its position in both layouts so publishing does not remount it.
   return (
     <div className="space-y-6">
       {suspended}
 
-      {/* Nothing has been earned before the first publish, so setup leads. While the
-          plan read is still in flight the skeleton holds, so the dashboard reveals once.
-          The plan card below stays mounted throughout so its own reads start now. */}
+      {/* Earnings exist only after the first publish. While the plan read is in flight the
+          skeleton holds, so the dashboard reveals once. */}
       {hasPublished === null ? (
         <OverviewSkeleton />
-      ) : !hasPublished ? (
-        <motion.div {...rise(0)}>
-          <LaunchCard steps={steps} doneCount={doneCount} nextIndex={nextIndex} />
-        </motion.div>
-      ) : (
+      ) : hasPublished ? (
       <>
-        {openStep && (
-          <motion.div {...rise(0)}>
-            <Alert className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-muted/40">
-              <p>{openStep.notice}</p>
-              <StepButton step={openStep} size="sm">
-                {openStep.label}
-                {stepArrow(openStep)}
-              </StepButton>
-            </Alert>
-          </motion.div>
-        )}
+        {banner && <motion.div {...rise(0)}>{banner}</motion.div>}
 
         {/* Stripe Express shape: the hero figure and its period control, three figures, then the chart at full width. */}
         <motion.section {...rise(1)} aria-labelledby="studio-earned-title" className="card-quiet px-5 py-5 sm:px-6">
@@ -375,12 +403,33 @@ export function StudioOverview({
             </>
           )}
         </motion.section>
+      </>
+      ) : setupStarted && stepsKnown && setupNext && (
+        <motion.div {...rise(0)}>
+          <NextStepCard
+            title="Finish your membership"
+            action={(
+              <StepButton step={setupNext} view="studio-overview" size="sm">
+                {setupNext.label}
+              </StepButton>
+            )}
+          >
+            {`${setupDone} of ${setupSteps.length} steps done.`}
+          </NextStepCard>
+        </motion.div>
+      )}
 
-        <motion.div {...rise(2)}>
+      {/* The wrapper stays, so returning to the Overview shows the music without a second entrance. */}
+      <motion.div {...rise(2)}>
+        {active && <StudioRecentMusic />}
+      </motion.div>
+
+      {hasPublished && (
+        <motion.div {...rise(3)}>
           <Card
             title="Latest activity"
             action={
-              <Button variant="link" size="xs" className="-mr-2" onClick={() => views?.open('studio-earnings')}>
+              <Button variant="link" size="xs" className="-mr-2" onClick={() => views?.open('studio-members')}>
                 View all
               </Button>
             }
@@ -408,19 +457,37 @@ export function StudioOverview({
             )}
           </Card>
         </motion.div>
-      </>
       )}
 
-      {/* A free curator without a plan has an audience too, so it does not wait for the plan read. */}
-      {profile && (
-        <motion.div {...rise(hasPublished ? 3 : 1)}>
-          <AudienceCard onOpenMembers={() => views?.open('studio-earnings')} />
+      {/* Music first: the invitation waits until the page has some, and until every setup answer is in. */}
+      {stepsKnown && hasPublished === false && !setupStarted && musicStep?.done && (
+        <motion.div {...rise(3)}>
+          <NextStepCard
+            title="Earn from your music"
+            action={(
+              <Button variant="outline" size="sm" onClick={() => views?.open('studio-plan')}>
+                Set up a membership
+                <ArrowRight aria-hidden />
+              </Button>
+            )}
+          >
+            A membership lets fans support your curation with a monthly payment.
+          </NextStepCard>
         </motion.div>
       )}
 
-      <motion.div {...rise(hasPublished ? 4 : 2)}>
-        <CuratorPlanCard profile={profile} />
-      </motion.div>
+      {/* A curator without a plan has an audience too, so it does not wait for the plan read.
+          Member figures exist only after a publish; before it, Members opens the setup steps,
+          and while the plan read has no answer, the plan card that explains it. */}
+      {profile && (
+        <motion.div {...rise(4)}>
+          <AudienceCard
+            onOpenMembers={() => views?.open(
+              hasPublished ? 'studio-members' : plansKnown ? 'studio-setup' : 'studio-plan',
+            )}
+          />
+        </motion.div>
+      )}
     </div>
   );
 }

@@ -47,6 +47,7 @@ import {
   type StudioChipTone,
   type StudioNoticeTone,
 } from '@/components/features/curator/studio-shell';
+import { studioHref } from '@/components/features/curator/studio-routes';
 import { CopyButton } from '@/components/interior/copy-button';
 import { SegmentedControl } from '@/components/interior/segmented-control';
 import {
@@ -176,10 +177,19 @@ const planStatusTone = {
 
 function StepLink({ href, children }: { href: string; children: ReactNode }) {
   const steps = useContext(StudioStepsContext);
+  const sectionId = href.slice(1);
   return (
-    <a href={href} className="underline underline-offset-2" onClick={() => steps?.open(href.slice(1))}>
+    // An in-app visit opens the section and focuses it; a new-tab click opens the section URL.
+    <Link
+      href={studioHref(sectionId)}
+      className="underline underline-offset-2"
+      onNavigate={(event) => {
+        event.preventDefault();
+        steps?.open(sectionId);
+      }}
+    >
       {children}
-    </a>
+    </Link>
   );
 }
 
@@ -333,7 +343,12 @@ function AnnualPriceAdder({ plan, refresh, onAdded }: {
   );
 }
 
-export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null }) {
+export function CuratorPlanCard({ profile, preview }: {
+  profile: CuratorProfile | null;
+  /** Whether the Membership view is showing. There the rail previews the plan being designed;
+      elsewhere it shows what visitors see now. */
+  preview: boolean;
+}) {
   const { user } = useAuthState();
   const views = useContext(StudioStepsContext);
   const passSlot = views?.passSlot ?? null;
@@ -435,9 +450,10 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
       }
       setExpanded(true);
       setNotice(planActions[action.kind].notice);
-      // A first publish swaps the checklist for the earnings dashboard above this card,
-      // so bring the card and its live link back into view.
-      if (action.kind === 'publish') views?.open('studio-plan');
+      // A first publish swaps the setup steps above this card for the member figures,
+      // so bring the card and its live link back into view, unless the person has moved
+      // to another view meanwhile. A pending mutation reads the latest render's options.
+      if (action.kind === 'publish' && preview) views?.open('studio-plan');
     },
     onError: () => Promise.all([
       queryClient.invalidateQueries({ queryKey: profileQueryKey }),
@@ -503,16 +519,20 @@ export function CuratorPlanCard({ profile }: { profile: CuratorProfile | null })
   const coreError = (profile !== null && plans.isError) || features.isError || pricing.isError;
   const busy = save.isPending || remove.isPending;
 
-  // One membership pass for the whole Studio, portaled into the page rail: the
-  // form's live estimate while it is open, else the active plan, else the draft.
-  const passPlan = activePlan ?? plansData?.find((plan) => plan.status === 'draft') ?? null;
+  // One membership pass for the whole Studio, portaled into the page rail. On the Membership view it
+  // previews the plan: the form's live estimate while it is open, else the active plan, else the
+  // draft. Other views show what visitors see now: the live plan's pass, else the dashboard's
+  // profile pass.
+  const passPlan = preview
+    ? activePlan ?? plansData?.find((plan) => plan.status === 'draft') ?? null
+    : activePlan;
   const formOpen = plansData?.length === 0 || createOpen;
   const curatorPass = {
     curatorName,
     curatorHandle: user?.username ?? '',
     curatorAvatarUrl: user?.profilePicture,
   };
-  const pass = !pricing.data ? null : formOpen ? (
+  const pass = !pricing.data ? null : preview && formOpen ? (
     <FanPreview
       {...curatorPass}
       name={draft.name}

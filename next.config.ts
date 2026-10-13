@@ -185,6 +185,13 @@ const nextConfig: NextConfig = {
         destination: '/release-notes',
         permanent: true,
       },
+      // Add music moved into Curator Studio. Old links, the activation email,
+      // and bookmarks keep working; the query string, including `url`, passes through.
+      {
+        source: '/add-music',
+        destination: '/studio/music/new',
+        permanent: true,
+      },
       // Sign-in alias, like /signup. The query string, including `redirect`,
       // passes through.
       {

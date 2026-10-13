@@ -1,11 +1,12 @@
 'use client';
 
-/** Sliding underline for an underline-style Radix TabsList. Rendered as the
+/** Sliding underline for an underline-style tab list or link row. Rendered as the
     first child of the list, it measures the active trigger and tweens
     transform and width between tabs (the transitions.dev tabs-sliding recipe).
     The first position is written without a transition, so the bar never grows
     in from the left edge. Reduced motion snaps. The list must be
-    `position: relative`. */
+    `position: relative`. The bar is ink: a selected state is ink, and brand red
+    marks actions. */
 
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -43,7 +44,7 @@ export function TabUnderline({ value }: { value: string }) {
       ref={bar}
       aria-hidden
       className={cn(
-        'pointer-events-none absolute bottom-0 left-0 h-0.5 bg-primary ease-out-quart motion-reduce:transition-none',
+        'pointer-events-none absolute bottom-0 left-0 h-0.5 bg-foreground ease-out-quart motion-reduce:transition-none',
         settled ? 'transition-[transform,width] duration-280' : 'transition-none',
       )}
       style={box ? { transform: `translateX(${box.x}px)`, width: box.width } : { opacity: 0 }}

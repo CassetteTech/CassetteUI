@@ -28,6 +28,6 @@ test('hides the liked tab from other viewers when the profile owner marks it pri
   });
 
   await page.goto('/profile/miagroove?tab=liked');
-  await expect(page).toHaveURL(/\/profile\/miagroove\?tab=playlists$/);
+  await expect(page).toHaveURL(/\/profile\/miagroove$/);
   await expect(page.getByRole('tab', { name: /Liked/ })).toHaveCount(0);
 });

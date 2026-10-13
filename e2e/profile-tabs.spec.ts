@@ -66,11 +66,12 @@ test.describe('profile tabs', () => {
     });
 
     await page.goto('/profile/djaurora');
-    await expect(page).toHaveURL(/\/profile\/djaurora\?tab=tracks$/);
+    await expect(page.getByRole('tab', { name: 'Music' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page).toHaveURL(/\/profile\/djaurora$/);
     await expect(page.locator('[data-sidebar="menu-button"][data-active="true"]')).toHaveCount(0);
   });
 
-  test('keeps the selected profile tab in the url', async ({ page }) => {
+  test('opens Music with every post at once, and keeps Liked in the url', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
 
     await mockCassetteApp(page, {
@@ -109,33 +110,31 @@ test.describe('profile tabs', () => {
         }),
       ],
     });
+    const activityRequests: string[] = [];
+    page.on('request', (request) => {
+      if (/\/api\/v1\/profile\/[^/]+\/activity/.test(request.url())) activityRequests.push(request.url());
+    });
 
     await page.goto('/profile/miagroove');
-    await expect(page).toHaveURL(/\/profile\/miagroove\?tab=playlists$/);
-    await expect(page.getByRole('main').last()).toContainText('Night Tape');
+    const music = page.getByTestId('profile-music');
+    await expect(music).toContainText('Night Tape');
+    await expect(music).toContainText('Signal Fade');
+    await expect(music).toContainText('Night Engine');
+    await expect(music).toContainText('Circuit Bloom');
+    // One read opens the page: no tab is probed type by type.
+    expect(activityRequests).toHaveLength(1);
+    await expect(page).toHaveURL(/\/profile\/miagroove$/);
 
-    const playlistOverflow = await getProfileContentOverflow(page);
-    expect(playlistOverflow.scrollHeight).toBeLessThanOrEqual(playlistOverflow.clientHeight + 1);
-
-    await page.getByRole('tab', { name: 'Tracks' }).click();
-    await expect(page).toHaveURL(/\/profile\/miagroove\?tab=tracks$/);
-    await expect(page.getByRole('main').last()).toContainText('Signal Fade');
-
-    await page.getByRole('tab', { name: 'Albums' }).click();
-    await expect(page).toHaveURL(/\/profile\/miagroove\?tab=albums$/);
-    await expect(page.getByRole('main').last()).toContainText('Night Engine');
-
-    await page.getByRole('tab', { name: 'Artists' }).click();
-    await expect(page).toHaveURL(/\/profile\/miagroove\?tab=artists$/);
-    await expect(page.getByRole('main').last()).toContainText('Circuit Bloom');
-
-    await page.getByRole('tab', { name: 'Playlists' }).click();
-    await expect(page).toHaveURL(/\/profile\/miagroove\?tab=playlists$/);
-    await expect(page.getByRole('main').last()).toContainText('Night Tape');
+    const musicOverflow = await getProfileContentOverflow(page);
+    expect(musicOverflow.scrollHeight).toBeLessThanOrEqual(musicOverflow.clientHeight + 1);
 
     await page.getByRole('tab', { name: /Liked/ }).click();
     await expect(page).toHaveURL(/\/profile\/miagroove\?tab=liked$/);
     await expect(page.getByRole('main').last()).toContainText('No liked posts yet');
+
+    await page.getByRole('tab', { name: 'Music' }).click();
+    await expect(page).toHaveURL(/\/profile\/miagroove$/);
+    await expect(page.getByTestId('profile-music')).toContainText('Night Tape');
   });
 
   test('uses liked post owner badges instead of the profile owner badge', async ({ page }) => {
@@ -163,7 +162,7 @@ test.describe('profile tabs', () => {
     await expect(likedPost.getByAltText('Cassette Team')).toHaveCount(0);
   });
 
-  test('auto-selects the first non-empty tab when playlists are empty', async ({ page }) => {
+  test('opens an older type link on Music at that type, with a way back to All', async ({ page }) => {
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.member,
       posts: [
@@ -175,28 +174,75 @@ test.describe('profile tabs', () => {
           artist: 'Circuit Bloom',
           originalUrl: 'https://open.spotify.com/track/member-track-only-1',
         }),
+        buildOwnedPost({
+          postId: 'member-playlist-only-post',
+          musicElementId: 'playlist-member-only-1',
+          elementType: 'Playlist',
+          title: 'Dawn Tape',
+          originalUrl: 'https://open.spotify.com/playlist/member-playlist-only-1',
+        }),
       ],
     });
 
-    await page.goto('/profile/miagroove');
-    await expect(page).toHaveURL(/\/profile\/miagroove\?tab=tracks$/);
-    await expect(page.getByRole('main').last()).toContainText('Daybreak Signal');
+    await page.goto('/profile/miagroove?tab=tracks');
+    await expect(page).toHaveURL(/\/profile\/miagroove\?type=tracks$/);
+    const music = page.getByTestId('profile-music');
+    await expect(music).toContainText('Daybreak Signal');
+    await expect(music).not.toContainText('Dawn Tape');
+    await expect(page.getByRole('radio', { name: 'Tracks' })).toBeChecked();
+
+    await page.getByRole('radio', { name: 'All' }).click();
+    await expect(page).toHaveURL(/\/profile\/miagroove$/);
+    await expect(music).toContainText('Dawn Tape');
   });
 
-  test('shows owner-aware empty copy for each selected profile tab', async ({ page }) => {
+  test('shows owner-aware empty copy on Music', async ({ page }) => {
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.member,
     });
 
-    await page.goto('/profile/miagroove?tab=albums');
-    await expect(page.getByRole('main').last()).toContainText('No albums yet');
-    await expect(page.getByRole('main').last()).toContainText('Add albums to start building your profile.');
-    await expect(page.getByRole('main').last().getByRole('link', { name: 'Add music' })).toHaveAttribute('href', '/add-music');
+    await page.goto('/profile/miagroove');
+    const main = page.getByRole('main').last();
+    await expect(main).toContainText('No music yet');
+    await expect(main).toContainText('Add music to start your page. Fans see it here.');
+    await expect(main.getByRole('link', { name: 'Add your first music' })).toHaveAttribute('href', '/studio/music/new');
 
-    await page.goto('/profile/djaurora?tab=tracks');
-    await expect(page.getByRole('main').last()).toContainText('No tracks yet');
-    await expect(page.getByRole('main').last()).toContainText('@djaurora has not shared any tracks yet.');
-    await expect(page.getByRole('main').last().getByRole('link', { name: 'Add music' })).toHaveCount(0);
+    await page.goto('/profile/miagroove?type=albums');
+    await expect(main).toContainText('No albums yet');
+    await expect(main.getByRole('link', { name: 'Add music' })).toHaveAttribute('href', '/studio/music/new');
+
+    await page.goto('/profile/djaurora');
+    await expect(main).toContainText('No music yet');
+    await expect(main).toContainText('has not shared any music yet.');
+    await expect(main.getByRole('link', { name: /Add/ })).toHaveCount(0);
+  });
+
+  test('lists an older public post behind a full page of newer private ones', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      posts: [
+        ...Array.from({ length: 21 }, (_, index) => buildOwnedPost({
+          postId: `member-private-post-${index + 1}`,
+          musicElementId: `track-member-private-${index + 1}`,
+          elementType: 'Track',
+          title: `Private Draft ${index + 1}`,
+          originalUrl: `https://open.spotify.com/track/member-private-${index + 1}`,
+          privacy: 'private',
+        })),
+        buildOwnedPost({
+          postId: 'member-public-keeper',
+          musicElementId: 'track-member-public-keeper',
+          elementType: 'Track',
+          title: 'Public Keeper',
+          originalUrl: 'https://open.spotify.com/track/member-public-keeper',
+        }),
+      ],
+    });
+
+    await page.goto('/profile/miagroove');
+    const music = page.getByTestId('profile-music');
+    await expect(music).toContainText('Public Keeper');
+    await expect(music).not.toContainText('Private Draft');
   });
 
   test('renders the profile not-found state instead of a generic error', async ({ page }) => {
@@ -232,13 +278,13 @@ test.describe('profile tabs', () => {
       ],
     });
 
-    await page.goto('/profile/miagroove?tab=tracks');
+    await page.goto('/profile/miagroove');
 
     const artwork = page.getByRole('img', { name: 'Broken Artwork Track' });
     await expect.poll(() => artwork.evaluate((element) => element.tagName)).toBe('DIV');
   });
 
-  test('only shows desktop tab scrolling when the active tab needs it', async ({ page }) => {
+  test('only shows desktop page scrolling when Music needs it', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
 
     await mockCassetteApp(page, {
@@ -256,10 +302,9 @@ test.describe('profile tabs', () => {
     });
 
     await page.goto('/profile/miagroove');
-    await expect(page).toHaveURL(/\/profile\/miagroove\?tab=tracks$/);
-    await expect(page.getByRole('main').last()).toContainText('Signal Fade 1');
+    await expect(page.getByTestId('profile-music')).toContainText('Signal Fade 1');
 
-    const tracksOverflow = await getProfileContentOverflow(page);
-    expect(tracksOverflow.scrollHeight).toBeGreaterThan(tracksOverflow.clientHeight + 1);
+    const musicOverflow = await getProfileContentOverflow(page);
+    expect(musicOverflow.scrollHeight).toBeGreaterThan(musicOverflow.clientHeight + 1);
   });
 });

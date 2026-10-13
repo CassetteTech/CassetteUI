@@ -183,8 +183,8 @@ test('unlocks subscriber content only after the polled membership becomes active
   // Both page loads read the session; the confirmed activation reads it again, which restarts the Feed.
   await expect.poll(() => sessionReads.length).toBe(3);
   await page.getByTestId('membership-view-posts').click();
-  await expect(page.getByTestId('feed-filter-members')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('[data-testid="curator-feed"] h3:visible')).toHaveCount(1);
+  await expect(page.getByRole('radio', { name: 'Members only' })).toBeChecked();
+  await expect(page.locator('[data-testid="profile-music"] h3:visible')).toHaveCount(1);
   await expect(page.getByTestId('membership-billing')).toContainText('$5.50/month');
   await expect(
     page.getByTestId('curator-membership-card').getByRole('link', { name: 'Memberships' }),

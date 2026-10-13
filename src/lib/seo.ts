@@ -40,6 +40,7 @@ export const PUBLIC_STATIC_ROUTES = [
  */
 export const NOINDEX_ROUTES = [
   '/add-music',
+  '/studio',
   '/feed',
   '/onboarding',
   '/collections',
@@ -58,7 +59,7 @@ export const NOINDEX_ROUTES = [
 ] as const;
 
 /** Route subtrees where every descendant is private. */
-export const NOINDEX_SUBTREES = ['/auth', '/internal'] as const;
+export const NOINDEX_SUBTREES = ['/auth', '/internal', '/studio'] as const;
 
 /**
  * robots.txt disallow rules.

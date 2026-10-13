@@ -599,10 +599,12 @@ export class ProfileService {
       page?: number;
       pageSize?: number;
       elementType?: string;
+      /** Narrows the posts this viewer can see to one audience. */
+      privacy?: 'public' | 'subscriber' | 'private';
     } = {},
   ): Promise<PaginatedActivityResponse> {
     try {
-      const { page = 1, pageSize = 20, elementType } = options;
+      const { page = 1, pageSize = 20, elementType, privacy } = options;
 
       const path =
         userIdentifier === 'edit'
@@ -618,6 +620,9 @@ export class ProfileService {
 
       if (elementType) {
         queryParams.append('elementType', elementType);
+      }
+      if (privacy) {
+        queryParams.append('privacy', privacy);
       }
 
       const requestUrl = `${url}?${queryParams}`;

@@ -33,8 +33,8 @@ test('locks a post for members from the curator feed right-click menu', async ({
     curatorPlans: [fixtureActiveMemberPostPlan],
   });
 
-  await page.goto(`/profile/${curator.username}?tab=posts`);
-  const feed = page.getByTestId('curator-feed');
+  await page.goto(`/profile/${curator.username}`);
+  const feed = page.getByTestId('profile-music');
   await feed.getByRole('heading', { name: feedPost.post.title }).click({ button: 'right' });
 
   const menu = page.getByTestId('post-quick-actions');
@@ -42,7 +42,7 @@ test('locks a post for members from the curator feed right-click menu', async ({
   await menu.getByRole('menuitem', { name: 'Members only' }).click();
 
   await expect(page.getByText('Post locked for members.')).toBeVisible();
-  await expect(feed.getByText('Members', { exact: true })).toBeVisible();
+  await expect(feed.getByRole('link', { name: new RegExp(feedPost.post.title) }).getByText('Members only', { exact: true })).toBeVisible();
 });
 
 test('removes a deleted post from the curator feed', async ({ page }) => {
@@ -68,8 +68,8 @@ test('removes a deleted post from the curator feed', async ({ page }) => {
     curatorPlans: [fixtureActiveMemberPostPlan],
   });
 
-  await page.goto(`/profile/${curator.username}?tab=posts`);
-  const feed = page.getByTestId('curator-feed');
+  await page.goto(`/profile/${curator.username}`);
+  const feed = page.getByTestId('profile-music');
   await feed.getByRole('heading', { name: feedPost.post.title }).click({ button: 'right' });
   await page.getByTestId('post-quick-actions').getByRole('menuitem', { name: 'Delete' }).click();
   await page.getByRole('button', { name: 'Delete Post' }).click();
@@ -79,7 +79,7 @@ test('removes a deleted post from the curator feed', async ({ page }) => {
   await expect(feed.getByRole('heading', { name: feedPost.post.title, includeHidden: true })).toHaveCount(0);
 });
 
-test('makes a post private from the profile grid right-click menu', async ({ page }) => {
+test('makes a post private from the profile music right-click menu, which takes it off the public page', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.owner,
     posts: [fixturePosts.ownerTrack],
@@ -96,5 +96,6 @@ test('makes a post private from the profile grid right-click menu', async ({ pag
   await menu.getByRole('menuitem', { name: 'Private' }).click();
 
   await expect(page.getByText('Post visibility updated.')).toBeVisible();
-  await expect(card.getByText('Private', { exact: true })).toBeVisible();
+  // The public page shows what visitors see; the owner keeps private posts in Studio Music.
+  await expect(page.getByRole('link', { name: /Paper Hearts/ })).toHaveCount(0);
 });

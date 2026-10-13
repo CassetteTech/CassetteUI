@@ -40,8 +40,13 @@ import {
   validateMusicLink,
 } from '@/utils/music-link-input';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
+import { normalizeAuthRedirect } from '@/utils/auth-redirect';
 import { PostVisibilityControl } from '@/components/features/post/post-visibility-control';
+import { studioLabels, studioViewOfPath } from '@/components/features/curator/studio-routes';
 import type { PostPrivacy } from '@/types';
+
+// Analytics keep the route name this page had before it moved into Curator Studio, so funnels stay continuous.
+const ANALYTICS_ROUTE = '/add-music';
 
 type SelectedItem = {
   id: string;
@@ -430,7 +435,9 @@ export default function AddMusicPage() {
   const debouncedSearchTerm = useDebounce(musicUrl, 300); // matches the home page search feel
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
-  const resolvedReturnRoute = user?.username ? `/profile/${user.username}` : null;
+  // Back and the finished post return to the page that opened this one, else the curator's profile.
+  const resolvedReturnRoute = normalizeAuthRedirect(searchParams?.get('from'))
+    ?? (user?.username ? `/profile/${user.username}` : null);
   const linkConversion = useMusicLinkConversion();
   const { label: conversionStageLabel } = useConversionStage(conversionKey);
   const isConverting = conversionKey != null;
@@ -453,12 +460,14 @@ export default function AddMusicPage() {
   const normalizeUrlInput = normalizeMusicLinkInput;
   const isValidMusicUrl = isSupportedMusicLink;
 
-  // Handle authentication redirect
+  // Sign-in returns here with the same query, so a prefilled link and `from` survive it.
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/auth/signin?redirect=/add-music');
+      const query = searchParams?.toString();
+      const target = query ? `/studio/music/new?${query}` : '/studio/music/new';
+      router.push(`/auth/signin?redirect=${encodeURIComponent(target)}`);
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, router, searchParams]);
 
   // Handle prefilled URL on mount
   useEffect(() => {
@@ -513,7 +522,7 @@ export default function AddMusicPage() {
         setErrorMessage(validationError);
         setIsSearchActive(false);
         void captureClientEvent('unsupported_music_link_pasted', {
-          route: '/add-music',
+          route: ANALYTICS_ROUTE,
           source_surface: 'add_music',
           source_domain: sanitizeDomain(normalizedValue),
           source_platform: detected.platform,
@@ -526,7 +535,7 @@ export default function AddMusicPage() {
       if (isValidMusicUrl(normalizedValue)) {
         commitMusicLinkInput(normalizedValue);
         void captureClientEvent('music_link_pasted', {
-          route: '/add-music',
+          route: ANALYTICS_ROUTE,
           source_surface: 'add_music',
           source_domain: sanitizeDomain(normalizedValue),
           source_platform: detected.platform,
@@ -583,7 +592,7 @@ export default function AddMusicPage() {
       playErrorTone();
 
       void captureClientEvent('unsupported_music_link_pasted', {
-        route: '/add-music',
+        route: ANALYTICS_ROUTE,
         source_surface: 'add_music',
         source_domain: sanitizeDomain(pastedText),
         source_platform: detected.platform,
@@ -596,7 +605,7 @@ export default function AddMusicPage() {
     if (isValidMusicUrl(pastedText)) {
       commitMusicLinkInput(pastedText);
       void captureClientEvent('music_link_pasted', {
-        route: '/add-music',
+        route: ANALYTICS_ROUTE,
         source_surface: 'add_music',
         source_domain: sanitizeDomain(pastedText),
         source_platform: detected.platform,
@@ -605,7 +614,7 @@ export default function AddMusicPage() {
       });
     } else {
       void captureClientEvent('unsupported_music_link_pasted', {
-        route: '/add-music',
+        route: ANALYTICS_ROUTE,
         source_surface: 'add_music',
         source_domain: sanitizeDomain(pastedText),
         source_platform: detected.platform,
@@ -651,7 +660,7 @@ export default function AddMusicPage() {
   const handleSelectItem = (url: string, title: string, type: string) => {
     const detected = detectContentType(url);
     void captureClientEvent('search_result_selected', {
-      route: '/add-music',
+      route: ANALYTICS_ROUTE,
       source_surface: 'add_music',
       source_platform: detected.platform,
       element_type_guess: detected.type,
@@ -743,7 +752,7 @@ export default function AddMusicPage() {
     
     const detected = detectContentType(urlToConvert);
     void captureClientEvent('conversion_entry_started', {
-      route: '/add-music',
+      route: ANALYTICS_ROUTE,
       source_surface: 'add_music',
       source_platform: detected.platform,
       element_type_guess: detected.type,
@@ -832,7 +841,7 @@ export default function AddMusicPage() {
       (searchResultsData?.playlists?.length || 0);
 
     void captureClientEvent('search_submitted', {
-      route: '/add-music',
+      route: ANALYTICS_ROUTE,
       source_surface: 'add_music',
       result_count: resultCount,
       is_authenticated: true,
@@ -893,6 +902,10 @@ export default function AddMusicPage() {
     />
   );
 
+  // Back names the Studio section the page opened from, so the page reads as a step inside Studio.
+  const returnView = studioViewOfPath(resolvedReturnRoute?.split(/[?#]/)[0] ?? null);
+  const backLabel = returnView ? studioLabels[returnView] : 'Back';
+
   return (
     <>
       {/* Phones and tablets: bar first, details under it; the bar opens a search sheet. */}
@@ -906,7 +919,7 @@ export default function AddMusicPage() {
             <div className="mx-auto max-w-2xl px-4 pb-16 sm:px-6">
               <div className={`transition-opacity duration-500 ${dimmed}`}>
                 <div className="flex items-center justify-between py-5">
-                  <BackButton fallbackRoute="/" label="Back" />
+                  <BackButton fallbackRoute={resolvedReturnRoute ?? '/'} label={backLabel} />
                 </div>
                 <h1 className="mb-5 font-teko text-4xl font-bold uppercase leading-none tracking-tight text-foreground">
                   Add music
@@ -919,17 +932,22 @@ export default function AddMusicPage() {
         </div>
       </div>
 
-      {/* Desktop: one Studio-width container; details on the left, the homepage
-          bar and open results on the right. Both columns share the header's
-          top edge and the container's gutters, so nothing hugs the window. */}
-      <div className="studio-surface relative hidden min-h-full lg:flex lg:px-8 lg:py-8">
+      {/* Desktop: one Studio-width container. The header spans the page, so more ways to
+          add music can sit under it later; below it, details on the left and the homepage
+          bar with open results on the right share one top edge. */}
+      <div className="studio-surface relative hidden min-h-full lg:block lg:px-8 lg:py-8">
         {paper}
-        <div className="relative z-10 mx-auto grid w-full max-w-6xl grid-cols-2 items-center gap-x-8 xl:grid-cols-[minmax(0,1fr)_28rem] xl:gap-x-16">
-          <div className={`transition-opacity duration-500 ${dimmed}`}>
-            <h1 className="mb-6 font-teko text-5xl font-bold uppercase leading-none tracking-tight text-foreground">Add music</h1>
-            <PostDetails collapsed={false} {...detailsProps} />
+        <div className="relative z-10 mx-auto w-full max-w-6xl">
+          <header className={`transition-opacity duration-500 ${dimmed}`}>
+            <BackButton fallbackRoute={resolvedReturnRoute ?? '/'} label={backLabel} />
+            <h1 className="mt-5 font-teko text-5xl font-bold uppercase leading-none tracking-tight text-foreground">Add music</h1>
+          </header>
+          <div className="mt-8 grid grid-cols-2 items-start gap-x-8 xl:grid-cols-[minmax(0,1fr)_28rem] xl:gap-x-16">
+            <div className={`transition-opacity duration-500 ${dimmed}`}>
+              <PostDetails collapsed={false} {...detailsProps} />
+            </div>
+            <MusicPicker {...pickerProps} rail />
           </div>
-          <MusicPicker {...pickerProps} rail />
         </div>
       </div>
     </>

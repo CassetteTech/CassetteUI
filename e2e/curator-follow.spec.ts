@@ -164,14 +164,14 @@ test('the curator sees no Follow on their own page and reads no relationship', a
 
   await page.goto(CURATOR_PATH);
   await expect(page.getByTestId('profile-owner-bar')).toBeVisible();
-  await page.getByRole('tab', { name: /Playlists/ }).click();
+  await page.getByRole('tab', { name: /Liked/ }).click();
   await page.waitForTimeout(300);
 
   await expect(anyFollowControl(page)).toHaveCount(0);
   expect(state.curatorFollowRequests).toEqual([]);
 });
 
-test('a curator without a paid plan can be followed from the profile pass on every tab', async ({ page }) => {
+test('a curator without a paid plan can be followed from the profile pass on both tabs', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.viewer,
     curatorPage: fixtureFreeCuratorPage,
@@ -182,7 +182,7 @@ test('a curator without a paid plan can be followed from the profile pass on eve
   await expect(pass.getByRole('button', { name: `Follow ${NAME}`, exact: true })).toBeVisible();
   await expect(page.getByTestId('curator-membership-card')).toHaveCount(0);
 
-  await page.getByRole('tab', { name: /Playlists/ }).click();
+  await page.getByRole('tab', { name: /Liked/ }).click();
   await pass.getByRole('button', { name: `Follow ${NAME}`, exact: true }).click();
   await expect(pass.getByText('Following', { exact: true })).toBeVisible();
   expect(writes(state)).toEqual(['PUT']);
@@ -192,7 +192,7 @@ test('a curator without a paid plan can be followed from the profile pass on eve
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('Follow lives in the profile header, once, on the Posts tab and the music tabs', async ({ page }) => {
+  test('Follow lives in the profile header, once, on the Music and Liked tabs', async ({ page }) => {
     const { state } = await mockCassetteApp(page, {
       currentUser: fixtureUsers.viewer,
       curatorPage: fixtureCuratorPage,
@@ -205,7 +205,7 @@ test.describe('on a phone', () => {
     await expect(page.locator('header').filter({ has: followButton(page) })).toHaveCount(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
 
-    await page.getByRole('tab', { name: /Playlists/ }).click();
+    await page.getByRole('tab', { name: /Liked/ }).click();
     await expect(followButton(page)).toHaveCount(1);
     await followButton(page).click();
     await expect(following(page)).toHaveCount(1);
@@ -233,10 +233,10 @@ test.describe('signed-out Follow', () => {
   test('returns through sign-in and follows once, with this tab\'s own intent', async ({ page }) => {
     const { state } = await mockCassetteApp(page, { curatorPage: fixtureCuratorPage });
 
-    await page.goto(`${CURATOR_PATH}?tab=playlists`);
+    await page.goto(`${CURATOR_PATH}?type=playlists`);
     await followButton(page).click();
 
-    const returnPath = `${CURATOR_PATH}?tab=playlists&follow=1`;
+    const returnPath = `${CURATOR_PATH}?type=playlists&follow=1`;
     await expect(page).toHaveURL(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
     expect(Number(await page.evaluate((key) => sessionStorage.getItem(key), INTENT_KEY))).toBeGreaterThan(0);
     expect(writes(state)).toEqual([]);
@@ -247,7 +247,7 @@ test.describe('signed-out Follow', () => {
 
     await expect(following(page)).toBeVisible();
     expect(writes(state)).toEqual(['PUT']);
-    await expect(page).toHaveURL(`${CURATOR_PATH}?tab=playlists`);
+    await expect(page).toHaveURL(`${CURATOR_PATH}?type=playlists`);
     expect(await page.evaluate((key) => sessionStorage.getItem(key), INTENT_KEY)).toBeNull();
     await page.reload();
     await expect(following(page)).toBeVisible();
@@ -261,15 +261,15 @@ test.describe('signed-out Follow', () => {
       membershipStatus: fixtureNoMembershipStatus,
     });
 
-    await page.goto(`${CURATOR_PATH}?tab=posts&follow=1`);
+    await page.goto(`${CURATOR_PATH}?follow=1`);
     await expect(followButton(page)).toBeVisible();
-    await expect(page).toHaveURL(`${CURATOR_PATH}?tab=posts`);
+    await expect(page).toHaveURL(CURATOR_PATH);
 
     // An intent older than its lifetime counts for nothing.
     await page.evaluate((key) => sessionStorage.setItem(key, String(Date.now() - 11 * 60 * 1_000)), INTENT_KEY);
-    await page.goto(`${CURATOR_PATH}?tab=posts&follow=1`);
+    await page.goto(`${CURATOR_PATH}?follow=1`);
     await expect(followButton(page)).toBeVisible();
-    await expect(page).toHaveURL(`${CURATOR_PATH}?tab=posts`);
+    await expect(page).toHaveURL(CURATOR_PATH);
     await page.waitForTimeout(300);
     expect(writes(state)).toEqual([]);
     // A Join intent is a different consent and never starts a Follow either.
@@ -286,17 +286,17 @@ test.describe('signed-out Follow', () => {
     let available = false;
     await page.route('**/api/auth/session', (route) =>
       available ? route.fallback() : route.fulfill({ status: 503, body: 'unavailable' }));
-    await page.goto(`${CURATOR_PATH}?tab=posts&follow=1`);
+    await page.goto(`${CURATOR_PATH}?follow=1`);
     await page.waitForTimeout(500);
     expect(writes(state)).toEqual([]);
-    await expect(page).toHaveURL(`${CURATOR_PATH}?tab=posts&follow=1`);
+    await expect(page).toHaveURL(`${CURATOR_PATH}?follow=1`);
     expect(await page.evaluate((key) => sessionStorage.getItem(key), INTENT_KEY)).not.toBeNull();
 
     available = true;
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect(following(page)).toBeVisible();
     expect(writes(state)).toEqual(['PUT']);
-    await expect(page).toHaveURL(`${CURATOR_PATH}?tab=posts`);
+    await expect(page).toHaveURL(CURATOR_PATH);
   });
 });
 

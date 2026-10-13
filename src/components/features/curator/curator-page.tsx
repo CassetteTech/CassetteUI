@@ -417,7 +417,7 @@ export function PublicCuratorPage({
       ));
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:max-w-none lg:px-0 lg:pb-0 lg:pt-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:max-w-none lg:px-0 lg:py-0">
       <h1 className="sr-only" id={curatorNameId}>{displayName}</h1>
 
       <div className="grid gap-6">

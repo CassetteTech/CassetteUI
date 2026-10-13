@@ -625,18 +625,29 @@ test.describe('freshness', () => {
 });
 
 test.describe('navigation', () => {
-  test('the sidebar puts Feed right after Home for a signed-in viewer only', async ({ page }) => {
+  test('the sidebar puts Feed first for a signed-in viewer only and has no Home, Profile, or Support Us row', async ({ page }) => {
     await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
 
     await page.goto('/feed');
+    const sidebar = page.locator('[data-slot="sidebar"]');
     const sidebarLinks = page.locator('[data-sidebar="menu"]').getByRole('link');
-    await expect(sidebarLinks).toHaveText(['Home', 'Feed', 'Profile', 'Curator Studio', 'Add Music', 'Memberships']);
+    await expect(sidebarLinks).toHaveText(['Feed', 'Explore', 'Curator Studio', 'Add Music', 'Memberships']);
     await expect(page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Feed' })).toHaveAttribute('data-active', 'true');
+    await expect(sidebar.getByRole('link', { name: 'Support Us' })).toHaveCount(0);
+
+    // The account row is the only way to the own profile, so it carries the active state there.
+    const accountRow = sidebar.locator(`a[href="/profile/${fixtureUsers.member.username}"]`);
+    await expect(accountRow).toHaveCount(1);
+    await expect(accountRow).toHaveAttribute('data-active', 'false');
+    await accountRow.click();
+    await expect(accountRow).toHaveAttribute('aria-current', 'page');
+    await expect(sidebar.locator('[data-active="true"]')).toHaveCount(1);
 
     await page.getByRole('button', { name: 'Sign Out' }).click();
     await expect(page).toHaveURL('/auth/signin');
     await page.goto('/feed');
-    await expect(page.locator('[data-sidebar="menu"]').getByRole('link')).toHaveText(['Home']);
+    await expect(sidebar.getByRole('link', { name: 'Sign In' })).toBeVisible();
+    await expect(page.locator('[data-sidebar="menu"]').getByRole('link')).toHaveText(['Explore']);
   });
 
   test.describe('on a phone', () => {

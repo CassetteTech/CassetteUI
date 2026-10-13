@@ -472,7 +472,7 @@ export default function ProfilePage() {
       {isCurrentUser && userBio && <ProfileOwnerBar username={userBio.username} />}
       {isPostsTab && userBio ? (
         /* Same right rail as Curator Studio; the pass slides between the two pages' spots. */
-        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:px-8 lg:py-10">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:px-8 lg:pt-6 lg:pb-10">
           <div className="min-w-0">
             <PublicCuratorPage
               username={userBio.username}
@@ -484,8 +484,9 @@ export default function ProfilePage() {
           </div>
           {/* One pass in the rail: the membership pass by portal when the curator sells one, else
               the profile pass. The has() guard covers a lapsed member whose manage pass arrives late.
-              top offset clears the sticky tab strip. */}
-          <div className="group lg:sticky lg:top-[5.5rem]">
+              The top offset clears the sticky tab strip and sits just above the rail's resting spot,
+              so a tall column never pushes the pass down on one tab and not the other. */}
+          <div className="group lg:sticky lg:top-[5.25rem]">
             <aside
               ref={setMembershipSlot}
               aria-label="Membership"
@@ -500,7 +501,8 @@ export default function ProfilePage() {
           </div>
         </div>
       ) : (
-        /* The music tabs keep the activity grid's own padding; the rail matches its top edge. */
+        /* The music tabs keep the activity grid's own padding; the rail matches its top edge. A margin,
+           not padding, so the rail sticks at the same spot as on Posts and the pass holds still across tabs. */
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:pr-8">
           <div className="mx-auto min-w-0 max-w-4xl lg:mx-0 lg:max-w-none">
             {showActivitySkeleton ? (
@@ -526,7 +528,7 @@ export default function ProfilePage() {
             )}
           </div>
           {userBio && (
-            <div className="hidden lg:sticky lg:top-[5.5rem] lg:block lg:pt-6">
+            <div className="hidden lg:sticky lg:top-[5.25rem] lg:mt-6 lg:block">
               <ProfileIdentityPass user={userBio} />
             </div>
           )}

@@ -87,7 +87,7 @@ export function resolveNavHref(item: NavigationItemDefinition, user: NavUser) {
   return item.href;
 }
 
-function isOwnProfilePath(pathname: string, user: NavUser) {
+export function isOwnProfilePath(pathname: string, user: NavUser) {
   if (!user?.username) return false;
 
   const ownProfilePath = `/profile/${user.username}`;

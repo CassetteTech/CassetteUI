@@ -498,6 +498,14 @@
   }
 }
 
+/* ─── Theme cross-fade ─────────────────────────────────────────────────────
+   The theme controls wrap the change in a view transition. The browser's
+   default root cross-fade is 250 ms; a slower ease reads as one smooth fade. */
+::view-transition-group(root) {
+  animation-duration: 400ms;
+  animation-timing-function: ease-in-out;
+}
+
 /* ─── Console chrome ───────────────────────────────────────────────────────
    Signal light — a small status dot with a soft halo, like a console LED. */
 .signal-dot {

@@ -11,8 +11,9 @@ const ROW_HEIGHT_PX = 52;
 // Collapsed preview ends on a half-visible row so the cutoff reads as
 // "there's more" instead of accidental clipping.
 const COLLAPSED_MAX_HEIGHT_PX = ROW_HEIGHT_PX * 6.5;
-// Below this the collapsed preview would hide less than two rows — not worth a toggle.
-const EXPANDABLE_MIN_TRACKS = 9;
+// Below this the collapsed preview would hide less than two rows — not worth a toggle. Lists
+// this long are also the ones the post page's running head counts through.
+export const EXPANDABLE_MIN_TRACKS = 9;
 
 const parseDurationSeconds = (duration?: string): number | null => {
   if (!duration) return null;
@@ -21,17 +22,22 @@ const parseDurationSeconds = (duration?: string): number | null => {
   return parts.reduce((total, part) => total * 60 + part, 0);
 };
 
-/** Header stat line for a track list, e.g. "117 tracks · 6 hr 24 min". */
-export const formatTrackListStats = (items: TrackListItem[]): string => {
-  const label = `${items.length} ${items.length === 1 ? 'track' : 'tracks'}`;
-  if (items.length === 0) return label;
+/** Total running time of a track list, e.g. "6 hr 24 min"; null unless every track reports a duration. */
+export const formatTrackListDuration = (items: TrackListItem[]): string | null => {
+  if (items.length === 0) return null;
   const seconds = items.map((item) => parseDurationSeconds(item.duration));
-  // Only claim a total runtime when every track reports a duration.
-  if (seconds.some((value) => value === null)) return label;
+  if (seconds.some((value) => value === null)) return null;
   const totalMinutes = Math.round((seconds as number[]).reduce((a, b) => a + b, 0) / 60);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  return `${label}, ${hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`}`;
+  return hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`;
+};
+
+/** Header stat line for a track list, e.g. "117 tracks, 6 hr 24 min". */
+export const formatTrackListStats = (items: TrackListItem[]): string => {
+  const label = `${items.length} ${items.length === 1 ? 'track' : 'tracks'}`;
+  const duration = formatTrackListDuration(items);
+  return duration ? `${label}, ${duration}` : label;
 };
 
 export interface TrackListItem {
@@ -261,6 +267,7 @@ export const TrackList: React.FC<TrackListProps> = ({
             return (
               <li
                 key={`${track.title}-${index}`}
+                data-track-row
                 className={cn(
                   'group grid items-center gap-3 px-3 sm:px-4 transition-colors duration-200 grid-cols-[auto_1fr_auto] border-b border-border/40 last:border-b-0 min-h-[52px]',
                   compact ? 'py-2' : 'py-2.5',

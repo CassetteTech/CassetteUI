@@ -8,7 +8,7 @@ import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
 import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
 import { PlayPreview } from '@/components/features/entity/play-preview';
-import { TrackList, formatTrackListStats } from '@/components/features/entity/track-list';
+import { TrackList, EXPANDABLE_MIN_TRACKS, formatTrackListDuration, formatTrackListStats } from '@/components/features/entity/track-list';
 import { PostAuthorHeader } from '@/components/features/post/post-author-header';
 import { PostEngagementBar } from '@/components/features/post/post-engagement-bar';
 import { PostCommentsSheet } from '@/components/features/post/post-comments-sheet';
@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AnimatedColorBackground } from '@/components/ui/animated-color-background';
-import { PostLabelHead } from '@/components/features/post/post-label-head';
+import { PostLabelHead, bandTone } from '@/components/features/post/post-label-head';
 import { ColorExtractor, ColorPalette } from '@/services/color-extractor';
 import { MainContainer } from '@/components/ui/container';
 import { HeadlineText, BodyText } from '@/components/ui/typography';
@@ -1053,6 +1053,85 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     return () => observer.disconnect();
   }, []);
 
+  // The desktop toolbar stays under the navbar on a paper lid once the page scrolls ('raised'),
+  // and the lid keeps what scrolls under it. Each value is a function of the scroll position, so
+  // scrolling up replays the way down in reverse:
+  // - the post's cover and title print on the lid as the h1 goes under it (--title-under, 0 to 1;
+  //   'docked' once it is fully under);
+  // - the tracklist's stats slide under the lid's edge and stop at its centre line
+  //   (--stats-shift), then roll over into "Track NN of N" (--counter-swap) on lists long enough
+  //   to collapse, with a fill along the lid's bottom edge (--list-progress);
+  // - the tracklist card's bottom edge moves the stats and the fill out again (--list-exit).
+  // The values go to CSS variables and the counter's text node, so scrolling renders nothing.
+  // Set on the h1, which mounts after the toolbar; the tracklist mounts later and is read per frame.
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const toolbarLidRef = useRef<HTMLDivElement>(null);
+  const trackCardRef = useRef<HTMLDivElement>(null);
+  const trackStatsRef = useRef<HTMLSpanElement>(null);
+  const trackCounterRef = useRef<HTMLSpanElement>(null);
+  const [toolbarDock, setToolbarDock] = useState<'raised' | 'docked'>();
+  const followScrollUnderToolbar = useCallback((title: HTMLElement | null) => {
+    const toolbar = toolbarRef.current;
+    const lid = toolbarLidRef.current;
+    if (!title || !toolbar || !lid) return;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const unit = (value: number) => Math.min(1, Math.max(0, value));
+    const set = (name: string, value: number | string) => toolbar.style.setProperty(name, String(value));
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const lidBox = lid.getBoundingClientRect();
+      const titleBox = title.getBoundingClientRect();
+      const titleUnder = unit((lidBox.bottom - titleBox.top) / titleBox.height);
+      set('--title-under', titleUnder);
+      setToolbarDock(titleUnder === 1 ? 'docked' : window.scrollY > 0 ? 'raised' : undefined);
+
+      const card = trackCardRef.current;
+      const stats = trackStatsRef.current;
+      const rows = card?.querySelectorAll<HTMLElement>('[data-track-row]');
+      if (!card || !stats || !rows?.length) return;
+      const statsBox = stats.getBoundingClientRect();
+      const offset = (statsBox.top + statsBox.bottom) / 2 - (lidBox.top + lidBox.bottom) / 2;
+      const exit = Math.min(0, card.getBoundingClientRect().bottom - lidBox.bottom);
+      const counts = rows.length >= EXPANDABLE_MIN_TRACKS;
+      // The copy can meet the real stats only where they run under the lid. A visitor's lid ends
+      // before Share while the card does not, so there (and with reduced motion) the stats
+      // appear in place once they reach the lid's centre line instead of sliding in.
+      const slides = !reducedMotion.matches && statsBox.right <= lidBox.right;
+      set('--stats-shift', `${slides ? Math.max(0, offset) + exit : exit}px`);
+      set('--stats-visible', !slides && offset > 0 ? 0 : 1);
+      set('--counter-swap', counts ? unit(-offset / 24) : 0);
+      set('--list-exit', `${exit}px`);
+      if (!counts) return;
+      // A collapsed list clips its later rows; they count only once they are on show.
+      const shownBottom = rows[0].parentElement?.parentElement?.getBoundingClientRect().bottom ?? Infinity;
+      const passedLine = Math.min(lidBox.bottom, shownBottom);
+      let passed = 0;
+      while (passed < rows.length && rows[passed].getBoundingClientRect().top < passedLine) passed += 1;
+      const listTop = rows[0].getBoundingClientRect().top;
+      const listBottom = Math.min(rows[rows.length - 1].getBoundingClientRect().bottom, shownBottom);
+      set('--list-progress', unit((lidBox.bottom - listTop) / (listBottom - listTop)));
+      if (trackCounterRef.current) {
+        const digits = Math.max(2, String(rows.length).length);
+        trackCounterRef.current.textContent =
+          `Track ${String(Math.max(1, passed)).padStart(digits, '0')} of ${rows.length}`;
+      }
+    };
+    const schedule = () => {
+      frame ||= requestAnimationFrame(update);
+    };
+    update();
+    // The tracklist's refs attach after this one; measure again once the commit has finished.
+    schedule();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
   // Show skeleton while loading
   if (!postData && !error) {
     return (
@@ -1170,6 +1249,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     : typeof postData?.trackCount === 'number'
       ? postData.trackCount
       : undefined;
+  const trackListDuration = Array.isArray(postData?.tracks) ? formatTrackListDuration(postData.tracks) : null;
   const trackListStats = Array.isArray(postData?.tracks) && postData.tracks.length > 0
     ? formatTrackListStats(postData.tracks)
     : typeof playlistTrackCount === 'number' && playlistTrackCount > 0
@@ -1338,12 +1418,82 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
               {/* The toolbar and the post share one container, so Back and Share sit on the
                   content's edges. Visitors get a narrower container; the owner column widens it. */}
               <div className={`mx-auto w-full px-8 pb-4 ${ownerColumnBeside ? 'max-w-7xl' : 'max-w-[68rem]'}`}>
-                <div className="pt-4 pb-6 relative z-20">
-                <div className="flex items-center justify-between gap-3">
-                  <BackButton route={backRoute} fallbackRoute="/explore" />
+                {/* Sticky under the navbar (see followScrollUnderToolbar). The post's half follows the
+                    content column below it: a paper lid that keeps what scrolls under it, first the
+                    post's cover and title, then the tracklist's stats as a running track counter.
+                    Share stays clear of it on the right, above the owner column, which sticks at
+                    8.5rem. */}
+                <div
+                  ref={toolbarRef}
+                  data-post-toolbar
+                  data-dock={toolbarDock}
+                  className={`group sticky top-[4.5rem] z-30 mb-6 mt-4 grid items-center ${ownerColumnBeside ? 'grid-cols-[minmax(0,1fr)_20rem] gap-x-8' : 'grid-cols-[minmax(0,1fr)_auto] gap-x-3'}`}
+                >
+                <div className="relative min-w-0">
+                  <div
+                    ref={toolbarLidRef}
+                    aria-hidden
+                    className="absolute inset-x-0 -inset-y-2 overflow-hidden rounded-t-lg border border-border/70 bg-card opacity-0 transition-opacity duration-200 ease-out-quart group-data-[dock]:opacity-100 group-data-[dock]:duration-300 motion-reduce:transition-none"
+                  >
+                    {showTracks && trackListStats && (
+                      <>
+                        {/* The tracklist's stats, kept: they stop at the lid's centre line and roll
+                            over into the counter one line at a time, inside a one-line window. The lid
+                            clips them on the way in and out; right-5 matches the tracklist header's
+                            px-5, so the copy meets the real stats. */}
+                        <div className="absolute inset-y-0 right-5 flex items-center text-sm tabular-nums text-muted-foreground opacity-[var(--stats-visible,0)] transition-opacity duration-200 ease-out-quart [transform:translateY(var(--stats-shift,0px))]">
+                          <div className="grid h-5 justify-items-end overflow-hidden">
+                            <span className="whitespace-nowrap [grid-area:1/1] opacity-[calc(1_-_var(--counter-swap,0))] motion-safe:[transform:translateY(calc(var(--counter-swap,0)*-20px))]">
+                              {trackListStats}
+                            </span>
+                            <span className="whitespace-nowrap [grid-area:1/1] opacity-[var(--counter-swap,0)] motion-safe:[transform:translateY(calc((1_-_var(--counter-swap,0))*20px))]">
+                              <span ref={trackCounterRef} className="font-semibold" style={{ color: bandTone(palette?.vibrant) }} />
+                              {trackListDuration && ` · ${trackListDuration}`}
+                            </span>
+                          </div>
+                        </div>
+                        <div
+                          className="absolute inset-x-0 bottom-0 h-[3px] origin-left opacity-[var(--counter-swap,0)] [transform:translateY(var(--list-exit,0px))_scaleX(var(--list-progress,0))]"
+                          style={{ backgroundColor: bandTone(palette?.vibrant) }}
+                        />
+                      </>
+                    )}
+                  </div>
+                  <div className="relative flex min-w-0 items-center gap-3 transition-[padding] duration-200 ease-out-quart group-data-[dock]:px-3 group-data-[dock]:duration-300 motion-reduce:transition-none">
+                    <BackButton route={backRoute} fallbackRoute="/explore" className="shrink-0" />
+                    {/* The post, kept: it prints as its h1 goes under the lid and takes the reader
+                        back to the top. The h1 stays the accessible title; this is named by its action. */}
+                    <button
+                      type="button"
+                      aria-label="Back to the top of the post"
+                      aria-hidden={toolbarDock !== 'docked'}
+                      tabIndex={toolbarDock === 'docked' ? 0 : -1}
+                      onClick={() => window.scrollTo({
+                        top: 0,
+                        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                      })}
+                      className={`group/identity pointer-events-none flex min-w-0 items-center gap-3 rounded-sm opacity-[var(--title-under,0)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-data-[dock=docked]:pointer-events-auto motion-safe:[transform:translateY(calc((1_-_var(--title-under,0))*8px))] ${showTracks ? 'max-w-[calc(100%-17rem)]' : ''}`}
+                    >
+                      <ArtworkImage
+                        src={imageError || !metadata.artwork ? '/images/cassette_logo.svg' : metadata.artwork}
+                        alt=""
+                        width={28}
+                        height={28}
+                        className="size-7 shrink-0 rounded-[3px] object-cover outline outline-1 -outline-offset-1 outline-foreground/10"
+                        unoptimized={!imageError && !!metadata.artwork}
+                      />
+                      <span className="truncate text-sm font-semibold underline-offset-4 group-hover/identity:underline">
+                        {metadata.title}
+                      </span>
+                      {isAlbum && metadata.artist && (
+                        <span className="truncate text-sm text-muted-foreground">{metadata.artist}</span>
+                      )}
+                    </button>
+                  </div>
+                  </div>
                   {/* Action cluster: Share is always the rightmost page action,
                       with the owner-only menu at the far edge beside it */}
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 justify-self-end">
                     <PostShareMenu
                       isTeamAccount={isTeamAccount}
                       copyState={copyState}
@@ -1370,7 +1520,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     )}
                   </div>
                 </div>
-              </div>
               {/* The post and, for owners, the column beside it, centered on the post card. */}
                 <div className={`grid items-start gap-x-8 ${ownerColumnBeside ? 'grid-cols-[minmax(0,1fr)_20rem]' : 'grid-cols-1'}`}>
                   <div className="min-w-0">
@@ -1438,6 +1587,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                           </div>
                           <div className="flex min-w-0 flex-col border-l border-border/70">
                           <PostLabelHead
+                            titleRef={followScrollUnderToolbar}
                             kicker={labelKicker}
                             title={metadata.title}
                             artist={isTrack || isAlbum ? artistLine : undefined}
@@ -1479,11 +1629,11 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                         </div>
                         {/* Album and playlist tracks, in a second card under the post */}
                         {showTracks && (
-                          <div className="card-ink overflow-hidden">
+                          <div ref={trackCardRef} className="card-ink overflow-hidden">
                             <div className="px-5 py-4 border-b border-border flex items-baseline justify-between gap-3">
                               <h3 className="text-sm font-semibold text-foreground">Tracklist</h3>
                               {trackListStats && (
-                                <span className="text-sm tabular-nums text-muted-foreground">{trackListStats}</span>
+                                <span ref={trackStatsRef} className="text-sm tabular-nums text-muted-foreground">{trackListStats}</span>
                               )}
                             </div>
                             <TrackList
@@ -1509,7 +1659,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     <PostStudioColumn
                       {...ownerColumnProps}
                       ref={centerOnPostCard}
-                      className="sticky top-20 w-auto motion-safe:data-[recentered]:transition-[margin-top] motion-safe:data-[recentered]:duration-300 motion-safe:data-[recentered]:ease-out-quart"
+                      className="sticky top-[8.5rem] w-auto motion-safe:data-[recentered]:transition-[margin-top] motion-safe:data-[recentered]:duration-300 motion-safe:data-[recentered]:ease-out-quart"
                     />
                   )}
                 </div>

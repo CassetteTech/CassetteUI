@@ -108,10 +108,12 @@ test('shows Boost discovery once sales are open', async ({ page }) => {
   await visit(page, '/explore');
   await expect(page.getByRole('link', { name: 'Promote your music' })).toBeVisible();
 
-  // Below 1024 px the menu holds the account routes, Your Campaigns among them.
+  // Below 1024 px the menu is the sidebar, with the same one row for /promote.
   await page.setViewportSize({ width: 900, height: 900 });
   await page.getByRole('button', { name: 'Open menu' }).click();
-  await expect(page.locator('#mobile-menu-panel').getByRole('link', { name: 'Your Campaigns' })).toBeVisible();
+  const menu = page.locator('#mobile-menu-panel');
+  await expect(menu.getByRole('link', { name: 'Promote', exact: true })).toHaveAttribute('href', '/promote');
+  await expect(menu.getByRole('link', { name: 'Your Campaigns' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Close menu' }).click();
   await page.setViewportSize({ width: 1280, height: 720 });
 

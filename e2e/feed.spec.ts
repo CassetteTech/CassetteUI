@@ -625,15 +625,17 @@ test.describe('freshness', () => {
 });
 
 test.describe('navigation', () => {
-  test('the sidebar puts Feed first for a signed-in viewer only and has no Home, Profile, or Support Us row', async ({ page }) => {
+  test('the sidebar puts Curator Studio first, Explore last, and has no Home, Profile, or Support Us row', async ({ page }) => {
     await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
 
     await page.goto('/feed');
     const sidebar = page.locator('[data-slot="sidebar"]');
     const sidebarLinks = page.locator('[data-sidebar="menu"]').getByRole('link');
-    // Add music is an action above the menu, not one of its page rows.
-    await expect(sidebarLinks).toHaveText(['Feed', 'Explore', 'Curator Studio', 'Memberships']);
-    await expect(sidebar.getByRole('link', { name: 'Add music', exact: true })).toHaveAttribute('href', '/studio/music/new');
+    // Add music is an action above the menu, not one of its page rows. It returns the finished
+    // post to the page that opened it.
+    await expect(sidebarLinks).toHaveText(['Curator Studio', 'Feed', 'Memberships', 'Explore']);
+    await expect(sidebar.getByRole('link', { name: 'Add music', exact: true }))
+      .toHaveAttribute('href', `/studio/music/new?from=${encodeURIComponent('/feed')}`);
     await expect(page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Feed' })).toHaveAttribute('data-active', 'true');
     await expect(sidebar.getByRole('link', { name: 'Support Us' })).toHaveCount(0);
 
@@ -652,17 +654,37 @@ test.describe('navigation', () => {
     await expect(page.locator('[data-sidebar="menu"]').getByRole('link')).toHaveText(['Explore']);
   });
 
+  test('pages without the sidebar link a signed-in user back to Curator Studio', async ({ page }) => {
+    await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
+
+    await page.goto('/explore');
+    const navbar = page.getByRole('navigation').filter({ has: page.getByTestId('navbar-profile-link') });
+    await expect(navbar.getByRole('link', { name: 'Curator Studio' })).toHaveAttribute('href', '/studio');
+
+    // A visitor has no Studio to go back to.
+    await page.goto('/feed');
+    await page.getByRole('button', { name: 'Sign Out' }).click();
+    await page.goto('/explore');
+    await expect(page.getByRole('link', { name: 'Curator Studio' })).toHaveCount(0);
+  });
+
   test.describe('on a phone', () => {
     test.use({ viewport: { width: 390, height: 844 } });
 
-    test('the menu lists Home then Feed for a signed-in viewer and hides Feed when signed out', async ({ page }) => {
+    test('the signed-in menu is the sidebar: profile, Add music, then Curator Studio first', async ({ page }) => {
       await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
 
       await page.goto('/explore');
       await page.getByRole('button', { name: 'Open menu' }).click();
-      const browse = page.getByRole('region', { name: 'Browse' }).getByRole('link');
-      await expect(browse).toHaveText(['Home', 'Feed', 'Explore', 'Add Music', 'Promote']);
-      await browse.filter({ hasText: 'Feed' }).click();
+      const menu = page.locator('#mobile-menu-panel');
+      await expect(menu.getByRole('link', { name: /Mia Groove/ })).toHaveAttribute('href', `/profile/${fixtureUsers.member.username}`);
+      await expect(menu.getByRole('link', { name: 'Add music', exact: true }))
+        .toHaveAttribute('href', `/studio/music/new?from=${encodeURIComponent('/explore')}`);
+      const pages = menu.getByRole('region', { name: 'Pages' }).getByRole('link');
+      await expect(pages).toHaveText(['Curator Studio', 'Feed', 'Memberships', 'Explore']);
+      await expect(menu.getByRole('region', { name: 'Browse' })).toHaveCount(0);
+      await expect(menu.getByRole('region', { name: 'Account' }).getByRole('button', { name: 'Sign Out' })).toBeVisible();
+      await pages.filter({ hasText: 'Feed' }).click();
       await expect(page).toHaveURL('/feed');
       await expect(postLinks(page)).toHaveCount(2);
     });

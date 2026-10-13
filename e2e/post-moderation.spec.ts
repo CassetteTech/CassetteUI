@@ -80,3 +80,20 @@ test('lets a post owner edit and delete a post', async ({ page }) => {
   await expect(profileMain).toContainText('No music yet');
   await expect(profileMain).not.toContainText('Paper Hearts');
 });
+
+test('a post opened from Studio Music returns there after its owner deletes it', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.owner,
+    posts: [fixturePosts.ownerTrack],
+    curatorProfile: fixtureActiveCuratorProfile,
+    curatorPlans: [fixtureActiveMemberPostPlan],
+  });
+
+  await page.goto(`/post/post-owner-track?from=${encodeURIComponent('/studio/music')}`);
+  await page.getByTestId('post-actions-trigger').click();
+  await page.getByRole('menuitem', { name: 'Delete' }).click();
+  await page.getByRole('button', { name: 'Delete Post' }).click();
+
+  await expect(page).toHaveURL('/studio/music');
+  await expect(page.getByTestId('studio-music-row')).toHaveCount(0);
+});

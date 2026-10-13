@@ -47,7 +47,7 @@ export function studioViewOf(sectionId: string): StudioView {
   }
 }
 
-/** The Add music page. `from` is the Studio URL its Back and its finished post return to. */
+/** The Add music page. `from` is the URL its Back and its finished post return to. */
 export const addMusicHref = (from: string) => `/studio/music/new?from=${encodeURIComponent(from)}`;
 
 /** Music library filters as they appear in the URL; a missing value shows everything. */

@@ -223,7 +223,7 @@ test('after a failed profile read, Set up memberships moves focus to the profile
   await expect(page.locator('#studio-profile-error')).toBeFocused();
 });
 
-test('Set up memberships waits for a slow profile read, then focuses the plan form', async ({ page }) => {
+test('Set up memberships waits for a slow profile read, then focuses the plan card', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: member, posts: [own('gate-track', 'Gate Track')] });
   let release = () => {};
   const released = new Promise<void>((resolve) => { release = resolve; });
@@ -236,11 +236,14 @@ test('Set up memberships waits for a slow profile read, then focuses the plan fo
   await rowOf(page, 'Gate Track').getByRole('button', { name: 'Who can open Gate Track: Public' }).click();
   await page.getByRole('menuitem', { name: 'Set up memberships' }).click();
   await expect(page).toHaveURL('/studio/membership');
-  // Membership holds its skeleton until the profile answers; the plan form then takes focus.
+  // Membership holds its skeleton until the profile answers. The plan card then takes focus:
+  // its first field, or the card itself while its own reads are still loading.
   await expect(page.getByTestId('curator-plan-card')).toHaveCount(0);
   release();
 
-  await expect(page.getByTestId('curator-plan-card').getByLabel('Plan name')).toBeFocused();
+  await expect(page.getByTestId('curator-plan-card')).toBeVisible();
+  await expect.poll(() => page.evaluate(() =>
+    document.getElementById('studio-plan')?.contains(document.activeElement) ?? false)).toBe(true);
 });
 
 test('leaving Membership before a slow profile read answers cancels its focus request', async ({ page }) => {

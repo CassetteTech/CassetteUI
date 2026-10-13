@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, ListFilter } from 'lucide-react';
+import { TextMorph } from 'torph/react';
 import { audienceDetails, nounsOf, typeDetails } from '@/components/features/curator/studio-music-filters';
 import {
   LibraryEmpty,
@@ -115,7 +116,7 @@ function AudienceFilter({
         >
           <Icon aria-hidden className="text-muted-foreground" />
           <span className="text-muted-foreground">Who can open it:</span>
-          {current?.label ?? 'All'}
+          <TextMorph>{current?.label ?? 'All'}</TextMorph>
           <ChevronDown aria-hidden className="text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
@@ -291,8 +292,9 @@ export default function StudioMusicPage() {
       id="studio-music"
       title="Music"
       headingId="studio-music-title"
-      // Stays mounted, so a new count after a filter change is announced.
-      description={<span aria-live="polite" className="tabular-nums">{countLine}</span>}
+      // Stays mounted, so a new count after a filter change is announced. The morph keeps a
+      // plain copy of the line for screen readers and hides its moving letters.
+      description={<span aria-live="polite" className="tabular-nums"><TextMorph>{countLine}</TextMorph></span>}
       plain
       chip={(
         <AudienceFilter

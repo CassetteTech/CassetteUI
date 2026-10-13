@@ -272,9 +272,10 @@ export function CuratorMembershipCard({
         ) : canJoin ? (
           <>
             <Button
-              className="w-full"
+              // aria-disabled, not disabled: a disabled button cannot take keyboard focus while checkout opens.
+              className="w-full aria-disabled:pointer-events-none aria-disabled:opacity-50"
               onClick={onJoin}
-              disabled={checkoutPending}
+              aria-disabled={checkoutPending}
               data-testid="membership-join"
             >
               {checkoutPending ? (

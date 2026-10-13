@@ -80,7 +80,7 @@ export function PostLabelHead({ kicker, title, artist, meta, source, tint, compa
               className="inline-flex items-center gap-1.5 underline-offset-4 transition-opacity hover:underline hover:opacity-100"
             >
               <span>From</span>
-              <Image src={source.icon} alt="" width={14} height={14} />
+              <Image src={source.icon} alt="" width={14} height={14} loading="eager" decoding="sync" />
               <span>{source.name}</span>
               <ExternalLink className="h-3 w-3" aria-hidden />
             </a>

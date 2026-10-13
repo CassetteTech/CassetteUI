@@ -4,7 +4,7 @@
 
 import { useRef, useEffect, useState, useCallback, type MouseEvent } from 'react';
 import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTemplate, PostByIdResponse, PostPrivacy, PublicPostPageMetadata } from '@/types';
-import { EntitySkeleton } from '@/components/features/entity/entity-skeleton';
+import { EntitySkeleton, printedBand } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
 import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
 import { PlayPreview } from '@/components/features/entity/play-preview';
@@ -1311,6 +1311,14 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const analyticsSourcePlatform = sourcePlatformKey || postData?.sourcePlatform || sourcePlatformRef.current || undefined;
   const sourceService = sourcePlatformKey ? streamingServices[sourcePlatformKey] : null;
 
+  // A post arriving from a conversion prints its label in the color the skeleton printed, and
+  // otherwise starts in a palette the skeleton already extracted, so the label never changes
+  // color as the post arrives.
+  const printedByConversion = arrivedWarm && metadata.artwork ? printedBand(metadata.artwork) : null;
+  const labelTint = printedByConversion
+    ? printedByConversion.tint
+    : (palette ?? (metadata.artwork ? ColorExtractor.cachedPalette(metadata.artwork) : undefined))?.vibrant;
+
   // Label head content shared by the three card layouts.
   const playlistSource = isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService
     ? {
@@ -1539,6 +1547,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                 height={416}
                                 className="block h-auto w-full object-cover"
                                 priority
+                                // Replaces the skeleton's copy of the same art: drawn at once, no empty frame.
+                                decoding="sync"
                                 onError={() => setImageError(true)}
                                 unoptimized={!imageError && !!metadata.artwork}
                               />
@@ -1593,7 +1603,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             artist={isTrack || isAlbum ? artistLine : undefined}
                             meta={labelMeta}
                             source={playlistSource}
-                            tint={palette?.vibrant}
+                            tint={labelTint}
                           />
                           <div className="flex flex-1 flex-col justify-center px-6 pb-6 pt-10">
                             <div>
@@ -1720,6 +1730,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     sizes="(max-width: 639px) 260px, 340px"
                     className="block h-[260px] w-[260px] rounded-sm object-cover sm:h-[340px] sm:w-[340px]"
                     priority
+                    decoding="sync"
                     onError={() => setImageError(true)}
                     unoptimized={!imageError && !!metadata.artwork}
                   />
@@ -1751,7 +1762,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   artist={isTrack || isAlbum ? artistLine : undefined}
                   meta={labelMeta}
                   source={playlistSource}
-                  tint={palette?.vibrant}
+                  tint={labelTint}
                 />
                 <div className="px-3 pb-3 pt-9 sm:px-5 sm:pb-5">
                   <div>

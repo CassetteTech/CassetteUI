@@ -1,7 +1,7 @@
 'use client';
 
 /** Renders the canonical public profile: one structure for every account. Music lists the
-    account's posts, narrowed by type pills, and Liked lists what it liked. A curator page adds its
+    account's posts, narrowed by list tabs, and Liked lists what it liked. A curator page adds its
     membership offer and locked posts; the pass in the rail is the only other difference. */
 
 import { useEffect, useState, useCallback, useMemo, type ComponentProps } from 'react';
@@ -152,7 +152,7 @@ export default function ProfilePage() {
 
   // Music for an account without a curator page: its public posts, newest first. Bridge narrows them
   // before it pages, so the owner's private posts never leave a page short. Bridge sends no type
-  // counts here, so only a type named in the URL gets a pill, beside All.
+  // counts here, so only a type named in the URL gets a tab, beside All.
   const plainType = musicView === 'all' || musicView === 'members' ? null : musicView;
   const plainMusic = useInfiniteQuery({
     queryKey: ['user-activity', userIdToFetch, 'profile-music', plainType ?? 'all'],
@@ -329,6 +329,8 @@ export default function ProfilePage() {
   // the profile pass there.
   const curatorMusic = !isLikedTab && !noCuratorPage;
   const showMembershipRail = curatorMusic && Boolean(curatorPage?.membership);
+  // A page that sells no membership offers its owner the setup from the profile pass.
+  const offersMembershipSetup = curatorPage?.viewer.isOwner === true && !curatorPage.membership;
   let content;
   if (isLikedTab) {
     content = (isLoadingBio || isLoadingLikedActivity) && likedPosts.length === 0 ? (
@@ -439,6 +441,7 @@ export default function ProfilePage() {
           {userBio && !showMembershipRail && (
             <ProfileIdentityPass
               user={userBio}
+              offersMembershipSetup={offersMembershipSetup}
               className="hidden lg:block group-has-[.membership-slot:not(:empty)]:hidden"
             />
           )}

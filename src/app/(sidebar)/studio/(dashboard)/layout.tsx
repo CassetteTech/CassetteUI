@@ -20,7 +20,7 @@ import { CuratorPayoutHistory } from '@/components/features/curator/curator-payo
 import { CuratorProCard } from '@/components/features/curator/curator-pro-card';
 import { StudioMembership } from '@/components/features/curator/studio-membership';
 import { OverviewSkeleton, StudioOverview } from '@/components/features/curator/studio-overview';
-import { StudioStepsContext, type LaunchStep } from '@/components/features/curator/studio-shell';
+import { MembershipInvitation, StudioStepsContext, type LaunchStep } from '@/components/features/curator/studio-shell';
 import { ProfileIdentityPass } from '@/components/features/profile/profile-identity-pass';
 import {
   addMusicHref,
@@ -166,8 +166,13 @@ function useLaunchSteps(profile: CuratorProfile | null) {
 }
 
 /** The pass visitors see on the public page while no plan is live: the profile pass. The plan card
-    portals the live plan's pass instead, and the plan preview on the Membership view. */
-function StudioProfilePass({ slot, show }: { slot: HTMLElement | null; show: boolean }) {
+    portals the live plan's pass instead, and the plan preview on the Membership view. Once the page
+    has music, the pass offers the owner membership setup. */
+function StudioProfilePass({ slot, show, offersMembershipSetup }: {
+  slot: HTMLElement | null;
+  show: boolean;
+  offersMembershipSetup: boolean;
+}) {
   const { user } = useAuthState();
   const bio = useUserBio(show ? user?.username : undefined);
   // Until the bio read answers, the pass leaving the previous page waits in the rail for it.
@@ -175,7 +180,7 @@ function StudioProfilePass({ slot, show }: { slot: HTMLElement | null; show: boo
   if (!show || !slot || !bio.data) return null;
   return createPortal(
     <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2.5 motion-safe:duration-450 motion-safe:ease-out-quart">
-      <ProfileIdentityPass user={bio.data} />
+      <ProfileIdentityPass user={bio.data} offersMembershipSetup={offersMembershipSetup} />
     </div>,
     slot,
   );
@@ -263,12 +268,14 @@ function revealSection(sectionId: string) {
   (field ?? section).focus({ preventScroll: true });
 }
 
-/** Underline links across the top; the active one carries the underline and aria-current. */
+/** Underline links across the top; the active one carries the underline and aria-current. They
+    are controls, so they start no browser link drag (a click that moves a few pixels still opens
+    the view) and a drag across them selects no text. */
 function StudioSectionLinks({ view }: { view: StudioView }) {
   return (
     <nav
       aria-label="Studio sections"
-      className="tab-scroll-fade relative -mx-4 mt-6 flex gap-1 overflow-x-auto border-b border-border px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
+      className="tab-scroll-fade relative -mx-4 mt-6 flex select-none gap-1 overflow-x-auto border-b border-border px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
     >
       <TabUnderline value={view} />
       {studioViews.map((id) => {
@@ -278,6 +285,7 @@ function StudioSectionLinks({ view }: { view: StudioView }) {
             key={id}
             href={studioPaths[id]}
             scroll={false}
+            draggable={false}
             aria-current={active ? 'page' : undefined}
             data-state={active ? 'active' : 'inactive'}
             data-testid={`${id}-trigger`}
@@ -373,6 +381,14 @@ function StudioDashboard({ children }: { children: ReactNode }) {
     <StudioStepsContext.Provider value={open}>
       <CoralGlow afterglow className="studio-surface min-h-full w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
         <StudioHeader onPageLinkCopied={launch.markPageLinkCopied} />
+        {/* Waits for the profile read too: until it answers, no plan reads as no publish. */}
+        <MembershipInvitation
+          show={profileLoaded && launch.stepsKnown && launch.hasPublished === false}
+          setupSteps={launch.setupSteps}
+          setupStarted={launch.setupStarted}
+          hasMusic={launch.musicStep?.done === true}
+          view={view}
+        />
         <StudioSectionLinks view={view} />
 
         {/* Below the links, the membership pass takes the same right rail as on the public page and stays put across views. */}
@@ -398,7 +414,6 @@ function StudioDashboard({ children }: { children: ReactNode }) {
                     plansKnown={launch.plansKnown}
                     stepsKnown={launch.stepsKnown}
                     setupSteps={launch.setupSteps}
-                    setupStarted={launch.setupStarted}
                     musicStep={launch.musicStep}
                     shareStep={launch.shareStep}
                   />
@@ -445,9 +460,11 @@ function StudioDashboard({ children }: { children: ReactNode }) {
               className={cn('empty:hidden peer-data-[shared-pending]:hidden', view !== 'studio-overview' && 'hidden')}
             />
           </div>
+          {/* After a failed profile read the plan is unknown, so no pass shows rather than a wrong one. */}
           <StudioProfilePass
             slot={passSlot}
-            show={!profile.isPending && view !== 'studio-membership' && launch.hasActivePlan === false}
+            show={profileLoaded && view !== 'studio-membership' && launch.hasActivePlan === false}
+            offersMembershipSetup={launch.musicStep?.done === true}
           />
         </div>
       </CoralGlow>

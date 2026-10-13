@@ -2,7 +2,7 @@
 
 // Renders Cassette's responsive application sidebar from role-aware navigation configuration.
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import { usePaidPromotionAccountVisible, usePaidPromotionSalesEnabled } from '@/hooks/use-paid-promotion-availability';
 import {
@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ThemeSegmentedControl } from '@/components/layout/theme-switcher';
 import { SidebarAccountRow, SidebarAccountRowSkeleton } from '@/components/layout/sidebar-account-row';
+import { NotificationMenu } from '@/components/layout/notification-menu';
 import { usePathname } from 'next/navigation';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import {
@@ -32,6 +33,8 @@ import {
   isOwnProfilePath,
   promoteNavOrder,
   resolveNavHref,
+  type NavigationItemDefinition,
+  type NavUser,
 } from './navigation-config';
 
 // Explore leaves the sidebar shell, so its row carries an exit marker.
@@ -42,6 +45,79 @@ const footerButtonClassName = 'w-full justify-start text-muted-foreground hover:
 
 interface AppSidebarProps {
   className?: string;
+}
+
+interface SidebarPageMenuProps {
+  items: NavigationItemDefinition[];
+  pathname: string | null;
+  user: NavUser;
+}
+
+/**
+ * The page rows share one highlight. It rests on the active row and glides to the row under the
+ * pointer or keyboard focus, so the rows paint no hover or active fill of their own.
+ */
+function SidebarPageMenu({ items, pathname, user }: SidebarPageMenuProps) {
+  const rowRefs = useRef(new Map<string, HTMLLIElement>());
+  const [pointedKey, setPointedKey] = useState<string | null>(null);
+  const [highlight, setHighlight] = useState<{ top: number; height: number; glides: boolean } | null>(null);
+  const activeKey = items.find((item) => isNavItemActive(item, pathname, user))?.key ?? null;
+  const targetKey = pointedKey ?? activeKey;
+  const rowKeys = items.map((item) => item.key).join();
+
+  useLayoutEffect(() => {
+    const row = targetKey ? rowRefs.current.get(targetKey) : undefined;
+    if (!row) return;
+    // The first placement only fades in; every later one glides from the previous row.
+    setHighlight((previous) => ({ top: row.offsetTop, height: row.offsetHeight, glides: previous !== null }));
+  }, [targetKey, rowKeys]);
+
+  return (
+    <SidebarGroupContent className="relative">
+      <span
+        aria-hidden
+        data-sidebar="menu-highlight"
+        className={`pointer-events-none absolute inset-x-0 rounded-md bg-sidebar-accent duration-200 ease-out-quart motion-reduce:transition-none ${
+          highlight?.glides ? 'transition-[top,height,opacity]' : 'transition-opacity'
+        }`}
+        style={{
+          top: highlight?.top ?? 0,
+          height: highlight?.height ?? 0,
+          opacity: highlight && targetKey ? 1 : 0,
+        }}
+      />
+      <SidebarMenu onMouseLeave={() => setPointedKey(null)}>
+        {items.map((item) => (
+          <SidebarMenuItem
+            key={item.key}
+            ref={(row) => {
+              if (row) rowRefs.current.set(item.key, row);
+              else rowRefs.current.delete(item.key);
+            }}
+          >
+            <SidebarMenuButton
+              asChild
+              isActive={item.key === activeKey}
+              className="hover:bg-transparent data-[active=true]:bg-transparent"
+            >
+              <Link
+                href={resolveNavHref(item, user)}
+                onMouseEnter={() => setPointedKey(item.key)}
+                onFocus={() => setPointedKey(item.key)}
+                onBlur={() => setPointedKey(null)}
+              >
+                <item.icon className="mr-2 h-4 w-4" />
+                <span>{item.label}</span>
+                {SIDEBAR_EXIT_KEYS.includes(item.key) && (
+                  <ArrowUpRight aria-hidden className="ml-auto size-3! opacity-40" />
+                )}
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ))}
+      </SidebarMenu>
+    </SidebarGroupContent>
+  );
 }
 
 export function AppSidebar({ className }: AppSidebarProps) {
@@ -108,8 +184,11 @@ export function AppSidebar({ className }: AppSidebarProps) {
   return (
     <Sidebar collapsible="none" className={`h-screen border-r border-sidebar-border/50 ${className}`}>
       <SidebarHeader>
-        {/* The logo shares the left edge of the account row and the page rows. */}
-        <div className="px-2 py-4 flex items-center">
+        {/* The logo shares the left edge of the account row and the page rows; the inbox sits at
+            the right end, on the rows' right edge, so the account row below can take the full width
+            when it is active. The logo box spans 20–60 px, so its center meets the profile page's
+            tab labels. */}
+        <div className="pl-2 pt-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Image
               src="/images/app_logo.svg"
@@ -119,6 +198,9 @@ export function AppSidebar({ className }: AppSidebarProps) {
               className="h-10 w-auto"
             />
           </Link>
+          {user && (
+            <NotificationMenu className="border-transparent bg-transparent text-muted-foreground hover:text-foreground" />
+          )}
         </div>
       </SidebarHeader>
       
@@ -147,8 +229,10 @@ export function AppSidebar({ className }: AppSidebarProps) {
             </SidebarGroupContent>
           </SidebarGroup>
         ) : user ? (
-          <SidebarGroup>
-            <SidebarGroupContent className="space-y-2">
+          // pb-1 here and pt-0 on the page rows' group leave 12 px (with the content gap) between
+          // Add music and the first page row, against 20 px above it: Add music leads the pages.
+          <SidebarGroup className="pb-1">
+            <SidebarGroupContent className="space-y-5">
               <SidebarAccountRow user={user} active={isOwnProfilePath(pathname, user)} />
               {/* Adding music is the main action, not a place: a full-width ink button with a page
                   row's box, outside the page rows' menu, so it never takes the active marker. Ink,
@@ -184,28 +268,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
         )}
         
         {/* Navigation */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {sidebarNavItems.map((item) => (
-                <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton asChild isActive={isNavItemActive(item, pathname, user)}>
-                    <Link href={resolveNavHref(item, user)}>
-                      <item.icon className="mr-2 h-4 w-4" />
-                      <span>{item.label}</span>
-                      {SIDEBAR_EXIT_KEYS.includes(item.key) && (
-                        <ArrowUpRight aria-hidden className="ml-auto size-3! opacity-40" />
-                      )}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
+        <SidebarGroup className="pt-0">
+          <SidebarPageMenu items={sidebarNavItems} pathname={pathname} user={user} />
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t px-2 py-4 space-y-2">
+      {/* gap-1 puts the footer rows on the page rows' 36 px pitch. */}
+      <SidebarFooter className="border-t px-2 py-3 gap-1">
         {/* Promote leaves the sidebar shell */}
         {promoteItem && (
           <Button asChild variant="ghost" size="sm" className={footerButtonClassName}>

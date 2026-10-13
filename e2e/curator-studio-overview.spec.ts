@@ -1,6 +1,6 @@
 /** Verifies the Studio Overview starts from music for every account: recent posts with their row
-    tools, one next step at a time, and the pass visitors see in the rail, with the audience and
-    the latest activity under it. */
+    tools, one next step at a time, the membership invitation above the section links, and the pass
+    visitors see in the rail, with the audience and the latest activity under it. */
 
 import { expect, test, type Locator } from '@playwright/test';
 import type { CuratorProfile } from '../src/services/curator';
@@ -35,6 +35,12 @@ const activePayout = {
 
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
+const box = async (locator: Locator) => {
+  const found = await locator.boundingBox();
+  if (!found) throw new Error('Expected a laid-out element.');
+  return found;
+};
+
 /** The member's own posts, newest first, as the activity read returns them. */
 const ownPosts = (count: number, overrides: (index: number) => Partial<FixturePost> = () => ({})): FixturePost[] =>
   Array.from({ length: count }, (_, index) => ({
@@ -63,16 +69,17 @@ test('shows the five newest posts with their tools, one invitation, and the prof
   await expect(recent.getByRole('link', { name: 'Overview Track 1' }).first())
     .toHaveAttribute('href', /from=%2Fstudio$/);
 
-  // Music first: the one membership invitation comes after it.
+  // The one membership invitation sits above the section links, not in the Overview's column.
   const invitation = page.getByRole('region', { name: 'Earn from your music' });
   await expect(invitation).toBeVisible();
-  const recentBox = await recent.boundingBox();
-  const invitationBox = await invitation.boundingBox();
-  expect(invitationBox!.y).toBeGreaterThan(recentBox!.y);
+  expect((await box(invitation)).y).toBeLessThan((await box(page.getByRole('navigation', { name: 'Studio sections' }))).y);
 
-  // The rail shows the pass visitors see on the public page; Membership previews the plan instead.
+  // The rail shows the pass visitors see on the public page, with membership setup for its owner;
+  // Membership previews the plan instead.
   const rail = page.getByRole('complementary', { name: 'Your public pass' });
   await expect(rail.getByTestId('profile-identity-pass')).toBeVisible();
+  await expect(rail.getByRole('link', { name: 'Start earning from your music' }))
+    .toHaveAttribute('href', '/studio/membership#studio-plan');
   await expect(page.getByTestId('curator-plan-preview')).toHaveCount(0);
 
   await invitation.getByRole('button', { name: 'Set up a membership' }).click();
@@ -80,6 +87,29 @@ test('shows the five newest posts with their tools, one invitation, and the prof
   const planRail = page.getByRole('complementary', { name: 'Membership plan' });
   await expect(planRail.getByTestId('curator-plan-preview')).toBeVisible();
   await expect(page.getByTestId('profile-identity-pass')).toHaveCount(0);
+});
+
+test('keeps the membership invitation above the section links on every view', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member, posts: ownPosts(2) });
+
+  await page.goto('/studio');
+
+  const invitation = page.getByRole('region', { name: 'Earn from your music' });
+  const links = page.getByRole('navigation', { name: 'Studio sections' });
+  await expect(invitation).toBeVisible();
+  const linksTop = (await box(links)).y;
+  for (const view of ['studio-music', 'studio-membership', 'studio-billing', 'studio-overview']) {
+    await openStudioStep(page, view);
+    await expect(invitation).toBeVisible();
+    expect((await box(links)).y).toBe(linksTop);
+  }
+
+  // The pass offers the same setup and opens the plan in place.
+  await page.getByRole('complementary', { name: 'Your public pass' })
+    .getByRole('link', { name: 'Start earning from your music' })
+    .click();
+  await expect(page).toHaveURL('/studio/membership');
+  await expect(page.getByTestId('curator-plan-card').getByLabel('Plan name')).toBeFocused();
 });
 
 test('a live plan shows its pass on every view, and earnings lead the music', async ({ page }) => {
@@ -116,12 +146,6 @@ const ledgerItems = (count: number): CuratorEarningsHistoryItem[] =>
     occurredAtUtc: daysAgo(index + 1),
     payableAtUtc: daysAgo(index - 13),
   }));
-
-const box = async (locator: Locator) => {
-  const found = await locator.boundingBox();
-  if (!found) throw new Error('Expected a laid-out element.');
-  return found;
-};
 
 test('puts the audience and the latest activity in the rail under the pass', async ({ page }) => {
   await mockCassetteApp(page, {

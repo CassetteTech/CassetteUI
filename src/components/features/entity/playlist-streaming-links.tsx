@@ -514,6 +514,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
                 alt={serviceName}
                 width={16}
                 height={16}
+                loading="eager" decoding="sync"
                 className="object-contain"
               />
               <span>{creationStatus.actionLabel || `Reconnect ${serviceName}`}</span>
@@ -669,7 +670,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
               <span aria-hidden className="w-1.5 shrink-0" style={{ background: service.color }} />
               <span className="flex flex-1 items-center gap-2.5 px-3 py-2.5 sm:gap-3 sm:px-4">
                 <span className="relative h-4 w-4 shrink-0 sm:h-5 sm:w-5">
-                  <Image src={service.icon} alt="" width={20} height={20} className="object-contain" />
+                  <Image src={service.icon} alt="" width={20} height={20} loading="eager" decoding="sync" className="object-contain" />
                 </span>
                 <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
                   {service.name}
@@ -701,7 +702,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
                 <span aria-hidden className="w-1.5 shrink-0" style={{ background: service.color }} />
                 <span className="flex flex-1 items-center gap-2.5 px-3 py-2.5 sm:gap-3 sm:px-4">
                   <span className="relative h-4 w-4 shrink-0 sm:h-5 sm:w-5">
-                    <Image src={service.icon} alt="" width={20} height={20} className="object-contain" />
+                    <Image src={service.icon} alt="" width={20} height={20} loading="eager" decoding="sync" className="object-contain" />
                   </span>
                   <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
                     {service.name}

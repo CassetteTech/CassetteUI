@@ -39,6 +39,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { listTabClassName, listTabsRowClassName } from '@/components/ui/list-tabs';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { useAuthState } from '@/hooks/use-auth';
 import { useMemberPostAccess } from '@/hooks/use-curator';
@@ -141,17 +142,15 @@ function AudienceFilter({
   );
 }
 
-/** The type of music, as text tabs on the section rule with a sliding ink underline. They are
-    links that keep the audience filter. A narrow list scrolls them sideways, so the underline stays
-    on one line. -mx-1 sets the first label on the title's edge, and the underline measures the
-    label, not the padded link, so it starts where the rule starts. */
+/** The type of music, as list tabs on the section rule (the same look as the public page's Music
+    tabs). They are links that keep the audience filter. */
 function TypeTabs({ type, audience, showArtists }: {
   type: MusicType | null;
   audience: MusicAudience | null;
   showArtists: boolean;
 }) {
   return (
-    <nav aria-label="Type of music" className="no-scrollbar relative -mx-1 flex gap-4 overflow-x-auto">
+    <nav aria-label="Type of music" className={listTabsRowClassName}>
       <TabUnderline value={type ?? 'all'} />
       {typeTabs.filter((tab) => tab.value !== 'artists' || showArtists).map((tab) => {
         const active = tab.value === type;
@@ -161,10 +160,12 @@ function TypeTabs({ type, audience, showArtists }: {
             href={studioMusicHref({ type: tab.value, audience })}
             replace
             scroll={false}
+            // No browser link drag, so a click that moves a few pixels still opens the tab.
+            draggable={false}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-sm px-1 text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-              active && 'font-medium text-foreground',
+              listTabClassName(active),
+              'outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
             )}
           >
             <span className="tab-label" data-label={tab.label} data-state={active ? 'active' : 'inactive'}>

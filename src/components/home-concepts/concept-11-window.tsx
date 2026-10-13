@@ -311,15 +311,16 @@ const SERVICE_LINKS = [
   { service: appleMusic, link: 'music.apple.com/…' },
   { service: deezer, link: 'deezer.com/…' },
 ];
-// "Converts to" loops through the services. When it reaches the pasted
-// service, "You paste" takes the service it just left, so the two rows
-// never show the same service. Six turns show every pair once.
-type CardPair = { pasted: number; converted: number };
-const nextPair = ({ pasted, converted }: CardPair): CardPair => {
-  const next = (converted + 1) % SERVICE_LINKS.length;
-  return { pasted: next === pasted ? converted : pasted, converted: next };
-};
-const CARD_TURN_MS = 1500;
+// The rows take turns to move, "Converts to" first. The moving row takes
+// the one service that neither row shows, so the rows never match and
+// six turns show every pair once.
+type CardState = { pasted: number; converted: number; next: 'pasted' | 'converted' };
+const unshown = ({ pasted, converted }: CardState) =>
+  SERVICE_LINKS.findIndex((_, index) => index !== pasted && index !== converted);
+const nextCardState = (state: CardState): CardState => state.next === 'converted'
+  ? { ...state, converted: unshown(state), next: 'pasted' }
+  : { ...state, pasted: unshown(state), next: 'converted' };
+const CARD_TURN_MS = 1725;
 const CARD_LABEL = 'font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground';
 const CARD_CHIP = 'flex h-7 items-center gap-2 rounded-md border px-2 font-mono text-xs';
 
@@ -358,9 +359,9 @@ function TurningChip({ service, still, testId }: { service: number; still: numbe
     services converts to the same music on the other two, and one Cassette
     link opens in all three. An illustration, not a post. */
 function LinkCard() {
-  const [{ pasted, converted }, setPair] = useState<CardPair>({ pasted: 0, converted: 1 });
+  const [{ pasted, converted }, setCardState] = useState<CardState>({ pasted: 0, converted: 2, next: 'converted' });
   useEffect(() => {
-    const timer = setInterval(() => setPair(nextPair), CARD_TURN_MS);
+    const timer = setInterval(() => setCardState(nextCardState), CARD_TURN_MS);
     return () => clearInterval(timer);
   }, []);
   return (

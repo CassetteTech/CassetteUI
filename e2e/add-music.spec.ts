@@ -51,14 +51,33 @@ test('creates a post from add-music search and shows it on the profile', async (
   });
   const conversionRequest = page.waitForRequest((request) =>
     new URL(request.url()).pathname === '/api/v1/convert' && request.method() === 'POST');
-  await page.locator('[data-testid="add-music-submit"]:not([disabled])').last().click();
+  // The form hands the conversion to the post page after a short beat, so it is read in
+  // the same browser task as the click. The request already carries the setting, so the
+  // control holds: it is disabled, and an arrow key does not move the selection.
+  const inFlight = await page.evaluate(async () => {
+    const shown = (element: Element) => element.getClientRects().length > 0;
+    // React applies a click within microtasks; the handoff timer runs only in a later task.
+    const settle = async () => {
+      for (let turn = 0; turn < 5; turn += 1) await Promise.resolve();
+    };
+    const submit = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-testid="add-music-submit"]'))
+      .find((button) => shown(button) && !button.disabled);
+    submit?.click();
+    await settle();
+    const visibility = Array.from(document.querySelectorAll('[role="radiogroup"]'))
+      .find((group) => shown(group) && group.textContent?.includes('Members'));
+    const radios = Array.from(visibility?.querySelectorAll<HTMLElement>('[role="radio"]') ?? []);
+    radios.find((radio) => radio.textContent?.includes('Members'))
+      ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await settle();
+    return {
+      disabled: radios.map((radio) => radio.getAttribute('aria-disabled')),
+      checked: radios.find((radio) => radio.getAttribute('aria-checked') === 'true')?.textContent?.trim(),
+    };
+  });
   expect((await conversionRequest).postDataJSON()).toMatchObject({ privacy: 'subscriber' });
-  // The request already carries the setting, so the control holds until it settles.
-  for (const name of ['Public', 'Members', 'Private']) {
-    await expect(page.getByRole('radio', { name })).toHaveAttribute('aria-disabled', 'true');
-  }
-  await page.getByRole('radio', { name: 'Members' }).press('ArrowRight');
-  await expect(page.getByRole('radio', { name: 'Members' })).toBeChecked();
+  expect(inFlight.disabled).toEqual(['true', 'true', 'true']);
+  expect(inFlight.checked).toContain('Members');
   releaseConversion();
 
   await expect(page).toHaveURL(/\/post\/post-created-track(\?.*)?$/);

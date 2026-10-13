@@ -76,16 +76,16 @@ test.describe('home page', () => {
     const pastedStill = card.getByTestId('link-card-pasted-still');
     const convertedStill = card.getByTestId('link-card-converted-still');
 
-    // The converted link loops through the services. When it reaches
-    // Spotify, the pasted link takes Deezer, the service it just left.
+    // The rows take turns, the converted link first, and the moving row
+    // takes the one service neither row shows.
     await expect(pastedStill).toBeHidden();
     await expect(convertedStill).toBeHidden();
     await expect(pasted.getByText('open.spotify.com/…')).toBeVisible();
-    await expect(converted.getByText('music.apple.com/…')).toBeVisible();
-    await expect(converted.getByText('deezer.com/…')).toBeVisible({ timeout: 4000 });
+    await expect(converted.getByText('deezer.com/…')).toBeVisible();
+    await expect(converted.getByText('music.apple.com/…')).toBeVisible({ timeout: 4000 });
     await expect(pasted.getByText('open.spotify.com/…')).toBeVisible();
-    await expect(converted.getByText('open.spotify.com/…')).toBeVisible({ timeout: 4000 });
-    await expect(pasted.getByText('deezer.com/…')).toBeVisible();
+    await expect(pasted.getByText('deezer.com/…')).toBeVisible({ timeout: 4000 });
+    await expect(converted.getByText('music.apple.com/…')).toBeVisible();
 
     // Reduced motion switched on mid-session swaps in the still Spotify to Apple Music pair.
     await page.emulateMedia({ reducedMotion: 'reduce' });

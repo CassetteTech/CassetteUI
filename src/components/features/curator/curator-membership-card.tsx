@@ -237,7 +237,7 @@ export function CuratorMembershipCard({
                   key={option}
                   className={cn(
                     'flex min-h-11 cursor-pointer items-center justify-center rounded-md border px-3 py-2.5 text-center text-sm transition-colors hover:border-foreground/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2',
-                    interval === option && 'border-primary bg-primary/10 font-semibold hover:border-primary',
+                    interval === option && 'border-foreground bg-foreground/5 font-semibold hover:border-foreground',
                   )}
                 >
                   <RadioGroupItem

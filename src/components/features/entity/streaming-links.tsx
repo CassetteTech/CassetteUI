@@ -141,6 +141,7 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                     alt=""
                     width={20}
                     height={20}
+                    loading="eager" decoding="sync"
                     className="object-contain"
                   />
                 </span>

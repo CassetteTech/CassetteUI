@@ -613,6 +613,10 @@
   pointer-events: none;
   transition: opacity 400ms ease-in-out;
   transition-delay: inherit;
+  /* The breath runs on every part, drafting or not, and on filter, not opacity: when a part
+     fills in, its outline fades out on the opacity transition, in step with the fill, and
+     never jumps when the animation stops. An outline at opacity 0 breathes unseen. */
+  animation: blueprint-breathe 2.4s ease-in-out 1.2s infinite;
 }
 
 /* Text bars draw as a dotted rule with a dot at each end. */
@@ -636,14 +640,13 @@
   animation: none;
 }
 
-/* Once drawn, the outlines breathe, so a slow load never looks stuck. */
+/* Once drawn, the outlines breathe (see .blueprint-part::after), so a slow load never looks stuck. */
 .blueprint-part[data-drafting]::after {
   opacity: 1;
-  animation: blueprint-breathe 2.4s ease-in-out 1.2s infinite;
 }
 
 @keyframes blueprint-breathe {
-  50% { opacity: 0.45; }
+  50% { filter: opacity(0.45); }
 }
 
 .blueprint-part[data-drafting]::before {

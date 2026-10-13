@@ -55,6 +55,20 @@ test.describe('profile rail', () => {
     await expect(html).toHaveAttribute('data-view-transitions', '1');
   });
 
+  test('puts the inbox in the sidebar header and gives the own-profile row the full width', async ({ page }) => {
+    await mockCassetteApp(page, { currentUser: fixtureUsers.viewer, curatorPage: fixtureCuratorPage });
+
+    await page.goto(`/profile/${fixtureUsers.viewer.username}`);
+
+    const sidebar = page.locator('[data-slot="sidebar"]');
+    await expect(sidebar.locator('[data-slot="sidebar-header"]').getByRole('button', { name: 'Notifications' })).toBeVisible();
+    const accountRow = sidebar.locator('a[aria-current="page"]', { hasText: `@${fixtureUsers.viewer.username}` });
+    await expect(accountRow).toBeVisible();
+    const addMusic = sidebar.getByRole('link', { name: 'Add music' });
+    const [rowBox, buttonBox] = await Promise.all([accountRow.boundingBox(), addMusic.boundingBox()]);
+    expect(rowBox?.width).toBe(buttonBox?.width);
+  });
+
   test('keeps the signed-in user in the sidebar and puts the curator in the membership pass', async ({ page }) => {
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.viewer,
@@ -107,6 +121,53 @@ test.describe('profile rail', () => {
 
     await expect(page.getByTestId('curator-membership-card')).toBeVisible();
     await expect(page.getByTestId('profile-identity-pass')).toBeHidden();
+  });
+
+  test('offers membership setup on the owner pass while the page sells none', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.playlistCurator,
+      curatorPage: { ...fixtureFreeCuratorPage, viewer: { isOwner: true, isMember: false, hasMemberBadge: false } },
+    });
+
+    await page.goto(`/profile/${fixtureUsers.playlistCurator.username}`);
+
+    const setup = page.getByTestId('profile-identity-pass').getByRole('link', { name: 'Start earning from your music' });
+    await expect(setup).toHaveAttribute('href', '/studio/membership#studio-plan');
+    await setup.click();
+    await expect(page).toHaveURL('/studio/membership#studio-plan');
+  });
+
+  test('gives a visitor Follow, not membership setup, on a page that sells none', async ({ page }) => {
+    await mockCassetteApp(page, { currentUser: fixtureUsers.viewer, curatorPage: fixtureFreeCuratorPage });
+
+    await page.goto(`/profile/${fixtureUsers.playlistCurator.username}`);
+
+    const pass = page.getByTestId('profile-identity-pass');
+    await expect(pass.getByRole('button', { name: /^Follow/ })).toBeVisible();
+    await expect(pass.getByRole('link', { name: 'Start earning from your music' })).toHaveCount(0);
+  });
+
+  test('never offers membership setup to an owner with a live plan, also on Liked', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.playlistCurator,
+      curatorPage: { ...fixtureCuratorPage, viewer: { isOwner: true, isMember: false, hasMemberBadge: false } },
+    });
+
+    // Liked shows the profile pass, also for a page that sells a membership. The check waits for the
+    // curator page read, which says whether a plan is live.
+    const curatorRead = page.waitForResponse((response) => response.url().includes('/curators/cratekeeper/page'));
+    await page.goto(`/profile/${fixtureUsers.playlistCurator.username}?tab=liked`);
+    await curatorRead;
+
+    await expect(page.getByTestId('profile-identity-pass')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Start earning from your music' })).toHaveCount(0);
+
+    // Music shows the live plan's pass; back on Liked, the cached page still says no setup.
+    await page.getByRole('tab', { name: 'Music' }).click();
+    await expect(page.getByTestId('curator-membership-card')).toBeVisible();
+    await page.getByRole('tab', { name: /^Liked/ }).click();
+    await expect(page.getByTestId('profile-identity-pass')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Start earning from your music' })).toHaveCount(0);
   });
 
   test('shows the owner bar and the owner note on the own page without a second identity', async ({ page }) => {

@@ -1,7 +1,7 @@
 'use client';
 
 /** Profile content tabs in the Curator Studio underline style: Radix tabs, text only, sentence case.
-    Music holds everything the account posted, narrowed by filter pills; Liked holds what it liked. */
+    Music holds everything the account posted, narrowed by list tabs; Liked holds what it liked. */
 
 import { useEffect, useRef } from 'react';
 import { Globe, Lock } from 'lucide-react';

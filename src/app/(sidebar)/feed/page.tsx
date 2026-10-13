@@ -24,7 +24,7 @@ import {
 import { MEMBERSHIP_OFFER_ID } from '@/components/features/curator/curator-membership-card';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
-import { FilterPills } from '@/components/ui/filter-pills';
+import { ListTabs } from '@/components/ui/list-tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuthState } from '@/hooks/use-auth';
@@ -129,7 +129,7 @@ function CuratorFeed() {
     // The section only records where focus is, for focus recovery after a reset; it takes no input itself.
     // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <section aria-labelledby="feed-heading" onFocus={recordFocus}>
-      <header className="mb-10 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+      <header className="mb-8">
         <h1
           ref={headingRef}
           id="feed-heading"
@@ -139,7 +139,7 @@ function CuratorFeed() {
           From your curators
         </h1>
         {hasSources && (
-          <FilterPills
+          <ListTabs
             label="Post filter"
             value={membersOnly ? 'members' : 'all'}
             onValueChange={(next) => setMembersOnly(next === 'members')}
@@ -147,6 +147,7 @@ function CuratorFeed() {
               { value: 'all', label: 'All' },
               { value: 'members', label: 'Members only' },
             ]}
+            className="mt-6"
           />
         )}
       </header>

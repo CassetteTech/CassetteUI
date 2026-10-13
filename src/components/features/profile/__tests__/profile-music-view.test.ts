@@ -79,7 +79,7 @@ void test('a curator page offers types it holds, and Members only to members and
   // The owner of a plan without member posts has nothing to lock, so no Members only.
   assert.deepEqual(curatorMusicViews(page({ typeCounts: twoTypes, memberPosts: false, viewer: { isOwner: true } }), 'all'),
     ['all', 'playlists', 'tracks']);
-  // One type is the same list as All, so it gets no pill; an open view keeps its pill.
+  // One type is the same list as All, so it gets no tab; an open view keeps its tab.
   assert.deepEqual(curatorMusicViews(page({ typeCounts: [{ elementType: 'Playlist', count: 3 }] }), 'all'), ['all']);
   assert.deepEqual(curatorMusicViews(page({ typeCounts: [{ elementType: 'Playlist', count: 3 }] }), 'albums'), ['all', 'albums']);
 });

@@ -1,7 +1,8 @@
 'use client';
 
-/** The public page's Music tab: one list for every account, narrowed by ink filter pills, in the
-    one music card. A visitor sees a members-only post as a locked card that leads to the offer. */
+/** The public page's Music tab: one list for every account, narrowed by list tabs (the same look
+    as Studio Music's type tabs), in the one music card. A visitor sees a members-only post as a
+    locked card that leads to the offer. */
 
 import { useId } from 'react';
 import Link from 'next/link';
@@ -15,8 +16,8 @@ import {
 import { musicViewLabels, type ProfileMusicView } from '@/components/features/profile/profile-music-view';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
-import { FilterPills } from '@/components/ui/filter-pills';
 import { PendingLabel } from '@/components/ui/interior/loading-button';
+import { ListTabs } from '@/components/ui/list-tabs';
 import { cn } from '@/lib/utils';
 import type { AccountType } from '@/types';
 
@@ -87,7 +88,7 @@ export function ProfileMusic({
 }: {
   /** The section's id, for links that bring the list into view. */
   id?: string;
-  /** The pills to offer; a single view shows no pills. */
+  /** The tabs to offer; a single view shows no tabs. */
   views: readonly ProfileMusicView[];
   view: ProfileMusicView;
   onViewChange: (view: ProfileMusicView) => void;
@@ -154,12 +155,12 @@ export function ProfileMusic({
     <section id={id} data-testid="profile-music" aria-labelledby={headingId} className="min-w-0 scroll-mt-24">
       <h2 id={headingId} className="sr-only">Music</h2>
       {views.length > 1 && (
-        <FilterPills
+        <ListTabs
           label="Music filter"
           value={view}
           onValueChange={onViewChange}
           options={views.map((value) => ({ value, label: musicViewLabels[value] }))}
-          className="mb-4"
+          className="mb-5"
         />
       )}
       {body}

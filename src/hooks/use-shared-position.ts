@@ -36,6 +36,16 @@ const lastPositions = new Map<string, LastPosition>();
 const departedThisCommit = new Set<string>();
 // Keys whose next copy is still loading, with the number of holders.
 const holds = new Map<string, number>();
+// Slots a copy is still loading into, with the number of holders. While any wait, the slot carries
+// `data-shared-pending`, so content after the slot can stay hidden instead of moving down when the copy lands.
+const pendingSlots = new WeakMap<HTMLElement, number>();
+
+function markPending(slot: HTMLElement, change: 1 | -1) {
+  const count = (pendingSlots.get(slot) ?? 0) + change;
+  if (count > 0) pendingSlots.set(slot, count);
+  else pendingSlots.delete(slot);
+  slot.toggleAttribute('data-shared-pending', count > 0);
+}
 const handoffWindowMs = 1_000;
 // A held copy never outstays this; a read that slow lets the new copy simply appear.
 const maxHoldMs = 5_000;
@@ -244,12 +254,14 @@ function followSlot(key: string, entry: LastPosition, slot: HTMLElement) {
 /** Keeps the departing `key` element on screen while `waiting`, for a page that renders its
     copy only after a data read. With a `slot`, the held copy moves to the slot's top-left
     corner and takes its width; a slot that has no box (hidden at this width) lets the copy
-    go. Several holders can wait on one key; the copy goes when the last one stops waiting
-    without a copy mounting. */
+    go. While a holder waits, its slot carries `data-shared-pending`, also on a visit with no
+    copy to hold. Several holders can wait on one key; the copy goes when the last one stops
+    waiting without a copy mounting. */
 export function useSharedPositionHold(key: string, waiting: boolean, slot: HTMLElement | null) {
   useLayoutEffect(() => {
     if (!waiting) return;
     holds.set(key, (holds.get(key) ?? 0) + 1);
+    if (slot) markPending(slot, 1);
     const entry = lastPositions.get(key);
     if (entry?.held && slot) {
       const target = slot.getBoundingClientRect();
@@ -269,6 +281,7 @@ export function useSharedPositionHold(key: string, waiting: boolean, slot: HTMLE
       const count = (holds.get(key) ?? 1) - 1;
       if (count > 0) holds.set(key, count);
       else holds.delete(key);
+      if (slot) markPending(slot, -1);
       // The copy usually mounts in the commit that ends the wait, after this cleanup; let it claim the record first.
       requestAnimationFrame(() => {
         const current = lastPositions.get(key);

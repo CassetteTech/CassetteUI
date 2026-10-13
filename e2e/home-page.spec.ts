@@ -49,11 +49,12 @@ test.describe('home page', () => {
     const menu = page.locator('#mobile-menu-panel');
     await expect(menu.getByRole('link', { name: 'Curator Studio' })).toHaveAttribute('href', '/studio');
     await expect(menu.getByRole('button', { name: 'Sign Out' })).toBeVisible();
-    // The open menu covers the floating Ko-fi button instead of sitting under it.
+    // The open menu covers the floating Ko-fi button instead of sitting under it: the panel, or
+    // the backdrop under a short panel, is on top at the button's center.
     const kofi = await page.getByRole('button', { name: 'Support Cassette on Ko-fi' }).boundingBox();
     expect(kofi).not.toBeNull();
     expect(await page.evaluate(
-      ({ x, y }) => document.elementFromPoint(x, y)?.closest('#mobile-menu-panel') !== null,
+      ({ x, y }) => document.elementFromPoint(x, y)?.closest('#mobile-menu-panel, [data-testid="mobile-menu-backdrop"]') !== null,
       { x: kofi!.x + kofi!.width / 2, y: kofi!.y + kofi!.height / 2 },
     )).toBe(true);
 

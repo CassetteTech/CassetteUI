@@ -7,13 +7,18 @@ import {
 } from '@/hooks/use-paid-promotion-availability';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  accountNavItems,
+  addMusicHrefForPage,
+  appNavOrder,
   companyNavItems,
+  getOrderedNavItems,
   getVisibleNavItems,
   isNavItemActive,
   primaryNavItems,
+  promoteNavOrder,
   resolveNavHref,
   type NavigationItemDefinition,
 } from './navigation-config';
@@ -25,11 +30,15 @@ interface NavigationLinksProps {
 
 interface NavigationSectionProps {
   title: string;
+  /** Names the section for screen readers only, as the sidebar's page rows have no heading. */
+  titleHidden?: boolean;
   items: NavigationItemDefinition[];
   pathname: string | null;
   variant: 'primary' | 'account' | 'secondary';
   onLinkClick?: () => void;
   username?: string | null;
+  /** Rows after the links, such as Sign Out, inside the same hairline grid. */
+  children?: React.ReactNode;
 }
 
 // Text-only editorial rows: Atkinson bold is the same voice as the desktop
@@ -61,9 +70,15 @@ function getItemClassName(variant: NavigationSectionProps['variant'], isActive: 
   );
 }
 
-function SectionHeading({ children }: { children: React.ReactNode }) {
+/** The menu's staggered entrance reads its order from this custom property. */
+function revealIndex(index: number) {
+  // SAFETY: CSSProperties has no custom-property keys; the value is a plain index.
+  return { '--reveal-index': index } as React.CSSProperties;
+}
+
+function SectionHeading({ children, hidden = false }: { children: React.ReactNode; hidden?: boolean }) {
   return (
-    <h3 className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground/80">
+    <h3 className={hidden ? 'sr-only' : 'mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground/80'}>
       {children}
     </h3>
   );
@@ -79,17 +94,19 @@ function ExternalMark() {
 
 function NavigationSection({
   title,
+  titleHidden = false,
   items,
   pathname,
   variant,
   onLinkClick,
   username,
+  children,
 }: NavigationSectionProps) {
-  if (items.length === 0) return null;
+  if (items.length === 0 && !children) return null;
 
   return (
     <section aria-label={title}>
-      <SectionHeading>{title}</SectionHeading>
+      <SectionHeading hidden={titleHidden}>{title}</SectionHeading>
       <div className="divide-y divide-border/40">
         {items.map((item) => {
           const href = resolveNavHref(item, { username });
@@ -118,6 +135,7 @@ function NavigationSection({
             </Link>
           );
         })}
+        {children}
       </div>
     </section>
   );
@@ -131,8 +149,7 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
   const salesEnabled = usePaidPromotionSalesEnabled();
   const accountVisible = usePaidPromotionAccountVisible();
 
-  const primaryItems = getVisibleNavItems(primaryNavItems, user, { salesEnabled });
-  const accountItems = getVisibleNavItems(accountNavItems, user, { accountVisible });
+  const paidPromotion = { salesEnabled, accountVisible };
   const companyItems = getVisibleNavItems(companyNavItems, user);
 
   const handleSignOut = () => {
@@ -142,22 +159,43 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
 
   return (
     <nav className="flex flex-col gap-5">
-      <div data-menu-reveal style={{ '--reveal-index': 2 } as React.CSSProperties}>
-        <NavigationSection
-          title="Browse"
-          items={primaryItems}
-          pathname={pathname}
-          variant="primary"
-          onLinkClick={onLinkClick}
-          username={user?.username}
-        />
-      </div>
+      {/* Signed in, the menu is the sidebar below 1024 px: Add music, then the app's pages in the
+          sidebar's order. A visitor browses the public pages. */}
+      {user ? (
+        <div data-menu-reveal style={revealIndex(2)}>
+          <Button asChild size="sm" className="mb-2 w-full bg-foreground text-background hover:bg-foreground/90">
+            <Link href={addMusicHrefForPage(pathname)} onClick={onLinkClick}>
+              <Plus aria-hidden />
+              Add music
+            </Link>
+          </Button>
+          <NavigationSection
+            title="Pages"
+            titleHidden
+            items={getOrderedNavItems(appNavOrder, user, paidPromotion)}
+            pathname={pathname}
+            variant="primary"
+            onLinkClick={onLinkClick}
+            username={user.username}
+          />
+        </div>
+      ) : (
+        <div data-menu-reveal style={revealIndex(2)}>
+          <NavigationSection
+            title="Browse"
+            items={getVisibleNavItems(primaryNavItems, user, { salesEnabled })}
+            pathname={pathname}
+            variant="primary"
+            onLinkClick={onLinkClick}
+          />
+        </div>
+      )}
 
       {!user && (
         <section
           aria-label="Account"
           data-menu-reveal
-          style={{ '--reveal-index': 3 } as React.CSSProperties}
+          style={revealIndex(3)}
         >
           <SectionHeading>Account</SectionHeading>
           <div className="divide-y divide-border/40">
@@ -179,26 +217,25 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
         </section>
       )}
 
+      {/* The sidebar footer's account actions: one Promote or Your Campaigns row, then Sign Out. */}
       {user && (
-        <div data-menu-reveal style={{ '--reveal-index': 3 } as React.CSSProperties}>
+        <div data-menu-reveal style={revealIndex(3)}>
           <NavigationSection
             title="Account"
-            items={accountItems}
+            items={getOrderedNavItems(promoteNavOrder, user, paidPromotion).slice(0, 1)}
             pathname={pathname}
             variant="account"
             onLinkClick={onLinkClick}
             username={user.username}
-          />
-          <button
-            onClick={handleSignOut}
-            className={cn(getItemClassName('account', false), 'border-t border-border/40 text-left')}
           >
-            <span>Sign Out</span>
-          </button>
+            <button onClick={handleSignOut} className={cn(getItemClassName('account', false), 'text-left')}>
+              <span>Sign Out</span>
+            </button>
+          </NavigationSection>
         </div>
       )}
 
-      <div data-menu-reveal style={{ '--reveal-index': 4 } as React.CSSProperties}>
+      <div data-menu-reveal style={revealIndex(4)}>
         <NavigationSection
           title="Company & Support"
           items={companyItems}

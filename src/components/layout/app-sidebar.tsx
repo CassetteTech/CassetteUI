@@ -25,41 +25,20 @@ import { SidebarAccountRow, SidebarAccountRowSkeleton } from '@/components/layou
 import { usePathname } from 'next/navigation';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import {
-  accountNavItems,
-  getVisibleNavItems,
+  addMusicHrefForPage,
+  appNavOrder,
+  getOrderedNavItems,
   isNavItemActive,
   isOwnProfilePath,
-  primaryNavItems,
+  promoteNavOrder,
   resolveNavHref,
-  type NavigationItemDefinition,
-  type NavUser,
 } from './navigation-config';
 
-// Interleaved sidebar ordering across primary + account groups. The logo links
-// home and the account row links to the own profile, so neither has a row here.
-// Feed shows only to a signed-in viewer, so Explore leads for a visitor. Add music
-// is an action, so it sits under the account row rather than among these page rows.
-const SIDEBAR_NAV_ORDER = ['feed', 'explore', 'curator-studio', 'memberships', 'internal'] as const;
 // Explore leaves the sidebar shell, so its row carries an exit marker.
 const SIDEBAR_EXIT_KEYS: readonly string[] = ['explore'];
-// Both lead to /promote, so the footer shows only the first visible one: Promote
-// while Boost sales are open, then Your Campaigns for a user who still has campaigns.
-const SIDEBAR_PROMOTE_ORDER = ['promote', 'campaigns'] as const;
 // Footer buttons share the page rows' edges: the icon padding drops to the rows' 8 px, and the
 // icon gap (mr-2.5 on each icon) puts the label on the rows' label column.
 const footerButtonClassName = 'w-full justify-start text-muted-foreground hover:text-foreground has-[>svg]:px-2';
-
-function getSidebarNavItems(
-  user: NavUser,
-  paidPromotion: { salesEnabled: boolean; accountVisible: boolean },
-  order: readonly string[] = SIDEBAR_NAV_ORDER,
-): NavigationItemDefinition[] {
-  const all = [...primaryNavItems, ...accountNavItems];
-  const ordered = order
-    .map((key) => all.find((item) => item.key === key))
-    .filter((item): item is NavigationItemDefinition => Boolean(item));
-  return getVisibleNavItems(ordered, user, paidPromotion);
-}
 
 interface AppSidebarProps {
   className?: string;
@@ -82,8 +61,8 @@ export function AppSidebar({ className }: AppSidebarProps) {
     salesEnabled: usePaidPromotionSalesEnabled(),
     accountVisible: usePaidPromotionAccountVisible(),
   };
-  const sidebarNavItems = getSidebarNavItems(user, paidPromotion);
-  const promoteItem = getSidebarNavItems(user, paidPromotion, SIDEBAR_PROMOTE_ORDER)[0];
+  const sidebarNavItems = getOrderedNavItems(appNavOrder, user, paidPromotion);
+  const promoteItem = getOrderedNavItems(promoteNavOrder, user, paidPromotion)[0];
 
   // Update indicator position when pathname changes or when auth resolves
   // (menu items are conditionally rendered based on user state, and the user menu affects layout)
@@ -175,7 +154,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   row's box, outside the page rows' menu, so it never takes the active marker. Ink,
                   not brand red, so it never doubles the red Add music in the Studio header. */}
               <Button asChild size="sm" className="w-full bg-foreground text-background hover:bg-foreground/90">
-                <Link href="/studio/music/new">
+                <Link href={addMusicHrefForPage(pathname)}>
                   <Plus aria-hidden />
                   Add music
                 </Link>

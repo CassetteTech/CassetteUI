@@ -19,6 +19,7 @@ import { NotificationMenu } from './notification-menu';
 import {
   companyNavItems,
   getVisibleNavItems,
+  isOwnProfilePath,
   resolveNavHref,
 } from './navigation-config';
 
@@ -37,7 +38,8 @@ export function Navbar() {
   // Hero routes paint their own backdrop, so the bar goes transparent there:
   // a veil of blurred paper that fades out under the bar lets content slide
   // beneath it instead of stopping at a solid band over the backdrop.
-  const isHero = isHeroRoute(usePathname());
+  const pathname = usePathname();
+  const isHero = isHeroRoute(pathname);
   const visibleCompanyItems = getVisibleNavItems(companyNavItems, user);
   const paidPromotionSalesEnabled = usePaidPromotionSalesEnabled();
 
@@ -97,6 +99,17 @@ export function Navbar() {
               />
             </Link>
             
+            {/* A signed-in user's way back to the app from pages without the sidebar, first
+                as in the sidebar. Pages with the sidebar hide this bar from 1024 px. */}
+            {isAuthenticated && (
+              <Link
+                href="/studio"
+                className="hidden lg:inline-flex items-center whitespace-nowrap text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted"
+              >
+                Curator Studio
+              </Link>
+            )}
+
             {/* Desktop links start at 1024 px, where the menu ends, so nothing shows twice. */}
             <div className="hidden lg:block">
               <DropdownMenu>
@@ -232,6 +245,7 @@ export function Navbar() {
       {/* Mobile Menu - Backdrop */}
       <button
         type="button"
+        data-testid="mobile-menu-backdrop"
         aria-hidden={!isMobileMenuOpen}
         tabIndex={-1}
         onClick={() => setIsMobileMenuOpen(false)}
@@ -261,9 +275,12 @@ export function Navbar() {
         <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain pt-4 pb-8">
           {/* The bar's container, so the menu lines up with the logo on tablets as on phones. */}
           <div className="container mx-auto px-4 sm:px-6">
-            {/* Authenticated user summary */}
+            {/* The account summary links to the own profile, as the sidebar's account row does. */}
             {isAuthenticated && user && (
-              <div
+              <Link
+                href={`/profile/${user.username}`}
+                onClick={() => setIsMobileMenuOpen(false)}
+                aria-current={isOwnProfilePath(pathname, user) ? 'page' : undefined}
                 className="mb-4 flex items-center gap-3 border-b border-border/40 pb-4"
                 data-menu-reveal
                 // SAFETY: CSSProperties has no custom-property keys; the value is a plain index.
@@ -281,7 +298,7 @@ export function Navbar() {
                   </p>
                   <p className="truncate font-mono text-xs text-muted-foreground">@{user.username}</p>
                 </div>
-              </div>
+              </Link>
             )}
 
             {/* Navigation Links */}

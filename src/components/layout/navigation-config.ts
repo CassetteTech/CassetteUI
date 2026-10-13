@@ -16,6 +16,7 @@ import {
   Users,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
+import { addMusicHref } from '@/components/features/curator/studio-routes';
 import { KOFI_SUPPORT_URL } from '@/lib/ko-fi';
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 
@@ -60,6 +61,34 @@ export const companyNavItems: NavigationItemDefinition[] = [
   { key: 'release-notes', label: 'Release Notes', icon: FileText, href: '/release-notes' },
   { key: 'support-us', label: 'Support Us', icon: Heart, href: KOFI_SUPPORT_URL, external: true },
 ];
+
+// The signed-in app's page rows, one order for the desktop sidebar and the phone menu. Curator
+// Studio leads because it is where curators work; Explore leaves the app shell, so it comes after
+// the app's own pages. A visitor sees only the rows that need no account. The account summary
+// links to the own profile and the logo links home, so neither has a row.
+export const appNavOrder = ['curator-studio', 'feed', 'memberships', 'explore', 'internal'] as const;
+// Both lead to /promote, so a menu shows only the first visible one: Promote while Boost sales
+// are open, then Your Campaigns for a user who still has campaigns.
+export const promoteNavOrder = ['promote', 'campaigns'] as const;
+
+const addMusicPath = '/studio/music/new';
+
+/** Add music from the app's menus returns the finished post, and its Back, to the open page. */
+export function addMusicHrefForPage(pathname: string | null) {
+  return pathname && !pathname.startsWith(addMusicPath) ? addMusicHref(pathname) : addMusicPath;
+}
+
+export function getOrderedNavItems(
+  order: readonly string[],
+  user: NavUser,
+  paidPromotion: { salesEnabled?: boolean; accountVisible?: boolean } = {},
+) {
+  const all = [...primaryNavItems, ...accountNavItems];
+  const ordered = order
+    .map((key) => all.find((item) => item.key === key))
+    .filter((item): item is NavigationItemDefinition => Boolean(item));
+  return getVisibleNavItems(ordered, user, paidPromotion);
+}
 
 export function getVisibleNavItems(
   items: NavigationItemDefinition[],

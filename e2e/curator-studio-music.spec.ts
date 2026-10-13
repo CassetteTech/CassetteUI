@@ -2,7 +2,7 @@
     tools, type tabs and the who-can-open-it filter narrow it in the URL, and saved changes keep
     every list correct. */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { fixturePosts, fixtureUsers, type FixturePost } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
@@ -110,6 +110,54 @@ test('narrows the library by type and by who can open it, both kept in the URL',
     'href',
     `/studio/music/new?from=${encodeURIComponent('/studio/music?type=playlists&audience=members')}`,
   );
+});
+
+/** Presses the middle of a control, moves the pointer a few pixels, and releases: a hand on a
+    trackpad rarely holds still. */
+async function sloppyClick(page: Page, name: string, control: Locator) {
+  const box = await control.boundingBox();
+  if (!box) throw new Error(`Expected ${name} to be laid out.`);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 8, box.y + box.height / 2 + 3, { steps: 6 });
+  await page.mouse.up();
+}
+
+/** Drags from the gap after one tab to past another, and returns the text that got selected. */
+async function dragAcross(page: Page, from: Locator, to: Locator) {
+  const start = await from.boundingBox();
+  const end = await to.boundingBox();
+  if (!start || !end) throw new Error('Expected laid-out tabs.');
+  await page.mouse.move(start.x + start.width + 3, start.y + start.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(end.x + end.width + 4, end.y + end.height / 2, { steps: 10 });
+  await page.mouse.up();
+  return page.evaluate(() => window.getSelection()?.toString() ?? '');
+}
+
+test('a click that moves a few pixels still opens a tab, and a drag selects no tab text', async ({ page }) => {
+  await mockCassetteApp(page, {
+    currentUser: member,
+    posts: [own('music-playlist', 'Late Night Mix', { elementType: 'Playlist' }), own('music-track', 'Open Track')],
+  });
+
+  await page.goto('/studio');
+
+  // Tab links start no browser link drag, so the click still lands.
+  const sections = page.getByRole('navigation', { name: 'Studio sections' });
+  await sloppyClick(page, 'the Music link', sections.getByRole('link', { name: 'Music' }));
+  await expect(page).toHaveURL('/studio/music');
+  const types = page.getByRole('navigation', { name: 'Type of music' });
+  await sloppyClick(page, 'the Tracks tab', types.getByRole('link', { name: 'Tracks' }));
+  await expect(page).toHaveURL('/studio/music?type=tracks');
+  await expect(rowsOf(page)).toHaveCount(1);
+
+  expect(await dragAcross(page, types.getByRole('link', { name: 'All' }), types.getByRole('link', { name: 'Tracks' }))).toBe('');
+  expect(await dragAcross(
+    page,
+    sections.getByRole('link', { name: 'Overview' }),
+    sections.getByRole('link', { name: 'Payouts & billing' }),
+  )).toBe('');
 });
 
 test('keeps the last count while another type loads, then counts the new list', async ({ page }) => {

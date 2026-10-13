@@ -18,7 +18,7 @@ export default function PaidPromotionsInternalLayout({ children }: { children: R
             <InternalNavRail />
             <section
               aria-label="Paid promotions operations"
-              className="min-w-0 flex-1 overflow-y-auto px-4 py-4 md:px-6 lg:px-8 lg:py-6"
+              className="min-w-0 flex-1 overflow-y-auto overscroll-y-none px-4 py-4 md:px-6 lg:px-8 lg:py-6"
             >
               <div className="mx-auto max-w-7xl">
                 <PaidPromotionTabs />

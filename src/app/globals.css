@@ -474,6 +474,14 @@
     @apply bg-background text-foreground font-sans;
   }
 
+  /* No rubber-band bounce or pull-to-refresh past the top or bottom of the page. Vertical only,
+     so two-finger trackpad swipes still go back and forward. The layouts that scroll inside an
+     element on desktop set the same on that element. */
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
+
   /* Text wrapping is set once here; it inherits, so do not repeat it per element.
      The text-wrap-style longhand leaves nowrap and truncate (text-wrap-mode) intact. */
   :root {

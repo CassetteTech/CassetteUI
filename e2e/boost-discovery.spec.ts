@@ -39,10 +39,8 @@ test('hides Boost discovery while sales are closed and keeps the direct page', a
   await ownedCampaigns;
   await expect(page.getByText('Make music?')).toHaveCount(0);
   await expect(promoteLinks(page)).toHaveCount(0);
-  await page.getByTestId('user-menu-trigger').click();
-  await expect(page.getByRole('menuitem', { name: 'Profile' })).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: 'Your Campaigns' })).toHaveCount(0);
-  await page.keyboard.press('Escape');
+  // The signed-in pill only links to the profile; the account routes live in the sidebar and the menu.
+  await expect(page.getByTestId('navbar-profile-link')).toHaveAttribute('href', `/profile/${fixtureUsers.member.username}`);
 
   await visit(page, '/explore');
   await expect(page.locator('footer').last()).toContainText('Release Notes');
@@ -78,8 +76,12 @@ test('keeps the campaign link for a customer with campaigns while sales are clos
   await expect(page.getByRole('link', { name: 'Promote your music' })).toHaveCount(0);
   await expect(page.locator('footer a[href="/promote"]')).toHaveCount(0);
   await expect(promoteLinks(page).filter({ hasNotText: 'Your Campaigns' })).toHaveCount(0);
-  await page.getByTestId('user-menu-trigger').click();
-  await page.getByRole('menuitem', { name: 'Your Campaigns' }).click();
+
+  // On desktop the customer reaches the campaigns from the sidebar, which shows one /promote row.
+  await visit(page, '/memberships');
+  const sidebarFooter = page.locator('[data-slot="sidebar-footer"]');
+  await expect(sidebarFooter.getByRole('link', { name: 'Promote', exact: true })).toHaveCount(0);
+  await sidebarFooter.getByRole('link', { name: 'Your Campaigns' }).click();
 
   await expect(page).toHaveURL(/\/promote$/);
   await expect(page.getByRole('heading', { name: 'Promotion home' })).toBeVisible();
@@ -90,11 +92,6 @@ test('keeps the campaign link for a customer with campaigns while sales are clos
   await page.goto(`/promote/${refundingCampaign.id}/return`);
   await expect(page.getByTestId('paid-promotion-campaign-status')).toContainText('refunded in full');
   await expect(page.getByTestId('paid-promotion-reopen-checkout')).toHaveCount(0);
-
-  await visit(page, '/memberships');
-  const sidebarFooter = page.locator('[data-slot="sidebar-footer"]');
-  await expect(sidebarFooter.getByRole('link', { name: 'Your Campaigns' })).toHaveAttribute('href', '/promote');
-  await expect(sidebarFooter.getByRole('link', { name: 'Promote', exact: true })).toHaveCount(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await visit(page, '/explore');
@@ -110,9 +107,13 @@ test('shows Boost discovery once sales are open', async ({ page }) => {
 
   await visit(page, '/explore');
   await expect(page.getByRole('link', { name: 'Promote your music' })).toBeVisible();
-  await page.getByTestId('user-menu-trigger').click();
-  await expect(page.getByRole('menuitem', { name: 'Your Campaigns' })).toBeVisible();
-  await page.keyboard.press('Escape');
+
+  // Below 1024 px the menu holds the account routes, Your Campaigns among them.
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await expect(page.locator('#mobile-menu-panel').getByRole('link', { name: 'Your Campaigns' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close menu' }).click();
+  await page.setViewportSize({ width: 1280, height: 720 });
 
   // The sidebar shows one row for /promote: Promote while sales are open.
   await visit(page, '/memberships');

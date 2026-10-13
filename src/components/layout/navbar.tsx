@@ -6,10 +6,10 @@ import { usePathname } from 'next/navigation';
 import { isHeroRoute } from './hero-routes';
 import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { UserMenu } from '@/components/layout/user-menu';
-import { useAuthState, useSignOut } from '@/hooks/use-auth';
+import { NavbarProfileLink } from '@/components/layout/navbar-profile-link';
+import { useAuthState } from '@/hooks/use-auth';
 import { usePaidPromotionSalesEnabled } from '@/hooks/use-paid-promotion-availability';
-import { ChevronDown, AlertCircle, LogOut } from 'lucide-react';
+import { ChevronDown, AlertCircle } from 'lucide-react';
 import { ThemeSwitcher } from './theme-switcher';
 import { NavigationLinks } from './navigation-links';
 import { cn } from '@/lib/utils';
@@ -26,14 +26,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
 export function Navbar() {
   const { user, isAuthenticated } = useAuthState();
-  const { mutate: signOut } = useSignOut();
   const { openReportModal } = useReportIssue();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   // Hero routes paint their own backdrop, so the bar goes transparent there:
@@ -43,12 +41,20 @@ export function Navbar() {
   const visibleCompanyItems = getVisibleNavItems(companyNavItems, user);
   const paidPromotionSalesEnabled = usePaidPromotionSalesEnabled();
 
-  // Lock body scroll while the mobile menu is open so the panel feels modal.
+  // Lock body scroll while the mobile menu is open so the panel feels modal. The menu exists
+  // only below 1024 px, so a window that grows past that width (a tablet turned to landscape)
+  // closes the menu, which releases the lock.
   useEffect(() => {
     if (!isMobileMenuOpen) return;
     const { overflow } = document.body.style;
     document.body.style.overflow = 'hidden';
+    const desktop = window.matchMedia('(min-width: 1024px)');
+    const closeOnDesktop = () => {
+      if (desktop.matches) setIsMobileMenuOpen(false);
+    };
+    desktop.addEventListener('change', closeOnDesktop);
     return () => {
+      desktop.removeEventListener('change', closeOnDesktop);
       document.body.style.overflow = overflow;
     };
   }, [isMobileMenuOpen]);
@@ -91,8 +97,8 @@ export function Navbar() {
               />
             </Link>
             
-            {/* Desktop Company Dropdown */}
-            <div className="hidden md:block">
+            {/* Desktop links start at 1024 px, where the menu ends, so nothing shows twice. */}
+            <div className="hidden lg:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center space-x-1 text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted outline-none">
@@ -138,7 +144,7 @@ export function Navbar() {
 
             <Link
               href="/explore"
-              className="hidden md:inline-flex items-center text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted"
+              className="hidden lg:inline-flex items-center text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted"
             >
               Explore
             </Link>
@@ -146,7 +152,7 @@ export function Navbar() {
             {paidPromotionSalesEnabled && (
               <Link
                 href="/promote"
-                className="hidden md:inline-flex items-center whitespace-nowrap text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted"
+                className="hidden lg:inline-flex items-center whitespace-nowrap text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted"
               >
                 Promote your music
               </Link>
@@ -161,8 +167,8 @@ export function Navbar() {
               <>
                 <NotificationMenu />
 
-                <div className="hidden md:block">
-                  <UserMenu align="end" />
+                <div className="hidden lg:block">
+                  <NavbarProfileLink />
                 </div>
               </>
             ) : (
@@ -188,7 +194,7 @@ export function Navbar() {
             <button
               type="button"
               className={cn(
-                "md:hidden relative inline-flex shrink-0 items-center justify-center w-10 h-10 rounded-lg text-foreground transition-colors duration-200",
+                "lg:hidden relative inline-flex shrink-0 items-center justify-center w-10 h-10 rounded-lg text-foreground transition-colors duration-200",
                 "hover:bg-muted/70 active:scale-95",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                 isMobileMenuOpen && "bg-muted"
@@ -230,7 +236,7 @@ export function Navbar() {
         tabIndex={-1}
         onClick={() => setIsMobileMenuOpen(false)}
         className={cn(
-          "md:hidden fixed inset-x-0 top-16 bottom-0 z-40 bg-background/60 backdrop-blur-sm transition-opacity duration-280",
+          "lg:hidden fixed inset-x-0 top-16 bottom-0 z-40 bg-background/60 backdrop-blur-sm transition-opacity duration-280",
           isMobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       />
@@ -244,7 +250,7 @@ export function Navbar() {
         data-open={isMobileMenuOpen}
         inert={!isMobileMenuOpen}
         className={cn(
-          "md:hidden absolute top-full inset-x-0 z-50 origin-top",
+          "lg:hidden absolute top-full inset-x-0 z-50 origin-top",
           "overflow-hidden border-b border-border/60 bg-card elev-3",
           "transition-[opacity,transform] duration-300 ease-out-quart",
           isMobileMenuOpen
@@ -252,32 +258,35 @@ export function Navbar() {
             : "opacity-0 -translate-y-2 pointer-events-none"
         )}
       >
-        <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain px-4 pt-4 pb-8 sm:px-6">
-          {/* Authenticated user summary */}
-          {isAuthenticated && user && (
-            <div
-              className="mb-4 flex items-center gap-3 border-b border-border/40 pb-4"
-              data-menu-reveal
-              // SAFETY: CSSProperties has no custom-property keys; the value is a plain index.
-              style={{ '--reveal-index': 1 } as React.CSSProperties}
-            >
-              <Avatar className="h-10 w-10 ring-2 ring-primary ring-offset-2 ring-offset-card">
-                <AvatarImage src={user.profilePicture} alt={`@${user.username}`} />
-                <AvatarFallback className="bg-primary text-primary-foreground font-atkinson font-bold">
-                  {user.username?.charAt(0)?.toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="truncate font-atkinson text-[15px] font-bold leading-tight text-foreground">
-                  {user.displayName || user.username}
-                </p>
-                <p className="truncate font-mono text-xs text-muted-foreground">@{user.username}</p>
+        <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain pt-4 pb-8">
+          {/* The bar's container, so the menu lines up with the logo on tablets as on phones. */}
+          <div className="container mx-auto px-4 sm:px-6">
+            {/* Authenticated user summary */}
+            {isAuthenticated && user && (
+              <div
+                className="mb-4 flex items-center gap-3 border-b border-border/40 pb-4"
+                data-menu-reveal
+                // SAFETY: CSSProperties has no custom-property keys; the value is a plain index.
+                style={{ '--reveal-index': 1 } as React.CSSProperties}
+              >
+                <Avatar className="h-10 w-10 ring-2 ring-primary ring-offset-2 ring-offset-card">
+                  <AvatarImage src={user.profilePicture} alt={`@${user.username}`} />
+                  <AvatarFallback className="bg-primary text-primary-foreground font-atkinson font-bold">
+                    {user.username?.charAt(0)?.toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate font-atkinson text-[15px] font-bold leading-tight text-foreground">
+                    {user.displayName || user.username}
+                  </p>
+                  <p className="truncate font-mono text-xs text-muted-foreground">@{user.username}</p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Navigation Links */}
-          <NavigationLinks onLinkClick={() => setIsMobileMenuOpen(false)} />
+            {/* Navigation Links */}
+            <NavigationLinks onLinkClick={() => setIsMobileMenuOpen(false)} />
+          </div>
         </div>
       </div>
     </nav>

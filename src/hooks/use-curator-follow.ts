@@ -6,7 +6,7 @@
  * A write changes nothing on screen until Bridge confirms it.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
@@ -14,7 +14,8 @@ import { profileQueryKeys } from '@/hooks/use-profile';
 import { authService } from '@/services/auth';
 import { fetchCuratorFollow, setCuratorFollow } from '@/services/curator';
 import { useAuthStore } from '@/stores/auth-store';
-import { removeQueryParameters } from '@/utils/remove-query-parameters';
+import { removeQueryParameters, removeQueryParametersFromRouter } from '@/utils/remove-query-parameters';
+import { parseProfileActionIntent } from '@/utils/profile-action-intent';
 
 const followIntentPrefix = 'cassette:follow-intent:';
 const followIntentLifetimeMs = 10 * 60 * 1_000;
@@ -31,6 +32,10 @@ export type CuratorFollow = {
   follow: () => void;
   unfollow: () => void;
   retry: () => void;
+  /** A Follow carried in the URL from an in-app browser, waiting for the signed-in viewer to confirm it. */
+  confirming: boolean;
+  confirm: () => void;
+  dismissConfirmation: () => void;
 };
 
 /**
@@ -43,6 +48,23 @@ function refreshAfterFollowChange(queryClient: QueryClient, username: string) {
   void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
 }
 
+/** A signed-out Follow: this tab remembers the click, and sign-in returns with `follow=1`. */
+function signInToFollow(
+  router: ReturnType<typeof useRouter>,
+  curator: { id: string; username: string },
+  returnQuery: string,
+) {
+  try {
+    sessionStorage.setItem(`${followIntentPrefix}${curator.id}`, String(Date.now()));
+  } catch {
+    // The viewer can select Follow again after signing in.
+  }
+  const query = new URLSearchParams(returnQuery);
+  query.set('follow', '1');
+  const returnPath = `/profile/${encodeURIComponent(curator.username)}?${query}`;
+  router.push(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
+}
+
 export function useCuratorFollow(
   curator: { id: string; username: string; displayName: string } | null,
   isOwner: boolean,
@@ -51,10 +73,14 @@ export function useCuratorFollow(
 ): CuratorFollow | null {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const returning = useSearchParams().get('follow') === '1';
+  const searchParams = useSearchParams();
+  const returning = searchParams.get('follow') === '1';
+  const carried = parseProfileActionIntent(searchParams)?.action === 'follow';
+  const [confirming, setConfirming] = useState(false);
   const { user, isLoading: authLoading, isAuthenticated, sessionError } = useAuthState();
   const viewerId = isAuthenticated && user ? user.id : null;
   const curatorId = curator?.id ?? '';
+  const curatorUsername = curator?.username ?? '';
   const relationship = useQuery({
     queryKey: curatorFollowQueryKey(curatorId, viewerId),
     queryFn: ({ signal }) => fetchCuratorFollow(curatorId, signal),
@@ -110,6 +136,38 @@ export function useCuratorFollow(
     mutate({ following: true, viewerId });
   }, [authLoading, curatorId, isOwner, knownRelationship, mutate, returning, sessionError, viewerId]);
 
+  // A Follow carried from an in-app browser (`intent=follow`) arrives without
+  // this tab's intent. Signed out, it starts the same sign-in as a Follow
+  // click; signed in, the viewer confirms it, so a link never follows anyone.
+  const carriedHandled = useRef(false);
+  useEffect(() => {
+    if (!carried || carriedHandled.current || curatorId === '' || authLoading) return;
+    if (!viewerId) {
+      if (sessionError) return;
+      carriedHandled.current = true;
+      removeQueryParametersFromRouter('intent');
+      signInToFollow(router, { id: curatorId, username: curatorUsername }, returnQuery);
+      return;
+    }
+    if (!isOwner && !knownRelationship) return;
+
+    carriedHandled.current = true;
+    removeQueryParametersFromRouter('intent');
+    if (isOwner || knownRelationship?.isFollowing || knownRelationship?.hasActiveMembership) return;
+    setConfirming(true);
+  }, [
+    authLoading,
+    carried,
+    curatorId,
+    curatorUsername,
+    isOwner,
+    knownRelationship,
+    returnQuery,
+    router,
+    sessionError,
+    viewerId,
+  ]);
+
   if (!curator || isOwner) return null;
 
   const change = (following: boolean) => {
@@ -118,15 +176,7 @@ export function useCuratorFollow(
       mutate({ following, viewerId });
       return;
     }
-    try {
-      sessionStorage.setItem(`${followIntentPrefix}${curator.id}`, String(Date.now()));
-    } catch {
-      // The viewer can select Follow again after signing in.
-    }
-    const query = new URLSearchParams(returnQuery);
-    query.set('follow', '1');
-    const returnPath = `/profile/${encodeURIComponent(curator.username)}?${query}`;
-    router.push(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
+    signInToFollow(router, curator, returnQuery);
   };
 
   let state: CuratorFollow['state'];
@@ -147,5 +197,11 @@ export function useCuratorFollow(
     follow: () => change(true),
     unfollow: () => change(false),
     retry: () => void relationship.refetch(),
+    confirming: confirming && state === 'not-following',
+    confirm: () => {
+      setConfirming(false);
+      change(true);
+    },
+    dismissConfirmation: () => setConfirming(false),
   };
 }

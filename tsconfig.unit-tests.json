@@ -95,7 +95,11 @@
     "src/lib/server/__tests__/proxy-fetch.test.ts",
     "src/lib/server/__tests__/curator-follow-route.test.ts",
     "src/lib/server/__tests__/api-proxy-route.test.ts",
-    "src/lib/observability/**/*.ts"
+    "src/lib/observability/**/*.ts",
+    "src/utils/in-app-browser.ts",
+    "src/utils/__tests__/in-app-browser.test.ts",
+    "src/utils/profile-action-intent.ts",
+    "src/utils/__tests__/profile-action-intent.test.ts"
   ],
   "exclude": ["node_modules"]
 }

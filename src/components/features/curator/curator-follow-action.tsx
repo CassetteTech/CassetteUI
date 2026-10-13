@@ -9,6 +9,7 @@ import { Check, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import type { CuratorFollow } from '@/hooks/use-curator-follow';
+import { CarriedActionConfirmation } from '@/components/features/curator/carried-action-confirmation';
 import { cn } from '@/lib/utils';
 
 export const CuratorFollowContext = createContext<CuratorFollow | null>(null);
@@ -60,5 +61,22 @@ export function CuratorFollowAction({ className, compact = false }: { className?
       {control}
       {follow.error && <p role="alert" className="mt-2 text-sm text-destructive">{follow.error}</p>}
     </div>
+  );
+}
+
+/** Asks the signed-in viewer to confirm a Follow that arrived in the URL. Render it once per profile. */
+export function CuratorFollowConfirmation() {
+  const follow = useContext(CuratorFollowContext);
+  if (!follow) return null;
+  return (
+    <CarriedActionConfirmation
+      open={follow.confirming}
+      onDismiss={follow.dismissConfirmation}
+      onConfirm={follow.confirm}
+      title={`Follow ${follow.displayName}?`}
+      description="Their new posts will show in your Feed. You can unfollow at any time."
+      confirmLabel="Follow"
+      returnFocusSelector='[data-testid="curator-follow"] button'
+    />
   );
 }

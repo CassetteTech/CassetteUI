@@ -79,6 +79,8 @@
     "src/services/__tests__/sponsored-explore-contract.test.ts",
     "src/services/sponsored-explore-rotation.ts",
     "src/services/__tests__/sponsored-explore-rotation.test.ts",
+    "src/services/email-preferences-contract.ts",
+    "src/services/__tests__/email-preferences-contract.test.ts",
     "src/services/lambda-warmup.ts",
     "src/services/__tests__/lambda-warmup.test.ts",
     "src/app/(sidebar)/internal/_components/explore-snapshot-utils.ts",

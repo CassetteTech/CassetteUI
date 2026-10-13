@@ -321,11 +321,6 @@ const curatorPlanRequestSchema = z.object({
 
 const defaultCuratorFeatures: CuratorFeature[] = [
   {
-    featureKey: 'member_badge',
-    displayName: 'Member badge',
-    description: 'Show member identity on comments and likes.',
-  },
-  {
     featureKey: 'member_posts',
     displayName: 'Member-only posts',
     description: 'Members-only posts are visible to members.',

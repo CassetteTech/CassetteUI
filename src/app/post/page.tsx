@@ -90,11 +90,12 @@ function PostPageContent() {
           }
         : undefined,
       sourceLink: sourceLinkPlatform && currentUrl ? { platform: sourceLinkPlatform, url: currentUrl } : undefined,
+      curatorLinks: handedOff?.curatorLinks,
       links,
       ready: apiComplete,
       postId: createdPostId ?? undefined,
     };
-  }, [partialResult, stageLabel, apiComplete, createdPostId, currentUrl, sourceLinkPlatform]);
+  }, [partialResult, stageLabel, apiComplete, createdPostId, currentUrl, sourceLinkPlatform, handedOff?.curatorLinks]);
 
   // Guards against duplicate conversions
   const hasConvertedRef = useRef(false);

@@ -269,6 +269,7 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
       sourceDomain: playlistUrl,
       isAuthenticated,
       paidPromotionCampaignId,
+      linkOrigin: 'cassette',
     });
     if (openClickProps) {
       void captureClientEvent('post_platform_conversion_clicked', openClickProps);
@@ -301,6 +302,7 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
       sourceDomain: resolvedSourceUrl || undefined,
       isAuthenticated,
       paidPromotionCampaignId,
+      linkOrigin: 'cassette',
     });
     if (convertClickProps) {
       void captureClientEvent('post_platform_conversion_clicked', convertClickProps);

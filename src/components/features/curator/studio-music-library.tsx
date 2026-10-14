@@ -103,6 +103,7 @@ function useRowSheets({ patch, leavesList, focusAfterRemoval }: {
             currentDescription={editing.post.description ?? ''}
             currentPrivacy={editing.post.privacy}
             currentCommentsEnabled={editing.post.commentsEnabled ?? true}
+            playlistLinksEditable={editing.post.elementType.toLowerCase() === 'playlist' && !editing.post.isRepost}
             onSuccess={(change) => {
               if (leavesList(change.privacy)) restoreFocus.current = focusAfterRemoval(editing.post.postId);
               patch(editing.post.postId, change);

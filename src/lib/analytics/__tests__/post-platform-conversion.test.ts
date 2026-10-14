@@ -103,3 +103,17 @@ test('paid-promotion attribution stays optional and is validated by the analytic
     undefined,
   );
 });
+
+void test('a listen click says who chose its link, and the sanitizer keeps only known origins', () => {
+  const payload = buildPostPlatformConversionClickedProps({
+    sourceContext: 'playlist_open_button',
+    route: '/post/playlist-3',
+    targetPlatform: 'appleMusic',
+    linkOrigin: 'curator',
+  });
+
+  assert.equal(payload?.link_origin, 'curator');
+  assert.equal(sanitizeAnalyticsProps(payload ?? {}).link_origin, 'curator');
+  // Untrusted input: only a known origin survives.
+  assert.equal(sanitizeAnalyticsProps(JSON.parse('{"link_origin":"owner"}')).link_origin, undefined);
+});

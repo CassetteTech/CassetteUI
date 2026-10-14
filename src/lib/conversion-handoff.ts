@@ -1,3 +1,4 @@
+import type { PlatformUiKey } from '@/lib/platforms';
 import type { ConvertPartialResult, MusicLinkConversion } from '@/types';
 
 /**
@@ -16,6 +17,8 @@ export interface ConversionHandoff {
   anonymous: boolean;
   /** The URL bar's viewport box when the conversion was handed over. */
   barRect: { left: number; top: number; width: number; height: number } | null;
+  /** Add music: the owner's own playlist links, which the post shows as listen rows. */
+  curatorLinks?: { handle: string | null; links: Partial<Record<PlatformUiKey, string>> };
   /**
    * A conversion already running: /post follows it instead of starting one, and shows
    * what Bridge already reported until its own first poll returns.

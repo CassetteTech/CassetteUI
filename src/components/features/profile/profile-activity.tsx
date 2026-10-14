@@ -399,6 +399,7 @@ export function MusicPostCard({
         currentDescription={post.description || ''}
         currentPrivacy={post.privacy}
         currentCommentsEnabled={post.commentsEnabled}
+        playlistLinksEditable={post.elementType.toLowerCase() === 'playlist' && !post.isRepost}
       />
 
       {/* Delete Modal - always render to allow Radix UI animations */}

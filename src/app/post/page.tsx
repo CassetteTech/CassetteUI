@@ -2,7 +2,6 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useRef, useEffect, useState, Suspense, useCallback, useMemo } from 'react';
-import { MusicLinkConversion, ElementType, MediaListTrack } from '@/types';
 import { EntitySkeleton, type StagedConversion } from '@/components/features/entity/entity-skeleton';
 import { useMusicLinkConversion } from '@/hooks/use-music';
 import { useConversionStage } from '@/hooks/use-conversion-stage';
@@ -19,11 +18,6 @@ import { apiService, ApiError } from '@/services/api';
 import { captureUiException } from '@/lib/observability/error-reporting';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
-// This page handles:
-// 1. ?id=X - Redirects to /post/X (canonical route)
-// 2. ?url=X - Converts music link and renders content directly (no redirect)
-// 3. ?data=X - Parses JSON payload and renders content directly
-
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function PostPageContent() {
@@ -36,7 +30,6 @@ function PostPageContent() {
   const postIdParam = searchParams.get('id');
   const fromParam = searchParams.get('from');
   const urlParam = searchParams.get('url');
-  const dataParam = searchParams.get('data');
   const descriptionParam = searchParams.get('description');
   const fromAddMusic = searchParams.get('fromAddMusic') === 'true';
 
@@ -183,7 +176,7 @@ function PostPageContent() {
   }, []);
 
   useEffect(() => {
-    if (postIdParam && !urlParam && !dataParam) {
+    if (postIdParam && !urlParam) {
       const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
       router.replace(`/post/${postIdParam}${fromQuery}`);
       return;
@@ -272,151 +265,12 @@ function PostPageContent() {
       return;
     }
 
-    // Handle ?data= JSON payload
-    if (dataParam) {
-      try {
-        const parsedData = JSON.parse(decodeURIComponent(dataParam));
-
-        // If the data has a postId, use it directly
-        if (parsedData.postId) {
-          setApiComplete(true);
-          void resolvePostAndRender(parsedData.postId);
-          return;
-        }
-
-        // Transform the data and try to extract a postId
-        const transformedFromData: MusicLinkConversion & {
-          description?: string;
-          username?: string;
-          genres?: string[];
-          albumName?: string;
-          releaseDate?: string | null;
-          trackCount?: number;
-          sourcePlatform?: string;
-        } = {
-          originalUrl: (
-            parsedData.originalUrl ||
-            parsedData.sourceUrl ||
-            parsedData.platforms?.spotify?.url ||
-            parsedData.platforms?.applemusic?.url ||
-            parsedData.platforms?.appleMusic?.url ||
-            parsedData.platforms?.deezer?.url ||
-            ''
-          ),
-          convertedUrls: {},
-          metadata: {
-            type:
-              (typeof parsedData.elementType === 'string' && parsedData.elementType.toLowerCase() === 'track')
-                ? ElementType.TRACK
-                : (typeof parsedData.elementType === 'string' && parsedData.elementType.toLowerCase() === 'album')
-                ? ElementType.ALBUM
-                : (typeof parsedData.elementType === 'string' && parsedData.elementType.toLowerCase() === 'artist')
-                ? ElementType.ARTIST
-                : ElementType.PLAYLIST,
-            title: parsedData.title || parsedData.name || 'Untitled',
-            artist: parsedData.artist || '',
-            artwork: parsedData.metadata?.artwork || parsedData.imageUrl || parsedData.details?.coverArtUrl || '',
-            duration: parsedData.metadata?.duration || parsedData.details?.duration || undefined,
-          },
-          description: parsedData.description || undefined,
-          username: parsedData.username || undefined,
-          trackCount: parsedData.numberOfTracks || parsedData.details?.trackCount || undefined,
-        };
-
-        // Map platform URLs
-        if (parsedData.platforms && typeof parsedData.platforms === 'object') {
-          Object.entries(parsedData.platforms as Record<string, { url?: string } | undefined>).forEach(([platform, data]) => {
-            if (!data?.url) return;
-            let platformKey = platform.toLowerCase();
-            if (platformKey === 'applemusic') platformKey = 'appleMusic';
-            if (['spotify', 'applemusic', 'appleMusic', 'deezer'].includes(platform)) {
-              (transformedFromData.convertedUrls as Record<string, string>)[platformKey] = data.url;
-            }
-          });
-        }
-
-        // Map tracks
-        type IncomingDataTrack = {
-          trackNumber?: number;
-          title?: string;
-          duration?: string;
-          artist?: string;
-          artists?: string[];
-          previewUrl?: string | null;
-          spotifyTrackId?: string;
-        };
-
-        if (Array.isArray(parsedData.tracks)) {
-          const mappedTracks: MediaListTrack[] = parsedData.tracks.map((t: IncomingDataTrack, idx: number) => ({
-            trackNumber: typeof t.trackNumber === 'number' ? t.trackNumber : idx + 1,
-            title: t.title || 'Untitled',
-            duration: t.duration || undefined,
-            artists: t.artist ? [t.artist] : Array.isArray(t.artists) ? t.artists : undefined,
-            previewUrl: t.previewUrl || undefined,
-            spotifyTrackId: t.spotifyTrackId,
-          }));
-          transformedFromData.tracks = mappedTracks;
-        }
-
-        // For ?data= without postId, convert the URL to get a postId
-        if (transformedFromData.originalUrl) {
-          const detected = detectContentType(transformedFromData.originalUrl);
-          void captureClientEvent('conversion_entry_started', {
-            route: '/post',
-            source_surface: 'post_direct',
-            source_platform: detected.platform,
-            element_type_guess: detected.type,
-            source_domain: sanitizeDomain(transformedFromData.originalUrl),
-          });
-
-          convertRetryCountRef.current = 0;
-          actionIdempotencyKeyRef.current = null;
-          const idempotencyKey = getOrCreateIdempotencyKey();
-          setConversionKey(idempotencyKey);
-          const attemptConvert = async (): Promise<void> => {
-            try {
-              const result = await convertLink({
-                url: transformedFromData.originalUrl,
-                description: transformedFromData.description,
-                idempotencyKey,
-                anonymous,
-              });
-              handleConvertSuccess(result);
-            } catch (err) {
-              if (shouldRetryConvertError(err) && convertRetryCountRef.current < 2) {
-                const retryDelay = [700, 1500][convertRetryCountRef.current] || 1500;
-                convertRetryCountRef.current += 1;
-                setError(null);
-                window.setTimeout(() => {
-                  if (isMountedRef.current) {
-                    void attemptConvert();
-                  }
-                }, retryDelay);
-                return;
-              }
-
-              captureUiException(err, { route: '/post', operation: 'conversion_entry_data' });
-              setApiComplete(true);
-              setError(getUserFacingApiErrorMessage(err, 'Failed to convert this link. Please try again.'));
-            }
-          };
-          void attemptConvert();
-        } else {
-          setError('No data provided');
-        }
-      } catch (e) {
-        captureUiException(e, { route: '/post', operation: 'post_data_parse' });
-        setError('Invalid data format');
-      }
-      return;
-    }
-
-    if (!urlParam && !dataParam && !postIdParam) {
+    if (!urlParam && !postIdParam) {
       if (!hasConvertedRef.current) {
         setError('No data provided');
       }
     }
-  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, anonymous, handedOff, resolvePostAndRender, getOrCreateIdempotencyKey, handleConvertSuccess]);
+  }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, descriptionParam, fromAddMusic, anonymous, handedOff, resolvePostAndRender, getOrCreateIdempotencyKey, handleConvertSuccess]);
 
   if (error) {
     return (

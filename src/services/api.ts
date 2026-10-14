@@ -851,14 +851,6 @@ class ApiService {
     });
   }
 
-  // Backward-compatible alias for older callers
-  async updateInternalUserAccountType(
-    userId: string,
-    payload: UpdateInternalAccountTypeRequest
-  ): Promise<{ success: boolean }> {
-    return this.updateInternalUserInternalAccess(userId, payload);
-  }
-
   async getInternalUserAccountTypeAudit(userId: string, limit = 100): Promise<InternalAccountTypeAuditEntry[]> {
     return this.request<InternalAccountTypeAuditEntry[]>(
       `/api/v1/internal/users/${userId}/account-type-audit?limit=${limit}`,

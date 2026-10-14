@@ -1,7 +1,7 @@
 import type { AnalyticsBaseProps, AnalyticsEventName } from './events';
 import { sanitizeAnalyticsProps } from './sanitize';
 import { withCoreAction } from './events';
-import { isInternalOrDemoRoute, isCassetteInternalAccount } from './internal-suppression';
+import { isInternalRoute, isCassetteInternalAccount } from './internal-suppression';
 
 const DEFAULT_POSTHOG_HOST = 'https://app.posthog.com';
 
@@ -21,7 +21,7 @@ export async function captureServerEvent<E extends AnalyticsEventName>(
     return false;
   }
 
-  if (isInternalOrDemoRoute(props.route)) {
+  if (isInternalRoute(props.route)) {
     return false;
   }
 

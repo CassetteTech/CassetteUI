@@ -221,7 +221,7 @@ function PaidPromotionIntakeForm({ repeatElementId }: { repeatElementId?: string
   const isResolvingSubject = isConverting || isLoadingRepeatSubject;
   const isLocked = Boolean(createdCampaignId);
 
-  const debouncedQuery = useDebounce(musicUrl, 300);
+  const debouncedQuery = useDebounce(musicUrl);
   const trimmedQuery = debouncedQuery.trim();
   const queryIsLink = trimmedQuery.includes('http') || trimmedQuery.startsWith('www.');
   const searchQuery =

@@ -41,7 +41,7 @@ export function useHomeSearch() {
   const barRef = useRef<HTMLDivElement>(null);
   const handoffTimerRef = useRef<number | undefined>(undefined);
   const lastTrackedSearchRef = useRef('');
-  const debouncedSearchTerm = useDebounce(musicUrl, 300);
+  const debouncedSearchTerm = useDebounce(musicUrl);
 
   const { isAuthenticated, isLoading: isAuthLoading } = useAuthState();
   const isConverting = conversionKey != null;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { config } from '@/lib/config';
+import { clientConfig } from '@/lib/config-client';
 import { getCallbackUrl } from '@/lib/utils/url';
 import { appLogger } from '@/lib/observability/logger';
 
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       headers['Authorization'] = authHeader;
     }
 
-    const response = await fetch(`${config.api.url}/api/v1/music-services/spotify/init`, {
+    const response = await fetch(`${clientConfig.api.url}/api/v1/music-services/spotify/init`, {
       method: 'POST',
       headers,
       body: JSON.stringify({

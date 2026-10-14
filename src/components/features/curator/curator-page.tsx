@@ -331,9 +331,6 @@ export function PublicCuratorPage({
     statusQuery.data,
   ]);
 
-  // A Join carried from an in-app browser (`intent=join`) arrives without this
-  // tab's intent. Signed out, it starts the same sign-in as a Join click; signed
-  // in, the fan confirms it, so a link never starts checkout by itself.
   useEffect(() => {
     if (!carriedJoinInterval || carriedJoinHandled.current || authLoading || !page) return;
     const done = () => {

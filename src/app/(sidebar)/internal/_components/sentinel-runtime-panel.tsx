@@ -121,7 +121,7 @@ export function SentinelRuntimePanel() {
   const [selectedJob, setSelectedJob] = useState<InternalConversionJobOperationsItem | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pendingDeepLinkJobId, setPendingDeepLinkJobId] = useState<string | null>(requestedJobId || null);
-  const debouncedSearch = useDebounce(search, 300);
+  const debouncedSearch = useDebounce(search);
 
   const loadSummary = useCallback(async () => {
     setSummaryLoading(true);

@@ -119,8 +119,6 @@ function HistoryItem({ item }: { item: CuratorEarningsHistoryItem }) {
   const showPayableAt = item.kind === 'allocation' &&
     item.status !== 'transferred' && item.status !== 'forfeited' && item.status !== 'reversed';
   const outgoing = item.kind === 'transfer' || item.status === 'forfeited' || item.status === 'reversed';
-  // Structure note: the amount's parent div and grandparent li are how tests
-  // associate an amount with its label and status. Keep both wrappers.
   return (
     <li className="grid grid-cols-[3.25rem_minmax(0,1fr)_auto] items-baseline gap-x-3 py-3">
       <time dateTime={item.occurredAtUtc} className="font-mono text-xs uppercase tabular-nums text-muted-foreground">

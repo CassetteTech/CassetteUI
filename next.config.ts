@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 import { NOINDEX_ROUTES, NOINDEX_SUBTREES } from "./src/lib/seo";
+import { studioPaths } from "./src/components/features/curator/studio-routes";
 
 const distDir = process.env.NEXT_DIST_DIR ?? ".next";
 
@@ -188,7 +189,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/studio',
-        destination: '/studio/music',
+        destination: studioPaths['studio-music'],
         permanent: false,
       },
       {

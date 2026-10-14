@@ -108,7 +108,11 @@
     "src/lib/utils/scroll-tab-into-row.ts",
     "src/lib/utils/__tests__/scroll-tab-into-row.test.ts",
     "src/lib/best-effort.ts",
-    "src/lib/__tests__/best-effort.test.ts"
+    "src/lib/__tests__/best-effort.test.ts",
+    "src/components/features/conversion/conversion-copy.ts",
+    "src/components/features/conversion/__tests__/conversion-copy.test.ts",
+    "src/app/sitemap.ts",
+    "src/app/__tests__/sitemap.test.ts"
   ],
   "exclude": ["node_modules"]
 }

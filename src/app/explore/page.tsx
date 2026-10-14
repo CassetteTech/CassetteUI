@@ -37,9 +37,10 @@ import {
 
 const DASHED_NOTE = 'border-t-2 border-dashed border-foreground/30 py-4 text-center font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground';
 
+const RETIRED_EXPLORE_PARAMS = ['tab', 'filter'];
+
 export default function ExplorePage() {
-  // Explore was once split into tabs; an old link keeps working as plain Explore.
-  useEffect(() => removeQueryParameters('tab', 'filter'), []);
+  useEffect(() => removeQueryParameters(...RETIRED_EXPLORE_PARAMS), []);
 
   return (
     <div className="relative min-h-svh overflow-x-hidden bg-background">

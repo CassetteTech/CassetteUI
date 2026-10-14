@@ -244,8 +244,7 @@ function AnnualPriceAdder({ plan, refresh, onAdded }: {
   refresh: () => Promise<void>;
   onAdded: () => void;
 }) {
-  // null until first opened, so only Cancel returns focus to the opening button.
-  const [open, setOpen] = useState<boolean | null>(null);
+  const [open, setOpen] = useState<'never' | 'open' | 'closed'>('never');
   const [price, setPrice] = useState('');
   const add = useMutation({
     mutationFn: (annualAmountMinor: number) => addCuratorPlanAnnualPrice(plan.id, annualAmountMinor),
@@ -266,14 +265,14 @@ function AnnualPriceAdder({ plan, refresh, onAdded }: {
     : getUserFacingApiErrorMessage(add.error, 'The annual price was not added.');
 
   if (plan.annualAmountMinor !== null) return null;
-  if (!open) {
+  if (open !== 'open') {
     return (
       <Button
         type="button"
         variant="outline"
         data-testid="curator-plan-annual-open"
-        ref={open === false ? focusOnMount : undefined}
-        onClick={() => setOpen(true)}
+        ref={open === 'closed' ? focusOnMount : undefined}
+        onClick={() => setOpen('open')}
       >
         Add annual price
       </Button>
@@ -307,7 +306,7 @@ function AnnualPriceAdder({ plan, refresh, onAdded }: {
         <Button type="submit" className="w-full sm:w-auto" disabled={!valid || add.isPending}>
           {add.isPending ? 'Adding…' : 'Add annual price'}
         </Button>
-        <Button type="button" variant="ghost" className="w-full sm:w-auto" disabled={add.isPending} onClick={() => setOpen(false)}>
+        <Button type="button" variant="ghost" className="w-full sm:w-auto" disabled={add.isPending} onClick={() => setOpen('closed')}>
           Cancel
         </Button>
       </div>

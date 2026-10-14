@@ -38,10 +38,7 @@ const STEPS = [
   { id: 'music', title: 'Connect Music', subtitle: 'Link your services' },
 ];
 
-// Purchase-intent signups (auth redirect aimed at /promote* or a membership
-// join) only need the required handle step; avatar and music-connect are fan
-// steps that read as drop-off friction in the middle of a purchase.
-const REQUIRED_STEPS = [STEPS[0]];
+const PURCHASE_INTENT_STEPS = [STEPS[0]];
 
 type OnboardingPhase = 'welcome' | 'steps' | 'submitting' | 'complete';
 
@@ -66,7 +63,7 @@ export default function OnboardingPage() {
   const isPromoteIntent = intent?.promote === true;
   const membershipIntent = intent?.membership ?? null;
   const [currentStep, setCurrentStep] = useState(0);
-  const steps = isPromoteIntent || membershipIntent ? REQUIRED_STEPS : STEPS;
+  const steps = isPromoteIntent || membershipIntent ? PURCHASE_INTENT_STEPS : STEPS;
   const onboardingVariant = membershipIntent ? 'membership' : isPromoteIntent ? 'promote' : 'default';
   const purchaseContext = useMembershipPurchaseContext(membershipIntent);
   const funnelProps = useCallback((): AnalyticsBaseProps => ({

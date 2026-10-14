@@ -32,6 +32,8 @@ export interface ParsedProfileLink {
   iconPath?: string;
 }
 
+const CONTAINER_PATH_SEGMENTS = ['user', 'channel', 'c', 'u'];
+
 export function parseProfileLink(url: string): ParsedProfileLink | null {
   let parsed: URL;
   try {
@@ -44,8 +46,7 @@ export function parseProfileLink(url: string): ParsedProfileLink | null {
   const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
   const platform = HOST_PLATFORMS[host] ?? host;
   const segments = parsed.pathname.split('/').filter(Boolean);
-  // Skip container segments (youtube.com/c/x, spotify.com/user/x, reddit.com/user/x).
-  const rawHandle = ['user', 'channel', 'c', 'u'].includes(segments[0] ?? '')
+  const rawHandle = CONTAINER_PATH_SEGMENTS.includes(segments[0] ?? '')
     ? segments[1]
     : segments[0];
   const handle = rawHandle ? `@${decodeURIComponent(rawHandle).replace(/^@/, '')}` : undefined;

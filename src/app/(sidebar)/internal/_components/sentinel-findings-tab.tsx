@@ -941,7 +941,7 @@ function SentinelFindingsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [selectedFingerprint, setSelectedFingerprint] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const debouncedSearch = useDebounce(search, 300);
+  const debouncedSearch = useDebounce(search);
   const { notes } = useInvariantNotes();
 
   const loadFindings = useCallback(async () => {
@@ -1327,7 +1327,7 @@ function SentinelRunsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [selectedRun, setSelectedRun] = useState<InternalSentinelAuditRun | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const debouncedSearch = useDebounce(search, 300);
+  const debouncedSearch = useDebounce(search);
 
   const loadRuns = useCallback(async () => {
     setLoading(true);

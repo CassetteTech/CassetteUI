@@ -1,7 +1,5 @@
 export type StudioView = 'studio-music' | 'studio-membership' | 'studio-billing';
 
-/** Each Studio view has its own URL; the dashboard layout shows the view whose path is open. Studio
-    opens on Music: `/studio` redirects there (next.config.ts). */
 export const studioPaths = {
   'studio-music': '/studio/music',
   'studio-membership': '/studio/membership',

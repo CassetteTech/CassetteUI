@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -61,7 +61,7 @@ function CuratorFeed() {
     !isRefreshingSession && sessionCheckedAt !== null && sessionCheckedAt + SESSION_MAX_AGE_MS > openedAt;
   const feedEnabled = hasSources && sessionCurrent;
   const feed = useCuratorFeed(viewerId, membersOnly, feedEnabled);
-  const { headingRef, recordFocus } = useResetFocusRecovery(feedEnabled && feed.data !== undefined);
+  const { headingRef, sectionRef } = useResetFocusRecovery(feedEnabled && feed.data !== undefined);
 
   // Reads the session on entry when the last read is too old, then again each
   // time it ages out while the page is visible. Each read restarts the Feed
@@ -116,9 +116,7 @@ function CuratorFeed() {
   }
 
   return (
-    // The section only records where focus is, for focus recovery after a reset; it takes no input itself.
-    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-    <section aria-labelledby="feed-heading" onFocus={recordFocus}>
+    <section ref={sectionRef} aria-labelledby="feed-heading">
       <header className="mb-8">
         <h1
           ref={headingRef}
@@ -163,10 +161,15 @@ function useResetFocusRecovery(postsShown: boolean) {
     }
   }, [postsShown]);
 
-  const recordFocus = (event: React.FocusEvent) => {
-    lastFocused.current = event.target;
-  };
-  return { headingRef, recordFocus };
+  const sectionRef = useCallback((section: HTMLElement | null) => {
+    if (!section) return;
+    const recordFocus = (event: FocusEvent) => {
+      lastFocused.current = event.target instanceof Element ? event.target : null;
+    };
+    section.addEventListener('focusin', recordFocus);
+    return () => section.removeEventListener('focusin', recordFocus);
+  }, []);
+  return { headingRef, sectionRef };
 }
 
 function SignInPrompt({ membersOnly }: { membersOnly: boolean }) {

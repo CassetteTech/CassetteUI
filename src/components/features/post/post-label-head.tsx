@@ -1,8 +1,6 @@
 'use client';
 
-import type { MouseEvent, ReactNode, Ref } from 'react';
-import Image from 'next/image';
-import { ExternalLink } from 'lucide-react';
+import type { ReactNode, Ref } from 'react';
 import { DitherEdge } from '@/components/features/marketing/dither-edge';
 import { cn } from '@/lib/utils';
 
@@ -20,13 +18,6 @@ interface PostLabelHeadProps {
   artist?: ReactNode;
   /** Short facts under the artist: duration and album, or the release date. */
   meta?: ReactNode;
-  /** The service a playlist was shared from. */
-  source?: {
-    href: string;
-    name: string;
-    icon: string;
-    onClick: (event: MouseEvent<HTMLAnchorElement>) => void;
-  };
   /** The artwork's vibrant color. */
   tint?: string;
   /** Tighter type and padding for phones. */
@@ -41,7 +32,7 @@ interface PostLabelHeadProps {
  * owner column, so the two read as one set. The card below needs 2.5rem of top padding
  * for the seam.
  */
-export function PostLabelHead({ kicker, title, artist, meta, source, tint, compact = false, titleRef }: PostLabelHeadProps) {
+export function PostLabelHead({ kicker, title, artist, meta, tint, compact = false, titleRef }: PostLabelHeadProps) {
   const band = bandColor(tint);
   return (
     <header
@@ -68,24 +59,8 @@ export function PostLabelHead({ kicker, title, artist, meta, source, tint, compa
         {title}
       </h1>
       {artist && <p className={cn('mt-2 font-roboto-flex opacity-85', compact ? 'text-sm' : 'text-base')}>{artist}</p>}
-      {(meta || source) && (
-        <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 font-roboto-flex text-sm opacity-75">
-          {meta}
-          {source && (
-            <a
-              href={source.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={source.onClick}
-              className="inline-flex items-center gap-1.5 underline-offset-4 transition-opacity hover:underline hover:opacity-100"
-            >
-              <span>From</span>
-              <Image src={source.icon} alt="" width={14} height={14} loading="eager" decoding="sync" />
-              <span>{source.name}</span>
-              <ExternalLink className="h-3 w-3" aria-hidden />
-            </a>
-          )}
-        </p>
+      {meta && (
+        <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 font-roboto-flex text-sm opacity-75">{meta}</p>
       )}
       <DitherEdge color={band} side="bottom" className="transition-colors duration-500" />
     </header>

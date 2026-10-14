@@ -2,11 +2,12 @@
 
 // Renders a public post, enforces viewer-state presentation, and emits sanitized interaction analytics.
 
-import { useRef, useEffect, useState, useCallback, type MouseEvent } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTemplate, PostByIdResponse, PostPrivacy, PublicPostPageMetadata } from '@/types';
 import { EntitySkeleton, printedBand } from '@/components/features/entity/entity-skeleton';
-import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
-import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
+import { StreamingLinks } from '@/components/features/entity/streaming-links';
+import { PlaylistCopyActions } from '@/components/features/entity/playlist-copy-actions';
+import { PLAYLIST_CREATION_PLATFORM_UI_KEYS } from '@/lib/platforms';
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList, EXPANDABLE_MIN_TRACKS, formatTrackListDuration, formatTrackListStats } from '@/components/features/entity/track-list';
 import { PostAuthorHeader } from '@/components/features/post/post-author-header';
@@ -20,7 +21,6 @@ import { PostShareMenu } from '@/components/features/post/post-share-menu';
 import { PostContextMenu } from '@/components/features/post/post-context-menu';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { takePrefetchedPost } from '@/lib/post-prefetch';
-import { handleStreamingLinkClick } from '@/utils/deep-link';
 import { Button } from '@/components/ui/button';
 import { BackButton } from '@/components/ui/back-button';
 import {
@@ -1309,7 +1309,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     normalizePlatformKey(detectedFromResolved) ||
     null;
   const analyticsSourcePlatform = sourcePlatformKey || postData?.sourcePlatform || sourcePlatformRef.current || undefined;
-  const sourceService = sourcePlatformKey ? streamingServices[sourcePlatformKey] : null;
 
   // A post arriving from a conversion prints its label in the color the skeleton printed, and
   // otherwise starts in a palette the skeleton already extracted, so the label never changes
@@ -1319,29 +1318,41 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     ? printedByConversion.tint
     : (palette ?? (metadata.artwork ? ColorExtractor.cachedPalette(metadata.artwork) : undefined))?.vibrant;
 
-  // Label head content shared by the three card layouts.
-  const playlistSource = isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService
-    ? {
-        href: resolvedSourceUrl,
-        name: sourceService.name,
-        icon: sourceService.icon,
-        onClick: (event: MouseEvent<HTMLAnchorElement>) => {
-          void captureClientEvent('streaming_link_opened', {
-            route: `/post/${postData?.postId || postId}`,
-            source_surface: 'post',
-            source_platform: sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey,
-            source_domain: resolvedSourceUrl,
-            post_id: postData?.postId || postId,
-            element_type: 'playlist',
-            is_authenticated: isAuthenticated,
-            paid_promotion_campaign_id: postData?.paidPromotionCampaignId ?? undefined,
-            curator_id: postData?.curatorId ?? undefined,
-            is_member_view: postData?.isMemberView === true,
-          });
-          handleStreamingLinkClick(event, resolvedSourceUrl);
-        },
-      }
-    : undefined;
+  // What each listen row opens. A playlist opens its original on the service it came from;
+  // every other service gets a button in the copy block instead, so a row never builds a copy.
+  const listenLinks: MusicLinkConversion['convertedUrls'] =
+    isPlaylist && sourcePlatformKey && resolvedSourceUrl
+      ? { ...convertedUrls, [sourcePlatformKey]: resolvedSourceUrl }
+      : convertedUrls;
+  const copyTargets = isPlaylist ? PLAYLIST_CREATION_PLATFORM_UI_KEYS.filter((platform) => !listenLinks[platform]) : [];
+  const listenSection = (
+    <div>
+      <h3 className="sr-only">Listen on</h3>
+      <StreamingLinks
+        links={listenLinks}
+        captions={isPlaylist && sourcePlatformKey ? { [sourcePlatformKey]: 'Original playlist' } : undefined}
+        postId={postData?.postId || postId}
+        elementType={metadata.type}
+        sourcePlatform={analyticsSourcePlatform}
+        isAuthenticated={isAuthenticated}
+        paidPromotionCampaignId={postData?.paidPromotionCampaignId}
+        curatorId={postData?.curatorId}
+        isMemberView={postData?.isMemberView}
+        className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+      />
+      {isPlaylist && (
+        <PlaylistCopyActions
+          targets={copyTargets}
+          playlistId={postData?.musicElementId || ''}
+          postId={postData?.postId || postId}
+          playlistTrackCount={playlistTrackCount}
+          sourceUrl={resolvedSourceUrl}
+          sourcePlatform={sourcePlatformKey}
+          paidPromotionCampaignId={postData?.paidPromotionCampaignId}
+        />
+      )}
+    </div>
+  );
   const artists = postData?.details?.artists;
   const artistLine = artists && artists.length > 0
     ? artists.map((artist, idx) => (
@@ -1380,7 +1391,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
 
       <PostContextMenu
         title={metadata.title}
-        links={convertedUrls}
+        links={listenLinks}
         onListen={(url, platform) => {
           void captureClientEvent('streaming_link_opened', {
             route: `/post/${postData?.postId || postId}`,
@@ -1602,37 +1613,10 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             title={metadata.title}
                             artist={isTrack || isAlbum ? artistLine : undefined}
                             meta={labelMeta}
-                            source={playlistSource}
                             tint={labelTint}
                           />
                           <div className="flex flex-1 flex-col justify-center px-6 pb-6 pt-10">
-                            <div>
-                              <h3 className="sr-only">Listen on</h3>
-                              {isPlaylist ? (
-                                <PlaylistStreamingLinks
-                                  links={convertedUrls}
-                                  className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                                  playlistId={postData?.musicElementId || ''}
-                                  postId={postData?.postId || postId}
-                                  playlistTrackCount={playlistTrackCount}
-                                  sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
-                                  sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                                  paidPromotionCampaignId={postData?.paidPromotionCampaignId}
-                                />
-                              ) : (
-                                <StreamingLinks
-                                  links={convertedUrls}
-                                  postId={postData?.postId || postId}
-                                  elementType={metadata.type}
-                                  sourcePlatform={analyticsSourcePlatform}
-                                  isAuthenticated={isAuthenticated}
-                                  paidPromotionCampaignId={postData?.paidPromotionCampaignId}
-                                  curatorId={postData?.curatorId}
-                                  isMemberView={postData?.isMemberView}
-                                  className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                                />
-                              )}
-                            </div>
+                            {listenSection}
                             {/* Social: author header + engagement bar (moved inside card) */}
                           </div>
                           </div>
@@ -1761,37 +1745,10 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   title={metadata.title}
                   artist={isTrack || isAlbum ? artistLine : undefined}
                   meta={labelMeta}
-                  source={playlistSource}
                   tint={labelTint}
                 />
                 <div className="px-3 pb-3 pt-9 sm:px-5 sm:pb-5">
-                  <div>
-                    <h3 className="sr-only">Listen on</h3>
-                    {isPlaylist ? (
-                      <PlaylistStreamingLinks
-                        links={convertedUrls}
-                        className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                        playlistId={postData?.musicElementId || ''}
-                        postId={postData?.postId || postId}
-                        playlistTrackCount={playlistTrackCount}
-                        sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
-                        sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                        paidPromotionCampaignId={postData?.paidPromotionCampaignId}
-                      />
-                    ) : (
-                      <StreamingLinks
-                        links={convertedUrls}
-                        postId={postData?.postId || postId}
-                        elementType={metadata.type}
-                        sourcePlatform={analyticsSourcePlatform}
-                        isAuthenticated={isAuthenticated}
-                        paidPromotionCampaignId={postData?.paidPromotionCampaignId}
-                        curatorId={postData?.curatorId}
-                        isMemberView={postData?.isMemberView}
-                        className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                      />
-                    )}
-                  </div>
+                  {listenSection}
                 </div>
               </div>
 

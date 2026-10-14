@@ -23,6 +23,8 @@ interface StreamingLinksProps {
     tidal?: string;
     youtubeMusic?: string;
   };
+  /** A line under a service's name that says what its link opens, keyed like `links`. */
+  captions?: Partial<Record<string, string>>;
   className?: string;
   postId?: string;
   elementType?: ElementTypeDimension;
@@ -56,6 +58,7 @@ export const streamingServices: Record<string, StreamingService> = Object.fromEn
 
 export const StreamingLinks: React.FC<StreamingLinksProps> = ({
   links,
+  captions,
   className,
   postId,
   elementType,
@@ -89,7 +92,8 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                 const normalizedSourcePlatform = normalizePlatform(sourcePlatform) ?? 'unknown';
                 const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
                 const conversionClickProps = buildPostPlatformConversionClickedProps({
-                  sourceContext: 'destination_open_button',
+                  // Playlist opens keep their own context in the demand matrix, as before the copy block existed.
+                  sourceContext: elementType === 'playlist' ? 'playlist_open_button' : 'destination_open_button',
                   route,
                   postId,
                   elementType,
@@ -146,10 +150,19 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                   />
                 </span>
 
-                {/* Service Name */}
-                <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
-                  {service.name}
-                </span>
+                {/* Service Name, with a caption only where the post gives one (a playlist's original) */}
+                {captions?.[platform] ? (
+                  <span className="flex min-w-0 flex-col text-left">
+                    <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
+                      {service.name}
+                    </span>
+                    <span className="truncate font-roboto-flex text-xs text-muted-foreground">{captions[platform]}</span>
+                  </span>
+                ) : (
+                  <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
+                    {service.name}
+                  </span>
+                )}
 
                 {/* Open affordance */}
                 <ArrowUpRight

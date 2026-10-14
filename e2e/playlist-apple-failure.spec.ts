@@ -45,7 +45,7 @@ test('shows a generic error when Apple playlist creation fails after auth', asyn
   });
 
   await page.goto('/post/post-source-playlist');
-  await page.getByTestId('playlist-convert-appleMusic').click();
+  await page.getByTestId('playlist-copy-appleMusic').click();
 
   await expect(page.locator('main')).toContainText('Failed to create playlist');
   await expect(page.getByRole('button', { name: /Reconnect Apple Music|Connect Apple Music/ })).toHaveCount(0);

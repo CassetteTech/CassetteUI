@@ -12,7 +12,7 @@ import { DitherEdge } from '@/components/features/marketing/dither-edge';
 import { PostLabelHead, bandColor } from '@/components/features/post/post-label-head';
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
 import { TrackList, formatTrackListStats, type TrackListItem } from '@/components/features/entity/track-list';
-import { ACTIVE_PLATFORM_UI_KEYS, type PlatformUiKey } from '@/lib/platforms';
+import { ACTIVE_PLATFORM_UI_KEYS, PLAYLIST_CREATION_PLATFORM_UI_KEYS, type PlatformUiKey } from '@/lib/platforms';
 import { cn } from '@/lib/utils';
 import { ColorExtractor, type ColorPalette } from '@/services/color-extractor';
 
@@ -545,14 +545,6 @@ const TRACK_ROW_COUNT = 6;
  * source, it is the real PostLabelHead; until then, the band in the brand
  * color the post starts with, its text as bars in the band's ink.
  */
-/** The service a playlist was shared from, for its label. */
-function playlistSource(link: StagedConversion['sourceLink']) {
-  const service = link ? streamingServices[link.platform] : undefined;
-  if (!link || !service) return undefined;
-  // The post records the open in analytics; a conversion in progress has no post to record it for.
-  return { href: link.url, name: service.name, icon: service.icon, onClick: () => {} };
-}
-
 const LabelHead: React.FC<{
   blueprint: Blueprint;
   staged?: StagedConversion;
@@ -573,7 +565,6 @@ const LabelHead: React.FC<{
           kicker={typeLabel && <span>{typeLabel}</span>}
           title={source.title}
           artist={source.artists.length > 0 && source.elementType !== 'artist' ? source.artists.join(', ') : undefined}
-          source={source.elementType === 'playlist' ? playlistSource(staged?.sourceLink) : undefined}
           tint={band.tint}
         />
       </div>
@@ -618,6 +609,8 @@ const LabelHead: React.FC<{
 };
 
 const LINK_ROW = 'h-[38.5px] rounded-md sm:h-[42px]';
+/** A listen link with a caption under the service name (StreamingLinks `captions`). */
+const CAPTIONED_LINK_ROW = 'h-[54.5px] rounded-md sm:h-[54px]';
 
 /** A service still matching: its name in a dotted row, the place its link will take. */
 const PendingLink: React.FC<{ platform: PlatformUiKey; matching: boolean; order: number; delay: number }> = ({
@@ -649,7 +642,8 @@ const PendingLink: React.FC<{ platform: PlatformUiKey; matching: boolean; order:
 /**
  * The listen links (StreamingLinks): one row per service. During a track,
  * album, or artist conversion each service has its place: a pending row until
- * Bridge matches it, then the real link.
+ * Bridge matches it, then the real link. A playlist opens only its original,
+ * known from the pasted link, above the block of copy buttons.
  */
 const ListenLinks: React.FC<{
   blueprint: Blueprint;
@@ -662,35 +656,65 @@ const ListenLinks: React.FC<{
   <ConversionBeam active={blueprint.beam === 'links'} borderRadius={0} className="flex flex-1 flex-col">
     <div className={className}>
       <div className="grid gap-2.5">
-        {staged && perService
-          ? ACTIVE_PLATFORM_UI_KEYS.map((platform, i) => {
-              const url = staged.links[platform];
-              return url ? (
-                <StreamingLinks
-                  key={platform}
-                  links={{ [platform]: url }}
-                  className={cn(!settled && 'motion-safe:animate-focus-in')}
-                />
-              ) : (
-                <PendingLink
-                  key={platform}
-                  platform={platform}
-                  matching={Boolean(staged.source)}
+        {perService ? (
+          staged
+            ? ACTIVE_PLATFORM_UI_KEYS.map((platform, i) => {
+                const url = staged.links[platform];
+                return url ? (
+                  <StreamingLinks
+                    key={platform}
+                    links={{ [platform]: url }}
+                    className={cn(!settled && 'motion-safe:animate-focus-in')}
+                  />
+                ) : (
+                  <PendingLink
+                    key={platform}
+                    platform={platform}
+                    matching={Boolean(staged.source)}
+                    order={next()}
+                    delay={LINK_DELAY_MS + i * LINK_GAP_MS}
+                  />
+                );
+              })
+            : Array.from({ length: LINK_COUNT }, (_, i) => (
+                <Part
+                  key={i}
+                  draft={blueprint.early}
                   order={next()}
                   delay={LINK_DELAY_MS + i * LINK_GAP_MS}
+                  className={LINK_ROW}
                 />
-              );
-            })
-          : Array.from({ length: LINK_COUNT }, (_, i) => (
-              <Part
-                key={i}
-                draft={blueprint.early}
-                order={next()}
-                delay={LINK_DELAY_MS + i * LINK_GAP_MS}
-                className={LINK_ROW}
-              />
-            ))}
+              ))
+        ) : staged?.sourceLink ? (
+          <StreamingLinks
+            links={{ [staged.sourceLink.platform]: staged.sourceLink.url }}
+            captions={{ [staged.sourceLink.platform]: 'Original playlist' }}
+            className={cn(!settled && 'motion-safe:animate-focus-in')}
+          />
+        ) : (
+          <Part draft={blueprint.early} order={next()} delay={LINK_DELAY_MS} className={CAPTIONED_LINK_ROW} />
+        )}
       </div>
+      {!perService && (
+        // PlaylistCopyActions: a heading, one line, and a button for each service the playlist is not on.
+        <div className="mt-6">
+          <TextLine draft={blueprint.early} order={next()} delay={LINK_DELAY_MS + LINK_GAP_MS} box="h-5" bar="h-3 w-36" />
+          <TextLine draft={blueprint.early} order={next()} delay={LINK_DELAY_MS + LINK_GAP_MS} box="mt-0.5 h-4" bar="h-2.5 w-3/5" />
+          <div className="mt-3 grid gap-2.5">
+            {PLAYLIST_CREATION_PLATFORM_UI_KEYS.filter((platform) => platform !== staged?.sourceLink?.platform)
+              .slice(0, PLAYLIST_CREATION_PLATFORM_UI_KEYS.length - 1)
+              .map((platform, i) => (
+                <Part
+                  key={platform}
+                  draft={blueprint.early}
+                  order={next()}
+                  delay={LINK_DELAY_MS + (i + 2) * LINK_GAP_MS}
+                  className={LINK_ROW}
+                />
+              ))}
+          </div>
+        </div>
+      )}
     </div>
   </ConversionBeam>
 );

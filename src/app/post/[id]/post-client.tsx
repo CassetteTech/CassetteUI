@@ -274,8 +274,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const { mutate: addToProfile, isPending: isAddingToProfile } = useAddMusicToProfile();
   const [addStatus, setAddStatus] = useState<'idle' | 'added' | 'error'>('idle');
   const [postData, setPostData] = useState<PostPageData | null>(null);
-  // The post came from a conversion handoff, so its staged content was already on screen.
-  const [arrivedWarm, setArrivedWarm] = useState(false);
+  const [arrivedFromConversionHandoff, setArrivedFromConversionHandoff] = useState(false);
   const [error, setError] = useState<PostLoadError | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
@@ -668,7 +667,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         const startedAt = Date.now();
         let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null =
           takePrefetchedPost(postId);
-        if (response) setArrivedWarm(true);
+        if (response) setArrivedFromConversionHandoff(true);
 
         while (!response && Date.now() - startedAt < maxWaitMs) {
           if (isCancelled) return;
@@ -1263,7 +1262,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const analyticsSourcePlatform = sourcePlatformKey || postData?.sourcePlatform || sourcePlatformRef.current || undefined;
   const sourceService = sourcePlatformKey ? streamingServices[sourcePlatformKey] : null;
 
-  const printedByConversion = arrivedWarm && metadata.artwork ? printedBand(metadata.artwork) : null;
+  const printedByConversion = arrivedFromConversionHandoff && metadata.artwork ? printedBand(metadata.artwork) : null;
   const labelTint = printedByConversion
     ? printedByConversion.tint
     : (palette ?? (metadata.artwork ? ColorExtractor.cachedPalette(metadata.artwork) : undefined))?.vibrant;
@@ -1358,7 +1357,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         onDelete={() => setDeleteModalOpen(true)}
       >
       <div
-        className={`relative z-10 min-h-svh transition-[padding] duration-450 ease-out-quart ${arrivedWarm ? "" : "motion-safe:animate-focus-in"} ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
+        className={`relative z-10 min-h-svh transition-[padding] duration-450 ease-out-quart ${arrivedFromConversionHandoff ? "" : "motion-safe:animate-focus-in"} ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
       >
         {isDesktop ? (
             <div className="flex min-h-svh flex-col pt-16 before:flex-1 after:min-h-20 after:flex-1">

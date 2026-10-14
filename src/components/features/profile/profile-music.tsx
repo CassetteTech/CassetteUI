@@ -97,7 +97,7 @@ export function ProfileMusic({
   visibilities?: readonly OwnerVisibility[];
   displayName: string;
   ownerUsername: string;
-  ownerAccountType?: AccountType | number | string;
+  ownerAccountType?: AccountType;
   membershipId?: string;
   showMembership?: boolean;
 }) {

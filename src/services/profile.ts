@@ -18,6 +18,7 @@ import {
   normalizeStreamingServiceType,
 } from '@/utils/platform-normalization';
 import { normalizeSponsoredExplorePlacementEnvelope } from './sponsored-explore-contract';
+import { accountTypeSchema } from '../lib/account-type';
 
 const activityItemPayloadSchema = z.record(z.string(), z.unknown());
 
@@ -259,7 +260,7 @@ export class ProfileService {
       profileLinks: (this.firstArrayCandidate(merged.profileLinks, merged.ProfileLinks) ?? []).filter(
         (link): link is string => typeof link === 'string' && link.length > 0,
       ),
-      accountType: (merged.accountType ?? merged.AccountType ?? merged.account_type) as UserBio['accountType'],
+      accountType: accountTypeSchema.parse(merged.accountType ?? merged.AccountType ?? merged.account_type),
     };
   }
 
@@ -430,7 +431,7 @@ export class ProfileService {
             pickString(itemObj, ['originalPostOwnerAvatarUrl', 'OriginalPostOwnerAvatarUrl']) ||
             (originalOwnerObj ? pickString(originalOwnerObj, ['avatarUrl', 'AvatarUrl', 'profilePicture', 'ProfilePicture']) : undefined) ||
             null,
-          originalPostOwnerAccountType:
+          originalPostOwnerAccountType: accountTypeSchema.parse(
             pickString(itemObj, ['originalPostOwnerAccountType', 'OriginalPostOwnerAccountType']) ??
             pickNumber(itemObj, ['originalPostOwnerAccountType', 'OriginalPostOwnerAccountType']) ??
             (originalOwnerObj
@@ -438,8 +439,8 @@ export class ProfileService {
                   pickString(originalOwnerObj, ['accountType', 'AccountType']) ??
                   pickNumber(originalOwnerObj, ['accountType', 'AccountType'])
                 )
-              : undefined) ??
-            null,
+              : undefined),
+          ) ?? null,
           elementType:
             pickString(itemObj, ['elementType', 'ElementType']) ||
             'Track',
@@ -455,9 +456,10 @@ export class ProfileService {
           likeCount: pickNumber(itemObj, ['likeCount', 'LikeCount']),
           likedByCurrentUser: pickBoolean(itemObj, ['likedByCurrentUser', 'LikedByCurrentUser']),
           commentsEnabled: pickBoolean(itemObj, ['commentsEnabled', 'CommentsEnabled']),
-          accountType:
+          accountType: accountTypeSchema.parse(
             pickString(itemObj, ['accountType', 'AccountType']) ??
             pickNumber(itemObj, ['accountType', 'AccountType']),
+          ),
         };
       });
 
@@ -752,9 +754,10 @@ export class ProfileService {
             username: pickString(['username', 'Username']) || 'unknown',
             displayName: pickString(['displayName', 'DisplayName']),
             avatarUrl: pickString(['avatarUrl', 'AvatarUrl', 'profilePicture', 'ProfilePicture']),
-            accountType:
+            accountType: accountTypeSchema.parse(
               pickString(['accountType', 'AccountType']) ??
               pickNumber(['accountType', 'AccountType']),
+            ),
             latestExplorePostAt: pickString(['latestExplorePostAt', 'LatestExplorePostAt']),
           };
         });
@@ -811,6 +814,7 @@ export class ProfileService {
         curator.profileLinks ?? (curator as { ProfileLinks?: string[] }).ProfileLinks ?? [],
       topGenres: curator.topGenres ?? (curator as { TopGenres?: string[] }).TopGenres ?? [],
       hasActiveMembershipPlan: curator.hasActiveMembershipPlan === true,
+      accountType: accountTypeSchema.parse(curator.accountType),
     }));
   }
 

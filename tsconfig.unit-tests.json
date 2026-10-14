@@ -36,6 +36,8 @@
     "src/lib/__tests__/post-prefetch.test.ts",
     "src/lib/seo.ts",
     "src/lib/__tests__/seo.test.ts",
+    "src/lib/account-type.ts",
+    "src/lib/__tests__/account-type.test.ts",
     "src/lib/studio-music-pages.ts",
     "src/lib/__tests__/studio-music-pages.test.ts",
     "src/components/features/curator/studio-routes.ts",

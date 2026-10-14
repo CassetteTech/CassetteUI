@@ -14,7 +14,7 @@ export interface UserBio {
   likedPostsPrivacy?: 'public' | 'private';
   likedPostsVisibility?: 'public' | 'private';
   showLikedPosts?: boolean;
-  accountType?: AccountType | number; // API returns integer, frontend uses enum
+  accountType?: AccountType;
   totalLikesReceived?: number;
   connectedServices: ConnectedService[];
   platformPreferences?: PlatformPreferenceInfo[];
@@ -49,7 +49,7 @@ export interface ActivityPost {
   originalPostOwnerUserId?: string | null;
   originalPostOwnerUsername?: string | null;
   originalPostOwnerAvatarUrl?: string | null;
-  originalPostOwnerAccountType?: AccountType | number | string | null;
+  originalPostOwnerAccountType?: AccountType | null;
   elementType: string;
   title: string;
   subtitle?: string;
@@ -63,7 +63,7 @@ export interface ActivityPost {
   likeCount?: number;
   likedByCurrentUser?: boolean;
   commentsEnabled?: boolean;
-  accountType?: AccountType | number | string;
+  accountType?: AccountType;
 }
 
 export interface PaginatedActivityResponse {
@@ -111,7 +111,7 @@ export interface ExploreUser {
   username: string;
   displayName?: string;
   avatarUrl?: string;
-  accountType?: AccountType | number | string;
+  accountType?: AccountType;
   latestExplorePostAt?: string;
 }
 
@@ -121,7 +121,7 @@ export interface ExploreCurator {
   displayName?: string;
   avatarUrl?: string;
   bio?: string;
-  accountType?: AccountType | number | string;
+  accountType?: AccountType;
   publicPostCount: number;
   latestPostAt?: string;
   recentArtworkUrls: string[];

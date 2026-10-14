@@ -8,6 +8,7 @@ import {
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
+import { AccountType } from '../src/types';
 
 const CURATOR_PATH = `/profile/${fixtureCuratorPage.curator.username}`;
 const MOBILE_VIEWPORT = { width: 390, height: 667 };
@@ -110,7 +111,7 @@ test('names the original author on a repost and the curator as the reposter', as
             title: 'Borrowed Light',
             isRepost: true,
             originalPostOwnerUsername: author,
-            originalPostOwnerAccountType: 'Regular',
+            originalPostOwnerAccountType: AccountType.REGULAR,
           },
         }],
       },

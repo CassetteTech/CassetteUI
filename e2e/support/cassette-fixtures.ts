@@ -1,3 +1,4 @@
+import { AccountType } from '../../src/types';
 import type {
   CuratorPage as FixtureCuratorPage,
   CuratorProfile as FixtureCuratorProfile,
@@ -501,7 +502,7 @@ const fixtureCuratorPublicPost = {
     username: fixtureUsers.playlistCurator.username,
     createdAt: FIXTURE_TIMESTAMP,
     privacy: 'public',
-    accountType: 'Regular',
+    accountType: AccountType.REGULAR,
   },
 } satisfies FixtureCuratorPage['posts']['items'][number];
 
@@ -519,7 +520,7 @@ const fixtureCuratorSubscriberPost = {
     username: fixtureUsers.playlistCurator.username,
     createdAt: FIXTURE_TIMESTAMP,
     privacy: 'subscriber',
-    accountType: 'Regular',
+    accountType: AccountType.REGULAR,
   },
 } satisfies FixtureCuratorPage['posts']['items'][number];
 
@@ -531,7 +532,7 @@ export const fixtureCuratorPage: FixtureCuratorPage = {
     bio: fixtureUsers.playlistCurator.bio || '',
     avatarUrl: null,
     profileLinks: [],
-    accountType: 'Regular',
+    accountType: AccountType.REGULAR,
     headline: 'Thoughtful playlists for unhurried listening.',
     about: 'I dig through new releases and old favorites so you do not have to.',
     declaredGenres: ['Soul', 'Jazz'],

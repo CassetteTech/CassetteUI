@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { accountTypeSchema } from '../lib/account-type';
 import { correlationIdSchema, httpsUrlSchema } from './membership';
 import { formatPaidPromotionMinorAmount } from './paid-promotion-lifecycle';
 
@@ -44,7 +45,7 @@ const curatorPostSchema = z.object({
   elementType: z.string().min(1),
   createdAt: timestamp,
   username: z.string().min(1),
-  accountType: nullableString,
+  accountType: nullableString.pipe(accountTypeSchema),
   title: z.string(),
   subtitle: nullableString,
   imageUrl: nullableString,
@@ -54,7 +55,7 @@ const curatorPostSchema = z.object({
   commentsEnabled: z.boolean().optional(),
   isRepost: z.boolean().optional(),
   originalPostOwnerUsername: nullableString.optional(),
-  originalPostOwnerAccountType: nullableString.optional(),
+  originalPostOwnerAccountType: nullableString.pipe(accountTypeSchema).optional(),
 });
 
 export const curatorElementTypes = ['Playlist', 'Track', 'Album', 'Artist'] as const;
@@ -77,7 +78,7 @@ export const curatorPageSchema = z.object({
     bio: nullableString,
     avatarUrl: nullableString,
     profileLinks: z.array(z.string()),
-    accountType: z.string(),
+    accountType: z.string().pipe(accountTypeSchema),
     headline: nullableString,
     about: nullableString,
     declaredGenres: z.array(z.string()),

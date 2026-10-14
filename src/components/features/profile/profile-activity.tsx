@@ -34,7 +34,7 @@ interface ProfileActivityProps {
   isLoading?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
-  ownerAccountType?: AccountType | number | string;
+  ownerAccountType?: AccountType;
   ownerUsername?: string;
   isCurrentUser?: boolean;
   currentUserId?: string;
@@ -161,7 +161,7 @@ export function MusicPostCard({
   visibilities = allVisibilities,
 }: {
   post: MusicCardPost;
-  ownerAccountType?: AccountType | number | string;
+  ownerAccountType?: AccountType;
   ownerUsername?: string;
   isOwnPost?: boolean;
   canLockPosts?: boolean;

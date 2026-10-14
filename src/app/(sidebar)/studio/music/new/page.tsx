@@ -1099,7 +1099,7 @@ export default function AddMusicPage() {
     <>
       {/* Phones and tablets: bar first, details under it; the bar opens a search sheet. */}
       <div className="lg:hidden">
-        <div className="studio-surface relative min-h-svh bg-background">
+        <div className="relative min-h-svh bg-background">
           {paper}
           {/* The search sheet lives inside this wrapper, so while it's open
               the wrapper must rise above the fixed global navbar (z-50) — a
@@ -1124,7 +1124,7 @@ export default function AddMusicPage() {
       {/* Desktop: one Studio-width container. The header spans the page, so more ways to
           add music can sit under it later; below it, details on the left and the homepage
           bar with open results on the right share one top edge. */}
-      <div className="studio-surface relative hidden min-h-full lg:block lg:px-8 lg:py-8">
+      <div className="relative hidden min-h-full lg:block lg:px-8 lg:py-8">
         {paper}
         <div className="relative z-10 mx-auto w-full max-w-6xl">
           <header className={`transition-opacity duration-500 ${dimmed}`}>

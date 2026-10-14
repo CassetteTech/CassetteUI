@@ -45,7 +45,7 @@ export function ListTabs<T extends string>({
     else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth;
   }, [value]);
   return (
-    <div className={cn('border-b border-border/70', className)}>
+    <div className={cn('border-b border-border', className)}>
       {/* -mb-px lays the row's bottom on the rule, so the active underline covers it. */}
       <div ref={row} role="radiogroup" aria-label={label} className={cn(listTabsRowClassName, '-mb-px')}>
         <TabUnderline value={value} />

@@ -122,7 +122,7 @@ export function ProfileMusic({
         inert={switching}
         aria-busy={switching || undefined}
         className={cn(
-          'grid grid-cols-1 gap-4 transition-opacity duration-150 motion-safe:animate-reveal xl:grid-cols-2',
+          'divide-y divide-border transition-opacity duration-150 motion-safe:animate-reveal',
           switching && 'opacity-50',
         )}
       >

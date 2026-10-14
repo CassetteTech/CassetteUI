@@ -91,7 +91,7 @@ export default function EditProfilePage() {
   const profilePath = `/profile/${user?.username || userIdentifier}`;
 
   return (
-    <div className="studio-surface mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 lg:py-10">
+    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 lg:py-10">
       <div className="mb-4 lg:hidden">
         <BackButton route={profilePath} />
       </div>

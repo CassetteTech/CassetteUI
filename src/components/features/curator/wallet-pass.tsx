@@ -53,7 +53,7 @@ export function WalletPass({
   children?: ReactNode;
 }) {
   return (
-    <div className={cn('card-ink overflow-hidden', holderHref && 'group relative', className)} {...rest}>
+    <div className={cn('card-quiet overflow-hidden', holderHref && 'group relative', className)} {...rest}>
       {/* Shared tints: on a handoff to a pass of the other color, the head and its bloom blend from the departing pass. */}
       <div
         data-shared-tint="head"

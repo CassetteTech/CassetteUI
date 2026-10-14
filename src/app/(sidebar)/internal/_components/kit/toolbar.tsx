@@ -68,7 +68,9 @@ export function SegmentedControl<T extends string>({
       <SlidingSegments
         label={label ?? 'Filter'}
         value={value}
-        onValueChange={(next) => onChange(next as T)}
+        onValueChange={(next) => {
+          if (next !== value) onChange(next as T);
+        }}
         options={options}
       />
     </div>

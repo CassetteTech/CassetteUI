@@ -53,6 +53,7 @@ import { captureUiException } from '@/lib/observability/error-reporting';
 import { ApiConnectionError } from '@/utils/api-connection-error';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { tryStorage } from '@/lib/best-effort';
+import { listProgress, statsSlideUnderLid, titleUnder, trackCounterText, trackStatsUnderLid } from '@/components/features/post/toolbar-scroll';
 
 function PostFoot({
   signUp,
@@ -1012,17 +1013,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     return () => observer.disconnect();
   }, []);
 
-  // The desktop toolbar stays under the navbar on a paper lid once the page scrolls ('raised'),
-  // and the lid keeps what scrolls under it. Each value is a function of the scroll position, so
-  // scrolling up replays the way down in reverse:
-  // - the post's cover and title print on the lid as the h1 goes under it (--title-under, 0 to 1;
-  //   'docked' once it is fully under);
-  // - the tracklist's stats slide under the lid's edge and stop at its centre line
-  //   (--stats-shift), then roll over into "Track NN of N" (--counter-swap) on lists long enough
-  //   to collapse, with a fill along the lid's bottom edge (--list-progress);
-  // - the tracklist card's bottom edge moves the stats and the fill out again (--list-exit).
-  // The values go to CSS variables and the counter's text node, so scrolling renders nothing.
-  // Set on the h1, which mounts after the toolbar; the tracklist mounts later and is read per frame.
   const toolbarRef = useRef<HTMLDivElement>(null);
   const toolbarLidRef = useRef<HTMLDivElement>(null);
   const trackCardRef = useRef<HTMLDivElement>(null);
@@ -1034,47 +1024,42 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     const lid = toolbarLidRef.current;
     if (!title || !toolbar || !lid) return;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const unit = (value: number) => Math.min(1, Math.max(0, value));
     const set = (name: string, value: number | string) => toolbar.style.setProperty(name, String(value));
     let frame = 0;
     const update = () => {
       frame = 0;
       const lidBox = lid.getBoundingClientRect();
       const titleBox = title.getBoundingClientRect();
-      const titleUnder = unit((lidBox.bottom - titleBox.top) / titleBox.height);
-      set('--title-under', titleUnder);
-      setToolbarDock(titleUnder === 1 ? 'docked' : window.scrollY > 0 ? 'raised' : undefined);
+      const titleShare = titleUnder(lidBox, titleBox);
+      set('--title-under', titleShare);
+      setToolbarDock(titleShare === 1 ? 'docked' : window.scrollY > 0 ? 'raised' : undefined);
 
       const card = trackCardRef.current;
       const stats = trackStatsRef.current;
       const rows = card?.querySelectorAll<HTMLElement>('[data-track-row]');
       if (!card || !stats || !rows?.length) return;
       const statsBox = stats.getBoundingClientRect();
-      const offset = (statsBox.top + statsBox.bottom) / 2 - (lidBox.top + lidBox.bottom) / 2;
-      const exit = Math.min(0, card.getBoundingClientRect().bottom - lidBox.bottom);
       const counts = rows.length >= EXPANDABLE_MIN_TRACKS;
-      // The copy can meet the real stats only where they run under the lid. A visitor's lid ends
-      // before Share while the card does not, so there (and with reduced motion) the stats
-      // appear in place once they reach the lid's centre line instead of sliding in.
-      const slides = !reducedMotion.matches && statsBox.right <= lidBox.right;
-      set('--stats-shift', `${slides ? Math.max(0, offset) + exit : exit}px`);
-      set('--stats-visible', !slides && offset > 0 ? 0 : 1);
-      set('--counter-swap', counts ? unit(-offset / 24) : 0);
-      set('--list-exit', `${exit}px`);
+      const under = trackStatsUnderLid({
+        lid: lidBox,
+        stats: statsBox,
+        cardBottom: card.getBoundingClientRect().bottom,
+        slides: statsSlideUnderLid(statsBox, lidBox, reducedMotion.matches),
+        counts,
+      });
+      set('--stats-shift', `${under.statsShift}px`);
+      set('--stats-visible', under.statsVisible);
+      set('--counter-swap', under.counterSwap);
+      set('--list-exit', `${under.listExit}px`);
       if (!counts) return;
-      // A collapsed list clips its later rows; they count only once they are on show.
-      const shownBottom = rows[0].parentElement?.parentElement?.getBoundingClientRect().bottom ?? Infinity;
-      const passedLine = Math.min(lidBox.bottom, shownBottom);
+      const unclippedListBottom = rows[0].parentElement?.parentElement?.getBoundingClientRect().bottom ?? Infinity;
+      const passedLine = Math.min(lidBox.bottom, unclippedListBottom);
       let passed = 0;
       while (passed < rows.length && rows[passed].getBoundingClientRect().top < passedLine) passed += 1;
       const listTop = rows[0].getBoundingClientRect().top;
-      const listBottom = Math.min(rows[rows.length - 1].getBoundingClientRect().bottom, shownBottom);
-      set('--list-progress', unit((lidBox.bottom - listTop) / (listBottom - listTop)));
-      if (trackCounterRef.current) {
-        const digits = Math.max(2, String(rows.length).length);
-        trackCounterRef.current.textContent =
-          `Track ${String(Math.max(1, passed)).padStart(digits, '0')} of ${rows.length}`;
-      }
+      const listBottom = Math.min(rows[rows.length - 1].getBoundingClientRect().bottom, unclippedListBottom);
+      set('--list-progress', listProgress(lidBox.bottom, listTop, listBottom));
+      if (trackCounterRef.current) trackCounterRef.current.textContent = trackCounterText(passed, rows.length);
     };
     const schedule = () => {
       frame ||= requestAnimationFrame(update);

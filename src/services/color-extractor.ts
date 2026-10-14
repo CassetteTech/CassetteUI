@@ -11,14 +11,6 @@ export interface ColorPalette {
   confidence: number;
 }
 
-// Legacy interface for backwards compatibility
-export interface ColorExtractionResult {
-  dominantColor: string;
-  vibrantColor?: string;
-  darkColor?: string;
-  lightColor?: string;
-}
-
 interface WeightedPixel {
   r: number;
   g: number;
@@ -94,19 +86,6 @@ export class ColorExtractor {
       appLogger.warn('color_extraction_failed', { error });
       return this.getBrandPalette();
     }
-  }
-
-  /**
-   * Legacy method for backwards compatibility
-   */
-  static async extractDominantColor(imageUrl: string): Promise<ColorExtractionResult> {
-    const palette = await this.extractPalette(imageUrl);
-    return {
-      dominantColor: palette.dominant,
-      vibrantColor: palette.vibrant,
-      darkColor: palette.dark,
-      lightColor: palette.light,
-    };
   }
 
   static getBrandPalette(): ColorPalette {

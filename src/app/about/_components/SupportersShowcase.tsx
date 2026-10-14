@@ -24,7 +24,7 @@ export function SupportersShowcase() {
               Buy The Team A Coffee
             </h3>
           </div>
-          <p className="font-roboto text-sm italic opacity-70 mb-8">
+          <p className="font-roboto-flex text-sm italic opacity-70 mb-8">
             Indie team, indie budget — support goes directly to development.
           </p>
 

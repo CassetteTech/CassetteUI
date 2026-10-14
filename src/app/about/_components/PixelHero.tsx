@@ -76,7 +76,7 @@ export function PixelHero() {
           />
         </h1>
 
-        <p className="font-roboto text-lg sm:text-xl lg:text-2xl text-foreground/90 max-w-2xl leading-relaxed mb-9 italic">
+        <p className="font-roboto-flex text-lg sm:text-xl lg:text-2xl text-foreground/90 max-w-2xl leading-relaxed mb-9 italic">
           Cassette turns any track, album, artist, or playlist into one smart
           link that opens in your listener&apos;s preferred app—
           <span className="text-foreground font-medium not-italic">

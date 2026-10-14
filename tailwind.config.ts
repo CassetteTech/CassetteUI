@@ -1,5 +1,8 @@
-/** @type {import('tailwindcss').Config} */
-module.exports = {
+import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
+import { EASE_IN_QUART, EASE_OUT_QUART, cubicBezier } from "./src/lib/motion";
+
+export default {
   darkMode: 'class',
   future: {
     hoverOnlyWhenSupported: true,
@@ -22,8 +25,6 @@ module.exports = {
         mono: ["var(--font-paper-mono)", "ui-monospace", "monospace"],
         atkinson: ["var(--font-atkinson)", "ui-sans-serif", "sans-serif"],
         "roboto-flex": ["var(--font-roboto-flex)", "ui-sans-serif", "sans-serif"],
-        // Legacy alias: Roboto was never loaded; these usages get Roboto Flex.
-        roboto: ["var(--font-roboto-flex)", "ui-sans-serif", "sans-serif"],
       },
       // Named values so we avoid arbitrary duration-[...]/ease-[...] classes,
       // which are ambiguous with tailwindcss-animate and silently dropped.
@@ -34,8 +35,8 @@ module.exports = {
         1100: "1100ms",
       },
       transitionTimingFunction: {
-        "out-quart": "cubic-bezier(0.22, 1, 0.36, 1)",
-        "in-quart": "cubic-bezier(0.64, 0, 0.78, 0)",
+        "out-quart": cubicBezier(EASE_OUT_QUART),
+        "in-quart": cubicBezier(EASE_IN_QUART),
       },
       letterSpacing: {
         "custom-2": "0.02em",
@@ -213,5 +214,5 @@ module.exports = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
-}
+  plugins: [animate],
+} satisfies Config;

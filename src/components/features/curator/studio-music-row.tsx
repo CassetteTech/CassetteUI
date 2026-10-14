@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import Link from 'next/link';
+import { PostLink } from '@/components/features/post/post-link';
 import { toast } from 'sonner';
 import { ArrowUpRight, ChevronDown, ExternalLink, Loader2, LockKeyhole, MoreHorizontal, Pencil, Plus, Repeat2, Share, Trash2 } from 'lucide-react';
 import { TextMorph } from 'torph/react';
@@ -217,7 +217,7 @@ export function StudioMusicRow({
       onDelete={() => onDelete(post, moreRef.current)}
     >
       <li data-testid="studio-music-row" data-post-id={post.postId} className={cn('group/row', rowGrid)}>
-        <Link href={href} prefetch={false} tabIndex={-1} aria-hidden className={cn('block overflow-hidden rounded-md', rowArtwork)}>
+        <PostLink href={href} tabIndex={-1} aria-hidden className={cn('block overflow-hidden rounded-md', rowArtwork)}>
           <ArtworkImage
             src={post.imageUrl}
             alt=""
@@ -227,18 +227,17 @@ export function StudioMusicRow({
             fallbackClassName="aspect-square size-full rounded-md bg-muted/60 outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
             fallbackIconClassName="size-6 text-muted-foreground/50"
           />
-        </Link>
+        </PostLink>
 
         <div className="min-w-0">
           <h3 className="line-clamp-2 text-[0.9375rem] font-medium leading-snug [text-wrap:pretty]">
-            <Link
+            <PostLink
               href={href}
-              prefetch={false}
               data-row-title
               className="rounded-sm underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
             >
               {post.title}
-            </Link>
+            </PostLink>
           </h3>
           <p className="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-sm text-muted-foreground">
             <span className="truncate">{details}</span>
@@ -316,10 +315,10 @@ export function StudioMusicRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-44">
               <DropdownMenuItem asChild className="gap-2">
-                <Link href={href} prefetch={false}>
+                <PostLink href={href}>
                   <ExternalLink aria-hidden className="size-4" />
                   Open post
-                </Link>
+                </PostLink>
               </DropdownMenuItem>
               {!repost && (
                 <DropdownMenuItem onSelect={() => onEdit(post, moreRef.current)} className="gap-2">

@@ -95,7 +95,7 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
                           {member.name}
                         </h2>
                         <p
-                          className={`font-roboto text-sm sm:text-lg ${typeConfig.iconColor}`}
+                          className={`font-roboto-flex text-sm sm:text-lg ${typeConfig.iconColor}`}
                         >
                           {member.role}
                         </p>
@@ -125,14 +125,14 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
                         About
                       </h3>
                       <div className="space-y-4">
-                        <p className="font-roboto text-foreground/90 leading-relaxed">
+                        <p className="font-roboto-flex text-foreground/90 leading-relaxed">
                           {member.fullBio}
                         </p>
-                        <p className="font-roboto text-foreground/90 leading-relaxed">
+                        <p className="font-roboto-flex text-foreground/90 leading-relaxed">
                           {member.background}
                         </p>
                         {member.experience && (
-                          <p className="font-roboto text-foreground/90 leading-relaxed">
+                          <p className="font-roboto-flex text-foreground/90 leading-relaxed">
                             {member.experience}
                           </p>
                         )}
@@ -149,7 +149,7 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
                         {member.expertise.map((skill) => (
                           <span
                             key={skill}
-                            className="px-3 py-1.5 text-sm rounded-sm border border-foreground/10 dark:border-border bg-muted/50 text-foreground/80 font-roboto"
+                            className="px-3 py-1.5 text-sm rounded-sm border border-foreground/10 dark:border-border bg-muted/50 text-foreground/80 font-roboto-flex"
                           >
                             {skill}
                           </span>
@@ -172,7 +172,7 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
                             aria-label={label}
                           >
                             <Icon size={18} />
-                            <span className="font-roboto font-medium">
+                            <span className="font-roboto-flex font-medium">
                               {label}
                             </span>
                           </a>

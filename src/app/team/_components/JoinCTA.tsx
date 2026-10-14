@@ -43,7 +43,7 @@ export function JoinCTA() {
                 />
               </span>
             </h2>
-            <p className="font-roboto text-base sm:text-lg opacity-80 italic max-w-xl mx-auto leading-relaxed">
+            <p className="font-roboto-flex text-base sm:text-lg opacity-80 italic max-w-xl mx-auto leading-relaxed">
               Developers, designers, music nerds—if our mission resonates,
               we&apos;d love to hear from you.
             </p>

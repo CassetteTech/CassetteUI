@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { PostLink } from '@/components/features/post/post-link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { ActivityPost, AccountType } from '@/types';
 import { Card } from '@/components/ui/card';
@@ -294,10 +295,7 @@ export function MusicPostCard({
         onDelete={() => setDeleteModalOpen(true)}
       >
       <Card quiet className="group relative gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden font-atkinson transition-colors duration-200 hover:bg-muted/40">
-        {/* prefetch={false}: viewport prefetch runs /post/[id] generateMetadata on the
-            server, bursting one Bridge GetPost per visible card (see 2026-07-08 prod
-            latency investigation). Cards navigate fine without route prefetch. */}
-        <Link href={getNavigationPath(post)} prefetch={false} className="block px-3 sm:px-4 py-3">
+        <PostLink href={getNavigationPath(post)} className="block px-3 sm:px-4 py-3">
           <div className="flex gap-3 sm:gap-4 items-start">
             <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 relative">
               <ArtworkImage
@@ -370,7 +368,7 @@ export function MusicPostCard({
               )}
             </div>
           </div>
-        </Link>
+        </PostLink>
       </Card>
       </PostQuickActions>
 

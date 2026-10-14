@@ -190,7 +190,6 @@
     --ring: 350 76% 52%;
     --radius: 0.5rem;
 
-    /* Easing curves — mirror tailwind.config.js (out-quart/in-quart) and src/lib/motion.ts. */
     --ease-out-quart: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-in-quart: cubic-bezier(0.64, 0, 0.78, 0);
 

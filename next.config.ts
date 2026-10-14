@@ -193,6 +193,16 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
+        source: '/curator/:username',
+        destination: '/profile/:username',
+        permanent: false,
+      },
+      {
+        source: '/internal/operations',
+        destination: '/internal/sentinel?view=runtime',
+        permanent: false,
+      },
+      {
         source: '/login',
         destination: '/auth/signin',
         permanent: false,

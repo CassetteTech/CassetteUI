@@ -78,7 +78,7 @@ export function TeamPixelHero() {
           />
         </h1>
 
-        <p className="font-roboto text-lg sm:text-xl lg:text-2xl text-foreground/90 max-w-2xl leading-relaxed mb-9 italic">
+        <p className="font-roboto-flex text-lg sm:text-xl lg:text-2xl text-foreground/90 max-w-2xl leading-relaxed mb-9 italic">
           Music obsessives, developers, and creators united by one mission—
           <span className="text-foreground font-medium not-italic">
             making music universal again

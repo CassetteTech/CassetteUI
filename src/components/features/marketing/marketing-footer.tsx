@@ -77,7 +77,7 @@ export function MarketingFooter() {
                   Cassette
                 </span>
               </Link>
-              <p className="font-roboto text-sm italic leading-relaxed opacity-70 max-w-[15rem]">
+              <p className="font-roboto-flex text-sm italic leading-relaxed opacity-70 max-w-[15rem]">
                 Share music across every streaming platform. One link, no
                 friction.
               </p>
@@ -120,7 +120,7 @@ export function MarketingFooter() {
                       {...(link.href.startsWith("http")
                         ? { target: "_blank", rel: "noopener noreferrer" }
                         : {})}
-                      className="font-roboto text-sm opacity-75 hover:opacity-100 hover:text-primary transition-[color,opacity]"
+                      className="font-roboto-flex text-sm opacity-75 hover:opacity-100 hover:text-primary transition-[color,opacity]"
                     >
                       {link.label}
                     </a>
@@ -128,7 +128,7 @@ export function MarketingFooter() {
                     <Link
                       key={link.label}
                       href={link.href}
-                      className="font-roboto text-sm opacity-75 hover:opacity-100 hover:text-primary transition-[color,opacity]"
+                      className="font-roboto-flex text-sm opacity-75 hover:opacity-100 hover:text-primary transition-[color,opacity]"
                     >
                       {link.label}
                     </Link>

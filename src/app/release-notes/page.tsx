@@ -109,7 +109,7 @@ export default async function ReleaseNotesPage() {
           <h1 className="font-teko text-5xl sm:text-6xl lg:text-7xl font-bold uppercase text-foreground tracking-tight leading-none">
             Release Notes
           </h1>
-          <p className="font-roboto italic text-base text-muted-foreground mt-4 max-w-md">
+          <p className="font-roboto-flex italic text-base text-muted-foreground mt-4 max-w-md">
             A running log of what&apos;s new, improved, and fixed in Cassette.
           </p>
         </header>

@@ -46,7 +46,7 @@ export function JourneyTimeline() {
                 <h3 className="font-teko text-2xl sm:text-3xl uppercase tracking-tight leading-none text-foreground mb-2">
                   {milestone.title}
                 </h3>
-                <p className="font-roboto text-muted-foreground text-sm leading-relaxed italic max-w-xl">
+                <p className="font-roboto-flex text-muted-foreground text-sm leading-relaxed italic max-w-xl">
                   {milestone.description}
                 </p>
               </div>

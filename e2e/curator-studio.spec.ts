@@ -13,6 +13,7 @@ import {
   fixturePosts,
   fixtureUsers,
 } from './support/cassette-fixtures';
+import { fulfillUnlessAborted, holdRoute } from './support/held-requests';
 import { mockCassetteApp } from './support/mock-cassette-app';
 import { openStudioStep } from './support/studio-steps';
 
@@ -518,12 +519,7 @@ test('a publish that answers after the person moved to Music does not pull them 
       capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
     }),
   });
-  let release = () => {};
-  const released = new Promise<void>((resolve) => { release = resolve; });
-  await page.route('**/api/v1/curators/plans/*/publish', async (route) => {
-    await released;
-    await route.fallback().catch(() => {});
-  });
+  const release = await holdRoute(page, '**/api/v1/curators/plans/*/publish');
 
   await page.goto(STUDIO_PATH);
   await openStudioStep(page, 'studio-plan');
@@ -821,8 +817,7 @@ test('keeps an archive result when the annual price refresh was sent before it',
     const plansWhenSent = structuredClone(state.curatorPlans);
     markListReadHeld();
     return new Promise<void>((resolve) => { answerListRead = resolve; })
-      // The page cancels this read, so the late answer may have no request to reach.
-      .then(() => route.fulfill({ json: plansWhenSent }).catch(() => undefined));
+      .then(() => fulfillUnlessAborted(route, { json: plansWhenSent }));
   });
 
   await page.goto(STUDIO_PATH);
@@ -1388,15 +1383,11 @@ test.describe('audience', () => {
       curatorAudience: { audienceCount: 3, activeMemberCount: 1 },
       curatorAudienceStatus: 503,
     });
-    let release = () => {};
-    const released = new Promise<void>((resolve) => { release = resolve; });
     let holdFirst = true;
-    await page.route('**/api/v1/curators/me/audience', async (route) => {
-      if (holdFirst) {
-        holdFirst = false;
-        await released;
-      }
-      await route.fallback().catch(() => {});
+    const release = await holdRoute(page, '**/api/v1/curators/me/audience', () => {
+      const held = holdFirst;
+      holdFirst = false;
+      return held;
     });
 
     await page.goto(STUDIO_PATH);

@@ -1,4 +1,4 @@
-import { expect, type Page, type Route, test } from '@playwright/test';
+import { expect, type Page, type Request, type Route, test } from '@playwright/test';
 
 import {
   fixtureCuratorPage,
@@ -6,6 +6,7 @@ import {
   fixtureNoMembershipStatus,
   fixtureUsers,
 } from './support/cassette-fixtures';
+import { fulfillUnlessAborted, holdRoute, trackRequests } from './support/held-requests';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 const feedPost = (index: number, privacy: 'public' | 'subscriber', username: string) => ({
@@ -73,30 +74,17 @@ const rowOrder = (page: Page) => page.locator('a[href^="/post/"], [data-testid="
     : row.querySelector('h3')?.textContent?.trim()),
 );
 const skeleton = (page: Page) => page.getByTestId('post-grid-skeleton');
-const cursors = (requests: string[]) => requests.map((url) => new URL(url).searchParams.get('cursor'));
+const cursors = (requests: Request[]) => requests.map((request) => new URL(request.url()).searchParams.get('cursor'));
 
 const FEED_PATH = '/api/v1/social/feed/posts';
 const SESSION_PATH = '/api/auth/session';
 
-/** Every browser request to `pathname`, including requests a test holds or the app aborts. */
-function trackRequests(page: Page, pathname: string) {
-  const urls: string[] = [];
-  page.on('request', (request) => {
-    if (new URL(request.url()).pathname === pathname) urls.push(request.url());
-  });
-  return urls;
-}
-
-/** Holds matching requests while `hold()` is true at arrival, until `release` is called. */
-async function holdRoute(page: Page, matches: (url: URL) => boolean, hold: () => boolean) {
-  let release = () => {};
-  const released = new Promise<void>((resolve) => { release = resolve; });
-  await page.route(matches, async (route) => {
-    if (hold()) await released;
-    // A request the app aborted while held can no longer be answered.
-    await route.fallback().catch(() => {});
-  });
-  return () => release();
+async function recordTextAppearance(page: Page, text: string) {
+  await page.evaluate((watched) => {
+    new MutationObserver(() => {
+      if (document.body.textContent?.includes(watched)) document.body.dataset.recordedTextShown = 'true';
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+  }, text);
 }
 
 const isFeed = (url: URL) => url.pathname === FEED_PATH;
@@ -139,7 +127,7 @@ test('the Members only filter asks the server for member posts and keeps its URL
   await expect(page).toHaveURL('/feed?filter=members');
   await expect(page.getByRole('heading', { name: 'From your curators', level: 1 })).toBeVisible();
   await expect(postLinks(page)).toHaveText([/Feed track 1/]);
-  expect(new URL(curatorFeedRequests.at(-1)!).searchParams.get('membersOnly')).toBe('true');
+  expect(new URL(curatorFeedRequests.at(-1)!.url()).searchParams.get('membersOnly')).toBe('true');
 
   await page.reload();
   await expect(page.getByRole('radio', { name: 'Members only' })).toBeChecked();
@@ -436,7 +424,7 @@ test.describe('freshness', () => {
         feedCuratorCount: 2,
       };
       await released;
-      await route.fulfill({ json: stale }).catch(() => {});
+      await fulfillUnlessAborted(route, { json: stale });
     });
 
     await page.goto('/feed');
@@ -560,16 +548,11 @@ test.describe('freshness', () => {
 
     await page.clock.fastForward('01:30');
     posts = [feedPost(5, 'public', 'day-curator')];
-    // Records any DOM change that puts an earlier row on the page, even for one frame.
-    await page.evaluate(() => {
-      new MutationObserver(() => {
-        if (document.body.textContent?.includes('Feed track 1')) document.body.dataset.earlierRowShown = 'true';
-      }).observe(document.body, { childList: true, subtree: true, characterData: true });
-    });
+    await recordTextAppearance(page, 'Feed track 1');
     await page.getByRole('link', { name: 'Feed', exact: true }).click();
 
     await expect(postLinks(page)).toHaveText([/Feed track 5/]);
-    await expect(page.locator('body')).not.toHaveAttribute('data-earlier-row-shown');
+    await expect(page.locator('body')).not.toHaveAttribute('data-recorded-text-shown');
     expect(sessionRequests.length).toBe(readsBefore + 1);
   });
 
@@ -866,7 +849,7 @@ test.describe('followed curators', () => {
     await page.getByRole('radio', { name: 'Members only' }).click();
     await expect.poll(() => rowOrder(page)).toEqual(['Feed track 5']);
     await expect(lockedCards(page)).toHaveCount(0);
-    expect(new URL(curatorFeedRequests.at(-1)!).searchParams.get('membersOnly')).toBe('true');
+    expect(new URL(curatorFeedRequests.at(-1)!.url()).searchParams.get('membersOnly')).toBe('true');
   });
 
   test('a Follow restarts both Feed filters even when the counts stay the same', async ({ page }) => {
@@ -902,14 +885,10 @@ test.describe('followed curators', () => {
     expect(state.curatorFollowRequests.filter(({ method }) => method === 'PUT')).toHaveLength(1);
     await expect.poll(() => sessionRequests.length).toBe(readsBefore + 1);
 
-    await page.evaluate(() => {
-      new MutationObserver(() => {
-        if (document.body.textContent?.includes('Feed track 1')) document.body.dataset.earlierRowShown = 'true';
-      }).observe(document.body, { childList: true, subtree: true, characterData: true });
-    });
+    await recordTextAppearance(page, 'Feed track 1');
     await page.goBack();
     await expect(postLinks(page)).toHaveText([/Feed track 2/]);
-    await expect(page.locator('body')).not.toHaveAttribute('data-earlier-row-shown');
+    await expect(page.locator('body')).not.toHaveAttribute('data-recorded-text-shown');
     expect(curatorFeedRequests).toHaveLength(2);
   });
 

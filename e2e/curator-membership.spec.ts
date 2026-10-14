@@ -716,6 +716,7 @@ test('keeps payment guidance on the profile pass before a scheduled end', async 
 test('slides a membership pass into the curator profile rail on navigation', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
+    reducedMotion: 'no-preference',
     curatorPage: fixtureMemberCuratorPage,
     membershipStatus: fixtureActiveMembershipStatus,
     myMemberships: [
@@ -727,8 +728,6 @@ test('slides a membership pass into the curator profile rail on navigation', asy
       },
     ],
   });
-  // The shared mock asks for reduced motion, which the handoff honours by not animating.
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/memberships');
   await page.getByTestId('my-membership').getByRole('link').click();
 

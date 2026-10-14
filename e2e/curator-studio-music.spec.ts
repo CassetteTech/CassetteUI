@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { fixturePosts, fixtureUsers, type FixturePost } from './support/cassette-fixtures';
+import { holdRoute } from './support/held-requests';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 const member = fixtureUsers.member;
@@ -289,12 +290,7 @@ test('after a failed profile read, Set up memberships moves focus to the profile
 
 test('Set up memberships waits for a slow profile read, then focuses the plan card', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: member, posts: [own('gate-track', 'Gate Track')] });
-  let release = () => {};
-  const released = new Promise<void>((resolve) => { release = resolve; });
-  await page.route('**/api/v1/curators/me', async (route) => {
-    await released;
-    await route.fallback().catch(() => {});
-  });
+  const release = await holdRoute(page, '**/api/v1/curators/me');
 
   await page.goto('/studio/music');
   await rowOf(page, 'Gate Track').getByRole('button', { name: 'Who can open Gate Track: Public' }).click();
@@ -310,12 +306,7 @@ test('Set up memberships waits for a slow profile read, then focuses the plan ca
 
 test('leaving Membership before a slow profile read answers cancels its focus request', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: member, posts: [own('gate-track', 'Gate Track')] });
-  let release = () => {};
-  const released = new Promise<void>((resolve) => { release = resolve; });
-  await page.route('**/api/v1/curators/me', async (route) => {
-    await released;
-    await route.fallback().catch(() => {});
-  });
+  const release = await holdRoute(page, '**/api/v1/curators/me');
 
   await page.goto('/studio/music');
   await rowOf(page, 'Gate Track').getByRole('button', { name: 'Who can open Gate Track: Public' }).click();

@@ -10,9 +10,11 @@ import {
   fixtureNoMembershipStatus,
   fixtureUsers,
 } from './support/cassette-fixtures';
+import { fulfillUnlessAborted, holdRoute, trackRequests } from './support/held-requests';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 const CURATOR_ID = fixtureCuratorPage.curator.id;
+const FOLLOW_ROUTE = `**/api/v1/curators/${CURATOR_ID}/follow`;
 const CURATOR_PATH = `/profile/${fixtureCuratorPage.curator.username}`;
 const NAME = fixtureCuratorPage.curator.displayName!;
 const INTENT_KEY = `cassette:follow-intent:${CURATOR_ID}`;
@@ -24,26 +26,6 @@ const followButton = (page: Page) => page.getByRole('button', { name: `Follow ${
 const unfollowButton = (page: Page) => page.getByRole('button', { name: `Unfollow ${NAME}`, exact: true }).filter({ visible: true });
 const following = (page: Page) => page.getByText('Following', { exact: true }).filter({ visible: true });
 const anyFollowControl = (page: Page) => page.getByTestId('curator-follow');
-
-/** Every browser request to `pathname`. */
-function trackRequests(page: Page, pathname: string) {
-  const urls: string[] = [];
-  page.on('request', (request) => {
-    if (new URL(request.url()).pathname === pathname) urls.push(request.method());
-  });
-  return urls;
-}
-
-/** Holds matching requests while `hold()` is true at arrival, until `release` is called. */
-async function holdFollowRoute(page: Page, method: string, hold: () => boolean) {
-  let release = () => {};
-  const released = new Promise<void>((resolve) => { release = resolve; });
-  await page.route(`**/api/v1/curators/${CURATOR_ID}/follow`, async (route) => {
-    if (route.request().method() === method && hold()) await released;
-    await route.fallback().catch(() => {});
-  });
-  return () => release();
-}
 
 async function returnFromProvider(page: Page, providerUrl: string, returnPath: string) {
   const appOrigin = new URL(page.url()).origin;
@@ -64,7 +46,7 @@ test('Follow sits quietly under Join, takes one action each way, and refreshes t
     membershipStatus: fixtureNoMembershipStatus,
   });
   let holdWrites = false;
-  const releaseWrite = await holdFollowRoute(page, 'PUT', () => holdWrites);
+  const releaseWrite = await holdRoute(page, FOLLOW_ROUTE, (request) => request.method() === 'PUT' && holdWrites);
 
   await page.goto(CURATOR_PATH);
   const card = page.locator('[data-testid="curator-membership-card"]:visible');
@@ -356,12 +338,12 @@ test.describe('stale answers', () => {
     await page.route(`**/api/v1/curators/${CURATOR_ID}/follow`, async (route) => {
       if (route.request().method() !== 'PUT') return route.fallback();
       await released;
-      await route.fulfill({ json: { isFollowing: true, hasExplicitFollow: true, hasActiveMembership: false } }).catch(() => {});
+      await fulfillUnlessAborted(route, { json: { isFollowing: true, hasExplicitFollow: true, hasActiveMembership: false } });
     });
 
     await page.goto(CURATOR_PATH);
     await followButton(page).click();
-    await expect.poll(() => followRequests).toContain('PUT');
+    await expect.poll(() => followRequests.map((request) => request.method())).toContain('PUT');
 
     state.currentUser = { ...fixtureUsers.member };
     await page.clock.fastForward('01:01');
@@ -392,7 +374,7 @@ test.describe('stale answers', () => {
       if (staleAnswers === 0) return route.fallback();
       staleAnswers -= 1;
       await released;
-      await route.fulfill({ json: { isFollowing: true, hasExplicitFollow: true, hasActiveMembership: false } }).catch(() => {});
+      await fulfillUnlessAborted(route, { json: { isFollowing: true, hasExplicitFollow: true, hasActiveMembership: false } });
     });
 
     await page.goto(CURATOR_PATH);
@@ -421,7 +403,11 @@ test.describe('stale answers', () => {
           curatorPage: fixtureFreeCuratorPage,
           curatorFollows: followed ? [CURATOR_ID] : [],
         });
-        const releaseWrite = await holdFollowRoute(page, followed ? 'DELETE' : 'PUT', () => readStarts === 'during');
+        const releaseWrite = await holdRoute(
+          page,
+          FOLLOW_ROUTE,
+          (request) => request.method() === (followed ? 'DELETE' : 'PUT') && readStarts === 'during',
+        );
         let holdRead = false;
         let readArrived = false;
         let releaseRead = () => {};
@@ -434,7 +420,7 @@ test.describe('stale answers', () => {
           readArrived = true;
           const stood = state.curatorFollows.has(CURATOR_ID);
           await readReleased;
-          await route.fulfill({ json: { isFollowing: stood, hasExplicitFollow: stood, hasActiveMembership: false } }).catch(() => {});
+          await fulfillUnlessAborted(route, { json: { isFollowing: stood, hasExplicitFollow: stood, hasActiveMembership: false } });
           readHandled();
         });
         const startRead = async () => {

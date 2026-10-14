@@ -129,7 +129,7 @@ test('the sidebar offers Add music as a button above the page links, in their bo
 });
 
 test('one sidebar highlight follows the pointer over the page rows and returns to the active row', async ({ page }) => {
-  await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member, reducedMotion: 'reduce' });
 
   await page.goto('/studio');
   const menu = page.locator('[data-sidebar="menu"]');
@@ -138,7 +138,6 @@ test('one sidebar highlight follows the pointer over the page rows and returns t
   const memberships = menu.getByRole('link', { name: 'Memberships' });
   const highlightTop = async () => (await highlight.boundingBox())?.y;
 
-  // mockCassetteApp emulates reduced motion, so the highlight moves without a transition.
   await expect(highlight).toHaveCSS('opacity', '1');
   await expect.poll(highlightTop).toBe((await studio.boundingBox())!.y);
 

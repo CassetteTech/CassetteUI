@@ -74,3 +74,19 @@ void test('artist posts fill missing destinations with search links and read eve
   assert.equal(parsed.postId, 'requested');
   assert.equal(parsePostResponse(post(), 'post-1').repostedByCurrentUser, false);
 });
+
+void test('non-numeric counts and track numbers take the missing-value fallbacks', () => {
+  const notANumber: number = JSON.parse('"bad"');
+  const parsed = parsePostResponse(post({
+    elementType: 'album',
+    likeCount: notANumber,
+    details: { trackCount: notANumber },
+    numberOfTracks: 12,
+    tracks: [{ title: 'One', trackNumber: notANumber }, { title: 'Two', trackNumber: 7 }],
+  }), 'post-1');
+
+  assert.equal(parsed.likeCount, 0);
+  assert.equal(parsed.trackCount, 12);
+  assert.deepEqual(parsed.tracks?.map((t) => t.trackNumber), [1, 7]);
+  assert.equal(parsePostResponse(post({ likeCount: 4, details: { trackCount: 9 }, numberOfTracks: 12 }), 'post-1').trackCount, 9);
+});

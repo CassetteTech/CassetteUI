@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   ElementType,
   type MediaListTrack,
@@ -104,10 +105,12 @@ const buildArtistSearchUrl = (platform: NormalizedPlatformKey, artistName: strin
   return `https://music.apple.com/us/search?term=${query}`;
 };
 
+const optionalNumber = z.number().optional().catch(undefined);
+
 const mapTracks = (tracks: PostResponseTrack[] | undefined, topLevel: boolean): MediaListTrack[] | undefined =>
   Array.isArray(tracks) && tracks.length > 0
     ? tracks.map((t, idx) => ({
-        trackNumber: topLevel ? t.trackNumber ?? idx + 1 : t.trackNumber,
+        trackNumber: topLevel ? optionalNumber.parse(t.trackNumber) ?? idx + 1 : t.trackNumber,
         title: t.title ?? 'Untitled',
         duration: t.duration,
         artists: topLevel && t.artist ? [t.artist] : Array.isArray(t.artists) ? t.artists : undefined,
@@ -163,13 +166,13 @@ export function parsePostResponse(response: PostByIdResponse, requestedPostId: s
     createdAt: response.createdAt,
     privacy: response.privacy,
     conversionSuccessCount: response.conversionSuccessCount,
-    likeCount: response.likeCount ?? 0,
+    likeCount: optionalNumber.parse(response.likeCount) ?? 0,
     likedByCurrentUser: Boolean(response.likedByCurrentUser),
     commentsEnabled: response.commentsEnabled ?? true,
     genres: response.details?.genres || response.metadata?.genres || [],
     albumName: response.metadata?.albumName || response.details?.album || '',
     releaseDate: response.metadata?.releaseDate || response.details?.releaseDate || null,
-    trackCount: response.details?.trackCount ?? response.numberOfTracks,
+    trackCount: optionalNumber.parse(response.details?.trackCount) ?? optionalNumber.parse(response.numberOfTracks),
     details: {
       artists: response.details?.artists || [],
     },

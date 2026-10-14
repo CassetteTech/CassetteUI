@@ -13,6 +13,7 @@ void test('reads the enum number or name Bridge sends', () => {
     ['verified', AccountType.VERIFIED],
     ['CassetteTeam', AccountType.CASSETTE_TEAM],
     ['cassette_team', AccountType.CASSETTE_TEAM],
+    ['CASSETTE_TEAM', AccountType.CASSETTE_TEAM],
     [3, undefined],
     [-1, undefined],
     [1.5, undefined],
@@ -27,8 +28,14 @@ void test('reads the enum number or name Bridge sends', () => {
   assert.equal(accountTypeSchema.parse({ accountType: 2 }), undefined);
 });
 
+void test('rejects numeric strings and spelling variants the badge never accepted', () => {
+  for (const value of ['0', '1', '2', 'cassette team', 'cassette-team', 'Cassette Team', ' Verified ']) {
+    assert.equal(accountTypeSchema.parse(value), undefined, value);
+  }
+});
+
 void test('a parsed account type keeps the internal-account decision of the raw value', () => {
-  for (const value of [0, 1, 2, 'Regular', 'Verified', 'CassetteTeam', 'cassette-team', ' Cassette Team ', '2', 'admin']) {
+  for (const value of [0, 1, 2, 3, 'Regular', 'Verified', 'CassetteTeam', 'cassette_team', 'CASSETTETEAM', 'admin']) {
     assert.equal(isCassetteInternalAccount(accountTypeSchema.parse(value)), isCassetteInternalAccount(value), String(value));
   }
 });

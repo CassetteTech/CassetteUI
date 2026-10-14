@@ -1,6 +1,9 @@
 "use client";
 
-import { PixelHero } from "./_components/PixelHero";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { PIXEL_HERO_PRIMARY_ACTION_CLASS, PixelHero } from "@/components/features/marketing/pixel-hero";
+import { useAuthState } from "@/hooks/use-auth";
 import { CurtainSheet } from "@/components/features/marketing/curtain-sheet";
 import { StatStrip } from "@/components/features/marketing/stat-strip";
 import { DitherEdge } from "@/components/features/marketing/dither-edge";
@@ -15,9 +18,23 @@ import { MarketingFooter } from "@/components/features/marketing/marketing-foote
 import { linerNotes } from "./_data";
 
 export default function AboutPage() {
+  const { isAuthenticated } = useAuthState();
   return (
     <div className="relative">
-      <PixelHero />
+      <PixelHero
+        label="About Cassette"
+        eyebrow="About · Cassette Technologies"
+        title={["Your Music,", "Everywhere"]}
+        lead="Cassette turns any track, album, artist, or playlist into one smart link that opens in your listener's preferred app—"
+        emphasis="no dead ends, no friction"
+        primaryAction={
+          <Link href={isAuthenticated ? "/" : "/auth/signup"} className={PIXEL_HERO_PRIMARY_ACTION_CLASS}>
+            <span>Create Your Universal Link</span>
+            <ArrowRight size={16} />
+          </Link>
+        }
+        secondaryLink={{ href: "/team", label: "Meet the Team" }}
+      />
 
       <CurtainSheet tab="The Story">
         {/* Liner notes — quiet stat strip. Bottom padding must clear the

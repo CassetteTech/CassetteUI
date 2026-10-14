@@ -1,3 +1,4 @@
+import type { PlatformUiKey } from '@/lib/platforms';
 import type { PostPrivacy } from '@/types';
 
 /**
@@ -15,6 +16,8 @@ export interface AddMusicDraft {
   selection: { title: string; artist: string; type: string; url: string; coverArtUrl: string } | null;
   description: string;
   privacy: PostPrivacy;
+  /** The owner's own playlist links, by service. */
+  platformLinks: Partial<Record<PlatformUiKey, string>>;
   /** The handoff added a history entry, so going back to the form removes it. */
   pushed: boolean;
 }

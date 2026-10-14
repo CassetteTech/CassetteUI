@@ -65,6 +65,7 @@ export function CassetteSpotifyCopyLink({
       sourcePlatform,
       isAuthenticated,
       paidPromotionCampaignId,
+      linkOrigin: 'cassette',
     });
     if (clickProps) {
       void captureClientEvent('post_platform_conversion_clicked', clickProps);
@@ -91,6 +92,7 @@ export function CassetteSpotifyCopyLink({
         <StreamingLinks
           links={{ spotify: copyUrl }}
           captions={{ spotify: 'Ready to open' }}
+          linkOrigins={{ spotify: 'cassette' }}
           postId={postId}
           elementType="playlist"
           sourcePlatform={sourcePlatform}

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { StudioChip } from '@/components/features/curator/studio-shell';
-import { Music2, X } from 'lucide-react';
+import { ChevronDown, Music2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTopCharts, useMusicSearch, useMusicLinkConversion } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
@@ -44,6 +44,9 @@ import {
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 import { normalizeAuthRedirect } from '@/utils/auth-redirect';
 import { PostVisibilityControl } from '@/components/features/post/post-visibility-control';
+import { PlaylistLinkFields } from '@/components/features/post/playlist-link-fields';
+import { getPlatformDefinition, type PlatformUiKey } from '@/lib/platforms';
+import { curatorLinkPlatforms, playlistLinkErrors, toBridgePlatformLinks, type ByService } from '@/lib/playlist-copy-placement';
 import { studioLabels, studioViewOfPath } from '@/components/features/curator/studio-routes';
 import type { MusicLinkConversion, PostPrivacy } from '@/types';
 import { cn } from '@/lib/utils';
@@ -354,6 +357,16 @@ const MusicPicker = ({
   );
 };
 
+/** The owner's own playlist links, offered only while the pending music is a playlist. */
+type PlaylistLinksProps = {
+  sourcePlatform: PlatformUiKey | null;
+  values: ByService<string>;
+  errors: ByService<string>;
+  onChange: (platform: PlatformUiKey, value: string) => void;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+};
+
 /** Post details: description and visibility, then the submit. Collapses on
     phones while the search sheet is open; on desktop it always stays put. */
 const PostDetails = ({
@@ -362,6 +375,7 @@ const PostDetails = ({
   setDescription,
   privacy,
   setPrivacy,
+  playlistLinks,
   handleAddToProfile,
   errorMessage,
   isConverting,
@@ -372,6 +386,7 @@ const PostDetails = ({
   setDescription: (value: string) => void;
   privacy: PostPrivacy;
   setPrivacy: (value: PostPrivacy) => void;
+  playlistLinks: PlaylistLinksProps | null;
   handleAddToProfile: () => void;
   errorMessage: string;
   isConverting: boolean;
@@ -404,6 +419,35 @@ const PostDetails = ({
 
             {/* The conversion request already carries the chosen setting, so it holds while converting. */}
             <PostVisibilityControl privacy={privacy} choose={setPrivacy} disabled={isConverting} headingAs="h2" />
+
+            {/* Optional and closed by default: most playlists need no links of their own. */}
+            {playlistLinks && (
+              <details
+                open={playlistLinks.open}
+                onToggle={(event) => playlistLinks.setOpen(event.currentTarget.open)}
+                className="group rounded-md border border-border/70"
+              >
+                <summary
+                  data-testid="add-music-playlist-links"
+                  className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-md px-4 py-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"
+                >
+                  Send fans to your own playlists
+                  <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
+                    Optional
+                    <ChevronDown aria-hidden className="size-4 transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none" />
+                  </span>
+                </summary>
+                <div className="border-t border-border/70 px-4 py-4">
+                  <PlaylistLinkFields
+                    sourcePlatform={playlistLinks.sourcePlatform}
+                    values={playlistLinks.values}
+                    errors={playlistLinks.errors}
+                    onChange={playlistLinks.onChange}
+                    disabled={isConverting}
+                  />
+                </div>
+              </details>
+            )}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border/70 px-5 py-4 sm:px-6">
             <Button
@@ -439,6 +483,11 @@ export default function AddMusicPage() {
   const [musicUrl, setMusicUrl] = useState(returnedSelection?.title ?? returnedDraft?.link ?? prefilledUrl);
   const [description, setDescription] = useState(returnedDraft?.description ?? '');
   const [privacy, setPrivacy] = useState<PostPrivacy>(returnedDraft?.privacy ?? 'public');
+  const [platformLinks, setPlatformLinks] = useState<ByService<string>>(returnedDraft?.platformLinks ?? {});
+  const [platformLinkErrors, setPlatformLinkErrors] = useState<ByService<string>>({});
+  const [platformLinksOpen, setPlatformLinksOpen] = useState(
+    () => Object.values(returnedDraft?.platformLinks ?? {}).some(Boolean),
+  );
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(() =>
     returnedSelection ? { id: `selected-${Date.now()}`, ...returnedSelection } : null,
@@ -455,7 +504,12 @@ export default function AddMusicPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const lastTrackedSearchRef = useRef<string>('');
   // The conversion in flight, until it finishes here or is handed to the post page.
-  const runningRef = useRef<{ url: string; key: string; result: Promise<MusicLinkConversion> } | null>(null);
+  const runningRef = useRef<{
+    url: string;
+    key: string;
+    result: Promise<MusicLinkConversion>;
+    platformLinks: ByService<string> | null;
+  } | null>(null);
   const handedOffRef = useRef(false);
   const debouncedSearchTerm = useDebounce(musicUrl, 300); // matches the home page search feel
   
@@ -466,6 +520,11 @@ export default function AddMusicPage() {
   const linkConversion = useMusicLinkConversion();
   const { stage: conversionStage, label: conversionStageLabel, partialResult } = useConversionStage(conversionKey);
   const isConverting = conversionKey != null;
+  // A playlist takes the owner's own link for each service but the one it came from.
+  const pendingUrl = selectedItem?.url ?? (pastedLinkSource ? musicUrl : '');
+  const pendingMusic = pendingUrl ? detectContentType(normalizeMusicLinkInput(pendingUrl)) : null;
+  const pendingIsPlaylist = selectedItem ? selectedItem.type === 'playlist' : pendingMusic?.type === 'playlist';
+  const pendingSourcePlatform = pendingMusic ? getPlatformDefinition(pendingMusic.platform)?.uiKey ?? null : null;
 
   // As on the home page, the post builds on its own page: after a short beat of the beam,
   // the card grows into the post skeleton, which fills in as Bridge reports the music.
@@ -489,6 +548,7 @@ export default function AddMusicPage() {
         : null,
       description,
       privacy,
+      platformLinks,
       pushed: !resolvedReturnRoute,
     });
     const card = Array.from(document.querySelectorAll<HTMLElement>('[data-converting-card]')).find(
@@ -499,6 +559,7 @@ export default function AddMusicPage() {
       url: running.url,
       anonymous: false,
       barRect: box ? { left: box.left, top: box.top, width: box.width, height: box.height } : null,
+      curatorLinks: running.platformLinks ? { handle: user?.username ?? null, links: running.platformLinks } : undefined,
       running: {
         idempotencyKey: running.key,
         result: running.result,
@@ -809,6 +870,8 @@ export default function AddMusicPage() {
     setPastedLinkSource(null);
     setMusicUrl('');
     setErrorMessage('');
+    setPlatformLinks({});
+    setPlatformLinkErrors({});
   };
 
   const handleAddToProfile = useCallback(async () => {
@@ -834,6 +897,24 @@ export default function AddMusicPage() {
       return;
     }
     
+    // Bridge checks each link again before it starts the conversion.
+    let ownLinks: ByService<string> | null = null;
+    if (pendingIsPlaylist) {
+      const filled: ByService<string> = {};
+      for (const platform of curatorLinkPlatforms(pendingSourcePlatform)) {
+        const link = platformLinks[platform]?.trim();
+        if (link) filled[platform] = link;
+      }
+      const problems = playlistLinkErrors(filled);
+      setPlatformLinkErrors(problems);
+      if (Object.keys(problems).length > 0) {
+        setPlatformLinksOpen(true);
+        setErrorMessage('Check your playlist links.');
+        return;
+      }
+      if (Object.keys(filled).length > 0) ownLinks = filled;
+    }
+
     const detected = detectContentType(urlToConvert);
     void captureClientEvent('conversion_entry_started', {
       route: ANALYTICS_ROUTE,
@@ -875,8 +956,9 @@ export default function AddMusicPage() {
       description: description.trim() || undefined,
       idempotencyKey: key,
       privacy,
+      platformLinks: ownLinks ? toBridgePlatformLinks(ownLinks) : undefined,
     });
-    runningRef.current = { url: urlToConvert, key, result: conversion };
+    runningRef.current = { url: urlToConvert, key, result: conversion, platformLinks: ownLinks };
 
     try {
       const result = await conversion;
@@ -916,7 +998,7 @@ export default function AddMusicPage() {
         'Something went wrong while converting your link. Please try again.',
       ));
     }
-  }, [conversionKey, description, isValidMusicUrl, linkConversion, musicUrl, normalizeUrlInput, privacy, resolvedReturnRoute, router, selectedItem]);
+  }, [conversionKey, description, isValidMusicUrl, linkConversion, musicUrl, normalizeUrlInput, pendingIsPlaylist, pendingSourcePlatform, platformLinks, privacy, resolvedReturnRoute, router, selectedItem]);
 
   useEffect(() => {
     const query = debouncedSearchTerm.trim();
@@ -979,6 +1061,19 @@ export default function AddMusicPage() {
     setDescription,
     privacy,
     setPrivacy,
+    playlistLinks: pendingIsPlaylist
+      ? {
+          sourcePlatform: pendingSourcePlatform,
+          values: platformLinks,
+          errors: platformLinkErrors,
+          onChange: (platform: PlatformUiKey, value: string) => {
+            setPlatformLinks((current) => ({ ...current, [platform]: value }));
+            setPlatformLinkErrors((current) => ({ ...current, [platform]: undefined }));
+          },
+          open: platformLinksOpen,
+          setOpen: setPlatformLinksOpen,
+        }
+      : null,
     handleAddToProfile,
     errorMessage,
     isConverting,

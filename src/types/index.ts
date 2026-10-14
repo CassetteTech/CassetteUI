@@ -778,6 +778,10 @@ export interface PostByIdResponse {
   originalLink?: string;
   /** Cassette's shared public Spotify copy of a playlist, once a fan has asked for one. */
   cassetteSpotifyCopyUrl?: string | null;
+  /** The service a playlist came from. */
+  sourcePlatform?: string | null;
+  /** The post owner's own link for each service on a playlist post, keyed by Bridge platform. */
+  curatorLinks?: Record<string, string> | null;
 }
 
 export interface PublicPostPageMetadata {

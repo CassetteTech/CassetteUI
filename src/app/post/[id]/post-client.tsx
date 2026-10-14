@@ -7,7 +7,15 @@ import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTem
 import { EntitySkeleton, printedBand } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks } from '@/components/features/entity/streaming-links';
 import { PlaylistCopyActions } from '@/components/features/entity/playlist-copy-actions';
-import { playlistCopyTargets, sharesCassetteSpotifyCopy } from '@/lib/playlist-copy-placement';
+import {
+  curatorLinkCaption,
+  curatorListenRows,
+  fromBridgePlatformLinks,
+  playlistCopyTargets,
+  sharesCassetteSpotifyCopy,
+} from '@/lib/playlist-copy-placement';
+import type { LinkOriginDimension } from '@/lib/analytics/events';
+import { ACTIVE_PLATFORM_UI_KEYS } from '@/lib/platforms';
 import { CassetteSpotifyCopyLink, CASSETTE_SPOTIFY_COPY_CAPTION } from '@/components/features/entity/cassette-spotify-copy-link';
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList, EXPANDABLE_MIN_TRACKS, formatTrackListDuration, formatTrackListStats } from '@/components/features/entity/track-list';
@@ -133,6 +141,8 @@ type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
   curatorId?: string | null;
   isMemberView?: boolean;
   cassetteSpotifyCopyUrl?: string | null;
+  /** The owner's own link for each service on a playlist post. */
+  curatorLinks?: Partial<Record<NormalizedPlatformKey, string>>;
   repostedByCurrentUser?: boolean;
   username?: string;
   userId?: string | null;
@@ -769,6 +779,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
             curatorId: response.curatorId ?? null,
             isMemberView: response.isMemberView === true,
             cassetteSpotifyCopyUrl: response.cassetteSpotifyCopyUrl ?? null,
+            curatorLinks: fromBridgePlatformLinks(response.curatorLinks),
             repostedByCurrentUser: Boolean(
               (response as unknown as Record<string, unknown>).repostedByCurrentUser === true ||
               (response as unknown as Record<string, unknown>).RepostedByCurrentUser === true ||
@@ -1321,20 +1332,34 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     ? printedByConversion.tint
     : (palette ?? (metadata.artwork ? ColorExtractor.cachedPalette(metadata.artwork) : undefined))?.vibrant;
 
-  // What each listen row opens. A playlist opens its original on the service it came from, and
-  // Cassette's shared Spotify copy while Spotify copies go to Cassette's account; every other service
-  // gets a button in the copy block instead, so a row never builds a copy in a fan's account.
-  const sharedSpotifyCopy = isPlaylist && sharesCassetteSpotifyCopy(sourcePlatformKey) && !convertedUrls.spotify;
+  // What each listen row opens. A playlist opens its original on the service it came from, the
+  // owner's own link where they set one, and Cassette's shared Spotify copy while Spotify copies go to
+  // Cassette's account; every other service gets a button in the copy block instead, so a row never
+  // builds a copy in a fan's account.
+  const curatorLinks = isPlaylist ? postData?.curatorLinks ?? {} : {};
+  const sharedSpotifyCopy =
+    isPlaylist && sharesCassetteSpotifyCopy(sourcePlatformKey) && !convertedUrls.spotify && !curatorLinks.spotify;
   const cassetteSpotifyCopyUrl = sharedSpotifyCopy ? postData?.cassetteSpotifyCopyUrl : null;
   const listenLinks = { ...convertedUrls };
   const listenCaptions: Partial<Record<NormalizedPlatformKey, string>> = {};
+  const linkOrigins: Partial<Record<NormalizedPlatformKey, LinkOriginDimension>> = {};
+  for (const platform of ACTIVE_PLATFORM_UI_KEYS) {
+    if (listenLinks[platform]) linkOrigins[platform] = platform === sourcePlatformKey ? 'source' : 'cassette';
+  }
   if (isPlaylist && sourcePlatformKey) {
     listenCaptions[sourcePlatformKey] = 'Original playlist';
+    linkOrigins[sourcePlatformKey] = 'source';
     if (resolvedSourceUrl) listenLinks[sourcePlatformKey] = resolvedSourceUrl;
   }
   if (cassetteSpotifyCopyUrl) {
     listenLinks.spotify = cassetteSpotifyCopyUrl;
     listenCaptions.spotify = CASSETTE_SPOTIFY_COPY_CAPTION;
+    linkOrigins.spotify = 'cassette';
+  }
+  for (const [platform, url] of curatorListenRows(sourcePlatformKey, curatorLinks)) {
+    listenLinks[platform] = url;
+    listenCaptions[platform] = curatorLinkCaption(postData?.username);
+    linkOrigins[platform] = 'curator';
   }
   const copyTargets = isPlaylist ? playlistCopyTargets(sourcePlatformKey, listenLinks) : [];
   const listenSection = (
@@ -1343,6 +1368,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       <StreamingLinks
         links={listenLinks}
         captions={listenCaptions}
+        linkOrigins={linkOrigins}
         postId={postData?.postId || postId}
         elementType={metadata.type}
         sourcePlatform={analyticsSourcePlatform}
@@ -1429,6 +1455,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
             curator_id: postData?.curatorId ?? undefined,
             is_member_view: postData?.isMemberView === true,
             source_context: 'context_menu',
+            link_origin: linkOrigins[platform],
           });
         }}
         onShare={() => void handleShare()}
@@ -1852,6 +1879,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         currentDescription={postData?.description || ''}
         currentPrivacy={(postData?.privacy as 'public' | 'private' | 'subscriber' | undefined) ?? 'public'}
         currentCommentsEnabled={postData?.commentsEnabled ?? true}
+        playlistLinksEditable={isPlaylist && !postData?.isRepost}
         onSuccess={handleEditSuccess}
       />
 

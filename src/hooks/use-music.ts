@@ -65,10 +65,23 @@ export const useMusicLinkConversion = (options?: { anonymous?: boolean }) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (params: { url: string; description?: string; idempotencyKey?: string; anonymous?: boolean; privacy?: PostPrivacy }) => {
+    mutationFn: (params: {
+      url: string;
+      description?: string;
+      idempotencyKey?: string;
+      anonymous?: boolean;
+      privacy?: PostPrivacy;
+      platformLinks?: Record<string, string | null>;
+    }) => {
       const anonymous = typeof params.anonymous === 'boolean' ? params.anonymous : options?.anonymous;
       appLogger.debug('music_link_conversion_submitted', { anonymous });
-      return musicService.convertMusicLink(params.url, { anonymous, description: params.description, idempotencyKey: params.idempotencyKey, privacy: params.privacy });
+      return musicService.convertMusicLink(params.url, {
+        anonymous,
+        description: params.description,
+        idempotencyKey: params.idempotencyKey,
+        privacy: params.privacy,
+        platformLinks: params.platformLinks,
+      });
     },
     onSuccess: (data, variables) => {
       seedArtworkCache(data.postId, data.metadata?.artwork);
@@ -195,12 +208,19 @@ export const useUpdatePost = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (params: { postId: string; description?: string; privacy?: string; commentsEnabled?: boolean }) => {
+    mutationFn: (params: {
+      postId: string;
+      description?: string;
+      privacy?: string;
+      commentsEnabled?: boolean;
+      platformLinks?: Record<string, string | null>;
+    }) => {
       appLogger.debug('post_update_submitted', { post_id: params.postId });
       return apiService.updatePost(params.postId, {
         description: params.description,
         privacy: params.privacy,
         commentsEnabled: params.commentsEnabled,
+        platformLinks: params.platformLinks,
       });
     },
     onSuccess: (_data, variables) => {

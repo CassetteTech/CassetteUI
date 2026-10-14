@@ -443,6 +443,19 @@ const toActivityItem = (post: FixturePost, state: MockState) => {
   };
 };
 
+/** Bridge sets each named platform's link; null removes it. */
+const applyPlatformLinks = (
+  current: Record<string, string>,
+  changes: Record<string, string | null> | undefined,
+) => {
+  const next = { ...current };
+  for (const [platform, url] of Object.entries(changes ?? {})) {
+    if (url) next[platform] = url;
+    else delete next[platform];
+  }
+  return next;
+};
+
 const toPostByIdResponse = (post: FixturePost) => ({
   success: true,
   postId: post.postId,
@@ -464,6 +477,8 @@ const toPostByIdResponse = (post: FixturePost) => ({
   description: post.description || '',
   originalLink: post.originalUrl,
   cassetteSpotifyCopyUrl: post.cassetteSpotifyCopyUrl ?? null,
+  sourcePlatform: post.sourcePlatform ?? null,
+  curatorLinks: post.curatorLinks ?? {},
   details: {
     title: post.title,
     artist: post.artist || '',
@@ -1882,6 +1897,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         sourceLink: string;
         description?: string;
         privacy?: FixturePost['privacy'];
+        platformLinks?: Record<string, string | null>;
       };
       if (state.paidPromotionConversionDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, state.paidPromotionConversionDelayMs));
@@ -1894,6 +1910,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       const createdPost = createOwnedPostFromTemplate(state, template, {
         description: payload.description || template.description || '',
         privacy: payload.privacy ?? 'public',
+        curatorLinks: applyPlatformLinks({}, payload.platformLinks),
       });
 
       return json(route, {
@@ -2771,12 +2788,14 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
           description?: string;
           privacy?: FixturePost['privacy'];
           commentsEnabled?: boolean;
+          platformLinks?: Record<string, string | null>;
         };
         const updatedPost = {
           ...post,
           description: payload.description ?? post.description,
           privacy: payload.privacy ?? post.privacy,
           commentsEnabled: payload.commentsEnabled ?? post.commentsEnabled,
+          curatorLinks: applyPlatformLinks(post.curatorLinks ?? {}, payload.platformLinks),
         };
         upsertPost(state, updatedPost);
         // Keep the curator feed in step, as Bridge reads both from the same post row.

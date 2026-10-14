@@ -13,7 +13,12 @@ import { PostLabelHead, bandColor } from '@/components/features/post/post-label-
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
 import { TrackList, formatTrackListStats, type TrackListItem } from '@/components/features/entity/track-list';
 import { ACTIVE_PLATFORM_UI_KEYS, type PlatformUiKey } from '@/lib/platforms';
-import { playlistCopyTargets, sharesCassetteSpotifyCopy } from '@/lib/playlist-copy-placement';
+import {
+  curatorLinkCaption,
+  curatorListenRows,
+  playlistCopyTargets,
+  sharesCassetteSpotifyCopy,
+} from '@/lib/playlist-copy-placement';
 import { cn } from '@/lib/utils';
 import { ColorExtractor, type ColorPalette } from '@/services/color-extractor';
 
@@ -32,6 +37,8 @@ export interface StagedConversion {
   };
   /** The link being converted. A playlist's label links to it, as on the post. */
   sourceLink?: { platform: PlatformUiKey; url: string };
+  /** Add music: the owner's own playlist links, which open as listen rows as on the post. */
+  curatorLinks?: { handle: string | null; links: Partial<Record<PlatformUiKey, string>> };
   /** Listen links known so far. The source link is known from the start. */
   links: Partial<Record<PlatformUiKey, string>>;
   /** Bridge reported the post ready; the finished post replaces this next. */
@@ -643,8 +650,9 @@ const PendingLink: React.FC<{ platform: PlatformUiKey; matching: boolean; order:
 /**
  * The listen links (StreamingLinks): one row per service. During a track,
  * album, or artist conversion each service has its place: a pending row until
- * Bridge matches it, then the real link. A playlist opens only its original,
- * known from the pasted link, above the block of copy buttons.
+ * Bridge matches it, then the real link. A playlist opens its original, known
+ * from the pasted link, and the owner's own links from Add music, above the
+ * block of copy buttons.
  */
 const ListenLinks: React.FC<{
   blueprint: Blueprint;
@@ -653,7 +661,20 @@ const ListenLinks: React.FC<{
   perService: boolean;
   next: () => number;
   className: string;
-}> = ({ blueprint, staged, settled, perService, next, className }) => (
+}> = ({ blueprint, staged, settled, perService, next, className }) => {
+  // A playlist opens its original and the owner's own links, in the post's order.
+  const playlistLinks: Partial<Record<PlatformUiKey, string>> = {};
+  const playlistCaptions: Partial<Record<PlatformUiKey, string>> = {};
+  const source = staged?.sourceLink;
+  if (source) {
+    playlistLinks[source.platform] = source.url;
+    playlistCaptions[source.platform] = 'Original playlist';
+    for (const [platform, url] of curatorListenRows(source.platform, staged.curatorLinks?.links)) {
+      playlistLinks[platform] = url;
+      playlistCaptions[platform] = curatorLinkCaption(staged.curatorLinks?.handle);
+    }
+  }
+  return (
   <ConversionBeam active={blueprint.beam === 'links'} borderRadius={0} className="flex flex-1 flex-col">
     <div className={className}>
       <div className="grid gap-2.5">
@@ -690,15 +711,15 @@ const ListenLinks: React.FC<{
           <>
             {staged?.sourceLink ? (
               <StreamingLinks
-                links={{ [staged.sourceLink.platform]: staged.sourceLink.url }}
-                captions={{ [staged.sourceLink.platform]: 'Original playlist' }}
+                links={playlistLinks}
+                captions={playlistCaptions}
                 className={cn(!settled && 'motion-safe:animate-focus-in')}
               />
             ) : (
               <Part draft={blueprint.early} order={next()} delay={LINK_DELAY_MS} className={CAPTIONED_LINK_ROW} />
             )}
             {/* CassetteSpotifyCopyLink: the Spotify row that opens Cassette's shared copy. */}
-            {staged?.sourceLink && sharesCassetteSpotifyCopy(staged.sourceLink.platform) && (
+            {staged?.sourceLink && sharesCassetteSpotifyCopy(staged.sourceLink.platform) && !playlistLinks.spotify && (
               <Part draft={blueprint.early} order={next()} delay={LINK_DELAY_MS + LINK_GAP_MS} className={CAPTIONED_LINK_ROW} />
             )}
           </>
@@ -710,10 +731,7 @@ const ListenLinks: React.FC<{
           <TextLine draft={blueprint.early} order={next()} delay={LINK_DELAY_MS + LINK_GAP_MS} box="h-5" bar="h-3 w-36" />
           <TextLine draft={blueprint.early} order={next()} delay={LINK_DELAY_MS + LINK_GAP_MS} box="mt-0.5 h-4" bar="h-2.5 w-3/5" />
           <div className="mt-3 grid gap-2.5">
-            {playlistCopyTargets(
-              staged?.sourceLink?.platform,
-              staged?.sourceLink ? { [staged.sourceLink.platform]: staged.sourceLink.url } : {},
-            ).map((platform, i) => (
+            {playlistCopyTargets(staged?.sourceLink?.platform, playlistLinks).map((platform, i) => (
                 <Part
                   key={platform}
                   draft={blueprint.early}
@@ -727,7 +745,8 @@ const ListenLinks: React.FC<{
       )}
     </div>
   </ConversionBeam>
-);
+  );
+};
 
 /** Who shared the post (PostAuthorHeader and PostEngagementBar). */
 const AuthorRow: React.FC<{ blueprint: Blueprint; next: () => number }> = ({ blueprint, next }) => {

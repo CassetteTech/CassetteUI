@@ -4,7 +4,6 @@ import { type RefObject, useEffect, useMemo, useRef } from "react"
 import { type ChartContextValue, useChart } from "./chart-context"
 import {
   backingSize,
-  bloomLayerStyle,
   easeInOutCubic,
   paintColumn,
   prefersReducedMotion,
@@ -17,7 +16,6 @@ type Surface = { top: number[]; floor: number[] }
 
 type LoopArgs = {
   canvas: HTMLCanvasElement
-  bloomCanvas: HTMLCanvasElement | null
   cols: number
   rows: number
   state: RefObject<ChartContextValue>
@@ -27,7 +25,6 @@ type LoopArgs = {
 
 function startCartesianLoop({
   canvas,
-  bloomCanvas,
   cols,
   rows,
   state,
@@ -45,35 +42,22 @@ function startCartesianLoop({
   const octx = off.getContext("2d")
   if (!octx) return undefined
 
-  // Bloom layer: a blurred, additive copy of the crisp canvas.
-  const bloomCtx = bloomCanvas?.getContext("2d") ?? null
-  if (bloomCanvas) {
-    bloomCanvas.width = cols
-    bloomCanvas.height = rows
-  }
-
   const reduce = prefersReducedMotion()
   const EASE = reduce ? 1 : 0.18
   const animate = state.current.animate && !reduce
-  const duration = state.current.animationDuration
+  const duration = 900
   const current: Record<string, Surface> = {}
 
   const paintFill = (intensity: number, reveal: number) => {
     octx.clearRect(0, 0, cols, rows)
     const s = state.current
-    const stacked = s.stackType === "stacked" || s.stackType === "percent"
     const revealCols = Math.ceil(reveal * cols)
     s.configKeys.forEach((key, si) => {
       const cur = current[key]
       if (!cur) return
       const seed = s.seedOf(key)
-      const variant = s.seriesSpecs[key]?.variant ?? "gradient"
-      const isLine =
-        (s.seriesSpecs[key]?.kind ??
-          (s.chartType === "line" ? "line" : "area")) === "line"
-      const emphasis = s.selectedDataKey ?? s.focusDataKey
-      const dim = emphasis !== null && emphasis !== key ? 0.3 : 1
-      const sparse = stacked ? 0 : si * 0.14
+      const variant = s.variants[key] ?? "gradient"
+      const sparse = si * 0.14
       for (let x = 0; x < cols; x++) {
         if (x > revealCols) break
         const a = cur.top[x] ?? 0
@@ -81,8 +65,6 @@ function startCartesianLoop({
         paintColumn(octx, x, Math.min(a, b), Math.max(a, b), seed, {
           variant,
           intensity,
-          dim,
-          stacked: stacked && !isLine,
           sparse,
         })
       }
@@ -95,39 +77,23 @@ function startCartesianLoop({
   let animStart = 0
   let lastProg = -1
   let lastRevision = state.current.revision
-  let entranceReported = !animate
   let intensity = 0
   let needsFill = true
   let lastPaintSig = ""
-  let lastSelected: string | null | undefined = Symbol() as never
 
   const draw = (now: number) => {
     raf = requestAnimationFrame(draw)
     const s = state.current
     if (!s.ready) return
-    // Keep the bloom layer in sync with the crisp canvas while it's active.
-    if (bloomCtx) {
-      const on =
-        s.bloom !== "off" && (!s.bloomOnHover || s.isMouseInChart || s.hovered)
-      if (on) {
-        bloomCtx.clearRect(0, 0, cols, rows)
-        bloomCtx.drawImage(canvas, 0, 0)
-      }
-    }
     const tgt = targets.current
     if (s.revision !== lastRevision) {
       lastRevision = s.revision
       animStart = 0
       lastProg = -1
-      entranceReported = false
     }
     if (!animStart) animStart = now
     const prog = animate ? Math.min(1, (now - animStart) / duration) : 1
     const progChanged = prog !== lastProg
-    if (prog >= 1 && !entranceReported) {
-      entranceReported = true
-      s.markEntranceDone()
-    }
 
     let moving = false
     for (const key of s.configKeys) {
@@ -159,13 +125,8 @@ function startCartesianLoop({
       }
     }
     if (moving) needsFill = true
-    const emphasisNow = s.selectedDataKey ?? s.focusDataKey
-    if (emphasisNow !== lastSelected) {
-      lastSelected = emphasisNow
-      needsFill = true
-    }
 
-    const itTarget = s.isMouseInChart || s.hovered ? 1 : 0
+    const itTarget = s.isMouseInChart ? 1 : 0
     let settling = false
     if (Math.abs(intensity - itTarget) > 0.001) {
       intensity += (itTarget - intensity) * 0.16
@@ -173,15 +134,11 @@ function startCartesianLoop({
       needsFill = true
     } else intensity = itTarget
 
-    // Live hover wins; the controlled markerIndex (e.g. a committed point)
-    // is the fallback shown when nothing is hovered.
-    const marker = s.hoverIndex != null ? s.hoverIndex : s.markerIndex
+    const marker = s.hoverIndex
     const winkDue = !reduce && now - last >= 100
-    // Repaint when a tweak-driven paint input changes (variant, stacking) so
-    // the panel updates the fill live — without resetting the entrance reveal.
-    const paintSig = `${s.stackType}|${s.configKeys
-      .map((k) => s.seriesSpecs[k]?.variant ?? "")
-      .join(",")}`
+    // Repaint when a series registers its variant, without resetting the
+    // entrance reveal.
+    const paintSig = s.configKeys.map((k) => s.variants[k] ?? "").join(",")
     const sigChanged = paintSig !== lastPaintSig
     if (sigChanged) {
       lastPaintSig = paintSig
@@ -265,32 +222,26 @@ function startCartesianLoop({
 }
 
 export function CartesianCanvas() {
-  const ctx = useChart()
+  const ctx = useChart("AreaChart")
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const bloomRef = useRef<HTMLCanvasElement>(null)
 
   const { width, height } = ctx.plot
   const { cols, rows } = backingSize(width, height)
-  const { ready, chartType, configKeys, bands, seriesSpecs, y, dataLength } = ctx
+  const { ready, configKeys, bands, y, dataLength } = ctx
 
   const targets = useMemo(() => {
     const out: Record<string, Surface> = {}
     if (!ready) return out
     const h = height || 1
-    const glow = Math.max(6, Math.round(rows * 0.16))
-    const defaultKind = chartType === "line" ? "line" : "area"
     for (const key of configKeys) {
       const band = bands[key]
       if (!band) continue
-      const line = (seriesSpecs[key]?.kind ?? defaultKind) === "line"
       const top = band.map((b) => (y(b[1]) / h) * (rows - 1))
-      const floor = band.map((b, i) =>
-        line ? Math.min(rows - 1, top[i] + glow) : (y(b[0]) / h) * (rows - 1)
-      )
+      const floor = band.map((b) => (y(b[0]) / h) * (rows - 1))
       out[key] = { top: resample(top, cols), floor: resample(floor, cols) }
     }
     return out
-  }, [ready, chartType, configKeys, bands, seriesSpecs, y, height, rows, cols])
+  }, [ready, configKeys, bands, y, height, rows, cols])
 
   const stars = useMemo(() => {
     const out: Star[] = []
@@ -323,7 +274,6 @@ export function CartesianCanvas() {
     if (!canvas) return
     return startCartesianLoop({
       canvas,
-      bloomCanvas: bloomRef.current,
       cols,
       rows,
       state: stateRef,
@@ -332,33 +282,17 @@ export function CartesianCanvas() {
     })
   }, [cols, rows])
 
-  const bloomActive = ctx.bloomOnHover
-    ? ctx.isMouseInChart || ctx.hovered
-    : true
-  const bloom = bloomLayerStyle(ctx.bloom, bloomActive)
-  const pos = {
-    left: ctx.margins.left,
-    top: ctx.margins.top,
-    width,
-    height,
-  } as const
-
   return (
-    <>
-      <canvas
-        ref={canvasRef}
-        className="pointer-events-none absolute"
-        style={{ ...pos, imageRendering: "pixelated" }}
-      />
-      <canvas
-        ref={bloomRef}
-        className="pointer-events-none absolute"
-        style={{
-          ...pos,
-          transition: "opacity 220ms ease",
-          ...(bloom ?? { opacity: 0 }),
-        }}
-      />
-    </>
+    <canvas
+      ref={canvasRef}
+      className="pointer-events-none absolute"
+      style={{
+        left: ctx.margins.left,
+        top: ctx.margins.top,
+        width,
+        height,
+        imageRendering: "pixelated",
+      }}
+    />
   )
 }

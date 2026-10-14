@@ -31,12 +31,11 @@ export function ProfileTabs({
   }, [activeTab]);
 
   return (
-    // SAFETY: every trigger value below is a TabType, so Radix only ever reports one.
     // Manual activation: each tab change rewrites the URL and fetches, so arrow keys
     // move focus and Enter or Space selects.
     <Tabs
       value={activeTab}
-      onValueChange={(next) => onTabChange(next as TabType)}
+      onValueChange={(next) => onTabChange(next === 'liked' ? 'liked' : 'music')}
       activationMode="manual"
       className="gap-0 px-3 pt-3 sm:px-4 sm:pt-4 lg:px-6 lg:pt-5"
     >

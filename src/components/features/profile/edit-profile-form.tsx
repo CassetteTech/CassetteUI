@@ -230,8 +230,8 @@ export function EditProfileFormComponent({ initialData, onSuccess }: EditProfile
     const normalizedUsername = normalizeUsername(data.username);
 
     const enteredLinks = links.map((l) => l.trim()).filter((l) => l.length > 0);
-    const normalizedLinks = enteredLinks.map(normalizeProfileLink);
-    if (normalizedLinks.some((l) => l === null)) {
+    const profileLinks = enteredLinks.map(normalizeProfileLink).filter((l) => l !== null);
+    if (profileLinks.length !== enteredLinks.length) {
       setLinksError('Each link must be a valid web address (e.g. instagram.com/yourname).');
       selectTab('profile');
       return;
@@ -264,8 +264,7 @@ export function EditProfileFormComponent({ initialData, onSuccess }: EditProfile
         avatarUrl: avatarFile ? undefined : data.avatarUrl,
         avatarFile,
         likedPostsPrivacy: data.likedPostsPrivacy,
-        // SAFETY: the null check above returned early, so every entry is a string.
-        profileLinks: normalizedLinks as string[],
+        profileLinks,
       });
 
       await authService.refreshSession({ restart: true });
@@ -330,8 +329,7 @@ export function EditProfileFormComponent({ initialData, onSuccess }: EditProfile
       <form onSubmit={handleSubmit(onSubmit, () => selectTab('profile'))}>
         <Tabs
           value={tab}
-          // SAFETY: the only trigger values are 'profile' and 'account'.
-          onValueChange={(next) => selectTab(next as SettingsTab)}
+          onValueChange={(next) => selectTab(next === 'account' ? 'account' : 'profile')}
           className="gap-0"
         >
           <TabsList

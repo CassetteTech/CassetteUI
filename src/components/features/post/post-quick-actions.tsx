@@ -1,6 +1,7 @@
 'use client';
 
-/** Right-click quick actions for a post card in a list: open, share, and owner visibility, edit, delete. */
+/** Right-click quick actions for a post card in a list: open, share, and, for the owner in Studio
+    Music, visibility, edit, delete. The public page passes no owner, also to the owner. */
 
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -30,14 +31,14 @@ interface PostQuickActionsProps {
   href: string;
   onShare: () => void;
   isOwner: boolean;
-  privacy: string | undefined;
+  privacy?: string;
   /** Which visibilities this list can show; a list that only ever renders public and members-only omits private. */
-  visibilities: readonly QuickVisibility[];
-  canLockPosts: boolean;
+  visibilities?: readonly QuickVisibility[];
+  canLockPosts?: boolean;
   /** Saves a new setting the caller's way; without it, the menu saves the setting itself. */
   onVisibilityChange?: (next: QuickVisibility) => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   children: React.ReactNode;
 }
 
@@ -48,8 +49,8 @@ export function PostQuickActions({
   onShare,
   isOwner,
   privacy,
-  visibilities,
-  canLockPosts,
+  visibilities = [],
+  canLockPosts = false,
   onVisibilityChange,
   onEdit,
   onDelete,

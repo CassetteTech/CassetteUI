@@ -30,7 +30,7 @@ import {
   appNavOrder,
   getOrderedNavItems,
   isNavItemActive,
-  isOwnProfilePath,
+  isStudioPath,
   promoteNavOrder,
   resolveNavHref,
   type NavigationItemDefinition,
@@ -233,7 +233,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
           // Add music and the first page row, against 20 px above it: Add music leads the pages.
           <SidebarGroup className="pb-1">
             <SidebarGroupContent className="space-y-5">
-              <SidebarAccountRow user={user} active={isOwnProfilePath(pathname, user)} />
+              <SidebarAccountRow user={user} active={isStudioPath(pathname)} />
               {/* Adding music is the main action, not a place: a full-width ink button with a page
                   row's box, outside the page rows' menu, so it never takes the active marker. Ink,
                   not brand red, so it never doubles the red Add music in the Studio header. */}

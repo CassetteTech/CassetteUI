@@ -39,8 +39,8 @@ test('hides Boost discovery while sales are closed and keeps the direct page', a
   await ownedCampaigns;
   await expect(page.getByText('Make music?')).toHaveCount(0);
   await expect(promoteLinks(page)).toHaveCount(0);
-  // The signed-in pill only links to the profile; the account routes live in the sidebar and the menu.
-  await expect(page.getByTestId('navbar-profile-link')).toHaveAttribute('href', `/profile/${fixtureUsers.member.username}`);
+  // The signed-in pill only opens Curator Studio; the account routes live in the sidebar and the menu.
+  await expect(page.getByTestId('navbar-account-link')).toHaveAttribute('href', '/studio');
 
   await visit(page, '/explore');
   await expect(page.locator('footer').last()).toContainText('Release Notes');

@@ -2,7 +2,9 @@
 
 /** Renders the canonical public profile: one structure for every account. Music lists the
     account's posts, narrowed by list tabs, and Liked lists what it liked. A curator page adds its
-    membership offer and locked posts; the pass in the rail is the only other difference. */
+    membership offer and locked posts; the pass in the rail is the only other difference. The owner
+    sees the same page as a read-only preview, under a strip that leads back to Curator Studio,
+    where every owner tool lives. */
 
 import { useEffect, useState, useCallback, useMemo, type ComponentProps } from 'react';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -10,7 +12,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
 import { useUserBio, useUserLikedPosts } from '@/hooks/use-profile';
 import { ProfileHeader } from '@/components/features/profile/profile-header';
-import { ProfileOwnerBar } from '@/components/features/profile/profile-owner-bar';
+import { ProfilePreviewStrip } from '@/components/features/profile/profile-preview-strip';
 import { ProfileIdentityPass, ProfileSummary } from '@/components/features/profile/profile-identity-pass';
 import { ProfileHeaderSkeleton } from '@/components/features/profile/profile-header-skeleton';
 import { ProfileTabs, type TabType } from '@/components/features/profile/profile-tabs';
@@ -34,7 +36,7 @@ import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { PublicCuratorPage } from '@/components/features/curator/curator-page';
 import { CuratorFollowConfirmation, CuratorFollowContext } from '@/components/features/curator/curator-follow-action';
-import { useCuratorPage, useSubscriberPostEligibility } from '@/hooks/use-curator';
+import { useCuratorPage } from '@/hooks/use-curator';
 import { useCuratorFollow } from '@/hooks/use-curator-follow';
 import { toast } from 'sonner';
 import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
@@ -96,8 +98,6 @@ export default function ProfilePage() {
     (userBio?.likedPostsPrivacy
       ? userBio.likedPostsPrivacy === 'public'
       : userBio?.showLikedPosts !== false);
-  const likedTabVisibility: 'public' | 'private' =
-    userBio?.likedPostsPrivacy || userBio?.likedPostsVisibility || (userBio?.showLikedPosts === false ? 'private' : 'public');
 
   // The tab and the Music view live in the URL. A Liked link waits for the bio before it decides.
   const tabParam = searchParams.get('tab');
@@ -171,7 +171,6 @@ export default function ProfilePage() {
     applyCachedArtwork((plainMusic.data?.pages ?? []).flatMap((page) => page.items))
       .map((post) => ({ kind: 'post', post })),
   [plainMusic.data]);
-  const canLockPlainPosts = useSubscriberPostEligibility(isCurrentUser && noCuratorPage);
 
   const likedPostsUserId = userBio?.id || (isEditMode && user ? user.id : undefined);
   const {
@@ -253,10 +252,6 @@ export default function ProfilePage() {
     });
   }, [userBio, user]);
 
-  const handleAddMusic = useCallback(() => {
-    router.push('/studio/music/new');
-  }, [router]);
-
   // Compute loading states
   const showHeaderSkeleton = isLoadingBio && !userBio;
 
@@ -329,8 +324,6 @@ export default function ProfilePage() {
   // the profile pass there.
   const curatorMusic = !isLikedTab && !noCuratorPage;
   const showMembershipRail = curatorMusic && Boolean(curatorPage?.membership);
-  // A page that sells no membership offers its owner the setup from the profile pass.
-  const offersMembershipSetup = curatorPage?.viewer.isOwner === true && !curatorPage.membership;
   let content;
   if (isLikedTab) {
     content = (isLoadingBio || isLoadingLikedActivity) && likedPosts.length === 0 ? (
@@ -349,7 +342,6 @@ export default function ProfilePage() {
         ownerAccountType={userBio?.accountType}
         ownerUsername={userBio?.username}
         isCurrentUser={isCurrentUser}
-        currentUserId={user?.id}
       />
     );
   } else if (noCuratorPage) {
@@ -364,7 +356,6 @@ export default function ProfilePage() {
         loadingMore={plainMusic.isFetchingNextPage}
         onLoadMore={() => void plainMusic.fetchNextPage()}
         isOwner={isCurrentUser}
-        canLockPosts={canLockPlainPosts}
         displayName={userBio.displayName || userBio.username}
         ownerUsername={userBio.username}
         ownerAccountType={userBio.accountType}
@@ -391,6 +382,10 @@ export default function ProfilePage() {
   return (
     <CuratorFollowContext.Provider value={follow}>
     <div className="min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
+      {/* The preview strip frames the whole page for its owner, above the masthead and the tabs. */}
+      {isCurrentUser && userBio && (
+        <ProfilePreviewStrip username={userBio.username} musicView={isLikedTab ? null : musicView} />
+      )}
       <div className="bg-background lg:hidden">
         <div className="mx-auto max-w-4xl">
           {!isCurrentUser && userBio && (
@@ -401,27 +396,17 @@ export default function ProfilePage() {
           {showHeaderSkeleton ? (
             <ProfileHeaderSkeleton />
           ) : userBio ? (
-            <ProfileHeader
-              userBio={userBio}
-              isCurrentUser={isCurrentUser}
-              onShare={handleShare}
-              shareCopied={shareLinkCopied}
-              onAddMusic={isCurrentUser ? handleAddMusic : undefined}
-            />
+            <ProfileHeader userBio={userBio} onShare={handleShare} shareCopied={shareLinkCopied} />
           ) : null}
         </div>
       </div>
-      {/* Tab strip and owner bar run edge to edge, above the content and the rail alike. */}
+      {/* The tab strip runs edge to edge, above the content and the rail alike. */}
       <ProfileTabStrip
         showBack={!isCurrentUser && Boolean(userBio)}
         activeTab={activeTab}
         onTabChange={changeTab}
         showLikedTab={likedSectionVisible}
-        likedTabVisibility={isCurrentUser ? likedTabVisibility : undefined}
       />
-      {isCurrentUser && userBio && (
-        <ProfileOwnerBar username={userBio.username} musicView={isLikedTab ? null : musicView} />
-      )}
       {/* Same right rail as Curator Studio; the pass slides between the two pages' spots. */}
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:px-8 lg:pt-6 lg:pb-10">
         <div className="min-w-0 px-4 py-6 sm:px-6 lg:p-0">
@@ -441,7 +426,6 @@ export default function ProfilePage() {
           {userBio && !showMembershipRail && (
             <ProfileIdentityPass
               user={userBio}
-              offersMembershipSetup={offersMembershipSetup}
               className="hidden lg:block group-has-[.membership-slot:not(:empty)]:hidden"
             />
           )}

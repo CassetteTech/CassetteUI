@@ -479,8 +479,8 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     if (!track || copies === 1) return;
     let laidOut = track.clientWidth > 0;
     const center = () => {
-      // SAFETY: the track renders only the HTML wrapper divs below.
-      const item = (track.children as HTMLCollectionOf<HTMLElement>)[midCopy * n];
+      const item = track.children[midCopy * n];
+      if (!(item instanceof HTMLElement)) return;
       track.scrollLeft = item.offsetLeft + item.offsetWidth / 2 - track.clientWidth / 2;
       render(true);
     };

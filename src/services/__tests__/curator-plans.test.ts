@@ -50,8 +50,7 @@ const draft = {
 } as const;
 
 function requestUrl(input: string | URL | Request): string {
-  // SAFETY: every client function under test calls fetch with a string path.
-  return input as string;
+  return input instanceof Request ? input.url : String(input);
 }
 
 void test('members-only authoring uses the Bridge decision privately and strictly', async (t) => {

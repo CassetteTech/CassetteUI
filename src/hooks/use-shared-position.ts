@@ -82,8 +82,8 @@ function slideFrom(element: HTMLElement, dx: number, dy: number, scale: number) 
 }
 
 function holdCopy(node: HTMLElement, top: number, left: number, width: number) {
-  // SAFETY: a deep clone of an HTMLElement is an HTMLElement of the same tag.
-  const copy = node.cloneNode(true) as HTMLElement;
+  const copy = node.cloneNode(true);
+  if (!(copy instanceof HTMLElement)) return null;
   for (const element of [copy, ...copy.querySelectorAll('[id], [data-testid]')]) {
     element.removeAttribute('id');
     element.removeAttribute('data-testid');

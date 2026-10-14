@@ -19,58 +19,9 @@ import {
 } from '@/utils/platform-normalization';
 import { normalizeSponsoredExplorePlacementEnvelope } from './sponsored-explore-contract';
 
-interface ActivityItemPayload {
-  postId: string;
-  redirectPostId?: string;
-  isRepost?: boolean;
-  originalPostId?: string | null;
-  originalUsername?: string;
-  originalPostOwnerUserId?: string | null;
-  originalPostOwnerUsername?: string | null;
-  originalPostOwnerAvatarUrl?: string | null;
-  originalPostOwnerAccountType?: string | number | null;
-  elementType: string;
-  title: string;
-  name?: string;
-  elementName?: string;
-  elementTitle?: string;
-  artistName?: string;
-  albumName?: string;
-  subtitle?: string;
-  description?: string;
-  caption?: string;
-  imageUrl?: string;
-  coverArtUrl?: string;
-  artworkUrl?: string;
-  artwork?: string;
-  image?: string;
-  details?: {
-    coverArtUrl?: string;
-    imageUrl?: string;
-    artworkUrl?: string;
-    artwork?: string;
-    title?: string;
-    name?: string;
-    artist?: string;
-    album?: string;
-    description?: string;
-    caption?: string;
-  };
-  metadata?: {
-    artwork?: string;
-  };
-  platforms?: Record<string, { artworkUrl?: string; imageUrl?: string; coverArtUrl?: string }>;
-  username: string;
-  userId?: string;
-  createdAt: string;
-  privacy?: PostPrivacy;
-  conversionSuccessCount?: number;
-  likeCount?: number;
-  likedByCurrentUser?: boolean;
-  commentsEnabled?: boolean;
-  accountType?: string | number;
-  [key: string]: unknown;
-}
+const activityItemPayloadSchema = z.record(z.string(), z.unknown());
+
+type ActivityItemPayload = z.infer<typeof activityItemPayloadSchema>;
 
 interface ActivityApiResponse {
   items?: ActivityItemPayload[];
@@ -106,7 +57,7 @@ const feedCount = z.number().int().nonnegative();
 // field on it would carry the post's content to a viewer without access.
 const curatorFeedPageSchema = z.object({
   items: z.array(z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('post'), post: z.record(z.string(), z.unknown()) }).strict(),
+    z.object({ kind: z.literal('post'), post: activityItemPayloadSchema }).strict(),
     z.object({
       kind: z.literal('locked'),
       postId: z.string().min(1),
@@ -388,8 +339,7 @@ export class ProfileService {
 
     const sourceItems = json.items ?? json.data ?? json.Items ?? json.Data ?? [];
     const items: ActivityPost[] =
-      sourceItems.map((item) => {
-        const itemObj = item as Record<string, unknown>;
+      sourceItems.map((itemObj) => {
         const detailsObj = asObject(itemObj.details);
         const metadataObj = asObject(itemObj.metadata);
         const originalPostObj = asObject(itemObj.originalPost) || asObject(itemObj.OriginalPost);
@@ -540,7 +490,7 @@ export class ProfileService {
     }
 
     const post = this.mapActivityResponse(
-      { items: [envelope.postPayload as ActivityItemPayload] },
+      { items: [envelope.postPayload] },
       1,
       1,
     ).items[0];
@@ -727,8 +677,7 @@ export class ProfileService {
     }
     const { items, nextCursor, activeMembershipCount, feedCuratorCount } = parsed.data;
     const posts = this.mapActivityResponse(
-      // SAFETY: each post is an object; mapActivityResponse reads every field defensively.
-      { items: items.flatMap((item) => (item.kind === 'post' ? [item.post as ActivityItemPayload] : [])) },
+      { items: items.flatMap((item) => (item.kind === 'post' ? [item.post] : [])) },
       1,
       pageSize,
     ).items;

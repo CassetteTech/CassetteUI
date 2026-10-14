@@ -679,6 +679,18 @@ export interface FailedTrack {
   ambiguous?: boolean;
 }
 
+export interface PostResponseTrack {
+  title?: string;
+  duration?: string;
+  trackNumber?: number;
+  artist?: string;
+  artists?: string[];
+  previewUrl?: string | null;
+  isrc?: string;
+  spotifyTrackId?: string;
+  appleMusicTrackId?: string;
+}
+
 export interface PostByIdResponse {
   success: boolean;
   postId: string;
@@ -689,6 +701,9 @@ export interface PostByIdResponse {
   isRepost?: boolean;
   originalPostId?: string | null;
   repostedByCurrentUser?: boolean;
+  RepostedByCurrentUser?: boolean;
+  isRepostedByCurrentUser?: boolean;
+  IsRepostedByCurrentUser?: boolean;
   elementType: string;
   musicElementId: string;
   userId?: string | null;
@@ -711,7 +726,7 @@ export interface PostByIdResponse {
     previewUrl?: string;
     releaseDate?: string | null;
     trackCount?: number;
-    tracks?: unknown[];
+    tracks?: PostResponseTrack[];
   };
   metadata?: {
     duration?: string;
@@ -735,6 +750,11 @@ export interface PostByIdResponse {
   description?: string;
   username?: string;
   originalLink?: string;
+  sourceUrl?: string;
+  name?: string;
+  imageUrl?: string;
+  numberOfTracks?: number;
+  tracks?: PostResponseTrack[];
 }
 
 export interface PublicPostPageMetadata {

@@ -1,6 +1,6 @@
-/** Verifies the Studio Overview starts from music for every account: recent posts with their row
-    tools, one next step at a time, the membership invitation above the section links, and the pass
-    visitors see in the rail, with the audience and the latest activity under it. */
+/** Verifies Curator Studio opens on Music for every account: the membership invitation above the
+    section links, one next step at a time above the music once a plan is live, the earnings at the
+    top of Membership, and the pass visitors see in the rail with the audience under it. */
 
 import { expect, test, type Locator } from '@playwright/test';
 import type { CuratorProfile } from '../src/services/curator';
@@ -54,22 +54,20 @@ const ownPosts = (count: number, overrides: (index: number) => Partial<FixturePo
     ...overrides(index),
   }));
 
-test('shows the five newest posts with their tools, one invitation, and the profile pass', async ({ page }) => {
+test('opens on Music with one invitation and the profile pass', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: fixtureUsers.member, posts: ownPosts(7) });
 
   await page.goto('/studio');
 
-  const recent = page.locator('#studio-recent-music');
-  await expect(recent.getByRole('heading', { name: 'Recent music' })).toBeVisible();
-  await expect(recent.locator('[data-post-id]')).toHaveCount(5);
-  await expect(recent.locator('[data-post-id]').first()).toContainText('Overview Track 1');
-  await expect(recent.getByRole('button', { name: /^Who can open Overview Track 1/ })).toBeVisible();
-  await expect(recent.getByRole('link', { name: 'All music' })).toHaveAttribute('href', '/studio/music');
-  // A post opened from the Overview returns to it.
-  await expect(recent.getByRole('link', { name: 'Overview Track 1' }).first())
-    .toHaveAttribute('href', /from=%2Fstudio$/);
+  await expect(page).toHaveURL('/studio/music');
+  const music = page.locator('#studio-music');
+  await expect(music.getByRole('heading', { name: 'Music', exact: true })).toBeVisible();
+  await expect(music.locator('[data-post-id]')).toHaveCount(7);
+  await expect(page.getByRole('heading', { name: 'Recent music' })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Studio sections' }).getByRole('link', { name: 'Overview' }))
+    .toHaveCount(0);
 
-  // The one membership invitation sits above the section links, not in the Overview's column.
+  // The one membership invitation sits above the section links.
   const invitation = page.getByRole('region', { name: 'Earn from your music' });
   await expect(invitation).toBeVisible();
   expect((await box(invitation)).y).toBeLessThan((await box(page.getByRole('navigation', { name: 'Studio sections' }))).y);
@@ -98,7 +96,7 @@ test('keeps the membership invitation above the section links on every view', as
   const links = page.getByRole('navigation', { name: 'Studio sections' });
   await expect(invitation).toBeVisible();
   const linksTop = (await box(links)).y;
-  for (const view of ['studio-music', 'studio-membership', 'studio-billing', 'studio-overview']) {
+  for (const view of ['studio-membership', 'studio-billing', 'studio-music']) {
     await openStudioStep(page, view);
     await expect(invitation).toBeVisible();
     expect((await box(links)).y).toBe(linksTop);
@@ -112,7 +110,7 @@ test('keeps the membership invitation above the section links on every view', as
   await expect(page.getByTestId('curator-plan-card').getByLabel('Plan name')).toBeFocused();
 });
 
-test('a live plan shows its pass on every view, and earnings lead the music', async ({ page }) => {
+test('a live plan shows its pass on every view, and earnings lead Membership', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     posts: ownPosts(2, (index) => (index === 0 ? { privacy: 'subscriber' } : {})),
@@ -123,16 +121,19 @@ test('a live plan shows its pass on every view, and earnings lead the music', as
 
   await page.goto('/studio');
 
-  await expect(page.getByRole('heading', { name: 'Earned' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Recent music' })).toBeVisible();
-  const earned = await page.getByRole('heading', { name: 'Earned' }).boundingBox();
-  const music = await page.getByRole('heading', { name: 'Recent music' }).boundingBox();
-  expect(music!.y).toBeGreaterThan(earned!.y);
+  await expect(page.locator('#studio-music [data-post-id]')).toHaveCount(2);
+  await expect(page.getByRole('heading', { name: 'Earned' })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Earn from your music' })).toHaveCount(0);
-
   await expect(page.getByTestId('curator-plan-preview')).toBeVisible();
   await expect(page.getByTestId('profile-identity-pass')).toHaveCount(0);
-  await openStudioStep(page, 'studio-music');
+
+  // The earnings figure and its chart come first on Membership, above the members.
+  await openStudioStep(page, 'studio-membership');
+  const earned = page.getByRole('heading', { name: 'Earned' });
+  await expect(earned).toBeVisible();
+  const members = page.getByRole('heading', { name: 'Active members', exact: true });
+  await expect(members).toBeVisible();
+  expect((await box(members)).y).toBeGreaterThan((await box(earned)).y);
   await expect(page.getByTestId('curator-plan-preview')).toBeVisible();
 });
 
@@ -147,7 +148,7 @@ const ledgerItems = (count: number): CuratorEarningsHistoryItem[] =>
     payableAtUtc: daysAgo(index - 13),
   }));
 
-test('puts the audience and the latest activity in the rail under the pass', async ({ page }) => {
+test('puts the audience under the pass on every view, and keeps the activity on Membership', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     posts: ownPosts(2),
@@ -166,33 +167,26 @@ test('puts the audience and the latest activity in the rail under the pass', asy
 
   const pass = page.getByTestId('curator-plan-preview');
   const audience = page.getByRole('region', { name: 'Audience' });
-  const activity = page.getByRole('region', { name: 'Latest activity' });
   await expect(audience.getByRole('button', { name: 'Members 37', exact: true })).toBeVisible();
   await expect(audience).toContainText('214');
-  // The five newest events, newest first.
-  await expect(activity.getByRole('listitem')).toHaveCount(5);
-  await expect(activity.getByRole('listitem').first()).toContainText('New member earning');
-  await expect(activity.getByRole('listitem').first()).toContainText('$4.25');
+  await expect(page.getByRole('region', { name: 'Latest activity' })).toHaveCount(0);
 
-  // Pass, audience, activity, top to bottom in the rail, beside the main column.
-  const passBox = await box(pass);
-  const audienceBox = await box(audience);
-  const activityBox = await box(activity);
-  const musicBox = await box(page.locator('#studio-recent-music'));
-  expect(audienceBox.y).toBeGreaterThanOrEqual(passBox.y + passBox.height);
-  expect(activityBox.y).toBeGreaterThanOrEqual(audienceBox.y + audienceBox.height);
-  expect(audienceBox.x).toBeGreaterThanOrEqual(musicBox.x + musicBox.width);
-  expect(Math.abs(audienceBox.x - passBox.x)).toBeLessThanOrEqual(1);
+  for (const view of ['studio-music', 'studio-membership', 'studio-billing']) {
+    await openStudioStep(page, view);
+    // Pass, then audience, in the rail beside the main column.
+    const passBox = await box(pass);
+    const audienceBox = await box(audience);
+    expect(audienceBox.y).toBeGreaterThanOrEqual(passBox.y + passBox.height);
+    expect(Math.abs(audienceBox.x - passBox.x)).toBeLessThanOrEqual(1);
+  }
 
-  // View all opens the full statement on Membership and moves focus into it.
-  await activity.getByRole('button', { name: 'View all' }).click();
+  // Members opens the full statement on Membership and moves focus into it.
+  await openStudioStep(page, 'studio-music');
+  await audience.getByRole('button', { name: 'Members 37', exact: true }).click();
   await expect(page).toHaveURL('/studio/membership');
-  await expect(page.getByTestId('curator-earnings-card')).toBeVisible();
+  await expect(page.getByTestId('curator-earnings-card')).toContainText('New member earning');
   await expect.poll(() => page.evaluate(() =>
     document.getElementById('studio-members')?.contains(document.activeElement) ?? false)).toBe(true);
-  // The Overview's side column stays on the Overview.
-  await expect(page.getByRole('region', { name: 'Audience' })).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'Latest activity' })).toHaveCount(0);
 });
 
 test('holds the audience while the pass loads, so the pass never pushes it down', async ({ page }) => {
@@ -214,23 +208,22 @@ test('holds the audience while the pass loads, so the pass never pushes it down'
 
   await page.goto('/studio');
 
-  await expect(page.getByRole('heading', { name: 'Earned' })).toBeVisible();
-  // The audience is read on time and is in the page, but waits hidden while the slot above it is empty.
+  await expect(page.locator('#studio-music [data-post-id]')).toHaveCount(2);
+  // The audience is read on time and is in the rail, but waits hidden while the slot above it is empty.
   await expect.poll(() => state.curatorAudienceRequests).toBeGreaterThan(0);
-  const hiddenAudience = page.locator('section[aria-label="Audience"]');
-  await expect(hiddenAudience).toBeAttached();
-  await expect(hiddenAudience).toBeHidden();
+  const railAudience = page.locator('aside + div section[aria-label="Audience"]');
+  await expect(railAudience).toBeAttached();
+  await expect(railAudience).toBeHidden();
 
   release();
   const pass = page.getByTestId('curator-plan-preview');
-  const audience = page.getByRole('region', { name: 'Audience' });
   await expect(pass).toBeVisible();
-  await expect(audience.getByRole('button', { name: 'Members 3', exact: true })).toBeVisible();
+  await expect(railAudience.getByRole('button', { name: 'Members 3', exact: true })).toBeVisible();
   const passBox = await box(pass);
-  expect((await box(audience)).y).toBeGreaterThanOrEqual(passBox.y + passBox.height);
+  expect((await box(railAudience)).y).toBeGreaterThanOrEqual(passBox.y + passBox.height);
 });
 
-test('says the activity is unavailable when the ledger read fails, never that nothing happened', async ({ page }) => {
+test('says the earnings are unavailable when the ledger read fails, never that nothing was earned', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     posts: ownPosts(1),
@@ -241,14 +234,13 @@ test('says the activity is unavailable when the ledger read fails, never that no
   await page.route((url) => url.pathname === '/api/v1/curators/me/earnings', (route) =>
     route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"unavailable"}' }));
 
-  await page.goto('/studio');
+  await page.goto('/studio/membership');
 
-  const activity = page.getByRole('region', { name: 'Latest activity' });
-  await expect(activity.getByText('Activity is unavailable right now.')).toBeVisible({ timeout: 15_000 });
-  await expect(activity.getByText(/Activity shows up here/)).toHaveCount(0);
+  await expect(page.getByText('Earnings are unavailable right now. Try again in a moment.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/No earnings/)).toHaveCount(0);
 });
 
-test('nudges a live curator whose members have had no new members-only post for 14 days', async ({ page }) => {
+test('nudges a live curator above the music when members have had no new members-only post for 14 days', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     posts: ownPosts(2, (index) => (index === 1 ? { privacy: 'subscriber', createdAt: daysAgo(20) } : {})),
@@ -261,11 +253,16 @@ test('nudges a live curator whose members have had no new members-only post for 
 
   const nudge = page.getByRole('status').filter({ hasText: 'No new members-only post in 20 days.' });
   await expect(nudge).toBeVisible();
-  await expect(nudge.getByRole('link', { name: 'Add music' })).toHaveAttribute('href', '/studio/music/new?from=%2Fstudio');
+  expect((await box(nudge)).y).toBeLessThan((await box(page.locator('#studio-music'))).y);
+  await expect(nudge.getByRole('link', { name: 'Add music' }))
+    .toHaveAttribute('href', '/studio/music/new?from=%2Fstudio%2Fmusic');
   await expect(nudge.getByRole('link', { name: 'Choose a public post' }))
     .toHaveAttribute('href', '/studio/music?audience=public');
   // The nudge is the one banner, so sharing waits.
   await expect(page.getByText('Copy your page link to share it with fans.')).toHaveCount(0);
+  // The banner belongs to Music.
+  await openStudioStep(page, 'studio-membership');
+  await expect(nudge).toHaveCount(0);
 });
 
 test('names a live curator with no members-only post yet, and stays quiet without member posts', async ({ page }) => {
@@ -283,7 +280,30 @@ test('names a live curator with no members-only post yet, and stays quiet withou
   // A plan without member posts cannot lock a post, so there is nothing to nudge.
   state.curatorPlans = [{ ...fixtureActiveMemberPostPlan, featureKeys: [] }];
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Earned' })).toBeVisible();
   await expect(page.getByText('Copy your page link to share it with fans.')).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: /members-only post/ })).toHaveCount(0);
+});
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('shows the audience above the music and the pass under it', async ({ page }) => {
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.member,
+      posts: ownPosts(7),
+      curatorProfile,
+      curatorAudience: { audienceCount: 4, activeMemberCount: 0 },
+    });
+
+    await page.goto('/studio');
+
+    const audience = page.getByRole('region', { name: 'Audience' });
+    await expect(audience.getByRole('button', { name: 'Members 0', exact: true })).toBeVisible();
+    const music = page.locator('#studio-music');
+    await expect(music.locator('[data-post-id]')).toHaveCount(7);
+    expect((await box(audience)).y).toBeLessThan((await box(music)).y);
+    const pass = page.getByTestId('profile-identity-pass');
+    await expect(pass).toBeAttached();
+    expect((await box(pass)).y).toBeGreaterThan((await box(music)).y);
+  });
 });

@@ -141,7 +141,7 @@ test('a click that moves a few pixels still opens a tab, and a drag selects no t
     posts: [own('music-playlist', 'Late Night Mix', { elementType: 'Playlist' }), own('music-track', 'Open Track')],
   });
 
-  await page.goto('/studio');
+  await page.goto('/studio/membership');
 
   // Tab links start no browser link drag, so the click still lands.
   const sections = page.getByRole('navigation', { name: 'Studio sections' });
@@ -155,7 +155,7 @@ test('a click that moves a few pixels still opens a tab, and a drag selects no t
   expect(await dragAcross(page, types.getByRole('link', { name: 'All' }), types.getByRole('link', { name: 'Tracks' }))).toBe('');
   expect(await dragAcross(
     page,
-    sections.getByRole('link', { name: 'Overview' }),
+    sections.getByRole('link', { name: 'Music' }),
     sections.getByRole('link', { name: 'Payouts & billing' }),
   )).toBe('');
 });

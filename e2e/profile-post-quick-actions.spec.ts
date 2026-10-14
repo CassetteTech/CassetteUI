@@ -1,4 +1,5 @@
-/** Verifies a curator can right-click a post on their profile for quick actions. */
+/** Verifies the public page offers no owner post tools, also to the owner: the right-click menu has
+    Open post and Share only. The owner edits, deletes, and sets who can open a post in Studio Music. */
 
 import { expect, test } from '@playwright/test';
 import {
@@ -10,7 +11,7 @@ import {
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
-test('locks a post for members from the curator feed right-click menu', async ({ page }) => {
+test('offers the owner only Open post and Share on their curator page', async ({ page }) => {
   const curator = fixtureUsers.playlistCurator;
   const feedPost = fixtureCuratorPage.posts.items.find((item) => item.kind === 'post');
   if (!feedPost || feedPost.kind !== 'post') throw new Error('Curator page fixture has no public post');
@@ -35,51 +36,20 @@ test('locks a post for members from the curator feed right-click menu', async ({
 
   await page.goto(`/profile/${curator.username}`);
   const feed = page.getByTestId('profile-music');
+  await expect(feed.getByRole('button', { name: 'More options' })).toHaveCount(0);
   await feed.getByRole('heading', { name: feedPost.post.title }).click({ button: 'right' });
 
   const menu = page.getByTestId('post-quick-actions');
   await expect(menu).toBeVisible();
-  await menu.getByRole('menuitem', { name: 'Members only' }).click();
+  await expect(menu.getByRole('menuitem')).toHaveText(['Open post', 'Share']);
+  await page.keyboard.press('Escape');
 
-  await expect(page.getByText('Post locked for members.')).toBeVisible();
-  await expect(feed.getByRole('link', { name: new RegExp(feedPost.post.title) }).getByText('Members only', { exact: true })).toBeVisible();
+  // The owner tools are one link away, in Studio.
+  await expect(page.getByTestId('profile-preview-strip').getByRole('link', { name: 'Open Studio' }))
+    .toHaveAttribute('href', '/studio/music');
 });
 
-test('removes a deleted post from the curator feed', async ({ page }) => {
-  const curator = fixtureUsers.playlistCurator;
-  const feedPost = fixtureCuratorPage.posts.items.find((item) => item.kind === 'post');
-  if (!feedPost || feedPost.kind !== 'post') throw new Error('Curator page fixture has no public post');
-
-  await mockCassetteApp(page, {
-    currentUser: curator,
-    posts: [{
-      ...fixturePosts.ownerTrack,
-      postId: feedPost.post.postId,
-      title: feedPost.post.title,
-      ownerId: curator.id,
-      ownerUsername: curator.username,
-    }],
-    curatorPage: {
-      ...fixtureCuratorPage,
-      viewer: { isOwner: true, isMember: false, hasMemberBadge: false },
-      posts: { ...fixtureCuratorPage.posts, items: [feedPost], totalItems: 1 },
-    },
-    curatorProfile: fixtureActiveCuratorProfile,
-    curatorPlans: [fixtureActiveMemberPostPlan],
-  });
-
-  await page.goto(`/profile/${curator.username}`);
-  const feed = page.getByTestId('profile-music');
-  await feed.getByRole('heading', { name: feedPost.post.title }).click({ button: 'right' });
-  await page.getByTestId('post-quick-actions').getByRole('menuitem', { name: 'Delete' }).click();
-  await page.getByRole('button', { name: 'Delete Post' }).click();
-
-  await expect(page.getByText('Post deleted successfully')).toBeVisible();
-  // includeHidden: the closing sheet briefly hides the page from the accessibility tree.
-  await expect(feed.getByRole('heading', { name: feedPost.post.title, includeHidden: true })).toHaveCount(0);
-});
-
-test('makes a post private from the profile music right-click menu, which takes it off the public page', async ({ page }) => {
+test('offers the owner only Open post and Share on a plain profile', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.owner,
     posts: [fixturePosts.ownerTrack],
@@ -93,9 +63,5 @@ test('makes a post private from the profile music right-click menu, which takes 
 
   const menu = page.getByTestId('post-quick-actions');
   await expect(menu).toBeVisible();
-  await menu.getByRole('menuitem', { name: 'Private' }).click();
-
-  await expect(page.getByText('Post visibility updated.')).toBeVisible();
-  // The public page shows what visitors see; the owner keeps private posts in Studio Music.
-  await expect(page.getByRole('link', { name: /Paper Hearts/ })).toHaveCount(0);
+  await expect(menu.getByRole('menuitem')).toHaveText(['Open post', 'Share']);
 });

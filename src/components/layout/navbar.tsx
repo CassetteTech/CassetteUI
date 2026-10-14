@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { isHeroRoute } from './hero-routes';
 import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { NavbarProfileLink } from '@/components/layout/navbar-profile-link';
+import { NavbarAccountLink } from '@/components/layout/navbar-account-link';
 import { useAuthState } from '@/hooks/use-auth';
 import { usePaidPromotionSalesEnabled } from '@/hooks/use-paid-promotion-availability';
 import { ChevronDown, AlertCircle } from 'lucide-react';
@@ -19,7 +19,7 @@ import { NotificationMenu } from './notification-menu';
 import {
   companyNavItems,
   getVisibleNavItems,
-  isOwnProfilePath,
+  isStudioPath,
   resolveNavHref,
 } from './navigation-config';
 
@@ -99,17 +99,6 @@ export function Navbar() {
               />
             </Link>
             
-            {/* A signed-in user's way back to the app from pages without the sidebar, first
-                as in the sidebar. Pages with the sidebar hide this bar from 1024 px. */}
-            {isAuthenticated && (
-              <Link
-                href="/studio"
-                className="hidden lg:inline-flex items-center whitespace-nowrap text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted"
-              >
-                Curator Studio
-              </Link>
-            )}
-
             {/* Desktop links start at 1024 px, where the menu ends, so nothing shows twice. */}
             <div className="hidden lg:block">
               <DropdownMenu>
@@ -180,8 +169,10 @@ export function Navbar() {
               <>
                 <NotificationMenu />
 
+                {/* A signed-in user's way back to Curator Studio from pages without the sidebar.
+                    Pages with the sidebar hide this bar from 1024 px. */}
                 <div className="hidden lg:block">
-                  <NavbarProfileLink />
+                  <NavbarAccountLink />
                 </div>
               </>
             ) : (
@@ -275,12 +266,12 @@ export function Navbar() {
         <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain pt-4 pb-8">
           {/* The bar's container, so the menu lines up with the logo on tablets as on phones. */}
           <div className="container mx-auto px-4 sm:px-6">
-            {/* The account summary links to the own profile, as the sidebar's account row does. */}
+            {/* The account summary opens Curator Studio, as the sidebar's account row does. */}
             {isAuthenticated && user && (
               <Link
-                href={`/profile/${user.username}`}
+                href="/studio"
                 onClick={() => setIsMobileMenuOpen(false)}
-                aria-current={isOwnProfilePath(pathname, user) ? 'page' : undefined}
+                aria-current={isStudioPath(pathname) ? 'page' : undefined}
                 className="mb-4 flex items-center gap-3 border-b border-border/40 pb-4"
                 data-menu-reveal
                 // SAFETY: CSSProperties has no custom-property keys; the value is a plain index.

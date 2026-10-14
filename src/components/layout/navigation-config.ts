@@ -62,11 +62,11 @@ export const companyNavItems: NavigationItemDefinition[] = [
   { key: 'support-us', label: 'Support Us', icon: Heart, href: KOFI_SUPPORT_URL, external: true },
 ];
 
-// The signed-in app's page rows, one order for the desktop sidebar and the phone menu. Curator
-// Studio leads because it is where curators work; Explore leaves the app shell, so it comes after
-// the app's own pages. A visitor sees only the rows that need no account. The account summary
-// links to the own profile and the logo links home, so neither has a row.
-export const appNavOrder = ['curator-studio', 'feed', 'memberships', 'explore', 'internal'] as const;
+// The signed-in app's page rows, one order for the desktop sidebar and the phone menu. Explore
+// leaves the app shell, so it comes after the app's own pages. A visitor sees only the rows that
+// need no account. The account summary opens Curator Studio, the curator's home, and the logo
+// links home, so neither has a row.
+export const appNavOrder = ['feed', 'memberships', 'explore', 'internal'] as const;
 // Both lead to /promote, so a menu shows only the first visible one: Promote while Boost sales
 // are open, then Your Campaigns for a user who still has campaigns.
 export const promoteNavOrder = ['promote', 'campaigns'] as const;
@@ -114,6 +114,11 @@ export function resolveNavHref(item: NavigationItemDefinition, user: NavUser) {
   }
 
   return item.href;
+}
+
+/** Curator Studio and its pages, such as Add music: where the account summary is the active entry. */
+export function isStudioPath(pathname: string | null) {
+  return pathname !== null && (pathname === '/studio' || pathname.startsWith('/studio/'));
 }
 
 export function isOwnProfilePath(pathname: string, user: NavUser) {

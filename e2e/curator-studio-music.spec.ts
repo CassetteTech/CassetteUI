@@ -393,15 +393,16 @@ test('saving the note sheet without a change sends nothing', async ({ page }) =>
   expect(patches).toEqual([]);
 });
 
-test('the profile edit sheet shows the saved comment setting and can turn comments back on', async ({ page }) => {
+test('the edit sheet shows the saved comment setting and can turn comments back on', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: member,
     posts: [own('profile-quiet', 'Quiet Track', { commentsEnabled: false })],
   });
 
-  await page.goto(`/profile/${member.username}?tab=tracks`);
-  await page.getByRole('button', { name: 'More options' }).click();
-  await page.getByRole('menuitem', { name: 'Edit' }).click();
+  // The public page carries no edit sheet, also for the owner; the row's menu in Studio does.
+  await page.goto('/studio/music');
+  await rowOf(page, 'Quiet Track').getByRole('button', { name: 'More actions for Quiet Track' }).click();
+  await page.getByRole('menuitem', { name: 'Edit note' }).click();
   const comments = page.getByRole('switch', { name: 'Allow comments' });
   await expect(comments).toHaveAttribute('aria-checked', 'false');
   await comments.click();
@@ -550,7 +551,7 @@ test('empty views lead to Add music or back to everything', async ({ page }) => 
   await expect(rowOf(page, 'Only Track')).toBeVisible();
 });
 
-test('the public page offers the library at the open type', async ({ page }) => {
+test('the public page preview opens the library at the open type', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: member,
     posts: [own('owner-bar-mix', 'Owner Mix', { elementType: 'Playlist' })],
@@ -558,7 +559,7 @@ test('the public page offers the library at the open type', async ({ page }) => 
 
   await page.goto(`/profile/${member.username}?tab=playlists`);
 
-  await expect(page.getByTestId('profile-owner-bar').getByRole('link', { name: 'Manage in Studio' }))
+  await expect(page.getByTestId('profile-preview-strip').getByRole('link', { name: 'Open Studio' }))
     .toHaveAttribute('href', '/studio/music?type=playlists');
 });
 

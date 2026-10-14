@@ -1,18 +1,20 @@
 'use client';
 
-/** Compact signed-in identity for the sidebar: avatar, name, and handle. The inbox is in the sidebar header. */
+/** Compact signed-in identity for the sidebar: avatar, name, and handle. It opens Curator Studio,
+    the curator's home; the public page is a preview reached from Studio. The inbox is in the
+    sidebar header. */
 
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { AuthUser } from '@/types';
 
-/** active marks the own profile page; the sidebar's sliding indicator follows data-active.
+/** active marks Curator Studio; the sidebar's sliding indicator follows data-active.
     The avatar shares the left edge of the sidebar's page rows. */
 export function SidebarAccountRow({ user, active = false }: { user: AuthUser; active?: boolean }) {
   const name = user.displayName || user.username;
   return (
     <Link
-      href={`/profile/${user.username}`}
+      href="/studio"
       data-active={active}
       aria-current={active ? 'page' : undefined}
       className="flex min-w-0 items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"

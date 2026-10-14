@@ -36,7 +36,6 @@ import { captureClientEvent } from '@/lib/analytics/client';
 import { getDeviceCategory, getUserCohort } from '@/lib/analytics/audience';
 import { Button } from '@/components/ui/button';
 import { CuratorMembershipCard, MEMBERSHIP_OFFER_ID } from '@/components/features/curator/curator-membership-card';
-import { useSubscriberPostEligibility } from '@/hooks/use-curator';
 import { removeQueryParameters, removeQueryParametersFromRouter } from '@/utils/remove-query-parameters';
 import { parseProfileActionIntent } from '@/utils/profile-action-intent';
 import { CarriedActionConfirmation } from '@/components/features/curator/carried-action-confirmation';
@@ -100,8 +99,6 @@ export function PublicCuratorPage({
   const viewerKey = authLoading ? null : (user?.id ?? 'anonymous');
   const query = useCuratorPage(username, viewerKey, curatorPageFilterOf(view));
   const page = query.data?.pages[0];
-  // One shared read for the whole list; React Query dedupes it across cards.
-  const canLockPosts = useSubscriberPostEligibility(page?.viewer.isOwner ?? false);
   const [interval, setBillingInterval] = useState(initialInterval);
   // A Portal change reaches Bridge by webhook, possibly after the fan is back,
   // so a Portal return also polls for a bounded time.
@@ -451,8 +448,9 @@ export function PublicCuratorPage({
 
       <div className="grid gap-6">
         {/* Compact membership summary: mobile-only, sits under the identity header and scrolls to
-            the full offer. Join is reserved for the actual checkout control in the card. */}
-        {page.membership && !page.viewer.isMember && !page.viewer.isOwner && (
+            the full offer. Join is reserved for the actual checkout control in the card. The owner
+            previews it as a visitor does. */}
+        {page.membership && !page.viewer.isMember && (
           <a
             href={`#${membershipId}`}
             data-testid="membership-banner"
@@ -482,9 +480,6 @@ export function PublicCuratorPage({
           loadingMore={query.isFetchingNextPage}
           onLoadMore={() => void query.fetchNextPage()}
           isOwner={page.viewer.isOwner}
-          canLockPosts={canLockPosts}
-          // The page carries only public and members-only posts.
-          visibilities={['public', 'subscriber']}
           displayName={displayName}
           ownerUsername={page.curator.username}
           ownerAccountType={page.curator.accountType}

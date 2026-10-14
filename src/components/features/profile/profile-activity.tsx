@@ -2,9 +2,10 @@
 
 /** The profile's music rows: one hairline row for every type of music, on the Music and Liked
     tabs, plus the locked row a visitor sees for a members-only post. The row is the Studio Music
-    row without the owner tools: the artwork carries the radius, the title carries the link. */
+    row without the owner tools, for the owner too: the public page is what visitors see, and the
+    owner edits, deletes, and sets who can open a post in Studio Music. The artwork carries the
+    radius, the title carries the link. */
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { ActivityPost, AccountType } from '@/types';
@@ -12,25 +13,15 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { VerificationBadge } from '@/components/ui/verification-badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { EditPostModal } from '@/components/features/post/edit-post-modal';
-import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { PostQuickActions } from '@/components/features/post/post-quick-actions';
-import { useSubscriberPostEligibility } from '@/hooks/use-curator';
 import { formatRelativeTime } from '@/lib/utils/format-date';
-import { LockKeyhole, MoreHorizontal, Pencil, Repeat2, Share, Trash2 } from 'lucide-react';
+import { LockKeyhole, Repeat2, Share } from 'lucide-react';
 import type { TabType } from './profile-tabs';
 import { ArtworkImage } from '@/components/ui/artwork-image';
 import { cn } from '@/lib/utils';
 import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { PendingLabel } from '@/components/ui/interior/loading-button';
-import type { OwnerVisibility } from '@/components/features/post/post-visibility';
 
 interface ProfileActivityProps {
   posts: ActivityPost[];
@@ -40,8 +31,8 @@ interface ProfileActivityProps {
   hasMore?: boolean;
   ownerAccountType?: AccountType | number | string;
   ownerUsername?: string;
+  /** The owner's own view: changes only the empty copy, never the rows. */
   isCurrentUser?: boolean;
-  currentUserId?: string;
 }
 
 const TAB_LABELS = {
@@ -58,11 +49,7 @@ export function ProfileActivity({
   ownerAccountType,
   ownerUsername,
   isCurrentUser = false,
-  currentUserId
 }: ProfileActivityProps) {
-  // One shared read for the whole grid; React Query dedupes it across cards.
-  const canLockPosts = useSubscriberPostEligibility(isCurrentUser);
-
   if (isLoading && posts.length === 0) {
     return <ActivitySkeleton />;
   }
@@ -104,13 +91,6 @@ export function ProfileActivity({
               post={post}
               ownerAccountType={ownerAccountType}
               ownerUsername={ownerUsername}
-              isOwnPost={
-                isCurrentUser &&
-                !!currentUserId &&
-                !!post.userId &&
-                post.userId.toLowerCase() === currentUserId.toLowerCase()
-              }
-              canLockPosts={canLockPosts}
             />
           ))}
         </div>
@@ -153,27 +133,15 @@ export type MusicCardPost = Pick<
   | 'accountType'
 >;
 
-const allVisibilities: readonly OwnerVisibility[] = ['public', 'subscriber', 'private'];
-
 export function MusicPostCard({
   post,
   ownerAccountType,
   ownerUsername,
-  isOwnPost = false,
-  canLockPosts = false,
-  visibilities = allVisibilities,
 }: {
   post: MusicCardPost;
   ownerAccountType?: AccountType | number | string;
   ownerUsername?: string;
-  isOwnPost?: boolean;
-  canLockPosts?: boolean;
-  /** Who-can-open-it choices the owner's quick actions offer on this list. */
-  visibilities?: readonly OwnerVisibility[];
 }) {
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -242,62 +210,17 @@ export function MusicPostCard({
       >
         <Share className="size-4" />
       </Button>
-
-      {isOwnPost && (
-        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(e) => e.preventDefault()}
-              className="size-8 text-muted-foreground hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground"
-              aria-label="More options"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.preventDefault();
-                setDropdownOpen(false);
-                setEditModalOpen(true);
-              }}
-            >
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.preventDefault();
-                setDropdownOpen(false);
-                setDeleteModalOpen(true);
-              }}
-              className="text-destructive focus:text-destructive"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
     </div>
   );
 
   return (
-    <>
-      <PostQuickActions
-        postId={post.postId}
-        title={post.title}
-        href={getNavigationPath(post)}
-        onShare={() => void handleShare()}
-        isOwner={isOwnPost}
-        privacy={post.privacy}
-        visibilities={visibilities}
-        canLockPosts={canLockPosts}
-        onEdit={() => setEditModalOpen(true)}
-        onDelete={() => setDeleteModalOpen(true)}
-      >
+    <PostQuickActions
+      postId={post.postId}
+      title={post.title}
+      href={getNavigationPath(post)}
+      onShare={() => void handleShare()}
+      isOwner={false}
+    >
       <div className="group relative">
         {/* prefetch={false}: viewport prefetch runs /post/[id] generateMetadata on the
             server, bursting one Bridge GetPost per visible row (see 2026-07-08 prod
@@ -326,9 +249,6 @@ export function MusicPostCard({
                 {/* Only members and the owner receive a members-only post in full. */}
                 {post.privacy === 'subscriber' && (
                   <span className={cn(titleLabel, 'bg-primary/10 text-primary')}>Members only</span>
-                )}
-                {isOwnPost && post.privacy?.toLowerCase() === 'private' && (
-                  <span className={cn(titleLabel, 'bg-muted text-muted-foreground')}>Private</span>
                 )}
               </h3>
               {actions}
@@ -365,27 +285,7 @@ export function MusicPostCard({
           </div>
         </Link>
       </div>
-      </PostQuickActions>
-
-      {/* Edit Modal - always render to allow Radix UI animations */}
-      <EditPostModal
-        open={editModalOpen}
-        onOpenChange={setEditModalOpen}
-        postId={post.postId}
-        currentDescription={post.description || ''}
-        currentPrivacy={post.privacy}
-        currentCommentsEnabled={post.commentsEnabled}
-        playlistLinksEditable={post.elementType.toLowerCase() === 'playlist' && !post.isRepost}
-      />
-
-      {/* Delete Modal - always render to allow Radix UI animations */}
-      <DeletePostModal
-        open={deleteModalOpen}
-        onOpenChange={setDeleteModalOpen}
-        postId={post.postId}
-        postTitle={post.title}
-      />
-    </>
+    </PostQuickActions>
   );
 }
 

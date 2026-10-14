@@ -207,8 +207,10 @@ function useWideLayout() {
   return useSyncExternalStore(subscribeToWide, () => window.matchMedia(wideQuery).matches, () => false);
 }
 
-/** Copy page link and View public page. The Share your page step lands here; focusable so the
-    step can move focus to it. */
+/** Copy page link, View public page, and Edit profile: the curator's page tools, in Studio because
+    the public page is a read-only preview. The Share your page step lands here; focusable so the
+    step can move focus to it. View public page opens in this tab, so the pass slides into the
+    page's rail. */
 function StudioShareLinks({ onPageLinkCopied, className }: { onPageLinkCopied: () => void; className?: string }) {
   const { user } = useAuthState();
   const username = user?.username ?? null;
@@ -234,6 +236,9 @@ function StudioShareLinks({ onPageLinkCopied, className }: { onPageLinkCopied: (
           View public page
           <ArrowUpRight aria-hidden />
         </Link>
+      </Button>
+      <Button asChild variant="ghost" size="sm">
+        <Link href={`${publicPath}/edit`}>Edit profile</Link>
       </Button>
     </div>
   );

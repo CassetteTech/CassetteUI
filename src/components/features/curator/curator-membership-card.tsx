@@ -22,7 +22,6 @@ import {
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { BenefitList, MembershipOffer } from '@/components/features/membership/membership-offer';
 import { WalletPass } from '@/components/features/curator/wallet-pass';
-import { studioPaths } from '@/components/features/curator/studio-routes';
 import { StudioNotice } from '@/components/features/curator/studio-shell';
 import { CuratorFollowAction } from '@/components/features/curator/curator-follow-action';
 import { useSharedPosition } from '@/hooks/use-shared-position';
@@ -223,7 +222,7 @@ export function CuratorMembershipCard({
       interval={displayedInterval}
       summary={summary}
       controls={
-        displayedPlan && annual && canJoin && !page.viewer.isOwner &&
+        displayedPlan && annual && (canJoin || page.viewer.isOwner) &&
           !(membership?.status === 'incomplete' && planMatchesMembership) && (
             <RadioGroup
               value={interval}
@@ -254,12 +253,17 @@ export function CuratorMembershipCard({
     >
       <div className="mt-6 space-y-2">
         {page.viewer.isOwner ? (
-          <div className="rounded-lg border border-dashed border-border/70 px-3 py-2.5 text-sm text-muted-foreground">
-            <p>This is your published plan. Visitors see it like this.</p>
-            <Link href={studioPaths['studio-membership']} className="mt-1 inline-block font-medium text-primary underline-offset-4 hover:underline">
-              Manage in Curator Studio
-            </Link>
-          </div>
+          /* The owner previews the pass as a visitor sees it: Join stands in, inert, like the
+             Studio preview's; the plan is managed in Studio, which the preview strip opens. */
+          <Button
+            type="button"
+            aria-disabled="true"
+            tabIndex={-1}
+            className="pointer-events-none w-full"
+            data-testid="membership-join-preview"
+          >
+            Join {displayName}
+          </Button>
         ) : statusLoading && authenticated ? (
           <p className="text-sm text-muted-foreground">Checking membership…</p>
         ) : statusUnavailable && authenticated ? (

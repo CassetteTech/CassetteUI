@@ -6,7 +6,6 @@
 
 import { useId } from 'react';
 import Link from 'next/link';
-import type { OwnerVisibility } from '@/components/features/post/post-visibility';
 import {
   ActivitySkeleton,
   LockedMusicCard,
@@ -78,8 +77,6 @@ export function ProfileMusic({
   loadingMore,
   onLoadMore,
   isOwner,
-  canLockPosts,
-  visibilities,
   displayName,
   ownerUsername,
   ownerAccountType,
@@ -100,9 +97,8 @@ export function ProfileMusic({
   hasMore: boolean;
   loadingMore: boolean;
   onLoadMore: () => void;
+  /** The owner's own view: changes only the empty copy, never the rows. */
   isOwner: boolean;
-  canLockPosts: boolean;
-  visibilities?: readonly OwnerVisibility[];
   displayName: string;
   ownerUsername: string;
   ownerAccountType?: AccountType | number | string;
@@ -142,9 +138,6 @@ export function ProfileMusic({
                 post={item.post}
                 ownerUsername={ownerUsername}
                 ownerAccountType={ownerAccountType}
-                isOwnPost={isOwner}
-                canLockPosts={canLockPosts}
-                visibilities={visibilities}
               />
             ))}
       </div>

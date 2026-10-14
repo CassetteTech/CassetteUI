@@ -114,7 +114,9 @@
     "src/app/sitemap.ts",
     "src/app/__tests__/sitemap.test.ts",
     "src/lib/motion.ts",
-    "src/lib/__tests__/motion.test.ts"
+    "src/lib/__tests__/motion.test.ts",
+    "src/lib/utils/url.ts",
+    "src/lib/utils/__tests__/url.test.ts"
   ],
   "exclude": ["node_modules"]
 }

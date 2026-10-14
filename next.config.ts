@@ -192,6 +192,13 @@ const nextConfig: NextConfig = {
         destination: '/studio/music/new',
         permanent: true,
       },
+      // Curator Studio opens on Music. Not permanent, so /studio can hold a
+      // view of its own again; the query string passes through.
+      {
+        source: '/studio',
+        destination: '/studio/music',
+        permanent: false,
+      },
       // Sign-in alias, like /signup. The query string, including `redirect`,
       // passes through.
       {

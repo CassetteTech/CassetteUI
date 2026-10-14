@@ -11,8 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
-/** Lets any section link open the view that holds its target. The Overview,
-    Membership, and Payouts views stay mounted (hidden when inactive) across the
+/** Lets any section link open the view that holds its target. The Membership
+    and Payouts views stay mounted (hidden when inactive) across the
     Studio URLs, so queries, a plan draft, and provider return flows keep running
     regardless of which view is showing. */
 export const StudioStepsContext = createContext<{

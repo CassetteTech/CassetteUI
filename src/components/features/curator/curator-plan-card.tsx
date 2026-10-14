@@ -500,7 +500,7 @@ export function CuratorPlanCard({ profile, preview }: {
   // Publishing needs a payout account Stripe has verified for transfers.
   const payoutReady = payout.data?.transfersCapabilityStatus === 'active';
   const payoutConfirmed = payoutReady && !payout.isPending && !payout.isError;
-  // A suspended profile is explained by the overview's suspension alert.
+  // A suspended profile is explained by Studio's suspension alert above every view.
   const gatesConfirmed = profileReady && payoutConfirmed;
   const featureByKey = new Map(features.data?.map((feature) => [feature.featureKey, feature]));
   // Bridge refuses an inactive feature key, so the default applies only to a feature the form can show and clear.

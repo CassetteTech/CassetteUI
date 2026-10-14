@@ -79,3 +79,5 @@ export const useAuthStore = create<AuthState>()((set) => ({
       isLoading: false,
     }),
 }));
+
+export const isCurrentAccount = (accountId: string | undefined) => useAuthStore.getState().user?.id === accountId;

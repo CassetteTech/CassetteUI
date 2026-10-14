@@ -7,7 +7,7 @@ import { useAuthState } from '@/hooks/use-auth';
 import { profileQueryKeys } from '@/hooks/use-profile';
 import { authService } from '@/services/auth';
 import { fetchCuratorFollow, setCuratorFollow } from '@/services/curator';
-import { useAuthStore } from '@/stores/auth-store';
+import { isCurrentAccount } from '@/stores/auth-store';
 import { removeQueryParameters, removeQueryParametersFromRouter } from '@/utils/remove-query-parameters';
 import { parseProfileActionIntent } from '@/utils/profile-action-intent';
 import { tryStorage } from '@/lib/best-effort';
@@ -76,13 +76,12 @@ export function useCuratorFollow(
     onSuccess: async (state, { viewerId: startedBy }) => {
       const key = curatorFollowQueryKey(curatorId, startedBy);
       await queryClient.cancelQueries({ queryKey: key });
-      // An answer for an account that is no longer signed in here changes nothing.
-      if (useAuthStore.getState().user?.id !== startedBy) return;
+      if (!isCurrentAccount(startedBy)) return;
       queryClient.setQueryData(key, state);
       refreshAfterFollowChange(queryClient, curator?.username ?? '');
     },
     onError: (_error, { viewerId: startedBy }) => {
-      if (useAuthStore.getState().user?.id !== startedBy) return;
+      if (!isCurrentAccount(startedBy)) return;
       void queryClient.invalidateQueries({ queryKey: curatorFollowQueryKey(curatorId, startedBy) });
     },
   });

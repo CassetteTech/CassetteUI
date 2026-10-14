@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
-import { useAuthStore } from '@/stores/auth-store';
+import { isCurrentAccount, useAuthStore } from '@/stores/auth-store';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Check, Disc3 } from 'lucide-react';
@@ -167,8 +167,6 @@ export default function OnboardingPage() {
 
   const handleFinish = useCallback(async () => {
     setPhase('submitting');
-    // The account this profile is saved for. A later session for another
-    // account, or none, wins over this response.
     const ownerId = useAuthStore.getState().user?.id;
 
     try {
@@ -218,13 +216,10 @@ export default function OnboardingPage() {
       if (data.success) {
         const refreshed = await authService.refreshSession({ restart: true });
         const current = useAuthStore.getState().user;
-        if (refreshed.kind === 'signed-out' || refreshed.kind === 'superseded' || current?.id !== ownerId) {
-          // The session ended or changed while the profile saved; this response
-          // must not restore the earlier account. The auth state change routes on.
+        if (refreshed.kind === 'signed-out' || refreshed.kind === 'superseded' || !isCurrentAccount(ownerId)) {
           return;
         }
         if (refreshed.kind === 'error') {
-          // The session read failed, so keep this profile response for its account.
           const updatedUser = data.user && typeof data.user === 'object'
             ? authService.normalizeAuthUser(data.user as Record<string, unknown>)
             : current && {

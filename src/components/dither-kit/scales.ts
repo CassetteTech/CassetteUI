@@ -1,6 +1,7 @@
 import { scaleLinear, scalePoint } from "d3-scale"
 
-type Row = Record<string, unknown>
+export const field = (row: object | undefined, key: string): unknown =>
+  row === undefined ? undefined : Reflect.get(row, key)
 
 const num = (v: unknown) =>
   typeof v === "number" && Number.isFinite(v) ? v : 0
@@ -12,7 +13,7 @@ const num = (v: unknown) =>
  * a diverging (below-zero) domain.
  */
 export function computeBands(
-  data: Row[],
+  data: object[],
   keys: string[]
 ): { bands: Record<string, [number, number][]>; max: number; min: number } {
   const bands: Record<string, [number, number][]> = {}
@@ -20,7 +21,7 @@ export function computeBands(
   let min = 0
   for (const key of keys) {
     bands[key] = data.map((row) => {
-      const v = num(row[key])
+      const v = num(field(row, key))
       if (v > max) max = v
       if (v < min) min = v
       return [0, v]

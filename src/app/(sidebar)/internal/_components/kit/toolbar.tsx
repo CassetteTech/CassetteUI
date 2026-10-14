@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SegmentedControl as SlidingSegments } from '@/components/ui/interior/segmented-control';
+import { SegmentedControl as SlidingSegments } from '@/components/interior/segmented-control';
 
 export function Toolbar({
   search,

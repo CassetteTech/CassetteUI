@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
+import { useCopyToClipboard } from '@/components/interior/copy-button';
 
 export type Tone = 'critical' | 'warning' | 'success' | 'info' | 'neutral' | 'domain';
 

@@ -21,7 +21,7 @@ export function SegmentedControl({
   onValueChange,
   className,
 }: {
-  options: SegmentedOption[];
+  options: ReadonlyArray<SegmentedOption>;
   label: string;
   value?: string;
   defaultValue?: string;

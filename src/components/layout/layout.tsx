@@ -33,7 +33,6 @@ useEffect(() => {
   const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/curator') || pathname?.startsWith('/studio') || pathname?.startsWith('/memberships') || pathname?.startsWith('/feed') || pathname?.startsWith('/internal');
   const isProfileRoute = pathname?.startsWith('/profile');
   const isStudioRoute = pathname?.startsWith('/studio') || pathname?.startsWith('/memberships');
-  // The home page and its concepts at /1 … /11 own their hero and footer.
   const isHomePage = isHeroRoute(pathname);
   const isPostPage = pathname?.startsWith('/post');
   const isStoryPage = pathname === '/about' || pathname === '/team';

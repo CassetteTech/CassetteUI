@@ -1,6 +1,6 @@
 "use client"
 
-import { Children, isValidElement, type ReactNode } from "react"
+import { Children, isValidElement, type ReactNode, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { CartesianCanvas } from "./cartesian-canvas"
 import {
@@ -13,15 +13,8 @@ import { useChartDimensions } from "./use-chart-dimensions"
 
 // `object` rather than `Record<string, unknown>`: interfaces don't get an
 // implicit index signature, so interface-typed rows failed to satisfy the
-// generic. Internal layers still index rows through their own Row type.
+// generic. Layers read row fields through `field` in scales.ts.
 type Row = object
-
-const DEFAULT_MARGINS: Margins = {
-  top: 10,
-  right: 12,
-  bottom: 22,
-  left: 36,
-}
 
 function layerOf(node: ReactNode): "back" | "dom" | "svg" {
   if (!isValidElement(node) || typeof node.type === "string") return "svg"
@@ -52,11 +45,14 @@ export function AreaChart<TData extends Row>({
   animate?: boolean
 }) {
   const { ref, size } = useChartDimensions<HTMLDivElement>()
-  const margins = { ...DEFAULT_MARGINS, ...marginsProp }
+  const { top = 10, right = 12, bottom = 22, left = 36 } = marginsProp ?? {}
+  const margins = useMemo(
+    () => ({ top, right, bottom, left }),
+    [top, right, bottom, left]
+  )
 
   const ctx = useChartController({
-    // Safe: the controller only reads row[key] for the configured series keys.
-    data: data as Record<string, unknown>[],
+    data,
     config,
     yMax,
     dimensions: size,

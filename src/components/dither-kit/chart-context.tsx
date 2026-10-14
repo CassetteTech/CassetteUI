@@ -16,14 +16,12 @@ export type Margins = {
   left: number
 }
 
-type Row = Record<string, unknown>
-
 export type AreaVariant = "gradient" | "dotted" | "hatched"
 
 export type ChartContextValue = {
   config: ChartConfig
   configKeys: string[]
-  data: Row[]
+  data: object[]
   dataLength: number
 
   margins: Margins
@@ -87,7 +85,7 @@ export function useChartController({
   margins,
   animate,
 }: {
-  data: Row[]
+  data: object[]
   config: ChartConfig
   yMax?: number
   dimensions: Dimensions
@@ -119,17 +117,8 @@ export function useChartController({
     })
   }, [])
 
-  // The root spreads `{ ...DEFAULT_MARGINS, ...marginsProp }` fresh every
-  // render, so `margins` never keeps its identity. Pin one off the four numbers
-  // so it doesn't, on its own, invalidate the value or the plot geometry.
-  const { top: mTop, right: mRight, bottom: mBottom, left: mLeft } = margins
-  const stableMargins = useMemo(
-    () => ({ top: mTop, right: mRight, bottom: mBottom, left: mLeft }),
-    [mTop, mRight, mBottom, mLeft]
-  )
-
-  const plotWidth = Math.max(0, dimensions.width - mLeft - mRight)
-  const plotHeight = Math.max(0, dimensions.height - mTop - mBottom)
+  const plotWidth = Math.max(0, dimensions.width - margins.left - margins.right)
+  const plotHeight = Math.max(0, dimensions.height - margins.top - margins.bottom)
   const ready = plotWidth > 0 && plotHeight > 0
 
   const { bands, max, min } = useMemo(
@@ -164,7 +153,7 @@ export function useChartController({
       configKeys,
       data,
       dataLength: data.length,
-      margins: stableMargins,
+      margins,
       plot: { width: plotWidth, height: plotHeight },
       ready,
       xCenter,
@@ -188,7 +177,7 @@ export function useChartController({
       config,
       configKeys,
       data,
-      stableMargins,
+      margins,
       plotWidth,
       plotHeight,
       ready,

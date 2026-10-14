@@ -5,6 +5,7 @@ import { useState } from "react"
 import { useChart } from "./chart-context"
 import { prefersReducedMotion } from "./dither-paint"
 import { rgb } from "./palette"
+import { field } from "./scales"
 
 export function Tooltip({
   labelKey,
@@ -23,9 +24,9 @@ export function Tooltip({
   const index = chart.hoverIndex ?? lastIndex
 
   const row = chart.data[index]
-  const heading = labelKey ? String(row?.[labelKey] ?? "") : null
+  const heading = labelKey ? String(field(row, labelKey) ?? "") : null
   const items = chart.configKeys.map((name) => {
-    const raw = row?.[name]
+    const raw = field(row, name)
     return {
       name,
       label: chart.config[name]?.label ?? name,

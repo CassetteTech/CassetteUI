@@ -1,6 +1,7 @@
 "use client"
 
 import { useChart } from "./chart-context"
+import { field } from "./scales"
 
 export function XAxis({
   dataKey,
@@ -19,7 +20,7 @@ export function XAxis({
     <g className="fill-current font-mono text-[10px] text-muted-foreground">
       {ctx.data.map((row, i) => {
         if (i % step !== 0) return null
-        const raw = dataKey ? row[dataKey] : i
+        const raw = dataKey ? field(row, dataKey) : i
         return (
           <text
             key={i}

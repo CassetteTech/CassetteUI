@@ -390,7 +390,7 @@ export default function ProfilePage() {
   // underline slides, and the curator page, which owns the Stripe flow effects, mounts once.
   return (
     <CuratorFollowContext.Provider value={follow}>
-    <div className="studio-surface min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
+    <div className="min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
       <div className="bg-background lg:hidden">
         <div className="mx-auto max-w-4xl">
           {!isCurrentUser && userBio && (

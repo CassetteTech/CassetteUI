@@ -68,9 +68,9 @@ export function StudioMembership({
   /** Whether this view is showing, so the rail previews the plan. */
   preview: boolean;
 }) {
-  // The plan card keeps its place in the list, so the first publish does not remount it.
+  // The plan group keeps its place in the list, so the first publish does not remount it.
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       {hasPublished === false
         ? <MembershipSetupCard steps={setupSteps} />
         : hasPublished && profile && (

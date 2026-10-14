@@ -98,7 +98,7 @@ export function StudioEarnings() {
 
   // Stripe Express shape: the hero figure and its period control, the payout figures, then the chart at full width.
   return (
-    <section aria-labelledby="studio-earned-title" className="card-quiet px-5 py-5 sm:px-6">
+    <section aria-labelledby="studio-earned-title">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h2 id="studio-earned-title" className="text-xs text-muted-foreground">Earned</h2>
@@ -135,7 +135,7 @@ export function StudioEarnings() {
       ) : period && (
         <>
           {period.earned + period.paid === 0 ? (
-            <p className="mt-6 flex h-56 items-center justify-center rounded-lg border border-dashed border-border/70 text-sm text-muted-foreground">
+            <p className="mt-6 flex h-56 items-center justify-center text-sm text-muted-foreground">
               <span>No earnings <AnnotatedText>in this period</AnnotatedText> yet.</span>
             </p>
           ) : (
@@ -158,7 +158,7 @@ export function StudioEarnings() {
             </div>
           )}
           {/* Period totals read as one line under the chart. */}
-          <dl className="mt-5 flex flex-wrap gap-x-8 gap-y-3 border-t border-border/70 pt-4">
+          <dl className="mt-5 flex flex-wrap gap-x-8 gap-y-3 border-t border-border pt-4">
             {summary.map((row) => (
               <div key={row.label}>
                 <dt className="text-xs text-muted-foreground">{row.label}</dt>

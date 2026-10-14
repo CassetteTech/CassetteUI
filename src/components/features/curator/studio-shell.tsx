@@ -145,11 +145,11 @@ export function StudioChip({
   );
 }
 
-/** One studio section: a soft card with a title, an optional trailing control,
-    and a description. Sections are always expanded; the dashboard decides which
-    view (and therefore which sections) is visible. A plain section drops the card
-    and keeps the title over a rule, for lists of music that read as the page itself;
-    its tabs, when given, sit on that rule. */
+/** One group on a Studio page: the title over a rule, an optional trailing control,
+    and a description, then its content with no box around it. Sections are always
+    expanded; the dashboard decides which view (and therefore which sections) is
+    visible. A list section holds the page's own music rows, so its body starts right
+    under the rule, and its tabs, when given, sit on that rule. */
 export function StudioSection({
   id,
   title,
@@ -158,7 +158,7 @@ export function StudioSection({
   chip,
   tabs,
   testId,
-  plain = false,
+  list = false,
   children,
 }: {
   id: string;
@@ -166,10 +166,11 @@ export function StudioSection({
   headingId: string;
   description?: ReactNode;
   chip?: ReactNode;
-  /** Plain sections only: a tab row whose active underline covers the header rule. */
+  /** List sections only: a tab row whose active underline covers the header rule. */
   tabs?: ReactNode;
   testId?: string;
-  plain?: boolean;
+  /** The children are the page's own rows, so they start right under the rule. */
+  list?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -179,12 +180,9 @@ export function StudioSection({
       aria-labelledby={headingId}
       // Focusable so a step link can move focus here; scroll-mt keeps anchored jumps clear of any sticky chrome above.
       tabIndex={-1}
-      className={cn(
-        'scroll-mt-24 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        plain ? 'rounded-md' : 'card-quiet',
-      )}
+      className="scroll-mt-24 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <div className={cn('border-b border-border/70', plain ? (tabs ? null : 'pb-4') : 'px-5 py-4 sm:px-6')}>
+      <div className={cn('border-b border-border', !tabs && 'pb-4')}>
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
           <div className="min-w-0">
             <h2 id={headingId} className="text-lg font-semibold leading-tight tracking-tight">
@@ -199,9 +197,9 @@ export function StudioSection({
           {chip}
         </div>
         {/* -mb-px lays the tab row's bottom on the rule, so the active underline covers it. */}
-        {plain && tabs && <div className="mt-3 -mb-px">{tabs}</div>}
+        {tabs && <div className="mt-3 -mb-px">{tabs}</div>}
       </div>
-      <div className={plain ? 'pt-2' : 'px-5 py-5 sm:px-6 sm:py-6'}>{children}</div>
+      <div className={list ? 'pt-2' : 'pt-5'}>{children}</div>
     </section>
   );
 }
@@ -253,7 +251,7 @@ export function StudioNotice({
 
 /** A figure inside a section has no panel of its own: a hairline at its left
     edge and the grid gap separate it from its neighbours. */
-export const studioFigureClassName = 'min-w-0 border-l border-border/70 pl-4';
+export const studioFigureClassName = 'min-w-0 border-l border-border pl-4';
 
 /** One figure: small label, big Teko number, optional hint. Rendered as dt/dd,
     so the figure's div is the parent of both label and value. With `onClick`

@@ -116,7 +116,9 @@
     "src/lib/motion.ts",
     "src/lib/__tests__/motion.test.ts",
     "src/lib/utils/url.ts",
-    "src/lib/utils/__tests__/url.test.ts"
+    "src/lib/utils/__tests__/url.test.ts",
+    "src/app/explore/coverflow-pose.ts",
+    "src/app/explore/__tests__/coverflow-pose.test.ts"
   ],
   "exclude": ["node_modules"]
 }

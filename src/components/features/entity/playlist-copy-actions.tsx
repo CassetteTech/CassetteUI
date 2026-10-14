@@ -1,49 +1,40 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { streamingServices } from './streaming-links';
 import { apiService, ApiError } from '@/services/api';
-import { detectContentType } from '@/utils/content-type-detection';
 import { CreatePlaylistResponse, FailedTrack } from '@/types';
-import { ArrowUpRight, ChevronDown, ChevronUp, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, ChevronUp, CheckCircle, AlertCircle, Plus } from 'lucide-react';
 import { useAuthState } from '@/hooks/use-auth';
 import { pendingActionService } from '@/utils/pending-action';
 import { platformConnectService } from '@/services/platform-connect';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
 import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
-import { openInAppOrBrowser, isAppleMusicLibraryUrl, handleStreamingLinkClick } from '@/utils/deep-link';
+import { openInAppOrBrowser, isAppleMusicLibraryUrl } from '@/utils/deep-link';
 import { clientConfig } from '@/lib/config-client';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { normalizePlatform, sanitizeDomain } from '@/lib/analytics/sanitize';
 import { buildPostPlatformConversionClickedProps } from '@/lib/analytics/post-platform-conversion';
 import type { AnalyticsBaseProps, PlatformDimension } from '@/lib/analytics/events';
 import { appLogger } from '@/lib/observability/logger';
-import {
-  PLAYLIST_CREATION_PLATFORM_UI_KEYS,
-  type PlatformUiKey,
-  getPlatformDefinition,
-  normalizePlatformUiKey,
-} from '@/lib/platforms';
+import { type PlatformUiKey, getPlatformDefinition } from '@/lib/platforms';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 import { useReportIssue } from '@/providers/report-issue-provider';
 
 type PlatformKey = PlatformUiKey;
 type RedirectPlatformKey = Extract<PlatformKey, 'spotify' | 'deezer'>;
 
-interface PlaylistStreamingLinksProps {
-  links: {
-    spotify?: string;
-    appleMusic?: string;
-    deezer?: string;
-  };
+interface PlaylistCopyActionsProps {
+  /** Services with no playlist to open; each gets a button that builds a copy there. */
+  targets: ReadonlyArray<PlatformKey>;
   className?: string;
   playlistId: string;
   postId?: string;
   playlistTrackCount?: number;
-  sourceUrl?: string;
-  sourcePlatform?: string;
+  sourceUrl?: string | null;
+  sourcePlatform?: PlatformKey | null;
   paidPromotionCampaignId?: string | null;
 }
 
@@ -57,21 +48,35 @@ interface CreationStatus {
   actionLabel?: string;
 }
 
-const PLATFORMS: ReadonlyArray<PlatformKey> = PLAYLIST_CREATION_PLATFORM_UI_KEYS;
 const PLAYLIST_CONVERSION_LIMIT = 200;
 
-export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
-  links,
+/** Where a copy lands, so a fan knows before the tap. */
+function copyDestination(platform: PlatformKey): string {
+  if (platform === 'appleMusic') return 'In your library';
+  if (platform === 'spotify' && clientConfig.features.useCassetteSpotifyAccount) {
+    return "On Cassette's Spotify account";
+  }
+  return 'In your account';
+}
+
+/**
+ * The copy block under a playlist's listen links: one button for each service the
+ * playlist is not on, which builds a new playlist there from the post's tracklist.
+ * Listen links only open; building happens here, so no row has two meanings.
+ */
+export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
+  targets,
   className,
   playlistId,
   postId,
   playlistTrackCount,
-  sourceUrl,
-  sourcePlatform,
+  sourceUrl: resolvedSourceUrl = null,
+  sourcePlatform: sourcePlatformKey = null,
   paidPromotionCampaignId,
 }) => {
   const { isAuthenticated } = useAuthState();
   const { openReportModal } = useReportIssue();
+  const headingId = useId();
   const [creationStatus, setCreationStatus] = useState<CreationStatus | null>(null);
   const [showFailedTracks, setShowFailedTracks] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -79,25 +84,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
   const autoResumeAttemptedRef = useRef(false);
   const conversionLimitExceeded =
     typeof playlistTrackCount === 'number' && playlistTrackCount > PLAYLIST_CONVERSION_LIMIT;
-
-  const providedSourceUrl = sourceUrl?.trim();
-  const detectedFromProvided = providedSourceUrl ? detectContentType(providedSourceUrl).platform : null;
-  const normalizedFromProp = normalizePlatformUiKey(sourcePlatform);
-  const fallbackSourceUrl =
-    (normalizedFromProp ? links[normalizedFromProp] : undefined) ||
-    links.spotify ||
-    links.appleMusic ||
-    links.deezer;
-  const resolvedSourceUrl = providedSourceUrl || fallbackSourceUrl || null;
-  const detectedFromResolved = resolvedSourceUrl ? detectContentType(resolvedSourceUrl).platform : null;
-  // Keep source platform detection resilient across mixed URL/platform inputs.
-  const sourcePlatformKey =
-    normalizedFromProp ||
-    normalizePlatformUiKey(detectedFromProvided) ||
-    normalizePlatformUiKey(detectedFromResolved) ||
-    (resolvedSourceUrl
-      ? (PLATFORMS.find((platform) => links[platform] === resolvedSourceUrl || links[platform]) as PlatformKey | undefined) || null
-      : null);
 
   const buildPlaylistAnalyticsProps = React.useCallback((platform: PlatformKey): AnalyticsBaseProps => {
     const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
@@ -207,7 +193,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     setCreationStatus({
       platform,
       loading: true,
-      loadingMessage: `Creating playlist on ${serviceName}...`,
+      loadingMessage: `Making a copy on ${serviceName}…`,
     });
 
     const result = await apiService.createPlaylist(playlistId, platform.toLowerCase(), postId);
@@ -351,7 +337,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     setCreationStatus({
       platform,
       loading: true,
-      loadingMessage: `Creating playlist on ${streamingServices[platform]?.name || platform}...`,
+      loadingMessage: `Making a copy on ${streamingServices[platform]?.name || platform}…`,
     });
     setShowFailedTracks(false);
 
@@ -437,13 +423,19 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
 
     autoResumeAttemptedRef.current = true;
 
+    // The service may now have a playlist to open (the original, for example); never build a copy there.
+    if (!targets.includes(pendingAction.platform)) {
+      pendingActionService.clear();
+      return;
+    }
+
     if (pendingAction.platform === 'appleMusic') {
-      setAppleMusicReconnectState('Connect Apple Music to continue converting this playlist.', 'Connect Apple Music');
+      setAppleMusicReconnectState('Connect Apple Music to finish your copy.', 'Connect Apple Music');
       return;
     }
 
     void handleCreatePlaylist(pendingAction.platform);
-  }, [creationStatus, handleCreatePlaylist, isAuthenticated, playlistId, setAppleMusicReconnectState]);
+  }, [creationStatus, handleCreatePlaylist, isAuthenticated, playlistId, setAppleMusicReconnectState, targets]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -479,7 +471,7 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
           aria-live="polite"
           className="mt-3 truncate px-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
         >
-          {creationStatus.loadingMessage || `Creating playlist on ${serviceName}...`}
+          {creationStatus.loadingMessage || `Making a copy on ${serviceName}…`}
         </p>
       );
     }
@@ -606,19 +598,22 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     return null;
   };
 
+  if (targets.length === 0) {
+    return null;
+  }
+
   return (
-    <div className={cn('w-full', className)}>
-      {conversionLimitExceeded && (
-        <div className="mb-4 p-3 rounded-xl bg-warning/10 border border-warning/20">
-          <p className="text-sm text-warning-text">
-            This playlist has {playlistTrackCount} tracks. We&apos;ll convert the first {PLAYLIST_CONVERSION_LIMIT} tracks.
-          </p>
-        </div>
-      )}
-      <div className="grid gap-2.5">
-        {PLATFORMS.map((platform) => {
-          const isSourcePlatform = sourcePlatformKey === platform;
-          const url = links[platform];
+    <section aria-labelledby={headingId} className={cn('mt-6 w-full text-left', className)}>
+      <h4 id={headingId} className="font-roboto-flex text-sm font-medium text-foreground">
+        Not on your service?
+      </h4>
+      <p className="mt-0.5 font-roboto-flex text-xs text-muted-foreground">
+        Cassette builds a new playlist from this tracklist.
+        {conversionLimitExceeded &&
+          ` A copy holds the first ${PLAYLIST_CONVERSION_LIMIT} of its ${playlistTrackCount} tracks.`}
+      </p>
+      <div className="mt-3 grid gap-2.5">
+        {targets.map((platform) => {
           const service = streamingServices[platform];
           if (!service) return null;
 
@@ -626,71 +621,28 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
           const isLoading = creationStatus?.platform === platform && anyLoading;
           const isCreated = creationStatus?.platform === platform && creationStatus.result?.success;
           const createdUrl = isCreated ? creationStatus?.result?.playlist_url : undefined;
-          const shouldShowConvertButton = isSourcePlatform || !url;
+          const isLibraryCopy = createdUrl ? isAppleMusicLibraryUrl(createdUrl) : false;
 
-          const commonClasses = cn(
-            'group relative flex w-full items-stretch overflow-hidden rounded-md',
-            'border border-border bg-card text-foreground elev-1',
-            'transition-[color,background-color,border-color,opacity] duration-150',
-            'hover:border-foreground/40 hover:bg-muted/40',
-            'active:bg-muted/60',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-            // The beam highlights the converting row; the others step back.
-            anyLoading && !isLoading && 'opacity-40 pointer-events-none',
-            isCreated && 'border-success bg-success/5 hover:border-success hover:bg-success/10',
-          );
-
-          return !shouldShowConvertButton && url ? (
-            <a
-              key={platform}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(event) => {
-                const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
-                const targetPlatform = getPlatformDefinition(platform)?.analyticsKey ?? platform;
-                const openClickProps = buildPostPlatformConversionClickedProps({
-                  sourceContext: 'playlist_open_button',
-                  route,
-                  postId,
-                  elementType: 'playlist',
-                  targetPlatform,
-                  sourcePlatform: sourcePlatformKey ?? undefined,
-                  sourceDomain: url,
-                  isAuthenticated,
-                  paidPromotionCampaignId,
-                });
-                if (openClickProps) {
-                  void captureClientEvent('post_platform_conversion_clicked', openClickProps);
-                }
-                handleStreamingLinkClick(event, url);
-              }}
-              className={commonClasses}
-            >
-              <span aria-hidden className="w-1.5 shrink-0" style={{ background: service.color }} />
-              <span className="flex flex-1 items-center gap-2.5 px-3 py-2.5 sm:gap-3 sm:px-4">
-                <span className="relative h-4 w-4 shrink-0 sm:h-5 sm:w-5">
-                  <Image src={service.icon} alt="" width={20} height={20} loading="eager" decoding="sync" className="object-contain" />
-                </span>
-                <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
-                  {service.name}
-                </span>
-                <ArrowUpRight
-                  aria-hidden
-                  className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-[color,transform] duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"
-                />
-              </span>
-            </a>
-          ) : (
+          return (
             <ConversionBeam key={platform} active={isLoading}>
               <button
                 type="button"
-                data-testid={`playlist-convert-${platform}`}
-                className={commonClasses}
+                data-testid={`playlist-copy-${platform}`}
+                className={cn(
+                  // A copy is not a place to open yet: no service color edge and no card fill,
+                  // so it never reads as one of the listen links above.
+                  'group relative flex w-full items-center gap-2.5 rounded-md border border-border px-3 py-2.5 text-left text-foreground sm:gap-3 sm:px-4',
+                  'transition-[color,background-color,border-color,opacity] duration-150',
+                  'hover:border-foreground/40 hover:bg-muted/40 active:bg-muted/60',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                  anyLoading && !isLoading && 'opacity-40 pointer-events-none',
+                  isCreated && 'border-success bg-success/5 hover:border-success hover:bg-success/10',
+                )}
                 disabled={anyLoading}
                 aria-label={createdUrl
-                  ? (isAppleMusicLibraryUrl(createdUrl) ? 'View in Browser' : `Open in ${service.name}`)
-                  : undefined}
+                  ? (isLibraryCopy ? 'View the copy in a browser' : `Open the copy on ${service.name}`)
+                  : `Make a copy on ${service.name}`}
+                aria-describedby={`${headingId}-${platform}`}
                 onClick={() => {
                   if (createdUrl) {
                     openCreatedPlaylist(platform, createdUrl);
@@ -699,41 +651,38 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
                   }
                 }}
               >
-                <span aria-hidden className="w-1.5 shrink-0" style={{ background: service.color }} />
-                <span className="flex flex-1 items-center gap-2.5 px-3 py-2.5 sm:gap-3 sm:px-4">
-                  <span className="relative h-4 w-4 shrink-0 sm:h-5 sm:w-5">
-                    <Image src={service.icon} alt="" width={20} height={20} loading="eager" decoding="sync" className="object-contain" />
-                  </span>
-                  <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
-                    {service.name}
-                  </span>
-                  {createdUrl ? (
-                    <span
-                      aria-hidden
-                      className={cn(
-                        'ml-auto flex items-center gap-1 rounded-sm px-2.5 py-1',
-                        'bg-success text-success-foreground',
-                        'font-mono text-[9px] font-bold uppercase tracking-[0.2em]',
-                        'transition-colors duration-150 group-hover:bg-success/90',
-                      )}
-                    >
-                      {isAppleMusicLibraryUrl(createdUrl) ? 'View' : 'Open'}
-                      <ArrowUpRight className="h-3 w-3 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                    </span>
-                  ) : (
-                    <span
-                      aria-hidden
-                      className={cn(
-                        'ml-auto font-mono text-[9px] uppercase tracking-[0.2em] transition-colors',
-                        isLoading
-                          ? 'animate-pulse text-primary'
-                          : 'text-muted-foreground group-hover:text-foreground',
-                      )}
-                    >
-                      {isLoading ? 'Converting…' : 'Convert'}
-                    </span>
-                  )}
+                <span className="relative h-4 w-4 shrink-0 sm:h-5 sm:w-5">
+                  <Image src={service.icon} alt="" width={20} height={20} loading="eager" decoding="sync" className="object-contain" />
                 </span>
+                <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
+                  {service.name}
+                </span>
+                <span id={`${headingId}-${platform}`} className="min-w-0 flex-1 truncate font-roboto-flex text-xs text-muted-foreground">
+                  {copyDestination(platform)}
+                </span>
+                {createdUrl ? (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'flex shrink-0 items-center gap-1 rounded-sm px-2.5 py-1',
+                      'bg-success text-success-foreground',
+                      'font-mono text-[9px] font-bold uppercase tracking-[0.2em]',
+                      'transition-colors duration-150 group-hover:bg-success/90',
+                    )}
+                  >
+                    {isLibraryCopy ? 'View the copy' : 'Open the copy'}
+                    <ArrowUpRight className="h-3 w-3 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                  </span>
+                ) : isLoading ? (
+                  <span aria-hidden className="shrink-0 font-mono text-[9px] uppercase tracking-[0.2em] text-primary motion-safe:animate-pulse">
+                    Building…
+                  </span>
+                ) : (
+                  <Plus
+                    aria-hidden
+                    className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-colors duration-150 group-hover:text-foreground"
+                  />
+                )}
               </button>
             </ConversionBeam>
           );
@@ -748,6 +697,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
         platform={pendingPlatform || undefined}
         onBeforeNavigate={handleAuthNavigate}
       />
-    </div>
+    </section>
   );
 };

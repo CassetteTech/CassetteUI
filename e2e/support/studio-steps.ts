@@ -1,6 +1,6 @@
 /** Helper for the Curator Studio dashboard: opens the URL of the view that
-    hosts a section before a test interacts with its contents. The Overview,
-    Membership, and Payouts views stay mounted but hidden on the other URLs, so
+    hosts a section before a test interacts with its contents. The Membership and
+    Payouts views stay mounted but hidden on the other URLs, so
     this is only needed for visibility-dependent actions (fill, click,
     toBeVisible). */
 

@@ -1,5 +1,6 @@
-/** Verifies Curator Studio sections have their own URLs, the Music section starts empty with
-    Add music, and Add music lives in Studio while its old URL and global entry points still work. */
+/** Verifies Curator Studio opens on Music, sections have their own URLs, the Music section starts
+    empty with Add music, and Add music lives in Studio while its old URL and global entry points
+    still work. */
 
 import { expect, test } from '@playwright/test';
 import { fixtureUsers } from './support/cassette-fixtures';
@@ -12,9 +13,9 @@ test('opens each section at its own URL and keeps a plan draft across sections',
   const planName = page.getByTestId('curator-plan-card').getByLabel('Plan name');
   await planName.fill('Early Club');
 
-  await page.getByTestId('studio-overview-trigger').click();
-  await expect(page).toHaveURL('/studio');
-  await expect(page.getByTestId('studio-overview-trigger')).toHaveAttribute('aria-current', 'page');
+  await page.getByTestId('studio-music-trigger').click();
+  await expect(page).toHaveURL('/studio/music');
+  await expect(page.getByTestId('studio-music-trigger')).toHaveAttribute('aria-current', 'page');
   await expect(planName).toBeHidden();
 
   await page.getByTestId('studio-billing-trigger').click();
@@ -25,6 +26,17 @@ test('opens each section at its own URL and keeps a plan draft across sections',
   await page.goBack();
   await expect(page).toHaveURL('/studio/membership');
   await expect(planName).toHaveValue('Early Club');
+});
+
+test('opens Studio on Music with three section links, and keeps the query', async ({ page }) => {
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+
+  await page.goto('/studio?type=playlists');
+
+  await expect(page).toHaveURL('/studio/music?type=playlists');
+  const sections = page.getByRole('navigation', { name: 'Studio sections' });
+  await expect(sections.getByRole('link')).toHaveText(['Music', 'Membership', 'Payouts & billing']);
+  await expect(page.getByTestId('studio-music-trigger')).toHaveAttribute('aria-current', 'page');
 });
 
 test('offers the first music from an empty Music section', async ({ page }) => {

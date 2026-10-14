@@ -1,7 +1,7 @@
 'use client';
 
-/** The curator's music library, shared by Studio Music and the Overview's recent music: the list
-    reads, the cache patch after a save, the row sheets, and the empty states. */
+/** The curator's music library behind Studio Music: the list reads, the cache patch after a save,
+    the row sheets, and the empty states. */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import Link from 'next/link';

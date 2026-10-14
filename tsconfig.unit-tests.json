@@ -44,6 +44,7 @@
     "src/services/conversion-lifecycle.ts",
     "src/services/__tests__/conversion-lifecycle.test.ts",
     "src/services/__tests__/conversion-contract-fixtures.test.ts",
+    "src/lib/__tests__/source-ticket-references.test.ts",
     "src/services/paid-promotion-lifecycle.ts",
     "src/services/__tests__/paid-promotion-lifecycle.test.ts",
     "src/services/paid-promotion-resolution-errors.ts",

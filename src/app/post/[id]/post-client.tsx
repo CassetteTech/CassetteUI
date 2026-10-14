@@ -7,7 +7,8 @@ import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTem
 import { EntitySkeleton, printedBand } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks } from '@/components/features/entity/streaming-links';
 import { PlaylistCopyActions } from '@/components/features/entity/playlist-copy-actions';
-import { PLAYLIST_CREATION_PLATFORM_UI_KEYS } from '@/lib/platforms';
+import { playlistCopyTargets, sharesCassetteSpotifyCopy } from '@/lib/playlist-copy-placement';
+import { CassetteSpotifyCopyLink, CASSETTE_SPOTIFY_COPY_CAPTION } from '@/components/features/entity/cassette-spotify-copy-link';
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList, EXPANDABLE_MIN_TRACKS, formatTrackListDuration, formatTrackListStats } from '@/components/features/entity/track-list';
 import { PostAuthorHeader } from '@/components/features/post/post-author-header';
@@ -131,6 +132,7 @@ type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
   paidPromotionCampaignId?: string | null;
   curatorId?: string | null;
   isMemberView?: boolean;
+  cassetteSpotifyCopyUrl?: string | null;
   repostedByCurrentUser?: boolean;
   username?: string;
   userId?: string | null;
@@ -766,6 +768,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
             paidPromotionCampaignId: response.paidPromotionCampaignId ?? null,
             curatorId: response.curatorId ?? null,
             isMemberView: response.isMemberView === true,
+            cassetteSpotifyCopyUrl: response.cassetteSpotifyCopyUrl ?? null,
             repostedByCurrentUser: Boolean(
               (response as unknown as Record<string, unknown>).repostedByCurrentUser === true ||
               (response as unknown as Record<string, unknown>).RepostedByCurrentUser === true ||
@@ -1318,19 +1321,28 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     ? printedByConversion.tint
     : (palette ?? (metadata.artwork ? ColorExtractor.cachedPalette(metadata.artwork) : undefined))?.vibrant;
 
-  // What each listen row opens. A playlist opens its original on the service it came from;
-  // every other service gets a button in the copy block instead, so a row never builds a copy.
-  const listenLinks: MusicLinkConversion['convertedUrls'] =
-    isPlaylist && sourcePlatformKey && resolvedSourceUrl
-      ? { ...convertedUrls, [sourcePlatformKey]: resolvedSourceUrl }
-      : convertedUrls;
-  const copyTargets = isPlaylist ? PLAYLIST_CREATION_PLATFORM_UI_KEYS.filter((platform) => !listenLinks[platform]) : [];
+  // What each listen row opens. A playlist opens its original on the service it came from, and
+  // Cassette's shared Spotify copy while Spotify copies go to Cassette's account; every other service
+  // gets a button in the copy block instead, so a row never builds a copy in a fan's account.
+  const sharedSpotifyCopy = isPlaylist && sharesCassetteSpotifyCopy(sourcePlatformKey) && !convertedUrls.spotify;
+  const cassetteSpotifyCopyUrl = sharedSpotifyCopy ? postData?.cassetteSpotifyCopyUrl : null;
+  const listenLinks = { ...convertedUrls };
+  const listenCaptions: Partial<Record<NormalizedPlatformKey, string>> = {};
+  if (isPlaylist && sourcePlatformKey) {
+    listenCaptions[sourcePlatformKey] = 'Original playlist';
+    if (resolvedSourceUrl) listenLinks[sourcePlatformKey] = resolvedSourceUrl;
+  }
+  if (cassetteSpotifyCopyUrl) {
+    listenLinks.spotify = cassetteSpotifyCopyUrl;
+    listenCaptions.spotify = CASSETTE_SPOTIFY_COPY_CAPTION;
+  }
+  const copyTargets = isPlaylist ? playlistCopyTargets(sourcePlatformKey, listenLinks) : [];
   const listenSection = (
     <div>
       <h3 className="sr-only">Listen on</h3>
       <StreamingLinks
         links={listenLinks}
-        captions={isPlaylist && sourcePlatformKey ? { [sourcePlatformKey]: 'Original playlist' } : undefined}
+        captions={listenCaptions}
         postId={postData?.postId || postId}
         elementType={metadata.type}
         sourcePlatform={analyticsSourcePlatform}
@@ -1340,6 +1352,18 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         isMemberView={postData?.isMemberView}
         className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
       />
+      {sharedSpotifyCopy && !cassetteSpotifyCopyUrl && (
+        <CassetteSpotifyCopyLink
+          className="mt-2.5"
+          playlistId={postData?.musicElementId || ''}
+          postId={postData?.postId || postId}
+          sourcePlatform={analyticsSourcePlatform}
+          isAuthenticated={isAuthenticated}
+          paidPromotionCampaignId={postData?.paidPromotionCampaignId}
+          curatorId={postData?.curatorId}
+          isMemberView={postData?.isMemberView}
+        />
+      )}
       {isPlaylist && (
         <PlaylistCopyActions
           targets={copyTargets}

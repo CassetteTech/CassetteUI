@@ -50,15 +50,6 @@ interface CreationStatus {
 
 const PLAYLIST_CONVERSION_LIMIT = 200;
 
-/** Where a copy lands, so a fan knows before the tap. */
-function copyDestination(platform: PlatformKey): string {
-  if (platform === 'appleMusic') return 'In your library';
-  if (platform === 'spotify' && clientConfig.features.useCassetteSpotifyAccount) {
-    return "On Cassette's Spotify account";
-  }
-  return 'In your account';
-}
-
 /**
  * The copy block under a playlist's listen links: one button for each service the
  * playlist is not on, which builds a new playlist there from the post's tracklist.
@@ -608,7 +599,7 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
         Not on your service?
       </h4>
       <p className="mt-0.5 font-roboto-flex text-xs text-muted-foreground">
-        Cassette builds a new playlist from this tracklist.
+        Cassette builds a copy in your account.
         {conversionLimitExceeded &&
           ` A copy holds the first ${PLAYLIST_CONVERSION_LIMIT} of its ${playlistTrackCount} tracks.`}
       </p>
@@ -642,7 +633,6 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
                 aria-label={createdUrl
                   ? (isLibraryCopy ? 'View the copy in a browser' : `Open the copy on ${service.name}`)
                   : `Make a copy on ${service.name}`}
-                aria-describedby={`${headingId}-${platform}`}
                 onClick={() => {
                   if (createdUrl) {
                     openCreatedPlaylist(platform, createdUrl);
@@ -654,11 +644,8 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
                 <span className="relative h-4 w-4 shrink-0 sm:h-5 sm:w-5">
                   <Image src={service.icon} alt="" width={20} height={20} loading="eager" decoding="sync" className="object-contain" />
                 </span>
-                <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
+                <span className="flex-1 whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
                   {service.name}
-                </span>
-                <span id={`${headingId}-${platform}`} className="min-w-0 flex-1 truncate font-roboto-flex text-xs text-muted-foreground">
-                  {copyDestination(platform)}
                 </span>
                 {createdUrl ? (
                   <span

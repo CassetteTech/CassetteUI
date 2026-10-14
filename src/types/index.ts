@@ -776,6 +776,8 @@ export interface PostByIdResponse {
   description?: string;
   username?: string;
   originalLink?: string;
+  /** Cassette's shared public Spotify copy of a playlist, once a fan has asked for one. */
+  cassetteSpotifyCopyUrl?: string | null;
 }
 
 export interface PublicPostPageMetadata {

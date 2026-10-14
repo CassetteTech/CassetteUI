@@ -428,7 +428,7 @@ function StudioDashboard({ children }: { children: ReactNode }) {
           </div>
           <div className="max-lg:contents lg:relative lg:flex lg:flex-col lg:gap-6 lg:self-stretch">
             {wide && <StudioRailShareLinks onPageLinkCopied={launch.markPageLinkCopied} />}
-            <div className="max-lg:contents lg:sticky lg:top-[calc(var(--studio-share-band-height)+1.5rem)] lg:flex lg:flex-col lg:gap-6">
+            <div className="max-lg:contents lg:sticky lg:flex lg:flex-col lg:gap-6">
               <aside
                 ref={setPassSlot}
                 aria-label={view === 'studio-membership' ? 'Membership plan' : 'Your public pass'}

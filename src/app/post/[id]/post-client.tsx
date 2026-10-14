@@ -225,6 +225,7 @@ const buildArtistSearchUrl = (platform: NormalizedPlatformKey, artistName: strin
 };
 
 const REPOSTED_POSTS_STORAGE_KEY = 'cassette_reposted_posts_v1';
+const COMMENTS_PADDING_TRANSITION_MS = 450;
 
 const readRepostedPosts = (userId?: string | null): Record<string, true> => {
   if (!userId || typeof window === 'undefined') return {};
@@ -988,15 +989,13 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     if (hasColumnRoom) setStudioPanelOpen(false);
   }, [hasColumnRoom]);
 
-  // The comments panel pads the page's right edge (450 ms transition). The owner column
-  // stays out of the layout until that padding has shrunk again, or the artwork collapses.
   const [commentsPadded, setCommentsPadded] = useState(false);
   useEffect(() => {
     if (commentsSheetOpen) {
       setCommentsPadded(true);
       return;
     }
-    const timeout = setTimeout(() => setCommentsPadded(false), 450);
+    const timeout = setTimeout(() => setCommentsPadded(false), COMMENTS_PADDING_TRANSITION_MS);
     return () => clearTimeout(timeout);
   }, [commentsSheetOpen]);
 
@@ -1357,7 +1356,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         onDelete={() => setDeleteModalOpen(true)}
       >
       <div
-        className={`relative z-10 min-h-svh transition-[padding] duration-450 ease-out-quart ${arrivedFromConversionHandoff ? "" : "motion-safe:animate-focus-in"} ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
+        className={`relative z-10 min-h-svh transition-[padding] ease-out-quart ${arrivedFromConversionHandoff ? "" : "motion-safe:animate-focus-in"} ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
+        style={{ transitionDuration: `${COMMENTS_PADDING_TRANSITION_MS}ms` }}
       >
         {isDesktop ? (
             <div className="flex min-h-svh flex-col pt-16 before:flex-1 after:min-h-20 after:flex-1">

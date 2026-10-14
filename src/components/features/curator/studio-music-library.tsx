@@ -7,6 +7,7 @@ import {
   useInfiniteQuery,
   useQueryClient,
   type InfiniteData,
+  type QueryKey,
 } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { audienceDetails, nounsOf, typeDetails } from '@/components/features/curator/studio-music-filters';
@@ -20,6 +21,7 @@ import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { EditPostModal } from '@/components/features/post/edit-post-modal';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
+import { profileQueryKeys } from '@/hooks/use-profile';
 import { patchMusicPages, uniquePosts } from '@/lib/studio-music-pages';
 import { profileService } from '@/services/profile';
 import type { ActivityPost, PaginatedActivityResponse } from '@/types';
@@ -28,13 +30,16 @@ export const libraryPageSize = 20;
 
 type LibraryPages = InfiniteData<PaginatedActivityResponse, number>;
 
-// Under the activity key, so a post added, saved, or deleted anywhere refreshes the library; the
-// app's default freshness then spares a long list a refetch of every page on each window focus.
-const libraryKey = (userId: string | null) => ['user-activity', userId, 'studio-library'] as const;
+const libraryKeys = {
+  all: (userId: string | null) => profileQueryKeys.studioActivity(userId, 'studio-library'),
+  list: (userId: string | null, type: MusicType | null, audience: MusicAudience | null) =>
+    [...libraryKeys.all(userId), type ?? 'all', audience ? audienceDetails[audience].privacy : 'all'] as const,
+  privacyOf: (key: QueryKey) => String(key.at(-1)),
+};
 
 export function useLibrary(userId: string | null, type: MusicType | null, audience: MusicAudience | null) {
   const library = useInfiniteQuery({
-    queryKey: [...libraryKey(userId), type ?? 'all', audience ? audienceDetails[audience].privacy : 'all'],
+    queryKey: libraryKeys.list(userId, type, audience),
     queryFn: ({ pageParam }) => profileService.fetchUserActivity(userId!, {
       page: pageParam,
       pageSize: libraryPageSize,
@@ -53,32 +58,28 @@ export function useLibrary(userId: string | null, type: MusicType | null, audien
 function useLibraryPatch(userId: string | null) {
   const queryClient = useQueryClient();
   return useCallback((postId: string, change: Partial<ActivityPost> | null) => {
-    for (const [key, data] of queryClient.getQueriesData<LibraryPages>({ queryKey: libraryKey(userId) })) {
-      // The key's last part is the list's audience: a privacy value, or 'all'.
-      if (data) queryClient.setQueryData<LibraryPages>(key, patchMusicPages(data, postId, change, String(key[4])));
+    for (const [key, data] of queryClient.getQueriesData<LibraryPages>({ queryKey: libraryKeys.all(userId) })) {
+      if (data) queryClient.setQueryData<LibraryPages>(key, patchMusicPages(data, postId, change, libraryKeys.privacyOf(key)));
     }
-    void queryClient.invalidateQueries({ queryKey: libraryKey(userId), refetchType: 'none' });
+    void queryClient.invalidateQueries({ queryKey: libraryKeys.all(userId), refetchType: 'none' });
   }, [queryClient, userId]);
 }
 
-/** The note and delete sheets, shared by every row. Radix focuses nothing when a sheet without a
-    trigger closes, so each opening records where focus returns: the opener, or the next post
-    when the post left the list. */
 function useRowSheets({ patch, leavesList, focusAfterRemoval }: {
   patch: (postId: string, change: Partial<ActivityPost> | null) => void;
   leavesList: (privacy: string | undefined) => boolean;
-  focusAfterRemoval: (postId: string) => () => void;
+  focusAfterRemoval: (postId: string) => () => HTMLElement | null;
 }) {
   const [editing, setEditing] = useState<{ post: ActivityPost; open: boolean } | null>(null);
   const [deleting, setDeleting] = useState<{ post: ActivityPost; open: boolean } | null>(null);
-  const restoreFocus = useRef<(() => void) | null>(null);
-  const returnFocusOnClose = (event: Event) => {
-    event.preventDefault();
-    restoreFocus.current?.();
-    restoreFocus.current = null;
+  const returnTarget = useRef<(() => HTMLElement | null) | null>(null);
+  const returnFocusTo = () => {
+    const target = returnTarget.current?.() ?? null;
+    returnTarget.current = null;
+    return target;
   };
   const opener = (open: (post: ActivityPost) => void) => (post: ActivityPost, returnFocus: HTMLElement | null) => {
-    restoreFocus.current = () => returnFocus?.focus();
+    returnTarget.current = () => returnFocus;
     open(post);
   };
 
@@ -96,10 +97,10 @@ function useRowSheets({ patch, leavesList, focusAfterRemoval }: {
             currentPrivacy={editing.post.privacy}
             currentCommentsEnabled={editing.post.commentsEnabled ?? true}
             onSuccess={(change) => {
-              if (leavesList(change.privacy)) restoreFocus.current = focusAfterRemoval(editing.post.postId);
+              if (leavesList(change.privacy)) returnTarget.current = focusAfterRemoval(editing.post.postId);
               patch(editing.post.postId, change);
             }}
-            onCloseAutoFocus={returnFocusOnClose}
+            returnFocusTo={returnFocusTo}
           />
         )}
         {deleting && (
@@ -109,10 +110,10 @@ function useRowSheets({ patch, leavesList, focusAfterRemoval }: {
             postId={deleting.post.postId}
             postTitle={deleting.post.title}
             onSuccess={() => {
-              restoreFocus.current = focusAfterRemoval(deleting.post.postId);
+              returnTarget.current = focusAfterRemoval(deleting.post.postId);
               patch(deleting.post.postId, null);
             }}
-            onCloseAutoFocus={returnFocusOnClose}
+            returnFocusTo={returnFocusTo}
           />
         )}
       </>
@@ -132,15 +133,15 @@ export function useLibraryRowTools({ userId, posts, listRef, sectionId, leavesLi
     const rows = [...(listRef.current?.querySelectorAll<HTMLElement>('[data-post-id]') ?? [])];
     const index = rows.findIndex((row) => row.dataset.postId === postId);
     const neighbor = rows[index + 1] ?? rows[index - 1];
-    return () => (neighbor?.querySelector<HTMLElement>('[data-row-title]') ?? document.getElementById(sectionId))?.focus();
+    return () => neighbor?.querySelector<HTMLElement>('[data-row-title]') ?? document.getElementById(sectionId);
   };
   const { onEdit, onDelete, sheets } = useRowSheets({ patch, leavesList, focusAfterRemoval });
 
-  const focusAfterDrop = useRef<(() => void) | null>(null);
+  const focusAfterDrop = useRef<(() => HTMLElement | null) | null>(null);
   useEffect(() => {
     const refocus = focusAfterDrop.current;
     focusAfterDrop.current = null;
-    if (refocus && (document.activeElement === null || document.activeElement === document.body)) refocus();
+    if (refocus && (document.activeElement === null || document.activeElement === document.body)) refocus()?.focus();
   }, [posts]);
   const onSaved = (post: ActivityPost, change: Partial<ActivityPost>) => {
     if (leavesList(change.privacy)) focusAfterDrop.current = focusAfterRemoval(post.postId);

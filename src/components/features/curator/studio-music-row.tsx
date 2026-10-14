@@ -107,8 +107,6 @@ function VisibilityMenu({ post, access, retryAccess, openPlanSetup, choose, pend
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        {/* Not disabled while saving: the closing menu returns focus here, and a disabled
-            button would drop it to the page. `choose` ignores picks until the save lands. */}
         <button
           type="button"
           data-row-action="visibility"

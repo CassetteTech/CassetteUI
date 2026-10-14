@@ -32,8 +32,7 @@ interface EditPostModalProps {
   currentPrivacy?: PostPrivacy;
   currentCommentsEnabled?: boolean;
   onSuccess?: (changes: PostChanges) => void;
-  /** Without a sheet trigger, Radix focuses nothing on close; a caller can focus its real opener here. */
-  onCloseAutoFocus?: (event: Event) => void;
+  returnFocusTo?: () => HTMLElement | null | undefined;
 }
 
 export function EditPostModal({
@@ -44,7 +43,7 @@ export function EditPostModal({
   currentPrivacy = 'public',
   currentCommentsEnabled = true,
   onSuccess,
-  onCloseAutoFocus,
+  returnFocusTo,
 }: EditPostModalProps) {
   const [description, setDescription] = useState(currentDescription);
   const [privacy, setPrivacy] = useState<PostPrivacy>(currentPrivacy);
@@ -107,7 +106,7 @@ export function EditPostModal({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-md" onCloseAutoFocus={onCloseAutoFocus}>
+      <SheetContent side="right" className="w-full max-w-md" returnFocusTo={returnFocusTo}>
         <SheetHeader>
           <SheetTitle className="text-foreground">Edit Post</SheetTitle>
           <SheetDescription className="text-muted-foreground">

@@ -6,6 +6,7 @@ import { Monitor, Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { RadioGroup as RadioGroupPrimitive } from 'radix-ui'
 
+import { useHydrated } from '@/hooks/use-hydrated'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -68,8 +69,7 @@ const THEME_OPTIONS = [
 export function ThemeSegmentedControl() {
   const { theme } = useTheme()
   const setTheme = useCrossFadeSetTheme()
-  // next-themes knows the stored choice only on the client, so nothing is selected before hydration.
-  const hydrated = React.useSyncExternalStore(() => () => {}, () => true, () => false)
+  const hydrated = useHydrated()
 
   return (
     <RadioGroupPrimitive.Root

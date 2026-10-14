@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronDown } from 'lucide-react';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { WalletPass } from '@/components/features/curator/wallet-pass';
+import { membershipPassPositionKey } from '@/components/features/curator/curator-membership-card';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -48,9 +49,8 @@ function MembershipPass({ entry }: { entry: MyMembership }) {
   const money = (minor: number) => formatPaidPromotionMinorAmount(minor, membership.currency);
   const endUtc = membershipEndOrRenewalUtc(membership);
   const end = endUtc ? formatMembershipDate(endUtc) : null;
-  // The same key on the curator's profile pass lets this card slide into the rail on navigation, and back.
   const passRef = useRef<HTMLDivElement>(null);
-  useSharedPosition(passRef, `membership-pass:${entry.curatorUsername}`);
+  useSharedPosition(passRef, membershipPassPositionKey(entry.curatorUsername));
 
   async function manage() {
     setPortalPending(true);

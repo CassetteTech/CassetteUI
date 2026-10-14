@@ -36,10 +36,9 @@ export function CuratorFollowAction({ className, compact = false }: { className?
         <Button
           variant="outline"
           size={following || compact ? 'sm' : 'default'}
-          // aria-disabled, not disabled: a disabled button drops keyboard focus while the write runs.
-          className={cn('aria-disabled:pointer-events-none aria-disabled:opacity-50', !following && !compact && 'w-full')}
+          className={cn(!following && !compact && 'w-full')}
           onClick={following ? follow.unfollow : follow.follow}
-          aria-disabled={follow.pending}
+          busy={follow.pending}
         >
           {follow.pending ? <Spinner size="sm" aria-hidden /> : !following && <UserPlus aria-hidden />}
           {following ? 'Unfollow' : 'Follow'}

@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef } from 'react';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { cn } from '@/lib/utils';
+import { scrollTabIntoRow } from '@/lib/utils/scroll-tab-into-row';
 
 export const listTabsRowClassName = 'no-scrollbar relative -mx-1 flex select-none gap-4 overflow-x-auto';
 
@@ -26,14 +27,10 @@ export function ListTabs<T extends string>({
 }) {
   const name = useId();
   const row = useRef<HTMLDivElement>(null);
-  // A deep link can open a tab past the edge of a narrow row. Only the row scrolls; the page stays put.
   useEffect(() => {
     const list = row.current;
     const tab = list?.querySelector(':checked')?.parentElement;
-    if (!list || !tab) return;
-    const right = tab.offsetLeft + tab.offsetWidth;
-    if (tab.offsetLeft < list.scrollLeft) list.scrollLeft = tab.offsetLeft;
-    else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth;
+    if (list && tab) scrollTabIntoRow(list, tab);
   }, [value]);
   return (
     <div className={cn('border-b border-border/70', className)}>

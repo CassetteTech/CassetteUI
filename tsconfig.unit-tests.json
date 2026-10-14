@@ -102,7 +102,11 @@
     "src/utils/in-app-browser.ts",
     "src/utils/__tests__/in-app-browser.test.ts",
     "src/utils/profile-action-intent.ts",
-    "src/utils/__tests__/profile-action-intent.test.ts"
+    "src/utils/__tests__/profile-action-intent.test.ts",
+    "src/hooks/use-provider-return-poll.ts",
+    "src/hooks/__tests__/use-provider-return-poll.test.ts",
+    "src/lib/utils/scroll-tab-into-row.ts",
+    "src/lib/utils/__tests__/scroll-tab-into-row.test.ts"
   ],
   "exclude": ["node_modules"]
 }

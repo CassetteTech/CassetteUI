@@ -2,11 +2,9 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ScrollFade } from '@/components/ui/scroll-fade';
 import { Spinner } from '@/components/ui/spinner';
 import { appLogger } from '@/lib/observability/logger';
 
-// Keep in sync with the row's min-h-[52px].
 const ROW_HEIGHT_PX = 52;
 const COLLAPSED_MAX_HEIGHT_PX = ROW_HEIGHT_PX * 6.5;
 export const EXPANDABLE_MIN_TRACKS = 9;
@@ -47,41 +45,17 @@ export interface TrackListItem {
 
 interface TrackListProps {
   items: TrackListItem[];
-  artwork?: string;
   albumArtist?: string;
-  variant?: 'album' | 'playlist';
   className?: string;
   compact?: boolean;
-  /**
-   * When true, the list renders its own scroll container with edge fades.
-   * Set to false when the parent already provides a scrollable area
-   * to avoid nested scrollbars.
-   */
-  scrollable?: boolean;
-  /**
-   * With `scrollable`, stretches the scroll area to fill the parent's
-   * (flex-constrained) height instead of capping at a fixed max height.
-   */
-  scrollFill?: boolean;
-  /**
-   * Collapsed-preview mode for page-flow layouts: shows the first rows with a
-   * fade into a "Show all" toggle instead of a nested scroll region.
-   * Takes precedence over `scrollable`.
-   */
-  expandable?: boolean;
   sourcePlatform?: string;
 }
 
 export const TrackList: React.FC<TrackListProps> = ({
   items,
-  artwork, // eslint-disable-line @typescript-eslint/no-unused-vars
   albumArtist,
-  variant = 'album', // eslint-disable-line @typescript-eslint/no-unused-vars
   className,
   compact = false,
-  scrollable = true,
-  scrollFill = false,
-  expandable = false,
   sourcePlatform,
 }) => {
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
@@ -91,10 +65,8 @@ export const TrackList: React.FC<TrackListProps> = ({
   const [unavailablePreviews, setUnavailablePreviews] = useState<Record<number, true>>({});
   const audioRefs = useRef<Record<number, HTMLAudioElement>>({});
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const isScrollMode = scrollable && !expandable;
-  const isCollapsible = expandable && items.length >= EXPANDABLE_MIN_TRACKS;
+  const isCollapsible = items.length >= EXPANDABLE_MIN_TRACKS;
   const trackNumberPad = Math.max(2, String(items.length).length);
 
   useEffect(() => () => {
@@ -244,11 +216,11 @@ export const TrackList: React.FC<TrackListProps> = ({
               <li
                 key={`${track.title}-${index}`}
                 data-track-row
+                style={{ minHeight: ROW_HEIGHT_PX }}
                 className={cn(
-                  'group grid items-center gap-3 px-3 sm:px-4 transition-colors duration-200 grid-cols-[auto_1fr_auto] border-b border-border/40 last:border-b-0 min-h-[52px]',
+                  'group grid items-center gap-3 px-3 sm:px-4 transition-colors duration-200 grid-cols-[auto_1fr_auto] border-b border-border/40 last:border-b-0',
                   compact ? 'py-2' : 'py-2.5',
                   'hover:bg-muted/40',
-                  isScrollMode && 'snap-start',
                   isPlaying && 'bg-primary/10 shadow-[inset_2px_0_0_hsl(var(--primary))]'
                 )}
               >
@@ -326,22 +298,10 @@ export const TrackList: React.FC<TrackListProps> = ({
       className={cn(
         'card-quiet overflow-hidden',
         'relative',
-        isScrollMode && scrollFill && 'flex flex-col',
         className
       )}
     >
-      {isScrollMode ? (
-        <ScrollFade
-          className={cn('z-10', scrollFill && 'flex-1')}
-          scrollClassName={cn(
-            'snap-y snap-proximity [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full',
-            scrollFill ? 'h-full' : 'max-h-[400px]'
-          )}
-          scrollRef={scrollContainerRef}
-        >
-          {trackRows}
-        </ScrollFade>
-      ) : isCollapsible ? (
+      {isCollapsible ? (
         <>
           <motion.div
             initial={false}

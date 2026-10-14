@@ -1,7 +1,9 @@
 'use client';
 
 import { useContext, useEffect, useId, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { payoutAccountKey } from '@/hooks/use-curator';
+import { useRedirectMutation } from '@/hooks/use-redirect-mutation';
 import { ArrowRight, Check, Clock } from 'lucide-react';
 import {
   StudioNotice,
@@ -96,7 +98,7 @@ export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
   const returnHandled = useRef(false);
   const [flow, setFlow] = useState<PayoutFlow>('checking');
   const [linkExpired, setLinkExpired] = useState(false);
-  const onboarding = useMutation({
+  const onboarding = useRedirectMutation({
     mutationFn: () => startCuratorPayoutOnboarding(),
     onSuccess: (result) => window.location.assign(result.onboardingUrl),
     onError: () => void queryClient.invalidateQueries({ queryKey: ['curator-profile', 'me'] }),
@@ -125,7 +127,7 @@ export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
   useEffect(() => {
     if (flow !== 'return' || !status.isSuccess || returnHandled.current) return;
     returnHandled.current = true;
-    queryClient.setQueryData(['curator-payout-account', 'current'], status.data ?? null);
+    queryClient.setQueryData(payoutAccountKey, status.data ?? null);
     removeQueryParameters('payout');
   }, [flow, queryClient, status.data, status.isSuccess]);
 
@@ -133,9 +135,6 @@ export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
   const loading = flow === 'checking' || status.isPending;
   const payoutsActive = account?.transfersCapabilityStatus === 'active';
   const returned = flow === 'return' && !loading && !status.isError;
-  // Onboarding keeps the button disabled through isSuccess: the mutation resolves
-  // before the Stripe navigation completes, so re-enabling would allow a double submit.
-  const onboardingBusy = onboarding.isPending || onboarding.isSuccess;
   const actionLabel = linkExpired
     ? 'Open a new setup link'
     : account ? 'Continue payout setup' : 'Set up payouts';
@@ -231,10 +230,10 @@ export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
               variant={payoutsActive ? 'outline' : 'default'}
               data-testid="curator-payout-onboarding"
               className="w-full sm:w-auto"
-              disabled={onboardingBusy}
+              disabled={onboarding.busy}
               onClick={() => onboarding.mutate()}
             >
-              {onboardingBusy ? 'Opening…' : payoutsActive ? 'Update payout details' : actionLabel}
+              {onboarding.busy ? 'Opening…' : payoutsActive ? 'Update payout details' : actionLabel}
             </Button>
           </>
         )}

@@ -31,7 +31,7 @@ import {
   type CuratorEarningsHistoryItem,
 } from '@/services/curator-earnings';
 import { fetchCuratorMemberStats, memberAxisMax, type CuratorMemberStats } from '@/services/curator-member-stats';
-import { fetchCuratorPlans } from '@/services/curator-plans';
+import { useCuratorPlans } from '@/hooks/use-curator';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
@@ -262,12 +262,7 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
     enabled: Boolean(user?.id),
     staleTime: 0,
   });
-  // Shares the plan card's query key, so React Query dedupes the request.
-  const plans = useQuery({
-    queryKey: ['curator-plans', profile.id],
-    queryFn: ({ signal }) => fetchCuratorPlans(signal),
-    staleTime: 0,
-  });
+  const plans = useCuratorPlans(profile.id);
   const hasActivePlan = plans.data?.some((plan) => plan.status === 'active') === true;
   const hasPublished = plans.data?.some((plan) => plan.status !== 'draft') === true;
   const stats = useQuery({

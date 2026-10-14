@@ -1575,10 +1575,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             </div>
                             <TrackList
                               items={postData.tracks!}
-                              artwork={metadata.artwork}
                               albumArtist={metadata.artist}
-                              variant={isAlbum ? 'album' : 'playlist'}
-                              expandable
                               className="!border-0 !bg-transparent !shadow-none"
                               sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                             />
@@ -1755,11 +1752,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   </div>
                   <TrackList
                     items={postData.tracks!}
-                    artwork={metadata.artwork}
                     albumArtist={metadata.artist}
-                    variant={isAlbum ? 'album' : 'playlist'}
                     compact
-                    expandable
                     className="!border-0 !bg-transparent !shadow-none"
                     sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                   />

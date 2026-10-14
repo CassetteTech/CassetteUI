@@ -39,6 +39,7 @@ import { listTabClassName, listTabsRowClassName } from '@/components/ui/list-tab
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { useAuthState } from '@/hooks/use-auth';
 import { useMemberPostAccess } from '@/hooks/use-curator';
+import { profileQueryKeys } from '@/hooks/use-profile';
 import { pagesShortened } from '@/lib/studio-music-pages';
 import { cn } from '@/lib/utils';
 import { keepSecondPressOnTrigger } from '@/lib/utils/menu-trigger';
@@ -66,7 +67,7 @@ function useCountLine(settledLine: string | null) {
 
 function useArtistsTab(userId: string | null, type: MusicType | null) {
   const artists = useQuery({
-    queryKey: ['user-activity', userId, 'studio-artists'],
+    queryKey: profileQueryKeys.studioActivity(userId, 'studio-artists'),
     queryFn: () => profileService.fetchUserActivity(userId!, { pageSize: 1, elementType: typeDetails.artists.elementType }),
     enabled: userId !== null,
   });

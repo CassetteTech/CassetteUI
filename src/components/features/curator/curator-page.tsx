@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuthState } from '@/hooks/use-auth';
+import { useProviderReturnPoll } from '@/hooks/use-provider-return-poll';
 import { useCuratorPage } from '@/hooks/use-curator';
 import { refreshAfterMembershipChange, useMembershipStatus } from '@/hooks/use-membership-status';
 import {
@@ -28,6 +29,7 @@ import {
   takeMembershipPortalBaseline,
   type MembershipInterval,
   type MembershipPortalBaseline,
+  type MembershipStatusView,
   type MembershipSubscription,
 } from '@/services/membership';
 import { captureClientEvent } from '@/lib/analytics/client';
@@ -93,8 +95,6 @@ export function PublicCuratorPage({
   const page = query.data?.pages[0];
   const canLockPosts = useSubscriberPostEligibility(page?.viewer.isOwner ?? false);
   const [interval, setBillingInterval] = useState(initialInterval);
-  // A Portal change reaches Bridge by webhook, possibly after the fan is back,
-  // so a Portal return also polls for a bounded time.
   const [pollStatus, setPollStatus] = useState(membershipFlow === 'return' || membershipFlow === 'portal-return');
   const [notice, setNotice] = useState<string | null>(
     membershipFlow === 'canceled' ? 'Checkout was canceled. You were not charged.' : null,
@@ -165,14 +165,13 @@ export function PublicCuratorPage({
   }, []);
 
   useEffect(() => {
-    // bfcache restore: the page comes back with stale "opening…" pending state.
-    const onPageShow = (event: PageTransitionEvent) => {
+    const resetPendingAfterBackForwardRestore = (event: PageTransitionEvent) => {
       if (!event.persisted) return;
       setCheckoutPending(false);
       setPortalPending(false);
     };
-    window.addEventListener('pageshow', onPageShow);
-    return () => window.removeEventListener('pageshow', onPageShow);
+    window.addEventListener('pageshow', resetPendingAfterBackForwardRestore);
+    return () => window.removeEventListener('pageshow', resetPendingAfterBackForwardRestore);
   }, []);
 
   useEffect(() => {
@@ -200,27 +199,30 @@ export function PublicCuratorPage({
     });
   }, [page]);
 
-  useEffect(() => {
-    if (!pollStatus) return;
-    const timeout = window.setTimeout(() => {
+  useProviderReturnPoll({
+    flow: membershipFlow === 'return' || membershipFlow === 'portal-return' ? membershipFlow : null,
+    polling: pollStatus,
+    read: statusQuery,
+    onTimeout: (flow) => {
       setPollStatus(false);
       setPollTimedOut(true);
-      setNotice(membershipFlow !== 'portal-return'
+      setNotice(flow !== 'portal-return'
         ? 'Your membership update is still processing.'
         : portalReturn.current?.openedBaseline
           ? 'No membership change has reached Cassette yet. A change made in Stripe can take a minute to appear.'
           : 'A change made in Stripe can take a minute to appear here.');
       removeQueryParameters('membership', 'interval');
-    }, 30_000);
-    return () => window.clearTimeout(timeout);
-  }, [membershipFlow, pollStatus]);
+    },
+    onRead: (flow, status) => {
+      if (flowHandled.current) return;
+      settleMembershipReturn(flow, status);
+    },
+  });
 
-  useEffect(() => {
-    const status = statusQuery.data;
-    if (!status || flowHandled.current) return;
+  function settleMembershipReturn(flow: 'return' | 'portal-return', status: MembershipStatusView) {
     const membership = status.membership;
 
-    if (membershipFlow === 'return') {
+    if (flow === 'return') {
       if (!membership) return;
       if (grantsMembershipAccess(membership.status)) {
         flowHandled.current = true;
@@ -240,21 +242,15 @@ export function PublicCuratorPage({
       return;
     }
 
-    if (membershipFlow !== 'portal-return') return;
-    // Settle only on a status read completed after this mount, never on a cached snapshot.
-    if (!statusQuery.isFetchedAfterMount || statusQuery.isFetching || !membership) return;
+    if (!membership) return;
 
     const current = { status: membership.status, cancelAtPeriodEnd: membership.cancelAtPeriodEnd };
     if (!portalReturn.current) {
       const opened = takeMembershipPortalBaseline(membership.membershipSubscriptionId);
       portalReturn.current = { state: opened ?? current, openedBaseline: opened !== null };
-      // Without that baseline, the page can predate a change that this first read
-      // already shows, so the page is read once more.
       if (!opened) void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
     }
     const { state: reference, openedBaseline } = portalReturn.current;
-    // An unchanged read proves nothing: the change can still be on its way, or
-    // the fan only looked. The bounded poll ends with neutral copy instead.
     if (current.status === reference.status && current.cancelAtPeriodEnd === reference.cancelAtPeriodEnd) return;
 
     flowHandled.current = true;
@@ -273,7 +269,6 @@ export function PublicCuratorPage({
       toast.info(membership.status === 'canceled'
         ? 'Your membership is canceled.'
         : 'Your membership renewal is canceled.');
-      // A first read after the return cannot show that the Portal visit caused it.
       if (!openedBaseline) return;
       void captureClientEvent('membership_canceled', {
         route: '/profile/[username]',
@@ -288,15 +283,7 @@ export function PublicCuratorPage({
     } else if (continuationObserved) {
       setNotice('Your membership will continue.');
     }
-  }, [
-    membershipFlow,
-    queryClient,
-    statusQuery.data,
-    statusQuery.isFetchedAfterMount,
-    statusQuery.isFetching,
-    userCohort,
-    username,
-  ]);
+  }
 
   useEffect(() => {
     if (membershipFlow !== 'canceled') return;

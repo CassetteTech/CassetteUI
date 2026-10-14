@@ -31,15 +31,14 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { useAuthState } from '@/hooks/use-auth';
-import { useUserBio } from '@/hooks/use-profile';
+import { profileQueryKeys, useUserBio } from '@/hooks/use-profile';
 import { cn } from '@/lib/utils';
 import { useSharedPositionHold } from '@/hooks/use-shared-position';
 import {
-  fetchCuratorPayoutAccount,
   fetchOwnCuratorProfile,
   type CuratorProfile,
 } from '@/services/curator';
-import { fetchCuratorPlans } from '@/services/curator-plans';
+import { useCuratorPlans, usePayoutAccount } from '@/hooks/use-curator';
 import { profileService } from '@/services/profile';
 
 const profileQueryKey = ['curator-profile', 'me'] as const;
@@ -55,7 +54,7 @@ function readPageLinkCopied(userId: string) {
 
 function useMusicStep(userId: string | null) {
   const music = useQuery({
-    queryKey: ['user-activity', userId, 'studio-has-music'],
+    queryKey: profileQueryKeys.studioActivity(userId, 'studio-has-music'),
     queryFn: () => profileService.fetchUserActivity(userId!, { pageSize: 1 }),
     enabled: userId !== null,
     staleTime: 0,
@@ -88,19 +87,8 @@ function useLaunchSteps(profile: CuratorProfile | null) {
   const { user } = useAuthState();
   const userId = user?.id ?? null;
   const music = useMusicStep(userId);
-  const payoutFlowActive = useSearchParams().has('payout');
-  const payout = useQuery({
-    queryKey: ['curator-payout-account', 'current'],
-    queryFn: ({ signal }) => fetchCuratorPayoutAccount(false, signal),
-    enabled: !payoutFlowActive,
-    staleTime: 0,
-  });
-  const plans = useQuery({
-    queryKey: ['curator-plans', profile?.id ?? 'none'],
-    queryFn: ({ signal }) => fetchCuratorPlans(signal),
-    enabled: Boolean(profile),
-    staleTime: 0,
-  });
+  const { account: payout, payoutReturn: payoutFlowActive } = usePayoutAccount();
+  const plans = useCuratorPlans(profile?.id ?? null);
   const [pageLinkCopied, markPageLinkCopied] = usePageLinkCopied(userId);
 
   const payoutStarted = payout.data != null;

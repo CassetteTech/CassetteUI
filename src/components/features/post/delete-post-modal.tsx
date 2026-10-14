@@ -20,8 +20,7 @@ interface DeletePostModalProps {
   postId: string;
   postTitle: string;
   onSuccess?: () => void;
-  /** Without a sheet trigger, Radix focuses nothing on close; a caller can focus its real opener here. */
-  onCloseAutoFocus?: (event: Event) => void;
+  returnFocusTo?: () => HTMLElement | null | undefined;
 }
 
 export function DeletePostModal({
@@ -30,7 +29,7 @@ export function DeletePostModal({
   postId,
   postTitle,
   onSuccess,
-  onCloseAutoFocus,
+  returnFocusTo,
 }: DeletePostModalProps) {
   const deletePost = useDeletePost();
 
@@ -48,7 +47,7 @@ export function DeletePostModal({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-md" onCloseAutoFocus={onCloseAutoFocus}>
+      <SheetContent side="right" className="w-full max-w-md" returnFocusTo={returnFocusTo}>
         <SheetHeader className="space-y-4">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
             <Trash2 className="h-6 w-6 text-destructive" />

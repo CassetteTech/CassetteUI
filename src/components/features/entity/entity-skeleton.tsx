@@ -628,9 +628,7 @@ const TracklistCard: React.FC<{
             </div>
             <TrackList
               items={tracks}
-              variant="playlist"
               compact={compact}
-              expandable
               className="!border-0 !bg-transparent !shadow-none"
             />
           </div>

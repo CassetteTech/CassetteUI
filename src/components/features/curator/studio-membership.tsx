@@ -1,11 +1,12 @@
 'use client';
 
-/** Studio Membership: everything a curator sells. Before the first publish, the three setup steps
-    and the plan form; after it, the members, then the plan. */
+/** Studio Membership: everything a curator sells and earns. Before the first publish, the three
+    setup steps and the plan form; after it, the earnings, the members, then the plan. */
 
 import { useContext } from 'react';
 import { CuratorEarningsCard } from '@/components/features/curator/curator-earnings-card';
 import { CuratorPlanCard } from '@/components/features/curator/curator-plan-card';
+import { StudioEarnings } from '@/components/features/curator/studio-earnings';
 import {
   StepButton,
   StudioSection,
@@ -72,7 +73,12 @@ export function StudioMembership({
     <div className="space-y-6">
       {hasPublished === false
         ? <MembershipSetupCard steps={setupSteps} />
-        : hasPublished && profile && <CuratorEarningsCard profile={profile} />}
+        : hasPublished && profile && (
+          <>
+            <StudioEarnings />
+            <CuratorEarningsCard profile={profile} />
+          </>
+        )}
       <CuratorPlanCard profile={profile} preview={preview} />
     </div>
   );

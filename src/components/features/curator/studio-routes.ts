@@ -1,10 +1,10 @@
 /** Curator Studio URLs: one per dashboard view, the section anchors inside them, and Add music. */
 
-export type StudioView = 'studio-overview' | 'studio-music' | 'studio-membership' | 'studio-billing';
+export type StudioView = 'studio-music' | 'studio-membership' | 'studio-billing';
 
-/** Each Studio view has its own URL; the dashboard layout shows the view whose path is open. */
+/** Each Studio view has its own URL; the dashboard layout shows the view whose path is open. Studio
+    opens on Music: `/studio` redirects there (next.config.ts). */
 export const studioPaths = {
-  'studio-overview': '/studio',
   'studio-music': '/studio/music',
   'studio-membership': '/studio/membership',
   'studio-billing': '/studio/payouts',
@@ -12,14 +12,13 @@ export const studioPaths = {
 
 /** Each view's name, in the section links and in Back links that return to it. */
 export const studioLabels = {
-  'studio-overview': 'Overview',
   'studio-music': 'Music',
   'studio-membership': 'Membership',
   'studio-billing': 'Payouts & billing',
 } satisfies Record<StudioView, string>;
 
 /** The dashboard views, in the order of the section links. */
-export const studioViews: readonly StudioView[] = ['studio-overview', 'studio-music', 'studio-membership', 'studio-billing'];
+export const studioViews: readonly StudioView[] = ['studio-music', 'studio-membership', 'studio-billing'];
 
 /** The view a Studio path shows, or null outside the dashboard views. */
 export function studioViewOfPath(pathname: string | null): StudioView | null {
@@ -27,10 +26,10 @@ export function studioViewOfPath(pathname: string | null): StudioView | null {
 }
 
 /** Resolves a section anchor (e.g. "#studio-pro") or a view id to the dashboard view that hosts it.
-    The membership setup, the plan, and the members live on the Membership view. */
+    The membership setup, the plan, and the members live on the Membership view;
+    anything else, such as the header's share links, is on every view and resolves to Music. */
 export function studioViewOf(sectionId: string): StudioView {
   switch (sectionId) {
-    case 'studio-overview':
     case 'studio-music':
     case 'studio-membership':
     case 'studio-billing':
@@ -43,7 +42,7 @@ export function studioViewOf(sectionId: string): StudioView {
     case 'studio-payouts':
       return 'studio-billing';
     default:
-      return 'studio-overview';
+      return 'studio-music';
   }
 }
 

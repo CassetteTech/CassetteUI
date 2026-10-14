@@ -281,7 +281,7 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
     staleTime: 0,
   });
   const hasActivePlan = plans.data?.some((plan) => plan.status === 'active') === true;
-  // Members exist only after a first publish, the same gate as the Overview ledger.
+  // Members exist only after a first publish, the same gate as the earnings ledger.
   const hasPublished = plans.data?.some((plan) => plan.status !== 'draft') === true;
   const stats = useQuery({
     queryKey: ['curator-member-stats', user?.id ?? null, profile.id, days],
@@ -300,7 +300,7 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
   );
   const showPagination = page > 1 || hasNextPage;
 
-  // Empty states take the chart's height, the same as the Overview's empty chart.
+  // Empty states take the chart's height, the same as the earnings card's empty chart.
   const noMembers = (title: string, description: string) => (
     <Empty className="mt-6 h-56 py-0">
       <EmptyTitle>{title}</EmptyTitle>
@@ -355,7 +355,7 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
     // Both panels share the view's anchor, so step links land on the hero and tests read one card.
     <div id="studio-members" data-testid="curator-earnings-card" tabIndex={-1} className="scroll-mt-24 space-y-6 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
       <section aria-labelledby="curator-earnings-title" aria-busy={stats.isPlaceholderData} className="card-quiet px-5 py-5 sm:px-6">
-        {/* The Overview's hero shape: label and figure on the left, the window control on the right. */}
+        {/* The earnings card's hero shape: label and figure on the left, the window control on the right. */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 id="curator-earnings-title" className="text-xs text-muted-foreground">Active members</h2>

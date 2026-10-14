@@ -13,6 +13,11 @@
     width: 0;
     height: 0;
   }
+
+  /* The post page's sticky toolbar and its docked tab's seam cover the top 8.5rem; focused and scrolled-to elements stop below it. */
+  html:has([data-post-toolbar]) {
+    scroll-padding-top: 8.5rem;
+  }
 }
 
 @layer components {
@@ -183,6 +188,7 @@
      white-on-paper by design). Nested re-declaration beats the .dark html
      override because custom properties inherit from the nearest setter. */
   :root, .force-light {
+    --band-tone-lightness: 0.42; /* bandTone in post-label-head.tsx */
     --background: 44 43% 92%; /* #F8F0DE */
     --foreground: 210 10% 14%; /* #1F2327 */
     --cassette-white: 44 100% 97%; /* #FFF8EC */
@@ -268,6 +274,7 @@
   }
 
   .dark {
+    --band-tone-lightness: 0.8;
     --background: 210 10% 14%; /* #1F2327 */
     --foreground: 44 43% 92%; /* #F8F0DE */
     --card: 210 10% 17%; /* #252A2F */

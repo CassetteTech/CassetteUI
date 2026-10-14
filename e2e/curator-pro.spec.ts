@@ -30,7 +30,7 @@ async function returnFromProvider(page: Page, providerUrl: string, returnPath: s
   }));
 }
 
-test('shows default economics without taking away the Overview', async ({ page }) => {
+test('shows default economics without taking away Studio Music', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProStatus: fixtureCuratorProAvailableStatus,
@@ -38,8 +38,8 @@ test('shows default economics without taking away the Overview', async ({ page }
 
   await page.goto(STUDIO_PATH);
 
-  // A curator without a profile lands on the Overview's music; billing is one section link away.
-  await expect(page.getByRole('heading', { name: 'Recent music' })).toBeVisible();
+  // A curator without a profile lands on Studio Music; billing is one section link away.
+  await expect(page.getByRole('heading', { name: 'Music', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Add your first music' })).toBeVisible();
   await openStudioStep(page, 'studio-pro');
   const card = page.getByTestId('curator-pro-card');
@@ -49,8 +49,8 @@ test('shows default economics without taking away the Overview', async ({ page }
 
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(card).toBeVisible();
-  await openStudioStep(page, 'studio-overview');
-  await expect(page.getByRole('heading', { name: 'Recent music' })).toBeVisible();
+  await openStudioStep(page, 'studio-music');
+  await expect(page.getByRole('heading', { name: 'Music', exact: true })).toBeVisible();
   const pageWidths = await page.evaluate(() => [
     document.documentElement.scrollWidth,
     document.body.scrollWidth,
@@ -272,7 +272,7 @@ test('hides Curator Pro everywhere in Studio while it is not available', async (
   });
 
   await page.goto(STUDIO_PATH);
-  await expect(page.getByRole('heading', { name: 'Recent music' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Music', exact: true })).toBeVisible();
   await expect(page.getByText(/Curator Pro/)).toHaveCount(0);
 
   await openStudioStep(page, 'studio-pro');

@@ -13,7 +13,7 @@ const BAYER_4X4 = [
 const CELL = 8;
 const RAMP_COLUMNS = 4;
 
-function ditherRampMask(rows: number): string {
+function ditherRamp(rows: number) {
   const cells: string[] = [];
   for (let row = 0; row < rows; row++) {
     const threshold = ((row + 1) / rows) * 16;
@@ -25,16 +25,11 @@ function ditherRampMask(rows: number): string {
   }
 
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${RAMP_COLUMNS * CELL}' height='${rows * CELL}'>${cells.join('')}</svg>`;
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  return { height: rows * CELL, mask: `url("data:image/svg+xml,${encodeURIComponent(svg)}")` };
 }
 
-/**
- * 224px of dissolve for the full hero, 64px for the slim band. Each tile's
- * height must equal its container's height exactly (`h-56` / `h-16`), or the
- * sparse top of the ramp gets clipped and the dissolve ends on a hard edge.
- */
-const HERO_DITHER = ditherRampMask(28);
-const BAND_DITHER = ditherRampMask(8);
+const HERO_RAMP = ditherRamp(28);
+const BAND_RAMP = ditherRamp(8);
 
 const DITHER_MASK_STYLE: CSSProperties = {
   maskRepeat: 'repeat-x',
@@ -266,6 +261,7 @@ export function TapeDeckBand({
   className?: string;
 }) {
   const isHero = variant === 'hero';
+  const ramp = isHero ? HERO_RAMP : BAND_RAMP;
 
   return (
     <div className={cn('relative bg-background', className)}>
@@ -279,14 +275,12 @@ export function TapeDeckBand({
       >
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
           <div
-            className={cn(
-              'absolute inset-x-0 bottom-0',
-              isHero ? 'h-56' : 'h-16',
-            )}
+            className="absolute inset-x-0 bottom-0"
             style={{
               ...DITHER_MASK_STYLE,
-              maskImage: isHero ? HERO_DITHER : BAND_DITHER,
-              WebkitMaskImage: isHero ? HERO_DITHER : BAND_DITHER,
+              height: ramp.height,
+              maskImage: ramp.mask,
+              WebkitMaskImage: ramp.mask,
             }}
           >
             <div className="relative h-full w-full">

@@ -4,7 +4,7 @@ import { CuratorPageError } from './curator';
 const countSchema = z.number().int().nonnegative().max(2_147_483_647);
 const daysSchema = countSchema.min(7).max(365);
 
-const curatorMemberStatsSchema = z.object({
+export const curatorMemberStatsSchema = z.object({
   days: daysSchema,
   activeMembers: countSchema,
   newMembers: countSchema,
@@ -35,10 +35,6 @@ export function memberAxisMax(peak: number): number {
   return Math.ceil(target / step) * step;
 }
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorMemberStats = (value: unknown): CuratorMemberStats =>
-  curatorMemberStatsSchema.parse(value);
-
 export async function fetchCuratorMemberStats(
   days: number,
   signal?: AbortSignal,
@@ -53,5 +49,5 @@ export async function fetchCuratorMemberStats(
   if (!response.ok) {
     throw new CuratorPageError('Failed to load member counts', response.status);
   }
-  return parseCuratorMemberStats(await response.json());
+  return curatorMemberStatsSchema.parse(await response.json());
 }

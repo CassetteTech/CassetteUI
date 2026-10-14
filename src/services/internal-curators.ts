@@ -42,7 +42,7 @@ const pricingPolicyFields = {
   minPayoutMinor: moneyMinorSchema,
 } as const;
 
-const pricingPolicyRequestSchema = z.object(pricingPolicyFields).strict().refine(
+export const pricingPolicyRequestSchema = z.object(pricingPolicyFields).strict().refine(
   (policy) => policy.processingBorneBy === 'platform' ||
     (policy.serviceFeeBps === 0 && policy.serviceFeeFixedMinor === 0),
   { message: 'Curator-borne processing cannot be combined with fan service fees' },
@@ -84,7 +84,7 @@ const pricingAssignmentSchema = z.object({
   createdAtUtc: timestampSchema,
 }).strict();
 
-const pricingAssignmentRequestSchema = z.object({
+export const pricingAssignmentRequestSchema = z.object({
   curatorProfileId: curatorIdSchema,
   policyId: policyIdSchema,
   effectiveAtUtc: timestampSchema.nullable(),
@@ -93,9 +93,9 @@ const pricingAssignmentRequestSchema = z.object({
 
 const pricingAssignmentResultSchema = z.object({ id: assignmentIdSchema }).strict();
 const errorResponseSchema = z.object({ message: z.string().trim().min(1) }).passthrough();
-const internalCuratorsSchema = z.array(internalCuratorSchema);
-const pricingPoliciesSchema = z.array(pricingPolicySchema);
-const pricingAssignmentsSchema = z.array(pricingAssignmentSchema);
+export const internalCuratorsSchema = z.array(internalCuratorSchema);
+export const pricingPoliciesSchema = z.array(pricingPolicySchema);
+export const pricingAssignmentsSchema = z.array(pricingAssignmentSchema);
 
 export type CuratorStatus = z.infer<typeof curatorStatusSchema>;
 export type InternalCurator = z.infer<typeof internalCuratorSchema>;
@@ -103,22 +103,6 @@ export type PricingPolicy = z.infer<typeof pricingPolicySchema>;
 export type PricingPolicyRequest = z.infer<typeof pricingPolicyRequestSchema>;
 export type PricingAssignment = z.infer<typeof pricingAssignmentSchema>;
 export type PricingAssignmentRequest = z.infer<typeof pricingAssignmentRequestSchema>;
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseInternalCurators = (value: unknown): InternalCurator[] =>
-  internalCuratorsSchema.parse(value);
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parsePricingPolicies = (value: unknown): PricingPolicy[] =>
-  pricingPoliciesSchema.parse(value);
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parsePricingAssignments = (value: unknown): PricingAssignment[] =>
-  pricingAssignmentsSchema.parse(value);
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parsePricingPolicyRequest = (value: unknown): PricingPolicyRequest =>
-  pricingPolicyRequestSchema.parse(value);
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parsePricingAssignmentRequest = (value: unknown): PricingAssignmentRequest =>
-  pricingAssignmentRequestSchema.parse(value);
 
 export function decimalToHundredths(value: string): number {
   const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());

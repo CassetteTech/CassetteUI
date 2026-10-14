@@ -25,7 +25,7 @@ const transferSchema = z.object({
   occurredAtUtc: timestampSchema,
 }).strict();
 
-const curatorEarningsSchema = z.object({
+export const curatorEarningsSchema = z.object({
   activeMemberCount: int32Schema,
   balances: z.object({
     currency: currencySchema,
@@ -50,10 +50,6 @@ export type CuratorEarnings = z.infer<typeof curatorEarningsSchema>;
 export type CuratorEarningsBalances = CuratorEarnings['balances'];
 export type CuratorEarningsHistoryItem = CuratorEarnings['items'][number];
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorEarnings = (value: unknown): CuratorEarnings =>
-  curatorEarningsSchema.parse(value);
-
 export async function fetchCuratorEarnings(
   page: number,
   pageSize: number,
@@ -74,7 +70,7 @@ export async function fetchCuratorEarnings(
   if (!response.ok) {
     throw new CuratorPageError('Failed to load membership earnings', response.status);
   }
-  return parseCuratorEarnings(await response.json());
+  return curatorEarningsSchema.parse(await response.json());
 }
 
 type Allocation = Extract<CuratorEarningsHistoryItem, { kind: 'allocation' }>;

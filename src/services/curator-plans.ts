@@ -22,7 +22,7 @@ const curatorPlanRequestSchema = z.object({
   }
 });
 
-const curatorPlanSchema = z.object({
+export const curatorPlanSchema = z.object({
   id: z.string().regex(/^mpl_[0-9A-Za-z]+$/).max(40),
   name: z.string().min(1).max(150),
   description: z.string().max(2000),
@@ -81,7 +81,7 @@ const curatorFeatureSchema = z.object({
   description: z.string().max(2000),
 }).strict();
 
-const curatorPricingSchema = z.object({
+export const curatorPricingSchema = z.object({
   curatorProMonthlyPriceMinor: moneyMinorSchema.positive(),
   currency: z.literal('USD'),
   platformFeeBps: basisPointsSchema.max(10_000),
@@ -100,7 +100,7 @@ const curatorPricingSchema = z.object({
 );
 
 const curatorPlansSchema = z.array(curatorPlanSchema);
-const curatorFeaturesSchema = z.array(curatorFeatureSchema);
+export const curatorFeaturesSchema = z.array(curatorFeatureSchema);
 
 export type CuratorPlanRequest = z.infer<typeof curatorPlanRequestSchema>;
 export type CuratorPlan = z.infer<typeof curatorPlanSchema>;
@@ -116,15 +116,6 @@ export type CuratorPlanEconomics = {
   processingFeeMinor: number;
   curatorAccrualMinor: number;
 };
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorPlan = (value: unknown): CuratorPlan => curatorPlanSchema.parse(value);
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorPlans = (value: unknown): CuratorPlan[] => curatorPlansSchema.parse(value);
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorFeatures = (value: unknown): CuratorFeature[] => curatorFeaturesSchema.parse(value);
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorPricing = (value: unknown): CuratorPricing => curatorPricingSchema.parse(value);
 
 function roundBasisPoints(amountMinor: number, basisPoints: number): number {
   const product = amountMinor * basisPoints;

@@ -9,13 +9,18 @@ const sessionUserSchema = z.object({ userId: z.string().trim().min(1) }).passthr
 // statements, so they can briefly disagree.
 const countSchema = z.number().int().nonnegative().nullable().catch(null);
 
-const signedInSchema = z.object({
+export const signedInBodySchema = z.object({
   success: z.literal(true),
   authenticated: z.literal(true),
   user: sessionUserSchema,
   activeMembershipCount: countSchema,
   feedCuratorCount: countSchema,
-});
+}).transform(({ user, activeMembershipCount, feedCuratorCount }): SignedInBody => ({
+  user,
+  counts: activeMembershipCount !== null && feedCuratorCount !== null
+    ? { activeMembershipCount, feedCuratorCount }
+    : null,
+}));
 
 export type SessionUser = z.infer<typeof sessionUserSchema>;
 
@@ -26,25 +31,9 @@ export type SessionRead =
   | { kind: 'signed-out' }
   | { kind: 'error' };
 
-// The response body is untrusted until this schema succeeds.
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export function readSignedInBody(body: unknown): SignedInBody | null {
-  const parsed = signedInSchema.safeParse(body);
-  if (!parsed.success) return null;
-  const { user, activeMembershipCount, feedCuratorCount } = parsed.data;
-  return {
-    user,
-    counts: activeMembershipCount !== null && feedCuratorCount !== null
-      ? { activeMembershipCount, feedCuratorCount }
-      : null,
-  };
-}
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export function readSessionResponse(status: number, body: unknown): SessionRead {
+export function readSessionResponse(status: number, signedIn: SignedInBody | undefined): SessionRead {
   if (status === 401) return { kind: 'signed-out' };
-  const signedIn = status === 200 ? readSignedInBody(body) : null;
-  return signedIn?.counts
+  return status === 200 && signedIn?.counts
     ? { kind: 'authenticated', user: signedIn.user, counts: signedIn.counts }
     : { kind: 'error' };
 }

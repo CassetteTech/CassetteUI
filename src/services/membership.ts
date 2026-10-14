@@ -48,14 +48,14 @@ const statusSubscriptionSchema = z.object({
   { message: 'Membership subscription total is invalid' },
 );
 
-const membershipStatusViewSchema = z.object({
+export const membershipStatusViewSchema = z.object({
   curatorProfileId: curatorIdSchema,
   canSubscribe: z.boolean(),
   membership: statusSubscriptionSchema.nullable(),
   correlationId: correlationIdSchema,
 }).strict().transform(({ correlationId: _correlationId, ...status }) => status);
 
-const membershipCheckoutSchema = z.object({
+export const membershipCheckoutSchema = z.object({
   membershipSubscriptionId: subscriptionIdSchema,
   planId: planIdSchema,
   billingInterval: membershipIntervalSchema,
@@ -72,12 +72,12 @@ const membershipCheckoutSchema = z.object({
   { message: 'Membership Checkout total is invalid' },
 ).transform(({ correlationId: _correlationId, ...checkout }) => checkout);
 
-const membershipPortalSchema = z.object({
+export const membershipPortalSchema = z.object({
   portalUrl: httpsUrlSchema,
   correlationId: correlationIdSchema,
 }).strict().transform(({ correlationId: _correlationId, ...portal }) => portal);
 
-const myMembershipsSchema = z.array(z.object({
+export const myMembershipsSchema = z.array(z.object({
   curatorProfileId: curatorIdSchema,
   curatorUsername: z.string().min(1),
   curatorDisplayName: z.string(),
@@ -91,22 +91,6 @@ export type MembershipSubscription = z.infer<typeof statusSubscriptionSchema>;
 export type MembershipCheckout = z.infer<typeof membershipCheckoutSchema>;
 export type MembershipPortal = z.infer<typeof membershipPortalSchema>;
 export type MyMembership = z.infer<typeof myMembershipsSchema>[number];
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseMembershipStatus = (value: unknown): MembershipStatusView =>
-  membershipStatusViewSchema.parse(value);
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseMembershipCheckout = (value: unknown): MembershipCheckout =>
-  membershipCheckoutSchema.parse(value);
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseMembershipPortal = (value: unknown): MembershipPortal =>
-  membershipPortalSchema.parse(value);
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseMyMemberships = (value: unknown): MyMembership[] =>
-  myMembershipsSchema.parse(value);
 
 const portalBaselinePrefix = 'cassette:membership-portal-baseline:';
 const portalBaselineSchema = z.object({

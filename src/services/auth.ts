@@ -4,7 +4,7 @@ import { SESSION_MAX_AGE_MS, useAuthStore } from '@/stores/auth-store';
 import { AuthUser, SignInForm, SignUpForm, ConnectedService, SignupAttribution, type FeedSourceCounts } from '@/types';
 import {
   readSessionResponse,
-  readSignedInBody,
+  signedInBodySchema,
   type SessionRead,
   type SessionUser,
   type SignedInBody,
@@ -202,7 +202,7 @@ class AuthService {
       throw new Error(data.message || 'Failed to create account');
     }
 
-    const signedIn = readSignedInBody(data);
+    const signedIn = signedInBodySchema.safeParse(data).data;
     if (signedIn) {
       const user = this.startSession(signedIn);
 
@@ -238,7 +238,7 @@ class AuthService {
     });
 
     const data = await response.json();
-    const signedIn = readSignedInBody(data);
+    const signedIn = signedInBodySchema.safeParse(data).data;
     if (!response.ok || !signedIn) {
       throw new Error(data.message || 'Failed to sign in');
     }
@@ -398,7 +398,7 @@ class AuthService {
       throw new Error(data.message || 'Failed to update password');
     }
 
-    const signedIn = readSignedInBody(data);
+    const signedIn = signedInBodySchema.safeParse(data).data;
     if (signedIn) {
       this.startSession(signedIn);
     }
@@ -490,8 +490,10 @@ class AuthService {
         },
         signal,
       });
-      const body: unknown = response.status === 200 ? await response.json().catch(() => null) : null;
-      return readSessionResponse(response.status, body);
+      const signedIn = response.status === 200
+        ? signedInBodySchema.safeParse(await response.json().catch(() => null)).data
+        : undefined;
+      return readSessionResponse(response.status, signedIn);
     } catch (error) {
       if (!signal.aborted) {
         appLogger.warn('session_fetch_failed', { error });

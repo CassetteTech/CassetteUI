@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   fetchCuratorEarnings,
-  parseCuratorEarnings,
+  curatorEarningsSchema,
   periodSummary,
   type CuratorEarningsHistoryItem,
 } from '../curator-earnings';
@@ -34,20 +34,20 @@ const payload = {
 } as const;
 
 void test('parses the private earnings union without sensitive details', () => {
-  assert.deepEqual(parseCuratorEarnings(payload), payload);
-  assert.throws(() => parseCuratorEarnings({
+  assert.deepEqual(curatorEarningsSchema.parse(payload), payload);
+  assert.throws(() => curatorEarningsSchema.parse({
     ...payload,
     items: [{ ...payload.items[0], sourceRef: 'invoice_secret' }],
   }), /Unrecognized key/);
-  assert.throws(() => parseCuratorEarnings({
+  assert.throws(() => curatorEarningsSchema.parse({
     ...payload,
     items: [{ ...payload.items[1], payableAtUtc: '2026-08-30T12:00:00Z' }],
   }), /Unrecognized key/);
-  assert.throws(() => parseCuratorEarnings({
+  assert.throws(() => curatorEarningsSchema.parse({
     ...payload,
     items: [{ ...payload.items[0], amountMinor: Number.MAX_SAFE_INTEGER + 1 }],
   }));
-  assert.throws(() => parseCuratorEarnings({ ...payload, pageSize: 1 }), /counts are inconsistent/);
+  assert.throws(() => curatorEarningsSchema.parse({ ...payload, pageSize: 1 }), /counts are inconsistent/);
 });
 
 void test('loads one authenticated no-store earnings page', async (t) => {
@@ -88,10 +88,10 @@ const ledger = [
 ] satisfies CuratorEarningsHistoryItem[];
 
 void test('keeps full balances when the history page omits old earnings', () => {
-  const page = parseCuratorEarnings({ ...payload, items: [], totalItems: 500, page: 10 });
+  const page = curatorEarningsSchema.parse({ ...payload, items: [], totalItems: 500, page: 10 });
   assert.equal(page.balances.blocked, 1000);
   assert.equal(page.balances.paidOut, 900);
-  assert.throws(() => parseCuratorEarnings({
+  assert.throws(() => curatorEarningsSchema.parse({
     ...payload, balances: { ...payload.balances, blocked: -1 },
   }));
 });

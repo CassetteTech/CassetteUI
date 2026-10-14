@@ -8,8 +8,8 @@ import type {
 import type { CuratorProStatus } from '../../src/services/curator-pro';
 import type { CuratorEarnings } from '../../src/services/curator-earnings';
 import {
-  parsePricingAssignmentRequest,
-  parsePricingPolicyRequest,
+  pricingAssignmentRequestSchema,
+  pricingPolicyRequestSchema,
   type InternalCurator,
   type PricingAssignment,
   type PricingAssignmentRequest,
@@ -1938,7 +1938,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         ));
       }
       if (method === 'POST') {
-        const payload = parsePricingAssignmentRequest(request.postDataJSON());
+        const payload = pricingAssignmentRequestSchema.parse(request.postDataJSON());
         state.internalPricingAssignmentRequests.push(clone(payload));
         const { curatorProfileId, policyId } = payload;
         const policy = state.internalPricingPolicies.find((candidate) => candidate.id === policyId);
@@ -1995,7 +1995,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       getCurrentUserOrThrow(state);
       if (method === 'GET') return json(route, state.internalPricingPolicies);
       if (method === 'POST') {
-        const payload = parsePricingPolicyRequest(request.postDataJSON());
+        const payload = pricingPolicyRequestSchema.parse(request.postDataJSON());
         state.internalPricingPolicyCreateRequests.push(clone(payload));
         const { policyKey } = payload;
         const version = Math.max(

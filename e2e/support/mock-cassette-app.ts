@@ -463,6 +463,7 @@ const toPostByIdResponse = (post: FixturePost) => ({
   commentsEnabled: post.commentsEnabled ?? true,
   description: post.description || '',
   originalLink: post.originalUrl,
+  cassetteSpotifyCopyUrl: post.cassetteSpotifyCopyUrl ?? null,
   details: {
     title: post.title,
     artist: post.artist || '',
@@ -2543,16 +2544,17 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       });
     }
 
-    if (pathname === '/api/v1/music-services/spotify/init' && method === 'POST') {
+    const redirectService = /^\/api\/v1\/music-services\/(spotify|deezer)\/(init|exchange-code)$/.exec(pathname);
+    if (redirectService && redirectService[2] === 'init' && method === 'POST') {
       return json(route, {
-        authUrl: '/spotify_callback?code=mock-code&state=mock-state',
+        authUrl: `/${redirectService[1]}_callback?code=mock-code&state=mock-state`,
       });
     }
 
-    if (pathname === '/api/v1/music-services/spotify/exchange-code' && method === 'POST') {
+    if (redirectService && redirectService[2] === 'exchange-code' && method === 'POST') {
       const currentUser = getCurrentUserOrThrow(state);
       const connections = new Set(state.musicConnectionsByUserId.get(currentUser.id) || []);
-      connections.add('Spotify');
+      connections.add(redirectService[1] === 'spotify' ? 'Spotify' : 'Deezer');
       state.musicConnectionsByUserId.set(currentUser.id, Array.from(connections));
       updateUser(state, currentUser.id, {
         musicConnections: Array.from(connections),
@@ -2592,7 +2594,9 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         playlist_url:
           platformName === 'AppleMusic'
             ? 'https://music.apple.com/us/playlist/test-playlist/505050'
-            : 'https://open.spotify.com/playlist/test-playlist-505050',
+            : platformName === 'Deezer'
+              ? 'https://www.deezer.com/playlist/505050'
+              : 'https://open.spotify.com/playlist/test-playlist-505050',
         tracks_added: totalTracks,
         tracks_failed: 0,
         total_tracks: totalTracks,

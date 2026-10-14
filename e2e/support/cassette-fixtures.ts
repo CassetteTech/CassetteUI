@@ -97,6 +97,8 @@ export interface FixturePost {
   commentsEnabled?: boolean;
   conversionSuccessCount?: number;
   originalUrl: string;
+  /** Cassette's shared Spotify copy of a playlist, when one exists. */
+  cassetteSpotifyCopyUrl?: string;
   convertedUrls?: {
     spotify?: string;
     appleMusic?: string;

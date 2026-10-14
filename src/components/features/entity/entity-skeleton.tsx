@@ -12,7 +12,8 @@ import { DitherEdge } from '@/components/features/marketing/dither-edge';
 import { PostLabelHead, bandColor } from '@/components/features/post/post-label-head';
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
 import { TrackList, formatTrackListStats, type TrackListItem } from '@/components/features/entity/track-list';
-import { ACTIVE_PLATFORM_UI_KEYS, PLAYLIST_CREATION_PLATFORM_UI_KEYS, type PlatformUiKey } from '@/lib/platforms';
+import { ACTIVE_PLATFORM_UI_KEYS, type PlatformUiKey } from '@/lib/platforms';
+import { playlistCopyTargets, sharesCassetteSpotifyCopy } from '@/lib/playlist-copy-placement';
 import { cn } from '@/lib/utils';
 import { ColorExtractor, type ColorPalette } from '@/services/color-extractor';
 
@@ -685,14 +686,22 @@ const ListenLinks: React.FC<{
                   className={LINK_ROW}
                 />
               ))
-        ) : staged?.sourceLink ? (
-          <StreamingLinks
-            links={{ [staged.sourceLink.platform]: staged.sourceLink.url }}
-            captions={{ [staged.sourceLink.platform]: 'Original playlist' }}
-            className={cn(!settled && 'motion-safe:animate-focus-in')}
-          />
         ) : (
-          <Part draft={blueprint.early} order={next()} delay={LINK_DELAY_MS} className={CAPTIONED_LINK_ROW} />
+          <>
+            {staged?.sourceLink ? (
+              <StreamingLinks
+                links={{ [staged.sourceLink.platform]: staged.sourceLink.url }}
+                captions={{ [staged.sourceLink.platform]: 'Original playlist' }}
+                className={cn(!settled && 'motion-safe:animate-focus-in')}
+              />
+            ) : (
+              <Part draft={blueprint.early} order={next()} delay={LINK_DELAY_MS} className={CAPTIONED_LINK_ROW} />
+            )}
+            {/* CassetteSpotifyCopyLink: the Spotify row that opens Cassette's shared copy. */}
+            {staged?.sourceLink && sharesCassetteSpotifyCopy(staged.sourceLink.platform) && (
+              <Part draft={blueprint.early} order={next()} delay={LINK_DELAY_MS + LINK_GAP_MS} className={CAPTIONED_LINK_ROW} />
+            )}
+          </>
         )}
       </div>
       {!perService && (
@@ -701,9 +710,10 @@ const ListenLinks: React.FC<{
           <TextLine draft={blueprint.early} order={next()} delay={LINK_DELAY_MS + LINK_GAP_MS} box="h-5" bar="h-3 w-36" />
           <TextLine draft={blueprint.early} order={next()} delay={LINK_DELAY_MS + LINK_GAP_MS} box="mt-0.5 h-4" bar="h-2.5 w-3/5" />
           <div className="mt-3 grid gap-2.5">
-            {PLAYLIST_CREATION_PLATFORM_UI_KEYS.filter((platform) => platform !== staged?.sourceLink?.platform)
-              .slice(0, PLAYLIST_CREATION_PLATFORM_UI_KEYS.length - 1)
-              .map((platform, i) => (
+            {playlistCopyTargets(
+              staged?.sourceLink?.platform,
+              staged?.sourceLink ? { [staged.sourceLink.platform]: staged.sourceLink.url } : {},
+            ).map((platform, i) => (
                 <Part
                   key={platform}
                   draft={blueprint.early}

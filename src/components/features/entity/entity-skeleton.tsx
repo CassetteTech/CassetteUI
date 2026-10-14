@@ -230,8 +230,7 @@ function draftProps(draft: boolean, order: number, delay: number, className: str
   return {
     className: cn('blueprint-part', className),
     'data-drafting': draft || undefined,
-    // SAFETY: CSSProperties has no custom-property keys; the value is a plain number.
-    style: { '--blueprint-order': order, transitionDelay: `${delay}ms` } as React.CSSProperties,
+    style: { '--blueprint-order': order, transitionDelay: `${delay}ms` },
   };
 }
 
@@ -485,8 +484,7 @@ const LabelHead: React.FC<{
   const early = blueprint.early || Boolean(source?.title);
   const ink = 'bg-white/25';
   return (
-    // SAFETY: CSSProperties has no custom-property keys; the value is a CSS color.
-    <div className="relative" style={{ '--band': bandColor() } as React.CSSProperties}>
+    <div className="relative" style={{ '--band': bandColor() }}>
       <div {...draftProps(early, next(), 120, cn('bg-[var(--band)] text-left', compact ? 'px-4 pb-4 pt-4' : 'px-6 pb-6 pt-5'))}>
         <TextLine
           draft={early}

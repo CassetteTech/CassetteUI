@@ -68,7 +68,7 @@ const BARS = Array.from({ length: BAR_COUNT }, (_, index) => {
       '--eq-rest': round((low + high) / 2),
       '--eq-duration': `${round(1.9 + 1.7 * detail)}s`,
       '--eq-delay': `-${round(0.24 * index + 1.6 * detail)}s`,
-    } as CSSProperties,
+    },
   };
 });
 
@@ -119,7 +119,7 @@ function Reel({
   return (
     <g
       className="promote-reel"
-      style={{ '--reel-duration': duration } as CSSProperties}
+      style={{ '--reel-duration': duration }}
     >
       <circle
         cx={cx}

@@ -4,7 +4,7 @@ import type { AnalyticsBaseProps, AnalyticsEventName, SourceSurface } from './ev
 import { sanitizeAnalyticsProps, sanitizeRoute } from './sanitize';
 import { withCoreAction } from './events';
 import { isCassetteInternalAccount, shouldSuppressClientCapture } from './internal-suppression';
-import { ignoreFailure, tryStorage } from '@/lib/best-effort';
+import { ignoreFailure, tryStorage } from '../best-effort';
 
 const DEFAULT_CLIENT_CAPTURE_HOST = '/api/ingest';
 const ANON_DISTINCT_ID_KEY = 'cassette_posthog_distinct_id';

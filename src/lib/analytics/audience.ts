@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { tryStorage } from '@/lib/best-effort';
+import { tryStorage } from '../best-effort';
 
 const COHORT_KEY = 'cassette_membership_cohort';
 const COHORT_TTL_MS = 24 * 60 * 60 * 1000;

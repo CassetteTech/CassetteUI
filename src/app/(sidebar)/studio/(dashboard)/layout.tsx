@@ -8,7 +8,7 @@
     pages and render as `children`. Bridge creates the curator profile with the
     first plan draft or payout setup; it has no editable fields. */
 
-import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -194,7 +194,76 @@ function greeting(hour: number) {
   return 'Good evening';
 }
 
-function StudioHeader({ onPageLinkCopied }: { onPageLinkCopied: () => void }) {
+const wideQuery = '(min-width: 1024px)';
+function subscribeToWide(onChange: () => void) {
+  const query = window.matchMedia(wideQuery);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
+/** True at the `lg` breakpoint, where the share links leave the header for the rail. */
+function useWideLayout() {
+  return useSyncExternalStore(subscribeToWide, () => window.matchMedia(wideQuery).matches, () => false);
+}
+
+/** Copy page link and View public page. The Share your page step lands here; focusable so the
+    step can move focus to it. */
+function StudioShareLinks({ onPageLinkCopied, className }: { onPageLinkCopied: () => void; className?: string }) {
+  const { user } = useAuthState();
+  const username = user?.username ?? null;
+  if (!username) return null;
+  const publicPath = `/profile/${encodeURIComponent(username)}`;
+  return (
+    <div
+      id="studio-share"
+      tabIndex={-1}
+      className={cn(
+        'flex scroll-mt-24 flex-wrap items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        className,
+      )}
+    >
+      <CopyButton
+        label="Copy page link"
+        copiedLabel="Link copied"
+        value={() => `${window.location.origin}${publicPath}`}
+        onCopied={onPageLinkCopied}
+      />
+      <Button asChild variant="outline" size="sm">
+        <Link href={publicPath}>
+          View public page
+          <ArrowUpRight aria-hidden />
+        </Link>
+      </Button>
+    </div>
+  );
+}
+
+/** The share links at the top of the rail on wide screens. They stick to the viewport top, and a
+    rail that scrolls, or reaches the end of the column, passes under them; once stuck they carry
+    the page background, which before then would cut a box out of the header glow. The sentinel
+    marks where the band rests, so it leaves the viewport as the band sticks. */
+function StudioRailShareLinks({ onPageLinkCopied }: { onPageLinkCopied: () => void }) {
+  const sentinel = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const node = sentinel.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(([entry]) => setStuck(entry.boundingClientRect.top < 0));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <>
+      <div ref={sentinel} aria-hidden className="absolute -top-6 h-px w-full" />
+      <div className={cn('sticky top-0 z-10 -mt-6 pt-6 pb-3 transition-colors', stuck && 'bg-background')}>
+        <StudioShareLinks onPageLinkCopied={onPageLinkCopied} />
+      </div>
+    </>
+  );
+}
+
+/** `share` is false on wide screens, where the share links sit at the top of the rail. */
+function StudioHeader({ onPageLinkCopied, share }: { onPageLinkCopied: () => void; share: boolean }) {
   const { user } = useAuthState();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -203,7 +272,6 @@ function StudioHeader({ onPageLinkCopied }: { onPageLinkCopied: () => void }) {
   const musicQuery = pathname === studioPaths['studio-music'] ? searchParams.toString() : '';
   const addMusicFrom = musicQuery ? `${pathname}?${musicQuery}` : pathname ?? studioPaths['studio-overview'];
   const username = user?.username ?? null;
-  const publicPath = username ? `/profile/${encodeURIComponent(username)}` : null;
   const firstName = user?.displayName.trim().split(/\s+/)[0] || username;
   const now = new Date();
 
@@ -224,27 +292,7 @@ function StudioHeader({ onPageLinkCopied }: { onPageLinkCopied: () => void }) {
         {username && <p className="mt-2.5 truncate font-mono text-xs text-muted-foreground">@{username}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {publicPath && (
-          /* The Share your page step lands here; focusable so the step can move focus to it. */
-          <div
-            id="studio-share"
-            tabIndex={-1}
-            className="flex scroll-mt-24 flex-wrap items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <CopyButton
-              label="Copy page link"
-              copiedLabel="Link copied"
-              value={() => `${window.location.origin}${publicPath}`}
-              onCopied={onPageLinkCopied}
-            />
-            <Button asChild variant="outline" size="sm">
-              <Link href={publicPath}>
-                View public page
-                <ArrowUpRight aria-hidden />
-              </Link>
-            </Button>
-          </div>
-        )}
+        {share && <StudioShareLinks onPageLinkCopied={onPageLinkCopied} />}
         <Button asChild size="sm">
           <Link href={addMusicHref(addMusicFrom)}>
             <Plus aria-hidden />
@@ -322,6 +370,7 @@ function StudioDashboard({ children }: { children: ReactNode }) {
   // After a publish the Overview rail also lists the latest activity, which makes it taller than
   // many laptop windows, so there it scrolls with the page and every row stays in reach.
   const railSticks = view !== 'studio-overview' || launch.hasPublished !== true;
+  const wide = useWideLayout();
 
   // A section on another view waits until that view's URL is open, then scrolls and takes focus.
   // Behind a profile read in flight the Overview and Membership hold skeletons, so a section they
@@ -380,7 +429,7 @@ function StudioDashboard({ children }: { children: ReactNode }) {
   return (
     <StudioStepsContext.Provider value={open}>
       <CoralGlow afterglow className="studio-surface min-h-full w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-        <StudioHeader onPageLinkCopied={launch.markPageLinkCopied} />
+        <StudioHeader onPageLinkCopied={launch.markPageLinkCopied} share={!wide} />
         {/* Waits for the profile read too: until it answers, no plan reads as no publish. */}
         <MembershipInvitation
           show={profileLoaded && launch.stepsKnown && launch.hasPublished === false}
@@ -442,23 +491,28 @@ function StudioDashboard({ children }: { children: ReactNode }) {
             </div>
             {children}
           </div>
-          {/* The rail: the pass, then on the Overview its own side column. Phones stack both slots
-              under the main column. */}
-          <div className={cn('max-lg:contents lg:flex lg:flex-col lg:gap-6', railSticks && 'lg:sticky lg:top-6')}>
-            {/* The pass arrives by portal. On wide screens the empty slot keeps its box, so a pass held
-                over from the previous page can wait on the spot the next pass will fill. */}
-            <aside
-              ref={setPassSlot}
-              aria-label={view === 'studio-membership' ? 'Membership plan' : 'Your public pass'}
-              className="peer max-lg:empty:hidden"
-            />
-            {/* The Overview portals its audience and latest activity here. They wait while a pass is
-                still loading above them, so the pass never pushes them down, and they stay mounted,
-                hidden, on the other views. */}
-            <div
-              ref={setOverviewRail}
-              className={cn('empty:hidden peer-data-[shared-pending]:hidden', view !== 'studio-overview' && 'hidden')}
-            />
+          {/* The rail column runs the full height of the page, so the share links on top stay in view
+              all the way down. */}
+          <div className="max-lg:contents lg:relative lg:flex lg:flex-col lg:gap-6 lg:self-stretch">
+            {wide && <StudioRailShareLinks onPageLinkCopied={launch.markPageLinkCopied} />}
+            {/* The rail: the pass, then on the Overview its own side column. Phones stack both slots
+                under the main column. It sticks one gap under the share links' band (6 + 8 + 3 + 6). */}
+            <div className={cn('max-lg:contents lg:flex lg:flex-col lg:gap-6', railSticks && 'lg:sticky lg:top-23')}>
+              {/* The pass arrives by portal. On wide screens the empty slot keeps its box, so a pass held
+                  over from the previous page can wait on the spot the next pass will fill. */}
+              <aside
+                ref={setPassSlot}
+                aria-label={view === 'studio-membership' ? 'Membership plan' : 'Your public pass'}
+                className="peer max-lg:empty:hidden"
+              />
+              {/* The Overview portals its audience and latest activity here. They wait while a pass is
+                  still loading above them, so the pass never pushes them down, and they stay mounted,
+                  hidden, on the other views. */}
+              <div
+                ref={setOverviewRail}
+                className={cn('empty:hidden peer-data-[shared-pending]:hidden', view !== 'studio-overview' && 'hidden')}
+              />
+            </div>
           </div>
           {/* After a failed profile read the plan is unknown, so no pass shows rather than a wrong one. */}
           <StudioProfilePass

@@ -1292,6 +1292,43 @@ test('ends with the share banner for a live curator with music, and copying the 
   await expect(page.getByText('Copy your page link to share it with fans.')).toHaveCount(0);
 });
 
+test.describe('share links', () => {
+  // A short window, so the Overview scrolls well past the header.
+  test.use({ viewport: { width: 1280, height: 400 } });
+
+  for (const [name, plans] of [['before a publish', []], ['after a publish', [publishedMonthlyPlan]]] as const) {
+    test(`stay in view at the top of the rail on wide screens ${name}`, async ({ page }) => {
+      await mockCassetteApp(page, {
+        currentUser: fixtureUsers.member,
+        posts: [ownPost],
+        curatorProfile,
+        curatorPlans: [...plans],
+        curatorPayoutAccount: activePayout,
+      });
+
+      await page.goto(STUDIO_PATH);
+      await openStudioStep(page, 'studio-overview');
+      const share = page.locator('#studio-share');
+      await expect(share).toHaveCount(1);
+      await expect(page.locator('header #studio-share')).toHaveCount(0);
+      await page.mouse.move(600, 200);
+      await page.mouse.wheel(0, 4000);
+      await expect(page.getByRole('heading', { name: 'Curator Studio' })).not.toBeInViewport();
+      await expect(share.getByRole('link', { name: 'View public page' })).toBeInViewport();
+      await expect(share.getByRole('button', { name: 'Copy page link' })).toBeInViewport();
+    });
+  }
+
+  test('stay in the header on a phone', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorProfile });
+
+    await page.goto(STUDIO_PATH);
+    await openStudioStep(page, 'studio-overview');
+    await expect(page.locator('header #studio-share').getByRole('link', { name: 'View public page' })).toBeVisible();
+  });
+});
+
 test('shows no setup banner while the payout state is unknown', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,

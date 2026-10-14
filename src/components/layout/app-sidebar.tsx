@@ -1,7 +1,5 @@
 'use client';
 
-// Renders Cassette's responsive application sidebar from role-aware navigation configuration.
-
 import { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { useAuthState, useSignOut } from '@/hooks/use-auth';
 import { usePaidPromotionAccountVisible, usePaidPromotionSalesEnabled } from '@/hooks/use-paid-promotion-availability';
@@ -37,10 +35,7 @@ import {
   type NavUser,
 } from './navigation-config';
 
-// Explore leaves the sidebar shell, so its row carries an exit marker.
 const SIDEBAR_EXIT_KEYS: readonly string[] = ['explore'];
-// Footer buttons share the page rows' edges: the icon padding drops to the rows' 8 px, and the
-// icon gap (mr-2.5 on each icon) puts the label on the rows' label column.
 const footerButtonClassName = 'w-full justify-start text-muted-foreground hover:text-foreground has-[>svg]:px-2';
 
 interface AppSidebarProps {
@@ -53,10 +48,6 @@ interface SidebarPageMenuProps {
   user: NavUser;
 }
 
-/**
- * The page rows share one highlight. It rests on the active row and glides to the row under the
- * pointer or keyboard focus, so the rows paint no hover or active fill of their own.
- */
 function SidebarPageMenu({ items, pathname, user }: SidebarPageMenuProps) {
   const rowRefs = useRef(new Map<string, HTMLLIElement>());
   const [pointedKey, setPointedKey] = useState<string | null>(null);
@@ -68,7 +59,6 @@ function SidebarPageMenu({ items, pathname, user }: SidebarPageMenuProps) {
   useLayoutEffect(() => {
     const row = targetKey ? rowRefs.current.get(targetKey) : undefined;
     if (!row) return;
-    // The first placement only fades in; every later one glides from the previous row.
     setHighlight((previous) => ({ top: row.offsetTop, height: row.offsetHeight, glides: previous !== null }));
   }, [targetKey, rowKeys]);
 
@@ -184,10 +174,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
   return (
     <Sidebar collapsible="none" className={`h-screen border-r border-sidebar-border/50 ${className}`}>
       <SidebarHeader>
-        {/* The logo shares the left edge of the account row and the page rows; the inbox sits at
-            the right end, on the rows' right edge, so the account row below can take the full width
-            when it is active. The logo box spans 20–60 px, so its center meets the profile page's
-            tab labels. */}
         <div className="pl-2 pt-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Image
@@ -221,7 +207,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
               : 'none',
           }}
         />
-        {/* The sidebar always carries the signed-in user; the page carries the viewed profile. */}
         {authLoading && !user ? (
           <SidebarGroup>
             <SidebarGroupContent>
@@ -229,14 +214,9 @@ export function AppSidebar({ className }: AppSidebarProps) {
             </SidebarGroupContent>
           </SidebarGroup>
         ) : user ? (
-          // pb-1 here and pt-0 on the page rows' group leave 12 px (with the content gap) between
-          // Add music and the first page row, against 20 px above it: Add music leads the pages.
           <SidebarGroup className="pb-1">
             <SidebarGroupContent className="space-y-5">
               <SidebarAccountRow user={user} active={isOwnProfilePath(pathname, user)} />
-              {/* Adding music is the main action, not a place: a full-width ink button with a page
-                  row's box, outside the page rows' menu, so it never takes the active marker. Ink,
-                  not brand red, so it never doubles the red Add music in the Studio header. */}
               <Button asChild size="sm" className="w-full bg-foreground text-background hover:bg-foreground/90">
                 <Link href={addMusicHrefForPage(pathname)}>
                   <Plus aria-hidden />
@@ -248,7 +228,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
         ) : null}
 
         {!authLoading && !user && (
-          /* Auth Options for non-authenticated users */
           <SidebarGroup>
             <SidebarGroupContent>
               <div className="p-4 space-y-3">
@@ -267,15 +246,12 @@ export function AppSidebar({ className }: AppSidebarProps) {
           </SidebarGroup>
         )}
         
-        {/* Navigation */}
         <SidebarGroup className="pt-0">
           <SidebarPageMenu items={sidebarNavItems} pathname={pathname} user={user} />
         </SidebarGroup>
       </SidebarContent>
 
-      {/* gap-1 puts the footer rows on the page rows' 36 px pitch. */}
       <SidebarFooter className="border-t px-2 py-3 gap-1">
-        {/* Promote leaves the sidebar shell */}
         {promoteItem && (
           <Button asChild variant="ghost" size="sm" className={footerButtonClassName}>
             <Link href={promoteItem.href}>
@@ -286,7 +262,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
           </Button>
         )}
 
-        {/* Report a Problem */}
         <Button variant="ghost" size="sm" className={footerButtonClassName} onClick={() => openReportModal()}>
           <AlertCircle className="mr-2.5 h-4 w-4" />
           <span>Report a Problem</span>

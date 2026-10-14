@@ -1,9 +1,5 @@
 'use client';
 
-/** Owner-only tools for a post as one stacked column: the post's visibility as
-    the headline, who can open it, and its insights. On wide screens the column sits in the page beside the post; below
-    that the same content opens as a bottom sheet from the engagement bar. */
-
 import { useEffect, useState, type ElementType, type ReactNode, type Ref } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
@@ -32,7 +28,6 @@ import { ValueFlash } from '@/components/ui/interior/value-flash';
 
 type InsightsStatus = 'loading' | 'success' | 'error';
 
-/* ─── Number formatters ─────────────────────────────────────────────── */
 const compactNumberFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 1,
   notation: 'compact',
@@ -94,8 +89,6 @@ function hasAudienceActivity(insights: PostInsightsResponse | null): boolean {
   ].some((v) => v > 0);
 }
 
-/* ─── Shared pieces ─────────────────────────────────────────────────── */
-/** Sentence-case section title, as on the Studio cards; hairlines between sections do the separating. */
 function SectionHeading({ children, meta }: { children: ReactNode; meta?: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
@@ -107,7 +100,6 @@ function SectionHeading({ children, meta }: { children: ReactNode; meta?: ReactN
 
 type MetricItem = { label: string; value: number; hint?: string };
 
-/** One figure: small label, Teko number, one-line hint. Rendered as a dl group. */
 function Metric({ label, value, hint, className }: MetricItem & { className?: string }) {
   return (
     <div className={cn('min-w-0 py-3', className)}>
@@ -120,7 +112,6 @@ function Metric({ label, value, hint, className }: MetricItem & { className?: st
   );
 }
 
-/** Two figures per row with a hairline between rows; an odd last figure takes the whole row. */
 function MetricGrid({ items }: { items: MetricItem[] }) {
   return (
     <dl className="grid grid-cols-2 gap-x-6">
@@ -138,7 +129,6 @@ function MetricGrid({ items }: { items: MetricItem[] }) {
   );
 }
 
-/* ─── Insights ──────────────────────────────────────────────────────── */
 function PlatformBreakdown({ items }: { items: PostInsightsPlatformBreakdownItem[] }) {
   const sorted = [...items].sort((a, b) => b.shareOfOpens - a.shareOfOpens);
   const totalOpens = sorted.reduce((sum, i) => sum + i.opens, 0);
@@ -180,7 +170,6 @@ const trendConfig: ChartConfig = {
   destinationOpens: { label: 'Opens', color: 'brand' },
 };
 
-/** Seven days as a dithered area chart: views hatched, opens dotted, totals in the legend. */
 function TrendChart({ points }: { points: PostInsightsTrendPoint[] }) {
   const reduceMotion = useReducedMotion();
   const rows = points.map((point) => ({ ...point, day: formatWeekday(point.date) }));
@@ -192,7 +181,6 @@ function TrendChart({ points }: { points: PostInsightsTrendPoint[] }) {
   return (
     <section>
       <SectionHeading>Last 7 days</SectionHeading>
-      {/* The chart is pointer-only; screen readers get the same seven days as a table. */}
       <table className="sr-only">
         <caption>Views and opens in the last 7 days</caption>
         <thead>
@@ -224,7 +212,6 @@ function TrendChart({ points }: { points: PostInsightsTrendPoint[] }) {
   );
 }
 
-/** Keep protected metric state mounted only while this account has confirmed Pro access. */
 function InsightsAccess(props: { postId: string; conversionSuccessCount?: number }) {
   const { user } = useAuthState();
   const pro = useQuery({
@@ -265,7 +252,6 @@ function InsightsAccess(props: { postId: string; conversionSuccessCount?: number
   );
 }
 
-/** Fetches once on mount; the column and the sheet both mount it only when an owner can see it. */
 function InsightsSections({ postId, conversionSuccessCount }: { postId: string; conversionSuccessCount?: number }) {
   const [status, setStatus] = useState<InsightsStatus>('loading');
   const [insights, setInsights] = useState<PostInsightsResponse | null>(null);
@@ -364,7 +350,6 @@ function InsightsSections({ postId, conversionSuccessCount }: { postId: string; 
   );
 }
 
-/* ─── Column and sheet ──────────────────────────────────────────────── */
 interface PostStudioContentProps {
   postId: string;
   privacy: PostPrivacy;
@@ -396,13 +381,11 @@ function PostStudioContent({
 
   return (
     <>
-      {/* A plain head: the printed label in the artwork's color belongs to the post card alone. */}
       <header className="border-b border-border/70 px-6 pb-5 pt-5">
         <div className="flex items-center justify-between gap-3">
           <Eyebrow className="font-mono text-[11px] font-bold uppercase tracking-[0.3em] text-muted-foreground">Your post</Eyebrow>
           {action}
         </div>
-        {/* Keyed on the setting so a change crossfades instead of swapping text in place. */}
         <h2
           key={privacy}
           className="mt-5 whitespace-nowrap font-teko text-4xl font-bold uppercase leading-[0.8] tracking-tight text-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280"
@@ -410,7 +393,6 @@ function PostStudioContent({
           {visibility?.label ?? 'Visibility'}
         </h2>
       </header>
-      {/* Sections stack with a hairline between them. */}
       <div className="divide-y divide-border/70 px-6 pb-6 pt-5 [&>section+section]:pt-5 [&>section]:pb-4 [&>section:last-child]:pb-0">
         <PostVisibilityControl privacy={privacy} choose={choose} />
         <InsightsAccess postId={postId} conversionSuccessCount={conversionSuccessCount} />
@@ -419,7 +401,6 @@ function PostStudioContent({
   );
 }
 
-/** The owner column beside the post on wide screens. */
 export function PostStudioColumn({
   className,
   ref,
@@ -437,7 +418,6 @@ export function PostStudioColumn({
   );
 }
 
-/** The same tools as a bottom sheet for screens without room for the column. */
 export function PostStudioSheet({
   open,
   onOpenChange,
@@ -456,7 +436,6 @@ export function PostStudioSheet({
         />
         <DialogPrimitive.Content
           data-testid="post-studio-sheet"
-          // The headline under the eyebrow describes the sheet; Radix's own description slot stays empty.
           aria-describedby={undefined}
           // Radix would return focus to a Trigger this sheet does not render. The engagement
           // bar pill is the sheet's real opener (the menus only mirror it), so focus goes there.

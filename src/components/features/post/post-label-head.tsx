@@ -6,41 +6,26 @@ import { ExternalLink } from 'lucide-react';
 import { DitherEdge } from '@/components/features/marketing/dither-edge';
 import { cn } from '@/lib/utils';
 
-/** The post's artwork color (brand red until it loads), re-toned so cream type stays legible on it in both themes. */
 export const bandColor = (tint = 'hsl(var(--primary))') => `oklch(from ${tint} 0.42 clamp(0.03, c, 0.13) h)`;
 export const bandInk = (tint = 'hsl(var(--primary))') => `oklch(from ${tint} 0.96 0.02 h)`;
-/** The band's hue as type or a rule on paper; the theme sets its lightness so it keeps contrast on dark paper. */
 export const bandTone = (tint?: string) => `oklch(from ${bandColor(tint)} var(--band-tone-lightness) c h)`;
 
 interface PostLabelHeadProps {
-  /** The post type and its genres, printed above the title. */
   kicker?: ReactNode;
   title: string;
-  /** Artist names, with roles. Omitted for a playlist. */
   artist?: ReactNode;
-  /** Short facts under the artist: duration and album, or the release date. */
   meta?: ReactNode;
-  /** The service a playlist was shared from. */
   source?: {
     href: string;
     name: string;
     icon: string;
     onClick: (event: MouseEvent<HTMLAnchorElement>) => void;
   };
-  /** The artwork's vibrant color. */
   tint?: string;
-  /** Tighter type and padding for phones. */
   compact?: boolean;
-  /** The title heading, for layouts that react to it scrolling away. */
   titleRef?: Ref<HTMLHeadingElement>;
 }
 
-/**
- * The printed label at the top of a post card: the title set in the artwork's color,
- * dissolving into the paper through the brand's dither seam. The same device as the
- * owner column, so the two read as one set. The card below needs 2.5rem of top padding
- * for the seam.
- */
 export function PostLabelHead({ kicker, title, artist, meta, source, tint, compact = false, titleRef }: PostLabelHeadProps) {
   const band = bandColor(tint);
   return (

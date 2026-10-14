@@ -6,10 +6,6 @@ import { SectionHeader } from "@/components/features/marketing/section-header";
 import { EASE_OUT_QUART } from "@/lib/motion";
 import { milestones } from "../_data";
 
-/**
- * Spool line. Milestones run down a single tape edge with square pixel
- * nodes; flat rows replace the old rotated card grid.
- */
 export function JourneyTimeline() {
   return (
     <section className="py-16 md:py-20">
@@ -34,7 +30,6 @@ export function JourneyTimeline() {
             }}
             className="relative pl-6 sm:pl-10 pb-12 last:pb-0"
           >
-            {/* Square pixel node in the milestone's accent color */}
             <span
               aria-hidden
               className={cn(

@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils';
 import { externalBrowserUrl, inAppBrowserHint, type InAppBrowser } from '@/utils/in-app-browser';
 import { browserHandoffPath } from '@/utils/profile-action-intent';
 
-// The flat, bordered look of the Google button that this step replaces.
 const primaryActionClassName =
   'w-full h-11 rounded-none border-2 border-foreground bg-[hsl(var(--cassette-white))] dark:bg-background text-foreground font-bold text-sm shadow-flat-3 hover:bg-[hsl(var(--cassette-white))] hover:-translate-y-0.5 hover:shadow-flat-5 transition-[transform,box-shadow]';
 
@@ -20,7 +19,6 @@ export function InAppBrowserSignIn({
   className,
 }: {
   browser: InAppBrowser;
-  /** The local path to open in the device browser. By default, sign-in that returns to this page. */
   handoffPath?: string;
   className?: string;
 }) {

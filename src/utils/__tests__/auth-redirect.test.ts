@@ -61,10 +61,6 @@ test('parses membership-intent redirects and rejects malformed or unsafe ones', 
   assert.equal(parseMembershipIntentRedirect(null), null);
 });
 
-// The service persists to localStorage so the redirect survives resuming in
-// a different tab (email-verification links). These tests stub the browser
-// storage; the same store standing in for two "tabs" mirrors how
-// localStorage is shared per-origin.
 function createStorage(): Storage {
   const store = new Map<string, string>();
   return {
@@ -99,7 +95,6 @@ function withBrowserStorage(run: (storage: Storage) => void) {
 test('saved redirects survive a fresh tab and are consumed once', () => {
   withBrowserStorage(() => {
     authRedirectService.save('/promote/new');
-    // A second tab shares the same per-origin storage.
     assert.equal(authRedirectService.consume(), '/promote/new');
     assert.equal(authRedirectService.get(), null);
   });
@@ -108,7 +103,6 @@ test('saved redirects survive a fresh tab and are consumed once', () => {
 test('saving an absent redirect leaves an existing one intact', () => {
   withBrowserStorage(() => {
     authRedirectService.save('/promote/new');
-    // A paramless sign-in page load must not wipe another tab's redirect.
     authRedirectService.save(null);
     authRedirectService.save(undefined);
     assert.equal(authRedirectService.get(), '/promote/new');

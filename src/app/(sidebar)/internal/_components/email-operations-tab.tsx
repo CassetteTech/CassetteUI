@@ -73,7 +73,6 @@ export function EmailOperationsTab() {
       {configError && <ErrorState message={configError} onRetry={() => void loadConfig()} />}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* ── Environment & safety gates ── */}
         <Panel
           title="Environment & Safety Gates"
           actions={<RefreshButton loading={configLoading} onClick={() => void loadConfig()} />}
@@ -127,7 +126,6 @@ export function EmailOperationsTab() {
           )}
         </Panel>
 
-        {/* ── Delivery health ── */}
         <Panel
           title="Delivery Health"
           actions={<RefreshButton loading={snapshotLoading} onClick={() => void loadSnapshot()} />}

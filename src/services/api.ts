@@ -1,5 +1,3 @@
-// Provides the browser API client and shared request, auth, error, and response handling.
-
 import { clientConfig } from '@/lib/config-client';
 import {
   MusicLinkConversion,
@@ -103,17 +101,6 @@ import {
 } from './curator-pro';
 import { requestLambdaWarmup } from './lambda-warmup';
 
-// interface MusicConnection {
-//   id: string;
-//   userId: string;
-//   service: string;
-//   serviceUserId?: string;
-//   serviceUsername?: string;
-//   connectedAt: string;
-//   expiresAt?: string;
-// }
-
-// Custom error class to preserve API error details
 export class ApiError extends Error {
   requiresReauth: boolean;
   errorCode?: string;
@@ -191,7 +178,6 @@ class ApiService {
     try {
       const response = await fetch(url, {
         ...requestOptions,
-        // Ensure "anonymous" requests do not carry HttpOnly session cookies.
         credentials: skipAuth ? 'omit' : 'include',
         signal: timeoutController.signal,
         headers: {
@@ -223,7 +209,6 @@ class ApiService {
           errorCode: error.error_code ?? error.errorCode,
           correlationId: error.correlationId ?? responseCorrelationId,
         });
-        // Check for auth errors that require re-authentication
         const requiresReauth = error.requires_reauth === true || error.error_code === 'AUTH_EXPIRED';
         const errorMessage =
           typeof error.error === 'string'
@@ -256,7 +241,6 @@ class ApiService {
         );
       }
 
-      // Handle 204 No Content responses (e.g., DELETE)
       if (response.status === 204) {
         return undefined as T;
       }
@@ -264,7 +248,6 @@ class ApiService {
       let data;
       try {
         const text = await response.text();
-        // Handle empty responses
         if (!text || text.trim() === '') {
           return undefined as T;
         }
@@ -313,7 +296,6 @@ class ApiService {
     }
   }
 
-  // Music conversion endpoints
   async convertMusicLink(
     url: string,
     options?: { anonymous?: boolean; description?: string; idempotencyKey?: string; privacy?: PostPrivacy }
@@ -335,14 +317,13 @@ class ApiService {
       success: false,
     });
 
-    // Generate idempotency key for request deduplication
     const key = options?.idempotencyKey || (typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `key-${Date.now()}-${Math.random()}`);
 
     const response = await this.request<ConvertLifecycleResponse>('/api/v1/convert', {
       method: 'POST',
-      headers: { 'X-Idempotency-Key': key }, // server should honor this
+      headers: { 'X-Idempotency-Key': key },
       body: JSON.stringify({
         sourceLink: url,
         description: options?.description || undefined,
@@ -350,7 +331,6 @@ class ApiService {
       }),
       skipAuth: options?.anonymous,
       correlationId,
-      // Authenticated add-to-profile flows can take longer.
       timeoutMs: options?.anonymous ? 60000 : 120000,
     });
 
@@ -402,8 +382,6 @@ class ApiService {
 
   private async waitForConvertJob(jobId: string, initialRetryMs?: number, anonymous?: boolean, correlationId?: string): Promise<string> {
     const startedAt = Date.now();
-    // Bridge answers 202 after a short sync budget and finishes the job detached; long
-    // playlists take a minute or more. Each poll is short, so the proxy's 30 s limit is moot.
     const timeoutMs = 4 * 60_000;
     let retryMs = initialRetryMs ?? 400;
 
@@ -434,12 +412,6 @@ class ApiService {
     throw new Error('Conversion is still processing. Please try again.');
   }
 
-  /**
-   * Looks up the caller's conversion job by the X-Idempotency-Key sent to /convert.
-   * The job row exists from submission, so this can be polled while the convert
-   * request is still in flight to observe the live stage. Returns null while the
-   * job isn't visible yet (or on transient poll failures) so callers just retry.
-   */
   async getConvertJobByKey(
     idempotencyKey: string,
     options?: { anonymous?: boolean }
@@ -778,7 +750,6 @@ class ApiService {
     );
   }
 
-  // Profile endpoints
   async getProfile(userId: string) {
     return this.request(`/api/v1/profile/${userId}`);
   }
@@ -804,7 +775,6 @@ class ApiService {
     return typeof response.totalItems === 'number' ? response.totalItems : 0;
   }
 
-  // Internal dashboard endpoints
   async getInternalLambdaHealth(): Promise<InternalLambdaHealthOperationsResponse> {
     return this.request<InternalLambdaHealthOperationsResponse>(
       '/api/v1/internal/operations/lambda-health',
@@ -990,9 +960,6 @@ class ApiService {
     );
   }
 
-  // Deterministic duplicate-pair merge over unresolved duplicate_stub issues.
-  // Dry runs execute the full merge in a transaction and roll back, so the
-  // returned counts are real; only dryRun=false commits.
   async adjudicateInternalDuplicates(dryRun: boolean): Promise<StubDuplicateAdjudicationSummary> {
     return this.request<StubDuplicateAdjudicationSummary>(
       '/api/v1/internal/adjudication/duplicates',
@@ -1013,7 +980,6 @@ class ApiService {
     );
   }
 
-  // Saving with every field blank deletes the note; the API answers 204.
   async saveInternalSentinelInvariantNote(
     invariantId: string,
     note: InternalSentinelInvariantNoteInput,
@@ -1269,7 +1235,6 @@ class ApiService {
     );
   }
 
-  // Internal email operations
   async getInternalEmailOperationsConfig(): Promise<InternalEmailOperationsConfig> {
     return this.request<InternalEmailOperationsConfig>(
       '/api/v1/internal/email/operations/config',
@@ -1346,7 +1311,6 @@ class ApiService {
     );
   }
 
-  // Social endpoints
   async createPost(data: Record<string, unknown>) {
     return this.request('/api/v1/social/posts', {
       method: 'POST',
@@ -1382,7 +1346,6 @@ class ApiService {
     });
   }
 
-  // Notification endpoints
   async getNotifications(page = 1, pageSize = 20): Promise<NotificationListResponse> {
     return this.request<NotificationListResponse>(
       `/api/v1/notifications?page=${page}&pageSize=${pageSize}`
@@ -1406,7 +1369,6 @@ class ApiService {
     });
   }
 
-  // Add music element to user's profile by creating a post
   async addToProfile(musicElementId: string, elementType: string, description?: string, privacy?: PostPrivacy): Promise<{ postId: string }> {
     return this.request('/api/v1/social/posts', {
       method: 'POST',
@@ -1414,7 +1376,6 @@ class ApiService {
     });
   }
 
-  // Update a post's description and/or privacy
   async updatePost(
     postId: string,
     updates: { description?: string; privacy?: string; commentsEnabled?: boolean }
@@ -1430,22 +1391,18 @@ class ApiService {
     });
   }
 
-  // Delete a post
   async deletePost(postId: string): Promise<void> {
     await this.request(`/api/v1/social/posts/${postId}`, {
       method: 'DELETE',
     });
   }
 
-  // Fetch post by ID (includes conversion data)
   async fetchPostById(postId: string, options?: { signal?: AbortSignal }): Promise<PostByIdResponse> {
     return this.request<PostByIdResponse>(`/api/v1/social/posts/${postId}`, {
       signal: options?.signal,
     });
   }
 
-  // Fetch only viewer-specific post state (like count + liked-by-viewer).
-  // Much cheaper than fetchPostById; used to reconcile server-rendered posts.
   async fetchPostViewerState(postId: string, options?: { signal?: AbortSignal }): Promise<PostViewerStateResponse> {
     return this.request<PostViewerStateResponse>(`/api/v1/social/posts/${postId}/viewer-state`, {
       signal: options?.signal,
@@ -1503,7 +1460,6 @@ class ApiService {
     });
   }
 
-  // Music service authentication endpoints
   async connectSpotify() {
     return this.request<{ authUrl: string }>('/api/v1/music-services/spotify/init', {
       method: 'POST',
@@ -1545,7 +1501,6 @@ class ApiService {
     const targetKey = normalize(targetDefinition?.preferenceKey ?? targetPlatform);
     const canonicalTarget = targetDefinition?.key ?? targetPlatform.toLowerCase();
 
-    // Skip connection check for Spotify if using Cassette's account
     const skipConnectionCheck = targetKey === 'spotify' && clientConfig.features.useCassetteSpotifyAccount;
 
     if (!skipConnectionCheck) {
@@ -1574,7 +1529,6 @@ class ApiService {
     });
   }
 
-  // Platform preference endpoints (separate from OAuth authentication)
   async getPlatformPreferences() {
     return this.request<{ success: boolean; preferences: PlatformPreference[] }>('/api/v1/music-services/preferences');
   }
@@ -1596,7 +1550,6 @@ class ApiService {
     return this.request<{ developerToken: string }>('/api/v1/music-services/apple-music/developer-token');
   }
 
-  // Lambda warmup: fire-and-forget and throttled per tab, so any caller may request it freely.
   warmupLambdas(): void {
     requestLambdaWarmup({
       enabled: clientConfig.features.enableLambdaWarmup,
@@ -1605,7 +1558,6 @@ class ApiService {
     });
   }
 
-  // Issue reporting
   async reportIssue(data: {
     reportType: string;
     sourceContext: string;

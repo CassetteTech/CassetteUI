@@ -47,7 +47,6 @@ function normalizeAccountType(value: AccountType | number | string | undefined):
   return null;
 }
 
-// Checkmark SVG for verified users - uses currentColor to adapt to theme
 function VerifiedCheckmark({ size }: { size: 'sm' | 'md' | 'lg' }) {
   const { width, height } = sizeMap[size];
   return (
@@ -76,7 +75,6 @@ export function VerificationBadge({
   // Normalize the account type to handle int/string from API
   const accountType = normalizeAccountType(rawAccountType);
 
-  // Don't render anything for regular accounts or undefined
   if (!accountType || accountType === AccountType.REGULAR) {
     return null;
   }

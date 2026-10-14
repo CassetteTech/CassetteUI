@@ -14,7 +14,6 @@ import type { AuthUser } from '@/types';
 
 export default function GoogleCallbackPage() {
   const router = useRouter();
-  // A session outage keeps the pending return intent; Retry runs the callback again.
   const [sessionOutage, setSessionOutage] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
@@ -38,8 +37,6 @@ export default function GoogleCallbackPage() {
         }
 
         const isOnboarded = user.isOnboarded;
-        // A sign-in that lands on onboarding created the account: that is the
-        // new-vs-existing split for this purchase journey, kept for the tab.
         const cohort = isOnboarded ? 'existing' : 'new';
         rememberUserCohort(user.id, cohort);
         void captureClientEvent('auth_google_oauth_completed', {

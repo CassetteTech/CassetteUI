@@ -5,22 +5,13 @@ import { cn } from '@/lib/utils';
 
 interface ScrollFadeProps {
   children: React.ReactNode;
-  /** Outer wrapper — the positioning context for the fade overlays. */
   className?: string;
-  /** Scroll container — put height/max-height and scrollbar styling here. */
   scrollClassName?: string;
   /** Gradient start color for both fades; must match the surface behind the rows. */
   fadeClassName?: string;
-  /** Exposes the scroll container element (e.g. as an IntersectionObserver root). */
   scrollRef?: React.MutableRefObject<HTMLDivElement | null>;
 }
 
-/**
- * Scroll container that signals clipped content with gradient fades at its
- * edges. Each fade is visible only while more content exists in that
- * direction, driven by 1px sentinels and an IntersectionObserver rather than
- * scroll listeners.
- */
 export const ScrollFade: React.FC<ScrollFadeProps> = ({
   children,
   className,

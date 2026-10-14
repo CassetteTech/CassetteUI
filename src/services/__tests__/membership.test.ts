@@ -1,5 +1,3 @@
-/** Covers strict fan membership status and secure Stripe handoff contracts. */
-
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -29,7 +27,6 @@ const subscription = {
   currency: 'USD',
 } as const;
 
-// The fixtures renew on Sep 1, 2026; this clock sits before that date.
 const now = Date.parse('2026-08-24T12:00:00Z');
 
 const statusView = {
@@ -82,7 +79,6 @@ void test('billing copy comes from the subscription price and paid-through date'
     describeMembershipBilling({ ...subscription, billingInterval: 'year', totalAmountMinor: 5500, faceAmountMinor: 5000, serviceFeeMinor: 500, paidThroughUtc: null }),
     '$55.00/year · tax extra',
   );
-  // A stale paid-through date must never read as a promised renewal while payment is failing or paused.
   for (const status of ['past_due', 'unpaid', 'paused', 'incomplete'] as const) {
     const line = describeMembershipBilling({ ...subscription, status });
     assert.doesNotMatch(line, /renews|Sep 1, 2026/);
@@ -178,18 +174,14 @@ void test('curator-side endings explain the access end date and any refund', () 
   assert.match(describeMembershipStanding({ ...immediate, refundStatus: 'pending' }) ?? '', /refund .* on its way/);
   assert.match(describeMembershipStanding({ ...immediate, refundStatus: 'none' }) ?? '', /no unused paid time/);
   assert.doesNotMatch(describeMembershipStanding(immediate) ?? '', /suspend/);
-  // The billing line dates the ending by the cutoff, not the paid-through date.
   assert.equal(describeMembershipBilling(immediate), '$5.50/month · ended Aug 20, 2026');
 
-  // An unknown reason falls back to the ordinary standing copy.
   assert.equal(
     describeMembershipStanding({ ...subscription, status: 'canceled', endReason: 'future_reason' }),
     'Your membership is canceled.',
   );
 });
 
-// Bridge records an ending before Stripe confirms the cancellation, so its ending
-// metadata outranks a provider status that still says active or past due.
 void test('ending metadata outranks a stale provider status in text, pass state, and access', () => {
   const afterCutoff = Date.parse('2026-09-02T00:00:00Z');
   const cases = [
@@ -239,9 +231,6 @@ void test('ending metadata outranks a stale provider status in text, pass state,
   }
 });
 
-// Before a scheduled end, a payment problem or a pause still needs the fan's action. The
-// pass keeps the end date, never calls it a renewal, and promises access only while billing
-// is in good standing. Bridge entitles past due, but not unpaid or paused, memberships.
 void test('a future ending keeps payment and pause guidance and promises no access it cannot give', () => {
   const afterCutoff = Date.parse('2026-09-02T00:00:00Z');
   const endings = {
@@ -278,14 +267,12 @@ void test('a future ending keeps payment and pause guidance and promises no acce
       assert.equal(membershipDateLabel(membership, now), 'Ends', name);
       assert.equal(hasMembershipAccess(membership, now), expected.access, name);
 
-      // The end date still wins once it passes.
       assert.equal(membershipPhase(membership, afterCutoff), 'ended', name);
       assert.equal(membershipDateLabel(membership, afterCutoff), 'Ended', name);
       assert.equal(hasMembershipAccess(membership, afterCutoff), false, name);
     }
   }
 
-  // Good standing keeps the access promise and the end date.
   assert.equal(membershipDateLabel({ ...subscription, ...endings.fan }, now), 'Ends');
   assert.equal(membershipDateLabel(subscription, now), 'Renews');
   assert.match(describeMembershipStanding({ ...subscription, ...endings.curator }, now) ?? '', /keep member access until then/);

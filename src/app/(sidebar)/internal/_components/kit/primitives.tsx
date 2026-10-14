@@ -8,8 +8,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
 
-/* ───────────────────────────── Tones ─────────────────────────────────── */
-
 export type Tone = 'critical' | 'warning' | 'success' | 'info' | 'neutral' | 'domain';
 
 const TONE_TEXT: Record<Tone, string> = {
@@ -30,10 +28,6 @@ const TONE_DOT: Record<Tone, string> = {
   domain: 'text-domain',
 };
 
-/* ─────────────────────────── StatusPill ───────────────────────────────
-   Flat, dense status marker. A small signal dot + label, no pill chrome by
-   default — reads as a terminal readout rather than a badge. */
-
 export function StatusPill({
   tone,
   label,
@@ -52,10 +46,6 @@ export function StatusPill({
     </span>
   );
 }
-
-/* ─────────────────────────────── Panel ─────────────────────────────────
-   Flat bordered region. Optional thin header bar with a mono label + actions.
-   Body has no padding by default so tables can sit edge-to-edge. */
 
 export function Panel({
   title,
@@ -88,10 +78,6 @@ export function Panel({
     </section>
   );
 }
-
-/* ──────────────────────────── SectionHeader ────────────────────────────
-   Compact page header. A domain breadcrumb (dot + section / title) and an
-   actions slot. No display type, no descriptions — terse by design. */
 
 export function SectionHeader({
   section,
@@ -129,9 +115,6 @@ export function SectionHeader({
   );
 }
 
-/* ─────────────────────────────── Stats ─────────────────────────────────
-   Dense inline stat readouts, divided by hairlines — not cards. */
-
 export function StatStrip({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div
@@ -167,9 +150,6 @@ export function Stat({
   );
 }
 
-/* ─────────────────────────────── Fields ────────────────────────────────
-   Key/value rows for detail panels. Mono key, foreground value. */
-
 export function Field({
   label,
   children,
@@ -196,9 +176,6 @@ export function Mono({ children }: { children: ReactNode }) {
   return <span className="break-all font-mono text-[11px]">{children}</span>;
 }
 
-/* ─────────────────────────── ErrorBanner ───────────────────────────────
-   Inline load-failure strip for panel bodies, with a retry affordance. */
-
 export function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
@@ -213,9 +190,6 @@ export function ErrorBanner({ message, onRetry }: { message: string; onRetry: ()
     </div>
   );
 }
-
-/* ─────────────────────────── RefreshButton ─────────────────────────────
-   Quiet icon-only refresh for panel headers. */
 
 export function RefreshButton({ loading, onClick }: { loading: boolean; onClick: () => void }) {
   return (
@@ -232,11 +206,6 @@ export function RefreshButton({ loading, onClick }: { loading: boolean; onClick:
     </Button>
   );
 }
-
-/* ──────────────────────────── CopyId / IdField ─────────────────────────
-   Copyable identifier chip — the canonical way IDs surface in detail sheets.
-   IDs are long and noisy in a table row, so they live here where there's room
-   to show them in full and one click puts them on the clipboard. */
 
 export function CopyId({ value, label }: { value: string; label: string }) {
   const { copy, copied } = useCopyToClipboard({
@@ -263,7 +232,6 @@ export function CopyId({ value, label }: { value: string; label: string }) {
   );
 }
 
-/* Stacked label + copyable id, for long ids that won't sit on a Field's right edge. */
 export function IdField({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1.5">

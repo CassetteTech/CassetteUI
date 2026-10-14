@@ -11,12 +11,6 @@ interface TeamCardProps {
   onClick: () => void;
 }
 
-/**
- * Roster card. Flat at rest — the offset shadow only appears on hover. On
- * hover-capable devices the portrait develops from mono to color; touch
- * devices get full color from the start. The type tag is color-only mono
- * text with a pixel square, not a filled chip.
- */
 export function TeamCard({ member, onClick }: TeamCardProps) {
   const typeConfig = getTypeConfig(member.type);
   const socialLinks = [

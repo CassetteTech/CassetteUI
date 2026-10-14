@@ -14,7 +14,6 @@ interface CompletionStepProps {
   onComplete: () => void;
 }
 
-// Confetti particle component
 function ConfettiParticle({ delay, x }: { delay: number; x: number }) {
   const colors = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--info))', 'hsl(var(--warning))', 'hsl(var(--accent-royal))'];
   const color = colors[Math.floor(Math.random() * colors.length)];
@@ -75,7 +74,6 @@ export function CompletionStep({
 
   return (
     <div className="relative overflow-hidden">
-      {/* Confetti */}
       {showConfetti && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {Array.from({ length: 30 }).map((_, i) => (
@@ -89,7 +87,6 @@ export function CompletionStep({
       )}
 
       <div className="space-y-8">
-        {/* Cassette Logo + Success */}
         <motion.div
           initial={{ scale: 0.8 }}
           animate={{ scale: 1 }}
@@ -130,7 +127,6 @@ export function CompletionStep({
           </div>
         </motion.div>
 
-        {/* Message */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -145,7 +141,6 @@ export function CompletionStep({
           </p>
         </motion.div>
 
-        {/* Profile Preview Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -153,7 +148,6 @@ export function CompletionStep({
           className="bg-muted/50 border border-border rounded-xl p-6"
         >
           <div className="flex items-center gap-4">
-            {/* Avatar */}
             <div className="w-16 h-16 rounded-full bg-muted border-2 border-primary overflow-hidden flex-shrink-0">
               {avatarPreview ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -169,7 +163,6 @@ export function CompletionStep({
               )}
             </div>
 
-            {/* Info */}
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-foreground text-lg truncate">
                 {displayName}
@@ -184,7 +177,6 @@ export function CompletionStep({
           </div>
         </motion.div>
 
-        {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

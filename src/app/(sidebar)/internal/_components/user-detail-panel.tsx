@@ -85,7 +85,6 @@ export function UserDetailPanel({
         </Link>
       }
     >
-      {/* Identity — avatar + name link straight to the profile */}
       <div className="p-3">
         <div className="flex items-center gap-3">
           <Link href={profileHref} target="_blank" rel="noopener noreferrer" className="shrink-0">
@@ -114,14 +113,12 @@ export function UserDetailPanel({
         </div>
       </div>
 
-      {/* Key metrics */}
       <div className="flex divide-x divide-border border-t border-border">
         <Stat label="Likes" value={Number(user.likesReceivedAllTime ?? 0)} />
         <Stat label="30d" value={Number(user.likesReceived30d ?? 0)} />
         <Stat label="Posts" value={Number(user.postCount ?? 0)} />
       </div>
 
-      {/* Meta */}
       <div className="border-t border-border px-3 py-1.5">
         <Field label="ID">
           <CopyId value={user.userId} label="ID" />
@@ -143,7 +140,6 @@ export function UserDetailPanel({
         </Field>
       </div>
 
-      {/* Role controls */}
       <div className="border-t border-border p-3">
         {actorCanAssignVerified ? (
           <UserAccountTypeControls

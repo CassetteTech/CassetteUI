@@ -1,5 +1,3 @@
-/** Supplies deterministic Cassette domain fixtures shared by browser-level feature tests. */
-
 import type {
   CuratorPage as FixtureCuratorPage,
   CuratorProfile as FixtureCuratorProfile,
@@ -68,9 +66,7 @@ export interface FixtureUser {
   avatarUrl?: string;
   platformPreferences?: string[];
   musicConnections?: string[];
-  /** Curators whose memberships give this user access; every session read reports it. Defaults to 0. */
   activeMembershipCount?: number;
-  /** Those curators together with the ones this user follows; every session read reports it. Defaults to 0. */
   feedCuratorCount?: number;
 }
 
@@ -92,7 +88,6 @@ export interface FixturePost {
   likeCount?: number;
   likedByCurrentUser?: boolean;
   repostedByCurrentUser?: boolean;
-  /** Set on a repost: the post it points at. */
   originalPostId?: string;
   commentsEnabled?: boolean;
   conversionSuccessCount?: number;
@@ -119,7 +114,6 @@ export interface FixturePost {
 
 export type FixtureMembershipStatusView = MembershipStatusView;
 
-/** Launch state: Curator Pro is not offered, so Checkout is closed. */
 export const fixtureCuratorProDefaultStatus: FixtureCuratorProStatus = {
   available: false,
   hasAccess: false,
@@ -135,7 +129,6 @@ export const fixtureCuratorProDefaultStatus: FixtureCuratorProStatus = {
   paidThroughUtc: null,
 };
 
-/** Curator Pro is offered and this curator has not subscribed. */
 export const fixtureCuratorProAvailableStatus: FixtureCuratorProStatus = {
   ...fixtureCuratorProDefaultStatus,
   available: true,
@@ -163,10 +156,8 @@ export const fixtureActiveCuratorProfile: FixtureCuratorProfile = {
   statusChangedAtUtc: '2026-08-16T12:00:00Z',
 };
 
-/** Member counts without the window echo and daily series, which the mock builds per request. */
 export type FixtureCuratorMemberCounts = Omit<CuratorMemberStats, 'days' | 'daily'>;
 
-/** A curator with a few members: one joined since the window start, one will not renew. */
 export const fixtureCuratorMemberCounts: FixtureCuratorMemberCounts = {
   activeMembers: 3,
   newMembers: 2,
@@ -198,7 +189,6 @@ export interface FixturePaidPromotionRateCard {
   version: number;
   displayName: string;
   description: string;
-  // Price per week; the campaign total is weekly × weeks less any discount.
   amountMinor: number;
   currency: string;
   minWeeks: number;
@@ -733,8 +723,6 @@ export const fixtureConvertTemplates = {
       spotify: 'https://open.spotify.com/album/paid-promotion-album-1',
     },
   },
-  // Artists and playlists resolve to canonical records but have no rate card
-  // at launch; the intake must say so rather than fail.
   paidPromotionArtist: {
     postId: 'post-paid-promotion-artist',
     musicElementId: 'r_123456789ABC',
@@ -813,8 +801,6 @@ export const fixturePaidPromotionCampaign: FixturePaidPromotionCampaign = {
   updatedAtUtc: FIXTURE_TIMESTAMP,
 };
 
-// A second campaign of another element type, so the type-generic promoter
-// surfaces are exercised against more than tracks.
 export const fixturePaidPromotionAlbumCampaign: FixturePaidPromotionCampaign = {
   ...fixturePaidPromotionCampaign,
   id: 'pmc_FixtureCampaign02',
@@ -859,7 +845,6 @@ export const fixtureInternalPaidPromotionCampaign: FixtureInternalPaidPromotionC
   brief: 'Focus on the release story and live arrangement.',
   pricingMode: 'rate_card',
   rateCardId: fixturePaidPromotionRateCards[0].id,
-  // A four-week campaign at the discounted weekly rate: 4 × $25 less 10%.
   amountMinor: 9000,
   currency: fixturePaidPromotionRateCards[0].currency,
   weeks: 4,
@@ -952,8 +937,6 @@ export const fixturePaidPromotionSubjects: FixturePaidPromotionSubject[] = [
     firstCampaignAtUtc: FIXTURE_TIMESTAMP,
     latestCampaignAtUtc: FIXTURE_TIMESTAMP,
   },
-  // An artist subject carries no secondary names — the type-generic renderers
-  // must not fall back to "artist unavailable" for it.
   {
     elementId: fixtureConvertTemplates.paidPromotionArtist.musicElementId,
     elementType: 'artist',
@@ -1004,10 +987,6 @@ export const fixtureSearchResultsByQuery: Record<string, FixtureSearchResults> =
   },
 };
 
-// Search entry whose result resolves to a canonical, promotable subject, so
-// the paid-promotion intake's search path can be exercised end to end. The
-// `blue monday` entry above resolves to a non-canonical element id and is not
-// usable for that flow.
 fixtureSearchResultsByQuery['signal fire'] = {
   tracks: [
     {

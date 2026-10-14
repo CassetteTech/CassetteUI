@@ -89,7 +89,6 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
         width: width,
       }}
     >
-      {/* Bottom layer (shadow/depth) */}
       <div
         className="absolute bottom-0 right-0"
         style={{
@@ -101,7 +100,6 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
         }}
       />
       
-      {/* Top layer (main button) */}
       <div
         className="absolute bottom-0 right-0 transition-transform duration-150 ease-out"
         style={{
@@ -130,7 +128,6 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
   );
 };
 
-// Preset button variants using CSS tokens
 export const AnimatedPrimaryButton: React.FC<Omit<AnimatedButtonProps, 'colorTop' | 'colorBottom'>> = (props) => (
   <AnimatedButton
     {...props}

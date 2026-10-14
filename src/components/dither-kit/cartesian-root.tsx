@@ -36,7 +36,6 @@ export type CartesianChartProps<TData extends Row> = {
   config: ChartConfig
   children: ReactNode
   stackType?: StackType
-  /** Top of the y axis while the data stays below it; larger data still grows the axis. */
   yMax?: number
   margins?: Partial<Margins>
   className?: string
@@ -61,7 +60,6 @@ export type CartesianChartProps<TData extends Row> = {
   onSelectionChange?: (key: string | null) => void
 }
 
-/** Which render layer a composed part targets — defaults to the front SVG. */
 function layerOf(node: ReactNode): "back" | "dom" | "svg" {
   if (!isValidElement(node) || typeof node.type === "string") return "svg"
   return (node.type as { chartLayer?: "back" | "dom" }).chartLayer ?? "svg"

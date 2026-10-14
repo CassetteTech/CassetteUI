@@ -8,10 +8,6 @@ interface StatStripProps {
   className?: string;
 }
 
-/**
- * Quiet liner-notes stat row — flat ruled columns, no cards. Opens the
- * content sheet on both /about and /team.
- */
 export function StatStrip({ items, className }: StatStripProps) {
   return (
     <motion.div

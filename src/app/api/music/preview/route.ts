@@ -5,20 +5,6 @@ import { appLogger } from '@/lib/observability/logger';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * GET /api/music/preview
- *
- * Fetches a preview URL for a track using the appropriate music service.
- * Uses the source platform to determine which service to use.
- *
- * Query params:
- * - sourcePlatform: The original platform ('applemusic', 'spotify', 'deezer')
- * - appleMusicTrackId: Apple Music track ID (used when sourcePlatform is applemusic)
- * - spotifyTrackId: Spotify track ID (used when sourcePlatform is spotify)
- * - isrc: The ISRC code of the track (fallback search)
- * - title: Track title (fallback search)
- * - artist: Artist name (used with title for better matching)
- */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -38,18 +24,14 @@ export async function GET(request: NextRequest) {
 
     let previewUrl: string | null = null;
 
-    // Use the appropriate service based on source platform
     if (sourcePlatform === 'applemusic' && appleMusicTrackId) {
-      // Apple Music playlist - use Apple Music service
       appLogger.debug('music_preview_direct_fetch', { route: '/api/music/preview', source_platform: 'applemusic' });
       previewUrl = await appleMusicService.getPreviewByTrackId(appleMusicTrackId);
     } else if (spotifyTrackId) {
-      // Spotify playlist or fallback - try Spotify direct fetch
       appLogger.debug('music_preview_direct_fetch', { route: '/api/music/preview', source_platform: 'spotify' });
       previewUrl = await spotifyService.getPreviewByTrackId(spotifyTrackId);
     }
 
-    // Fall back to Spotify ISRC/title search if direct fetch didn't work
     if (!previewUrl && (isrc || title)) {
       appLogger.debug('music_preview_fallback_search', { route: '/api/music/preview', source_platform: sourcePlatform });
       previewUrl = await spotifyService.getPreviewUrl({

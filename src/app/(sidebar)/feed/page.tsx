@@ -1,14 +1,5 @@
 'use client';
 
-/**
- * Posts from the curators the viewer follows or joined, newest first. The
- * session says how many such curators there are; the Feed reads posts only
- * after it knows that count is positive. Every page is authorized by Bridge,
- * so an ending membership or an Unfollow drops that curator's posts from the
- * next read, and a followed curator's members-only post arrives locked.
- * Billing stays on Memberships.
- */
-
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -66,7 +57,6 @@ function CuratorFeed() {
   // Only the count of followed and joined curators opens the Feed; the paid
   // count can briefly exceed it while a source changes, and never does on its own.
   const hasSources = !sessionError && feedCuratorCount !== null && feedCuratorCount > 0;
-  // Posts wait for a session read that is fresh for this visit and not being replaced.
   const sessionCurrent =
     !isRefreshingSession && sessionCheckedAt !== null && sessionCheckedAt + SESSION_MAX_AGE_MS > openedAt;
   const feedEnabled = hasSources && sessionCurrent;
@@ -198,7 +188,6 @@ function SignInPrompt({ membersOnly }: { membersOnly: boolean }) {
   );
 }
 
-/** No followed or joined curators: the curators a fan could join now, from the featured list in its own order. */
 function JoinCuratorPrompt({ viewerId }: { viewerId: string }) {
   const curators = useExploreCurators();
   const joinable = (curators.data ?? [])
@@ -335,10 +324,6 @@ function FeedPosts({
   );
 }
 
-/**
- * Whether the curator takes new members now comes from the viewer's own
- * membership status, read once per curator; the locked row never carries it.
- */
 function LockedFeedPost({ item, viewerId }: { item: Extract<CuratorFeedItem, { kind: 'locked' }>; viewerId: string }) {
   const status = useMembershipStatus(item.curator.id, viewerId, false);
   let availability: 'available' | 'unavailable' | 'unknown' = 'unknown';

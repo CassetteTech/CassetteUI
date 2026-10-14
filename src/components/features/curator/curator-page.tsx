@@ -1,7 +1,5 @@
 'use client';
 
-/** Coordinates the public curator feed, fan entitlement state, and Stripe handoff flows. */
-
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
@@ -46,7 +44,6 @@ type MembershipFlow = 'join' | 'return' | 'canceled' | 'portal-return' | null;
 const joinIntentPrefix = 'cassette:membership-join-intent:';
 const joinIntentLifetimeMs = 10 * 60 * 1_000;
 
-/** A signed-out Join: this tab remembers the click, and sign-in returns with `membership=join`. */
 function signInToJoin(
   router: ReturnType<typeof useRouter>,
   username: string,
@@ -56,14 +53,11 @@ function signInToJoin(
   try {
     sessionStorage.setItem(`${joinIntentPrefix}${planId}:${interval}`, String(Date.now()));
   } catch {
-    // The fan can select Join again after signing in.
   }
   const returnPath = `/profile/${encodeURIComponent(username)}?membership=join&interval=${interval}`;
   router.push(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
 }
 
-/** What a Portal return compares status reads with: the membership as the fan opened the
-    Portal when that baseline survived, otherwise the first read after the return. */
 type PortalReturnReference = { state: MembershipPortalBaseline; openedBaseline: boolean };
 
 export function PublicCuratorPage({
@@ -78,11 +72,8 @@ export function PublicCuratorPage({
   username: string;
   membershipFlow: MembershipFlow;
   initialInterval: MembershipInterval;
-  /** Page rail the membership card renders into; the same rail Curator Studio uses. */
   membershipSlot: HTMLElement | null;
-  /** The profile's bio, services, and links, printed inside the pass on wide screens. */
   identitySummary?: ReactNode;
-  /** The Music view in the URL. */
   view: ProfileMusicView;
   onViewChange: (view: ProfileMusicView) => void;
 }) {
@@ -100,7 +91,6 @@ export function PublicCuratorPage({
   const viewerKey = authLoading ? null : (user?.id ?? 'anonymous');
   const query = useCuratorPage(username, viewerKey, curatorPageFilterOf(view));
   const page = query.data?.pages[0];
-  // One shared read for the whole list; React Query dedupes it across cards.
   const canLockPosts = useSubscriberPostEligibility(page?.viewer.isOwner ?? false);
   const [interval, setBillingInterval] = useState(initialInterval);
   // A Portal change reaches Bridge by webhook, possibly after the fan is back,
@@ -267,7 +257,6 @@ export function PublicCuratorPage({
     // the fan only looked. The bounded poll ends with neutral copy instead.
     if (current.status === reference.status && current.cancelAtPeriodEnd === reference.cancelAtPeriodEnd) return;
 
-    // Any change, such as a repaired payment, refreshes the server-owned page and its posts.
     flowHandled.current = true;
     setPollStatus(false);
     setPollTimedOut(false);
@@ -281,7 +270,6 @@ export function PublicCuratorPage({
       (reference.cancelAtPeriodEnd && !current.cancelAtPeriodEnd) ||
       (reference.status === 'canceled' && current.status !== 'canceled');
     if (cancellationObserved) {
-      // The persistent state (ends on date / canceled) renders inline via the standing notice.
       toast.info(membership.status === 'canceled'
         ? 'Your membership is canceled.'
         : 'Your membership renewal is canceled.');
@@ -332,7 +320,6 @@ export function PublicCuratorPage({
       intentCreatedAt = Number(sessionStorage.getItem(key));
       sessionStorage.removeItem(key);
     } catch {
-      // An explicit authenticated Join remains available when storage is unavailable.
     }
     const intentAge = Date.now() - intentCreatedAt;
     if (!Number.isFinite(intentCreatedAt) || intentAge < 0 || intentAge > joinIntentLifetimeMs) {
@@ -450,8 +437,6 @@ export function PublicCuratorPage({
       <h1 className="sr-only" id={curatorNameId}>{displayName}</h1>
 
       <div className="grid gap-6">
-        {/* Compact membership summary: mobile-only, sits under the identity header and scrolls to
-            the full offer. Join is reserved for the actual checkout control in the card. */}
         {page.membership && !page.viewer.isMember && !page.viewer.isOwner && (
           <a
             href={`#${membershipId}`}
@@ -483,7 +468,6 @@ export function PublicCuratorPage({
           onLoadMore={() => void query.fetchNextPage()}
           isOwner={page.viewer.isOwner}
           canLockPosts={canLockPosts}
-          // The page carries only public and members-only posts.
           visibilities={['public', 'subscriber']}
           displayName={displayName}
           ownerUsername={page.curator.username}
@@ -541,7 +525,6 @@ export function PublicCuratorPage({
   );
 }
 
-/** A curator page post in the shape the music card reads. */
 function toMusicCardPost(post: Extract<CuratorPostItem, { kind: 'post' }>['post']): MusicCardPost {
   return {
     ...post,
@@ -583,7 +566,6 @@ function CuratorLoadError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-/** The music list's skeleton; the profile page draws the rail. */
 function CuratorPageSkeleton() {
   return (
     <div aria-label="Loading curator">

@@ -7,13 +7,9 @@ const other = (theme: Theme): Theme => (theme === 'dark' ? 'light' : 'dark');
 // The longer camera move, to dark, lasts 6.58 s of media at 1.8x.
 const MOVE_MS = 3660;
 
-// Changes the theme through next-themes, as another tab would, so rapid
-// changes reach the scene without waiting on the theme menu.
 const switchTheme = (page: Page, theme: string) =>
   page.evaluate((value) => window.dispatchEvent(new StorageEvent('storage', { key: 'theme', newValue: value })), theme);
 
-// The scene is at rest when exactly one layer shows, it is the page theme's
-// idle loop, no camera move plays, and the copy has the same theme.
 const sceneState = (page: Page) =>
   page.evaluate(() => {
     const layers = [...document.querySelectorAll<HTMLElement>('[data-layer]')];
@@ -40,7 +36,6 @@ async function openWindow(page: Page, theme: Theme, width = 1440, path = '/') {
   return errors;
 }
 
-// Each scenario lists the gaps in ms between theme changes, starting from light.
 const scenarios: Array<{ name: string; gaps: number[] }> = [
   { name: 'single change', gaps: [0] },
   { name: 'back after 1.5 s', gaps: [0, 1500] },
@@ -71,8 +66,6 @@ test('home window scene makes a full round trip from the theme menu', async ({ p
 
   await menu.click();
   await page.getByRole('menuitem', { name: 'Dark' }).click();
-  // The move plays over the paused light loop, and the copy keeps the light
-  // scene until the camera reaches it.
   await expect.poll(() => sceneState(page)).toMatchObject({ visible: ['light', 'move-dark'], theme: 'dark', scene: 'light' });
   await expectAtRest(page, 'dark');
 
@@ -91,8 +84,6 @@ test('home window search opens in the wall and closes on Escape', async ({ page 
   const brandTop = async () => Math.round((await brand.boundingBox())!.y);
   const restTop = await brandTop();
 
-  // The wordmark moves to the top of the column, the pitch leaves, and the
-  // results open under the bar inside the wall, clear of the window.
   await input.focus();
   await expect(results).toBeVisible();
   await expect(headline).toHaveCount(0);
@@ -114,8 +105,6 @@ test('home window search opens in the wall and closes on Escape', async ({ page 
   expect(errors).toEqual([]);
 });
 
-// Phones play the desktop set cropped to the window; `?phone=portrait` keeps
-// the portrait set available for review.
 test('home window scene plays the cropped desktop set on a phone', async ({ page }) => {
   const errors = await openWindow(page, 'light', 390);
   await expect(page.locator('video[data-move="dark"]')).toHaveAttribute('src', /\/home-window\/move-to-dark\.mp4$/);

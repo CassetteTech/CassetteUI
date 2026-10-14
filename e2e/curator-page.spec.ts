@@ -1,5 +1,3 @@
-/** Covers public curator visibility, locked-content privacy, entitlement, and responsive layout. */
-
 import { expect, type Page, test } from '@playwright/test';
 
 import {
@@ -32,7 +30,6 @@ test('shows a paid curator plan without leaking locked content to a nonmember', 
   await expect(
     page.getByText(fixtureUsers.playlistCurator.displayName, { exact: true }).filter({ visible: true }).first(),
   ).toBeVisible();
-  // The page identity is the ordinary, editable profile; the free curator profile has no editable fields of its own.
   await expect(
     page.getByText(fixtureUsers.playlistCurator.bio!, { exact: true }).filter({ visible: true }).first(),
   ).toBeVisible();

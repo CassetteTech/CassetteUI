@@ -1,5 +1,3 @@
-/** Verifies that members-only authoring follows Bridge's decision, not the plan's own status. */
-
 import { expect, test } from '@playwright/test';
 import {
   fixtureActiveCuratorProfile,
@@ -15,8 +13,6 @@ const archivedMemberPostPlan = {
   archivedAtUtc: '2026-08-20T12:00:00Z',
 };
 
-// Archiving stops new joins only. Members who still pay keep receiving member
-// posts, so Bridge lets the curator keep publishing them.
 test('lets a curator lock posts while an archived plan still has paying members', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.owner,
@@ -38,8 +34,6 @@ test('lets a curator lock posts while an archived plan still has paying members'
   await expect(studio.getByText('To lock posts')).toHaveCount(0);
 });
 
-// An archived plan with no paying members, or a suspended curator, gets a locked
-// members-only option: choosing it keeps the post's setting and points to Curator Studio.
 test('keeps members-only posts closed when Bridge refuses member-post authoring', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.owner,
@@ -58,7 +52,6 @@ test('keeps members-only posts closed when Bridge refuses member-post authoring'
   const members = studio.getByRole('radio', { name: 'Members' });
   const prompt = studio.getByText('To lock posts, publish a membership plan with member posts.');
   await expect(prompt).toBeHidden();
-  // The prompt takes the summary's place, so neither the column nor what follows it moves.
   const insights = studio.getByRole('heading', { name: 'Insights' });
   const placed = { studio: await studio.boundingBox(), insights: await insights.boundingBox() };
   await members.click();
@@ -68,12 +61,10 @@ test('keeps members-only posts closed when Bridge refuses member-post authoring'
   await expect(studio.getByRole('heading', { name: 'Public' })).toBeVisible();
   expect({ studio: await studio.boundingBox(), insights: await insights.boundingBox() }).toEqual(placed);
 
-  // Choosing the current setting again dismisses the prompt.
   await studio.getByRole('radio', { name: 'Public' }).click();
   await expect(prompt).toBeHidden();
   expect({ studio: await studio.boundingBox(), insights: await insights.boundingBox() }).toEqual(placed);
 
-  // Arrow keys reach the locked option the same way: the prompt, no save.
   await studio.getByRole('radio', { name: 'Public' }).press('ArrowRight');
   await expect(prompt).toBeVisible();
   await expect(members).toBeFocused();
@@ -100,8 +91,6 @@ test('replaces an older visibility summary with the locked members prompt', asyn
   await expect(studio.getByRole('radio', { name: 'Members' })).not.toBeChecked();
 });
 
-// Add Music uses the post page's control, so a curator without member-post authoring
-// meets the same locked option and setup prompt before the post exists.
 test('shows the locked members option and setup prompt on Add Music', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.owner,
@@ -126,8 +115,6 @@ test('shows the locked members option and setup prompt on Add Music', async ({ p
   await expect(prompt).toBeHidden();
 });
 
-// Without an answer from Bridge, nothing in the browser infers authoring from the
-// plan: the option stays closed until the decision can be read.
 test('keeps members-only posts closed when Bridge cannot answer the authoring read', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.owner,

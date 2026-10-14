@@ -1,7 +1,5 @@
 'use client';
 
-/** Lets a post owner update its caption, visibility, and comment setting. */
-
 import { useEffect, useRef, useState } from 'react';
 import {
   Sheet,
@@ -33,7 +31,6 @@ interface EditPostModalProps {
   currentDescription: string;
   currentPrivacy?: PostPrivacy;
   currentCommentsEnabled?: boolean;
-  /** Runs after a save with only the fields that changed. */
   onSuccess?: (changes: PostChanges) => void;
   /** Without a sheet trigger, Radix focuses nothing on close; a caller can focus its real opener here. */
   onCloseAutoFocus?: (event: Event) => void;
@@ -59,7 +56,6 @@ export function EditPostModal({
   const canUseSubscriberPosts = useSubscriberPostEligibility(open);
   const showSubscriberOption = canUseSubscriberPosts || currentPrivacy === 'subscriber';
 
-  // Reset description when modal opens with new data
   useEffect(() => {
     if (open) {
       setDescription(currentDescription);

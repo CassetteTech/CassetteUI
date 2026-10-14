@@ -1,11 +1,5 @@
-/** The Studio Music library's cached pages: apply a saved change, list each post once, and tell
-    when the next offset read would no longer line up with what is loaded. */
-
 import type { ActivityPost, PaginatedActivityResponse } from '@/types';
 
-/** Applies a saved change to one cached list. A deleted post (`null`) leaves it, and so does a
-    post whose new setting no longer fits the list's audience (`listPrivacy`; `'all'` keeps every
-    setting). The total drops once even when the post repeats on two pages. */
 export function patchMusicPages<T extends { pages: PaginatedActivityResponse[] }>(
   data: T,
   postId: string,
@@ -27,7 +21,6 @@ export function patchMusicPages<T extends { pages: PaginatedActivityResponse[] }
   return { ...data, pages: pages.map((page) => ({ ...page, totalItems: Math.max(0, page.totalItems - 1) })) };
 }
 
-/** The loaded posts in page order, each once: a post repeats when one is added between page reads. */
 export function uniquePosts(pages: readonly PaginatedActivityResponse[]) {
   const seen = new Set<string>();
   return pages.flatMap((page) => page.items).filter((post) => {

@@ -66,8 +66,6 @@ const TONE_TEXT: Record<Tone, string> = {
   domain: 'text-domain',
 };
 
-/* Time-of-day only — the masthead subline and telemetry rail quote times often
-   enough that full locale datetimes turn into noise. */
 function timeOnly(value?: string | null) {
   if (!value) return '—';
   const date = new Date(value);
@@ -75,9 +73,6 @@ function timeOnly(value?: string | null) {
   return date.toLocaleTimeString();
 }
 
-/* A platform with zero warmups and no last-warmup timestamp hasn't reported
-   at all in the window. That is "no telemetry", not "unhealthy" — the two
-   states are counted and rendered separately on purpose. */
 function hasTelemetry(platform: InternalLambdaHealthPlatform): boolean {
   return platform.recentWarmupCount > 0 || Boolean(platform.lastWarmupAtUtc);
 }
@@ -96,8 +91,6 @@ function DateFilter({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
-/* Writes the selected job into the query string so the view is deep-linkable
-   (`/internal/sentinel?view=runtime&job=<id>`), without a navigation. */
 function writeJobParam(jobId: string | null) {
   const url = new URL(window.location.href);
   if (jobId) {
@@ -160,7 +153,6 @@ export function SentinelRuntimePanel() {
         pageSize: PAGE_SIZE,
       });
       setJobs(response);
-      // Keep the sheet's data fresh if the selected job is in the new page.
       setSelectedJob((current) =>
         current ? response.items.find((job) => job.jobId === current.jobId) ?? current : null
       );
@@ -174,9 +166,6 @@ export function SentinelRuntimePanel() {
   useEffect(() => { void loadSummary(); }, [loadSummary]);
   useEffect(() => { void loadJobs(); }, [loadJobs]);
 
-  /* Deep link: `?job=<id>` seeds the search box, and once results land the
-     matching job opens in the sheet. One shot — after the first result set the
-     param only tracks in-page selection. */
   useEffect(() => {
     if (!pendingDeepLinkJobId || !jobs) return;
     const match = jobs.items.find((job) => job.jobId === pendingDeepLinkJobId);
@@ -215,8 +204,6 @@ export function SentinelRuntimePanel() {
     (platform) => hasTelemetry(platform) && platform.status !== 'healthy'
   ).length;
 
-  /* Masthead: the view's one loud element. Signals outrank platform health;
-     everything healthy earns the nominal line. */
   const signalCount = activeSignals.length;
   const hasCriticalSignal = activeSignals.some(
     (alert) => alert.severity === 'error' || alert.severity === 'critical'
@@ -311,7 +298,6 @@ export function SentinelRuntimePanel() {
 
   return (
     <div className="space-y-4">
-      {/* ── Masthead: one loud status readout; everything else whispers. ── */}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pt-1">
         {summaryPending ? (
           <div className="space-y-2">
@@ -355,8 +341,6 @@ export function SentinelRuntimePanel() {
         </div>
       )}
 
-      {/* Signals are exceptional, so they only occupy space when active —
-          left-rule rows under the masthead, no permanent empty panel. */}
       {activeSignals.length > 0 && (
         <div className="space-y-3">
           {activeSignals.map((alert) => {
@@ -380,7 +364,6 @@ export function SentinelRuntimePanel() {
         </div>
       )}
 
-      {/* ── Platform telemetry rail: one hero number per platform. ── */}
       <div className="grid divide-y divide-border overflow-hidden rounded-lg border border-border bg-card sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         {summaryPending ? (
           Array.from({ length: 3 }).map((_, index) => (
@@ -505,9 +488,6 @@ export function SentinelRuntimePanel() {
   );
 }
 
-/* ─────────────────────── Conversion job sheet ──────────────────────────────
-   Slide-in detail for a single conversion job: identity, failure, timing,
-   source/target context, lambda invocations, and linked issue reports. */
 function ConversionJobSheet({
   job,
   open,

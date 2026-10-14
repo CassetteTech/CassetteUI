@@ -24,8 +24,8 @@ interface AvatarStepProps {
 }
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_SOURCE_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-const MAX_UPLOAD_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_SOURCE_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_UPLOAD_FILE_SIZE = 5 * 1024 * 1024;
 
 export function AvatarStep({
   formData,
@@ -41,7 +41,6 @@ export function AvatarStep({
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
   const processFile = useCallback((file: File) => {
-    // Validate file type
     if (!ALLOWED_TYPES.includes(file.type)) {
       toast.error('Invalid file type', {
         description: 'Please use JPEG, PNG, or WebP images only.',
@@ -49,7 +48,6 @@ export function AvatarStep({
       return;
     }
 
-    // Validate file size
     if (file.size > MAX_SOURCE_FILE_SIZE) {
       toast.error('File too large', {
         description: 'Please choose an image smaller than 20MB.',
@@ -128,7 +126,7 @@ export function AvatarStep({
 
   const handlePrimaryAction = () => {
     if (isLastStep) {
-      onNext(); // This will trigger the parent's finish handler
+      onNext();
     } else {
       onNext();
     }
@@ -147,7 +145,6 @@ export function AvatarStep({
         <p className="text-xs mt-1 text-muted-foreground/70">This step is optional</p>
       </div>
 
-      {/* Drop Zone */}
       <div
         ref={dropZoneRef}
         onDragOver={handleDragOver}
@@ -159,7 +156,6 @@ export function AvatarStep({
             : 'border-muted-foreground/30 hover:border-primary/50'
         }`}
       >
-        {/* Avatar Preview */}
         <div className="relative group mb-4">
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
@@ -182,7 +178,6 @@ export function AvatarStep({
             )}
           </motion.div>
 
-          {/* Hover Overlay */}
           <button
             onClick={handleUploadClick}
             className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -190,7 +185,6 @@ export function AvatarStep({
             <Camera className="w-8 h-8 text-white" />
           </button>
 
-          {/* Remove Button */}
           {avatarPreview && (
             <motion.button
               initial={{ scale: 0.8 }}
@@ -203,7 +197,6 @@ export function AvatarStep({
           )}
         </div>
 
-        {/* Upload Instructions */}
         <div className="text-center space-y-3">
           {!avatarPreview ? (
             <>
@@ -240,7 +233,6 @@ export function AvatarStep({
         />
       </div>
 
-      {/* Navigation */}
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onBack}>
           Back

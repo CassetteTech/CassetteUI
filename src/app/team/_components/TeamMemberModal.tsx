@@ -13,7 +13,6 @@ interface TeamMemberModalProps {
 }
 
 export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
-  // Handle ESC key
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && memberName) {
@@ -78,10 +77,8 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
 
               return (
                 <div className="p-5 sm:p-8 md:p-10">
-                  {/* Accent bar — category color */}
                   <div className={`h-[2px] w-10 ${typeConfig.accentBar} mb-6`} />
 
-                  {/* Header */}
                   <div className="flex items-start justify-between gap-3 mb-6 sm:mb-8">
                     <div className="flex items-center gap-3 sm:gap-5 min-w-0">
                       <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden flex-shrink-0 bg-muted">
@@ -122,7 +119,6 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
                     </button>
                   </div>
 
-                  {/* Content */}
                   <div className="space-y-6">
                     <div>
                       <h3 className="font-teko text-lg text-muted-foreground uppercase tracking-wider mb-3">

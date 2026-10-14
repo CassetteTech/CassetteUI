@@ -35,7 +35,6 @@ export function ChunkLoadRecovery() {
 
         sessionStorage.setItem(CHUNK_RELOAD_GUARD_KEY, '1');
       } catch {
-        // If sessionStorage is unavailable, still attempt one reload.
       }
 
       window.location.reload();

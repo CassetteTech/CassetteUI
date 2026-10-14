@@ -40,10 +40,9 @@ class AppleMusicService {
   }
 
   private async getToken(): Promise<string> {
-    // Use cached token if valid with 1 day buffer
     if (this.token && this.tokenExpiryTime) {
       const now = new Date();
-      const bufferTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 1 day buffer
+      const bufferTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       if (this.tokenExpiryTime > bufferTime) {
         appLogger.debug('apple_music_token_cache_hit');
         return this.token;
@@ -56,7 +55,6 @@ class AppleMusicService {
       .replaceAll('\\n', '\n')
       .trim();
 
-    // Verify the private key is in PEM format
     if (!cleanPrivateKey.includes('-----BEGIN PRIVATE KEY-----') ||
         !cleanPrivateKey.includes('-----END PRIVATE KEY-----')) {
       appLogger.error('apple_music_private_key_invalid_format');
@@ -66,7 +64,7 @@ class AppleMusicService {
     const payload = {
       iss: teamId,
       iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + (180 * 24 * 60 * 60), // 180 days
+      exp: Math.floor(Date.now() / 1000) + (180 * 24 * 60 * 60),
     };
 
     try {
@@ -173,9 +171,6 @@ class AppleMusicService {
     return this.transformChartResults(data);
   }
 
-  /**
-   * Fetch a track directly by Apple Music track ID and return its preview URL.
-   */
   async getPreviewByTrackId(trackId: string): Promise<string | null> {
     appLogger.debug('apple_music_preview_lookup_started');
 
@@ -219,7 +214,6 @@ class AppleMusicService {
       playlists: [],
     };
 
-    // Transform songs to tracks
     if (data.results?.songs?.data) {
       results.tracks = data.results.songs.data.map((item: AppleMusicSong) => ({
         id: item.id,
@@ -236,7 +230,6 @@ class AppleMusicService {
       }));
     }
 
-    // Transform artists
     if (data.results?.artists?.data) {
       results.artists = data.results.artists.data.map((item: AppleMusicArtist) => ({
         id: item.id,
@@ -249,7 +242,6 @@ class AppleMusicService {
       }));
     }
 
-    // Transform albums
     if (data.results?.albums?.data) {
       results.albums = data.results.albums.data.map((item: AppleMusicAlbum) => ({
         id: item.id,
@@ -275,7 +267,6 @@ class AppleMusicService {
       playlists: [],
     };
 
-    // Transform chart songs to tracks
     if (data.results?.songs?.[0]?.data) {
       results.tracks = data.results.songs[0].data.map((item: AppleMusicSong) => {
         const artworkUrl = item.attributes.artwork?.url?.toString().replace('{w}x{h}', '500x500') || '';

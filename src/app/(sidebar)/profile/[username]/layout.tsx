@@ -1,5 +1,3 @@
-/** Builds social metadata for the canonical public profile and wraps its responsive layout. */
-
 import type { Metadata } from 'next';
 import { fetchProfileForMetadata } from '@/lib/server/fetch-profile';
 import { DEFAULT_SOCIAL_PREVIEW } from '@/lib/seo';

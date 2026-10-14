@@ -25,11 +25,9 @@ test.describe('home page', () => {
     await page.getByRole('link', { name: 'See how it works' }).click();
     await expect(page.getByRole('heading', { name: 'How it works' })).toBeInViewport();
 
-    // The curator page is a template: no example curator or music.
     await expect(page.getByText('Your page', { exact: true })).toBeVisible();
     await expect(page.getByText(/Nadia/)).toHaveCount(0);
 
-    // Curator Pro shows only as later tools, never as the way to earn.
     await expect(page.getByText(/Curator Pro/)).toHaveText(['Coming later: Curator Pro, optional extra tools for curators.']);
   });
 
@@ -42,15 +40,12 @@ test.describe('home page', () => {
     await expect(pill).toHaveAccessibleName(/^Mia Groove\s*@miagroove$/);
     await expect(page.getByRole('button', { name: 'Open menu' })).toBeHidden();
 
-    // Below 1024 px the app pages have no sidebar, so the menu holds the account routes.
     await page.setViewportSize({ width: 900, height: 900 });
     await expect(pill).toBeHidden();
     await page.getByRole('button', { name: 'Open menu' }).click();
     const menu = page.locator('#mobile-menu-panel');
     await expect(menu.getByRole('link', { name: 'Curator Studio' })).toHaveAttribute('href', '/studio');
     await expect(menu.getByRole('button', { name: 'Sign Out' })).toBeVisible();
-    // The open menu covers the floating Ko-fi button instead of sitting under it: the panel, or
-    // the backdrop under a short panel, is on top at the button's center.
     const kofi = await page.getByRole('button', { name: 'Support Cassette on Ko-fi' }).boundingBox();
     expect(kofi).not.toBeNull();
     expect(await page.evaluate(
@@ -58,7 +53,6 @@ test.describe('home page', () => {
       { x: kofi!.x + kofi!.width / 2, y: kofi!.y + kofi!.height / 2 },
     )).toBe(true);
 
-    // Growing past 1024 px closes the menu and gives the page its scroll back.
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect(menu).toBeHidden();
     await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('');
@@ -76,8 +70,6 @@ test.describe('home page', () => {
     const pastedStill = card.getByTestId('link-card-pasted-still');
     const convertedStill = card.getByTestId('link-card-converted-still');
 
-    // The rows take turns, the converted link first, and the moving row
-    // takes the one service neither row shows.
     await expect(pastedStill).toBeHidden();
     await expect(convertedStill).toBeHidden();
     await expect(pasted.getByText('open.spotify.com/…')).toBeVisible();
@@ -87,7 +79,6 @@ test.describe('home page', () => {
     await expect(pasted.getByText('deezer.com/…')).toBeVisible({ timeout: 4000 });
     await expect(converted.getByText('music.apple.com/…')).toBeVisible();
 
-    // Reduced motion switched on mid-session swaps in the still Spotify to Apple Music pair.
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(pasted).toBeHidden();
     await expect(converted).toBeHidden();
@@ -97,7 +88,6 @@ test.describe('home page', () => {
     expect(await pasted.isVisible()).toBe(false);
     expect(await convertedStill.isVisible()).toBe(true);
 
-    // Switched off again, both rows turn again, through to a pasted Apple Music link.
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await expect(pastedStill).toBeHidden();
     await expect(convertedStill).toBeHidden();
@@ -122,7 +112,6 @@ test.describe('home page', () => {
     await page.goto(`/?url=${encodeURIComponent(fixtureConvertTemplates.homeTrack.originalUrl)}`);
     await sessionRequested;
     await expect(page.getByTestId('home-search-input')).toBeVisible();
-    // A conversion that ignored the pending session would start on mount; give it time to show.
     await page.waitForTimeout(500);
     expect(conversions).toBe(0);
 
@@ -133,7 +122,6 @@ test.describe('home page', () => {
 
   test('runs a later linked music URL after a failed conversion', async ({ page }) => {
     await mockCassetteApp(page);
-    // No conversion template exists for this link, so it fails on the conversion page.
     await page.goto(`/?url=${encodeURIComponent('https://open.spotify.com/track/no-template')}`);
     await expect(page.getByRole('heading', { name: 'Unable to load content' })).toBeVisible();
 

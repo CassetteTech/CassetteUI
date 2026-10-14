@@ -9,10 +9,6 @@ interface KofiSupportBandProps {
   copy: string;
 }
 
-/**
- * Quiet ruled support strip — no card, no tape. The button keeps its offset
- * shadow as the single focal element of the row.
- */
 export function KofiSupportBand({ title, copy }: KofiSupportBandProps) {
   return (
     <section className="py-16 md:py-20">

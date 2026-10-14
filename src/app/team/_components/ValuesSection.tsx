@@ -23,10 +23,6 @@ const values = [
   },
 ];
 
-/**
- * Dark statement band. Three flat ruled credo columns; no cards, no tape,
- * no icon chips.
- */
 export function ValuesSection() {
   return (
     <section className="section-dark relative">

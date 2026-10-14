@@ -21,13 +21,10 @@ export interface HomeSearchBarProps {
   search: HomeSearch;
   size?: keyof typeof heights;
   placeholder: string;
-  /** Hide the results when focus leaves the bar (dropdown layouts). */
   closeOnBlur?: boolean;
   className?: string;
 }
 
-/** The search bar: a white hairline field on any paper, with the conversion
-    beam, in-place narration while converting, and the unsupported-link help. */
 export function HomeSearchBar({
   search,
   size = 'md',
@@ -114,8 +111,6 @@ export function HomeSearchBar({
   );
 }
 
-/** Top charts or live results as a hairline card (no offset shadow), flush
-    with whatever holds it. Hidden while a conversion runs. */
 export function HomeSearchResults({
   search,
   className,
@@ -142,8 +137,6 @@ export function HomeSearchResults({
   );
 }
 
-/** The bar with its results as a dropdown that opens on focus and closes
-    when focus leaves, so a composed hero stays composed until it is used. */
 export function HomeSearchDropdown({ className, ...bar }: HomeSearchBarProps) {
   const { search } = bar;
   const open = search.isSearchActive && !search.isConverting;

@@ -51,10 +51,8 @@ test.describe('route guards and auth redirects', () => {
     context,
   }) => {
     await mockCassetteApp(page);
-    // Tab A saves the redirect (e.g. before an email-verification detour).
     await page.goto('/auth/signup?redirect=/promote/new');
 
-    // Tab B: fresh tab, same origin storage, no ?redirect param.
     const secondTab = await context.newPage();
     await mockCassetteApp(secondTab, { googleAuthUser: fixtureUsers.member });
     await secondTab.goto('/auth/signin');

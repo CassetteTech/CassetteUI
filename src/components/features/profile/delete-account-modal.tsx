@@ -69,7 +69,6 @@ export function DeleteAccountModal({
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent side="right" className="w-full max-w-md overflow-y-auto">
         <SheetHeader className="space-y-4 pb-2">
-          {/* Warning Icon */}
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#FF004C]/10 ring-8 ring-[#FF004C]/5">
             <AlertTriangle className="h-8 w-8 text-[#FF004C]" />
           </div>
@@ -88,7 +87,6 @@ export function DeleteAccountModal({
           </SheetDescription>
         </SheetHeader>
 
-        {/* Data deletion list */}
         <div className="my-6 rounded-lg bg-[#FF004C]/5 border border-[#FF004C]/20 p-4">
           <p className="text-sm font-medium text-muted-foreground mb-3">
             The following will be permanently deleted:
@@ -105,7 +103,6 @@ export function DeleteAccountModal({
           </ul>
         </div>
 
-        {/* Confirmation input */}
         <div className="space-y-3 mb-6">
           <p className="text-sm text-muted-foreground">
             To confirm deletion, type your username: <span className="font-mono font-semibold text-foreground bg-muted px-1.5 py-0.5 rounded">{username}</span>

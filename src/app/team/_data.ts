@@ -33,13 +33,13 @@ export interface TeamMember {
 }
 
 export interface TypeConfig {
-  color: string;        // Tailwind color token (e.g. "primary", "info", "accentRoyal")
+  color: string;
   iconBg: string;
   iconColor: string;
   borderColor: string;
-  accentBar: string;    // bg class for accent bars
-  borderLeft: string;   // border-l class for editorial card borders
-  numberColor: string;  // text class for editorial numbers
+  accentBar: string;
+  borderLeft: string;
+  numberColor: string;
   label: string;
   icon: LucideIcon;
 }

@@ -4,7 +4,6 @@ import { appLogger } from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
   try {
-    // Forward the Authorization header from the client
     const authHeader = request.headers.get('authorization');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -14,7 +13,6 @@ export async function GET(request: NextRequest) {
       headers['Authorization'] = authHeader;
     }
 
-    // Get music connections from your backend API
     const response = await fetch(`${config.api.url}/api/v1/music-services/connected`, {
       method: 'GET',
       headers,
@@ -26,7 +24,6 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
     
-    // Transform the backend's services array to match frontend expectations
     const connections = (data.services || []).map((service: string) => ({
       id: service,
       service: service,
@@ -56,7 +53,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Forward the Authorization header from the client
     const authHeader = request.headers.get('authorization');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -66,7 +62,6 @@ export async function DELETE(request: NextRequest) {
       headers['Authorization'] = authHeader;
     }
 
-    // Disconnect service via your backend API
     const response = await fetch(`${config.api.url}/api/v1/music-services/${service}`, {
       method: 'DELETE',
       headers,

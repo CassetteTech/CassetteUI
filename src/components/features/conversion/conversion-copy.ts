@@ -1,7 +1,3 @@
-/**
- * Shared copy for the inline conversion takeover (home + add-music).
- */
-
 export const PLATFORM_LABELS: Record<string, string> = {
   spotify: 'Spotify',
   apple: 'Apple Music',

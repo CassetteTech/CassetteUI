@@ -1,7 +1,3 @@
-/** Verifies Curator Studio opens on Music for every account: the membership invitation above the
-    section links, one next step at a time above the music once a plan is live, the earnings at the
-    top of Membership, and the pass visitors see in the rail with the audience under it. */
-
 import { expect, test, type Locator } from '@playwright/test';
 import type { CuratorProfile } from '../src/services/curator';
 import type { CuratorEarningsHistoryItem } from '../src/services/curator-earnings';
@@ -41,7 +37,6 @@ const box = async (locator: Locator) => {
   return found;
 };
 
-/** The member's own posts, newest first, as the activity read returns them. */
 const ownPosts = (count: number, overrides: (index: number) => Partial<FixturePost> = () => ({})): FixturePost[] =>
   Array.from({ length: count }, (_, index) => ({
     ...fixturePosts.publicTrack,
@@ -67,13 +62,10 @@ test('opens on Music with one invitation and the profile pass', async ({ page })
   await expect(page.getByRole('navigation', { name: 'Studio sections' }).getByRole('link', { name: 'Overview' }))
     .toHaveCount(0);
 
-  // The one membership invitation sits above the section links.
   const invitation = page.getByRole('region', { name: 'Earn from your music' });
   await expect(invitation).toBeVisible();
   expect((await box(invitation)).y).toBeLessThan((await box(page.getByRole('navigation', { name: 'Studio sections' }))).y);
 
-  // The rail shows the pass visitors see on the public page, with membership setup for its owner;
-  // Membership previews the plan instead.
   const rail = page.getByRole('complementary', { name: 'Your public pass' });
   await expect(rail.getByTestId('profile-identity-pass')).toBeVisible();
   await expect(rail.getByRole('link', { name: 'Start earning from your music' }))
@@ -102,7 +94,6 @@ test('keeps the membership invitation above the section links on every view', as
     expect((await box(links)).y).toBe(linksTop);
   }
 
-  // The pass offers the same setup and opens the plan in place.
   await page.getByRole('complementary', { name: 'Your public pass' })
     .getByRole('link', { name: 'Start earning from your music' })
     .click();
@@ -127,7 +118,6 @@ test('a live plan shows its pass on every view, and earnings lead Membership', a
   await expect(page.getByTestId('curator-plan-preview')).toBeVisible();
   await expect(page.getByTestId('profile-identity-pass')).toHaveCount(0);
 
-  // The earnings figure and its chart come first on Membership, above the members.
   await openStudioStep(page, 'studio-membership');
   const earned = page.getByRole('heading', { name: 'Earned' });
   await expect(earned).toBeVisible();
@@ -137,7 +127,6 @@ test('a live plan shows its pass on every view, and earnings lead Membership', a
   await expect(page.getByTestId('curator-plan-preview')).toBeVisible();
 });
 
-/** Member earnings, newest first, as the ledger returns them. */
 const ledgerItems = (count: number): CuratorEarningsHistoryItem[] =>
   Array.from({ length: count }, (_, index) => ({
     kind: 'allocation',
@@ -173,14 +162,12 @@ test('puts the audience under the pass on every view, and keeps the activity on 
 
   for (const view of ['studio-music', 'studio-membership', 'studio-billing']) {
     await openStudioStep(page, view);
-    // Pass, then audience, in the rail beside the main column.
     const passBox = await box(pass);
     const audienceBox = await box(audience);
     expect(audienceBox.y).toBeGreaterThanOrEqual(passBox.y + passBox.height);
     expect(Math.abs(audienceBox.x - passBox.x)).toBeLessThanOrEqual(1);
   }
 
-  // Members opens the full statement on Membership and moves focus into it.
   await openStudioStep(page, 'studio-music');
   await audience.getByRole('button', { name: 'Members 37', exact: true }).click();
   await expect(page).toHaveURL('/studio/membership');
@@ -198,7 +185,6 @@ test('holds the audience while the pass loads, so the pass never pushes it down'
     curatorPayoutAccount: activePayout,
     curatorAudience: { audienceCount: 12, activeMemberCount: 3 },
   });
-  // The live plan's pass needs the pricing read; hold it.
   let release = () => {};
   const released = new Promise<void>((resolve) => { release = resolve; });
   await page.route('**/api/v1/curators/pricing', async (route) => {
@@ -209,7 +195,6 @@ test('holds the audience while the pass loads, so the pass never pushes it down'
   await page.goto('/studio');
 
   await expect(page.locator('#studio-music [data-post-id]')).toHaveCount(2);
-  // The audience is read on time and is in the rail, but waits hidden while the slot above it is empty.
   await expect.poll(() => state.curatorAudienceRequests).toBeGreaterThan(0);
   const railAudience = page.locator('aside + div section[aria-label="Audience"]');
   await expect(railAudience).toBeAttached();
@@ -258,9 +243,7 @@ test('nudges a live curator above the music when members have had no new members
     .toHaveAttribute('href', '/studio/music/new?from=%2Fstudio%2Fmusic');
   await expect(nudge.getByRole('link', { name: 'Choose a public post' }))
     .toHaveAttribute('href', '/studio/music?audience=public');
-  // The nudge is the one banner, so sharing waits.
   await expect(page.getByText('Copy your page link to share it with fans.')).toHaveCount(0);
-  // The banner belongs to Music.
   await openStudioStep(page, 'studio-membership');
   await expect(nudge).toHaveCount(0);
 });
@@ -277,7 +260,6 @@ test('names a live curator with no members-only post yet, and stays quiet withou
   await page.goto('/studio');
   await expect(page.getByRole('status').filter({ hasText: 'You have no members-only posts yet.' })).toBeVisible();
 
-  // A plan without member posts cannot lock a post, so there is nothing to nudge.
   state.curatorPlans = [{ ...fixtureActiveMemberPostPlan, featureKeys: [] }];
   await page.reload();
   await expect(page.getByText('Copy your page link to share it with fans.')).toBeVisible();

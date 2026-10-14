@@ -1,5 +1,3 @@
-/** Owns curator plan, feature, pricing, and deterministic economics contracts. */
-
 import { z } from 'zod';
 import { moneyMinorSchema } from './membership';
 import { CuratorPageError } from './curator';
@@ -211,7 +209,6 @@ export async function createCuratorPlan(request: CuratorPlanRequest): Promise<Cu
   return parseResponse(response, 'Failed to create membership plan', curatorPlanSchema);
 }
 
-/** Drafts only; Bridge answers 409 once the plan is published. */
 export async function updateCuratorPlan(id: string, request: CuratorPlanRequest): Promise<CuratorPlan> {
   const response = await fetch(`/api/v1/curators/plans/${encodeURIComponent(planIdSchema.parse(id))}`, {
     method: 'PUT',
@@ -222,7 +219,6 @@ export async function updateCuratorPlan(id: string, request: CuratorPlanRequest)
   return parseResponse(response, 'Failed to update membership plan', curatorPlanSchema);
 }
 
-/** Drafts only; Bridge answers 409 once the plan is published. */
 export async function deleteCuratorPlan(id: string): Promise<void> {
   const response = await fetch(`/api/v1/curators/plans/${encodeURIComponent(planIdSchema.parse(id))}`, {
     method: 'DELETE', credentials: 'include',
@@ -247,15 +243,12 @@ export const publishCuratorPlan = (id: string): Promise<CuratorPlan> =>
 export const archiveCuratorPlan = (id: string): Promise<CuratorPlan> =>
   changeCuratorPlan(id, 'archive');
 
-/** Archives the plan and schedules every member of this curator to end at their paid-through date. */
 export const endCuratorMemberships = (id: string): Promise<CuratorPlan> =>
   changeCuratorPlan(id, 'end-memberships');
 
 const annualPriceRequestSchema = z.object({ annualAmountMinor: moneyMinorSchema.positive() }).strict();
 const curatorErrorSchema = z.object({ errorCode: z.string(), message: z.string().min(1).max(500) }).strict();
 
-/** Adds the one-time annual price to an active plan. Bridge freezes it after the
-    first addition. Failures carry Bridge's own message when the body is its error shape. */
 export async function addCuratorPlanAnnualPrice(id: string, annualAmountMinor: number): Promise<CuratorPlan> {
   const response = await fetch(`/api/v1/curators/plans/${encodeURIComponent(planIdSchema.parse(id))}/annual-price`, {
     method: 'POST',
@@ -272,9 +265,6 @@ export async function addCuratorPlanAnnualPrice(id: string, annualAmountMinor: n
 
 const memberPostAuthoringSchema = z.object({ canAuthor: z.boolean() }).strict();
 
-/** Whether the signed-in user may publish members-only posts. Bridge decides with the
-    rule that post writes enforce: an active plan with member posts, or an archived one
-    whose members still pay for them. */
 export async function fetchMemberPostAuthoring(signal?: AbortSignal): Promise<boolean> {
   const response = await fetch('/api/v1/curators/me/member-post-authoring', {
     cache: 'no-store', credentials: 'include', signal,

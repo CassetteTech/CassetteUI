@@ -1,5 +1,3 @@
-// Renders outbound streaming destinations and records allowlisted conversion analytics.
-
 import React from 'react';
 import Image from 'next/image';
 import { ArrowUpRight } from 'lucide-react';
@@ -126,7 +124,6 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               )}
             >
-              {/* Platform color edge */}
               <span
                 aria-hidden
                 className="w-1.5 shrink-0"
@@ -134,7 +131,6 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
               />
 
               <span className="flex flex-1 items-center gap-2.5 px-3 py-2.5 sm:gap-3 sm:px-4">
-                {/* Icon */}
                 <span className="relative h-4 w-4 shrink-0 sm:h-5 sm:w-5">
                   <Image
                     src={service.icon}
@@ -146,12 +142,10 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                   />
                 </span>
 
-                {/* Service Name */}
                 <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
                   {service.name}
                 </span>
 
-                {/* Open affordance */}
                 <ArrowUpRight
                   aria-hidden
                   className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-[color,transform] duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"

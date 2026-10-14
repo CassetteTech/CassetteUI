@@ -37,7 +37,6 @@ test('renders the team queue once, filters it, and shows complete campaign detai
   await expect(page.getByText('Paid', { exact: true })).toBeVisible();
   await expect(page.getByText('Quote / subtotal', { exact: true }).last().locator('..'))
     .toContainText('USD 90.00');
-  // Weekly pricing is part of the quote the team reviews.
   await expect(page.getByText('Term', { exact: true }).locator('..')).toContainText('4 weeks');
   await expect(page.getByText('Weekly rate', { exact: true }).locator('..'))
     .toContainText('USD 25.00');
@@ -124,7 +123,6 @@ test('reviews and refunds an album campaign the same way as a track', async ({ p
   await expect(page.getByText('Requested by').first()).toBeVisible();
   await expect(page.getByText('a_123456789ABC', { exact: false })).toBeVisible();
 
-  // Every operator action stays available for a non-track subject.
   await expect(page.getByRole('button', { name: 'Approve' })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Reject' })).toBeEnabled();
   await page.getByRole('button', { name: 'Initiate refund' }).click();
@@ -275,7 +273,6 @@ test('shows the team subject catalog once through the paid-promotion shell', asy
   const subjectTable = page.getByRole('table', { name: 'Paid-promotion canonical subject catalog' });
   await expect(subjectTable).toBeVisible();
   await expect(page.getByRole('cell', { name: /Artwork for Signal Fire Track/ })).toBeVisible();
-  // Every catalog row carries its own element type, artist subjects included.
   await expect(subjectTable.getByText('Album', { exact: true })).toBeVisible();
   await expect(subjectTable.getByText('Artist', { exact: true })).toBeVisible();
   await expect(subjectTable.getByText('In Review · 1', { exact: true })).toBeVisible();
@@ -309,8 +306,6 @@ test('shows subject loading, empty, authorization-error, and unknown states visi
     hasText: 'Paid-promotion subjects could not be shown.',
   })).toBeVisible();
 
-  // An additive backend rollup key must not brick the catalog: the row still
-  // renders and the unknown status is simply not displayed.
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.team,
     internalPaidPromotionSubjects: [{
@@ -348,8 +343,6 @@ test('shows only refund pending and leaves refunded totals unchanged', async ({ 
 
   await page.getByRole('button', { name: 'Initiate refund' }).click();
 
-  // The policy numbers are shown beside the server's hard cap, and the amount
-  // field stays empty — the person issuing the refund decides.
   const refundPolicy = page.getByTestId('paid-promotion-refund-policy');
   await expect(refundPolicy).toContainText('1 of 4');
   await expect(refundPolicy).toContainText('6750 minor units');
@@ -461,8 +454,6 @@ test('shows zero-total and unknown checkout totals as non-refundable', async ({ 
 });
 
 test('renders server checkout totals without re-auditing their arithmetic', async ({ page }) => {
-  // Bridge/Sentinel own the totals invariant; the console must keep rendering
-  // whatever the server persisted so ops can actually investigate it.
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.team,
     internalPaidPromotionCampaign: {

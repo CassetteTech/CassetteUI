@@ -36,7 +36,6 @@ test('Pro owner loses displayed insights when the entitlement changes', async ({
   await expect(panel).toContainText('Unique viewers');
   state.curatorProStatus = { ...fixtureCuratorProDefaultStatus };
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
-  // The entitlement query checks mounted insights every 30 seconds as well as on focus.
   await expect(panel).toContainText('Post audience insights are part of Curator Pro.', { timeout: 35_000 });
   await expect(panel).not.toContainText('Unique viewers');
 });

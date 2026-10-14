@@ -1,7 +1,5 @@
 'use client';
 
-/** Creates a music post from search or a provider link, including its caption and visibility. */
-
 import { useState, useEffect, useEffectEvent, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { UrlBar } from '@/components/ui/url-bar';
@@ -69,7 +67,6 @@ type ConvertingMeta = {
   headline: string;
 };
 
-/** Shared props for the picker (bar, pending music, results) and the details form. */
 type PickerProps = {
   isSearchActive: boolean;
   selectedItem: SelectedItem | null;
@@ -90,7 +87,6 @@ type PickerProps = {
   isConverting: boolean;
   convertingMeta: ConvertingMeta | null;
   conversionStageLabel: string;
-  /** Desktop right rail: results stay open under the bar, like the homepage. */
   rail?: boolean;
 };
 
@@ -136,7 +132,6 @@ const MusicPicker = ({
         isSearchActive && !rail
           ? 'fixed inset-0 z-[60] flex flex-col'
           : rail
-            // Pending music centers on the details card beside it; the open bar shares its top edge.
             ? cn('flex min-h-0 flex-col', pending && 'self-stretch justify-center')
             : 'mb-6'
       }
@@ -169,9 +164,6 @@ const MusicPicker = ({
             : rail ? cn('relative w-full', !pending && 'mb-4') : 'mb-4'
         }
       >
-        {/* Converting: kicker + headline narrate above the beamed card. The rail keeps
-            the card where it is and sets the heading above it; the page column opens
-            room for the heading, so the card and the details glide down instead of jumping. */}
         <AnimatePresence>
           {isConverting && convertingMeta && (
             <motion.div
@@ -191,11 +183,8 @@ const MusicPicker = ({
           )}
         </AnimatePresence>
 
-        {/* The beam wraps whichever element holds the pending music — the
-            bar, a picked search result, or a pasted link card — so the
-            conversion lights up in place instead of jumping to an overlay.
-            It must wrap each element DIRECTLY: the package reads its first
-            child's computed corner radius (and clips to it), so an
+        {/* The beam must wrap each element DIRECTLY: the package reads its
+            first child's computed corner radius (and clips to it), so an
             intermediate wrapper div makes it clip at the wrong radius. */}
         <AnimatePresence mode="wait" initial={false}>
           {!pending ? (
@@ -242,8 +231,6 @@ const MusicPicker = ({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15, ease: 'easeOut' }}
             >
-              {/* Pending music — a tilted ticket that straightens while
-                  converting so the beam's clip matches the card's corners */}
               <ConversionBeam active={isConverting}>
               <div data-converting-card={isConverting || undefined} className={`card-ink p-4 transition-[transform,box-shadow] duration-300 ${
                 isConverting
@@ -333,7 +320,6 @@ const MusicPicker = ({
           className="search-container min-h-0 w-full flex-1 overflow-y-auto pb-4 pt-2"
           style={{ overscrollBehavior: 'contain' }}
           onPointerDown={(e) => {
-            // Tapping the empty area below the list dismisses, like a sheet scrim
             if (e.target === e.currentTarget) closeSearch();
           }}
         >
@@ -354,8 +340,6 @@ const MusicPicker = ({
   );
 };
 
-/** Post details: description and visibility, then the submit. Collapses on
-    phones while the search sheet is open; on desktop it always stays put. */
 const PostDetails = ({
   collapsed,
   description,
@@ -402,7 +386,6 @@ const PostDetails = ({
               />
             </div>
 
-            {/* The conversion request already carries the chosen setting, so it holds while converting. */}
             <PostVisibilityControl privacy={privacy} choose={setPrivacy} disabled={isConverting} headingAs="h2" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border/70 px-5 py-4 sm:px-6">
@@ -432,7 +415,6 @@ export default function AddMusicPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefilledUrl = searchParams?.get('url') || '';
-  // A conversion that failed after the post page took it over comes back here as it was left.
   const [returnedDraft] = useState(readReturnedAddMusicDraft);
   const returnedSelection = returnedDraft?.selection;
 
@@ -449,27 +431,21 @@ export default function AddMusicPage() {
   const [errorMessage, setErrorMessage] = useState(returnedDraft?.errorMessage ?? '');
   // Idempotency key of the in-flight conversion; doubles as the "converting" flag.
   const [conversionKey, setConversionKey] = useState<string | null>(null);
-  // What's being converted, for the in-place beamed card copy.
   const [convertingMeta, setConvertingMeta] = useState<ConvertingMeta | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const lastTrackedSearchRef = useRef<string>('');
-  // The conversion in flight, until it finishes here or is handed to the post page.
   const runningRef = useRef<{ url: string; key: string; result: Promise<MusicLinkConversion> } | null>(null);
   const handedOffRef = useRef(false);
   const debouncedSearchTerm = useDebounce(musicUrl, 300); // matches the home page search feel
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
-  // Back and the finished post return to the page that opened this one, else the curator's profile.
   const resolvedReturnRoute = normalizeAuthRedirect(searchParams?.get('from'))
     ?? (user?.username ? `/profile/${user.username}` : null);
   const linkConversion = useMusicLinkConversion();
   const { stage: conversionStage, label: conversionStageLabel, partialResult } = useConversionStage(conversionKey);
   const isConverting = conversionKey != null;
 
-  // As on the home page, the post builds on its own page: after a short beat of the beam,
-  // the card grows into the post skeleton, which fills in as Bridge reports the music.
-  // A conversion that finishes or fails within the beat stays on the old path.
   const handOffToPost = useEffectEvent(() => {
     const running = runningRef.current;
     if (!running) return;
@@ -520,7 +496,6 @@ export default function AddMusicPage() {
   }, [conversionKey]);
   const { data: topCharts, isLoading: isLoadingCharts } = useTopCharts();
   
-  // Music search - only search if it's not a link and has sufficient length
   const { data: searchResultsData, isLoading: isSearchingMusic } = useMusicSearch(
     debouncedSearchTerm.includes('http') || 
     debouncedSearchTerm.length < 2
@@ -528,16 +503,13 @@ export default function AddMusicPage() {
       : debouncedSearchTerm
   );
   
-  // Decide what data to display
   const displayData = debouncedSearchTerm.length >= 2 && !debouncedSearchTerm.includes('http') 
     ? searchResultsData 
     : topCharts;
 
-  // Keep local aliases so AddMusicForm stays simple and testable.
   const normalizeUrlInput = normalizeMusicLinkInput;
   const isValidMusicUrl = isSupportedMusicLink;
 
-  // Sign-in returns here with the same query, so a prefilled link and `from` survive it.
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       const query = searchParams?.toString();
@@ -550,7 +522,6 @@ export default function AddMusicPage() {
     if (returnedDraft) clearReturnedAddMusicDraft(returnedDraft);
   }, [returnedDraft]);
 
-  // Handle prefilled URL on mount
   useEffect(() => {
     if (returnedDraft) return;
     if (prefilledUrl && isSupportedMusicLink(prefilledUrl)) {
@@ -574,9 +545,6 @@ export default function AddMusicPage() {
     }
   };
 
-  // Desktop swaps the form for results while searching; a click outside the
-  // search region swaps back. (On mobile the sheet covers the viewport, so
-  // this never fires — the sheet's close button handles it.)
   useEffect(() => {
     if (!isSearchActive) return;
     const handlePointerDown = (event: PointerEvent) => {
@@ -631,13 +599,11 @@ export default function AddMusicPage() {
 
     setMusicUrl(value);
 
-    // Clear selected item and pasted link when typing
     if (selectedItem || pastedLinkSource) {
       setSelectedItem(null);
       setPastedLinkSource(null);
     }
 
-    // Ensure search is active when typing (but don't auto-convert URLs while typing)
     if (value.trim() && !isSearchActive) {
       setIsSearchActive(true);
     }
@@ -752,12 +718,10 @@ export default function AddMusicPage() {
       is_authenticated: true,
     });
     
-    // Find the full item data from search results to get artist and artwork
     let artist = '';
     let coverArtUrl = '';
     
     if (displayData) {
-      // Search through all result types to find the matching item
       const allItems = [
         ...(displayData.tracks || []),
         ...(displayData.albums || []),
@@ -775,13 +739,10 @@ export default function AddMusicPage() {
       
       if (matchingItem) {
         if ('name' in matchingItem) {
-          // Artist type
           artist = matchingItem.name;
         } else if ('owner' in matchingItem) {
-          // Playlist type
           artist = matchingItem.owner;
         } else if ('artist' in matchingItem) {
-          // Track or Album type
           artist = matchingItem.artist;
         }
         coverArtUrl = matchingItem.artwork || '';
@@ -798,7 +759,7 @@ export default function AddMusicPage() {
     };
     
     setSelectedItem(newSelectedItem);
-    setMusicUrl(title); // Show title in search bar
+    setMusicUrl(title);
     setIsSearchActive(false);
     setPastedLinkSource(null);
     setErrorMessage('');
@@ -844,17 +805,12 @@ export default function AddMusicPage() {
       is_authenticated: true,
     });
 
-    // Convert in place: a centered takeover (beamed card + live Bridge
-    // stages) carries the busy state, and we only navigate once the post is
-    // ready, so the user lands directly on the finished post — no skeleton.
     const platformLabel = PLATFORM_LABELS[detected.platform];
     const typeLabel = selectedItem?.type?.toLowerCase() ?? (detected.id ? detected.type : null);
     setConvertingMeta({
       title: selectedItem?.title,
       artist: selectedItem?.artist || undefined,
       artwork: selectedItem?.coverArtUrl || undefined,
-      // Search selections hide the platform — the catalog source behind
-      // search is an implementation detail. Pasted links name the platform.
       kicker: selectedItem
         ? ['Converting', typeLabel].filter(Boolean).join(' ')
         : ['Converting', platformLabel, typeLabel].filter(Boolean).join(' '),
@@ -868,7 +824,6 @@ export default function AddMusicPage() {
         : `key-${Date.now()}-${Math.random()}`;
     setConversionKey(key);
 
-    // The post page may take this conversion over; load its route now.
     router.prefetch('/post');
     const conversion = linkConversion.mutateAsync({
       url: urlToConvert,
@@ -880,12 +835,9 @@ export default function AddMusicPage() {
 
     try {
       const result = await conversion;
-      // Handed over: the post page follows the conversion to its end.
       if (handedOffRef.current) return;
       runningRef.current = null;
 
-      // Warm handoff: prefetch the route and stash the post payload so
-      // /post/[id] renders real content immediately — no skeleton phase.
       router.prefetch(`/post/${result.postId}`);
       if (result.postId) {
         try {
@@ -894,7 +846,6 @@ export default function AddMusicPage() {
             savePrefetchedPost(result.postId, post);
           }
         } catch {
-          // Post page falls back to fetching with retries.
         }
       }
 
@@ -942,12 +893,10 @@ export default function AddMusicPage() {
     });
   }, [debouncedSearchTerm, searchResultsData]);
 
-  // Show loading while checking auth
   if (authLoading) {
     return <PageLoader message="Loading..." />;
   }
 
-  // Don't render if not authenticated (will redirect)
   if (!isAuthenticated) {
     return null;
   }
@@ -996,13 +945,11 @@ export default function AddMusicPage() {
     />
   );
 
-  // Back names the Studio section the page opened from, so the page reads as a step inside Studio.
   const returnView = studioViewOfPath(resolvedReturnRoute?.split(/[?#]/)[0] ?? null);
   const backLabel = returnView ? studioLabels[returnView] : 'Back';
 
   return (
     <>
-      {/* Phones and tablets: bar first, details under it; the bar opens a search sheet. */}
       <div className="lg:hidden">
         <div className="studio-surface relative min-h-svh bg-background">
           {paper}
@@ -1026,9 +973,6 @@ export default function AddMusicPage() {
         </div>
       </div>
 
-      {/* Desktop: one Studio-width container. The header spans the page, so more ways to
-          add music can sit under it later; below it, details on the left and the homepage
-          bar with open results on the right share one top edge. */}
       <div className="studio-surface relative hidden min-h-full lg:block lg:px-8 lg:py-8">
         {paper}
         <div className="relative z-10 mx-auto w-full max-w-6xl">

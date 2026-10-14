@@ -5,10 +5,6 @@ import { SectionHeader } from "@/components/features/marketing/section-header";
 import { DitherEdge } from "@/components/features/marketing/dither-edge";
 import { PixelSun } from "@/components/features/marketing/pixel-sun";
 
-/**
- * Closing statement band. Mirrors the Problem band's flat display-type
- * layout; the pixel sun sets low in warning gold to bookend the sheet.
- */
 export function VisionSection() {
   return (
     <section className="section-dark relative">

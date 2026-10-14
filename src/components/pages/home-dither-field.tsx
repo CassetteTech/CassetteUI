@@ -44,9 +44,6 @@ export const BAYER8 = Array.from({ length: 8 }, (_, y) =>
     return (rank + 0.5) / 64;
   }));
 
-/** Brand silhouettes drawn in a unit box around the origin. Each is erased
-    from the grain (`destination-out`), so strokes and fills become holes.
-    Line weights are set so every feature spans 3–5 cells. */
 type Silhouette = (context: CanvasRenderingContext2D) => void;
 
 const rings: Silhouette = (context) => {
@@ -71,11 +68,6 @@ const triangles: Silhouette = (context) => {
   }
 };
 
-// Seeded layout in the sky above the wordmark, so every load looks composed:
-// x and y are shares of that room, size a share of its height. Each cut-out
-// drifts on its own slow loop (travel in CSS px, degrees, and seconds),
-// sinking into the thin halo and rising back into the dense one. Travel
-// shrinks to fit a low sky, so the composition holds on short viewports.
 const CUTOUTS = [
   { draw: rings, x: 0.1, y: 0.5, size: 0.6, rotate: 0, driftX: 48, driftY: 34, spin: 14, periodX: 23, periodY: 31, phase: 0.8 },
   { draw: triangles, x: 0.36, y: 0.32, size: 0.66, rotate: -10, driftX: 62, driftY: 40, spin: 20, periodX: 27, periodY: 19, phase: 2.6 },
@@ -90,7 +82,6 @@ const smoothstep = (edge0: number, edge1: number, value: number) => {
   return t * t * (3 - 2 * t);
 };
 
-// Seeded lattice (mulberry32), so every load prints the same haze.
 const lattice = (() => {
   let seed = 0x2f6e2b1;
   return Float32Array.from({ length: LATTICE * LATTICE }, () => {
@@ -101,7 +92,6 @@ const lattice = (() => {
   });
 })();
 
-// Value noise at a point in lattice units, wrapping at the lattice edge.
 export const noiseAt = (x: number, y: number) => {
   const x0 = Math.floor(x);
   const y0 = Math.floor(y);
@@ -116,32 +106,17 @@ export const noiseAt = (x: number, y: number) => {
   return top + (bottom - top) * fy;
 };
 
-// Haze at a cell: a coarse octave sliding one way and a fine octave the other.
 const hazeAt = (column: number, row: number, seconds: number) =>
   HAZE_FLOOR + (1 - HAZE_FLOOR) * smoothstep(0.25, 0.75, (
     noiseAt(column / HAZE_SCALE + seconds * HAZE_DRIFT, row / HAZE_SCALE)
     + 0.35 * noiseAt(column / HAZE_DETAIL - seconds * HAZE_DRIFT * 1.6, row / HAZE_DETAIL + 37)
   ) / 1.35);
 
-/** Ordered-dither sun rising behind the navbar, printed onto the home page
-    glow. Its halo is centred on the wordmark and dissolves radially, mottled
-    by a slow haze, until it ends above the tagline, so the wordmark sits in
-    the thin lower halo and the copy on clean paper. The brand silhouettes
-    are never drawn: each is cut out of the printed grain at device-pixel
-    precision and drifts through the sky above the wordmark, so the glow
-    shows through the holes. The canvas `color` and opacity come from its
-    CSS, so the theme owns the ink. */
 export function HomeDitherField({ wordmarkRef, taglineRef, searchRef, algorithm = 'bayer', cutouts = true, className }: {
-  /** The wordmark row: the sun centres on it and cut-outs stay above it. */
   wordmarkRef: RefObject<HTMLElement | null>;
-  /** The tagline: the grain ends above it. */
   taglineRef: RefObject<HTMLElement | null>;
-  /** The search column: cut-outs stay left of it while it shares the sky. */
   searchRef: RefObject<HTMLElement | null>;
-  /** `bayer` is the ordered 8×8 screen; `atkinson` diffuses the error, so
-      the halo reads as grain with no repeating pattern. */
   algorithm?: 'bayer' | 'atkinson';
-  /** Draw the drifting brand silhouettes. */
   cutouts?: boolean;
   className?: string;
 }) {
@@ -160,7 +135,6 @@ export function HomeDitherField({ wordmarkRef, taglineRef, searchRef, algorithm 
     let cell = CELL;
     let columns = 0;
     let rows = 0;
-    // Sun geometry in cells, and the room for cut-outs in device px.
     let sunX = 0;
     let sunY = 0;
     let sunRadius = 0;
@@ -173,9 +147,6 @@ export function HomeDitherField({ wordmarkRef, taglineRef, searchRef, algorithm 
     let visible = true;
     let rendered = CUTOUTS.map(() => ({ x: NaN, y: NaN, rotate: NaN }));
 
-    // Size the canvas from its top (under the navbar) to just above the
-    // tagline, centre the sun on the wordmark, and keep the room for
-    // cut-outs above the wordmark and clear of the search column.
     const measure = () => {
       ratio = window.devicePixelRatio;
       cell = Math.max(1, Math.round(CELL * ratio));
@@ -201,16 +172,11 @@ export function HomeDitherField({ wordmarkRef, taglineRef, searchRef, algorithm 
       ink = '';
     };
 
-    // Threshold the sun against the Bayer matrix: a smooth radial bump,
-    // mottled by the haze, thresholded per cell. `progress` sweeps the
-    // entrance wash front from the top so rows fill in dither order.
     const paintDither = (color: string, peak: number, progress: number, seconds: number) => {
       const centreX = sunX + BREATH * sunRadius * Math.sin((Math.PI * 2 * seconds) / 53);
       const centreY = sunY + BREATH * sunRadius * Math.sin((Math.PI * 2 * seconds) / 67 + 2);
       const image = ditherContext.createImageData(columns, rows);
       const pixels = image.data;
-      // Atkinson carries three quarters of each cell's rounding error into
-      // six neighbours, so the halo fades as grain instead of a screen.
       const error = algorithm === 'atkinson' ? new Float32Array(columns * rows) : null;
       for (let row = 0; row < rows; row++) {
         const thresholds = BAYER8[row & 7];
@@ -268,11 +234,8 @@ export function HomeDitherField({ wordmarkRef, taglineRef, searchRef, algorithm 
         };
       });
 
-      // Skip the frame unless the ink changed, the entrance is still settling,
-      // the breathing field is due, or a cut-out moved by half a device pixel.
       const style = getComputedStyle(canvas);
       const peak = parseFloat(style.getPropertyValue('--dither-peak')) || PEAK;
-      // Diffused grain crawls when its input drifts, so it breathes slower.
       const breathMs = algorithm === 'atkinson' ? BREATH_MS * 4 : BREATH_MS;
       const repaint = `${style.color} ${peak}` !== ink || !settled || (!still && now - paintedAt >= breathMs);
       const moved = placed.some((cutout, index) => {

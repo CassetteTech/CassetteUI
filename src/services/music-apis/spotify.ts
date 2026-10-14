@@ -35,10 +35,9 @@ class SpotifyService {
   }
 
   private async getAccessToken(): Promise<string> {
-    // Use cached token if valid with 5 minute buffer
     if (this.accessToken && this.tokenExpiryTime) {
       const now = new Date();
-      const bufferTime = new Date(now.getTime() + 5 * 60 * 1000); // 5 minute buffer
+      const bufferTime = new Date(now.getTime() + 5 * 60 * 1000);
       if (this.tokenExpiryTime > bufferTime) {
         appLogger.debug('spotify_token_cache_hit');
         return this.accessToken;
@@ -72,7 +71,6 @@ class SpotifyService {
 
     const data = await response.json();
     this.accessToken = data.access_token;
-    // Use actual expiry time from response with small safety buffer
     const expiresIn = data.expires_in || 3600;
     this.tokenExpiryTime = new Date(Date.now() + (expiresIn - 60) * 1000);
     
@@ -130,10 +128,6 @@ class SpotifyService {
     return this.transformSearchResults(data);
   }
 
-  /**
-   * Search for a track by ISRC and return its preview URL.
-   * Falls back to searching by track title + artist if ISRC search fails.
-   */
   async getPreviewUrl(params: { isrc?: string; title?: string; artist?: string }): Promise<string | null> {
     appLogger.debug('spotify_preview_lookup_started', {
       has_isrc: Boolean(params.isrc),
@@ -144,7 +138,6 @@ class SpotifyService {
     const token = await this.getAccessToken();
     const url = new URL('https://api.spotify.com/v1/search');
 
-    // Try ISRC search first (most accurate)
     if (params.isrc) {
       url.searchParams.set('q', `isrc:${params.isrc}`);
       url.searchParams.set('type', 'track');
@@ -167,7 +160,6 @@ class SpotifyService {
       }
     }
 
-    // Fallback to title + artist search - try simple query first (more flexible)
     if (params.title) {
       // Simple search: "title artist" works better than track:/artist: filters
       const query = params.artist
@@ -177,7 +169,6 @@ class SpotifyService {
       url.searchParams.set('q', query);
       url.searchParams.set('type', 'track');
       url.searchParams.set('limit', '10');
-      // Add market parameter - may help with preview availability
       url.searchParams.set('market', 'US');
 
       const response = await fetch(url.toString(), {
@@ -192,7 +183,6 @@ class SpotifyService {
         const totalTracks = data.tracks?.items?.length || 0;
         appLogger.debug('spotify_title_preview_candidates_loaded', { result_count: totalTracks });
 
-        // Find the first track with a preview URL
         const trackWithPreview = data.tracks?.items?.find((t: SpotifyTrack) => t.preview_url);
         if (trackWithPreview?.preview_url) {
           return trackWithPreview.preview_url;
@@ -255,7 +245,6 @@ class SpotifyService {
       playlists: [],
     };
 
-    // Transform tracks
     if (data.tracks?.items) {
       results.tracks = data.tracks.items.map((item: SpotifyTrack) => ({
         id: item.id,
@@ -272,7 +261,6 @@ class SpotifyService {
       }));
     }
 
-    // Transform artists
     if (data.artists?.items) {
       results.artists = data.artists.items.map((item: SpotifyArtist) => ({
         id: item.id,
@@ -285,7 +273,6 @@ class SpotifyService {
       }));
     }
 
-    // Transform albums
     if (data.albums?.items) {
       results.albums = data.albums.items.map((item: SpotifyAlbum) => ({
         id: item.id,

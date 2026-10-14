@@ -53,7 +53,6 @@ export function externalBrowserUrl(url: string, browser: InAppBrowser): string |
   return `intent://${parsed.host}${parsed.pathname}${parsed.search}#Intent;scheme=${scheme};action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end`;
 }
 
-/** One line that tells the fan where the app keeps its open-in-browser option. */
 export function inAppBrowserHint(browser: InAppBrowser): string {
   const menu = browser.os === 'android' ? '⋮' : '•••';
   return `In ${browser.app}, tap ${menu} at the top of the screen and choose to open the page in your browser.`;

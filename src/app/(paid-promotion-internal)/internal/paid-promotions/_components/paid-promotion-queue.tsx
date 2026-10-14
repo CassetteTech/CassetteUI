@@ -35,11 +35,6 @@ import { errorMessage, formatDate, formatMoney, formatState, statusTone } from '
 
 type ExceptionFilter = 'all' | 'open' | 'none';
 
-/**
- * Who booked the campaign. A deleted account still has campaigns and payments,
- * so this states that plainly rather than rendering an empty cell that reads
- * like a loading bug.
- */
 function CustomerCell({ customer }: { customer: InternalPaidPromotionCustomer | null }) {
   if (!customer) {
     return <span className="text-xs italic text-muted-foreground">Account deleted</span>;
@@ -257,8 +252,6 @@ export function PaidPromotionQueue() {
                             <span className="block font-mono text-[10px] text-muted-foreground">
                               {getPaidPromotionElementTypeLabel(campaign.elementType)} ·{' '}
                               {formatState(campaign.sourcePlatform)} ·{' '}
-                              {/* The id stays its own link: ops navigate by id
-                                  from incident notes and exception rows. */}
                               <Link
                                 href={`/internal/paid-promotions/${encodeURIComponent(campaign.id)}`}
                                 className="rounded-sm underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -278,8 +271,6 @@ export function PaidPromotionQueue() {
                       <TableCell>
                         <div className="flex flex-wrap items-center gap-1.5">
                           <StatusPill tone={statusTone(campaign.status)} label={formatState(campaign.status)} />
-                          {/* A bare count reads as data; ops need the row to
-                              announce that it needs attention. */}
                           {campaign.openExceptionCount > 0 && (
                             <StatusPill
                               tone="warning"

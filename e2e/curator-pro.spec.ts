@@ -1,5 +1,3 @@
-/** Exercises Curator Pro checkout and billing lifecycle states using server-polled status. */
-
 import { expect, type Page, test } from '@playwright/test';
 
 import type { CuratorProStatus } from '../src/services/curator-pro';
@@ -38,7 +36,6 @@ test('shows default economics without taking away Studio Music', async ({ page }
 
   await page.goto(STUDIO_PATH);
 
-  // A curator without a profile lands on Studio Music; billing is one section link away.
   await expect(page.getByRole('heading', { name: 'Music', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Add your first music' })).toBeVisible();
   await openStudioStep(page, 'studio-pro');
@@ -199,8 +196,6 @@ test('reflects cancellation and reactivation only after Billing Portal mirror ch
   await expect(page.getByTestId('curator-pro-notice')).toContainText(/continue|active/i);
 });
 
-// The billing mirror changes by webhook, possibly after the curator is back. An
-// unchanged read never confirms the outcome; the bounded check ends neutrally.
 test('ends an unchanged Billing Portal return with neutral copy and a way to check again', async ({ page }) => {
   test.setTimeout(60_000);
   const { state } = await mockCassetteApp(page, {

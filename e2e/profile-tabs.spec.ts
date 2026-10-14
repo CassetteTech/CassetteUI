@@ -121,7 +121,6 @@ test.describe('profile tabs', () => {
     await expect(music).toContainText('Signal Fade');
     await expect(music).toContainText('Night Engine');
     await expect(music).toContainText('Circuit Bloom');
-    // One read opens the page: no tab is probed type by type.
     expect(activityRequests).toHaveLength(1);
     await expect(page).toHaveURL(/\/profile\/miagroove$/);
 
@@ -210,13 +209,11 @@ test.describe('profile tabs', () => {
       ],
     });
 
-    // A type in the URL gets its own tab beside All.
     await page.goto('/profile/miagroove?type=tracks');
     const strip = page.getByRole('tablist', { name: 'Profile content' });
     const list = page.getByRole('radiogroup', { name: 'Music filter' });
     await expect(list.getByRole('radio', { name: 'Tracks' })).toBeChecked();
 
-    // Each drag starts in the gap after the first tab, where a text selection would begin.
     const selectedAfterDrag = async (from: typeof strip, to: typeof strip) => {
       const start = await from.boundingBox();
       const end = await to.boundingBox();

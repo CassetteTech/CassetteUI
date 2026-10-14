@@ -10,8 +10,6 @@ const logo = (service: (typeof STREAMING_SERVICES)[number]) => (
   <Image key={service.label} src={service.logo} alt="" width={14} height={14} className="h-3.5 w-3.5 shrink-0 object-contain" />
 );
 
-// One path from sharing to earning; the curator section below has the
-// membership details. Each step carries a small picture of the product.
 const steps: Array<{ title: string; body: string; visual: ReactNode }> = [
   {
     title: 'Paste a link',
@@ -53,8 +51,6 @@ const steps: Array<{ title: string; body: string; visual: ReactNode }> = [
   },
 ];
 
-/** How Cassette works in three steps, each with a small picture of the
-    product. The hero's "See how it works" link lands here. */
 export function HomeHowItWorks({ className }: { className?: string }) {
   return (
     <section id="how-it-works" aria-labelledby="how-it-works-title" className={cn('mx-auto w-full max-w-5xl scroll-mt-24 px-5 sm:px-8', className)}>
@@ -69,7 +65,6 @@ export function HomeHowItWorks({ className }: { className?: string }) {
       <ol className="mt-10 grid gap-4 lg:grid-cols-3">
         {steps.map((step, index) => (
           <li key={step.title} className="flex flex-col rounded-lg border border-border bg-card/60 p-5">
-            {/* A picture of the product, not controls. */}
             <span aria-hidden className="flex h-24 items-center rounded-md bg-muted/50 px-4">
               {step.visual}
             </span>

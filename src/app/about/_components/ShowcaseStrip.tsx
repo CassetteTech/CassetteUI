@@ -10,11 +10,6 @@ import { showcaseLinks } from "../_data";
 
 const SOURCE_PLATFORMS = ["spotify", "apple_music", "deezer"] as const;
 
-/**
- * Live smart-link demo. One flat diagram explains the whole product — any
- * link in, one Cassette link out, opens in the listener's player — then the
- * example rows just invite a tap; the conversion itself is the payoff.
- */
 export function ShowcaseStrip() {
   return (
     <section className="py-16 md:py-20">
@@ -39,7 +34,6 @@ export function ShowcaseStrip() {
         </Link>
       </div>
 
-      {/* How it works — flat diagram strip */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}

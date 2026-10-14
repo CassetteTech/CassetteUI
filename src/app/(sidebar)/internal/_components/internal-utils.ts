@@ -56,15 +56,14 @@ export function accountTypeBadgeVariant(
 ): 'default' | 'secondary' | 'outline' | 'destructive' {
   switch (type) {
     case 'CassetteTeam':
-      return 'default'; // bg-primary = brand red
+      return 'default';
     case 'Verified':
-      return 'default'; // color overridden via accountTypeBadgeClassName
+      return 'default';
     default:
       return 'outline';
   }
 }
 
-/** Extra classes for account-type badges (e.g. Verified → info blue). */
 export function accountTypeBadgeClassName(
   type: ReturnType<typeof normalizeAccountType>
 ): string {

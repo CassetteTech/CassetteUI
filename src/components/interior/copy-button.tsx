@@ -34,7 +34,6 @@ function useCopyToClipboard() {
     } catch {
       setStatus('error');
     }
-    // A fresh ticket restarts the reset timer even when the status is unchanged.
     setTicket((t) => t + 1);
   }, []);
 
@@ -55,13 +54,11 @@ export function CopyButton({
   className,
   onCopied,
 }: {
-  /** Read on click, so callers can build the text from window.location. */
   value: () => string;
   label?: string;
   copiedLabel?: string;
   errorLabel?: string;
   className?: string;
-  /** Runs after the clipboard write succeeds. */
   onCopied?: () => void;
 }) {
   const { copy, status } = useCopyToClipboard();
@@ -134,7 +131,6 @@ export function CopyButton({
           <path d="M7 10.6h.01" />
         </motion.svg>
       </span>
-      {/* All labels stay mounted in one grid cell, so the button never changes width. */}
       <span className="grid" aria-hidden="true">
         {labels.map(([key, text]) => (
           <motion.span
@@ -147,7 +143,6 @@ export function CopyButton({
             {text}
           </motion.span>
         ))}
-        {/* Reserve the widest label's width. */}
         <span className="invisible col-start-1 row-start-1 whitespace-nowrap">
           {labels.reduce((a, [, b]) => (b.length > a.length ? b : a), '')}
         </span>

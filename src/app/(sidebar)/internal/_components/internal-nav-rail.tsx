@@ -9,19 +9,11 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + '/');
 }
 
-/**
- * Sectioned secondary navigation. The outer (sidebar) layout mounts this twice
- * (mobile + desktop branches); CSS visibility picks the right presentation, so
- * it stays purely class-responsive. Each section is wrapped in its `.domain-*`
- * class so the active item picks up that domain's accent. The mobile layout
- * WRAPS rather than scrolls horizontally.
- */
 export function InternalNavRail() {
   const pathname = usePathname();
 
   return (
     <>
-      {/* Desktop: vertical grouped rail */}
       <nav
         aria-label="Internal console"
         className="hidden lg:flex lg:w-56 lg:shrink-0 lg:flex-col lg:gap-5 lg:border-r lg:border-border lg:px-3 lg:py-5"
@@ -60,7 +52,6 @@ export function InternalNavRail() {
         ))}
       </nav>
 
-      {/* Mobile: wrapping grouped pills (no horizontal scroll) */}
       <nav aria-label="Internal console" className="border-b border-border lg:hidden">
         <div className="flex flex-wrap items-center gap-1.5 px-4 py-2.5">
           {CONSOLE_NAV.map((section) => (

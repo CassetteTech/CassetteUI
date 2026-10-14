@@ -9,7 +9,6 @@ interface TypographyProps {
   as?: keyof React.JSX.IntrinsicElements;
 }
 
-// Headline styles (Teko font)
 export const HeadlineText: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -50,7 +49,6 @@ export const ArtistName: React.FC<TypographyProps> = ({
   </Component>
 );
 
-// Body text styles (Roboto Flex)
 export const BodyText: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -91,7 +89,6 @@ export const GenreText: React.FC<TypographyProps> = ({
   </Component>
 );
 
-// UI/Interface text (Atkinson Hyperlegible)
 export const UIText: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -142,7 +139,6 @@ export const ButtonText: React.FC<TypographyProps> = ({
   </Component>
 );
 
-// Profile page specific styles
 export const ProfileName: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -183,7 +179,6 @@ export const ProfileLink: React.FC<TypographyProps> = ({
   </Component>
 );
 
-// Track page specific styles
 export const TrackPageSongTitle: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -224,7 +219,6 @@ export const TrackPageGenres: React.FC<TypographyProps> = ({
   </Component>
 );
 
-// Add Music page styles
 export const AddMusicTitle: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -245,7 +239,6 @@ export const AddMusicSubtitle: React.FC<TypographyProps> = ({
   </Component>
 );
 
-// Error and validation text
 export const ErrorText: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -256,7 +249,6 @@ export const ErrorText: React.FC<TypographyProps> = ({
   </Component>
 );
 
-// Toast and notification text
 export const ToastText: React.FC<TypographyProps> = ({ 
   children, 
   className, 

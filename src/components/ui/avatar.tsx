@@ -75,7 +75,6 @@ function AvatarImage({
       objectUrlRef.current = blobUrl
       setResolvedSrc(blobUrl)
     } catch {
-      // Keep default fallback if repair fails.
     }
   }, [rawSrc, repairAttempted])
 

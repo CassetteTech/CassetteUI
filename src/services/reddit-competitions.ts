@@ -48,7 +48,6 @@ async function request<T>(path: string, schema: z.ZodType<T>, method = 'GET', bo
   return schema.parse(payload);
 }
 
-/** Accepts a Reddit post link, a t3_ ID, or a bare post ID. */
 export function redditPostId(value: string) {
   const id = /(?:^t3_|^|\/comments\/)([a-z0-9]+)(?:[/?#]|$)/i.exec(value.trim())?.[1];
   return id ? `t3_${id.toLowerCase()}` : null;

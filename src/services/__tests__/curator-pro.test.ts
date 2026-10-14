@@ -1,5 +1,3 @@
-/** Verifies strict Curator Pro status and Stripe handoff response parsing. */
-
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {

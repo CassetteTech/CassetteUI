@@ -1,5 +1,3 @@
-/** Covers the web-session envelope: only a 401 signs out, and only two valid counts make a session. */
-
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readSessionResponse, readSignedInBody } from '../auth-session';

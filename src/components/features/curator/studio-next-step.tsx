@@ -1,9 +1,5 @@
 'use client';
 
-/** One next step above Studio Music once a plan is published: an open setup step, then the
-    members-only post nudge, then sharing the page. Before the first publish the membership
-    invitation above the section links leads instead. */
-
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { addMusicHref, studioMusicHref, studioPaths } from '@/components/features/curator/studio-routes';
@@ -17,8 +13,6 @@ import { profileService } from '@/services/profile';
 const membersPostNudgeDays = 14;
 const dayMs = 24 * 60 * 60 * 1000;
 
-/** Days since the newest members-only post once they reach `membersPostNudgeDays`, 'never' when
-    there is none, else null. Read only for a curator who can post members-only. */
 function useMembersPostGap(enabled: boolean) {
   const { user } = useAuthState();
   const userId = user?.id ?? null;
@@ -37,7 +31,6 @@ function useMembersPostGap(enabled: boolean) {
   return days >= membersPostNudgeDays ? days : null;
 }
 
-/** An open step as one banner: its notice and the button that starts it. */
 function StepBanner({ step }: { step: LaunchStep }) {
   return (
     <Alert className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-muted/40">
@@ -49,7 +42,6 @@ function StepBanner({ step }: { step: LaunchStep }) {
   );
 }
 
-/** Members pay for the posts only they can open, so a long gap since the last one gets a banner. */
 function MembersPostNudge({ gap }: { gap: number | 'never' }) {
   return (
     <Alert className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-muted/40">
@@ -70,11 +62,8 @@ function MembersPostNudge({ gap }: { gap: number | 'never' }) {
 }
 
 export function StudioNextStep({ stepsKnown, setupSteps, musicStep, shareStep }: {
-  /** False until every step's state has been read; a step whose state is unread is not open. */
   stepsKnown: boolean;
-  /** Design your membership, Set up payouts, Publish your plan. */
   setupSteps: LaunchStep[];
-  /** Null while the first music read has failed. */
   musicStep: LaunchStep | null;
   shareStep: LaunchStep;
 }) {
@@ -83,7 +72,6 @@ export function StudioNextStep({ stepsKnown, setupSteps, musicStep, shareStep }:
   const membersGap = useMembersPostGap(access.state === 'ready');
   const openStep = stepsKnown ? setupSteps.find((step) => !step.done) : undefined;
   if (openStep) return <StepBanner step={openStep} />;
-  // The empty list below asks for the first music.
   if (musicStep?.done === false) return null;
   if (membersGap !== null) return <MembersPostNudge gap={membersGap} />;
   if (stepsKnown && !shareStep.done) return <StepBanner step={shareStep} />;

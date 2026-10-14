@@ -1,5 +1,3 @@
-/** Owns React Query operations and cache refreshes for music conversion and social posts. */
-
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { musicService } from '@/services/music';
@@ -47,7 +45,6 @@ export const useMusicSearch = (query: string) => {
     enabled: !!query && query.length >= 2,
   });
 
-  // Handle success/error manually in useEffect
   React.useEffect(() => {
     if (result.isSuccess && result.data) {
       setSearchResults(result.data);
@@ -100,7 +97,7 @@ export const useTopCharts = () => {
   return useQuery({
     queryKey: ['top-charts'],
     queryFn: () => musicService.getTopCharts(),
-    staleTime: 1000 * 60 * 15, // 15 minutes
+    staleTime: 1000 * 60 * 15,
   });
 };
 
@@ -180,7 +177,6 @@ export const useAddMusicToProfile = () => {
         elementType: variables.elementType,
         musicElementId: variables.musicElementId,
       });
-      // Invalidate profile-related queries to refresh the user's profile
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['user-posts'], refetchType: 'all' });
       queryClient.invalidateQueries({ queryKey: ['user-activity'], refetchType: 'all' });
@@ -204,11 +200,9 @@ export const useUpdatePost = () => {
       });
     },
     onSuccess: (_data, variables) => {
-      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['user-activity'] });
       queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
-      // Privacy changes move posts between public and locked rows on curator pages.
       queryClient.invalidateQueries({ queryKey: ['curator-page'] });
     },
     onError: (error) => {
@@ -226,7 +220,6 @@ export const useDeletePost = () => {
       return apiService.deletePost(postId);
     },
     onSuccess: () => {
-      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['user-activity'] });
       queryClient.invalidateQueries({ queryKey: ['user-posts'] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });

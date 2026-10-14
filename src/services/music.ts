@@ -1,12 +1,9 @@
-/** Provides browser-facing music search, conversion, and catalog lookup operations. */
-
 import { apiService } from './api';
 import { MusicSearchResult, MusicLinkConversion, Track, Album, Artist, Playlist, type PostPrivacy } from '@/types';
 import { detectContentType } from '@/utils/content-type-detection';
 
 class MusicService {
   async searchMusic(query: string): Promise<MusicSearchResult> {
-    // Call Next.js API route
     const response = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`);
     if (!response.ok) {
       throw new Error('Failed to search music');
@@ -18,7 +15,6 @@ class MusicService {
     url: string,
     options?: { anonymous?: boolean; description?: string; idempotencyKey?: string; privacy?: PostPrivacy }
   ): Promise<MusicLinkConversion> {
-    // Keep using backend API for link conversion
     const result = await apiService.convertMusicLink(url, options);
     return result;
   }
@@ -53,7 +49,6 @@ class MusicService {
     artists: Artist[];
     playlists: Playlist[];
   }> {
-    // Call Next.js API route
     const response = await fetch('/api/music/charts');
     if (!response.ok) {
       throw new Error('Failed to fetch top charts');
@@ -97,7 +92,6 @@ class MusicService {
     return results.playlists[0];
   }
 
-  // Extract music info from URL
   extractMusicInfo(url: string): {
     platform: 'spotify' | 'apple' | 'deezer' | 'unknown';
     type: 'track' | 'album' | 'artist' | 'playlist' | 'unknown';

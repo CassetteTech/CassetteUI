@@ -43,11 +43,8 @@ export const DITHER_BAND_MASK_TOP: CSSProperties = {
 };
 
 interface DitherEdgeProps {
-  /** CSS color of the band this edge belongs to, e.g. `hsl(var(--section-navy))`. */
   color: string;
-  /** Which edge of the band the pixels dissolve from. */
   side?: "top" | "bottom";
-  /** Multiplies the 6px cell and the 24px height; 0.5 suits a small card. */
   scale?: number;
   className?: string;
 }

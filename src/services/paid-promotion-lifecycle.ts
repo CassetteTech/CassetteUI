@@ -7,15 +7,6 @@ import type {
   PaidPromotionNeedsInfo,
 } from '@/types';
 
-/**
- * Boundary mapping for promoter-facing paid-promotion responses. Verifies the
- * shape the UI actually renders (objects exist, money fields are integers,
- * required strings present) and passes everything else through. Unknown status
- * strings are tolerated so additive Bridge changes never brick the promoter
- * surfaces; cross-field invariants (checkout-totals arithmetic, rollups) are
- * Bridge/Sentinel's job, not the client's.
- */
-
 type JsonRecord = Record<string, unknown>;
 
 function invalid(path: string): never {
@@ -186,13 +177,6 @@ export function computePaidPromotionPricing(
   return { grossMinor, discountMinor, totalMinor: grossMinor - discountMinor };
 }
 
-/**
- * Renders a server-owned minor-unit amount using the platform's own currency
- * data, which knows how many minor units each code actually has (JPY has none,
- * USD has two). A code the runtime cannot resolve degrades to the raw code plus
- * a two-decimal amount rather than throwing: these amounts are rendered inline
- * across the intake, so a throw here blanks the whole page instead of one price.
- */
 export function formatPaidPromotionMinorAmount(
   amountMinor: number | null,
   currency: string,
@@ -209,7 +193,6 @@ export function formatPaidPromotionMinorAmount(
       return formatter.format(amountMinor / 10 ** fractionDigits);
     }
   } catch {
-    // Unresolvable currency code — fall through to the plain rendering.
   }
 
   return `${code} ${(amountMinor / 100).toFixed(2)}`;
@@ -233,8 +216,6 @@ export function isPaidPromotionCampaignId(value: string): boolean {
 export function getPaidPromotionReturnState(
   campaign: PaidPromotionCampaign
 ): PaidPromotionReturnState {
-  // A campaign with no payment attempt yet is a normal starting point, not an
-  // error: the promoter home links here before checkout has ever been opened.
   if (campaign.paymentStatus === null) {
     return 'not_started';
   }
@@ -257,12 +238,8 @@ export function getPaidPromotionReturnState(
       return 'refunded';
     case 'disputed':
     case 'charged_back':
-      // A dispute in progress is not the same customer situation as a clean
-      // refund: money movement is contested, not returned.
       return 'disputed';
     default:
-      // Unknown statuses (e.g. a newer Bridge deploy) degrade to a refresh
-      // prompt instead of throwing during parse.
       return 'unavailable';
   }
 }

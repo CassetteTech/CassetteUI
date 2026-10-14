@@ -8,7 +8,6 @@ import {
   fixtureUsers,
 } from './support/cassette-fixtures';
 
-/** On desktop the sidebar belongs to the signed-in user; the viewed profile lives in one rail pass. */
 test.describe('profile rail', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -31,7 +30,6 @@ test.describe('profile rail', () => {
   test('cross-fades a theme change unless the user reduces motion', async ({ page }) => {
     await mockCassetteApp(page, { currentUser: fixtureUsers.viewer, curatorPage: fixtureCuratorPage });
     await page.emulateMedia({ reducedMotion: 'no-preference' });
-    // Counts view transitions on <html> without changing how they run.
     await page.addInitScript(() => {
       const start = document.startViewTransition.bind(document);
       document.startViewTransition = (update) => {
@@ -81,7 +79,6 @@ test.describe('profile rail', () => {
     await expect(sidebar.getByText(`@${fixtureUsers.viewer.username}`)).toBeVisible();
     await expect(sidebar.getByText(`@${fixtureUsers.playlistCurator.username}`)).toHaveCount(0);
     await expect(sidebar.getByRole('button', { name: 'Notifications' })).toBeVisible();
-    // A double click opens and closes the menu, keeps focus on the button, and selects no nav label.
     const inbox = sidebar.getByRole('button', { name: 'Notifications' });
     await inbox.dblclick();
     await expect(inbox).toHaveAttribute('aria-expanded', 'false');
@@ -110,7 +107,6 @@ test.describe('profile rail', () => {
   });
 
   test('hides the profile pass when a manage pass arrives for a plan that is no longer public', async ({ page }) => {
-    // A lapsed member still gets the manage pass even though the curator sells nothing publicly.
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.member,
       curatorPage: fixtureFreeCuratorPage,
@@ -153,8 +149,6 @@ test.describe('profile rail', () => {
       curatorPage: { ...fixtureCuratorPage, viewer: { isOwner: true, isMember: false, hasMemberBadge: false } },
     });
 
-    // Liked shows the profile pass, also for a page that sells a membership. The check waits for the
-    // curator page read, which says whether a plan is live.
     const curatorRead = page.waitForResponse((response) => response.url().includes('/curators/cratekeeper/page'));
     await page.goto(`/profile/${fixtureUsers.playlistCurator.username}?tab=liked`);
     await curatorRead;
@@ -162,7 +156,6 @@ test.describe('profile rail', () => {
     await expect(page.getByTestId('profile-identity-pass')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Start earning from your music' })).toHaveCount(0);
 
-    // Music shows the live plan's pass; back on Liked, the cached page still says no setup.
     await page.getByRole('tab', { name: 'Music' }).click();
     await expect(page.getByTestId('curator-membership-card')).toBeVisible();
     await page.getByRole('tab', { name: /^Liked/ }).click();

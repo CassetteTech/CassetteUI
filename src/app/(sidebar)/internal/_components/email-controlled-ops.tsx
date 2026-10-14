@@ -49,13 +49,11 @@ function SweepResultView({ result }: { result: InternalEmailLifecycleSweepResult
 }
 
 export function EmailControlledOps({ config }: { config: InternalEmailOperationsConfig | null }) {
-  // Controlled sweep
   const [sweepReason, setSweepReason] = useState('');
   const [sweepDialogOpen, setSweepDialogOpen] = useState(false);
   const [sweepRunning, setSweepRunning] = useState(false);
   const [sweepResult, setSweepResult] = useState<InternalEmailLifecycleSweepResult | null>(null);
 
-  // Replay
   const [replayOutboxId, setReplayOutboxId] = useState('');
   const [replayReason, setReplayReason] = useState('');
   const [replayConfirmedNonAcceptance, setReplayConfirmedNonAcceptance] = useState(false);
@@ -102,7 +100,6 @@ export function EmailControlledOps({ config }: { config: InternalEmailOperations
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      {/* ── Controlled lifecycle sweep ── */}
       <Panel title="Controlled Lifecycle Sweep">
         <div className="space-y-3 px-3 py-2.5">
           <p className="text-xs text-muted-foreground">
@@ -171,7 +168,6 @@ export function EmailControlledOps({ config }: { config: InternalEmailOperations
         </div>
       </Panel>
 
-      {/* ── Replay dead email ── */}
       <Panel title="Replay Dead Email">
         <div className="space-y-3 px-3 py-2.5">
           <p className="text-xs text-muted-foreground">

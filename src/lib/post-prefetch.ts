@@ -26,7 +26,6 @@ export function savePrefetchedPost(postId: string, post: PostByIdResponse): void
   }
 }
 
-/** Returns the stashed payload for this post id (single use), or null. */
 export function takePrefetchedPost(postId: string): PostByIdResponse | null {
   try {
     const raw = sessionStorage.getItem(KEY_PREFIX + postId);

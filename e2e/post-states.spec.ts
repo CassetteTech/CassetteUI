@@ -44,8 +44,6 @@ test('marks a failed Spotify track preview unavailable instead of leaving a dead
         title: 'Silent Sample',
         trackNumber: 1,
         artists: ['Crate Keeper'],
-        // Title-only tracks intentionally render no preview control; the ID makes
-        // this row eligible so the failed lookup exercises the disabled state.
         spotifyTrackId: 'spotify-preview-missing',
       },
     ],
@@ -126,7 +124,6 @@ test('keeps the post and a track counter in the desktop toolbar over a long trac
 
   const toolbarBox = await toolbar.boundingBox();
   const columnBox = await page.getByRole('complementary', { name: 'Your post' }).boundingBox();
-  // The lid reaches 0.5rem below the toolbar row; the column sticks beneath it.
   expect(columnBox!.y).toBeGreaterThanOrEqual(toolbarBox!.y + toolbarBox!.height + 8);
 
   await page.getByRole('button', { name: 'Back to the top of the post' }).click();

@@ -20,7 +20,6 @@ export function NavbarProfileLink() {
       data-testid="navbar-profile-link"
       className="flex h-10 items-center gap-2.5 rounded-full border border-border/70 bg-card pl-2 pr-4 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      {/* Decorative: the name and handle name the link, so the fallback letter stays out of it. */}
       <Avatar aria-hidden className="size-7 border border-border/70">
         <AvatarImage src={user.profilePicture} alt="" />
         <AvatarFallback className="bg-primary font-atkinson text-xs font-bold text-white">

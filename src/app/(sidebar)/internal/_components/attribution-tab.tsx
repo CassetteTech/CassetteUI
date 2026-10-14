@@ -82,7 +82,6 @@ type BreakdownSelection = {
 };
 type TemplateFormState = typeof DEFAULT_TEMPLATE_FORM;
 
-// Synthetic row shape for DataTable
 type BreakdownRow = {
   key: string;
   value?: string | null;
@@ -119,8 +118,6 @@ function normalizePresetDestination(path?: string | null) {
     ? value
     : DEFAULT_TEMPLATE_DESTINATION;
 }
-
-/* ────────────────────────────── Main Component ────────────────────────────── */
 
 export function AttributionTab() {
   const [activeView, setActiveView] = useState<AttributionSubview>('reporting');
@@ -198,8 +195,6 @@ export function AttributionTab() {
 
   const isPostTemplateForm = templateForm.destinationPath === POST_SHARE_DESTINATION;
 
-  // Illustrates what the Share menu copies for a post template; the real link is
-  // built per post via buildAttributedPostPath.
   const postSharePreviewPath = useMemo(() => {
     const parts = [`src=${templateForm.source.trim() || '<source>'}`];
     if (templateForm.medium.trim()) parts.push(`utm_medium=${templateForm.medium.trim()}`);
@@ -208,7 +203,6 @@ export function AttributionTab() {
     return `/post/{id}?${parts.join('&')}`;
   }, [templateForm.source, templateForm.medium, templateForm.campaign]);
 
-  // ─── Data loaders ─────────────────────────────────────────────────
   const loadReporting = useCallback(async () => {
     setReportingLoading(true);
     setReportingError(null);
@@ -270,7 +264,6 @@ export function AttributionTab() {
     setUsersPage(1);
   }, [groupBy, baseReportingParams]);
 
-  // ─── Handlers ─────────────────────────────────────────────────────
   const handlePresetChange = (value: PresetRange) => {
     setPresetRange(value);
     const nextRange = buildPresetDates(value);
@@ -422,8 +415,6 @@ export function AttributionTab() {
 
   const hasAttributionFilters = sourceFilter || mediumFilter || campaignFilter || contentFilter || referrerDomainFilter;
 
-  // ─── Column definitions ────────────────────────────────────────────
-
   const breakdownColumns: Column<BreakdownRow>[] = [
     {
       key: 'key',
@@ -536,7 +527,6 @@ export function AttributionTab() {
 
   const breakdownRows: BreakdownRow[] = breakdown?.items ?? [];
 
-  // ─── Render ───────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
       <SectionHeader
@@ -554,13 +544,10 @@ export function AttributionTab() {
         }
       />
 
-      {/* ─────────────────── REPORTING TAB ─────────────────── */}
       {activeView === 'reporting' && (
         <div className="space-y-4">
-          {/* Filters toolbar */}
           <Panel title="Filters">
             <div className="space-y-2 px-3 py-2.5">
-              {/* Date presets + custom range */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">Range</span>
                 <SegmentedControl<PresetRange>
@@ -590,7 +577,6 @@ export function AttributionTab() {
                 </div>
               </div>
 
-              {/* Dimension filters */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">Dims</span>
                 {[
@@ -653,7 +639,6 @@ export function AttributionTab() {
 
           {reportingError && <ErrorState message={reportingError} onRetry={() => void loadReporting()} />}
 
-          {/* Stats strip */}
           <StatStrip>
             <Stat label="Total Signups" value={overview?.totalSignups ?? 0} hint="Filtered window" />
             <Stat label="Attributed" value={overview?.attributedSignups ?? 0} tone="success" hint="With attribution" />
@@ -663,9 +648,7 @@ export function AttributionTab() {
             <Stat label="Media" value={overview?.uniqueMedia ?? 0} tone="domain" />
           </StatStrip>
 
-          {/* Breakdown + Users side by side */}
           <div className="grid gap-4 xl:grid-cols-2">
-            {/* Breakdown */}
             <Panel
               title="Breakdown"
               actions={
@@ -744,7 +727,6 @@ export function AttributionTab() {
               />
             </Panel>
 
-            {/* Users drilldown */}
             <Panel
               title="Signup Users"
               actions={
@@ -819,10 +801,8 @@ export function AttributionTab() {
         </div>
       )}
 
-      {/* ─────────────────── TEMPLATES TAB ─────────────────── */}
       {activeView === 'templates' && (
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-          {/* Template list */}
           <Panel
             title="Saved Templates"
             actions={
@@ -954,7 +934,6 @@ export function AttributionTab() {
             )}
           </Panel>
 
-          {/* Template form */}
           <Panel
             title={editingTemplateId ? 'Edit Template' : 'New Template'}
             bodyClassName="space-y-3 px-3 py-3"
@@ -1054,7 +1033,6 @@ export function AttributionTab() {
 
             <Separator />
 
-            {/* URL preview */}
             <div className="space-y-1.5">
               <Label className="text-xs">Live Preview</Label>
               <div className="rounded border border-border bg-muted px-2.5 py-2">

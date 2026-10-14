@@ -9,7 +9,6 @@ test('default social preview uses available landscape artwork', () => {
   assert.ok(image.width / image.height > 1.7);
 });
 
-/** Mirrors how crawlers apply robots.txt: prefix match, `$` anchors the end. */
 function isDisallowed(path: string): boolean {
   return buildRobotsDisallowList().some((rule) =>
     rule.endsWith('$') ? path === rule.slice(0, -1) : path.startsWith(rule),
@@ -17,8 +16,6 @@ function isDisallowed(path: string): boolean {
 }
 
 test('robots disallow rules keep public pages crawlable', () => {
-  // The regression that matters: an unanchored `/profile` rule would prefix-match
-  // every public profile and deindex them all.
   assert.equal(isDisallowed('/profile/miagroove'), false);
   assert.equal(isDisallowed('/post/some-post-id'), false);
   assert.equal(isDisallowed('/'), false);

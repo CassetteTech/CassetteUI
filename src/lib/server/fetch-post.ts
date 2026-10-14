@@ -5,12 +5,6 @@ import { getApiUrl } from '../utils/url';
 
 const inFlightPostMetadataRequests = new Map<string, Promise<PublicPostPageMetadata | null>>();
 
-/**
- * Server-side fetch utility for post data.
- * Used by generateMetadata and the page component. `cache()` dedupes within a
- * render, while the in-flight map also coalesces concurrent SSR requests for
- * the same post until the shared Bridge request settles.
- */
 async function requestPostForMetadata(postId: string): Promise<PublicPostPageMetadata | null> {
   const apiUrl = getApiUrl();
 
@@ -19,7 +13,6 @@ async function requestPostForMetadata(postId: string): Promise<PublicPostPageMet
       `${apiUrl}/api/v1/social/posts/${encodeURIComponent(postId)}/page-metadata`,
       {
         cache: 'no-store',
-        // Metadata is best-effort: never let a slow Bridge lookup block page delivery.
         signal: AbortSignal.timeout(2000),
       },
     );

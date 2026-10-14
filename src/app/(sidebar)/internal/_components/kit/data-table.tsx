@@ -9,11 +9,7 @@ export interface Column<T> {
   header: string;
   cell: (row: T) => ReactNode;
   align?: 'left' | 'right';
-  /** Vertical alignment of the cell body. Defaults to 'middle'; use 'top' for
-   *  columns that hold tall wrapped content (e.g. long descriptions) so they
-   *  don't float against short neighbours. */
   valign?: 'top' | 'middle';
-  /** Responsive visibility / width, e.g. 'hidden xl:table-cell'. Applied to th + td. */
   className?: string;
 }
 
@@ -26,18 +22,9 @@ interface DataTableProps<T> {
   isLoading?: boolean;
   skeletonRows?: number;
   empty?: { icon?: LucideIcon; title: string; description?: string };
-  /** Compact card renderer for narrow viewports (below lg). Falls back to a
-   *  generic stack of the visible columns if omitted. */
   renderMobile?: (row: T) => ReactNode;
 }
 
-/**
- * Generic dense table shared by every dashboard tab. Desktop renders a real
- * <table>; columns hide progressively via their `className` (e.g. xl:table-cell)
- * so the grid never needs horizontal scroll. Below `lg` it switches to a stacked
- * card list (custom `renderMobile` or an auto fallback). Selection, hover,
- * loading skeletons and empty state are handled here once.
- */
 export function DataTable<T>({
   columns,
   rows,
@@ -75,7 +62,6 @@ export function DataTable<T>({
 
   return (
     <>
-      {/* Desktop table */}
       <table className="hidden w-full border-collapse lg:table">
         <thead>
           <tr className="border-b border-border bg-muted/40">
@@ -139,7 +125,6 @@ export function DataTable<T>({
         </tbody>
       </table>
 
-      {/* Mobile list */}
       <div className="divide-y divide-border lg:hidden">
         {rows.map((row) => {
           const key = rowKey(row);

@@ -7,12 +7,6 @@ import Image from "next/image";
 import { DITHER_BAND_MASK_TOP } from "@/components/features/marketing/dither-edge";
 import heroHalftone from "@/assets/images/hero-halftone.webp";
 
-/**
- * Closing CTA — wine band bookended with the hero halftone. The band itself
- * is dither-masked at the top (instead of a flat DitherEdge strip) so the
- * dissolving pixels carry the image texture. The blinking cursor from the
- * hero h1 reappears here to close the page.
- */
 export function FinalCTA() {
   return (
     <section className="relative">
@@ -20,7 +14,6 @@ export function FinalCTA() {
         className="section-wine relative overflow-hidden -mt-6"
         style={DITHER_BAND_MASK_TOP}
       >
-        {/* Bookend: same halftone as the hero, dimmed under the wine band */}
         <div className="absolute inset-0 opacity-[0.14] pointer-events-none select-none">
           <Image
             src={heroHalftone}

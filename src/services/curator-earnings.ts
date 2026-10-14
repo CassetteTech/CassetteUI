@@ -1,6 +1,3 @@
-/** Parses and requests the curator's paginated membership earnings ledger view,
-    and derives the period figures the Studio shows from it. */
-
 import { z } from 'zod';
 import { CuratorPageError } from './curator';
 import { moneyMinorSchema } from './membership';
@@ -82,7 +79,6 @@ export async function fetchCuratorEarnings(
 
 type Allocation = Extract<CuratorEarningsHistoryItem, { kind: 'allocation' }>;
 
-/** First day (UTC) of the month `monthsAgo` months before `now`. */
 export function monthStart(monthsAgo: number, now = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsAgo, 1));
 }
@@ -95,10 +91,6 @@ const sum = (items: CuratorEarningsHistoryItem[]) => items.reduce((total, item) 
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
 const monthKey = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
 
-/** Earned versus paid out per calendar month for the trailing `months`, plus
-    the period's totals by outcome. Earned follows the allocation date; paid
-    out follows the transfer date. `complete` is false when the loaded slice
-    (of `totalItems`) does not reach back to the period start. */
 export function periodSummary(
   items: CuratorEarningsHistoryItem[],
   totalItems: number,

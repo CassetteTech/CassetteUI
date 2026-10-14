@@ -17,12 +17,7 @@ export const BAYER = [
 export const CELL = 2 // css px per dither cell — chunky enough to read pixelated
 export const MAX_COLS = 520
 export const MAX_ROWS = 200
-// Opacity of the top border outline (just under solid, so it reads as a soft
-// edge rather than a hard line). See the note on colour vs opacity below.
 export const BORDER_ALPHA = 0.72
-// Opacity of a dither "off" cell relative to an "on" cell. The scatter modulates
-// between these two tiers of the *same* colour instead of leaving holes, so the
-// background never shows through as stark white on a light theme.
 export const OFF_TIER = 0.4
 
 export type PaintOpts = {
@@ -33,24 +28,6 @@ export type PaintOpts = {
   sparse?: number // raise the dither threshold (thin out) — front layers
 }
 
-// Colour vs opacity — the guiding rule for the whole engine:
-//
-//   Work with opacities instead of different shades of the same color. This will
-//   make sure it looks good on both light and dark mode.
-//
-// So every pixel is the series' single `fill` colour and we vary only its alpha.
-// The old lighter `line` / near-white `star` shades were dropped: a shade that
-// pops on a dark background reads as a jarring bright speck on a light one, while
-// the same colour at a lower opacity simply blends into whatever sits behind it.
-
-/**
- * Fill one backing-canvas column `x` from row `top` down to `floor` with the
- * ordered-dither scatter — solid at the floor, dissolving upward so it *fades
- * out toward the value line* — then cap the top with a soft border outline in
- * the series colour. Density drives opacity (see the note above), so the fade
- * reads correctly against both light and dark backgrounds. The single source of
- * the dither look across area / line / bar.
- */
 export function paintColumn(
   octx: CanvasRenderingContext2D,
   x: number,
@@ -69,27 +46,18 @@ export function paintColumn(
   }
   const bias = (variant === "dotted" ? 0.12 : 0) + (stacked ? 0.2 : 0) - sparse
   for (let y = t; y < f; y++) {
-    // Inverted falloff: 0 at the top line, 1 at the floor — dense at the
-    // bottom, thinning as it rises toward the outline.
     let density = (y - t) / depth
     if (stacked) density = 0.5 + 0.5 * density
     if (variant === "hatched" && ((x + y) & 3) >= 2) continue
     const lit =
       variant === "solid" ||
       density > BAYER[y & 3][x & 3] - 0.1 * intensity - bias
-    // "dotted" keeps real gaps for its open look; every other variant covers
-    // the cell and lets the dither ride the alpha (on = full tier, off = a
-    // faint tint) so nothing shows the background through as white.
     if (variant === "dotted" && !lit) continue
-    // Density → alpha (see the colour-vs-opacity note above).
     const k = (0.3 + density * 0.7) * (1 + 0.22 * intensity)
     const alpha = clamp01((lit ? k : k * OFF_TIER) * dim)
     octx.fillStyle = rgb(seed.fill, 1, alpha)
     octx.fillRect(x, y, 1, 1)
   }
-  // Top border outline — the shape's edge now that the fill fades out here.
-  // Kept just under full opacity, with a faint feather row beneath, so it reads
-  // as a soft edge rather than a hard line floating over the fade.
   octx.fillStyle = rgb(seed.fill, 1, BORDER_ALPHA * dim)
   octx.fillRect(x, t, 1, 1)
   if (depth > 1) {
@@ -98,7 +66,6 @@ export function paintColumn(
   }
 }
 
-/** Linear-resample a per-index fraction array to `cols` columns. */
 export function resample(src: number[], cols: number): number[] {
   const out = new Array<number>(cols)
   const last = Math.max(src.length - 1, 1)
@@ -113,7 +80,6 @@ export function resample(src: number[], cols: number): number[] {
   return out
 }
 
-/** Backing-canvas resolution for a plot rect — low-res, scaled up `pixelated`. */
 export function backingSize(width: number, height: number) {
   return {
     cols: Math.min(MAX_COLS, Math.max(8, Math.round(width / CELL))),
@@ -167,13 +133,11 @@ export function bloomLayerStyle(
   }
 }
 
-// Easing — gentle start + soft settle so entrances don't feel linear.
 export const easeInOutCubic = (t: number) =>
   t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
 export const easeOutCubic = (t: number) => 1 - (1 - t) ** 3
 export const clamp01 = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t)
 
-/** Whether the OS asks for reduced motion (snap + steady stars). */
 export function prefersReducedMotion() {
   return (
     window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false

@@ -48,8 +48,6 @@ test('onboarding contains no product-updates email control and makes no preferen
 test('shows product update email as on by default in account settings', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
-    // Default enrollment happens in Bridge (signup/backfill): the account
-    // arrives with an enabled account_default row, not a missing row.
     defaultEnrolledUserIds: [fixtureUsers.member.id],
   });
 
@@ -170,7 +168,6 @@ test('reports a failed email save that lands after the person leaves the Account
     defaultEnrolledUserIds: [fixtureUsers.member.id],
     emailPreferenceUpdateFailures: 1,
   });
-  // Hold the save long enough to switch tabs before it fails.
   await page.route('**/api/v1/email/preferences/product_updates', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 500));
     await route.fallback();

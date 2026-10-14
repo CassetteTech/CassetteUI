@@ -1,8 +1,3 @@
-/**
- * Service for initiating platform OAuth connections with return URL support.
- * Used when users need to connect a streaming platform from the playlist page.
- */
-
 import { apiService } from './api';
 import { appLogger } from '@/lib/observability/logger';
 import type { PlatformUiKey } from '@/lib/platforms';
@@ -65,12 +60,7 @@ export const platformConnectService = {
     return appleMusicReadyPromise;
   },
 
-  /**
-   * Initiate Spotify OAuth flow with return URL
-   * Redirects in same tab (not new window) for cleaner UX
-   */
   async connectSpotify(returnUrl?: string): Promise<void> {
-    // Store return URL for callback to use
     if (returnUrl) {
       this.setReturnUrl('spotify', returnUrl);
     }
@@ -78,19 +68,13 @@ export const platformConnectService = {
     const data = await apiService.connectSpotify();
 
     if (data?.authUrl) {
-      // Redirect in same tab for cleaner flow
       window.location.href = data.authUrl;
     } else {
       throw new Error('No auth URL received from server');
     }
   },
 
-  /**
-   * Initiate Apple Music authorization via MusicKit
-   * Apple Music uses a modal flow, not a redirect
-   */
   async connectAppleMusic(returnUrl?: string): Promise<boolean> {
-    // Store return URL in case needed after modal
     if (returnUrl) {
       this.setReturnUrl('appleMusic', returnUrl);
     }
@@ -106,7 +90,6 @@ export const platformConnectService = {
 
       const instance = musicKit.getInstance();
 
-      // Authorize user (shows Apple Music modal)
       const musicUserToken = await withTimeout(
         instance.authorize(),
         APPLE_AUTH_TIMEOUT_MS,
@@ -114,7 +97,6 @@ export const platformConnectService = {
       );
 
       if (musicUserToken) {
-        // Send token to backend to save connection
         const response = await withTimeout(
           apiService.connectAppleMusic(musicUserToken),
           APPLE_BACKEND_SAVE_TIMEOUT_MS,
@@ -130,10 +112,6 @@ export const platformConnectService = {
     }
   },
 
-  /**
-   * Clear client-side Apple Music authorization state so it is not reused
-   * across Cassette account switches in the same browser session.
-   */
   async clearAppleMusicAuthorization(): Promise<void> {
     if (typeof window === 'undefined') return;
 
@@ -163,7 +141,6 @@ export const platformConnectService = {
     }
   },
 
-  /** Initiate Deezer OAuth flow. */
   async connectDeezer(returnUrl?: string): Promise<void> {
     if (returnUrl) {
       this.setReturnUrl('deezer', returnUrl);
@@ -177,25 +154,16 @@ export const platformConnectService = {
     window.location.href = data.authUrl;
   },
 
-  /**
-   * Store return URL for a platform
-   */
   setReturnUrl(platform: PlatformKey, url: string): void {
     if (typeof window === 'undefined') return;
     sessionStorage.setItem(`${RETURN_URL_PREFIX}${platform}`, url);
   },
 
-  /**
-   * Get stored return URL for a platform
-   */
   getReturnUrl(platform: PlatformKey): string | null {
     if (typeof window === 'undefined') return null;
     return sessionStorage.getItem(`${RETURN_URL_PREFIX}${platform}`);
   },
 
-  /**
-   * Clear stored return URL for a platform
-   */
   clearReturnUrl(platform: PlatformKey): void {
     if (typeof window === 'undefined') return;
     sessionStorage.removeItem(`${RETURN_URL_PREFIX}${platform}`);

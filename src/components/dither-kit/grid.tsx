@@ -44,5 +44,4 @@ export function Grid({
   )
 }
 
-// Render beneath the dither canvas so grid lines sit behind the fill.
 Grid.chartLayer = "back" as const

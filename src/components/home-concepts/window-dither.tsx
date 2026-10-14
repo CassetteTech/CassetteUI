@@ -17,7 +17,6 @@ const PALETTE = [
   '#ED2748', '#B42927', '#892121', '#F2473C', '#E13F38', '#BB9072', '#A87F66', '#47893F', '#7747A1', '#29979E',
 ];
 
-// A triangle that covers the viewport, from the vertex index alone.
 const VERTEX = `#version 300 es
 uniform vec2 extent;
 out vec2 point;
@@ -27,8 +26,6 @@ void main() {
   gl_Position = vec4(clip, 0.0, 1.0);
 }`;
 
-// Pass 1, one draw per visible layer into a buffer with one pixel per cell:
-// the layer's cover crop, box-filtered over the cell, at the layer's opacity.
 const COMPOSITE = `#version 300 es
 precision mediump float;
 uniform sampler2D media;
@@ -44,9 +41,6 @@ void main() {
   colour = vec4(rgb * opacity, opacity);
 }`;
 
-// Pass 2, per device pixel: nudge the cell's colour by the 8×8 Bayer
-// threshold and print the nearest palette colour. The matrix is anchored to
-// the top-left cell, so the pattern stays put while the footage moves.
 const DITHER = `#version 300 es
 precision mediump float;
 uniform sampler2D scene;
@@ -93,16 +87,6 @@ interface Source {
   opacity: number;
 }
 
-/**
- * An ordered-dither print of the window scene in the footage's own
- * palette, drawn over its layers. Each
- * repaint composites the same stills and videos the page shows, at their
- * current opacities, so camera moves, crossfades, and hard cuts dither with
- * no pop. It repaints only when a visible video presents a frame or a layer
- * changes, and not while the hero is off screen. Under the copy column the
- * dither thins so the smooth scene carries the text. Without WebGL2 the
- * canvas stays empty and the smooth scene shows.
- */
 export function WindowDither({ copyRef }: { copyRef: RefObject<HTMLElement | null> }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -154,8 +138,6 @@ export function WindowDither({ copyRef }: { copyRef: RefObject<HTMLElement | nul
     let signature = '';
     let disposed = false;
 
-    // Size the canvas to whole cells of whole device pixels, and place the
-    // media crop and the copy ellipse in the same units.
     const measure = () => {
       const ratio = window.devicePixelRatio;
       const cellPixels = Math.max(1, Math.round(CELL * ratio));
@@ -192,9 +174,6 @@ export function WindowDither({ copyRef }: { copyRef: RefObject<HTMLElement | nul
       dirty = true;
     };
 
-    // What the page shows, bottom to top: the stills, then the layers in
-    // raised order. Drawing starts at the highest opaque source, since
-    // nothing under it shows.
     const collect = () => {
       const opacityOf = (element: Element) => {
         const computed = getComputedStyle(element);
@@ -228,13 +207,11 @@ export function WindowDither({ copyRef }: { copyRef: RefObject<HTMLElement | nul
           media.set(element, entry);
         }
         gl.bindTexture(gl.TEXTURE_2D, entry.texture);
-        // Stills upload once per source; videos upload every repaint.
         const key = element instanceof HTMLImageElement ? element.currentSrc : '';
         if (!key || key !== entry.uploaded) {
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, element);
           entry.uploaded = key;
         }
-        // The source's own `object-fit: cover` crop at its `object-position`.
         const [naturalWidth, naturalHeight] = element instanceof HTMLVideoElement ? [element.videoWidth, element.videoHeight] : [element.naturalWidth, element.naturalHeight];
         const scale = Math.max(box.width / naturalWidth, box.height / naturalHeight);
         const [focusX, focusY] = getComputedStyle(element).objectPosition.split(' ').map((value) => parseFloat(value) / 100);
@@ -251,7 +228,6 @@ export function WindowDither({ copyRef }: { copyRef: RefObject<HTMLElement | nul
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     };
 
-    // Every presented video frame marks the print stale.
     const watch = (video: HTMLVideoElement) => {
       if (!disposed) video.requestVideoFrameCallback(() => { dirty = true; watch(video); });
     };

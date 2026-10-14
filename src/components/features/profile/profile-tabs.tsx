@@ -1,8 +1,5 @@
 'use client';
 
-/** Profile content tabs in the Curator Studio underline style: Radix tabs, text only, sentence case.
-    Music holds everything the account posted, narrowed by list tabs; Liked holds what it liked. */
-
 import { useEffect, useRef } from 'react';
 import { Globe, Lock } from 'lucide-react';
 import { TabUnderline } from '@/components/ui/tab-underline';
@@ -14,7 +11,6 @@ interface ProfileTabsProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
   showLikedTab?: boolean;
-  /** Who can see the owner's likes. Set only for the owner; a visitor sees Liked only when it is public. */
   likedTabVisibility?: 'public' | 'private';
 }
 

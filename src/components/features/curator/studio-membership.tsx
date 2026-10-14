@@ -1,8 +1,5 @@
 'use client';
 
-/** Studio Membership: everything a curator sells and earns. Before the first publish, the three
-    setup steps and the plan form; after it, the earnings, the members, then the plan. */
-
 import { useContext } from 'react';
 import { CuratorEarningsCard } from '@/components/features/curator/curator-earnings-card';
 import { CuratorPlanCard } from '@/components/features/curator/curator-plan-card';
@@ -17,7 +14,6 @@ import { TaskSteps } from '@/components/interior/task-steps';
 import { Progress } from '@/components/ui/progress';
 import type { CuratorProfile } from '@/services/curator';
 
-/** Design, payouts, publish: the steps to a live membership. */
 function MembershipSetupCard({ steps }: { steps: LaunchStep[] }) {
   const views = useContext(StudioStepsContext);
   const doneCount = steps.filter((step) => step.done).length;
@@ -61,14 +57,10 @@ export function StudioMembership({
   preview,
 }: {
   profile: CuratorProfile | null;
-  /** Design your membership, Set up payouts, Publish your plan. */
   setupSteps: LaunchStep[];
-  /** null until the plans are read; a failed read leaves the plan card to say so and retry. */
   hasPublished: boolean | null;
-  /** Whether this view is showing, so the rail previews the plan. */
   preview: boolean;
 }) {
-  // The plan card keeps its place in the list, so the first publish does not remount it.
   return (
     <div className="space-y-6">
       {hasPublished === false

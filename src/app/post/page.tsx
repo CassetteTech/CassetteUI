@@ -31,7 +31,6 @@ function PostPageContent() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
-  // The post the conversion created; its page continues the staged content.
   const [createdPostId, setCreatedPostId] = useState<string | null>(null);
 
   const postIdParam = searchParams.get('id');
@@ -56,16 +55,12 @@ function PostPageContent() {
   const anonymous = handedOff ? handedOff.anonymous : !fromAddMusic;
   // Add music writes the post under the signed-in person, where read lag has been seen.
   const addMusicWrite = fromAddMusic || Boolean(handedOff?.running);
-  // Idempotency key of the running conversion; Bridge's job row is polled by it.
   const [conversionKey, setConversionKey] = useState<string | null>(null);
   const polled = useConversionStage(conversionKey, { anonymous, intervalMs: 500 });
-  // A handed-over conversion shows what Bridge already reported until the first poll returns.
   const reported = handedOff?.running?.reported;
   const partialResult = polled.partialResult ?? reported?.partialResult ?? null;
   const stageLabel = polled.stage ? polled.label : reported?.stageLabel ?? polled.label;
   const sourceLinkPlatform = getPlatformDefinition(contentInfo.platform)?.uiKey;
-  // What the post shows so far: the source link from the start, then the source
-  // details and each matched service as Bridge reports them.
   const conversion = useMemo<StagedConversion>(() => {
     const links: StagedConversion['links'] = {};
     if (sourceLinkPlatform && currentUrl) links[sourceLinkPlatform] = currentUrl;
@@ -96,7 +91,6 @@ function PostPageContent() {
     };
   }, [partialResult, stageLabel, apiComplete, createdPostId, currentUrl, sourceLinkPlatform]);
 
-  // Guards against duplicate conversions
   const hasConvertedRef = useRef(false);
   const lastUrlRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
@@ -165,7 +159,6 @@ function PostPageContent() {
     setError('Conversion completed, but no post was returned.');
   }, [resolvePostAndRender]);
 
-  // Use the conversion mutation
   const { mutateAsync: convertLink, isPending: isConverting } = useMusicLinkConversion({ anonymous });
 
   const shouldRetryConvertError = (err: unknown) => {
@@ -190,26 +183,22 @@ function PostPageContent() {
   }, []);
 
   useEffect(() => {
-    // Handle ?id= redirect to canonical route (this is the only case we redirect)
     if (postIdParam && !urlParam && !dataParam) {
       const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
       router.replace(`/post/${postIdParam}${fromQuery}`);
       return;
     }
 
-    // Handle ?url= conversion flow - render content directly, no redirect
     if (urlParam) {
       const decodedUrl = handedOff?.url ?? decodeURIComponent(urlParam);
       const detected = detectContentType(decodedUrl);
 
-      // Prevent duplicate mutate calls
       if (hasConvertedRef.current && lastUrlRef.current === decodedUrl) return;
       hasConvertedRef.current = true;
       lastUrlRef.current = decodedUrl;
       convertRetryCountRef.current = 0;
       actionIdempotencyKeyRef.current = null;
 
-      // The home page already counted a conversion it handed over.
       if (!handedOff) {
         void captureClientEvent('conversion_entry_started', {
           route: '/post',
@@ -221,7 +210,6 @@ function PostPageContent() {
         });
       }
 
-      // Add music hands over a conversion it already started: follow it, do not start another.
       const running = handedOff?.running;
       if (running) {
         setConversionKey(running.idempotencyKey);
@@ -233,7 +221,6 @@ function PostPageContent() {
             if (!isMountedRef.current) return;
             captureUiException(err, { route: '/post', operation: 'conversion_entry' });
             const message = getUserFacingApiErrorMessage(err, 'Failed to convert this link. Please try again.');
-            // Add music gets its form back as it was left, with the error, to retry from.
             const draft = returnAddMusicDraft(running.idempotencyKey, message);
             if (draft) {
               playErrorTone();
@@ -424,7 +411,6 @@ function PostPageContent() {
       return;
     }
 
-    // No valid parameters
     if (!urlParam && !dataParam && !postIdParam) {
       if (!hasConvertedRef.current) {
         setError('No data provided');
@@ -432,7 +418,6 @@ function PostPageContent() {
     }
   }, [searchParams, router, convertLink, postIdParam, fromParam, urlParam, dataParam, descriptionParam, fromAddMusic, anonymous, handedOff, resolvePostAndRender, getOrCreateIdempotencyKey, handleConvertSuccess]);
 
-  // Show error state
   if (error) {
     return (
       <div className="min-h-svh flex items-center justify-center">
@@ -450,8 +435,6 @@ function PostPageContent() {
     );
   }
 
-  // The same skeleton PostClientPage uses, filled with what Bridge has reported so
-  // far. The finished post then replaces it in place at /post/[id].
   const sourceLabel = contentInfo.platform === 'unknown'
     ? contentInfo.type
     : `${getPlatformDisplayName(contentInfo.platform)} · ${contentInfo.type}`;
@@ -463,7 +446,6 @@ function PostPageContent() {
       sourceLabel={sourceLabel}
       contentType={contentInfo.type}
       showAuthor={!anonymous}
-      // A signed-in conversion creates the viewer's own post.
       ownPost={!anonymous}
       onCancel={() => router.back()}
     />

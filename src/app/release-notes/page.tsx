@@ -39,11 +39,9 @@ function ReleaseEntry({
 }) {
   return (
     <article className="group relative">
-      {/* Timeline dot */}
       <div className="absolute -left-[32px] top-7 hidden h-3 w-3 border-2 border-foreground bg-primary lg:block" />
 
       <div className="bg-primary-foreground force-light-surface text-foreground border-2 border-foreground shadow-flat-5 dark:shadow-flat-white-5 hover:shadow-flat-primary-7 dark:hover:shadow-flat-primary-7 transition-shadow">
-        {/* Header bar — catalog stamp */}
         <div className="flex flex-wrap items-center gap-2 border-b-2 border-foreground px-5 py-3">
           <span className="inline-flex items-center bg-foreground text-background font-mono text-[10px] uppercase tracking-[0.2em] px-2 py-0.5">
             {release.tagName}
@@ -67,7 +65,6 @@ function ReleaseEntry({
           </span>
         </div>
 
-        {/* Body */}
         <div className="px-5 py-5 sm:px-6 sm:py-6">
           <h2 className="font-teko text-3xl sm:text-4xl uppercase tracking-tight leading-none">
             <a
@@ -96,7 +93,6 @@ export default async function ReleaseNotesPage() {
 
   return (
     <div className="min-h-svh surface-bottom relative">
-      {/* Subtle grain texture overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"
         style={{
@@ -132,7 +128,6 @@ export default async function ReleaseNotesPage() {
           </div>
         ) : (
           <div className="relative lg:pl-8">
-            {/* Timeline line — dashed zine style */}
             <div className="absolute left-[5px] top-0 bottom-0 hidden w-0.5 bg-[repeating-linear-gradient(to_bottom,hsl(var(--foreground))_0_6px,transparent_6px_12px)] lg:block" />
 
             <div className="space-y-10">

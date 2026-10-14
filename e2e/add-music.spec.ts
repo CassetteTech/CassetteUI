@@ -1,5 +1,3 @@
-/** Verifies Add Music creates a profile post with the selected authoring fields. */
-
 import { expect, test } from '@playwright/test';
 import {
   fixtureConvertTemplates,
@@ -15,7 +13,6 @@ test('creates a post from add-music search and shows it on the profile', async (
     currentUser: fixtureUsers.member,
     curatorProfile: fixtureActiveCuratorProfile,
     curatorPlans: [fixtureActiveMemberPostPlan],
-    // A curator who can lock posts has a curator page; it starts empty and the new post joins it.
     curatorPage: {
       ...fixtureCuratorPage,
       curator: { ...fixtureCuratorPage.curator, username: fixtureUsers.member.username },
@@ -40,7 +37,6 @@ test('creates a post from add-music search and shows it on the profile', async (
   await expect(page.getByRole('heading', { name: 'Who can open it', level: 2 })).toBeVisible();
   await page.getByRole('radio', { name: 'Members' }).click();
   await expect(page.getByRole('radio', { name: 'Members' })).toBeChecked();
-  // Hold the conversion so the in-flight form can be checked before the fixture answers.
   let releaseConversion = () => {};
   const conversionHeld = new Promise<void>((resolve) => {
     releaseConversion = resolve;

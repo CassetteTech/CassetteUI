@@ -34,7 +34,6 @@ void test('leaves device browsers, other apps, and empty user agents alone', () 
     `${IOS} FxiOS/129.0 Safari/605.1.15`,
     'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
-    // A generic web view without an app marker is not guessed.
     ANDROID_WEBVIEW,
     'Pipeline/1.0',
     '',

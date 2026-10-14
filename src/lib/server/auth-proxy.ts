@@ -1,5 +1,3 @@
-// Proxies browser authentication requests while preserving Cassette's attribution cookies and headers.
-
 import { NextRequest, NextResponse } from 'next/server';
 import {
   SIGNUP_ATTRIBUTION_COOKIE_MAX_AGE_SECONDS,
@@ -278,7 +276,6 @@ export async function readJsonResponse<T>(response: Response): Promise<T | null>
   return JSON.parse(text) as T;
 }
 
-/** Session responses carry per-viewer state, so no browser or shared cache may keep them. */
 export const PRIVATE_SESSION_HEADERS = { 'Cache-Control': 'private, no-store' } as const;
 
 export function stripInternalSessionFields<T extends Record<string, unknown> | null>(data: T): T {

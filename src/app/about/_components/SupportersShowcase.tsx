@@ -5,11 +5,6 @@ import { DitherEdge } from "@/components/features/marketing/dither-edge";
 import { KofiIcon } from "@/components/ui/kofi-icon";
 import { openKoFiSupport } from "@/lib/ko-fi";
 
-/**
- * Cream band carrying the Ko-fi embed after the dark statement band —
- * the page's single support section (the old Fuel The Mission strip
- * folded into it). Kept light so it blends with the widget's background.
- */
 export function SupportersShowcase() {
   return (
     <section className="section-cream relative">
@@ -49,7 +44,6 @@ export function SupportersShowcase() {
             />
           </div>
 
-          {/* Full Ko-fi page, for anyone who'd rather not use the embed */}
           <button
             onClick={openKoFiSupport}
             className="mt-8 inline-flex items-center justify-center gap-3 bg-background border-2 border-foreground text-foreground font-mono text-[11px] uppercase tracking-[0.25em] px-5 py-3 shadow-flat-4 hover:bg-primary hover:text-primary-foreground hover:border-primary hover:shadow-flat-primary-6 transition-[color,background-color,border-color,box-shadow] whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"

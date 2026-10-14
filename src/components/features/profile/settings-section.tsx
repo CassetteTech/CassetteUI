@@ -1,9 +1,5 @@
 'use client';
 
-/** Account settings layout: a section is a title over a rule, then
-    hairline-separated rows with no box around them; the field row puts the
-    label on the left and the control on the right. */
-
 import { useId, type ReactNode } from 'react';
 import { Label } from '@/components/ui/label';
 
@@ -28,8 +24,6 @@ export function SettingsSection({
   );
 }
 
-/** One field row. `htmlFor` makes the label a <label>; otherwise pass `labelId`
-    so a group (radio group, link list) can reference it with aria-labelledby. */
 export function SettingsField({
   label,
   htmlFor,

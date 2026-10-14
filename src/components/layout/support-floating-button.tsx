@@ -5,10 +5,7 @@ import { openKoFiSupport } from '@/lib/ko-fi';
 import { KofiIcon } from '@/components/ui/kofi-icon';
 import { cn } from '@/lib/utils';
 
-// Ignore scroll deltas smaller than this so rubber-banding and momentum
-// jitter don't toggle the button.
 const SCROLL_JITTER_PX = 8;
-// Never hide within this distance of the top of the page.
 const TOP_REVEAL_PX = 120;
 
 export function SupportFloatingButton() {
@@ -45,7 +42,6 @@ export function SupportFloatingButton() {
       tabIndex={hidden ? -1 : 0}
     >
       <KofiIcon alt="" width={20} />
-      {/* Label tucks away; slides open on hover/keyboard focus */}
       <span className="max-w-0 overflow-hidden whitespace-nowrap text-sm font-semibold transition-[max-width,padding] duration-300 group-hover:max-w-32 group-hover:pl-2 group-focus-visible:max-w-32 group-focus-visible:pl-2">
         Support Us
       </span>

@@ -42,10 +42,7 @@ export default function ExplorePage() {
   useEffect(() => removeQueryParameters('tab', 'filter'), []);
 
   return (
-    // The creator rail bleeds to the viewport edges, so the page clips any
-    // sliver it adds past the scrollbar.
     <div className="relative min-h-svh overflow-x-hidden bg-background">
-      {/* Subtle dotted paper. Content blocks are positioned so they paint above it. */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-[0.35]"
@@ -192,8 +189,6 @@ function SponsoredPostCard({ placement }: { placement: SponsoredExplorePlacement
   );
 }
 
-/* ─── Sections ────────────────────────────────────────────────────────────── */
-
 function MusicSection({
   title,
   posts,
@@ -258,9 +253,6 @@ function MusicSection({
 function FeaturedCurators() {
   const { data: curators, isLoading } = useExploreCurators();
 
-  // Promotional section: reserve the space with a skeleton rail immediately so
-  // navigation doesn't pop the section in later; render nothing only once we
-  // know there are no verified curators (or the fetch failed).
   if (!isLoading && (!curators || curators.length === 0)) {
     return null;
   }
@@ -421,7 +413,6 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     frame.current = requestAnimationFrame(tick);
   }, [render]);
 
-  // Runs the easing loop until every pose settles; scroll events keep it fed.
   const kick = useCallback(() => {
     if (running.current) return;
     running.current = true;
@@ -437,8 +428,6 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     // overlap margin, so spans that include it would skew the copy width.
     const first = items[midCopy * n];
     const copyWidth = items[(midCopy + 1) * n].offsetLeft - first.offsetLeft;
-    // Keep the settled position within one copy width centered on the middle
-    // copy's first card; anything outside teleports back by whole copies.
     const lo = first.offsetLeft + first.offsetWidth / 2 - track.clientWidth / 2 - copyWidth / 2;
     let next = track.scrollLeft;
     while (next < lo) next += copyWidth;
@@ -465,9 +454,6 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     settle.current = window.setTimeout(onSettle, 140);
   }, [kick, onSettle]);
 
-  // A click on an off-center card means "bring that one to the front", not
-  // "open it". Capture phase so the card's own handler (and the platform link
-  // anchors) never fire — an angled card is a poor click target anyway.
   const onClickCapture = useCallback((e: React.MouseEvent) => {
     const track = trackRef.current;
     if (!track) return;
@@ -476,7 +462,7 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     );
     if (!item) return;
     const offset = item.offsetLeft + item.offsetWidth / 2 - (track.scrollLeft + track.clientWidth / 2);
-    if (Math.abs(offset) < 12) return; // already centered — let the card open
+    if (Math.abs(offset) < 12) return;
     e.preventDefault();
     e.stopPropagation();
     track.scrollTo({ left: track.scrollLeft + offset, behavior: 'smooth' });
@@ -544,8 +530,6 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       // compensate for the matching negative margin to keep snap centers exact.
       className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-8 -mb-12 flex overflow-x-auto overscroll-x-contain no-scrollbar snap-x snap-mandatory py-14 px-[calc(50%-104px)] sm:px-[calc(50%-116px)] lg:px-[calc(50%-108px)] [perspective:1200px] [transform-style:preserve-3d]"
     >
-      {/* Wrappers overlap each other's cards, so they must be click-transparent;
-          only the card itself (pointer-events-auto) takes the hit. */}
       {Array.from({ length: copies }, (_, copy) =>
         curators.map((curator) => (
           <div
@@ -553,9 +537,6 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
             aria-hidden={copy !== midCopy || undefined}
             className="pointer-events-none relative shrink-0 snap-center -ml-24 first:ml-0 [transform-style:preserve-3d]"
           >
-            {/* Pose easing is JS-driven (see render); a CSS transition here
-                would be retargeted by every rAF write and flood the page with
-                transition events. */}
             <div className="pointer-events-auto will-change-transform [transform-style:preserve-3d]">
               <CuratorCard curator={curator} focusable={copy === midCopy} />
             </div>
@@ -603,8 +584,6 @@ function CuratorCard({
       className="group relative block w-[240px] cursor-pointer overflow-hidden card-ink transition-colors duration-300 hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[280px]"
     >
       <div className="relative aspect-[4/5] overflow-hidden bg-muted">
-        {/* The curator themself is the hero; recent artwork fills in when they
-            have no photo, and a branded tile when they have neither. */}
         {curator.avatarUrl ? (
           <Image
             src={curator.avatarUrl}
@@ -648,7 +627,6 @@ function CuratorCard({
           </div>
         )}
 
-        {/* Magazine cover: full-bleed photo, dark scrim, frosted badge, masthead strap. */}
         <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-section-dark/90 via-section-dark/25 to-transparent" />
         <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-section-dark-fg/20 bg-section-dark-fg/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-section-dark-fg backdrop-blur-md">
           Featured
@@ -702,12 +680,6 @@ function CuratorCard({
   );
 }
 
-// Alpha fade at the full-bleed rail's viewport edges so cards dissolve
-// instead of clipping hard; alpha masks are theme-agnostic. Percentage stops
-// scale the fade with the viewport but are capped at the rail's sm:px-16
-// end padding, so resting cards and the load-more card sit clear of the
-// fade on any viewport. Inline style because the repo sets mask properties
-// with both prefixes.
 const RAIL_EDGE_FADE_CSS =
   'linear-gradient(to right, transparent, black min(4%, 64px), black calc(100% - min(4%, 64px)), transparent)';
 const RAIL_EDGE_FADE: React.CSSProperties = {
@@ -738,10 +710,6 @@ function CreatorsMarquee({
 }) {
   const railRef = useRef<HTMLDivElement>(null);
 
-  // Gently pans the rail while nobody interacts with it. Any pointer, wheel,
-  // touch, or focus contact pauses the pan; it resumes a few seconds after
-  // the last contact, and not while the rail is hovered or holds focus.
-  // Ping-pongs at the ends (the list is finite) and respects reduced motion.
   // Position accumulates in a float because scrollLeft rounds to device
   // pixels and would swallow sub-pixel steps at this speed.
   useEffect(() => {
@@ -756,8 +724,6 @@ function CreatorsMarquee({
       const dt = Math.min(t - last, 64);
       last = t;
       const max = rail.scrollWidth - rail.clientWidth;
-      // Nothing to pan (rail fits) — park on a slow retry instead of a
-      // no-op 60fps loop; load-more or a resize can add overflow later.
       if (max <= 0) {
         timer = window.setTimeout(start, 3000);
         return;

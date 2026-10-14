@@ -1,5 +1,3 @@
-// Defines the primary user navigation groups and their route metadata.
-
 import {
   BadgeCheck,
   Compass,
@@ -33,9 +31,7 @@ export interface NavigationItemDefinition {
   authRequired?: boolean;
   internalOnly?: boolean;
   external?: boolean;
-  /** Shown only while paid-promotion (Boost) sales are open. */
   requiresPaidPromotionSales?: boolean;
-  /** Shown while sales are open or the user still has campaign records to manage. */
   requiresPaidPromotionAccount?: boolean;
 }
 
@@ -62,18 +58,11 @@ export const companyNavItems: NavigationItemDefinition[] = [
   { key: 'support-us', label: 'Support Us', icon: Heart, href: KOFI_SUPPORT_URL, external: true },
 ];
 
-// The signed-in app's page rows, one order for the desktop sidebar and the phone menu. Curator
-// Studio leads because it is where curators work; Explore leaves the app shell, so it comes after
-// the app's own pages. A visitor sees only the rows that need no account. The account summary
-// links to the own profile and the logo links home, so neither has a row.
 export const appNavOrder = ['curator-studio', 'feed', 'memberships', 'explore', 'internal'] as const;
-// Both lead to /promote, so a menu shows only the first visible one: Promote while Boost sales
-// are open, then Your Campaigns for a user who still has campaigns.
 export const promoteNavOrder = ['promote', 'campaigns'] as const;
 
 const addMusicPath = '/studio/music/new';
 
-/** Add music from the app's menus returns the finished post, and its Back, to the open page. */
 export function addMusicHrefForPage(pathname: string | null) {
   return pathname && !pathname.startsWith(addMusicPath) ? addMusicHref(pathname) : addMusicPath;
 }

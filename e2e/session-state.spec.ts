@@ -1,5 +1,3 @@
-/** Verifies that a session outage is never read as a sign-out, and that a stale answer never restores an account. */
-
 import { expect, type Page, test } from '@playwright/test';
 
 import { fixtureUsers } from './support/cassette-fixtures';
@@ -7,7 +5,6 @@ import { mockCassetteApp } from './support/mock-cassette-app';
 
 const accountError = (page: Page) => page.getByText('Could not check your account');
 
-/** Answers session reads with `status` while `failing()` is true; other reads use the shared mock. */
 async function failSessionReads(page: Page, failing: () => number | null) {
   await page.route('**/api/auth/session', (route) => {
     const status = failing();

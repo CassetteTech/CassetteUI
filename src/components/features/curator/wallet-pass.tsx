@@ -30,13 +30,10 @@ export function WalletPass({
   children,
   ...rest
 }: Omit<ComponentProps<'div'>, 'children'> & {
-  /** Product printed on the head, e.g. "Curator Pro" or "Membership". */
   product: string;
-  /** Short state printed opposite the product, e.g. "Active" or "Member". */
   tier: string;
   holderName: string;
   holderHandle: string;
-  /** Makes the whole pass a link to the holder's profile; controls inside stay on top with `relative z-20`. */
   holderHref?: string;
   avatarUrl?: string;
   price?: string;
@@ -44,23 +41,16 @@ export function WalletPass({
   priceNote?: ReactNode;
   validityLabel?: string;
   validityValue?: string;
-  /** Active passes take the brand red; inactive ones stay on muted paper. */
   active: boolean;
-  /** Identity details (bio, services, links) printed under the head on wide screens,
-      where the pass is the page's identity. The head grows its photo to match there;
-      phones keep the standard pass because their masthead already carries the identity. */
   summary?: ReactNode;
   children?: ReactNode;
 }) {
   return (
     <div className={cn('card-ink overflow-hidden', holderHref && 'group relative', className)} {...rest}>
-      {/* Shared tints: on a handoff to a pass of the other color, the head and its bloom blend from the departing pass. */}
       <div
         data-shared-tint="head"
         className={cn('relative p-4', active ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground')}
       >
-        {/* Active heads carry a warm ember bloom after the credit-card-glass reference. The mask
-            fades the bloom out before the bottom edge so the dither seam below matches flat brand red. */}
         <div
           aria-hidden
           data-shared-tint="bloom"
@@ -77,12 +67,9 @@ export function WalletPass({
           <span className="truncate">{product}</span>
           <span className="shrink-0">{tier}</span>
         </div>
-        {/* Shared sizes: a pass with a summary prints a larger photo and name on wide screens,
-            so a handoff to or from a standard pass grows or shrinks them as the card moves. */}
         <div className="relative flex items-center gap-3">
           <Avatar data-shared-size="avatar" className={cn('size-12 border-2', summary && 'lg:size-16', active ? 'border-primary-foreground/30' : 'border-border')}>
             <AvatarImage src={avatarUrl} alt="" />
-            {/* Delay keeps a cached photo from flashing its initial when the pass remounts across pages. */}
             <AvatarFallback data-shared-size="initial" delayMs={avatarUrl ? 400 : undefined} className={cn('bg-background font-teko text-xl font-bold text-foreground', summary && 'lg:text-2xl')}>
               {holderName.charAt(0).toUpperCase()}
             </AvatarFallback>
@@ -92,8 +79,6 @@ export function WalletPass({
             <p className="truncate font-mono text-[11px] opacity-75">@{holderHandle}</p>
           </div>
         </div>
-        {/* The head dithers down into the strip, like a section band on the company pages.
-            The seam inherits the head color, so it follows a handoff blend too. */}
         <DitherEdge color="inherit" side="bottom" />
       </div>
       {summary && <div className="hidden px-4 pt-9 lg:block">{summary}</div>}

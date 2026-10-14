@@ -47,7 +47,6 @@ export default function SignUpPage() {
 
       <div className="relative z-10 flex items-center justify-center min-h-svh px-4 py-8">
         <div className="w-full max-w-md">
-          {/* Logo */}
           <div className="flex justify-center mb-8">
             <Link href="/" className="flex flex-col items-center">
               <Image
@@ -99,7 +98,6 @@ export default function SignUpPage() {
               </p>
             )}
 
-            {/* Google Sign In. Google refuses it in a social app's embedded browser. */}
             {inAppBrowser ? (
               <InAppBrowserSignIn browser={inAppBrowser} handoffPath={browserHandoffPath(redirect)} className="mb-6" />
             ) : (

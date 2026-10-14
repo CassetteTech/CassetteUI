@@ -1,5 +1,3 @@
-/** Verifies curator member-count parsing, the authenticated request, and the trend axis top. */
-
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { fetchCuratorMemberStats, memberAxisMax, parseCuratorMemberStats } from '../curator-member-stats';

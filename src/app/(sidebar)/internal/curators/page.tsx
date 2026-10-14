@@ -1,7 +1,5 @@
 'use client';
 
-/** Provides Cassette operators with curator lifecycle, pricing policy, and payout controls. */
-
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -251,8 +249,6 @@ function CuratorOperations({
           </div>
 
           {selected.status === 'active' && (
-            /* Keyed on the curator so a half-typed reason never carries over to
-               another profile; success flips status and unmounts the form. */
             <form key={selected.id} className="grid gap-2" onSubmit={suspend}>
               <label className={fieldClassName} htmlFor="suspension-reason">
                 Suspension reason
@@ -674,8 +670,6 @@ export default function InternalCuratorsPage() {
 
   const refreshCurators = () => queryClient.invalidateQueries({ queryKey: ['internal-curators'] });
 
-  /* Instant paint via setQueryData, then invalidate so the cache reconciles
-     with server truth (covers other status-filter variants of the list too). */
   const updateCurator = (next: InternalCurator) => {
     queryClient.setQueryData<InternalCurator[]>(curatorsKey, (current = []) =>
       current.map((curator) => curator.id === next.id ? next : curator));

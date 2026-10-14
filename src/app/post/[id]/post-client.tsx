@@ -1,7 +1,5 @@
 'use client';
 
-// Renders a public post, enforces viewer-state presentation, and emits sanitized interaction analytics.
-
 import { useRef, useEffect, useState, useCallback, type MouseEvent } from 'react';
 import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTemplate, PostByIdResponse, PostPrivacy, PublicPostPageMetadata } from '@/types';
 import { EntitySkeleton, printedBand } from '@/components/features/entity/entity-skeleton';
@@ -55,7 +53,6 @@ import { captureUiException } from '@/lib/observability/error-reporting';
 import { ApiConnectionError } from '@/utils/api-connection-error';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 
-/** Secondary actions under the post: one primary offer at most, then quiet links. */
 function PostFoot({
   signUp,
   addToProfile,
@@ -285,13 +282,11 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const [error, setError] = useState<PostLoadError | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
-  // Animation states
   const [palette, setPalette] = useState<ColorPalette | null>(null);
   const handleSignupClick = () => router.push('/auth/signup');
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
   const [imageError, setImageError] = useState(false);
 
-  // Edit/Delete modal states
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -301,8 +296,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const [likeAuthPromptOpen, setLikeAuthPromptOpen] = useState(false);
   const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
   const [commentCount, setCommentCount] = useState<number | undefined>(undefined);
-  // The owner's tools sit beside the post as a column when the viewport has room;
-  // otherwise this sheet carries the same content, opened from the engagement bar.
   const [studioPanelOpen, setStudioPanelOpen] = useState(false);
   const panelSwitchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -365,7 +358,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       ? fromParam
       : undefined;
 
-  // After a delete, return to the page the post was opened from, such as Studio Music, else the profile.
   const handleDeleteSuccess = useCallback(() => {
     if (backRoute) {
       router.push(backRoute);
@@ -376,12 +368,10 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     }
   }, [router, backRoute, postData?.username]);
 
-  // Handle edit success - update local state with new description
   const handleEditSuccess = useCallback((changes: PostChanges) => {
     setPostData((prev) => (prev ? { ...prev, ...changes } : prev));
   }, []);
 
-  // Ref to track the source URL for add-to-profile
   const sourceUrlRef = useRef<string | null>(null);
   const sourcePlatformRef = useRef<string | null>(null);
   const trackedPostViewRef = useRef<string | null>(null);
@@ -397,7 +387,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
 
   const buildShareUrl = useCallback(() => {
     if (typeof window === 'undefined') return '';
-    // Use the new path format
     const id = postData?.postId || postId;
     if (id) return `${window.location.origin}/post/${id}`;
     return window.location.href;
@@ -426,7 +415,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       ? `Check out "${shareTitle}" by ${shareArtist} on Cassette`
       : `Check out "${shareTitle}" on Cassette`;
 
-    // Only use Web Share API on mobile/touch devices where it's actually useful
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
                      ('ontouchstart' in window && window.innerWidth < 1024);
 
@@ -441,7 +429,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         appLogger.warn('post_share_failed', { error: err, route: '/post/[id]' });
       }
     } else {
-      // Desktop: copy to clipboard
       try {
         await navigator.clipboard.writeText(shareUrl);
         setCopyState('copied');
@@ -455,8 +442,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     }
   }, [buildShareUrl, postData?.metadata?.title, postData?.metadata?.artist, postData?.postId, postData?.metadata?.type, postData?.curatorId, postData?.isMemberView, postId, user?.id, isAuthenticated, isTeamAccount]);
 
-  // Team-only: copy the post URL tagged with a link template's utm params so the
-  // resulting traffic and signups surface in the internal attribution dashboard.
   const handleAttributedCopy = useCallback(async (template: InternalSignupLinkTemplate) => {
     const resolvedPostId = postData?.postId || postId;
     if (!resolvedPostId || typeof window === 'undefined') return;
@@ -578,7 +563,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     normalizedPrivacy === 'private' || normalizedPrivacy === 'subscriber' || normalizedPrivacy === 'friends'
       ? normalizedPrivacy
       : 'public';
-  // Bridge reposts only public source posts; an existing repost stays removable.
   const canRepost = Boolean(isAuthenticated && hasOwner && !isOwnPost && (isPublicPost || hasReposted));
 
   const handleToggleLike = useCallback(async () => {
@@ -595,7 +579,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     const optimisticLiked = !previousLiked;
     const optimisticLikeCount = Math.max(0, previousLikeCount + (optimisticLiked ? 1 : -1));
 
-    // Sound on like only; unlike stays silent.
     if (optimisticLiked) {
       playLikePop();
     }
@@ -660,7 +643,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     queryClient,
   ]);
 
-  // Fetch post data
   useEffect(() => {
     let isCancelled = false;
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -684,15 +666,9 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
 
     const fetchPost = async () => {
       try {
-        // Reset stale error state before each fetch cycle.
         setError(null);
 
         const startedAt = Date.now();
-        // Inline conversion surfaces stash the finished post before
-        // navigating here (see lib/post-prefetch) — consume it instead of
-        // re-fetching so post-conversion arrivals never see the skeleton.
-        // The stash strips server-owned attribution on save and take, so a
-        // prefetched payload simply resolves paidPromotionCampaignId to null.
         let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null =
           takePrefetchedPost(postId);
         if (response) setArrivedWarm(true);
@@ -792,7 +768,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
             musicElementId: response.musicElementId || ''
           };
 
-          // Map album/playlist track data when available
           type ApiAlbumTrack = {
             title?: string;
             duration?: string;
@@ -873,11 +848,9 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
               }
             });
 
-            // Extract preview URL
             transformedData.previewUrl = response.details?.previewUrl || fallbackPreview;
           }
 
-          // Use fallback artwork if main artwork is empty
           if (!transformedData.metadata.artwork && fallbackArtwork) {
             transformedData.metadata.artwork = fallbackArtwork;
           }
@@ -911,7 +884,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
           const repostedFromLocal = Boolean(readRepostedPosts(user?.id)[response.postId || postId]);
           setHasReposted(repostedByApi || repostedFromLocal);
 
-          // Extract dominant color
           if (transformedData.metadata.artwork) {
             extractColorFromArtwork(transformedData.metadata.artwork);
           }
@@ -991,7 +963,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     }
   }, [isLoading, isAuthenticated, postData, postId, user?.id]);
 
-  // Color extraction function
   const extractColorFromArtwork = async (artworkUrl: string) => {
     try {
       const result = await ColorExtractor.extractPalette(artworkUrl);
@@ -1003,7 +974,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   };
 
   const [isDesktop, setIsDesktop] = useState(false);
-  // Room for the owner column beside the desktop layouts; below this the sheet takes over.
   const [hasColumnRoom, setHasColumnRoom] = useState(false);
 
   useEffect(() => {
@@ -1018,8 +988,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     return () => window.removeEventListener('resize', checkDesktop);
   }, []);
 
-  // When the window grows into column room while the sheet is open, the column takes
-  // over the same content, so the sheet closes instead of doubling it.
   useEffect(() => {
     if (hasColumnRoom) setStudioPanelOpen(false);
   }, [hasColumnRoom]);
@@ -1036,10 +1004,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     return () => clearTimeout(timeout);
   }, [commentsSheetOpen]);
 
-  // The owner column centers on the post card while it is the shorter of the two; a taller
-  // column starts at the card's top. While the column stays within the post's height only the
-  // column moves; a taller one lengthens the page, which re-centers. The first placement lands
-  // before paint; later ones glide (data-recentered turns the transition on).
   const postCardRef = useRef<HTMLDivElement>(null);
   const centerOnPostCard = useCallback((column: HTMLElement | null) => {
     const card = postCardRef.current;
@@ -1132,7 +1096,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     };
   }, []);
 
-  // Show skeleton while loading
   if (!postData && !error) {
     return (
       <>
@@ -1201,20 +1164,15 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
 
   const { metadata, convertedUrls } = postData as MusicLinkConversion;
 
-  // The owner column shows only with room beside the desktop layouts; the sheet and its
-  // entry points (pill, menu items) exist only when the column does not.
   const showOwnerColumn = isOwnPost && hasColumnRoom;
-  // The comments panel takes the right edge, so the column steps out of the layout meanwhile.
   const ownerColumnBeside = showOwnerColumn && !commentsPadded;
 
-  // Owner menu, shared by the three layout branches.
   const ownerMenuItems = (
     <>
       <DropdownMenuItem onClick={() => { setDropdownOpen(false); setEditModalOpen(true); }}>
         <Pencil className="mr-2 h-4 w-4" />
         Edit
       </DropdownMenuItem>
-      {/* Opens the owner sheet; absent while the owner column is already beside the post. */}
       {!showOwnerColumn && (
         <DropdownMenuItem onClick={() => { setDropdownOpen(false); if (!studioPanelOpen) handleOpenStudio(); }}>
           <SlidersHorizontal className="mr-2 h-4 w-4" />
@@ -1231,7 +1189,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     </>
   );
 
-  // Derive clear flags for how to render the page based on content type
   const detectedTypeFromUrl = detectContentType(postData?.originalUrl || sourceUrlRef.current || '').type;
   const isTrack = metadata.type === ElementType.TRACK;
   const isAlbum = metadata.type === ElementType.ALBUM;
@@ -1256,7 +1213,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       ? `${playlistTrackCount} ${playlistTrackCount === 1 ? 'track' : 'tracks'}`
       : null;
 
-  // Owner column beside the post; both desktop layouts place it after the content.
   const ownerColumnProps = {
     postId: postData?.postId || postId,
     privacy: studioPrivacy,
@@ -1283,7 +1239,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       postId: postData?.postId || postId,
     },
   });
-  // The type and genres: the first line of the card label.
   const labelKicker = (
     <>
       <span>{typeLabel}</span>
@@ -1311,15 +1266,11 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const analyticsSourcePlatform = sourcePlatformKey || postData?.sourcePlatform || sourcePlatformRef.current || undefined;
   const sourceService = sourcePlatformKey ? streamingServices[sourcePlatformKey] : null;
 
-  // A post arriving from a conversion prints its label in the color the skeleton printed, and
-  // otherwise starts in a palette the skeleton already extracted, so the label never changes
-  // color as the post arrives.
   const printedByConversion = arrivedWarm && metadata.artwork ? printedBand(metadata.artwork) : null;
   const labelTint = printedByConversion
     ? printedByConversion.tint
     : (palette ?? (metadata.artwork ? ColorExtractor.cachedPalette(metadata.artwork) : undefined))?.vibrant;
 
-  // Label head content shared by the three card layouts.
   const playlistSource = isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService
     ? {
         href: resolvedSourceUrl,
@@ -1365,10 +1316,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
 
   return (
     <div className="min-h-svh relative">
-      {/* Animated Gradient Background */}
       <AnimatedColorBackground palette={palette} />
 
-      {/* Dotted paper texture over the gradient — ties the page to the zine surfaces */}
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 z-0 opacity-30"
@@ -1412,19 +1361,10 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         onDelete={() => setDeleteModalOpen(true)}
       >
       <div
-        // The post lands on its skeleton's outline and settles into focus. A post from a
-        // conversion replaces content that was already on screen, so it swaps in place.
         className={`relative z-10 min-h-svh transition-[padding] duration-450 ease-out-quart ${arrivedWarm ? "" : "motion-safe:animate-focus-in"} ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
       >
         {isDesktop ? (
-            // Desktop: one layout for every post type
-            // A post shorter than the window (a track or an artist post) centers under the navbar:
-            // the two flex-1 pseudo-elements share the free space, and the container's 1rem padding
-            // matches the toolbar's above. A taller post starts at the top and scrolls, with the
-            // after spacer's 5rem minimum as its bottom space.
             <div className="flex min-h-svh flex-col pt-16 before:flex-1 after:min-h-20 after:flex-1">
-              {/* The toolbar and the post share one container, so Back and Share sit on the
-                  content's edges. Visitors get a narrower container; the owner column widens it. */}
               <div className={`mx-auto w-full px-8 pb-4 ${ownerColumnBeside ? 'max-w-7xl' : 'max-w-[68rem]'}`}>
                 {/* Sticky under the navbar (see followScrollUnderToolbar). The post's half follows the
                     content column below it: a paper lid that keeps what scrolls under it, first the
@@ -1469,8 +1409,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   </div>
                   <div className="relative flex min-w-0 items-center gap-3 transition-[padding] duration-200 ease-out-quart group-data-[dock]:px-3 group-data-[dock]:duration-300 motion-reduce:transition-none">
                     <BackButton route={backRoute} fallbackRoute="/explore" className="shrink-0" />
-                    {/* The post, kept: it prints as its h1 goes under the lid and takes the reader
-                        back to the top. The h1 stays the accessible title; this is named by its action. */}
                     <button
                       type="button"
                       aria-label="Back to the top of the post"
@@ -1499,8 +1437,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     </button>
                   </div>
                   </div>
-                  {/* Action cluster: Share is always the rightmost page action,
-                      with the owner-only menu at the far edge beside it */}
                   <div className="flex items-center gap-1.5 justify-self-end">
                     <PostShareMenu
                       isTeamAccount={isTeamAccount}
@@ -1528,16 +1464,11 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     )}
                   </div>
                 </div>
-              {/* The post and, for owners, the column beside it, centered on the post card. */}
                 <div className={`grid items-start gap-x-8 ${ownerColumnBeside ? 'grid-cols-[minmax(0,1fr)_20rem]' : 'grid-cols-1'}`}>
                   <div className="min-w-0">
                     <div className="w-full">
                       <div className="space-y-6">
-                        {/* The post as one object: the sleeve on the left, the label and the listen
-                            links on the right. The author row sits at the card's foot. */}
                         <div ref={postCardRef} className="card-ink grid grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] overflow-hidden">
-                          {/* The sleeve pane: a tonal step down from the card, the artwork flush to the
-                              card's edges, and the person who shared it beneath. */}
                           <div className="flex flex-col bg-muted/40">
                             <div className="relative">
                               <ArtworkImage
@@ -1547,7 +1478,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                 height={416}
                                 className="block h-auto w-full object-cover"
                                 priority
-                                // Replaces the skeleton's copy of the same art: drawn at once, no empty frame.
                                 decoding="sync"
                                 onError={() => setImageError(true)}
                                 unoptimized={!imageError && !!metadata.artwork}
@@ -1566,7 +1496,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                 </div>
                               )}
                             </div>
-                            {/* Who shared it, under the sleeve */}
                             {postData?.username && hasPostOwner && (
                               <div className="relative z-20 flex flex-1 flex-col gap-2.5 p-5">
                                 <PostAuthorHeader
@@ -1633,11 +1562,9 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                 />
                               )}
                             </div>
-                            {/* Social: author header + engagement bar (moved inside card) */}
                           </div>
                           </div>
                         </div>
-                        {/* Album and playlist tracks, in a second card under the post */}
                         {showTracks && (
                           <div ref={trackCardRef} className="card-ink overflow-hidden">
                             <div className="px-5 py-4 border-b border-border flex items-baseline justify-between gap-3">
@@ -1676,15 +1603,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
               </div>
             </div>
         ) : (
-          // Mobile Layout
           <div className="px-4 sm:px-6 md:px-8 pb-2 sm:pb-8 pt-16 max-w-lg mx-auto">
-            {/* First content unit — identical for every post type: toolbar, type
-                label, artwork, info card. The tracklist and secondary actions
-                follow it. */}
             <section className="flex flex-col min-h-[calc(100svh-6.5rem)]">
-            {/* Header Toolbar — 1fr/auto/1fr grid keeps Share centered on the
-                screen with Back at the left edge and the owner-only menu at
-                the right edge */}
             <div className="pt-2.5 pb-2 sm:pt-4 sm:pb-4 w-full shrink-0">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                 <div className="justify-self-start">
@@ -1735,7 +1655,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     unoptimized={!imageError && !!metadata.artwork}
                   />
 
-                  {/* Play Preview for Tracks only */}
                   {isTrack && postData?.previewUrl && (
                     <div className="absolute -bottom-4 -right-2">
                       <PlayPreview
@@ -1753,7 +1672,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                 </div>
               </div>
 
-              {/* Track Information Card - Mobile */}
               <div className="card-ink overflow-hidden">
                 <PostLabelHead
                   compact
@@ -1795,8 +1713,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                 </div>
               </div>
 
-              {/* Social: author header + engagement bar — part of the fold so
-                  attribution is visible without scrolling */}
               {postData?.username && hasPostOwner && (
                 <div className="px-3 py-2.5 sm:p-4 card-ink flex flex-col gap-1.5 sm:gap-2.5 text-left relative z-20">
                   <PostAuthorHeader
@@ -1826,9 +1742,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
             </div>
             </section>
 
-            {/* Below the fold: tracklist and secondary actions */}
             <div className="mt-2 sm:mt-6 text-center space-y-2 sm:space-y-6">
-              {/* Track list for album/playlist - mobile */}
               {showTracks && (
                 <div className="card-ink overflow-hidden">
                   <div className="px-4 py-3 border-b border-border flex items-baseline justify-between gap-3">

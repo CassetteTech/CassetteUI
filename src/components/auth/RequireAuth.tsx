@@ -12,7 +12,6 @@ interface RequireAuthProps {
 export function RequireAuth({ children }: RequireAuthProps) {
   const router = useRouter();
   const { user, isLoading, sessionError } = useAuthState();
-  // An outage before any session answer is not a sign-out.
   const sessionUnknown = sessionError && !user;
 
   useEffect(() => {
@@ -33,7 +32,6 @@ export function RequireAuth({ children }: RequireAuthProps) {
     );
   }
 
-  // Show loading or nothing while redirecting
   if (isLoading || !user || !user.isOnboarded) {
     return null;
   }

@@ -232,8 +232,6 @@ function PreferenceRow({
             {description}
           </p>
         </div>
-        {/* No switch until the stored value loads, so a failed or pending load
-            never reads as an off setting. */}
         {row.enabled !== null ? (
           <Switch
             id={controlId}
@@ -280,8 +278,6 @@ export function EmailPreferencesSettings() {
   const productUpdatesSaveFailed = model.productUpdates.error !== null && model.productUpdates.hasSaveRetry;
   const curatorDigestSaveFailed = model.curatorDigest.error !== null && model.curatorDigest.hasSaveRetry;
 
-  // A failed save can land after the person has moved to another settings tab,
-  // where the inline error below is hidden; tell them where to retry.
   useEffect(() => {
     if ((productUpdatesSaveFailed || curatorDigestSaveFailed) && sectionRef.current?.checkVisibility() === false) {
       toast.error('Your email preference was not saved.', {
@@ -292,7 +288,6 @@ export function EmailPreferencesSettings() {
 
   const productUpdatesOff = model.productUpdates.enabled === false;
 
-  // Two rows of the Email section; the section draws the divider between them.
   return (
     <>
       <div ref={sectionRef}>

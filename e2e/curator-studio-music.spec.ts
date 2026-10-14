@@ -1,7 +1,3 @@
-/** Verifies Studio Music as the curator's library: each row shows the curation and its owner
-    tools, type tabs and the who-can-open-it filter narrow it in the URL, and saved changes keep
-    every list correct. */
-
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { fixturePosts, fixtureUsers, type FixturePost } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
@@ -48,7 +44,6 @@ test('shows each post as its curation with who can open it', async ({ page }) =>
   await expect(track).toContainText('Track · Night Drive');
   await expect(track.getByRole('button', { name: 'Add a note to Open Track' })).toBeVisible();
   await expect(track.getByRole('button', { name: 'Who can open Open Track: Public' })).toBeVisible();
-  // The post page's Back returns to the library.
   await expect(track.getByRole('link', { name: 'Open Track', exact: true }))
     .toHaveAttribute('href', '/post/music-track?from=%2Fstudio%2Fmusic');
   await expect(library(page).getByText('2 posts, newest first.', { exact: true })).toBeVisible();
@@ -67,7 +62,6 @@ test('narrows the library by type and by who can open it, both kept in the URL',
 
   await page.goto('/studio/music');
   await expect(rowsOf(page)).toHaveCount(4);
-  // No artist posts, so no Artists tab.
   const types = page.getByRole('navigation', { name: 'Type of music' });
   await expect(types.getByRole('link', { name: 'Artists' })).toHaveCount(0);
 
@@ -95,7 +89,6 @@ test('narrows the library by type and by who can open it, both kept in the URL',
   await expect(page.getByTestId('studio-music-audience')).toHaveAccessibleName('Who can open it: Members only');
   await expect(rowsOf(page)).toHaveCount(1);
   await expect(library(page).getByText('1 members-only playlist.', { exact: true })).toBeVisible();
-  // The post page's Back returns to the same view.
   await expect(rowOf(page, 'Members Mix').getByRole('link', { name: 'Members Mix', exact: true })).toHaveAttribute(
     'href',
     `/post/narrow-members-mix?from=${encodeURIComponent('/studio/music?type=playlists&audience=members')}`,
@@ -104,7 +97,6 @@ test('narrows the library by type and by who can open it, both kept in the URL',
   await page.reload();
   await expect(rowsOf(page)).toHaveCount(1);
   await expect(rowsOf(page)).toContainText('Members Mix');
-  // A post added from here returns to the same view.
   const studioHeader = page.locator('header').filter({ hasText: 'Curator Studio' });
   await expect(studioHeader.getByRole('link', { name: 'Add music', exact: true })).toHaveAttribute(
     'href',
@@ -112,8 +104,6 @@ test('narrows the library by type and by who can open it, both kept in the URL',
   );
 });
 
-/** Presses the middle of a control, moves the pointer a few pixels, and releases: a hand on a
-    trackpad rarely holds still. */
 async function sloppyClick(page: Page, name: string, control: Locator) {
   const box = await control.boundingBox();
   if (!box) throw new Error(`Expected ${name} to be laid out.`);
@@ -123,7 +113,6 @@ async function sloppyClick(page: Page, name: string, control: Locator) {
   await page.mouse.up();
 }
 
-/** Drags from the gap after one tab to past another, and returns the text that got selected. */
 async function dragAcross(page: Page, from: Locator, to: Locator) {
   const start = await from.boundingBox();
   const end = await to.boundingBox();
@@ -143,7 +132,6 @@ test('a click that moves a few pixels still opens a tab, and a drag selects no t
 
   await page.goto('/studio/membership');
 
-  // Tab links start no browser link drag, so the click still lands.
   const sections = page.getByRole('navigation', { name: 'Studio sections' });
   await sloppyClick(page, 'the Music link', sections.getByRole('link', { name: 'Music' }));
   await expect(page).toHaveURL('/studio/music');
@@ -186,7 +174,6 @@ test('keeps the last count while another type loads, then counts the new list', 
   await expect(lastCount).toBeVisible();
   await page.getByRole('navigation', { name: 'Type of music' }).getByRole('link', { name: 'Albums' }).click();
   await albumsInFlight;
-  // The line neither blanks nor falls back while the albums load.
   await expect(lastCount).toBeVisible();
   releaseAlbums();
   await expect(library(page).getByText('1 album.', { exact: true })).toBeVisible();
@@ -223,7 +210,6 @@ test('changes who can open a post from its row', async ({ page }) => {
   await page.getByRole('menuitemradio', { name: /^Members only/ }).click();
 
   expect((await saved).postDataJSON()).toMatchObject({ privacy: 'subscriber' });
-  // The control keeps focus through the save, so the keyboard stays in the row.
   await expect(row.getByRole('button', { name: 'Who can open First Track: Members only' })).toBeFocused();
   await expect(rowOf(page, 'Second Track').getByRole('button', { name: 'Who can open Second Track: Public' })).toBeVisible();
 });
@@ -244,7 +230,6 @@ test('drops a post from a filtered list once its setting leaves the filter, and 
   await expect(library(page).getByText('2 public posts, newest first.', { exact: true })).toBeVisible();
   await expect(rowOf(page, 'Second Track').getByRole('link', { name: 'Second Track', exact: true })).toBeFocused();
 
-  // The unfiltered list keeps the post with its new setting.
   await page.getByTestId('studio-music-audience').click();
   await page.getByRole('menuitemradio', { name: 'All posts' }).click();
   await expect(page).toHaveURL('/studio/music');
@@ -263,7 +248,6 @@ test('a list cached for another audience shows a post that moved into it', async
   await page.getByRole('menuitemradio', { name: 'Public', exact: true }).click();
   await expect(page).toHaveURL('/studio/music?audience=public');
   await rowOf(page, 'Open Track').getByRole('button', { name: 'Who can open Open Track: Public' }).click();
-  // The row menu's options carry their summaries, unlike the closing filter menu's.
   await page.getByRole('menuitemradio', { name: /^Private Off your profile/ }).click();
   await expect(rowsOf(page)).toHaveCount(0);
 
@@ -294,7 +278,6 @@ test('after a failed profile read, Set up memberships moves focus to the profile
     route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"unavailable"}' }));
 
   await page.goto('/studio/music');
-  // Membership renders no plan card behind a failed profile read; the shared error explains it.
   await expect(page.getByText('Could not load your curator profile.')).toBeVisible({ timeout: 15_000 });
   await rowOf(page, 'Gate Track').getByRole('button', { name: 'Who can open Gate Track: Public' }).click();
   await page.getByRole('menuitem', { name: 'Set up memberships' }).click();
@@ -317,8 +300,6 @@ test('Set up memberships waits for a slow profile read, then focuses the plan ca
   await rowOf(page, 'Gate Track').getByRole('button', { name: 'Who can open Gate Track: Public' }).click();
   await page.getByRole('menuitem', { name: 'Set up memberships' }).click();
   await expect(page).toHaveURL('/studio/membership');
-  // Membership holds its skeleton until the profile answers. The plan card then takes focus:
-  // its first field, or the card itself while its own reads are still loading.
   await expect(page.getByTestId('curator-plan-card')).toHaveCount(0);
   release();
 
@@ -344,7 +325,6 @@ test('leaving Membership before a slow profile read answers cancels its focus re
   await expect(page).toHaveURL('/studio/music');
   release();
 
-  // A later visit through the section link is not the earlier request, so focus stays put.
   await page.getByTestId('studio-membership-trigger').click();
   const planName = page.getByTestId('curator-plan-card').getByLabel('Plan name');
   await expect(planName).toBeVisible();
@@ -370,7 +350,6 @@ test('edits a note in place, sends only the note, and returns focus to it', asyn
     request.method() === 'PATCH' && request.url().endsWith('/api/v1/social/posts/note-track'));
   await page.getByTestId('edit-post-save').click();
 
-  // Settings the curator did not touch stay as Bridge has them.
   expect((await saved).postDataJSON()).toEqual({ description: 'The bridge at 2:40 is the whole reason.' });
   const noteButton = row.locator('[data-row-action="note"]');
   await expect(noteButton).toHaveAccessibleName('The bridge at 2:40 is the whole reason. Edit the note on Note Track');
@@ -511,7 +490,6 @@ test('reads the loaded pages again after a removal before showing more, even whe
   await expect(rowsOf(page)).toHaveCount(19);
   await expect(library(page).getByRole('alert')).toHaveText('Could not refresh your music.', { timeout: 15_000 });
 
-  // Gap Track 21 moved up into the first page; reading page 2 by offset alone would skip it.
   failing = false;
   await page.getByRole('button', { name: 'Show more' }).click();
   await expect(rowOf(page, 'Gap Track 21')).toBeVisible();

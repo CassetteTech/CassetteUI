@@ -167,7 +167,6 @@ export function MusicConnectionsFlow() {
     const currentState = platformStates[serviceId];
     const newIsSelected = !currentState.isSelected;
 
-    // If turning on and requires auth, trigger the provider flow.
     if (newIsSelected && service.requiresAuth) {
       if (serviceId === 'Deezer') {
         await handleDeezerAuthorization();
@@ -178,7 +177,6 @@ export function MusicConnectionsFlow() {
       return;
     }
 
-    // Spotify does not need user OAuth when Cassette's provider account is enabled.
     setPlatformStates(prev => ({
       ...prev,
       [serviceId]: { ...prev[serviceId], isLoading: true },
@@ -221,7 +219,6 @@ export function MusicConnectionsFlow() {
     }
   };
 
-  // Rows only: the caller's settings section supplies the heading and the container.
   if (isLoading) {
     return (
       <p className="flex items-center gap-2 py-5 text-sm text-muted-foreground" aria-live="polite">
@@ -246,8 +243,6 @@ export function MusicConnectionsFlow() {
                 {needsAuthorization ? 'Authorization required to create playlists' : service.description}
               </p>
             </div>
-            {/* Turning a service on starts its authorization, so the button only covers
-                a service that is on the profile but not yet authorized. */}
             {needsAuthorization && (
               <Button
                 type="button"

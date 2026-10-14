@@ -39,7 +39,6 @@ export function Footer() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-10">
-          {/* Brand block */}
           <div className="md:col-span-6">
             <Link href="/" className="inline-flex items-center gap-2 -rotate-[1deg]">
               <Image
@@ -59,9 +58,6 @@ export function Footer() {
             <SocialLinks className="mt-6" />
           </div>
 
-          {/* Link columns — side by side on mobile (one row instead of a
-              stack); md:contents dissolves the wrapper so each column joins
-              the outer 12-col grid on desktop unchanged */}
           <div className="grid grid-cols-3 gap-4 md:contents">
             {linkColumns.map((col) => (
               <div key={col.label} className="md:col-span-2">
@@ -80,7 +76,6 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Bottom bar */}
         <div className="mt-10 md:mt-12 pt-5 border-t-2 border-dashed border-foreground/25 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
             © 2026 Cassette — All rights reserved

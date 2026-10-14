@@ -1,7 +1,5 @@
 'use client';
 
-/** Right-click quick actions for a post card in a list: open, share, and owner visibility, edit, delete. */
-
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Check, ExternalLink, Pencil, Share, Trash2 } from 'lucide-react';
@@ -31,10 +29,8 @@ interface PostQuickActionsProps {
   onShare: () => void;
   isOwner: boolean;
   privacy: string | undefined;
-  /** Which visibilities this list can show; a list that only ever renders public and members-only omits private. */
   visibilities: readonly QuickVisibility[];
   canLockPosts: boolean;
-  /** Saves a new setting the caller's way; without it, the menu saves the setting itself. */
   onVisibilityChange?: (next: QuickVisibility) => void;
   onEdit: () => void;
   onDelete: () => void;

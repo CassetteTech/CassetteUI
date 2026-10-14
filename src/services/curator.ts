@@ -1,5 +1,3 @@
-/** Defines public curator privacy boundaries plus profile and payout API operations. */
-
 import { z } from 'zod';
 import { correlationIdSchema, httpsUrlSchema } from './membership';
 import { formatPaidPromotionMinorAmount } from './paid-promotion-lifecycle';
@@ -55,19 +53,15 @@ const curatorPostSchema = z.object({
   redirectPostId: z.string(),
   commentsEnabled: z.boolean().optional(),
   isRepost: z.boolean().optional(),
-  // A repost names its original author; the card shows the reposter above it.
   originalPostOwnerUsername: nullableString.optional(),
   originalPostOwnerAccountType: nullableString.optional(),
 });
 
-/** Bridge's element types, the values of the page's type filter. */
 export const curatorElementTypes = ['Playlist', 'Track', 'Album', 'Artist'] as const;
 export type CuratorElementType = (typeof curatorElementTypes)[number];
 
 const postItemSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('post'), post: curatorPostSchema }).strict(),
-  // Locked rows are deliberately exact: an additive content field is a leak,
-  // not a forward-compatible contract change.
   z.object({
     kind: z.literal('locked'),
     postId: z.string().min(1),
@@ -125,23 +119,18 @@ const curatorPageSchema = z.object({
     totalItems: z.number().int().nonnegative(),
     page: z.number().int().positive(),
     pageSize: z.number().int().min(1).max(50),
-    // On the first page: the posts of each type the viewer can open.
     typeCounts: z.array(z.object({
       elementType: z.enum(curatorElementTypes),
       count: z.number().int().positive(),
     })).optional(),
   }),
 }).refine(
-  // A retained member on an archived plan sees member content with no public offer;
-  // the privacy boundary is the viewer entitlement, not the offer's presence.
   (page) => page.viewer.isOwner || page.viewer.isMember || page.posts.items.every(
     (item) => item.kind === 'locked' || item.post.privacy === 'public',
   ),
   { message: 'Subscriber post bodies require an entitled viewer' },
 );
 
-// The viewer's own relationship. isFollowing is Feed inclusion: an explicit
-// Follow or a membership that gives access now.
 const curatorFollowStateSchema = z.object({
   isFollowing: z.boolean(),
   hasExplicitFollow: z.boolean(),
@@ -206,7 +195,6 @@ export function parseCuratorPayoutOnboarding(value: unknown): CuratorPayoutOnboa
   return curatorPayoutOnboardingSchema.parse(value);
 }
 
-/** Narrows a curator page's posts. Locked teasers show only without a type. */
 export type CuratorPageFilter = { elementType: CuratorElementType | null; membersOnly: boolean };
 
 export const unfilteredCuratorPage: CuratorPageFilter = { elementType: null, membersOnly: false };
@@ -267,7 +255,6 @@ export async function fetchOwnCuratorProfile(
 const curatorFollowPath = (curatorProfileId: string) =>
   `/api/v1/curators/${encodeURIComponent(curatorProfileId)}/follow`;
 
-/** The signed-in viewer's own relationship; the server resolves the viewer from the session. */
 export async function fetchCuratorFollow(
   curatorProfileId: string,
   signal?: AbortSignal,
@@ -283,7 +270,6 @@ export async function fetchCuratorFollow(
   return parseCuratorFollowState(await response.json());
 }
 
-/** Follows (PUT, empty body) or unfollows (DELETE); both answer with the relationship after the change. */
 export async function setCuratorFollow(
   curatorProfileId: string,
   following: boolean,
@@ -299,7 +285,6 @@ export async function setCuratorFollow(
   return parseCuratorFollowState(await response.json());
 }
 
-/** The owner's current audience and members, for Curator Studio only. */
 export async function fetchCuratorAudience(signal?: AbortSignal): Promise<CuratorAudience> {
   const response = await fetch('/api/v1/curators/me/audience', {
     cache: 'no-store',

@@ -1,5 +1,3 @@
-/** Verifies a curator can right-click a post on their profile for quick actions. */
-
 import { expect, test } from '@playwright/test';
 import {
   fixtureActiveCuratorProfile,
@@ -96,6 +94,5 @@ test('makes a post private from the profile music right-click menu, which takes 
   await menu.getByRole('menuitem', { name: 'Private' }).click();
 
   await expect(page.getByText('Post visibility updated.')).toBeVisible();
-  // The public page shows what visitors see; the owner keeps private posts in Studio Music.
   await expect(page.getByRole('link', { name: /Paper Hearts/ })).toHaveCount(0);
 });

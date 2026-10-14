@@ -1,7 +1,3 @@
-// Proxies the viewer's own curator Follow. Like the generic API proxy, it checks
-// the browser origin before a write leaves the app. Only GET, PUT, and DELETE
-// exist here; Next answers any other method for this path with 405.
-
 import { NextRequest, NextResponse } from 'next/server';
 import {
   buildBackendUrl,

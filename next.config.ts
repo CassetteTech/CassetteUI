@@ -1,4 +1,3 @@
-// Configures Next.js build, runtime, and security behavior for CassetteUI.
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 import { NOINDEX_ROUTES, NOINDEX_SUBTREES } from "./src/lib/seo";
@@ -6,9 +5,6 @@ import { NOINDEX_ROUTES, NOINDEX_SUBTREES } from "./src/lib/seo";
 const distDir = process.env.NEXT_DIST_DIR ?? ".next";
 
 // Most private pages are client components, which cannot export `metadata`.
-// An X-Robots-Tag header carries the same directive without a layout file per
-// route. This is deliberately belt-and-braces with the robots.txt disallow
-// list: bots that ignore robots.txt still see the header on a direct fetch.
 const NOINDEX_HEADERS = [
   { key: "X-Robots-Tag", value: "noindex, nofollow" },
 ];
@@ -185,31 +181,21 @@ const nextConfig: NextConfig = {
         destination: '/release-notes',
         permanent: true,
       },
-      // Add music moved into Curator Studio. Old links, the activation email,
-      // and bookmarks keep working; the query string, including `url`, passes through.
       {
         source: '/add-music',
         destination: '/studio/music/new',
         permanent: true,
       },
-      // Curator Studio opens on Music. Not permanent, so /studio can hold a
-      // view of its own again; the query string passes through.
       {
         source: '/studio',
         destination: '/studio/music',
         permanent: false,
       },
-      // Sign-in alias, like /signup. The query string, including `redirect`,
-      // passes through.
       {
         source: '/login',
         destination: '/auth/signin',
         permanent: false,
       },
-      // Email/password auth is temporarily disabled (Google-only), so the
-      // password reset flow is parked too — a password set here could never be
-      // used to sign in. Remove these when the email auth blocks in
-      // /auth/signin and /auth/signup are re-enabled.
       {
         source: '/auth/forgot-password',
         destination: '/auth/signin',
@@ -224,7 +210,6 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
-      // Exact matches only — `/profile/:username` is public and must stay indexable.
       ...NOINDEX_ROUTES.map((route) => ({
         source: route,
         headers: NOINDEX_HEADERS,

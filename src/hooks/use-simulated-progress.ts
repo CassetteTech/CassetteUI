@@ -63,7 +63,7 @@ export const useSimulatedProgress = (
   const [state, setState] = useState<ProgressState>({
     currentStep: 0,
     totalSteps: STEP_CONFIGS[contentType].length,
-    showSteps: true, // Show steps immediately
+    showSteps: true,
     showTrackList: false,
     matchedCount: 0,
     isComplete: false,
@@ -109,7 +109,6 @@ export const useSimulatedProgress = (
     rapidCompletionTimeoutsRef.current = [];
   }, []);
 
-  // Track elapsed time and keep the progress bar feeling alive
   useEffect(() => {
     startTimeRef.current = performance.now();
     setState(prev => (
@@ -130,7 +129,6 @@ export const useSimulatedProgress = (
         // Read from ref to get latest value
         const apiDone = apiCompleteRef.current;
 
-        // If API is done, jump to 100%
         if (apiDone) {
           return {
             ...prev,
@@ -139,15 +137,11 @@ export const useSimulatedProgress = (
           };
         }
 
-        // Asymptotic slowdown - progress approaches CEILING but decelerates
         const CEILING = 92;
-        const DECAY_FACTOR = 0.0004; // How quickly we slow down
+        const DECAY_FACTOR = 0.0004;
 
-        // Exponential decay: progress = CEILING * (1 - e^(-k*t))
-        // This naturally slows down as it approaches the ceiling
         const rawProgress = CEILING * (1 - Math.exp(-DECAY_FACTOR * elapsed));
 
-        // Add micro-variations to keep it feeling alive (subtle oscillation)
         const wobble = Math.sin(elapsed / 500) * 0.3;
         const nextProgress = Math.min(CEILING - 0.5, rawProgress + wobble);
 
@@ -194,12 +188,10 @@ export const useSimulatedProgress = (
     const apiDone = apiCompleteRef.current;
 
     if (apiDone) {
-      // When the API is already done we sprint through remaining steps for snappy completion
       return Math.max(120, Math.min(step.duration * 0.35, 240));
     }
 
     if (isLastStep && !apiDone) {
-      // Hold on the final step until the API call finishes
       return null;
     }
 
@@ -207,11 +199,9 @@ export const useSimulatedProgress = (
     const offset = (Math.random() - 0.5) * 2 * jitter;
     const candidate = step.duration + offset;
 
-    // Never let a step feel too short, even with a negative jitter
     return Math.max(320, candidate);
   }, [contentType]);
 
-  // Simulate track matching progress for playlists only
   const simulateTrackMatching = useCallback(() => {
     if (contentType !== 'playlist') return;
     
@@ -222,7 +212,6 @@ export const useSimulatedProgress = (
           return prev;
         }
         
-        // Simulate realistic matching progress with some randomness
         const increment = Math.random() > 0.3 ? 1 : Math.random() > 0.7 ? 2 : 0;
         const newCount = Math.min(prev.matchedCount + increment, estimatedCount);
         
@@ -232,14 +221,11 @@ export const useSimulatedProgress = (
           statusMessage: `Matched ${newCount} / ${estimatedCount} tracks`
         };
       });
-    }, 200 + Math.random() * 300); // 200-500ms per track
+    }, 200 + Math.random() * 300);
     
     trackMatchingIntervalRef.current = matchingInterval;
   }, [contentType, estimatedCount]);
 
-  // Advance to next step - uses refs to avoid stale closures. The timers and the
-  // completion callback run here, not in a state updater: React can call an
-  // updater twice (StrictMode always does), which advanced two steps at once.
   const advanceStep = useCallback(() => {
     const steps = STEP_CONFIGS[contentType];
     if (stepRef.current >= steps.length) {
@@ -250,7 +236,6 @@ export const useSimulatedProgress = (
     stepRef.current = nextStep;
 
     if (nextStep >= steps.length) {
-      // Simulation complete
       onCompleteRef.current?.();
       setState(prev => ({
         ...prev,
@@ -268,17 +253,14 @@ export const useSimulatedProgress = (
     // Read from ref to get latest API status
     const apiDone = apiCompleteRef.current;
 
-    // Don't schedule next step if in rapid completion mode
     if (!rapidCompletionRef.current) {
       const delay = getStepDelay(nextStep, isLastStep);
 
       if (delay !== null) {
-        // Schedule next step advancement
         stepTimeoutRef.current = setTimeout(() => {
           advanceStep();
         }, delay);
       } else {
-        // We're on the last step without API response - wait
         appLogger.debug('conversion_progress_waiting_for_api');
       }
     }
@@ -292,13 +274,11 @@ export const useSimulatedProgress = (
     }));
   }, [contentType, getStepDelay]);
 
-  // Rapid completion when API finishes first
   const enterRapidCompletionMode = useCallback(() => {
     appLogger.debug('conversion_progress_rapid_completion_started');
     rapidCompletionRef.current = true;
     clearRapidCompletionTimeouts();
     
-    // Clear any existing step timeout
     if (stepTimeoutRef.current) {
       clearTimeout(stepTimeoutRef.current);
       stepTimeoutRef.current = undefined;
@@ -317,7 +297,6 @@ export const useSimulatedProgress = (
     }
   }, [advanceStep, clearRapidCompletionTimeouts]);
 
-  // Handle API completion
   useEffect(() => {
     if (apiComplete && !state.isComplete) {
       setState(prev => (
@@ -326,7 +305,6 @@ export const useSimulatedProgress = (
           : prev
       ));
       
-      // If we're paused on the last step, complete it now
       if (state.currentStep === state.totalSteps - 1 && !rapidCompletionRef.current) {
         appLogger.debug('conversion_progress_api_completed_on_last_step');
         setTimeout(() => {
@@ -366,23 +344,18 @@ export const useSimulatedProgress = (
     }
   }, [apiComplete, state.isComplete, state.elapsedMs, state.matchedCount, contentType, estimatedCount]);
 
-  // Start simulation - runs once on mount, uses refs for mutable state
   useEffect(() => {
-    // Prevent re-initialization if already started
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
 
-    // Progressive disclosure timeline
     const timeouts: NodeJS.Timeout[] = [];
 
-    // Start first step immediately (after base delay)
     timeouts.push(setTimeout(() => {
       setState(prev => ({
         ...prev,
         statusMessage: STEP_CONFIGS[contentType][0].name + '...'
       }));
 
-      // Start first step with smart timing
       const delay = getStepDelay(0, STEP_CONFIGS[contentType].length === 1);
       if (delay !== null) {
         stepTimeoutRef.current = setTimeout(() => {
@@ -392,7 +365,6 @@ export const useSimulatedProgress = (
 
     }, baseDelay));
 
-    // 2s: Show track list for playlists only
     if (contentType === 'playlist') {
       timeouts.push(setTimeout(() => {
         setState(prev => ({ ...prev, showTrackList: true }));
@@ -401,7 +373,6 @@ export const useSimulatedProgress = (
     }
 
     return () => {
-      // Cleanup all timeouts and intervals
       timeouts.forEach(clearTimeout);
       if (stepTimeoutRef.current) clearTimeout(stepTimeoutRef.current);
       if (trackMatchingIntervalRef.current) clearInterval(trackMatchingIntervalRef.current);

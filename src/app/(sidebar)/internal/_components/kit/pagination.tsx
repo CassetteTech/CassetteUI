@@ -3,10 +3,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/**
- * Compact pager: a terse "page x / y · n items" readout and prev/next steppers.
- * No numbered buttons — keeps the footer to a single dense line.
- */
 export function Pagination({
   page,
   totalPages,

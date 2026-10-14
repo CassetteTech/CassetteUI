@@ -1,5 +1,3 @@
-/** Emulates Bridge and platform routes so end-to-end tests can assert stateful UI workflows. */
-
 import type { Page, Request, Route } from '@playwright/test';
 import { z } from 'zod';
 import type {
@@ -70,7 +68,6 @@ type MockCassetteOptions = {
   internalPricingPolicies?: PricingPolicy[];
   internalPricingAssignments?: PricingAssignment[];
   curatorEarnings?: Pick<CuratorEarnings, 'activeMemberCount' | 'balances' | 'items'>;
-  /** Counts for every requested window; the daily series is built per request. */
   curatorMemberCounts?: FixtureCuratorMemberCounts;
   curatorMemberStatsStatus?: number;
   curatorPage?: CuratorPage;
@@ -78,7 +75,6 @@ type MockCassetteOptions = {
   curatorPayoutRefreshAccount?: CuratorPayoutAccount;
   curatorPayoutOnboardingUrl?: string;
   curatorPlans?: CuratorPlan[];
-  /** Bridge's member-post authoring decision; defaults to an active curator with an active member-posts plan. */
   memberPostAuthoring?: boolean;
   curatorPlanToolsStatus?: number;
   curatorFeatures?: CuratorFeature[];
@@ -105,10 +101,8 @@ type MockCassetteOptions = {
   emailPreferencesByUserId?: Record<string, boolean>;
   defaultEnrolledUserIds?: string[];
   emailPreferenceUpdateFailures?: number;
-  // Users who turned the curator digest on in settings; it is off for everyone else.
   curatorDigestEnabledUserIds?: string[];
   curatorDigestUpdateFailures?: number;
-  // The preferences read answers 503 this many times.
   emailPreferenceLoadFailures?: number;
   profileUpdateFailures?: number;
   issueReportFailures?: number;
@@ -142,15 +136,10 @@ type MockCassetteOptions = {
   accountDeleteFailures?: number;
   exploreResponse?: unknown;
   exploreCurators?: ExploreCurator[];
-  /** Answers each Feed page; the default is an empty page that reports the session's two counts. */
   curatorFeed?: (query: { cursor: string | null; membersOnly: boolean }) => { status?: number; body?: unknown };
-  /** Curator profile IDs the current user explicitly follows. */
   curatorFollows?: string[];
-  /** Relationship reads that answer 503 before the stateful answer. */
   curatorFollowReadFailures?: number;
-  /** Follow and Unfollow writes that answer 503, changing nothing, before the stateful answer. */
   curatorFollowWriteFailures?: number;
-  /** The owner's current audience; defaults to zero for both counts. */
   curatorAudience?: { audienceCount: number; activeMemberCount: number };
   curatorAudienceStatus?: number;
 };
@@ -842,9 +831,6 @@ const buildState = (options: MockCassetteOptions): MockState => {
       updatedAtUtc: FIXTURE_TIMESTAMP,
     });
   }
-  // Default enrollment (CAS-386): signup and backfill give every user an
-  // enabled row with lastChangedSource 'account_default' and no affirmative
-  // consent. Seed those rows here; a genuinely missing row stays fail-closed.
   for (const userId of options.defaultEnrolledUserIds || []) {
     if (!state.emailPreferencesByUserId.has(userId)) {
       state.emailPreferencesByUserId.set(userId, {
@@ -912,7 +898,6 @@ const toInternalPaidPromotionAction = (campaign: FixtureInternalPaidPromotionCam
   updatedAtUtc: campaign.updatedAtUtc,
 });
 
-// The body of a preference PUT, or null when Bridge would reject it.
 function readEmailPreferenceUpdate(request: Request): { enabled: boolean; source: 'settings' } | null {
   const payload = request.postDataJSON() as { enabled?: unknown; source?: unknown };
   return typeof payload.enabled === 'boolean' && payload.source === 'settings'
@@ -1042,8 +1027,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       return json(route, { curators: options.exploreCurators ?? [] });
     }
 
-    // Both of these clear the session so a follow-up /session call reflects the
-    // teardown — otherwise a reload would appear to restore a signed-out user.
     if (pathname === '/api/auth/signout' && method === 'POST') {
       state.currentUser = null;
       return json(route, { success: true });
@@ -1181,7 +1164,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
 
     if (pathname === '/api/v1/curators/me/member-stats' && method === 'GET') {
       getCurrentUserOrThrow(state);
-      // Logged first, so a request the gate should have stopped still shows.
       const days = Number(url.searchParams.get('days'));
       state.curatorMemberStatsRequests.push(days);
       if (!state.curatorProfile) {
@@ -1190,7 +1172,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       if (state.curatorMemberStatsStatus !== 200) {
         return json(route, { message: 'Member counts are unavailable.' }, state.curatorMemberStatsStatus);
       }
-      // A straight ramp from the count at the window start to the count now.
       const counts = state.curatorMemberCounts;
       const now = new Date();
       const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
@@ -1296,8 +1277,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       if (plan.status === 'draft') {
         return json(route, { message: 'Draft plans cannot be archived.' }, 409);
       }
-      // Ending memberships is curator-wide: the live offer stops selling too,
-      // and every active member stops renewing.
       const stopping = action === 'archive' ? [plan] : state.curatorPlans;
       if (action === 'end-memberships') {
         state.curatorMemberCounts.notRenewingMembers = state.curatorMemberCounts.activeMembers;
@@ -1334,7 +1313,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
             ? 'This plan already has immutable annual pricing.'
             : null;
       if (conflict) return json(route, { errorCode: 'curator_profile_state_invalid', message: conflict }, 409);
-      // An identical retry returns the plan unchanged.
       if (plan.annualAmountMinor === null) {
         Object.assign(plan, {
           annualAmountMinor,

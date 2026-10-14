@@ -66,7 +66,7 @@ test('buildAttributedPostPath tags the post via utm_content and inherits nothing
     source: 'instagram',
     medium: 'social',
     campaign: 'launch',
-    destinationPath: '/explore', // ignored: post path wins
+    destinationPath: '/explore',
   });
   assert.equal(path, '/post/abc-123?src=instagram&utm_medium=social&utm_campaign=launch&utm_content=post-abc-123');
 });

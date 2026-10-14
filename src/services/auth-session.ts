@@ -1,5 +1,3 @@
-/** Reads the browser web-session envelope that Bridge returns for a signed-in viewer. */
-
 import { z } from 'zod';
 import type { FeedSourceCounts } from '@/types';
 
@@ -21,7 +19,6 @@ const signedInSchema = z.object({
 
 export type SessionUser = z.infer<typeof sessionUserSchema>;
 
-/** A signed-in answer; `counts` is null when Bridge sent no valid value for either count. */
 export type SignedInBody = { user: SessionUser; counts: FeedSourceCounts | null };
 
 export type SessionRead =
@@ -43,11 +40,6 @@ export function readSignedInBody(body: unknown): SignedInBody | null {
   };
 }
 
-/**
- * Classifies a session read. Only a 401 means signed out; an outage or a
- * malformed answer, including a missing or invalid count, is an error, never
- * zero Feed sources and never a sign-out.
- */
 // oxlint-disable-next-line anti-slop/no-unknown-parameters
 export function readSessionResponse(status: number, body: unknown): SessionRead {
   if (status === 401) return { kind: 'signed-out' };

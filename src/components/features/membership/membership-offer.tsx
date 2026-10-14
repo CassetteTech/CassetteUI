@@ -1,10 +1,5 @@
 'use client';
 
-/** The fan membership offer as one card: the wallet pass head with the price,
-    the plan description, any interval controls, the benefits, then the actions.
-    The public profile and Curator Studio render this same card so the curator
-    sees exactly what fans see. */
-
 import { useRef, type ComponentProps, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import { useSharedPosition } from '@/hooks/use-shared-position';
@@ -50,7 +45,6 @@ export function MembershipOffer({
   children,
   ...rest
 }: Omit<ComponentProps<'div'>, 'children'> & {
-  /** Short state printed on the pass head, e.g. "Per month" or "Preview". */
   tier: string;
   curatorName: string;
   curatorHandle: string;
@@ -58,20 +52,15 @@ export function MembershipOffer({
   name: string;
   description: string;
   benefits: OfferBenefit[];
-  /** Gross (fee-inclusive) prices; null when that interval is not offered or not valid yet. */
   monthly: OfferPrice | null;
   annual: OfferPrice | null;
   currency: string;
-  /** The interval the pass price shows. */
   interval: 'month' | 'year';
-  /** Interval selector, placed between the description and the benefits. */
   controls?: ReactNode;
-  /** Identity details printed under the pass head; see WalletPass. */
   summary?: ReactNode;
   children?: ReactNode;
 }) {
   const gross = (price: OfferPrice) => formatPaidPromotionMinorAmount(price.faceMinor + price.serviceFeeMinor, currency);
-  // The profile and Studio each mount their own copy in the rail; on navigation the new copy slides in from the old one's spot.
   const passRef = useRef<HTMLDivElement>(null);
   useSharedPosition(passRef, 'membership-pass');
   const selected = interval === 'year' ? annual : monthly;

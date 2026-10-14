@@ -1,8 +1,5 @@
 'use client';
 
-/** The profile's music cards: one card for every type of music, on the Music and Liked tabs, plus
-    the locked card a visitor sees for a members-only post. */
-
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -59,7 +56,6 @@ export function ProfileActivity({
   isCurrentUser = false,
   currentUserId
 }: ProfileActivityProps) {
-  // One shared read for the whole grid; React Query dedupes it across cards.
   const canLockPosts = useSubscriberPostEligibility(isCurrentUser);
 
   if (isLoading && posts.length === 0) {
@@ -95,7 +91,6 @@ export function ProfileActivity({
   return (
     <div>
       <div>
-        {/* The grid mounts after the skeleton, so it reveals in place. */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 motion-safe:animate-reveal">
           {posts.map((post) => (
             <MusicPostCard
@@ -135,7 +130,6 @@ function typeIconOf(elementType: string): LucideIcon {
   }
 }
 
-/** The fields a music card reads; profile activity and curator page posts both carry them. */
 export type MusicCardPost = Pick<
   ActivityPost,
   | 'postId'
@@ -171,7 +165,6 @@ export function MusicPostCard({
   ownerUsername?: string;
   isOwnPost?: boolean;
   canLockPosts?: boolean;
-  /** Who-can-open-it choices the owner's quick actions offer on this list. */
   visibilities?: readonly OwnerVisibility[];
 }) {
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -227,7 +220,6 @@ export function MusicPostCard({
   const displayedAccountType =
     sourceAccountType ?? (ownerAccountTypeApplies ? ownerAccountType : undefined);
 
-  // Only use description if it's a non-empty user-provided value
   const hasDescription = post.description && post.description.trim().length > 0;
   const detailText = hasDescription ? post.description : post.subtitle;
 
@@ -307,7 +299,6 @@ export function MusicPostCard({
             latency investigation). Cards navigate fine without route prefetch. */}
         <Link href={getNavigationPath(post)} prefetch={false} className="block px-3 sm:px-4 py-3">
           <div className="flex gap-3 sm:gap-4 items-start">
-            {/* Artwork with overlaid type badge */}
             <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 relative">
               <ArtworkImage
                 src={post.imageUrl}
@@ -320,19 +311,15 @@ export function MusicPostCard({
                 placeholder="blur"
                 blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJoc2woMjQwLCA0LjglLCA4My45JSkiLz48L3N2Zz4="
               />
-              {/* Type chip overlaid on artwork — mono annotation voice */}
               <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-background/85 backdrop-blur-md font-mono text-[9px] uppercase tracking-[0.15em] text-foreground/80 ring-1 ring-border/50">
                 <TypeIcon className="h-2.5 w-2.5" aria-hidden="true" />
                 {post.elementType}
               </span>
             </div>
 
-            {/* Content */}
             <div className="flex-1 min-w-0 flex flex-col">
-              {/* Top row: attribution + actions */}
               <div className="flex items-start justify-between gap-2 min-w-0">
                 <div className="min-w-0 flex-1">
-                  {/* Repost caption — only rendered when isRepost; sits above original poster */}
                   {post.isRepost && (
                     <div className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground/80 mb-1 min-w-0">
                       <Repeat2 className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
@@ -359,26 +346,22 @@ export function MusicPostCard({
                 {actions}
               </div>
 
-              {/* Title — the hero, set in the display face like Explore/post pages */}
               <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight text-foreground line-clamp-2 mt-1.5">
                 {post.title}
               </h3>
 
-              {/* Description (optional) */}
               {detailText && (
                 <p className="text-muted-foreground text-sm italic line-clamp-2 leading-snug mt-1">
                   {detailText}
                 </p>
               )}
 
-              {/* Private flag (own private posts only) */}
               {isOwnPost && post.privacy?.toLowerCase() === 'private' && (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/60 font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground ring-1 ring-border/40 self-start mt-1.5">
                   <Lock className="h-2.5 w-2.5" aria-hidden="true" />
                   Private
                 </span>
               )}
-              {/* Only members and the owner receive a members-only post in full. */}
               {post.privacy === 'subscriber' && (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 font-mono text-[9px] uppercase tracking-[0.15em] text-primary ring-1 ring-primary/40 self-start mt-1.5">
                   <LockKeyhole className="h-2.5 w-2.5" aria-hidden="true" />
@@ -391,7 +374,6 @@ export function MusicPostCard({
       </Card>
       </PostQuickActions>
 
-      {/* Edit Modal - always render to allow Radix UI animations */}
       <EditPostModal
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
@@ -401,7 +383,6 @@ export function MusicPostCard({
         currentCommentsEnabled={post.commentsEnabled}
       />
 
-      {/* Delete Modal - always render to allow Radix UI animations */}
       <DeletePostModal
         open={deleteModalOpen}
         onOpenChange={setDeleteModalOpen}
@@ -412,7 +393,6 @@ export function MusicPostCard({
   );
 }
 
-/** A members-only post a visitor cannot open: its date, and the way to the membership. */
 export function LockedMusicCard({
   createdAt,
   displayName,

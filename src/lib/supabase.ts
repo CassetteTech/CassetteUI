@@ -13,7 +13,6 @@ export const supabase = createClient(
   }
 );
 
-// Admin client for server-side operations
 export const supabaseAdmin = createClient(
   config.supabase.url,
   config.supabase.serviceRoleKey,

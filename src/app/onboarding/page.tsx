@@ -32,7 +32,6 @@ import {
 } from '@/components/features/auth/membership-purchase-summary';
 import { appLogger } from '@/lib/observability/logger';
 
-// Step definitions (excluding welcome and completion which are special)
 const STEPS = [
   { id: 'handle', title: 'Choose Handle', subtitle: 'Pick your username' },
   { id: 'avatar', title: 'Profile Picture', subtitle: 'Add a photo' },
@@ -62,8 +61,6 @@ export default function OnboardingPage() {
     const stored = authRedirectService.get();
     const membership = parseMembershipIntentRedirect(stored);
     setIntent({ promote: isPromoteIntentRedirect(stored), membership });
-    // Membership buyers skip the welcome screen: the purchase summary is the
-    // context, and the handle form is the only thing between them and payment.
     if (membership) setPhase('steps');
   }, []);
   const isPromoteIntent = intent?.promote === true;
@@ -105,7 +102,6 @@ export default function OnboardingPage() {
     return false;
   }, []);
 
-  // Update form data when user loads
   useEffect(() => {
     if (user && !formData.username && !formData.displayName) {
       setFormData(prev => ({
@@ -116,7 +112,6 @@ export default function OnboardingPage() {
     }
   }, [user, formData.username, formData.displayName]);
 
-  // Create avatar preview when file changes
   useEffect(() => {
     if (formData.avatarFile) {
       const url = URL.createObjectURL(formData.avatarFile);
@@ -127,7 +122,6 @@ export default function OnboardingPage() {
     }
   }, [formData.avatarFile]);
 
-  // Redirect if already onboarded or not authenticated
   useEffect(() => {
     if (!isLoading) {
       if (!user) {
@@ -148,8 +142,6 @@ export default function OnboardingPage() {
     setPhase('steps');
   };
 
-  // The membership variant never shows the welcome screen, so its start is
-  // the first render with a resolved, not-yet-onboarded user.
   const membershipStarted = useRef(false);
   useEffect(() => {
     if (!membershipIntent || membershipStarted.current || !user || user.isOnboarded) return;
@@ -166,7 +158,6 @@ export default function OnboardingPage() {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Last step - submit
       handleFinish();
     }
   };
@@ -184,7 +175,6 @@ export default function OnboardingPage() {
     const ownerId = useAuthStore.getState().user?.id;
 
     try {
-      // Create FormData for file upload
       const form = new FormData();
       const normalizedUsername = formData.username.trim().toLowerCase();
       form.append('username', normalizedUsername);
@@ -229,8 +219,6 @@ export default function OnboardingPage() {
       const data = await response.json();
 
       if (data.success) {
-        // Refresh the session to get complete user data including connectedServices.
-        // A successful read updates the auth store itself.
         const refreshed = await authService.refreshSession({ restart: true });
         const current = useAuthStore.getState().user;
         if (refreshed.kind === 'signed-out' || refreshed.kind === 'superseded' || current?.id !== ownerId) {
@@ -241,7 +229,6 @@ export default function OnboardingPage() {
         if (refreshed.kind === 'error') {
           // The session read failed, so keep this profile response for its account.
           const updatedUser = data.user && typeof data.user === 'object'
-            // Ensure auth store shape is normalized (profilePicture, connectedServices, etc.)
             ? authService.normalizeAuthUser(data.user as Record<string, unknown>)
             : current && {
                 ...current,
@@ -274,7 +261,6 @@ export default function OnboardingPage() {
   }, [formData, updateUser, apiUrl, consumeOnboardingDestination]);
 
   const handleGoToProfile = () => {
-    // Check for pending action (e.g., user came from playlist page to convert)
     const pendingAction = pendingActionService.get();
     if (pendingAction?.returnUrl) {
       window.location.href = pendingAction.returnUrl;
@@ -294,7 +280,6 @@ export default function OnboardingPage() {
     setFormData(prev => ({ ...prev, ...updates }));
   };
 
-  // Loading state (auth resolution or stored intent not yet read)
   if (isLoading || intent === null) {
     return (
       <div className="min-h-svh bg-background flex items-center justify-center">
@@ -306,7 +291,6 @@ export default function OnboardingPage() {
     );
   }
 
-  // Render step component based on current step
   const renderStepContent = () => {
     const commonProps = {
       formData,
@@ -337,7 +321,6 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-svh bg-background">
       <div className="container mx-auto px-4 py-8 max-w-lg">
-        {/* Welcome Phase */}
         <AnimatePresence mode="wait">
           {phase === 'welcome' && (
             <motion.div
@@ -355,7 +338,6 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* Steps Phase */}
           {phase === 'steps' && (
             <motion.div
               key="steps"
@@ -364,7 +346,6 @@ export default function OnboardingPage() {
               exit={{ opacity: 0, x: -50 }}
               transition={{ duration: 0.3 }}
             >
-              {/* Logo Header */}
               <div className="flex justify-center mb-6">
                 <Image
                   src="/images/app_logo_text_small.png"
@@ -375,15 +356,11 @@ export default function OnboardingPage() {
                 />
               </div>
 
-              {/* Improved Stepper — pointless for the single-step promote-intent flow */}
               {steps.length > 1 && (
               <div className="mb-8">
-                {/* Step Indicators */}
                 <div className="flex items-center justify-between relative">
-                  {/* Connecting Line (Background) */}
                   <div className="absolute left-0 right-0 top-4 h-0.5 bg-muted mx-4 -z-10" />
 
-                  {/* Progress Line */}
                   <motion.div
                     className="absolute left-4 right-4 top-4 h-0.5 origin-left bg-primary -z-10"
                     initial={{ scaleX: 0 }}
@@ -418,7 +395,6 @@ export default function OnboardingPage() {
                           )}
                         </motion.div>
 
-                        {/* Step Label (visible on larger screens) */}
                         <div className="mt-2 text-center hidden sm:block">
                           <p className={`text-xs font-medium ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`}>
                             {step.title}
@@ -429,7 +405,6 @@ export default function OnboardingPage() {
                   })}
                 </div>
 
-                {/* Current Step Info (mobile) */}
                 <div className="mt-4 text-center sm:hidden">
                   <p className="text-sm text-muted-foreground">
                     Step {currentStep + 1} of {steps.length}
@@ -438,7 +413,6 @@ export default function OnboardingPage() {
               </div>
               )}
 
-              {/* Step Title */}
               <motion.div
                 key={steps[currentStep].id}
                 initial={{ opacity: 0, y: 10 }}
@@ -458,7 +432,6 @@ export default function OnboardingPage() {
                 />
               )}
 
-              {/* Step Content */}
               <AnimatePresence mode="wait">
                 <motion.div key={currentStep}>
                   {renderStepContent()}
@@ -467,7 +440,6 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* Submitting/Complete Phase */}
           {(phase === 'submitting' || phase === 'complete') && (
             <motion.div
               key="completion"

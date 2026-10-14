@@ -45,12 +45,6 @@ export type PendingLabelProps = {
   className?: string;
 };
 
-/**
- * Crossfades an idle label with a spinner + pending label inside an existing
- * button. Faces are stacked in one grid cell, so the width stays reserved at
- * the widest face — no layout jump when the pending state toggles.
- * Use when the caller already owns the async lifecycle (forms, stores).
- */
 export function PendingLabel({
   pending,
   label,

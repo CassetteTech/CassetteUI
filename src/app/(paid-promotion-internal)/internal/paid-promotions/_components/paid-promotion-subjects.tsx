@@ -53,7 +53,6 @@ function SubjectIdentity({ subject, compact = false }: {
           {getPaidPromotionElementTypeLabel(subject.elementType)}
         </p>
         <p className="truncate text-sm font-medium text-foreground">{subject.title}</p>
-        {/* Artists exist for tracks and albums only. */}
         {subject.subtitleNames.length > 0 && (
           <p className="truncate text-xs text-muted-foreground">
             {subject.subtitleNames.join(', ')}

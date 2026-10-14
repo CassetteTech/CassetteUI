@@ -72,7 +72,6 @@ export function AuthPromptModal({
           </SheetDescription>
         </SheetHeader>
 
-        {/* Google refuses sign-in in a social app's embedded browser: sign-in continues in the device browser. */}
         {inAppBrowser ? (
           <InAppBrowserSignIn browser={inAppBrowser} className="mt-auto p-4" />
         ) : (

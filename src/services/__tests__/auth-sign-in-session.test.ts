@@ -1,5 +1,3 @@
-/** Covers the session that a sign-in, a sign-up, or a password update returns, through the real auth service. */
-
 import './browser-service-environment';
 import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,7 +20,6 @@ const stubFetch: typeof fetch = async (input) => {
 };
 globalThis.fetch = stubFetch;
 
-/** The envelope Bridge returns for a signed-in web session; an undefined count is left out of the JSON. */
 const signedIn = (
   userId: string,
   activeMembershipCount: number | undefined,
@@ -111,7 +108,6 @@ for (const entry of entries) {
     answer = async (path) => {
       if (path === entry.path) return { status: 200, body: signedIn('user-mia', 3, 4) };
       if (path !== SESSION_PATH) return NOT_FOUND;
-      // Bridge answers for the earlier account after the new session began.
       await released;
       return { status: 200, body: signedIn('user-earlier', 1, 2) };
     };

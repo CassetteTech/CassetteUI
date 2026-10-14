@@ -1,5 +1,3 @@
-/** Defines internal curator lifecycle, immutable pricing policy, and assignment operations. */
-
 import { z } from 'zod';
 
 const timestampSchema = z.string().datetime({ offset: true });

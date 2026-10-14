@@ -1,7 +1,5 @@
 'use client';
 
-/** Handles Curator Pro checkout and portal returns using Bridge status as the sole authority. */
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -85,10 +83,8 @@ function discountCopy(status: CuratorProStatus) {
   return 'Full price.';
 }
 
-/** What ending Curator Pro means, shown before the billing handoff and on scheduled cancellations. */
 const endOfProCopy = 'Your memberships and earnings are not affected.';
 
-/** One line on the current state; null when the pass already says it all. */
 function lifecycleCopy(status: CuratorProStatus): string | null {
   if (status.cancelAtPeriodEnd) {
     const end = status.paidThroughUtc
@@ -230,7 +226,6 @@ export function CuratorProCard() {
   const actionPending = checkout.isPending || checkout.isSuccess ||
     portal.isPending || portal.isSuccess;
 
-  // Hidden until Bridge offers Curator Pro; an existing subscriber keeps billing access.
   if (!status?.available && !status?.canManage) return null;
 
   return (

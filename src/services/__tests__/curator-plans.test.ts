@@ -1,5 +1,3 @@
-/** Locks plan contracts, pricing-policy math, and lifecycle request behavior to Bridge. */
-
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -56,8 +54,6 @@ function requestUrl(input: string | URL | Request): string {
   return input as string;
 }
 
-// The browser no longer infers this from plan states: an archived plan with paying
-// members still allows member posts, which only Bridge can know.
 void test('members-only authoring uses the Bridge decision privately and strictly', async (t) => {
   const calls: { input: string; init?: RequestInit }[] = [];
   const answers = [{ canAuthor: true }, { canAuthor: false }, { canAuthor: true, plans: [] }];
@@ -257,7 +253,6 @@ void test('annual price client posts once, parses the plan strictly, and keeps B
       message: 'This plan already has immutable annual pricing.',
     }), { status: 409 }),
     new Response('<html>bad gateway</html>', { status: 502 }),
-    // Published with an annual price but no frozen annual fee: inconsistent evidence.
     new Response(JSON.stringify({ ...active, annualAmountMinor: 7000 })),
   ];
   const calls: Array<{ init?: RequestInit; input: string | URL | Request }> = [];
@@ -287,19 +282,16 @@ void test('annual price client posts once, parses the plan strictly, and keeps B
   await assert.rejects(addCuratorPlanAnnualPrice(draft.id, 7000), (error) =>
     error instanceof CuratorPageError && error.status === 502 && error.message === 'Failed to add annual price');
   await assert.rejects(addCuratorPlanAnnualPrice(draft.id, 7000), /Annual plan fields are inconsistent/);
-  // Invalid input never reaches the network.
   await assert.rejects(addCuratorPlanAnnualPrice(draft.id, 0));
   await assert.rejects(addCuratorPlanAnnualPrice('not-a-plan', 7000));
   assert.equal(calls.length, 4);
 });
 
 void test('a matching monthly fee does not prove the annual fan charge of a plan\'s frozen fees', () => {
-  // A $5 plan frozen under a 10% service fee, and today's policy at a fixed $0.50 fee.
   const frozen = { ...pricing, serviceFeeBps: 1000, serviceFeeFixedMinor: 0 };
   const today = { ...pricing, serviceFeeBps: 0, serviceFeeFixedMinor: 50 };
   assert.equal(calculateCuratorPlanEconomics(500, frozen).serviceFeeMinor, 50);
   assert.equal(calculateCuratorPlanEconomics(500, today).serviceFeeMinor, 50);
-  // For a $60 annual price Bridge charges $66.00; today's policy would show $60.50.
   assert.equal(calculateCuratorPlanEconomics(6000, frozen).fanChargeMinor, 6600);
   assert.equal(calculateCuratorPlanEconomics(6000, today).fanChargeMinor, 6050);
 });

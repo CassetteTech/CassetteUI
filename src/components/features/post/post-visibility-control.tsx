@@ -1,8 +1,5 @@
 'use client';
 
-/** The owner's "Who can open it" control, shared by the post page and Add Music so a
-    post's visibility is chosen the same way before and after it is published. */
-
 import { useState } from 'react';
 import Link from 'next/link';
 import { LockKeyhole } from 'lucide-react';
@@ -20,9 +17,6 @@ import { useMemberPostAccess } from '@/hooks/use-curator';
 import type { PostPrivacy } from '@/types';
 import { cn } from '@/lib/utils';
 
-/** Three positions with the chosen one's summary beneath. Every summary, and the locked
-    option's setup prompt, sits in the same grid cell and only one shows, so the cell keeps
-    the tallest one's height and switching never moves what follows. */
 export function PostVisibilityControl({
   privacy,
   choose,
@@ -31,14 +25,10 @@ export function PostVisibilityControl({
 }: {
   privacy: PostPrivacy;
   choose: (next: OwnerVisibility) => void;
-  /** Holds every option, and hides the setup prompt, while the caller cannot take a change. */
   disabled?: boolean;
-  /** The level that fits the caller's outline: h3 under the post panel's h2, h2 under a page's h1. */
   headingAs?: 'h2' | 'h3';
 }) {
   const access = useMemberPostAccess();
-  // Without a plan that unlocks member posts, "Members" carries a lock. Choosing it keeps the
-  // post's setting and shows where plans are set up instead.
   const { needsPlan, waiting } = membersOptionOf(access.state, privacy);
   const [setupShown, setSetupShown] = useState(false);
   const promptShown = needsPlan && setupShown && !disabled;
@@ -58,12 +48,10 @@ export function PostVisibilityControl({
         }}
         options={ownerVisibilities.map((value) => ({
           value,
-          // The post page's headline says "Members only"; the short label keeps the three segments even.
           label: value === 'subscriber' ? 'Members' : postVisibility[value].label,
           icon: value === 'subscriber' && needsPlan
             ? <LockKeyhole aria-hidden className="mr-1 inline size-3 -translate-y-px" />
             : undefined,
-          // While the plan check loads or fails, the option waits; the error row below offers a retry.
           disabled: disabled || (value === 'subscriber' && waiting),
         }))}
       />
@@ -85,9 +73,6 @@ export function PostVisibilityControl({
             This post uses an older setting. Choose who can open it.
           </p>
         )}
-        {/* Plans live in Curator Studio; the post only points there. The prompt stays in the cell
-            unseen so the cell is already its height, and shows inside a live region so choosing the
-            locked option is announced. */}
         {needsPlan && !disabled && (
           <div role="status" className="col-start-1 row-start-1">
             <p

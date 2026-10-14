@@ -1,21 +1,11 @@
 import type { PostPrivacy } from '@/types';
 
-/**
- * Keeps an Add music draft while the post page follows its conversion, so a failure
- * there brings the person back to the form as they left it, with the error shown.
- * Module memory, like the conversion handoff: it only has to survive client-side
- * route changes.
- */
 export interface AddMusicDraft {
-  /** The form's path with its query (`from`, a prefilled link). */
   path: string;
-  /** The music link being converted. */
   link: string;
-  /** The search result picked, when the music came from search. */
   selection: { title: string; artist: string; type: string; url: string; coverArtUrl: string } | null;
   description: string;
   privacy: PostPrivacy;
-  /** The handoff added a history entry, so going back to the form removes it. */
   pushed: boolean;
 }
 
@@ -28,10 +18,6 @@ export function holdAddMusicDraft(idempotencyKey: string, draft: AddMusicDraft):
   held = { idempotencyKey, draft };
 }
 
-/**
- * The conversion failed: hands its draft back to the form with the error. Returns the
- * draft, to go back to its form, or null when no draft is held for this conversion.
- */
 export function returnAddMusicDraft(idempotencyKey: string, errorMessage: string): ReturnedAddMusicDraft | null {
   if (held?.idempotencyKey !== idempotencyKey) return null;
   returned = { ...held.draft, errorMessage };

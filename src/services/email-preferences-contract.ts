@@ -1,5 +1,3 @@
-/** Defines the strict email preference response contract shared by the settings UI. */
-
 import { z } from 'zod';
 
 export type EmailPreferenceSource = 'settings';
@@ -13,8 +11,6 @@ const emailPreferenceViewSchema = z.object({
   updatedAtUtc: z.string().nullable(),
 });
 
-// Each category is an independent choice. The curator digest also needs
-// product updates to send, but saving one never changes the other.
 const emailPreferencesResponseSchema = z.object({
   product_updates: emailPreferenceViewSchema,
   curator_digest: emailPreferenceViewSchema,

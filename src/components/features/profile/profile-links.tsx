@@ -13,7 +13,6 @@ export function ProfileLinkIcon({ link, className }: { link: ParsedProfileLink; 
   );
 }
 
-/** Quiet inline icon+handle links for profile surfaces — no chrome, just text. */
 export function ProfileLinksRow({ links, className }: { links?: string[]; className?: string }) {
   const parsed = (links ?? []).map(parseProfileLink).filter((l): l is ParsedProfileLink => l !== null);
   if (parsed.length === 0) return null;

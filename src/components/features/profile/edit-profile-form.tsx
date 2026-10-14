@@ -1,10 +1,5 @@
 'use client';
 
-/** Profile settings form in two tabs: Profile (public profile, music services)
-    and Account (privacy, email, account deletion). Both panels stay mounted in
-    one form, so edits survive a tab switch and one save bar covers both. The
-    URL mirrors the active tab (?tab=account). */
-
 import { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
@@ -33,8 +28,8 @@ import { PendingLabel } from '@/components/ui/interior/loading-button';
 import { cn } from '@/lib/utils';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_SOURCE_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-const MAX_UPLOAD_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_SOURCE_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_UPLOAD_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_USERNAME_LENGTH = 30;
 const MAX_DISPLAY_NAME_LENGTH = 100;
 const MAX_BIO_LENGTH = 200;
@@ -87,7 +82,6 @@ function formValuesFrom(bio?: UserBio): EditProfileForm {
   };
 }
 
-/** Field error line, linked to its control through aria-describedby. */
 function FieldError({ id, children }: { id: string; children: React.ReactNode }) {
   return <p id={id} role="alert" className="mt-1.5 text-xs text-destructive">{children}</p>;
 }
@@ -100,13 +94,11 @@ interface EditProfileFormProps {
 export function EditProfileFormComponent({ initialData, onSuccess }: EditProfileFormProps) {
   const urlTab: SettingsTab = useSearchParams().get('tab') === 'account' ? 'account' : 'profile';
   const [tab, setTab] = useState(urlTab);
-  // Follow URL changes made outside this form (back, forward, links) while it stays mounted.
   const [lastUrlTab, setLastUrlTab] = useState(urlTab);
   if (urlTab !== lastUrlTab) {
     setLastUrlTab(urlTab);
     setTab(urlTab);
   }
-  // replaceState updates the URL without a navigation, so a refresh or a shared link keeps the tab.
   const selectTab = (next: SettingsTab) => {
     setTab(next);
     const url = new URL(window.location.href);
@@ -224,7 +216,6 @@ export function EditProfileFormComponent({ initialData, onSuccess }: EditProfile
     resetToInitial();
   }, [resetToInitial]);
 
-  // The taken-username error sits on the Profile tab: show the tab, then focus the field.
   const revealUsernameError = () => {
     flushSync(() => selectTab('profile'));
     setFocus('username');
@@ -251,7 +242,6 @@ export function EditProfileFormComponent({ initialData, onSuccess }: EditProfile
     setSaveError(null);
 
     try {
-      // Availability can change after the debounced check, so verify once at submit.
       if (normalizedUsername !== normalizeUsername(initialData?.username || '')) {
         try {
           const isAvailable = await profileService.checkUsernameAvailability(normalizedUsername);
@@ -278,7 +268,6 @@ export function EditProfileFormComponent({ initialData, onSuccess }: EditProfile
         profileLinks: normalizedLinks as string[],
       });
 
-      // Refresh the auth store with updated user data (including bio)
       await authService.refreshSession({ restart: true });
 
       if (initialData?.id) void invalidateBio(initialData.id);
@@ -338,7 +327,6 @@ export function EditProfileFormComponent({ initialData, onSuccess }: EditProfile
 
   return (
     <div className="w-full">
-      {/* Every validated field is on the Profile tab, so a failed submit opens it. */}
       <form onSubmit={handleSubmit(onSubmit, () => selectTab('profile'))}>
         <Tabs
           value={tab}
@@ -412,7 +400,6 @@ export function EditProfileFormComponent({ initialData, onSuccess }: EditProfile
               </SettingsField>
 
               <SettingsField label="Username" htmlFor="profile-username">
-                {/* The URL prefix and the input share one border, so the field reads as the page address. */}
                 <div
                   className={cn(
                     'flex h-9 overflow-hidden rounded-md border border-input shadow-xs transition-[color,box-shadow] focus-within:border-foreground/60 focus-within:ring-[3px] focus-within:ring-foreground/[0.07] dark:bg-input/30',
@@ -558,8 +545,6 @@ export function EditProfileFormComponent({ initialData, onSuccess }: EditProfile
           </TabsContent>
         </Tabs>
 
-        {/* Save bar: appears with the first unsaved change and sticks to the bottom
-            of the viewport until the end of the page. Other sections save on their own. */}
         {(hasChanges || saveError) && (
           <div className="sticky bottom-0 z-10 -mx-4 mt-12 border-t border-border/70 bg-background px-4 py-3 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 motion-safe:ease-out sm:-mx-6 sm:px-6">
             <div className="flex items-center justify-between gap-3">
@@ -574,7 +559,6 @@ export function EditProfileFormComponent({ initialData, onSuccess }: EditProfile
                 </Button>
                 <Button
                   type="submit"
-                  // A taken username stays submittable so the submit can reveal its error on the Profile tab.
                   disabled={isLoading || usernameStatus === 'checking'}
                   data-testid="profile-save"
                 >

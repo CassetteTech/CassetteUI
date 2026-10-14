@@ -27,11 +27,8 @@ const HOST_PLATFORMS: Record<string, string> = {
 
 export interface ParsedProfileLink {
   href: string;
-  /** Display name for known platforms, bare hostname otherwise. */
   platform: string;
-  /** "@handle" when derivable from the URL path, else the platform name. */
   label: string;
-  /** 24x24 currentColor SVG path; undefined falls back to a globe icon. */
   iconPath?: string;
 }
 

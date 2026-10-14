@@ -25,13 +25,6 @@ type LoopArgs = {
   stars: RefObject<Star[]>
 }
 
-/**
- * The requestAnimationFrame paint loop — eases each series toward its target
- * surface, paints the dither fill (with the entrance reveal), then layers the
- * crosshair marker and winking stars on top. Lives outside the component so the
- * component stays small and this hot closure isn't re-created on every render.
- * Returns a cleanup that cancels the loop.
- */
 function startCartesianLoop({
   canvas,
   bloomCanvas,
@@ -65,7 +58,6 @@ function startCartesianLoop({
   const duration = state.current.animationDuration
   const current: Record<string, Surface> = {}
 
-  // `reveal` (0–1) sweeps the fill in left-to-right on first paint.
   const paintFill = (intensity: number, reveal: number) => {
     octx.clearRect(0, 0, cols, rows)
     const s = state.current
@@ -81,14 +73,9 @@ function startCartesianLoop({
           (s.chartType === "line" ? "line" : "area")) === "line"
       const emphasis = s.selectedDataKey ?? s.focusDataKey
       const dim = emphasis !== null && emphasis !== key ? 0.3 : 1
-      // Overlapping (non-stacked) layers thin out front-to-back so they
-      // read as distinct layers instead of a muddy blend.
       const sparse = stacked ? 0 : si * 0.14
       for (let x = 0; x < cols; x++) {
         if (x > revealCols) break
-        // For a value that dips below the zero baseline the value line ends up
-        // *below* the floor in pixels; paintColumn needs the higher edge first,
-        // so order the pair (a no-op for the common positive case).
         const a = cur.top[x] ?? 0
         const b = cur.floor[x] ?? 0
         paintColumn(octx, x, Math.min(a, b), Math.max(a, b), seed, {
@@ -130,14 +117,13 @@ function startCartesianLoop({
     const tgt = targets.current
     if (s.revision !== lastRevision) {
       lastRevision = s.revision
-      animStart = 0 // re-play the entrance on data change / replay
+      animStart = 0
       lastProg = -1
       entranceReported = false
     }
     if (!animStart) animStart = now
     const prog = animate ? Math.min(1, (now - animStart) / duration) : 1
     const progChanged = prog !== lastProg
-    // Tell the context the reveal is done so DOM markers fade in in sync.
     if (prog >= 1 && !entranceReported) {
       entranceReported = true
       s.markEntranceDone()
@@ -221,8 +207,6 @@ function startCartesianLoop({
       tick += 1
     }
 
-    // Reveal front (left-to-right) — stars + crosshair stay behind it so
-    // they don't float over the not-yet-drawn area during the entrance.
     const reveal = animate ? easeInOutCubic(prog) : 1
     const revealCols = reveal * cols
 
@@ -243,8 +227,6 @@ function startCartesianLoop({
         if (!cur) continue
         const seed = s.seedOf(key)
         const my = Math.round(cur.top[mx] ?? 0)
-        // Full-height column + a chunky marker block at the point — the
-        // series colour at higher opacity, so it reads on either theme.
         c.fillStyle = rgb(seed.fill, 1, 0.55)
         for (let y = my; y < rows; y++) c.fillRect(mx, y, 1, 1)
         c.fillStyle = rgb(seed.fill)
@@ -258,20 +240,16 @@ function startCartesianLoop({
       const sx = Math.round(
         (star.xi / Math.max(s.dataLength - 1, 1)) * (cols - 1)
       )
-      if (sx > revealCols) continue // behind the reveal front
+      if (sx > revealCols) continue
       const top = cur.top[sx] ?? 0
       const floor = cur.floor[sx] ?? rows - 1
       const sy = Math.round(top + star.depth * (floor - top))
       const tw = reduce ? 0.85 : (Math.sin((tick + star.phase) * 0.35) + 1) / 2
       const lift = tw * (0.7 + 0.3 * intensity)
       if (lift < 0.55 || sy < 0 || sy >= rows) continue
-      // Sparkles glint in the series colour via opacity (the `lift` wink)
-      // rather than a lighter shade — so they never read as stray white
-      // pixels on a light background.
       const starColor = s.seedOf(star.key).fill
       c.fillStyle = rgb(starColor, 1, lift)
       c.fillRect(sx, sy, 1, 1)
-      // At the peak of a wink the star flares into a 4-point glint.
       if (tw > 0.9) {
         c.fillStyle = rgb(starColor, 1, lift * 0.6 * (tw - 0.9) * 10)
         c.fillRect(sx - 1, sy, 1, 1)
@@ -286,13 +264,6 @@ function startCartesianLoop({
   return () => cancelAnimationFrame(raf)
 }
 
-/**
- * Continuous dither canvas for area and line charts. Each series is reduced to a
- * `[top, floor]` band per backing column: areas fill from their value line down
- * to their floor; lines fill only a thin glow band hugging the line. The shared
- * {@link paintColumn} renders the ordered-dither scatter, capped by the bright
- * series line, with winking stars + scrub crosshair on top.
- */
 export function CartesianCanvas() {
   const ctx = useChart()
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -302,10 +273,6 @@ export function CartesianCanvas() {
   const { cols, rows } = backingSize(width, height)
   const { ready, chartType, configKeys, bands, seriesSpecs, y, dataLength } = ctx
 
-  // Memoized: the pricey bit in the render path — a `resample` per series to
-  // the backing column count. The canvas re-renders on every hover/cursor tick
-  // (it consumes ctx), so without this the whole surface is rebuilt each time.
-  // Pinned to the exact ctx fields it reads, plus the backing geometry.
   const targets = useMemo(() => {
     const out: Record<string, Surface> = {}
     if (!ready) return out
@@ -325,8 +292,6 @@ export function CartesianCanvas() {
     return out
   }, [ready, chartType, configKeys, bands, seriesSpecs, y, height, rows, cols])
 
-  // Memoized: the star field is deterministic — only its shape (series ×
-  // column count) matters, so it need not be rebuilt on unrelated re-renders.
   const stars = useMemo(() => {
     const out: Star[] = []
     const per = Math.max(4, Math.round(cols / 14))
@@ -344,10 +309,6 @@ export function CartesianCanvas() {
     return out
   }, [configKeys, dataLength, cols])
 
-  // The RAF loop reads these through refs so it always sees the latest values
-  // without re-subscribing. Refs are written in an effect (never during
-  // render) — mutating a ref mid-render is a React anti-pattern that tears
-  // under Strict Mode / concurrent rendering.
   const stateRef = useRef(ctx)
   const targetsRef = useRef(targets)
   const starsRef = useRef(stars)

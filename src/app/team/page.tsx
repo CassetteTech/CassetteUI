@@ -18,10 +18,6 @@ const teamStats = [
   { value: "2022", label: "Founded" },
 ];
 
-/**
- * Mirrors /about's structure: pinned pixel hero, curtain sheet, liner-notes
- * strip, then the roster and values bands.
- */
 export default function TeamPage() {
   const [expandedMember, setExpandedMember] = React.useState<string | null>(
     null
@@ -29,7 +25,6 @@ export default function TeamPage() {
 
   return (
     <div className="relative">
-      {/* Pinned image hero — the sheet below scrolls up and over it */}
       <TeamPixelHero />
 
       <CurtainSheet tab="The Crew">
@@ -39,13 +34,10 @@ export default function TeamPage() {
           <StatStrip items={teamStats} />
         </section>
 
-        {/* Roster on page background */}
         <TeamGrid onSelectMember={setExpandedMember} />
 
-        {/* Values — dark statement band */}
         <ValuesSection />
 
-        {/* Support — quiet ruled strip */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <KofiSupportBand
             title="Back The Team"
@@ -53,10 +45,8 @@ export default function TeamPage() {
           />
         </div>
 
-        {/* Closing CTA — navy band, bookended with the hero halftone */}
         <JoinCTA />
 
-        {/* Print-sheet footer — paper dithers up into the navy band */}
         <MarketingFooter />
       </CurtainSheet>
 

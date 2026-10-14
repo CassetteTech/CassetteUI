@@ -82,9 +82,6 @@ export function SkeletonSwap({
 
   const box = reserve ?? lines * lineHeight;
 
-  // Not a scroll container: an `overflow` + `overscroll-contain` wrapper here
-  // blocks wheel/touch scroll chaining to the parent list even when it has
-  // nothing to scroll. Callers own scrolling.
   return (
     <div
       aria-busy={!ready}

@@ -1,7 +1,5 @@
 'use client';
 
-/** Creates, edits, and manages curator membership plans from server-provided pricing policy. */
-
 import { useContext, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
@@ -71,7 +69,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 type PlanAction = { kind: 'publish' | 'archive' | 'end-memberships'; planId: string };
-/** `live` adds the public page link and a copy action. */
 type PlanNotice = { text: ReactNode; tone: StudioNoticeTone; live?: true };
 
 const planActions = {
@@ -106,7 +103,6 @@ const feeFormatter = new Intl.NumberFormat('en-US', { style: 'percent', maximumF
 const monthlyMinMinor = 500;
 const monthlyMaxMinor = 10_000;
 const defaultMonthlyPrice = '5.00';
-// Common price points inside the contract bounds; one tap sets the field.
 const suggestedMonthlyOptions = [5, 10, 15, 25].map((dollars) => ({
   value: dollars.toFixed(2),
   label: `$${dollars}`,
@@ -123,19 +119,14 @@ function priceText(amountMinor: number | null): string {
   return amountMinor === null ? '' : (amountMinor / 100).toFixed(2);
 }
 
-/** Everything the curator has entered in the draft form. The fields, the fan
-    preview, and the saved request all read this one value. */
 type PlanDraft = {
   name: string;
   description: string;
   monthlyPrice: string;
   annualPrice: string;
-  /** null until the curator picks features for a new draft; the form then shows the default selection. */
   featureKeys: string[] | null;
 };
 
-// Member-only posts are what a membership unlocks, and features freeze at publish,
-// so a new draft starts with them selected when the feature catalog offers them.
 const defaultFeatureKey = 'member_posts';
 
 const emptyDraft: PlanDraft = {
@@ -161,7 +152,6 @@ function replacePlan(plans: CuratorPlan[] | undefined, saved: CuratorPlan): Cura
     : [saved, ...plans];
 }
 
-/** A saved plan's fan price: the frozen fee when published, else today's policy. */
 function planPrice(faceMinor: number, serviceFeeMinor: number | null, pricing: CuratorPricing): PreviewPrice {
   return {
     faceMinor,
@@ -179,7 +169,6 @@ function StepLink({ href, children }: { href: string; children: ReactNode }) {
   const steps = useContext(StudioStepsContext);
   const sectionId = href.slice(1);
   return (
-    // An in-app visit opens the section and focuses it; a new-tab click opens the section URL.
     <Link
       href={studioHref(sectionId)}
       className="underline underline-offset-2"
@@ -193,14 +182,12 @@ function StepLink({ href, children }: { href: string; children: ReactNode }) {
   );
 }
 
-/** The fan price under a plan figure: frozen once published, set at publish before that. */
 function fanPriceHint(faceMinor: number, serviceFeeMinor: number | null, currency: string) {
   return serviceFeeMinor === null
     ? 'Fan price set at publish'
     : `Fans pay ${money(faceMinor + serviceFeeMinor, currency)} (frozen)`;
 }
 
-/** What a plan unlocks, in words rather than a count. */
 function MemberFeatures({ names }: { names: string[] }) {
   return (
     <p className="text-sm">
@@ -211,11 +198,9 @@ function MemberFeatures({ names }: { names: string[] }) {
   );
 }
 
-/** One publishing requirement: met, checking, retryable failure, or a link to the step that fixes it. */
 function RequirementValue({ met, pending, onRetry, metLabel, unmetLabel, href }: {
   met: boolean;
   pending?: boolean;
-  /** Present only when the underlying query failed. */
   onRetry?: () => void;
   metLabel: string;
   unmetLabel: string;
@@ -240,7 +225,6 @@ function RequirementValue({ met, pending, onRetry, metLabel, unmetLabel, href }:
   return <StepLink href={href}>{unmetLabel}</StepLink>;
 }
 
-/** Text price field framed by a currency sign and the billing interval. */
 function PriceField({ unit, className, ...props }: React.ComponentProps<typeof Input> & { unit: string }) {
   return (
     <div className="relative">
@@ -256,13 +240,8 @@ function PriceField({ unit, className, ...props }: React.ComponentProps<typeof I
   );
 }
 
-// Stable identity, so React calls it once on mount: focus moves from the control
-// that unmounted to the one that replaced it.
 const focusOnMount = (node: HTMLElement | null) => node?.focus();
 
-/** Adds the one-time annual price to a published plan. The plan list is refetched
-    after the request settles, so the card only changes once the server confirms it.
-    Once the plan has an annual price the adder renders nothing. */
 function AnnualPriceAdder({ plan, refresh, onAdded }: {
   plan: CuratorPlan;
   refresh: () => Promise<void>;
@@ -285,7 +264,6 @@ function AnnualPriceAdder({ plan, refresh, onAdded }: {
   const inputError = !entered || valid
     ? null
     : annualMinor === null ? 'Enter a valid annual price.' : 'Annual price can be at most 12 monthly payments.';
-  // Bridge's conflict copy names the exact blocker (plan state, profile state, or a price already added).
   const requestError = add.error instanceof CuratorPageError && add.error.status === 409
     ? add.error.message
     : getUserFacingApiErrorMessage(add.error, 'The annual price was not added.');
@@ -326,9 +304,6 @@ function AnnualPriceAdder({ plan, refresh, onAdded }: {
       <p id={`plan-${plan.id}-annual-help`} className={cn('text-xs', inputError ? 'text-destructive' : 'text-muted-foreground')}>
         {inputError ?? `Up to ${money(plan.amountMinor * 12, plan.currency)}. Once added, it cannot change.`}
       </p>
-      {/* Bridge prices the annual term from the plan's frozen fee schedule. The plan response
-          carries only the frozen monthly fee, and today's policy can match that fee yet price the
-          annual term differently, so no fan estimate is shown. */}
       {valid && <p className="text-xs text-muted-foreground">Fan fees follow this plan&apos;s original terms.</p>}
       {add.isError && <p role="alert" className="text-sm text-destructive">{requestError}</p>}
       <div className="flex flex-col gap-2 sm:flex-row">
@@ -345,8 +320,6 @@ function AnnualPriceAdder({ plan, refresh, onAdded }: {
 
 export function CuratorPlanCard({ profile, preview }: {
   profile: CuratorProfile | null;
-  /** Whether the Membership view is showing. There the rail previews the plan being designed;
-      elsewhere it shows what visitors see now. */
   preview: boolean;
 }) {
   const { user } = useAuthState();
@@ -359,16 +332,12 @@ export function CuratorPlanCard({ profile, preview }: {
   const formRef = useRef<HTMLFormElement>(null);
   const monthlyRef = useRef<HTMLInputElement>(null);
   const annualRef = useRef<HTMLInputElement>(null);
-  // Lives above the disclosure, so folding the form away keeps what was entered.
   const [draft, setDraft] = useState<PlanDraft>(emptyDraft);
   const updateDraft = (change: Partial<PlanDraft>) => setDraft((current) => ({ ...current, ...change }));
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [notice, setNotice] = useState<PlanNotice | null>(null);
-  // With no plans the form is always open; once plans exist the curator opens it.
   const [createOpen, setCreateOpen] = useState(false);
-  // Saved draft currently loaded into the form.
   const [editingId, setEditingId] = useState<string | null>(null);
-  // With a live plan the card folds to a summary; the curator opens the tools on demand.
   const [expanded, setExpanded] = useState(false);
   const plansKey = ['curator-plans', profile?.id ?? 'none'] as const;
   const plans = useQuery({
@@ -406,9 +375,6 @@ export function CuratorPlanCard({ profile, preview }: {
       if (profile) {
         queryClient.setQueryData<CuratorPlan[]>(plansKey, (current) => replacePlan(current, saved));
       } else {
-        // Bridge creates the curator profile with the first draft. The new profile's plan and
-        // pricing reads are seeded before it lands, so nothing on the page flashes a loading state.
-        // An older read started before the save would answer "no profile", so it is cancelled first.
         await queryClient.cancelQueries({ queryKey: profileQueryKey });
         const created = await fetchOwnCuratorProfile().catch(() => null);
         if (created) {
@@ -416,12 +382,10 @@ export function CuratorPlanCard({ profile, preview }: {
           queryClient.setQueryData(['curator-pricing', created.id], pricing.data);
           queryClient.setQueryData(profileQueryKey, created);
         } else {
-          // The draft is saved; the page's own profile read retries, then loads the draft list.
           await queryClient.invalidateQueries({ queryKey: profileQueryKey });
         }
       }
       resetForm();
-      // Fold the form away so the freshly saved draft is what the curator sees.
       setCreateOpen(false);
       setNotice({ text: planId ? 'Draft updated.' : 'Draft saved. Publishing remains optional.', tone: 'success' });
     },
@@ -439,20 +403,14 @@ export function CuratorPlanCard({ profile, preview }: {
   const change = useMutation({
     mutationFn: ({ kind, planId }: PlanAction) => planActions[kind].run(planId),
     onSuccess: async (saved, action) => {
-      // A plan list read sent before this action, such as the annual price refresh, would overwrite its result.
       await queryClient.cancelQueries({ queryKey: plansKey });
       queryClient.setQueryData<CuratorPlan[]>(plansKey, (current) => replacePlan(current, saved));
-      // Ending memberships also archives the live offer, which the response does not carry,
-      // and turns every active member into one who will not renew.
       if (action.kind === 'end-memberships') {
         void queryClient.invalidateQueries({ queryKey: plansKey });
         void queryClient.invalidateQueries({ queryKey: ['curator-member-stats'] });
       }
       setExpanded(true);
       setNotice(planActions[action.kind].notice);
-      // A first publish swaps the setup steps above this card for the member figures,
-      // so bring the card and its live link back into view, unless the person has moved
-      // to another view meanwhile. A pending mutation reads the latest render's options.
       if (action.kind === 'publish' && preview) views?.open('studio-plan');
     },
     onError: () => Promise.all([
@@ -464,8 +422,6 @@ export function CuratorPlanCard({ profile, preview }: {
 
   const plansData = profile ? plans.data : [];
   const editingPlan = plansData?.find((plan) => plan.id === editingId && plan.status === 'draft') ?? null;
-  // A draft that was published or deleted elsewhere drops out of edit mode, and
-  // its values leave the form with it.
   if (editingId !== null && plansData && !editingPlan) resetForm();
   const monthlyMinor = priceMinor(draft.monthlyPrice);
   const annualEntered = draft.annualPrice.trim() !== '';
@@ -497,13 +453,10 @@ export function CuratorPlanCard({ profile, preview }: {
     : null;
   const activePlan = plansData?.find((plan) => plan.status === 'active') ?? null;
   const profileReady = profile?.status === 'active';
-  // Publishing needs a payout account Stripe has verified for transfers.
   const payoutReady = payout.data?.transfersCapabilityStatus === 'active';
   const payoutConfirmed = payoutReady && !payout.isPending && !payout.isError;
-  // A suspended profile is explained by Studio's suspension alert above every view.
   const gatesConfirmed = profileReady && payoutConfirmed;
   const featureByKey = new Map(features.data?.map((feature) => [feature.featureKey, feature]));
-  // Bridge refuses an inactive feature key, so the default applies only to a feature the form can show and clear.
   const draftFeatureKeys = draft.featureKeys ?? (featureByKey.has(defaultFeatureKey) ? [defaultFeatureKey] : []);
   const namesFor = (keys: string[]) => keys.map((key) => featureByKey.get(key)?.displayName ?? key);
   const benefitsFor = (keys: string[]) => keys.map((key) => ({
@@ -515,14 +468,9 @@ export function CuratorPlanCard({ profile, preview }: {
   const firstName = user?.displayName.trim().split(/\s+/)[0];
   const publicPath = user?.username ? `/profile/${encodeURIComponent(user.username)}` : null;
   const corePending = (profile !== null && plans.isPending) || features.isPending || pricing.isPending;
-  // With no profile the plan list is not read, so only features and pricing can fail.
   const coreError = (profile !== null && plans.isError) || features.isError || pricing.isError;
   const busy = save.isPending || remove.isPending;
 
-  // One membership pass for the whole Studio, portaled into the page rail. On the Membership view it
-  // previews the plan: the form's live estimate while it is open, else the active plan, else the
-  // draft. Other views show what visitors see now: the live plan's pass, else the dashboard's
-  // profile pass.
   const passPlan = preview
     ? activePlan ?? plansData?.find((plan) => plan.status === 'draft') ?? null
     : activePlan;
@@ -555,14 +503,12 @@ export function CuratorPlanCard({ profile, preview }: {
       annual={passPlan.annualAmountMinor === null ? null : planPrice(passPlan.annualAmountMinor, passPlan.annualServiceFeeMinor, pricing.data)}
     />
   );
-  // The pass rises in like the cards; a handoff from another page finishes the rise and slides instead.
   const rail = passSlot && pass ? createPortal(
     <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2.5 motion-safe:duration-450 motion-safe:ease-out-quart">
       {pass}
     </div>,
     passSlot,
   ) : null;
-  // Until the reads behind the pass answer, the pass leaving the previous page waits in the rail for it.
   useSharedPositionHold('membership-pass', !rail && (pricing.isPending || (profile !== null && plans.isPending)), passSlot);
 
   const startEditing = (plan: CuratorPlan) => {
@@ -629,7 +575,6 @@ export function CuratorPlanCard({ profile, preview }: {
         className="mb-8"
         action={notice?.live && publicPath && (
           <div className="flex flex-wrap items-center gap-2">
-            {/* Rendered only after a publish, so reading window is client-only. */}
             <Link href={publicPath} className="inline-flex items-center gap-1 font-mono text-xs underline underline-offset-2">
               {window.location.host}{publicPath}
               <ArrowUpRight aria-hidden className="size-3.5" />
@@ -667,7 +612,6 @@ export function CuratorPlanCard({ profile, preview }: {
         ) : (
           <>
             {plansData.length > 0 && (
-            // One plan per row on the panel itself: rules separate them, not nested boxes.
             <section aria-labelledby="saved-plans-title">
               <h3 id="saved-plans-title" className="sr-only">Your plans</h3>
               {change.isError && (
@@ -684,7 +628,6 @@ export function CuratorPlanCard({ profile, preview }: {
               <div className="divide-y divide-border/70">
               {plansData.map((plan) => {
                 const blockedByActivePlan = activePlan !== null && activePlan.id !== plan.id;
-                // Bridge refuses to publish a plan with no features; they cannot change after publish.
                 const missingFeatures = plan.featureKeys.length === 0;
                 const canPublish = plan.status === 'draft' && gatesConfirmed && !blockedByActivePlan && !missingFeatures;
                 const changing = change.isPending && change.variables?.planId === plan.id;
@@ -704,7 +647,6 @@ export function CuratorPlanCard({ profile, preview }: {
                         {editing ? 'Editing' : plan.status}
                       </p>
                     </div>
-                    {/* The live summary's figures: the curator's price, with the fan price under it. */}
                     <dl className="grid grid-cols-2 gap-3">
                       <StudioStat
                         label="Monthly price"
@@ -795,7 +737,6 @@ export function CuratorPlanCard({ profile, preview }: {
                             Edit the draft to include at least one feature before you publish.
                           </p>
                         )}
-                        {/* The payout requirement, with the way to meet it. */}
                         {!payoutConfirmed && (
                           <p id={`plan-${plan.id}-gates`} className="text-xs text-muted-foreground">
                             Fans can join once Stripe verifies your payout account.{' '}
@@ -819,7 +760,6 @@ export function CuratorPlanCard({ profile, preview }: {
                         plan={plan}
                         refresh={() => queryClient.invalidateQueries({ queryKey: plansKey })}
                         onAdded={() => {
-                          // An Archive or End memberships that settled first keeps its notice.
                           const current = queryClient.getQueryData<CuratorPlan[]>(plansKey)?.find((candidate) => candidate.id === plan.id);
                           if (current?.status === 'active') {
                             setNotice({ text: 'Annual price added. Fans can now choose yearly billing.', tone: 'success' });
@@ -889,7 +829,6 @@ export function CuratorPlanCard({ profile, preview }: {
             </section>
             )}
 
-            {/* With no plans the form is the card; once plans exist, creating another is opt-in. */}
             <Collapsible
               open={formOpen}
               onOpenChange={setCreateOpen}
@@ -901,7 +840,6 @@ export function CuratorPlanCard({ profile, preview }: {
                     type="button"
                     className="group -mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    {/* One indicator: the plus turns into a close mark while the form is open. */}
                     <Plus aria-hidden className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-45 motion-reduce:transition-none" />
                     {editingPlan ? `Edit draft: ${editingPlan.name}` : 'Create a draft'}
                   </button>
@@ -936,7 +874,6 @@ export function CuratorPlanCard({ profile, preview }: {
                     });
                   }}
                 >
-                  {/* Fields on the left and the estimate on the right where the panel is wide enough beside the rail; one column elsewhere. */}
                   <div className="grid gap-8 min-[1400px]:grid-cols-[minmax(0,40rem)_20rem] min-[1400px]:justify-between min-[1400px]:gap-10">
                     <div className="min-w-0 space-y-6">
                       <div className="space-y-2">
@@ -965,10 +902,8 @@ export function CuratorPlanCard({ profile, preview }: {
                         </p>
                       </div>
 
-                      {/* Two columns only where the panel is wide: below lg, and from xl, where the rail leaves room. */}
                       <div className="grid gap-5 sm:max-lg:grid-cols-2 xl:grid-cols-2">
                         <div className="space-y-2">
-                          {/* The field shows the currency itself; the parenthetical stays in the accessible name. */}
                           <Label htmlFor="curator-plan-monthly">Monthly price<span className="sr-only"> (USD)</span></Label>
                           <PriceField
                             ref={monthlyRef}
@@ -986,7 +921,6 @@ export function CuratorPlanCard({ profile, preview }: {
                               {monthlyError}
                             </p>
                           )}
-                          {/* A typed price outside the presets checks none of them. */}
                           <SegmentedControl
                             label="Suggested monthly prices"
                             options={suggestedMonthlyOptions}
@@ -1018,7 +952,6 @@ export function CuratorPlanCard({ profile, preview }: {
                         </div>
                       </div>
 
-                      {/* Plain rows on the panel: a checked box is the only selected state. */}
                       <fieldset>
                         <legend className="text-sm font-medium">Included features</legend>
                         {features.data.length === 0 ? (
@@ -1056,7 +989,6 @@ export function CuratorPlanCard({ profile, preview }: {
                       </fieldset>
 
                     </div>
-                    {/* The curator's side of the price; the fan's side is the pass in the rail. */}
                     <section aria-labelledby="economics-title" className="min-w-0 max-w-sm space-y-3 min-[1400px]:max-w-none">
                       <div>
                         <h3 id="economics-title" className="text-sm font-medium">What you earn</h3>
@@ -1077,7 +1009,6 @@ export function CuratorPlanCard({ profile, preview }: {
                         <div>
                           <dt className="text-muted-foreground">Payouts</dt>
                           <dd className="mt-0.5 text-sm">
-                            {/* capitalize only the cadence word, not the whole sentence */}
                             <span className="capitalize">{pricing.data.payoutCadence}</span>
                             , after your balance reaches{' '}
                             <span className="font-mono tabular-nums">{money(pricing.data.minPayoutMinor, pricing.data.currency)}</span>. Smaller cleared balances are paid after 90 days.
@@ -1093,7 +1024,6 @@ export function CuratorPlanCard({ profile, preview }: {
                       {' '}Review the refreshed saved plans before trying again.
                     </p>
                   )}
-                  {/* The actions close the whole form, under both columns. */}
                   <div className="mt-6 flex flex-col gap-2 border-t border-border/70 pt-5 sm:flex-row sm:flex-wrap">
                     <Button
                       type="submit"

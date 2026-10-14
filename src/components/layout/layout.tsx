@@ -1,7 +1,5 @@
 'use client';
 
-// Hosts the client application layout, session refresh, and route-level analytics lifecycle.
-
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { authService } from '@/services/auth';
@@ -20,7 +18,6 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const pathname = usePathname();
   const { isLoading } = useAuthState();
-  // No longer need isMobileMenuOpen state
 
 useEffect(() => {
   const disposeAuthListener = authService.initializeAuthListener();
@@ -35,12 +32,10 @@ useEffect(() => {
   const isOnboardingPage = pathname?.startsWith('/onboarding');
   const isProfilePage = pathname?.startsWith('/profile') || pathname?.startsWith('/curator') || pathname?.startsWith('/studio') || pathname?.startsWith('/memberships') || pathname?.startsWith('/feed') || pathname?.startsWith('/internal');
   const isProfileRoute = pathname?.startsWith('/profile');
-  // Studio and Memberships are money surfaces: sidebar on desktop, no marketing footer or donation ask.
   const isStudioRoute = pathname?.startsWith('/studio') || pathname?.startsWith('/memberships');
   // The home page and its concepts at /1 … /11 own their hero and footer.
   const isHomePage = isHeroRoute(pathname);
   const isPostPage = pathname?.startsWith('/post');
-  // /about and /team render their own MarketingFooter inside the curtain sheet
   const isStoryPage = pathname === '/about' || pathname === '/team';
 
   const showNavbar = !isAuthPage;
@@ -52,7 +47,6 @@ useEffect(() => {
 
   return (
     <div className="min-h-svh flex flex-col relative">
-      {/* We don't render MobileMenu here anymore, it's self-contained in Navbar */}
       
       {showNavbar && (
         <div className={isProfilePage ? 'lg:hidden' : ''}>
@@ -67,7 +61,6 @@ useEffect(() => {
           <Footer />
         </div>
       )}
-      {/* Ko-fi button stays off post/conversion pages, money/content surfaces (profile, studio), and account creation (auth, onboarding) */}
       {!isPostPage && !isProfileRoute && !isStudioRoute && !isAuthPage && !isOnboardingPage && (
         <div className={isProfilePage ? 'lg:hidden' : ''}>
           <SupportFloatingButton />

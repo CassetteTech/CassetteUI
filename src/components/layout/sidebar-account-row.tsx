@@ -1,13 +1,9 @@
 'use client';
 
-/** Compact signed-in identity for the sidebar: avatar, name, and handle. The inbox is in the sidebar header. */
-
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { AuthUser } from '@/types';
 
-/** active marks the own profile page; the sidebar's sliding indicator follows data-active.
-    The avatar shares the left edge of the sidebar's page rows. */
 export function SidebarAccountRow({ user, active = false }: { user: AuthUser; active?: boolean }) {
   const name = user.displayName || user.username;
   return (

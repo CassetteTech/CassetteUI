@@ -15,9 +15,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 /**
- * Cross-fades the whole page from the old theme to the new one with a view transition.
  * flushSync applies the theme class inside the transition callback, so the browser
- * snapshots the new theme. Reduced motion and unsupported browsers switch instantly.
+ * snapshots the new theme.
  */
 function useCrossFadeSetTheme() {
   const { setTheme } = useTheme()
@@ -66,7 +65,6 @@ const THEME_OPTIONS = [
   { value: 'system', label: 'System', Icon: Monitor },
 ] as const
 
-/** Inline Light / Dark / System choice; the selected option uses the sidebar's active-row fill. */
 export function ThemeSegmentedControl() {
   const { theme } = useTheme()
   const setTheme = useCrossFadeSetTheme()

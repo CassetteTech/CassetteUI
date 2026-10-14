@@ -1,5 +1,3 @@
-/** Covers the Feed page contract through the real profile service: the strict post and locked union and both counts. */
-
 import './browser-service-environment';
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,7 +22,6 @@ const locked = (postId: string) => ({
   curator: { id: 'cpr_Night01', username: 'night-curator', displayName: null, avatarUrl: null },
 });
 
-/** A Feed page as Bridge may send it; a count may be left out or invalid on purpose. */
 type FeedBody = { items: object[]; nextCursor: string; activeMembershipCount?: number; feedCuratorCount?: number };
 type Counts = Pick<FeedBody, 'activeMembershipCount' | 'feedCuratorCount'>;
 

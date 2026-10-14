@@ -19,9 +19,8 @@ export function Providers({ children }: ProvidersProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000, // 1 minute
+            staleTime: 60 * 1000,
             retry: (failureCount, error: Error & { status?: number }) => {
-              // Don't retry on 4xx errors
               if (error?.status && error.status >= 400 && error.status < 500) {
                 return false;
               }

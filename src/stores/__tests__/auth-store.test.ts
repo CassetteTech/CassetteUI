@@ -1,5 +1,3 @@
-/** Covers the auth store's session transitions: unknown, signed in, error, profile edits, and sign-out. */
-
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AuthUser } from '../../types';

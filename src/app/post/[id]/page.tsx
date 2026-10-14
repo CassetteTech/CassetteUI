@@ -32,7 +32,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = post.description;
   const artwork = post.imageUrl;
 
-  // Determine og:type based on element type
   const elementType = post.elementType?.toLowerCase();
   let ogType: 'music.song' | 'music.album' | 'music.playlist' | 'profile' | 'website' = 'website';
   if (elementType === 'track') ogType = 'music.song';
@@ -72,8 +71,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PostPage({ params }: Props) {
   const { id } = await params;
-  // Shares the generateMetadata fetch via cache() and gives the initial RSC
-  // render safe public text without loading the full post graph.
   const initialMetadata = await fetchPostForMetadata(id);
   return <PostClientPage postId={id} initialMetadata={initialMetadata} />;
 }

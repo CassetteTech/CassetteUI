@@ -14,13 +14,9 @@ import { FinalCTA } from "./_components/FinalCTA";
 import { MarketingFooter } from "@/components/features/marketing/marketing-footer";
 import { linerNotes } from "./_data";
 
-/**
- * A pinned pixel hero, then a curtain content sheet that scrolls up over it.
- */
 export default function AboutPage() {
   return (
     <div className="relative">
-      {/* Pinned image hero — the sheet below scrolls up and over it */}
       <PixelHero />
 
       <CurtainSheet tab="The Story">
@@ -30,10 +26,8 @@ export default function AboutPage() {
           <StatStrip items={linerNotes} />
         </section>
 
-        {/* The Problem — charcoal statement band */}
         <ProblemSection />
 
-        {/* Live smart-link demo — the answer, straight after the problem */}
         <div className="relative">
           <DitherEdge color="hsl(var(--background))" side="top" />
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -41,24 +35,18 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* The Profile — cream band: interactive demo + a real profile card */}
         <MusicIdentitySection />
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Spool-line timeline */}
           <JourneyTimeline />
         </div>
 
-        {/* Vision — dark statement band */}
         <VisionSection />
 
-        {/* Supporters — light band to blend with the Ko-fi widget */}
         <SupportersShowcase />
 
-        {/* Closing CTA — wine band, bookended with the hero halftone */}
         <FinalCTA />
 
-        {/* Print-sheet footer — paper dithers up into the wine band */}
         <MarketingFooter />
       </CurtainSheet>
     </div>

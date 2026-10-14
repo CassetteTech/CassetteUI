@@ -2,8 +2,6 @@ import type { InternalSignupLinkTemplate } from '@/types';
 
 export const DEFAULT_TEMPLATE_DESTINATION = '/signup';
 
-// Sentinel destination: the template is used from the Share menu on post pages,
-// where the concrete /post/{id} link and utm_content tag are filled in per post.
 export const POST_SHARE_DESTINATION = '/post';
 
 export const TEMPLATE_DESTINATION_PRESETS = [
@@ -57,8 +55,6 @@ export function buildTemplateUrl(origin: string, template: TemplateAttributionVa
   return `${origin.replace(/\/+$/, '')}${buildTemplateRelativePath(template)}`;
 }
 
-// Share link for a post: template supplies source/medium/campaign, the post supplies the
-// destination and identifies itself via utm_content so signups can be traced back to it.
 export function buildAttributedPostPath(postId: string, template: TemplateAttributionValues): string {
   const params = buildAttributionParams(template);
   params.set('utm_content', `post-${postId}`);

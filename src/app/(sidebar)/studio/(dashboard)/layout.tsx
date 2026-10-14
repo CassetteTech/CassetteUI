@@ -1,13 +1,5 @@
 'use client';
 
-/** Curator Studio, shared by every dashboard URL: the header, the section links,
-    and the right rail with the pass and the audience. Studio opens on Music, an
-    ordinary page that renders as `children`. The Membership and Payouts & billing
-    views live here and stay mounted, hidden while another URL is open, so section
-    queries dedupe, a plan draft survives a section change, and Stripe return
-    flows resolve on whichever view shows. Bridge creates the curator profile with
-    the first post, plan draft, or payout setup; it has no editable fields. */
-
 import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
@@ -51,7 +43,6 @@ import { fetchCuratorPlans } from '@/services/curator-plans';
 import { profileService } from '@/services/profile';
 
 const profileQueryKey = ['curator-profile', 'me'] as const;
-// No server record says a page was shared, so this browser remembers the curator copying its link.
 const pageLinkCopiedKey = (userId: string) => `cassette:studio-page-link-copied:${userId}`;
 
 function readPageLinkCopied(userId: string) {
@@ -62,9 +53,6 @@ function readPageLinkCopied(userId: string) {
   }
 }
 
-/** The music step. The owner's own read counts every post they made, so one item finishes it.
-    A failed first read says nothing about the page, so the step is left out until a retry answers.
-    Under the activity key, so adding or deleting a post anywhere refreshes the step. */
 function useMusicStep(userId: string | null) {
   const music = useQuery({
     queryKey: ['user-activity', userId, 'studio-has-music'],
@@ -82,8 +70,6 @@ function useMusicStep(userId: string | null) {
   return { step, retry: unknown ? () => void music.refetch() : null };
 }
 
-/** Whether this user copied their page link in this browser. Read on each render, so a change of
-    signed-in user never carries another user's answer over; the state covers a visit without storage. */
 function usePageLinkCopied(userId: string | null) {
   const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
   const copied = userId !== null && (copiedUserId === userId || readPageLinkCopied(userId));
@@ -93,20 +79,15 @@ function usePageLinkCopied(userId: string | null) {
     try {
       localStorage.setItem(pageLinkCopiedKey(userId), 'true');
     } catch {
-      // The step stays done for this visit.
     }
   };
   return [copied, markCopied] as const;
 }
 
-/** Setup state shared by the next step on Music, the Membership view, the payout card, and the
-    rail. Reads the same query keys the section cards use, so React Query dedupes the requests and
-    every surface stays in sync. */
 function useLaunchSteps(profile: CuratorProfile | null) {
   const { user } = useAuthState();
   const userId = user?.id ?? null;
   const music = useMusicStep(userId);
-  // During a payout provider return, the payout card owns the single refresh request.
   const payoutFlowActive = useSearchParams().has('payout');
   const payout = useQuery({
     queryKey: ['curator-payout-account', 'current'],
@@ -122,7 +103,6 @@ function useLaunchSteps(profile: CuratorProfile | null) {
   });
   const [pageLinkCopied, markPageLinkCopied] = usePageLinkCopied(userId);
 
-  // Publishing needs a payout account Stripe has verified for transfers.
   const payoutStarted = payout.data != null;
   const payoutReady = payout.data?.transfersCapabilityStatus === 'active';
   const hasPlan = plans.data?.some((plan) => plan.status !== 'archived') === true;
@@ -133,7 +113,6 @@ function useLaunchSteps(profile: CuratorProfile | null) {
     { href: '#studio-payouts', label: 'Set up payouts', notice: 'Payout setup is not complete.', done: payoutReady },
     { href: '#studio-plan', label: 'Publish your plan', notice: 'No membership plan is live.', done: hasActivePlan },
   ];
-  // Done once the page link is copied in this browser; the notice does not claim the page was never shared.
   const shareStep: LaunchStep = {
     href: '#studio-share',
     label: 'Share your page',
@@ -158,7 +137,6 @@ function useLaunchSteps(profile: CuratorProfile | null) {
     payoutStarted,
     payoutReady,
     markPageLinkCopied,
-    // Set only while the first music read has failed; cached music survives a failed refresh.
     retryMusic: music.retry,
     // False while a step input has no answer yet (pending, or failed with nothing cached),
     // so an unknown payout state never reads as an open step.
@@ -166,9 +144,6 @@ function useLaunchSteps(profile: CuratorProfile | null) {
   };
 }
 
-/** The pass visitors see on the public page while no plan is live: the profile pass. The plan card
-    portals the live plan's pass instead, and the plan preview on the Membership view. Once the page
-    has music, the pass offers the owner membership setup. */
 function StudioProfilePass({ slot, show, offersMembershipSetup }: {
   slot: HTMLElement | null;
   show: boolean;
@@ -176,7 +151,6 @@ function StudioProfilePass({ slot, show, offersMembershipSetup }: {
 }) {
   const { user } = useAuthState();
   const bio = useUserBio(show ? user?.username : undefined);
-  // Until the bio read answers, the pass leaving the previous page waits in the rail for it.
   useSharedPositionHold('membership-pass', show && bio.isPending, slot);
   if (!show || !slot || !bio.data) return null;
   return createPortal(
@@ -202,13 +176,10 @@ function subscribeToWide(onChange: () => void) {
   return () => query.removeEventListener('change', onChange);
 }
 
-/** True at the `lg` breakpoint, where the share links leave the header for the rail. */
 function useWideLayout() {
   return useSyncExternalStore(subscribeToWide, () => window.matchMedia(wideQuery).matches, () => false);
 }
 
-/** Copy page link and View public page. The Share your page step lands here; focusable so the
-    step can move focus to it. */
 function StudioShareLinks({ onPageLinkCopied, className }: { onPageLinkCopied: () => void; className?: string }) {
   const { user } = useAuthState();
   const username = user?.username ?? null;
@@ -239,10 +210,6 @@ function StudioShareLinks({ onPageLinkCopied, className }: { onPageLinkCopied: (
   );
 }
 
-/** The share links at the top of the rail on wide screens. They stick to the viewport top, and a
-    rail that scrolls, or reaches the end of the column, passes under them; once stuck they carry
-    the page background, which before then would cut a box out of the header glow. The sentinel
-    marks where the band rests, so it leaves the viewport as the band sticks. */
 function StudioRailShareLinks({ onPageLinkCopied }: { onPageLinkCopied: () => void }) {
   const sentinel = useRef<HTMLDivElement>(null);
   const [stuck, setStuck] = useState(false);
@@ -263,13 +230,10 @@ function StudioRailShareLinks({ onPageLinkCopied }: { onPageLinkCopied: () => vo
   );
 }
 
-/** `share` is false on wide screens, where the share links sit at the top of the rail. */
 function StudioHeader({ onPageLinkCopied, share }: { onPageLinkCopied: () => void; share: boolean }) {
   const { user } = useAuthState();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  // Music keeps its filters, so a post added from a tab returns to that tab. Other views keep
-  // only their path; their queries belong to provider returns.
   const musicQuery = pathname === studioPaths['studio-music'] ? searchParams.toString() : '';
   const addMusicFrom = musicQuery ? `${pathname}?${musicQuery}` : pathname ?? studioPaths['studio-music'];
   const username = user?.username ?? null;
@@ -305,8 +269,6 @@ function StudioHeader({ onPageLinkCopied, share }: { onPageLinkCopied: () => voi
   );
 }
 
-/** Scrolls a section into view and focuses its first field, or the section itself. While the
-    profile read has failed, the views behind it render nothing, so its message takes focus. */
 function revealSection(sectionId: string) {
   const section = document.getElementById(sectionId) ?? document.getElementById('studio-profile-error');
   if (!section) return;
@@ -361,19 +323,12 @@ function StudioDashboard({ children }: { children: ReactNode }) {
     staleTime: 0,
   });
   const launch = useLaunchSteps(profile.data ?? null);
-  // A visit that starts from a payout return keeps setup first, so its notice and next step stay put when payouts turn active.
   const [payoutReturn] = useState(launch.payoutFlowActive);
   const [passSlot, setPassSlot] = useState<HTMLElement | null>(null);
-  // The audience rises in with the pass the first time it shows; a later pass handoff shows it at once.
   const [railEntered, setRailEntered] = useState(false);
-  // The plan card, and with it the rail pass, mounts after this read; the pass leaving the
-  // previous page waits in the rail for it.
   useSharedPositionHold('membership-pass', profile.isPending, passSlot);
   const wide = useWideLayout();
 
-  // A section on another view waits until that view's URL is open, then scrolls and takes focus.
-  // Behind a profile read in flight the Membership view holds a skeleton, so a section it
-  // renders also waits for that read to settle. A move to any other view cancels the request.
   const pendingSection = useRef<string | null>(null);
   const shownView = useRef(view);
   useEffect(() => {
@@ -387,7 +342,6 @@ function StudioDashboard({ children }: { children: ReactNode }) {
     }
     if (profile.isPending && !document.getElementById(sectionId)) return;
     pendingSection.current = null;
-    // One frame lets a newly shown view lay out before its section scrolls into view.
     requestAnimationFrame(() => revealSection(sectionId));
   }, [view, profile.isPending]);
 
@@ -403,15 +357,10 @@ function StudioDashboard({ children }: { children: ReactNode }) {
     },
     passSlot,
   }), [passSlot, router, view]);
-  // After a payout return, the notice offers whichever plan step comes next.
   const planStep = launch.stepsKnown
     ? launch.setupSteps.find((step) => step.href === '#studio-plan' && !step.done)
     : undefined;
   const payoutSetup = <CuratorPayoutCard key="payout-setup" nextStep={planStep} />;
-  // One message for a profile read that failed, above every view. A first read that failed leaves
-  // Membership empty; a failed refresh keeps its last answer, so a draft in
-  // progress survives. "No profile" can go stale once a first draft creates one, so a failed read
-  // after it is said too.
   const profileLoaded = !profile.isPending && profile.data !== undefined;
   const profileError = !profile.isPending && (profile.data === undefined || (profile.isError && profile.data === null)) && (
     <div
@@ -442,7 +391,6 @@ function StudioDashboard({ children }: { children: ReactNode }) {
         />
         <StudioSectionLinks view={view} />
 
-        {/* Below the links, the membership pass takes the same right rail as on the public page and stays put across views. */}
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
           <div className="min-w-0">
             {profileError}
@@ -457,7 +405,6 @@ function StudioDashboard({ children }: { children: ReactNode }) {
                 <Button variant="outline" size="sm" onClick={launch.retryMusic}>Try again</Button>
               </div>
             )}
-            {/* Phones show the audience first, so a long music list never buries it. */}
             {profile.data && (
               <div className="mb-6 lg:hidden">
                 <StudioAudience onOpenMembers={openMembers} />
@@ -478,8 +425,6 @@ function StudioDashboard({ children }: { children: ReactNode }) {
               )}
             </div>
             <div className={cn('space-y-6', view !== 'studio-billing' && 'hidden')}>
-              {/* Setup leads until payouts are active; then balances lead and setup is one line.
-                  The keys move both cards without remounting, so a provider return survives the swap. */}
               {launch.payoutReady && !payoutReturn ? [payoutHistory, payoutSetup] : [payoutSetup, payoutHistory]}
               <CuratorProCard />
             </div>
@@ -495,21 +440,16 @@ function StudioDashboard({ children }: { children: ReactNode }) {
             )}
             {children}
           </div>
-          {/* The rail column runs the full height of the page, so the share links on top stay in view
-              all the way down. */}
           <div className="max-lg:contents lg:relative lg:flex lg:flex-col lg:gap-6 lg:self-stretch">
             {wide && <StudioRailShareLinks onPageLinkCopied={launch.markPageLinkCopied} />}
             {/* The rail: the pass, then the audience. Phones show the pass under the main column. It
                 sticks one gap under the share links' band (6 + 8 + 3 + 6). */}
             <div className="max-lg:contents lg:sticky lg:top-23 lg:flex lg:flex-col lg:gap-6">
-              {/* The pass arrives by portal. On wide screens the empty slot keeps its box, so a pass held
-                  over from the previous page can wait on the spot the next pass will fill. */}
               <aside
                 ref={setPassSlot}
                 aria-label={view === 'studio-membership' ? 'Membership plan' : 'Your public pass'}
                 className="peer max-lg:empty:hidden"
               />
-              {/* The audience waits while a pass is still loading above it, so the pass never pushes it down. */}
               {profile.data && (
                 <div
                   className={cn(

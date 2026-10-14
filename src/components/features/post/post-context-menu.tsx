@@ -1,7 +1,5 @@
 'use client';
 
-/** Right-click quick actions for a post: listen links, share, engagement, and owner tools. */
-
 import Image from 'next/image';
 import {
   AlertCircle,
@@ -32,7 +30,6 @@ const listenKeys = ['spotify', 'appleMusic', 'deezer'] as const;
 interface PostContextMenuProps {
   title: string;
   links: MusicLinkConversion['convertedUrls'];
-  /** Analytics hook; the item itself is a real link so deep links and new tabs behave like the Listen buttons. */
   onListen: (url: string, platform: (typeof listenKeys)[number]) => void;
   onShare: () => void;
   liked: boolean;
@@ -46,7 +43,6 @@ interface PostContextMenuProps {
   onReport: () => void;
   isOwner: boolean;
   onEdit: () => void;
-  /** Absent when the owner column is already on the page. */
   onOpenStudio?: () => void;
   onDelete: () => void;
   children: React.ReactNode;

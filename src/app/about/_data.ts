@@ -1,8 +1,6 @@
 import { Stars, Zap, Radio, Music2, Link as LinkIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-// --- Timeline Milestones ---
-
 export interface Milestone {
   year: string;
   title: string;
@@ -72,15 +70,12 @@ export const milestones: Milestone[] = [
   },
 ];
 
-// --- Showcase Links (live smart-link demo rows) ---
-
 export const showcaseLinks: {
   title: string;
   artist: string;
   href: string;
   kind: "Track" | "Album" | "Artist" | "Playlist";
 }[] = [
-  // Playlist conversion leads — it's the differentiator on top of smart links
   {
     title: "Today's Top Hits",
     artist: "Spotify",
@@ -130,8 +125,6 @@ export const showcaseLinks: {
     kind: "Track",
   },
 ];
-
-// --- Liner Notes (stat strip at the top of the content sheet) ---
 
 export const linerNotes = [
   { value: "\u221E", label: "Music Connections" },

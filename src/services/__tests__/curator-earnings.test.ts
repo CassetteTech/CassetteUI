@@ -1,5 +1,3 @@
-/** Verifies curator earnings parsing, pagination, and authenticated request behavior. */
-
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -108,6 +106,5 @@ void test('buckets earned and paid out by month and flags incomplete windows', (
   assert.equal(summary.earned, 1350);
   assert.equal(summary.forfeited, 125);
   assert.equal(summary.complete, true);
-  // Twelve months with only a partial slice loaded and no event older than the period start.
   assert.equal(periodSummary(ledger.slice(0, 5), 40, 12, now).complete, false);
 });

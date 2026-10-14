@@ -1,13 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
-/**
- * While email/password auth is disabled (Google-only), the password reset
- * routes are parked behind redirects in next.config.ts — a password set there
- * could never be used to sign in. These tests pin the redirects; when email
- * auth returns, replace them with real coverage of the reset flow (request,
- * token validation, and the promote-to-full-session happy path).
- */
 test.describe('password reset (parked while email auth is disabled)', () => {
   test('redirects /auth/forgot-password to sign-in', async ({ page }) => {
     await mockCassetteApp(page);

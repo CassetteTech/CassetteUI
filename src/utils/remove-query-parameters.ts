@@ -4,7 +4,6 @@ const pathWithout = (keys: string[]) => {
   return `${url.pathname}${url.search}${url.hash}`;
 };
 
-/** Removes completed handoff parameters without adding a history entry. */
 export function removeQueryParameters(...keys: string[]) {
   window.history.replaceState(window.history.state, '', pathWithout(keys));
 }

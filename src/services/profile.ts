@@ -160,7 +160,6 @@ interface ExploreUsersApiResponse {
 }
 
 export class ProfileService {
-  // Note: Caching is now handled by React Query (see hooks/use-profile.ts)
   private readonly apiBaseUrl = getBrowserApiBaseUrl();
 
   private firstArrayCandidate(...values: unknown[]): unknown[] | undefined {
@@ -599,7 +598,6 @@ export class ProfileService {
       page?: number;
       pageSize?: number;
       elementType?: string;
-      /** Narrows the posts this viewer can see to one audience. */
       privacy?: 'public' | 'subscriber' | 'private';
     } = {},
   ): Promise<PaginatedActivityResponse> {
@@ -703,7 +701,6 @@ export class ProfileService {
     }
   }
 
-  /** Posts from the curators the signed-in viewer follows or joined, newest first. */
   async fetchCuratorFeed(
     options: { cursor?: string; pageSize?: number; membersOnly?: boolean; signal?: AbortSignal } = {},
   ): Promise<CuratorFeedPage> {
@@ -737,7 +734,6 @@ export class ProfileService {
     ).items;
     let postIndex = 0;
     return {
-      // One server order for both kinds: full rows take their mapped posts in sequence.
       items: items.map((item): CuratorFeedItem =>
         item.kind === 'post' ? { kind: 'post', post: posts[postIndex++] } : item),
       nextCursor,
@@ -914,7 +910,6 @@ export class ProfileService {
     }
   }
 
-  // Convenience methods for specific element types
   async fetchUserTracks(
     userIdentifier: string,
     options: { page?: number; pageSize?: number } = {},
@@ -967,7 +962,6 @@ export class ProfileService {
     try {
       const url = this.buildApiUrl('/api/v1/profile');
 
-      // Backend expects multipart/form-data via [FromForm] attribute
       const formData = new FormData();
       if (data.username) formData.append('Username', data.username.trim().toLowerCase());
       if (data.displayName) formData.append('DisplayName', data.displayName);

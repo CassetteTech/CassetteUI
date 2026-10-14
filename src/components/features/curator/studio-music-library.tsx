@@ -1,8 +1,5 @@
 'use client';
 
-/** The curator's music library behind Studio Music: the list reads, the cache patch after a save,
-    the row sheets, and the empty states. */
-
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import Link from 'next/link';
 import {
@@ -35,7 +32,6 @@ type LibraryPages = InfiniteData<PaginatedActivityResponse, number>;
 // app's default freshness then spares a long list a refetch of every page on each window focus.
 const libraryKey = (userId: string | null) => ['user-activity', userId, 'studio-library'] as const;
 
-/** One view of the library: its pages, the posts without repeats, and the view's total. */
 export function useLibrary(userId: string | null, type: MusicType | null, audience: MusicAudience | null) {
   const library = useInfiniteQuery({
     queryKey: [...libraryKey(userId), type ?? 'all', audience ? audienceDetails[audience].privacy : 'all'],
@@ -48,16 +44,12 @@ export function useLibrary(userId: string | null, type: MusicType | null, audien
     initialPageParam: 1,
     getNextPageParam: (last) => (last.hasNext ? last.page + 1 : undefined),
     enabled: userId !== null,
-    // A filter change keeps the last list on screen, inert and dimmed, until the new one lands.
     placeholderData: keepPreviousData,
   });
   const posts = useMemo(() => uniquePosts(library.data?.pages ?? []), [library.data]);
   return { library, posts, total: library.data?.pages[0]?.totalItems ?? 0 };
 }
 
-/** Applies a saved change to every cached library list at once (see `patchMusicPages`). A patch
-    counts as fresh data, yet it cannot add a post that moved into a list, so every list is marked
-    stale again and reads Bridge the next time it shows. The save's own refresh covers the open one. */
 function useLibraryPatch(userId: string | null) {
   const queryClient = useQueryClient();
   return useCallback((postId: string, change: Partial<ActivityPost> | null) => {
@@ -128,19 +120,14 @@ function useRowSheets({ patch, leavesList, focusAfterRemoval }: {
   };
 }
 
-/** The row tools for one list of library rows: a save patches every cached list, the note and
-    delete sheets open from the row, and focus moves to the next post when a post leaves the list.
-    `leavesList` says whether a saved privacy takes a row out of this list. */
 export function useLibraryRowTools({ userId, posts, listRef, sectionId, leavesList }: {
   userId: string | null;
   posts: readonly ActivityPost[];
   listRef: RefObject<HTMLUListElement | null>;
-  /** Takes focus when the last post leaves the list. */
   sectionId: string;
   leavesList: (privacy: string | undefined) => boolean;
 }) {
   const patch = useLibraryPatch(userId);
-  /** Where focus goes once a row leaves: the next row's title, else the one before, else the section. */
   const focusAfterRemoval = (postId: string) => {
     const rows = [...(listRef.current?.querySelectorAll<HTMLElement>('[data-post-id]') ?? [])];
     const index = rows.findIndex((row) => row.dataset.postId === postId);
@@ -149,8 +136,6 @@ export function useLibraryRowTools({ userId, posts, listRef, sectionId, leavesLi
   };
   const { onEdit, onDelete, sheets } = useRowSheets({ patch, leavesList, focusAfterRemoval });
 
-  // A row whose new setting leaves this list takes its control, or its still-open menu, with it,
-  // and the browser drops focus to the page. Once that render lands, focus moves to the next post.
   const focusAfterDrop = useRef<(() => void) | null>(null);
   useEffect(() => {
     const refocus = focusAfterDrop.current;
@@ -164,9 +149,6 @@ export function useLibraryRowTools({ userId, posts, listRef, sectionId, leavesLi
   return { onSaved, onEdit, onDelete, sheets };
 }
 
-/** One empty state per view: no music at all leads to Add music; an empty type offers to add
-    one; an empty audience offers the whole type back. Its top margin keeps the dashed box
-    clear of the rule under an unboxed section title. */
 export function LibraryEmpty({ type, audience, returnPath }: {
   type: MusicType | null;
   audience: MusicAudience | null;

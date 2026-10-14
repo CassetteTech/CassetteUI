@@ -29,23 +29,12 @@ const FALLBACK_LABELS: Array<{ afterMs: number; label: string }> = [
 ];
 
 export interface ConversionStageState {
-  /** Raw Bridge stage value, or null until one is reported. */
   stage: string | null;
-  /** Display label: the real stage's label once known, else a time-based fallback. */
   label: string;
-  /** Playlist track progress reported by Bridge, or null when not applicable. */
   progress: { processed: number; total: number } | null;
-  /** What Bridge already knows about a track, album, or artist conversion; null until reported. */
   partialResult: ConvertPartialResult | null;
 }
 
-/**
- * Polls the conversion job by idempotency key while a conversion is in
- * flight and returns the latest stage reported by Bridge plus a display
- * label. The job row is created when POST /convert is accepted, so polling
- * by the same idempotency key the client sent surfaces real progress even
- * though the convert request itself is still pending. Pass null to stop.
- */
 export function useConversionStage(
   idempotencyKey: string | null,
   options?: { anonymous?: boolean; intervalMs?: number }
@@ -59,7 +48,6 @@ export function useConversionStage(
   const intervalMs = options?.intervalMs ?? 700;
 
   useEffect(() => {
-    // A new key (or scope) is a new conversion: drop what the last one reported.
     setStage(null);
     setProgress(null);
     setPartialResult(null);
@@ -87,7 +75,6 @@ export function useConversionStage(
         if (job.stage) {
           setStage((prev) => (prev === job.stage ? prev : job.stage ?? prev));
         }
-        // Keep the last known result: a ready job answers without one.
         if (job.partialResult) {
           const next = job.partialResult;
           setPartialResult((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
@@ -107,10 +94,8 @@ export function useConversionStage(
       pollTimer = setTimeout(poll, intervalMs);
     };
 
-    // Small head start: the job row appears as soon as Bridge accepts the POST.
     pollTimer = setTimeout(poll, 250);
 
-    // Drive the elapsed-time fallback labels once a second.
     const elapsedTimer = setInterval(() => {
       if (!cancelled) setElapsedMs(Date.now() - startedAtRef.current);
     }, 1000);
@@ -128,7 +113,6 @@ export function useConversionStage(
   );
 
   const stageLabel = (stage && CONVERSION_STAGE_LABELS[stage]) || fallback;
-  // The counter only means something while tracks are being matched.
   const label =
     stage === 'matching_tracks' && progress
       ? `${stageLabel} · ${progress.processed} of ${progress.total}`

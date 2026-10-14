@@ -1,5 +1,3 @@
-/** Verifies internal curator, immutable policy, and assignment request contracts. */
-
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {

@@ -1,7 +1,3 @@
-/** Verifies Curator Studio opens on Music, sections have their own URLs, the Music section starts
-    empty with Add music, and Add music lives in Studio while its old URL and global entry points
-    still work. */
-
 import { expect, test } from '@playwright/test';
 import { fixtureUsers } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
@@ -101,12 +97,9 @@ test('the sidebar offers Add music as a button above the page links, in their bo
   await expect(addMusic).toHaveAttribute('href', '/studio/music/new');
   await expect(studio).toHaveAttribute('href', '/studio');
   await expect(sidebar.getByRole('link', { name: 'Add Music', exact: true })).toHaveCount(0);
-  // An action, not a place: on its own page, Studio keeps the active row.
   await expect(addMusic).not.toHaveAttribute('data-active', 'true');
   await expect(studio).toHaveAttribute('data-active', 'true');
 
-  // The button has a page row's box and sits above the rows; the avatar and the footer icons
-  // share the rows' icon edge.
   const [action, row, avatar, feedIcon, signOutIcon] = await Promise.all([
     addMusic.boundingBox(),
     feed.boundingBox(),
@@ -121,8 +114,6 @@ test('the sidebar offers Add music as a button above the page links, in their bo
   expect(Math.abs(avatar!.x - feedIcon!.x)).toBeLessThanOrEqual(1);
   expect(Math.abs(signOutIcon!.x - feedIcon!.x)).toBeLessThanOrEqual(1);
 
-  // Add music leads the page rows: 20 px under the account row, 12 px above the first row. The
-  // footer rows share the page rows' pitch.
   const footer = sidebar.locator('[data-slot="sidebar-footer"]');
   const [account, firstRow, report, signOut, inbox] = await Promise.all([
     sidebar.locator('a[href="/profile/miagroove"]').boundingBox(),
@@ -134,7 +125,6 @@ test('the sidebar offers Add music as a button above the page links, in their bo
   expect(action!.y - (account!.y + account!.height)).toBe(20);
   expect(firstRow!.y - (action!.y + action!.height)).toBe(12);
   expect(signOut!.y - report!.y).toBe(row!.y - firstRow!.y);
-  // The header inbox ends on the rows' right edge.
   expect(inbox!.x + inbox!.width).toBe(row!.x + row!.width);
 });
 
@@ -154,14 +144,12 @@ test('one sidebar highlight follows the pointer over the page rows and returns t
 
   await memberships.hover();
   await expect.poll(highlightTop).toBe((await memberships.boundingBox())!.y);
-  // The rows paint no fill of their own; the highlight is the only one.
   await expect(memberships).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(studio).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 
   await page.mouse.move(800, 400);
   await expect.poll(highlightTop).toBe((await studio.boundingBox())!.y);
 
-  // The own profile has no active page row, so the highlight shows only under the pointer.
   await page.goto(`/profile/${fixtureUsers.member.username}`);
   await expect(highlight).toHaveCSS('opacity', '0');
   await memberships.hover();

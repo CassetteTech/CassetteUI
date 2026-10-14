@@ -90,7 +90,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     links.deezer;
   const resolvedSourceUrl = providedSourceUrl || fallbackSourceUrl || null;
   const detectedFromResolved = resolvedSourceUrl ? detectContentType(resolvedSourceUrl).platform : null;
-  // Keep source platform detection resilient across mixed URL/platform inputs.
   const sourcePlatformKey =
     normalizedFromProp ||
     normalizePlatformUiKey(detectedFromProvided) ||
@@ -335,7 +334,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       success: false,
     });
 
-    // Case 1: User not logged in - show auth modal
     if (!isAuthenticated) {
       void captureClientEvent('playlist_creation_blocked', {
         ...analyticsProps,
@@ -347,7 +345,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
       return;
     }
 
-    // Case 2: User logged in - check if they have platform connection
     setCreationStatus({
       platform,
       loading: true,
@@ -356,7 +353,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     setShowFailedTracks(false);
 
     try {
-      // Skip connection check for Spotify if using Cassette's account
       const skipConnectionCheck = platform === 'spotify' && clientConfig.features.useCassetteSpotifyAccount;
 
       let hasConnection = skipConnectionCheck;
@@ -375,7 +371,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
           connection_state: 'connection_required',
         });
 
-        // No connection - trigger the platform's existing auth flow.
         if (platform === 'appleMusic') {
           await connectAppleMusicAndCreatePlaylist('Connect Apple Music');
         } else {
@@ -384,7 +379,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
         return;
       }
 
-      // Case 3: Has connection - create playlist directly
       await createPlaylistOnPlatform(platform);
     } catch (error) {
       if (error instanceof ApiError && error.requiresReauth) {
@@ -455,7 +449,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     });
   }, [isAuthenticated]);
 
-  // Save pending action before navigating to auth pages
   const handleAuthNavigate = () => {
     if (pendingPlatform) {
       const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
@@ -472,8 +465,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
     const serviceName = service?.name || creationStatus.platform;
 
     if (creationStatus.loading) {
-      // The beam on the active row carries the loading state; this line just
-      // narrates the stage (connecting vs creating) without a second spinner.
       return (
         <p
           aria-live="polite"
@@ -540,8 +531,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
         );
       }
 
-      // The converted row itself is the open action now; this just confirms
-      // the outcome and surfaces any tracks that didn't make it over.
       return (
         <div className="mt-3 px-1">
           <p
@@ -635,7 +624,6 @@ export const PlaylistStreamingLinks: React.FC<PlaylistStreamingLinksProps> = ({
             'hover:border-foreground/40 hover:bg-muted/40',
             'active:bg-muted/60',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-            // The beam highlights the converting row; the others step back.
             anyLoading && !isLoading && 'opacity-40 pointer-events-none',
             isCreated && 'border-success bg-success/5 hover:border-success hover:bg-success/10',
           );

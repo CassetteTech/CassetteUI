@@ -8,11 +8,7 @@ import { appLogger } from '@/lib/observability/logger';
 
 // Keep in sync with the row's min-h-[52px].
 const ROW_HEIGHT_PX = 52;
-// Collapsed preview ends on a half-visible row so the cutoff reads as
-// "there's more" instead of accidental clipping.
 const COLLAPSED_MAX_HEIGHT_PX = ROW_HEIGHT_PX * 6.5;
-// Below this the collapsed preview would hide less than two rows — not worth a toggle. Lists
-// this long are also the ones the post page's running head counts through.
 export const EXPANDABLE_MIN_TRACKS = 9;
 
 const parseDurationSeconds = (duration?: string): number | null => {
@@ -22,7 +18,6 @@ const parseDurationSeconds = (duration?: string): number | null => {
   return parts.reduce((total, part) => total * 60 + part, 0);
 };
 
-/** Total running time of a track list, e.g. "6 hr 24 min"; null unless every track reports a duration. */
 export const formatTrackListDuration = (items: TrackListItem[]): string | null => {
   if (items.length === 0) return null;
   const seconds = items.map((item) => parseDurationSeconds(item.duration));
@@ -33,7 +28,6 @@ export const formatTrackListDuration = (items: TrackListItem[]): string | null =
   return hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`;
 };
 
-/** Header stat line for a track list, e.g. "117 tracks, 6 hr 24 min". */
 export const formatTrackListStats = (items: TrackListItem[]): string => {
   const label = `${items.length} ${items.length === 1 ? 'track' : 'tracks'}`;
   const duration = formatTrackListDuration(items);
@@ -75,10 +69,6 @@ interface TrackListProps {
    * Takes precedence over `scrollable`.
    */
   expandable?: boolean;
-  /**
-   * The source platform of the playlist/album (e.g., 'applemusic', 'spotify').
-   * Used to determine which service to use for fetching preview URLs.
-   */
   sourcePlatform?: string;
 }
 
@@ -97,7 +87,6 @@ export const TrackList: React.FC<TrackListProps> = ({
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
-  // Cache fetched preview URLs so we don't refetch
   const [fetchedPreviewUrls, setFetchedPreviewUrls] = useState<Record<number, string | null>>({});
   const [unavailablePreviews, setUnavailablePreviews] = useState<Record<number, true>>({});
   const audioRefs = useRef<Record<number, HTMLAudioElement>>({});
@@ -118,15 +107,12 @@ export const TrackList: React.FC<TrackListProps> = ({
     audioRefs.current = {};
   }, []);
 
-  // Fetch preview URL from the appropriate music service based on source platform
   const fetchPreviewUrl = useCallback(async (track: TrackListItem): Promise<string | null> => {
     try {
       const params = new URLSearchParams();
-      // Include source platform to route to correct service
       if (sourcePlatform) {
         params.set('sourcePlatform', sourcePlatform);
       }
-      // Include platform-specific track IDs
       if (track.appleMusicTrackId) {
         params.set('appleMusicTrackId', track.appleMusicTrackId);
       }
@@ -162,7 +148,6 @@ export const TrackList: React.FC<TrackListProps> = ({
     if (unavailablePreviews[index]) return;
 
     try {
-      // Stop any currently playing track
       if (playingIndex !== null && playingIndex !== index) {
         const currentAudio = audioRefs.current[playingIndex];
         if (currentAudio) {
@@ -171,7 +156,6 @@ export const TrackList: React.FC<TrackListProps> = ({
         }
       }
 
-      // If already playing this track, pause it
       if (playingIndex === index) {
         const audio = audioRefs.current[index];
         if (audio) {
@@ -183,18 +167,14 @@ export const TrackList: React.FC<TrackListProps> = ({
 
       setIsLoading(index);
 
-      // Get preview URL - check cache first, then existing prop, then fetch
       let previewUrl = fetchedPreviewUrls[index];
       if (previewUrl === undefined) {
-        // Not in cache - check if track has it
         previewUrl = track.previewUrl || null;
 
-        // If no preview URL, try to fetch one
         if (!previewUrl) {
           appLogger.debug('track_preview_url_fetch_started', { source_platform: sourcePlatform });
           previewUrl = await fetchPreviewUrl(track);
 
-          // Cache the result (even if null, to avoid refetching)
           setFetchedPreviewUrls(prev => ({ ...prev, [index]: previewUrl }));
         }
       }
@@ -206,7 +186,6 @@ export const TrackList: React.FC<TrackListProps> = ({
         return;
       }
 
-      // Create audio element if needed
       if (!audioRefs.current[index]) {
         const newAudio = new Audio();
         audioRefs.current[index] = newAudio;
@@ -256,9 +235,6 @@ export const TrackList: React.FC<TrackListProps> = ({
             const isPreviewUnavailable = Boolean(unavailablePreviews[index]);
             const displayArtist = track.artists?.join(', ') || albumArtist || '';
             const showIcon = isPlaying || isLoadingTrack;
-            // Only offer a play affordance when the track carries something a
-            // preview can be resolved from; some source platforms provide
-            // bare titles only, and a button that can never work reads as broken.
             const canPreview = Boolean(
               track.previewUrl || track.isrc || track.spotifyTrackId || track.appleMusicTrackId
             );
@@ -276,7 +252,6 @@ export const TrackList: React.FC<TrackListProps> = ({
                   isPlaying && 'bg-primary/10 shadow-[inset_2px_0_0_hsl(var(--primary))]'
                 )}
               >
-                {/* Track number / play button */}
                 <div className="relative flex items-center justify-end w-7 pr-1">
                   {canPreview ? (
                     <button
@@ -322,7 +297,6 @@ export const TrackList: React.FC<TrackListProps> = ({
                   )}
                 </div>
 
-                {/* Title/Artist */}
                 <div className="min-w-0 pl-1">
                   <div className={cn(
                     'font-medium truncate text-sm',
@@ -337,7 +311,6 @@ export const TrackList: React.FC<TrackListProps> = ({
                   )}
                 </div>
 
-                {/* Duration */}
                 <div className="hidden sm:block font-mono text-[11px] text-muted-foreground tabular-nums text-right">
                   {track.duration || ''}
                 </div>

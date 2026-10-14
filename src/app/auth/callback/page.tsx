@@ -13,7 +13,6 @@ export default function OAuthCallbackPage() {
   const router = useRouter();
   const [status] = useState('Checking session...');
   const [error, setError] = useState<string | null>(null);
-  // A session outage keeps the pending return intent; Retry runs the callback again.
   const [sessionOutage, setSessionOutage] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const processedAttempt = useRef(-1);

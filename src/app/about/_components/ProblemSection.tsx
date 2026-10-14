@@ -7,10 +7,6 @@ import { SectionHeader } from "@/components/features/marketing/section-header";
 import { DitherEdge } from "@/components/features/marketing/dither-edge";
 import { PixelSun } from "@/components/features/marketing/pixel-sun";
 
-/**
- * Flat statement band. The quote IS the layout: no card, no tape, just
- * display type on charcoal with the hero's sun dithered behind it.
- */
 export function ProblemSection() {
   return (
     <section className="section-dark relative">

@@ -1,8 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: 'class',
-  // Compile all `hover:` variants inside @media (hover: hover) and (pointer: fine)
-  // so hover styles don't false-fire (and stick) on touch taps.
   future: {
     hoverOnlyWhenSupported: true,
   },
@@ -13,7 +11,6 @@ module.exports = {
   ],
   theme: {
     extend: {
-      // Font utilities map to the next/font CSS variables set in src/app/layout.tsx.
       fontFamily: {
         sans: [
           "var(--font-inter)",
@@ -48,8 +45,6 @@ module.exports = {
       },
       boxShadow: {
         main: "0 4px 12px rgba(0, 0, 0, 0.12)",
-        // Retro offset shadows (neo-brutalist brand language).
-        // Numeric suffix = offset in px; color variants for dark sections and hovers.
         "flat-2": "2px 2px 0 0 hsl(var(--foreground))",
         "flat-3": "3px 3px 0 0 hsl(var(--foreground))",
         "flat-4": "4px 4px 0 0 hsl(var(--foreground))",
@@ -98,7 +93,6 @@ module.exports = {
           DEFAULT: "hsl(var(--accent-royal))",
           foreground: "hsl(var(--accent-royal-foreground))",
         },
-        // Domain accent — remapped per console section via .domain-eng / .domain-growth.
         domain: {
           DEFAULT: "hsl(var(--domain))",
           foreground: "hsl(var(--domain-foreground))",
@@ -184,14 +178,10 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
-        // Skeleton (src/components/ui/skeleton.tsx) sweeps a gradient overlay
-        // left-to-right across the placeholder surface.
         shimmer: {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(100%)" },
         },
-        // Radix Collapsible open/close — animate to the measured content height
-        // with the accordion recipe's cross-fade and blur.
         "collapsible-down": {
           from: { height: "0", opacity: "0", filter: "blur(2px)" },
           to: { height: "var(--radix-collapsible-content-height)", opacity: "1", filter: "blur(0)" },
@@ -200,18 +190,14 @@ module.exports = {
           from: { height: "var(--radix-collapsible-content-height)", opacity: "1", filter: "blur(0)" },
           to: { height: "0", opacity: "0", filter: "blur(2px)" },
         },
-        // Loaded content replacing a skeleton: fade in and un-blur in place.
         reveal: {
           from: { opacity: "0", filter: "blur(2px)" },
           to: { opacity: "1", filter: "blur(0)" },
         },
-        // Content replacing a skeleton that already outlines it: un-blur only.
-        // A fade from zero would blink, as the skeleton is gone before it starts.
         "focus-in": {
           from: { filter: "blur(3px)" },
           to: { filter: "blur(0)" },
         },
-        // TextLoader letters: a staggered rise and fall that stays readable at its dimmest.
         "letter-wave": {
           "0%, 100%": { opacity: "0.6" },
           "50%": { opacity: "1" },

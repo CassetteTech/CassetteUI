@@ -1,5 +1,3 @@
-// Redacts analytics properties to an explicit, size-bounded, non-sensitive schema.
-
 import type { AnalyticsBaseProps, ElementTypeDimension, PlatformDimension } from './events';
 
 const MAX_STRING_LENGTH = 180;
@@ -92,7 +90,6 @@ const ALLOWED_KEYS = new Set<keyof AnalyticsBaseProps>([
   'placement_type',
 ]);
 
-// Closed vocabularies: any value outside the list is dropped, never truncated.
 const ENUM_KEYS: Partial<Record<keyof AnalyticsBaseProps, readonly string[]>> = {
   onboarding_variant: ['default', 'promote', 'membership'],
   billing_interval: ['month', 'year'],

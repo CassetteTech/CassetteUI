@@ -35,11 +35,9 @@ export function AppleMusicHelpModal({
         </SheetHeader>
 
         <div className="space-y-6 px-4">
-          {/* GIF Section - Responsive Container */}
           <div className="bg-muted rounded-lg p-4">
             <div className="flex flex-col items-center">
 
-              {/* Mobile GIF - Only on mobile screens */}
               <div className="lg:hidden flex flex-col items-center">
                 <div className="max-w-[280px] aspect-[1290/2796] rounded-lg overflow-hidden">
                   <Image
@@ -54,7 +52,6 @@ export function AppleMusicHelpModal({
                 </div>
               </div>
 
-              {/* Desktop GIF - Only on desktop screens */}
               <div className="hidden lg:flex flex-col items-center">
                 <div className="w-full max-w-6xl rounded-lg overflow-hidden min-h-[500px] lg:min-h-[600px] xl:min-h-[700px]">
                   <Image
@@ -76,13 +73,11 @@ export function AppleMusicHelpModal({
             </div>
           </div>
 
-          {/* Step-by-Step Instructions */}
           <div className="space-y-4">
             <UIText className="font-semibold text-foreground">
               How to get a shareable link:
             </UIText>
 
-            {/* Desktop Instructions - Only on desktop */}
             <div className="hidden lg:block space-y-2">
               <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground ml-4">
                 <li>Find the playlist in Apple Music</li>
@@ -92,7 +87,6 @@ export function AppleMusicHelpModal({
               </ol>
             </div>
 
-            {/* Mobile Instructions - Only on mobile */}
             <div className="lg:hidden space-y-2">
               <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground ml-4">
                 <li>Open the playlist in Apple Music</li>
@@ -102,7 +96,6 @@ export function AppleMusicHelpModal({
             </div>
           </div>
 
-          {/* Additional Help */}
           <div className="bg-muted rounded-lg p-4">
             <UIText className="text-sm text-muted-foreground">
               <strong>Note:</strong> Make sure the playlist is set to &ldquo;Public&rdquo; in your Apple Music library.

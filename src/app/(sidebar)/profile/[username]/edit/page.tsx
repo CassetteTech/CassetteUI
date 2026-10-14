@@ -1,8 +1,5 @@
 'use client';
 
-/** Profile settings: a title, then the tabbed settings form. The sidebar
-    shell scrolls on desktop; the document scrolls on phones. */
-
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
@@ -38,11 +35,9 @@ export default function EditProfilePage() {
         setIsLoading(true);
         setError(null);
 
-        // Determine the user ID to fetch
         const isEditRoute = userIdentifier === 'edit';
         const userIdToFetch = isEditRoute ? user.id : userIdentifier;
 
-        // Check if the current user can edit this profile
         const canEdit = user.id === userIdToFetch ||
                        user.username?.toLowerCase() === userIdToFetch?.toLowerCase() ||
                        isEditRoute;
@@ -52,7 +47,6 @@ export default function EditProfilePage() {
           return;
         }
 
-        // Fetch user bio for editing
         const bio = await profileService.fetchUserBio(userIdToFetch || user.id);
         setUserBio(bio);
       } catch (e) {
@@ -67,11 +61,9 @@ export default function EditProfilePage() {
   }, [user, userIdentifier, router]);
 
   const handleSuccess = (updatedUsername: string) => {
-    // Navigate back to profile page
     router.push(`/profile/${updatedUsername}`);
   };
 
-  // Show skeleton while loading, actual content when ready
   const showSkeleton = isLoading && !userBio;
 
   if (error || (!isLoading && !userBio)) {

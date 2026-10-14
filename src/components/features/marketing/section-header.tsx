@@ -12,11 +12,6 @@ interface SectionHeaderProps {
   className?: string;
 }
 
-/**
- * Section header in the pixel hero's voice: mono kicker behind a primary
- * dash, then large flat Teko display type. Inherits the band's text color,
- * so it works on page background and colored bands alike.
- */
 export function SectionHeader({
   kicker,
   title,

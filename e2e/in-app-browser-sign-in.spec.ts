@@ -1,6 +1,3 @@
-/** Covers sign-in inside social apps' embedded browsers, where Google refuses OAuth: the one
-    open-in-browser step, and the Follow or Join intent that the link carries to the device browser. */
-
 import { expect, type Page, test } from '@playwright/test';
 
 import {
@@ -31,7 +28,6 @@ const googleButton = (page: Page) => page.getByRole('button', { name: 'Continue 
 const inAppStep = (page: Page) => page.getByTestId('in-app-browser-sign-in').filter({ visible: true });
 const confirmation = (page: Page) => page.getByTestId('carried-action-confirmation');
 
-/** Records the last clipboard write on the document instead of touching the system clipboard. */
 async function recordClipboard(page: Page) {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'clipboard', {
@@ -64,7 +60,6 @@ test.describe('inside the Instagram browser on iPhone', () => {
     await expect(inAppStep(page).getByRole('heading', { name: 'Open in your browser to sign in' })).toBeVisible();
     await expect(inAppStep(page)).toContainText('In Instagram, tap •••');
     await expect(googleButton(page)).toHaveCount(0);
-    // iOS has no documented way to open the browser, so copying the link is the one action.
     await expect(inAppStep(page).getByRole('link', { name: 'Open in browser' })).toHaveCount(0);
 
     await inAppStep(page).getByRole('button', { name: 'Copy link' }).click();
@@ -160,9 +155,7 @@ test.describe('in the device browser', () => {
 
     await confirmation(page).getByRole('button', { name: 'Not now' }).click();
     await expect(confirmation(page)).toHaveCount(0);
-    // Keyboard focus returns to the page's own Follow control.
     await expect(followButton(page)).toBeFocused();
-    // A later tab change rebuilds the query without the consumed intent.
     await page.getByRole('tab', { name: /Liked/ }).click();
     await expect(page).toHaveURL(`${CURATOR_PATH}?tab=liked`);
     await page.getByRole('tab', { name: 'Music' }).click();
@@ -196,7 +189,6 @@ test.describe('in the device browser', () => {
     expect(Number(await page.evaluate((key) => sessionStorage.getItem(key), joinIntentKey))).toBeGreaterThan(0);
     expect(state.membershipCheckoutRequests).toEqual([]);
 
-    // Stripe sends the fan back as if they canceled, so the page can be read again.
     const appOrigin = new URL(page.url()).origin;
     await page.route(CHECKOUT_URL, (route) => route.fulfill({
       status: 302,
@@ -258,7 +250,6 @@ test.describe('in the device browser', () => {
     const join = page.getByTestId('membership-join');
     await expect(join).toHaveAttribute('aria-disabled', 'true');
     await expect(join).toBeFocused();
-    // A second activation while checkout opens starts nothing more.
     await page.keyboard.press('Enter');
 
     release();

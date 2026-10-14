@@ -14,11 +14,6 @@ const VARIANT: Record<TooltipVariant, string> = {
   "frosted-glass": "bg-popover/70 backdrop-blur-sm",
 }
 
-/**
- * Floating hover tooltip. Reads the shared common context so it works in every
- * chart family. It glides between points and fades in/out (instead of snapping,
- * except under reduced motion), and dims unselected series/slices.
- */
 export function Tooltip({
   labelKey,
   valueFormatter,
@@ -31,8 +26,6 @@ export function Tooltip({
   const chart = useCommonChart()
   const show = chart.ready && chart.hoverIndex != null
 
-  // Retain the last hovered index so the card keeps its content while fading
-  // out — adjust-state-during-render (no refs in render).
   const [lastIndex, setLastIndex] = useState(0)
   if (chart.hoverIndex != null && chart.hoverIndex !== lastIndex) {
     setLastIndex(chart.hoverIndex)
@@ -62,8 +55,6 @@ export function Tooltip({
             left: chart.tooltipLeft,
           }}
           exit={{ opacity: 0 }}
-          // Read on every render, so a reduced-motion change applies at the
-          // next hover; the tooltip then jumps and appears without a fade.
           transition={
             prefersReducedMotion()
               ? { duration: 0 }

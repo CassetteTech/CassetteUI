@@ -37,9 +37,6 @@ export function computeBands(
         return [0, v]
       })
     }
-    // Only fall back to a unit span when there's no range at all (empty /
-    // all-zero) — a purely negative series keeps max = 0 so the baseline
-    // stays pinned to the top of the plot.
     const flat = max === 0 && min === 0
     return { bands, max: flat ? 1 : max, min }
   }
@@ -65,7 +62,6 @@ export function computeBands(
   return { bands, max: flat ? 1 : max, min }
 }
 
-/** x positions for each row index, evenly spread across the plot width. */
 export function buildXScale(length: number, plotWidth: number) {
   return scalePoint<number>()
     .domain(Array.from({ length }, (_, i) => i))
@@ -88,28 +84,18 @@ export function indexAtBand(px: number, length: number, plotWidth: number) {
   return Math.min(length - 1, Math.floor(t * length))
 }
 
-/**
- * value → vertical pixel. The domain always includes zero, so charts with only
- * positive values keep a floor at the plot bottom, while diverging data (values
- * below zero) draws below a zero baseline that sits somewhere inside the plot.
- * A `top` above the data is used as given (not rounded), so callers can leave
- * headroom over the peak; data above `top` still grows the axis.
- */
 export function buildYScale(min: number, max: number, plotHeight: number, top?: number) {
   const lo = Math.min(0, min)
   const hi = Math.max(0, max)
   if (top !== undefined && top > hi) {
     return scaleLinear().domain([lo, top]).range([plotHeight, 0])
   }
-  // Guard a degenerate (zero-width) domain so `nice()` and the range map stay
-  // finite even when every value is exactly zero.
   return scaleLinear()
     .domain([lo, hi === lo ? lo + 1 : hi])
     .nice()
     .range([plotHeight, 0])
 }
 
-/** Index of the row nearest a horizontal pixel offset within the plot. */
 export function nearestIndex(px: number, length: number, plotWidth: number) {
   if (length <= 1 || plotWidth <= 0) return 0
   const t = Math.max(0, Math.min(1, px / plotWidth))

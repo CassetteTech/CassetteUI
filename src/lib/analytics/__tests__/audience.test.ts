@@ -29,9 +29,7 @@ test('user cohort is the remembered journey for that user only, and expires', ()
     rememberUserCohort('user-a', 'new', now);
     assert.equal(getUserCohort('user-a', now), 'new');
     assert.equal(getUserCohort(undefined, now), undefined);
-    // Another account in the same tab never inherits the new-user journey.
     assert.equal(getUserCohort('user-b', now), 'existing');
-    // Bounded: a day later the record is stale.
     assert.equal(getUserCohort('user-a', now + 25 * 60 * 60 * 1000), 'existing');
   });
 });

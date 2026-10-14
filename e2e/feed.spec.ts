@@ -1,5 +1,3 @@
-/** Verifies the curator Feed: session-gated states, filter, paging, retries, freshness resets, and navigation. */
-
 import { expect, type Page, type Route, test } from '@playwright/test';
 
 import {
@@ -10,7 +8,6 @@ import {
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
-/** A full Feed row: the post the viewer may open. */
 const feedPost = (index: number, privacy: 'public' | 'subscriber', username: string) => ({
   kind: 'post',
   post: {
@@ -48,7 +45,6 @@ const memberFeed = ({ cursor, membersOnly }: { cursor: string | null; membersOnl
     : { body: feedPage([feedPost(3, 'public', 'night-curator')], null) };
 };
 
-/** A followed curator's members-only post the viewer has not joined for: the curator and the time only. */
 const lockedPost = (index: number, curatorId: string, username: string, displayName: string | null = null) => ({
   kind: 'locked',
   postId: `p_20261001110000_0000000000000${index}`,
@@ -58,7 +54,6 @@ const lockedPost = (index: number, curatorId: string, username: string, displayN
 
 const CRATE = { id: fixtureCuratorPage.curator.id, username: fixtureCuratorPage.curator.username };
 const QUIET = { id: 'cpr_QuietCurator01', username: 'quiet-curator' };
-/** Follows two curators and joined none. */
 const follower = { ...fixtureUsers.viewer, activeMembershipCount: 0, feedCuratorCount: 2 };
 
 const featuredCurator = (name: string, index: number, hasActiveMembershipPlan = true) => ({
@@ -72,7 +67,6 @@ const featuredCurator = (name: string, index: number, hasActiveMembershipPlan = 
 
 const postLinks = (page: Page) => page.getByRole('link', { name: /Feed track/ });
 const lockedCards = (page: Page) => page.getByTestId('feed-locked-post');
-/** Full and locked rows in page order: a post title, or `locked:` and the curator handle. */
 const rowOrder = (page: Page) => page.locator('a[href^="/post/"], [data-testid="feed-locked-post"]').evaluateAll(
   (rows) => rows.map((row) => row.tagName === 'ARTICLE'
     ? `locked:${row.querySelector('a[href^="/profile/"]')?.textContent?.replace(/^[^@]*/, '')}`
@@ -283,7 +277,6 @@ test('a failed first page offers a retry', async ({ page }) => {
   });
 
   await page.goto('/feed');
-  // The app retries a failed read with backoff before it shows the error.
   await expect(page.getByText('Posts could not load')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('No posts yet')).toHaveCount(0);
   available = true;
@@ -357,7 +350,6 @@ test.describe('freshness', () => {
     await expect(postLinks(page)).toContainText(['@night-curator']);
     const sessionsBefore = sessionRequests.length;
 
-    // One membership ended and another began: the count is still one.
     curator = 'day-curator';
     await page.clock.fastForward('01:01');
 
@@ -418,7 +410,6 @@ test.describe('freshness', () => {
     await page.getByRole('button', { name: 'Load more' }).click();
     await expect.poll(() => cursors(curatorFeedRequests)).toEqual([null, 'cursor-page-2']);
 
-    // The boundary read keeps the same count, yet the pending page belongs to the earlier set.
     await page.clock.fastForward('01:01');
     await expect.poll(() => cursors(curatorFeedRequests)).toEqual([null, 'cursor-page-2', null]);
     await expect(postLinks(page)).toHaveCount(2);
@@ -437,7 +428,6 @@ test.describe('freshness', () => {
     let holdSession = false;
     await page.route('**/api/auth/session', async (route: Route) => {
       if (!holdSession) return route.fallback();
-      // Bridge answered for the signed-in member before the sign-out.
       const stale = {
         success: true,
         authenticated: true,
@@ -568,7 +558,6 @@ test.describe('freshness', () => {
     await expect(page.getByRole('heading', { name: 'Memberships', level: 1 })).toBeVisible();
     const readsBefore = sessionRequests.length;
 
-    // No focus or visibility event: only the age of the last read changes.
     await page.clock.fastForward('01:30');
     posts = [feedPost(5, 'public', 'day-curator')];
     // Records any DOM change that puts an earlier row on the page, even for one frame.
@@ -631,15 +620,12 @@ test.describe('navigation', () => {
     await page.goto('/feed');
     const sidebar = page.locator('[data-slot="sidebar"]');
     const sidebarLinks = page.locator('[data-sidebar="menu"]').getByRole('link');
-    // Add music is an action above the menu, not one of its page rows. It returns the finished
-    // post to the page that opened it.
     await expect(sidebarLinks).toHaveText(['Curator Studio', 'Feed', 'Memberships', 'Explore']);
     await expect(sidebar.getByRole('link', { name: 'Add music', exact: true }))
       .toHaveAttribute('href', `/studio/music/new?from=${encodeURIComponent('/feed')}`);
     await expect(page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Feed' })).toHaveAttribute('data-active', 'true');
     await expect(sidebar.getByRole('link', { name: 'Support Us' })).toHaveCount(0);
 
-    // The account row is the only way to the own profile, so it carries the active state there.
     const accountRow = sidebar.locator(`a[href="/profile/${fixtureUsers.member.username}"]`);
     await expect(accountRow).toHaveCount(1);
     await expect(accountRow).toHaveAttribute('data-active', 'false');
@@ -661,7 +647,6 @@ test.describe('navigation', () => {
     const navbar = page.getByRole('navigation').filter({ has: page.getByTestId('navbar-profile-link') });
     await expect(navbar.getByRole('link', { name: 'Curator Studio' })).toHaveAttribute('href', '/studio');
 
-    // A visitor has no Studio to go back to.
     await page.goto('/feed');
     await page.getByRole('button', { name: 'Sign Out' }).click();
     await page.goto('/explore');
@@ -783,7 +768,6 @@ test.describe('followed curators', () => {
   test('locked rows show the curator, the time, and availability, but nothing from the post', async ({ page }) => {
     const { state } = await mockCassetteApp(page, {
       currentUser: follower,
-      // The viewer could join Crate Keeper now; the quiet curator takes no new members.
       membershipStatus: fixtureNoMembershipStatus,
       curatorFeed: () => ({
         body: feedPage([
@@ -818,11 +802,9 @@ test.describe('followed curators', () => {
     await expect(quiet.getByRole('link', { name: `View profile ${QUIET.username}` })).toHaveAttribute('href', `/profile/${QUIET.username}`);
     await expect(quiet.getByRole('link', { name: /Join/ })).toHaveCount(0);
 
-    // No post page, artwork, or engagement comes from a locked row.
     await expect(lockedCards(page).locator('a[href^="/post/"]')).toHaveCount(0);
     await expect(lockedCards(page).locator('img')).toHaveCount(0);
     await expect(lockedCards(page).getByRole('button')).toHaveCount(0);
-    // One membership read per curator, however many locked rows it has; none starts Checkout.
     expect([...state.membershipStatusRequests].sort()).toEqual([CRATE.id, QUIET.id].sort());
     expect(state.membershipCheckoutRequests).toEqual([]);
   });
@@ -898,7 +880,6 @@ test.describe('followed curators', () => {
         body: feedPage([feedPost(version, 'public', 'night-curator'), lockedPost(9, CRATE.id, CRATE.username)], null, 0, 1),
       }),
     });
-    // Another source ended as this one began: Bridge reports the same counts after the Follow.
     await page.route('**/api/auth/session', (route) => route.fulfill({
       json: {
         success: true,
@@ -974,7 +955,6 @@ test.describe('followed curators', () => {
     test.use({ viewport: { width: 390, height: 844 } });
 
     test('Join on a locked row brings the offer below the posts into view', async ({ page }) => {
-      // Enough posts that the offer, which phones show after them, starts below the screen.
       const [publicItem] = fixtureFreeCuratorPage.posts.items;
       const items = Array.from({ length: 6 }, (_, index) => (publicItem.kind === 'post'
         ? { kind: 'post' as const, post: { ...publicItem.post, postId: `post-public-${index}`, redirectPostId: `post-public-${index}` } }

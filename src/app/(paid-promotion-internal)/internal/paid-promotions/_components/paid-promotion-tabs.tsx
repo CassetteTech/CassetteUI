@@ -3,13 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-/**
- * The console holds one dataset viewed two ways: the campaign queue is the
- * work list, and the release view is the same campaigns grouped by the music
- * they promote. They used to be a page and an unexplained "Subjects" button,
- * which read as two unrelated features. Tabs make the pivot obvious and keep
- * the answer to "have we promoted this before?" one click from the queue.
- */
 const TABS = [
   {
     href: '/internal/paid-promotions',

@@ -16,17 +16,6 @@ import type {
   PaidPromotionNeedsInfo,
 } from '@/types';
 
-/**
- * Boundary mapping for the internal paid-promotions console. Verifies the
- * shape the console renders and passes everything else through: unknown enum
- * values are tolerated so an additive Bridge change never bricks the surface
- * ops would use to investigate it. Money arithmetic and cross-record
- * invariants are audited server-side (reconciliation/Sentinel), not here.
- *
- * The exported status/channel arrays drive filter dropdowns and form selects;
- * they are deliberately not used as parse gates.
- */
-
 export const PAID_PROMOTION_CAMPAIGN_STATUSES = [
   'draft',
   'pending_payment',
@@ -118,7 +107,6 @@ function nullableHttpUrl(value: unknown, path: string): string | null {
   const result = nullableString(value, path);
   if (result === null) return null;
 
-  // Rendered as link/image targets; refuse non-http(s) schemes at the boundary.
   try {
     const url = new URL(result);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') invalid(path);
@@ -147,7 +135,6 @@ function parseSubject(value: unknown, path: string): InternalPaidPromotionSubjec
     ) as InternalPaidPromotionSubject['elementType'],
     title: string(item.title, `${path}.title`),
     coverArtUrl: nullableHttpUrl(item.coverArtUrl, `${path}.coverArtUrl`),
-    // Empty for artist and playlist subjects by design.
     subtitleNames: parseInternalPaidPromotionArray(
       item.subtitleNames,
       `${path}.subtitleNames`,
@@ -155,11 +142,6 @@ function parseSubject(value: unknown, path: string): InternalPaidPromotionSubjec
   };
 }
 
-/**
- * Absent when the buyer's account has been deleted; the campaign and its
- * financial record survive that, so a missing customer is a real state rather
- * than a malformed response.
- */
 function parseCustomer(value: unknown, path: string): InternalPaidPromotionCustomer | null {
   if (value === null || value === undefined) return null;
   const item = record(value, path);

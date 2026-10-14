@@ -1,9 +1,5 @@
 'use client';
 
-/** Balance figures, payouts by month, and the transfer list from the curator's
-    earnings ledger. Sits beside the payout account card; only shows once
-    payout setup started. */
-
 import { useContext } from 'react';
 import { eventTitle, transferStatus, transferTone } from '@/components/features/curator/curator-earnings-card';
 import { StudioSection, StudioStat, StudioStepsContext, studioToneText } from '@/components/features/curator/studio-shell';
@@ -25,7 +21,6 @@ type Transfer = Extract<CuratorEarningsHistoryItem, { kind: 'transfer' }>;
 
 const chartMonths = 6;
 
-/** Succeeded payouts summed per month over the trailing window, oldest first. */
 function payoutsByMonth(transfers: Transfer[]) {
   const months = Array.from({ length: chartMonths }, (_, index) => monthStart(chartMonths - 1 - index));
   return months.map((start, index) => {
@@ -89,7 +84,6 @@ export function CuratorPayoutHistory({ enabled }: { enabled: boolean }) {
             <StudioStat label="Paid out" value={money(balances.paidOut, balances.currency)} />
           </dl>
 
-          {/* The transfer list sits on the panel itself: a rule, not a second box. */}
           <section aria-labelledby="curator-payouts-list-title" className="mt-6 border-t border-border/70 pt-5">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>

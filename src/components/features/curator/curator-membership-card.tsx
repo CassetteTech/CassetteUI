@@ -1,7 +1,5 @@
 'use client';
 
-/** Renders a fan's server-authorized membership offer and current billing actions. */
-
 import { useEffect, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -28,7 +26,6 @@ import { CuratorFollowAction } from '@/components/features/curator/curator-follo
 import { useSharedPosition } from '@/hooks/use-shared-position';
 import { cn } from '@/lib/utils';
 
-/** The offer's stable anchor, so a link from another page, such as a locked Feed post, can name it. */
 export const MEMBERSHIP_OFFER_ID = 'membership-offer';
 
 export function CuratorMembershipCard({
@@ -76,12 +73,10 @@ export function CuratorMembershipCard({
   onManage: (membership: MembershipSubscription) => void;
   onCheckStatus: () => void;
   onViewMemberPosts: () => void;
-  /** The curator's bio, services, and links; the pass is the page's identity on wide screens. */
   summary?: ReactNode;
 }) {
   const plan = page.membership;
   const membership = status?.membership;
-  // Keyed per curator so the matching pass on Memberships slides into this rail slot, and back.
   const memberPassRef = useRef<HTMLDivElement>(null);
   useSharedPosition(memberPassRef, `membership-pass:${page.curator.username}`);
   // The card renders after the page's own read, too late for the browser's
@@ -92,7 +87,6 @@ export function CuratorMembershipCard({
     if (offer && offer.getBoundingClientRect().top >= window.innerHeight) offer.scrollIntoView({ block: 'start' });
   }, [membershipId]);
   const planMatchesMembership = !membership || membership.planId === plan?.planId;
-  // Never present the current public offer as an existing member's price.
   const displayedPlan = status?.canSubscribe === false && !planMatchesMembership ? null : plan;
   const annual = displayedPlan?.annualAmountMinor != null && displayedPlan.annualServiceFeeMinor != null
     ? { faceMinor: displayedPlan.annualAmountMinor, serviceFeeMinor: displayedPlan.annualServiceFeeMinor }
@@ -151,7 +145,6 @@ export function CuratorMembershipCard({
     </>
   );
 
-  // The curator is the holder on every pass; the head is always brand red on the public page.
   const pass = {
     id: membershipId,
     'data-testid': 'curator-membership-card',
@@ -162,7 +155,6 @@ export function CuratorMembershipCard({
     active: true,
   } as const;
 
-  // Entitled member: welcome, what they unlocked, and the billing they actually pay — no pitch.
   if (page.viewer.isMember) {
     return (
         <WalletPass
@@ -180,7 +172,6 @@ export function CuratorMembershipCard({
               Welcome to {displayName}&apos;s membership
             </h2>
           )}
-          {/* Standing first: what the member pays and any scheduled change, then the actions that answer it. */}
           {membership && (
             <p className={cn('text-sm tabular-nums text-muted-foreground', activated && 'mt-3')} data-testid="membership-billing">
               {describeMembershipBilling(membership)}
@@ -302,7 +293,6 @@ export function CuratorMembershipCard({
           </>
         ) : null}
 
-        {/* Free and secondary, under Join; phones show it in the profile header instead. */}
         <CuratorFollowAction className="hidden lg:block" />
         {manageButton}
         {membership?.canManage && (

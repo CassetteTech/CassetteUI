@@ -2,7 +2,6 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 
-/** Placeholder in the shape of the settings page: title, then titled sections of label-and-field rows. */
 export function EditProfileSkeleton() {
   return (
     <div aria-hidden>

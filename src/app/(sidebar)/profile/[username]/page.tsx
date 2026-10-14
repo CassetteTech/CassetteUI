@@ -1,9 +1,5 @@
 'use client';
 
-/** Renders the canonical public profile: one structure for every account. Music lists the
-    account's posts, narrowed by list tabs, and Liked lists what it liked. A curator page adds its
-    membership offer and locked posts; the pass in the rail is the only other difference. */
-
 import { useEffect, useState, useCallback, useMemo, type ComponentProps } from 'react';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -40,7 +36,6 @@ import { toast } from 'sonner';
 import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
 
 const membershipFlows = ['join', 'return', 'canceled', 'portal-return'] as const;
-// Older links named a type, or the curator feed, with `tab`; they open the Music tab.
 const legacyMusicTabs = new Set(['posts', 'playlists', 'tracks', 'albums', 'artists']);
 const musicPageSize = 20;
 
@@ -58,7 +53,6 @@ export default function ProfilePage() {
 
   const userIdentifier = Array.isArray(username) ? username[0] : username;
 
-  // Check if this is edit mode and determine the actual user to fetch
   const isEditMode = userIdentifier === 'edit';
   const userIdToFetch = isEditMode && user ? user.id : userIdentifier;
   const curatorQuery = useCuratorPage(
@@ -66,8 +60,6 @@ export default function ProfilePage() {
     isEditMode || authLoading ? null : (user?.id ?? 'anonymous'),
   );
   const curatorPage = curatorQuery.data?.pages[0];
-  // No curator profile: the account has posted nothing since profiles began with a first post, or
-  // its curator profile is suspended or retired. Music then lists its public posts directly.
   const noCuratorPage = isEditMode || (
     curatorQuery.isError && curatorQuery.error instanceof CuratorPageError && curatorQuery.error.status === 404
   );
@@ -76,7 +68,6 @@ export default function ProfilePage() {
   ) ?? null;
   const membershipInterval = searchParams.get('interval') === 'year' ? 'year' : 'month';
 
-  // Use React Query for the bio - handles deduplication automatically
   const {
     data: userBio,
     isLoading: isLoadingBio,
@@ -99,13 +90,11 @@ export default function ProfilePage() {
   const likedTabVisibility: 'public' | 'private' =
     userBio?.likedPostsPrivacy || userBio?.likedPostsVisibility || (userBio?.showLikedPosts === false ? 'private' : 'public');
 
-  // The tab and the Music view live in the URL. A Liked link waits for the bio before it decides.
   const tabParam = searchParams.get('tab');
   const activeTab: TabType = tabParam === 'liked' && (likedSectionVisible || isLoadingBio) ? 'liked' : 'music';
   const isLikedTab = activeTab === 'liked';
   const musicView = profileMusicViewOf(searchParams);
 
-  // One Follow state for every place the profile shows its control.
   const follow = useCuratorFollow(
     curatorPage ? {
       id: curatorPage.curator.id,
@@ -116,7 +105,6 @@ export default function ProfilePage() {
     isLikedTab ? 'tab=liked' : withProfileMusicView(new URLSearchParams(), musicView).toString(),
   );
 
-  // The hash stays, so a link to the membership offer keeps its target.
   const replaceQuery = useCallback((next: URLSearchParams) => {
     if (!pathname) return;
     const query = next.toString();
@@ -131,7 +119,6 @@ export default function ProfilePage() {
     replaceQuery(withProfileMusicView(searchParams, profileMusicViewOf(searchParams)));
   }, [replaceQuery, returning, searchParams, tabParam]);
 
-  // A Liked link to likes that are not public opens Music. A carried Follow or Join is consumed first.
   useEffect(() => {
     if (searchParams.has('intent') || tabParam !== 'liked' || isLoadingBio || likedSectionVisible) return;
     const next = new URLSearchParams(searchParams);
@@ -150,9 +137,6 @@ export default function ProfilePage() {
     replaceQuery(withProfileMusicView(searchParams, view));
   }, [replaceQuery, searchParams]);
 
-  // Music for an account without a curator page: its public posts, newest first. Bridge narrows them
-  // before it pages, so the owner's private posts never leave a page short. Bridge sends no type
-  // counts here, so only a type named in the URL gets a tab, beside All.
   const plainType = musicView === 'all' || musicView === 'members' ? null : musicView;
   const plainMusic = useInfiniteQuery({
     queryKey: ['user-activity', userIdToFetch, 'profile-music', plainType ?? 'all'],
@@ -166,7 +150,6 @@ export default function ProfilePage() {
     getNextPageParam: (last) => (last.hasNext ? last.page + 1 : undefined),
     enabled: noCuratorPage && Boolean(userIdToFetch) && Boolean(userBio) && !isLikedTab,
   });
-  // The public page shows what visitors see; the owner manages other posts in Studio.
   const plainItems = useMemo((): ProfileMusicItem[] =>
     applyCachedArtwork((plainMusic.data?.pages ?? []).flatMap((page) => page.items))
       .map((post) => ({ kind: 'post', post })),
@@ -189,7 +172,6 @@ export default function ProfilePage() {
   }, [likedActivityData?.items, additionalLikedPosts]);
   const likedTotal = likedActivityData?.totalItems ?? 0;
 
-  // Reset the Liked pages when the profile changes
   useEffect(() => {
     setAdditionalLikedPosts([]);
     setLikedPage(1);
@@ -257,10 +239,8 @@ export default function ProfilePage() {
     router.push('/studio/music/new');
   }, [router]);
 
-  // Compute loading states
   const showHeaderSkeleton = isLoadingBio && !userBio;
 
-  // Handle edit mode without auth
   if (isEditMode && !user) {
     return (
       <div className="flex items-center justify-center min-h-svh">
@@ -273,7 +253,6 @@ export default function ProfilePage() {
     );
   }
 
-  // Handle errors
   const isProfileNotFound = bioError?.message === 'User not found';
   const error = (isProfileNotFound ? undefined : bioError?.message)
     || (isLikedTab && !isLikedTabPrivateError ? likedActivityError?.message : undefined)
@@ -301,7 +280,6 @@ export default function ProfilePage() {
     );
   }
 
-  // Show "not found" only after loading completes and no userBio
   if (isProfileNotFound || (!isLoadingBio && !userBio)) {
     return (
       <>
@@ -325,11 +303,8 @@ export default function ProfilePage() {
     );
   }
 
-  // The curator page owns the membership pass and portals it into the rail; every other view shows
-  // the profile pass there.
   const curatorMusic = !isLikedTab && !noCuratorPage;
   const showMembershipRail = curatorMusic && Boolean(curatorPage?.membership);
-  // A page that sells no membership offers its owner the setup from the profile pass.
   const offersMembershipSetup = curatorPage?.viewer.isOwner === true && !curatorPage.membership;
   let content;
   if (isLikedTab) {
@@ -386,8 +361,6 @@ export default function ProfilePage() {
     );
   }
 
-  // One responsive tree for every tab: the tab strip stays mounted when the tab changes, so its
-  // underline slides, and the curator page, which owns the Stripe flow effects, mounts once.
   return (
     <CuratorFollowContext.Provider value={follow}>
     <div className="studio-surface min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
@@ -411,7 +384,6 @@ export default function ProfilePage() {
           ) : null}
         </div>
       </div>
-      {/* Tab strip and owner bar run edge to edge, above the content and the rail alike. */}
       <ProfileTabStrip
         showBack={!isCurrentUser && Boolean(userBio)}
         activeTab={activeTab}
@@ -422,7 +394,6 @@ export default function ProfilePage() {
       {isCurrentUser && userBio && (
         <ProfileOwnerBar username={userBio.username} musicView={isLikedTab ? null : musicView} />
       )}
-      {/* Same right rail as Curator Studio; the pass slides between the two pages' spots. */}
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:px-8 lg:pt-6 lg:pb-10">
         <div className="min-w-0 px-4 py-6 sm:px-6 lg:p-0">
           {content}
@@ -453,7 +424,6 @@ export default function ProfilePage() {
   );
 }
 
-/** Sticky tab strip with the desktop back control for visitors; phones keep theirs above the masthead. */
 function ProfileTabStrip({ showBack, ...tabs }: { showBack: boolean } & ComponentProps<typeof ProfileTabs>) {
   return (
     <div className="sticky top-0 z-10 flex items-end bg-background/80 backdrop-blur-sm">

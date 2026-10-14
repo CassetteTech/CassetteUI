@@ -47,16 +47,13 @@ export function TeamPixelHero() {
         />
       </motion.div>
 
-      {/* Slight dim in dark mode so the warm image doesn't glare */}
       <div aria-hidden className="absolute inset-0 dark:bg-black/25" />
 
-      {/* Top scrim dissolves the navbar edge into the image */}
       <div
         aria-hidden
         className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-background via-background/50 to-transparent"
       />
 
-      {/* Scrim melts the image into the page background and carries the copy */}
       <div
         aria-hidden
         className="absolute inset-x-0 bottom-0 h-[78%] bg-gradient-to-t from-background from-[6%] via-background/75 to-transparent"
@@ -89,9 +86,6 @@ export function TeamPixelHero() {
           .
         </p>
 
-        {/* items-start stops the column layout stretching the quiet link
-            full-width (which centered it on mobile while it sat left on
-            desktop) — it now hugs the button's left edge at every size. */}
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
           <a
             href="mailto:team@cassette.tech"

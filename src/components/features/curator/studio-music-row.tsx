@@ -1,13 +1,5 @@
 'use client';
 
-/** One post in Studio Music: the curation (artwork, title, the curator's note) with its owner
-    tools in place: who can open it, share, view, edit the note, and delete. A repost points at
-    someone else's post, so it stays public and has no setting or note to change.
-
-    Rows lay out by the list's width, not the window's, because the Studio rail and sidebar take
-    a varying share of the window: the tools are one group on one line, under the post in line
-    with its title in a narrow list, and at the top right in a wide one. */
-
 import { useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -47,7 +39,6 @@ function typeName(elementType: string) {
   return elementType.charAt(0).toUpperCase() + elementType.slice(1).toLowerCase();
 }
 
-/** Opens the device share sheet on touch screens; elsewhere copies the post link. */
 async function sharePost(post: ActivityPost) {
   const url = `${window.location.origin}/post/${post.redirectPostId || post.postId}`;
   try {
@@ -63,24 +54,17 @@ async function sharePost(post: ActivityPost) {
   }
 }
 
-// Every tool is 32 px tall; the pseudo-element grows its hit area to 40 px, and the 8 px gaps
-// between tools keep those areas from overlapping.
 const rowToolHitArea = 'relative after:absolute after:-inset-1';
 
-// Hover and open states are ink, as everywhere in Studio, not the ghost button's brand tint.
 const rowIconButton = cn(
   rowToolHitArea,
   'text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted data-[state=open]:bg-muted data-[state=open]:text-foreground',
 );
 
-/** The row's grid: the artwork beside the post. A narrow list puts the tools on a second row
-    under the post, so the artwork spans both rows; a wide list gives them a third column. */
 const rowGrid = 'grid grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-x-4 gap-y-3 py-4 [@container(min-width:40rem)]:grid-cols-[6rem_minmax(0,1fr)_auto] [@container(min-width:40rem)]:gap-x-5';
 const rowArtwork = 'row-span-2 [@container(min-width:40rem)]:row-span-1';
 const rowTools = 'col-start-2 [@container(min-width:40rem)]:col-start-auto';
 
-/** Saves who can open the post. The row's menu and its right-click menu both save through here,
-    so the library hears of every change. */
 function useVisibilitySave(post: ActivityPost, onSaved: StudioMusicRowProps['onSaved']) {
   const updatePost = useUpdatePost();
   const pending = updatePost.isPending;
@@ -106,8 +90,6 @@ interface VisibilityMenuProps {
   pending: boolean;
 }
 
-/** Who can open the post, as a control that names the current setting. The options and their
-    member-post rules match the post page and Add music. */
 function VisibilityMenu({ post, access, retryAccess, openPlanSetup, choose, pending }: VisibilityMenuProps) {
   const current = visibilityOf(post.privacy);
   const members = membersOptionOf(access, post.privacy);
@@ -183,7 +165,6 @@ function VisibilityMenu({ post, access, retryAccess, openPlanSetup, choose, pend
         {access === 'error' && members.waiting && (
           <>
             <DropdownMenuSeparator />
-            {/* Keeps the menu open, so the options update in place once the check answers. */}
             <DropdownMenuItem onSelect={(event) => { event.preventDefault(); retryAccess(); }}>
               Check plans again
             </DropdownMenuItem>
@@ -196,15 +177,11 @@ function VisibilityMenu({ post, access, retryAccess, openPlanSetup, choose, pend
 
 export interface StudioMusicRowProps {
   post: ActivityPost;
-  /** The library URL with its filters, so the post page's Back returns to it. */
   returnPath: string;
   access: MemberPostAccessState;
   retryAccess: () => void;
-  /** Opens plan setup, where a plan that unlocks members-only posts is published. */
   openPlanSetup: () => void;
-  /** Runs once a change is saved, so the library can keep or drop the row. */
   onSaved: (post: ActivityPost, change: Partial<ActivityPost>) => void;
-  /** Open the note and delete sheets; `returnFocus` takes focus when a sheet closes. */
   onEdit: (post: ActivityPost, returnFocus: HTMLElement | null) => void;
   onDelete: (post: ActivityPost, returnFocus: HTMLElement | null) => void;
 }
@@ -242,7 +219,6 @@ export function StudioMusicRow({
       onDelete={() => onDelete(post, moreRef.current)}
     >
       <li data-testid="studio-music-row" data-post-id={post.postId} className={cn('group/row', rowGrid)}>
-        {/* The title link carries the name; the artwork repeats it for the pointer only. */}
         <Link href={href} prefetch={false} tabIndex={-1} aria-hidden className={cn('block overflow-hidden rounded-md', rowArtwork)}>
           <ArtworkImage
             src={post.imageUrl}
@@ -277,8 +253,6 @@ export function StudioMusicRow({
               <span className="truncate">{repostedFrom ? `Reposted from @${repostedFrom}` : 'Reposted'}</span>
             </p>
           ) : (
-            /* The note is the curation, so it is also its own edit control. Its icon leads, like
-               Add a note and the repost line, so it keeps one place however long the note runs. */
             <button
               type="button"
               data-row-action="note"
@@ -300,11 +274,8 @@ export function StudioMusicRow({
               )}
             </button>
           )}
-          {/* Each tool that works on a post (sync, health, schedule, copies) adds one status line here. */}
         </div>
 
-        {/* In a wide list the last tool is a ghost button, so the group moves right by its padding
-            and the icon, not the empty button edge, lines up with the end of the row. */}
         <div className={cn('flex items-center gap-2', rowTools, '[@container(min-width:40rem)]:-mr-2')}>
           {repost ? (
             <p className="flex h-8 items-center gap-1.5 text-xs text-muted-foreground">
@@ -346,7 +317,6 @@ export function StudioMusicRow({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-44">
-              {/* Named and drawn like the row's right-click menu, which opens the same page. */}
               <DropdownMenuItem asChild className="gap-2">
                 <Link href={href} prefetch={false}>
                   <ExternalLink aria-hidden className="size-4" />

@@ -35,8 +35,6 @@ export type AreaVariant = "gradient" | "dotted" | "hatched" | "solid"
 export type StrokeVariant = "solid" | "dashed"
 export type SeriesKind = "area" | "line" | "bar"
 
-/** What each series part (<Area />, <Line />, <Bar />) registers so the canvas
- * knows which series to paint and how. */
 export type SeriesSpec = {
   dataKey: string
   kind: SeriesKind
@@ -47,7 +45,7 @@ export type SeriesSpec = {
 export type ChartContextValue = {
   chartType: ChartType // which root this part is under
   config: ChartConfig
-  configKeys: string[] // series order — drives stacking + legend
+  configKeys: string[]
   data: Row[]
   dataLength: number
   stackType: StackType
@@ -70,7 +68,6 @@ export type ChartContextValue = {
   max: number
   min: number // most-negative value (0 when nothing dips below the baseline)
 
-  // Interaction state, shared by every part.
   selectedDataKey: string | null
   selectDataKey: (key: string | null) => void
   /** Legend-hover spotlight — dims every series but this one while set. */
@@ -87,7 +84,6 @@ export type ChartContextValue = {
   bloom: BloomInput // glow on the dither canvas
   bloomOnHover: boolean // only bloom while hovered
 
-  // Series register themselves so the canvas knows what (and how) to paint.
   seriesSpecs: Record<string, SeriesSpec>
   registerSeries: (spec: SeriesSpec) => void
   unregisterSeries: (dataKey: string) => void
@@ -97,12 +93,11 @@ export type ChartContextValue = {
   animate: boolean
   animationDuration: number
   revision: number
-  entranceDone: boolean // true once the entrance has played — gates SVG markers
-  markEntranceDone: () => void // the canvas calls this when its reveal completes
+  entranceDone: boolean
+  markEntranceDone: () => void
 
-  // Helpers.
   seedOf: (key: string) => Seed
-  common: CommonChart // shared surface for <Legend> / <Tooltip>
+  common: CommonChart
 }
 
 const ChartContext = createContext<ChartContextValue | null>(null)
@@ -115,7 +110,6 @@ const ROOT_OF: Record<ChartType, string> = {
   radar: "<RadarChart />",
 }
 
-/** Generic accessor for internal layers (canvas/overlay) that work for any root. */
 export function useChart() {
   const ctx = use(ChartContext)
   if (!ctx) {
@@ -172,11 +166,6 @@ export function useRevision(data: unknown, token: number) {
   return prev.revision
 }
 
-/**
- * Builds the shared context value: resolves the plot rect from the measured
- * size minus margins, computes the x/y scales and the per-series stack bands,
- * and owns the selection + hover state every part reads.
- */
 export function useChartController({
   chartType,
   data,
@@ -212,16 +201,6 @@ export function useChartController({
   defaultSelectedDataKey?: string | null
   onSelectionChange?: (key: string | null) => void
 }): ChartContextValue {
-  // This object becomes the ChartContext value, so its identity — and the
-  // identity of every function/object it carries — must stay stable across
-  // renders that don't change the underlying inputs. Otherwise every consumer
-  // (axes, legend, tooltip, dots) re-renders on every parent render. So the
-  // expensive derivations, the exposed callbacks, and the returned value are
-  // memoized below; only cheap scalars (bandwidth, ready, plot sizes) are left
-  // bare, since they're just recomputed reads, not identities anyone depends on.
-
-  // Memoized: configKeys is the dep that drives `bands`, `common` and the
-  // canvas `targets` memo — a fresh array each render would bust all of them.
   const configKeys = useMemo(() => Object.keys(config), [config])
   const revision = useRevision(data, replayToken)
 
@@ -280,24 +259,16 @@ export function useChartController({
   const plotHeight = Math.max(0, dimensions.height - mTop - mBottom)
   const ready = plotWidth > 0 && plotHeight > 0
 
-  // The entrance gate flips true when the canvas reveal completes (via
-  // `markEntranceDone`) so DOM markers fade in with the fill, and re-arms on
-  // each replay. Adjust-state-during-render instead of an effect, so the reset
-  // lands in the same render as the revision bump.
   const [entrance, setEntrance] = useState({ revision, done: !animate })
   if (entrance.revision !== revision) {
     setEntrance({ revision, done: !animate })
   }
   const entranceDone = entrance.revision === revision ? entrance.done : !animate
-  // Stable across renders at the same revision; the canvas holds this in a ref.
   const markEntranceDone = useCallback(
     () => setEntrance({ revision, done: true }),
     [revision]
   )
 
-  // Memoized: the priciest derivation in the render path — it walks every
-  // row × series to build the stack bands. Hover/cursor state changes must not
-  // recompute it, only a real data/series/stack change.
   const { bands, max, min } = useMemo(
     () => computeBands(data, configKeys, stackType),
     [data, configKeys, stackType]
@@ -349,14 +320,11 @@ export function useChartController({
     [min, max, plotHeight, yMax]
   )
 
-  // Stable so `common` and the value stay stable; re-created only on config.
   const seedOf = useCallback(
     (key: string) => seedOfColor(config[key]?.color ?? "grey"),
     [config]
   )
 
-  // Memoized: this is the value handed to CommonChartContext (Legend/Tooltip),
-  // so it needs its own stable identity independent of the parent value.
   const common: CommonChart = useMemo(() => ({
     names: configKeys,
     labelOf: (n) => config[n]?.label ?? n,
@@ -368,8 +336,6 @@ export function useChartController({
     hoverIndex,
     ready,
     tooltipLeft: Math.max(48, Math.min(plotWidth + mLeft - 48, cursorX)),
-    // Follow the highest hovered node so the card rides the data path, but
-    // keep enough headroom that the upward-lifted card never clips the top.
     tooltipTop: (() => {
       const floor = mTop + 44
       if (hoverIndex == null) return floor
@@ -416,11 +382,6 @@ export function useChartController({
     data,
   ])
 
-  // Memoized: this is the ChartContext value. A fresh object here would
-  // re-render every consumer on every parent render — the whole reason the
-  // pieces above are stabilized. Rebuilds only when a listed input changes
-  // (which is exactly when a consumer needs the update). The useState setters
-  // are listed but never change identity, so they never trigger a rebuild.
   return useMemo<ChartContextValue>(
     () => ({
       chartType,

@@ -1,7 +1,5 @@
 'use client';
 
-/** The fan's memberships as wallet passes: a hub for reaching their curators, with billing tucked behind a disclosure. */
-
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
@@ -30,7 +28,6 @@ import {
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { cn } from '@/lib/utils';
 
-/** Short state printed on the pass head. */
 const tier = {
   ended: 'Ended',
   ending: 'Ending',
@@ -78,12 +75,10 @@ function MembershipPass({ entry }: { entry: MyMembership }) {
       holderName={curatorName}
       holderHandle={entry.curatorUsername}
       holderHref={`/profile/${encodeURIComponent(entry.curatorUsername)}`}
-      // Ended passes lose the brand head; every other state is still a live pass.
       active={phase !== 'ended'}
       validityLabel={end ? membershipDateLabel(membership) : 'Status'}
       validityValue={end ?? tier[phase]}
     >
-      {/* Standing is status, not money: a scheduled end or a failed payment reads without opening anything. */}
       {standing && (
         <p
           className={cn('text-sm', paymentProblem ? 'font-medium text-destructive' : 'text-muted-foreground')}
@@ -92,7 +87,6 @@ function MembershipPass({ entry }: { entry: MyMembership }) {
           {standing}
         </p>
       )}
-      {/* Billing stays folded so the pass reads as the curator, not the charge; a payment problem unfolds it. */}
       <details className={cn('group relative z-20', standing && 'mt-3')} open={paymentProblem || undefined}>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 py-1 text-sm text-muted-foreground [&::-webkit-details-marker]:hidden">
           Billing
@@ -179,7 +173,6 @@ function MyMemberships() {
             <Button onClick={() => void query.refetch()} className="mt-3">Try again</Button>
           </Empty>
         ) : query.data.length === 0 ? (
-          // No box: the empty state sits in the middle of the free space, lifted a little toward the header.
           <Empty className="border-none pb-24 sm:col-span-2 sm:self-stretch" data-testid="my-memberships-empty">
             <EmptyTitle>No memberships yet</EmptyTitle>
             <EmptyDescription>

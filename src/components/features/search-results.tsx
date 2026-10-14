@@ -24,22 +24,10 @@ interface SearchResultsProps {
   onSelectItem: (url: string, title: string, type: string) => void;
   onClose: () => void;
   SkeletonComponent?: React.ComponentType<{ className?: string }>;
-  /** Overrides the root inset so the panel can sit flush with the bar above it. */
   className?: string;
-  /**
-   * Card treatment. `retro` keeps the offset-shadow brutalist card for
-   * standalone placements; `ink` is the hairline card (the add-music rail's
-   * treatment) with its own scroll; `flat` is the same hairline card that
-   * defers scrolling to the parent — for the full-screen search sheet, where
-   * the bar above is already the focal element; `bare` drops the card
-   * entirely (no border, radius, or fill) for a panel that already has one,
-   * and leaves scrolling to that panel too.
-   */
   chrome?: 'retro' | 'ink' | 'flat' | 'bare';
 }
 
-// Row-shaped placeholders matching the result-row geometry below:
-// artwork square + title/artist lines, same paddings and borders.
 const TITLE_WIDTHS = [72, 58, 81, 64, 76, 52] as const;
 const ARTIST_WIDTHS = [44, 60, 38, 52, 41, 66] as const;
 
@@ -80,19 +68,15 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   chrome = 'retro',
   className,
 }) => {
-  // Combine all results into a single array with intelligent ranking
   const allResults = React.useMemo(() => {
     if (!results) return [];
 
-    // Use smart ranking when we have a search query
     if (query && query.length > 0) {
       return rankSearchResults(results, query);
     }
 
-    // Fallback to simple ordering for top charts (no query)
     const items: RankedItem[] = [];
 
-    // Add tracks
     results.tracks.forEach((track) => {
       items.push({
         id: track.id,
@@ -105,7 +89,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
       });
     });
 
-    // Add albums
     results.albums.forEach((album) => {
       items.push({
         id: album.id,
@@ -117,7 +100,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
       });
     });
 
-    // Add artists
     results.artists.forEach((artist) => {
       items.push({
         id: artist.id,
@@ -128,7 +110,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
       });
     });
 
-    // Add playlists
     results.playlists.forEach((playlist) => {
       items.push({
         id: playlist.id,
@@ -140,21 +121,18 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
       });
     });
 
-    return items.slice(0, 50); // Limit to 50 results
+    return items.slice(0, 50);
   }, [results, query]);
 
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'track':
-        // Use primary color for tracks
         return 'bg-primary/10 text-primary border-primary/20';
       case 'album':
-        // Use warning color for albums
         return 'bg-warning/10 text-warning border-warning/20';
       case 'artist':
         return 'bg-accentRoyal/10 text-accentRoyal border-accentRoyal/20';
       case 'playlist':
-        // Use success color for playlists
         return 'bg-success/10 text-success border-success/20';
       default:
         return 'bg-secondary/10 text-secondary-foreground border-border';
@@ -162,7 +140,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   };
 
   const handleItemClick = (item: typeof allResults[0]) => {
-    // Try to find a valid URL from the item
     const url = item.externalUrls?.spotify || 
                 item.externalUrls?.appleMusic || 
                 item.externalUrls?.deezer;
@@ -191,18 +168,13 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   return (
     <div
       data-testid="search-results"
-      // force-light: the results panel keeps its light-mode (white) surface in
-      // dark mode, matching the search bar it hangs from.
       className={cn('force-light w-full max-w-4xl mx-auto px-3 sm:px-6 md:px-4 mb-4 sm:mb-8 animate-in fade-in duration-200', className)}
     >
-      {/* Search Results Container with retro shadow effect */}
       <div className="relative">
-        {/* Bottom shadow layer */}
         {chrome === 'retro' && (
           <div className="absolute inset-0 translate-x-1 translate-y-1 bg-muted-foreground rounded-lg" />
         )}
 
-        {/* Main container */}
         <div
           className={
             chrome === 'retro'
@@ -212,7 +184,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                 : 'relative bg-field text-card-foreground rounded-lg border border-border'
           }
         >
-          {/* Header */}
           <div
             className={`flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 ${
               chrome === 'retro' ? 'border-b-2 border-foreground' : 'border-b border-border'
@@ -242,7 +213,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             </button>
           </div>
 
-          {/* Results List — flat and bare chrome defer scrolling to the parent */}
           <div
             className={
               chrome === 'flat' || chrome === 'bare'
@@ -261,11 +231,10 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                 data-testid={`search-result-${item.type}-${item.id}`}
                 className="flex items-center gap-2 sm:gap-3 px-2 py-1.5 sm:p-3 hover:bg-muted/50 transition-colors cursor-pointer border-b border-border last:border-b-0"
                 onMouseDown={(e) => {
-                  e.preventDefault(); // Prevent blur
+                  e.preventDefault();
                   handleItemClick(item);
                 }}
               >
-                {/* Album Art */}
                 <div className="flex-shrink-0 relative w-10 h-10 sm:w-12 sm:h-12 rounded-md overflow-hidden border border-border">
                   {item.artwork ? (
                     <Image
@@ -303,7 +272,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                   )}
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <p className="font-semibold text-foreground truncate text-sm">
@@ -322,7 +290,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                   )}
                 </div>
 
-                {/* Arrow */}
                 <svg
                   className="w-4 h-4 text-muted-foreground flex-shrink-0"
                   fill="none"

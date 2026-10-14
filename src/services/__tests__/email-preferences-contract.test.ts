@@ -1,5 +1,3 @@
-/** Verifies the strict email preference response contract for both categories. */
-
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {

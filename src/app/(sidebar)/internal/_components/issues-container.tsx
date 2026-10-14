@@ -14,12 +14,6 @@ import { SectionHeader } from './kit/primitives';
 import { PAGE_SIZE } from './internal-utils';
 import { IssuesTab } from './issues-tab';
 
-/**
- * Owns all Issues state — lifted verbatim from the old InternalDashboardShell.
- * The previous `activeTab === 'issues'` lazy guard is gone: the route only mounts
- * when navigated to, so the unconditional mount effect reproduces the same
- * "fetch when viewing" behaviour.
- */
 export function IssuesContainer() {
   const searchParams = useSearchParams();
   const requestedIssueId = searchParams.get('issue') ?? '';

@@ -20,24 +20,17 @@ type LastPosition = {
   left: number;
   width: number;
   at: number;
-  /** Computed styles of the shared parts, by kind and part name. */
   parts: Map<string, PartStyle>;
-  /** The departing element, held on screen while a page waits for its copy. */
   held: HTMLElement | null;
-  /** Whether the held copy was painted, so taking it away is a change on screen. */
   shown: boolean;
 };
 
-// Module-level so the record outlives the page that wrote it during client navigation.
 const lastPositions = new Map<string, LastPosition>();
 // Keys already recorded in the current commit. The first departure wins: a pass portaled into
 // a slot leaves before the fallback pass that CSS hid while the slot was full, and that
 // fallback is visible only because the slot just emptied.
 const departedThisCommit = new Set<string>();
-// Keys whose next copy is still loading, with the number of holders.
 const holds = new Map<string, number>();
-// Slots a copy is still loading into, with the number of holders. While any wait, the slot carries
-// `data-shared-pending`, so content after the slot can stay hidden instead of moving down when the copy lands.
 const pendingSlots = new WeakMap<HTMLElement, number>();
 
 function markPending(slot: HTMLElement, change: 1 | -1) {
@@ -47,15 +40,12 @@ function markPending(slot: HTMLElement, change: 1 | -1) {
   slot.toggleAttribute('data-shared-pending', count > 0);
 }
 const handoffWindowMs = 1_000;
-// A held copy never outstays this; a read that slow lets the new copy simply appear.
 const maxHoldMs = 5_000;
 const slideMs = 400;
 const releaseMs = 150;
 const dissolveMs = 180;
 const slideEasing = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
-// The properties each kind of shared part carries over a handoff, and how it eases: colors ease
-// in and out, sizes ease like the slide.
 const sharedKinds = [
   { attribute: 'data-shared-tint', properties: ['backgroundColor', 'color', 'opacity'], easing: 'ease-in-out' },
   { attribute: 'data-shared-size', properties: ['width', 'height', 'fontSize', 'lineHeight'], easing: slideEasing },
@@ -63,7 +53,6 @@ const sharedKinds = [
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** Shared parts with their computed styles. The id is also the selector for the same part elsewhere. */
 function sharedParts(node: Element) {
   return sharedKinds.flatMap(({ attribute, properties, easing }) =>
     [...node.querySelectorAll(`[${attribute}]`)].map((part) => {
@@ -73,7 +62,6 @@ function sharedParts(node: Element) {
     }));
 }
 
-/** Keyframes from a departed part's style to its counterpart's, with only the properties that differ. */
 function partChange(from: PartStyle | undefined, to: PartStyle) {
   if (!from) return null;
   const changed = Object.keys(to).filter((property) => from[property] !== to[property]);
@@ -82,7 +70,6 @@ function partChange(from: PartStyle | undefined, to: PartStyle) {
   return [pick(from), pick(to)];
 }
 
-/** Animates `element` from a spot to where it is now, with the top-left corners matched. */
 function slideFrom(element: HTMLElement, dx: number, dy: number, scale: number) {
   if (dx === 0 && dy === 0 && scale === 1) return null;
   return element.animate(
@@ -94,11 +81,9 @@ function slideFrom(element: HTMLElement, dx: number, dy: number, scale: number) 
   );
 }
 
-/** An inert, fixed copy of the departing element at its last spot. */
 function holdCopy(node: HTMLElement, top: number, left: number, width: number) {
   // SAFETY: a deep clone of an HTMLElement is an HTMLElement of the same tag.
   const copy = node.cloneNode(true) as HTMLElement;
-  // The copy is decoration: no duplicate ids or test hooks, and nothing to focus or read.
   for (const element of [copy, ...copy.querySelectorAll('[id], [data-testid]')]) {
     element.removeAttribute('id');
     element.removeAttribute('data-testid');
@@ -115,13 +100,11 @@ function placeCopy(copy: HTMLElement, top: number, left: number, width: number) 
   Object.assign(copy.style, { top: `${top}px`, left: `${left}px`, width: `${width}px` });
 }
 
-/** Drops a held copy that no page is waiting on. One that was on screen fades; the record goes with it. */
 function releaseHeld(key: string, entry: LastPosition, force = false) {
   if (lastPositions.get(key) !== entry || !entry.held || (!force && holds.has(key))) return;
   const { held } = entry;
   entry.held = null;
   if (!entry.shown) {
-    // Never painted: leave the position record for a copy that mounts within the handoff window.
     held.remove();
     return;
   }
@@ -130,7 +113,6 @@ function releaseHeld(key: string, entry: LastPosition, force = false) {
   fade.onfinish = () => held.remove();
 }
 
-// Elements whose handoff started in the current task, with what it consumed and started.
 const arriving = new Map<HTMLElement, { previous: LastPosition; animations: Animation[] }>();
 
 export function useSharedPosition(ref: RefObject<HTMLElement | null>, key: string) {
@@ -139,10 +121,8 @@ export function useSharedPosition(ref: RefObject<HTMLElement | null>, key: strin
     if (!node) return;
     const previous = lastPositions.get(key);
     lastPositions.delete(key);
-    // A copy that was never painted is the old card's last frame; the new card replaces it as before.
     if (previous?.held && !previous.shown) previous.held.remove();
     const held = previous?.shown ? previous.held : null;
-    // A held copy is still on screen, so its handoff is fresh however long the read took.
     const fresh = previous !== undefined && (held !== null || Date.now() - previous.at < handoffWindowMs);
     if (fresh && !reducedMotion()) {
       const animations: Animation[] = [];
@@ -151,7 +131,6 @@ export function useSharedPosition(ref: RefObject<HTMLElement | null>, key: strin
       for (const entrance of node.parentElement?.getAnimations() ?? []) entrance.finish();
       let from: { top: number; left: number; width: number } = previous;
       if (held) {
-        // A held copy can still be moving to the slot: start from where it is on screen, and pin it there.
         from = held.getBoundingClientRect();
         for (const animation of held.getAnimations()) animation.cancel();
         placeCopy(held, from.top, from.left, from.width);
@@ -159,12 +138,9 @@ export function useSharedPosition(ref: RefObject<HTMLElement | null>, key: strin
       const rect = node.getBoundingClientRect();
       const dx = from.left - rect.left;
       const dy = from.top - rect.top;
-      // Uniform scale from the departure width: the heads line up, and the body can differ in height.
       const scale = rect.width > 0 ? from.width / rect.width : 1;
       const slide = slideFrom(node, dx, dy, scale);
       if (slide) animations.push(slide);
-      // Shared parts change across the slide. A held copy's matching parts make the same change,
-      // so the two cards stay in step while it fades.
       for (const { part, id, style, easing } of sharedParts(node)) {
         const keyframes = partChange(previous.parts.get(id), style);
         if (!keyframes) continue;
@@ -173,9 +149,6 @@ export function useSharedPosition(ref: RefObject<HTMLElement | null>, key: strin
         if (heldPart) animations.push(heldPart.animate(keyframes, { duration: slideMs, easing, fill: 'forwards' }));
       }
       if (held) {
-        // The held copy was on screen while the page loaded, so the two cards cross-fade: the copy
-        // rides the slide on top and fades out with a blur that hides the two layouts overlapping,
-        // while the head color blends underneath.
         animations.push(held.animate(
           [{ transform: 'none' }, { transform: `translate(${-dx}px, ${-dy}px) scale(${1 / scale})` }],
           { duration: slideMs, easing: slideEasing, fill: 'forwards' },
@@ -185,7 +158,6 @@ export function useSharedPosition(ref: RefObject<HTMLElement | null>, key: strin
           { duration: dissolveMs, easing: 'ease-out', fill: 'forwards' },
         );
         fade.onfinish = () => held.remove();
-        // The new card comes up under it, so a taller card's lower part does not appear at once.
         animations.push(fade, node.animate([{ opacity: 0 }, { opacity: 1 }], { duration: dissolveMs, easing: 'ease-out' }));
       }
       arriving.set(node, { previous, animations });
@@ -205,7 +177,6 @@ export function useSharedPosition(ref: RefObject<HTMLElement | null>, key: strin
       if (departedThisCommit.has(key)) return;
       // The node is still in the document during layout cleanup, so this is the departure spot.
       const { top, left, width } = node.getBoundingClientRect();
-      // A copy that CSS hides (display: none) has no spot to hand off from.
       if (width === 0) return;
       departedThisCommit.add(key);
       // React runs a commit's cleanups in one task, so a microtask clears the set after it.
@@ -217,8 +188,6 @@ export function useSharedPosition(ref: RefObject<HTMLElement | null>, key: strin
       };
       lastPositions.set(key, entry);
       if (!entry.held) return;
-      // A hold or a new copy lands in this same commit, before the next frame. Without either,
-      // the copy goes before it is ever painted, so other navigations look as they did.
       requestAnimationFrame(() => {
         releaseHeld(key, entry);
         entry.shown = entry.held !== null;
@@ -230,8 +199,6 @@ export function useSharedPosition(ref: RefObject<HTMLElement | null>, key: strin
 
 const following = new WeakSet<LastPosition>();
 
-/** Keeps a held copy on its slot each frame while the page scrolls or resizes, and lets it go
-    when the slot loses its box (a narrow window hides the empty rail). */
 function followSlot(key: string, entry: LastPosition, slot: HTMLElement) {
   if (following.has(entry)) return;
   following.add(entry);
@@ -269,7 +236,6 @@ export function useSharedPositionHold(key: string, waiting: boolean, slot: HTMLE
         releaseHeld(key, entry, true);
       } else {
         if (target.top !== entry.top || target.left !== entry.left || target.width !== entry.width) {
-          // Move now, so the card answers the click; the new copy later lands on this spot.
           placeCopy(entry.held, target.top, target.left, target.width);
           slideFrom(entry.held, entry.left - target.left, entry.top - target.top, entry.width / target.width);
           Object.assign(entry, { top: target.top, left: target.left, width: target.width });
@@ -282,7 +248,6 @@ export function useSharedPositionHold(key: string, waiting: boolean, slot: HTMLE
       if (count > 0) holds.set(key, count);
       else holds.delete(key);
       if (slot) markPending(slot, -1);
-      // The copy usually mounts in the commit that ends the wait, after this cleanup; let it claim the record first.
       requestAnimationFrame(() => {
         const current = lastPositions.get(key);
         if (current) releaseHeld(key, current);

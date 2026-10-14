@@ -975,9 +975,6 @@ export function PostCommentsSheet({
         <DialogPrimitive.Content
           className={contentClasses}
           onInteractOutside={(event) => {
-            // Desktop: panel stays open during any outside interaction so the
-            // page remains fully clickable. Only the X button or re-clicking
-            // the trigger closes it.
             event.preventDefault();
           }}
           onFocusOutside={(event) => {
@@ -990,7 +987,6 @@ export function PostCommentsSheet({
             {commentsList}
           </div>
 
-          {/* Desktop: input pinned inside the side panel */}
           <div className="border-t border-border bg-background/80 backdrop-blur-sm px-3 sm:px-5 py-2.5 sm:py-3 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
             {composer}
           </div>

@@ -18,11 +18,6 @@ import { appLogger } from '@/lib/observability/logger';
 
 const AUTH_API_BASE = '/api/auth';
 
-/**
- * How a session read ended. `error` is an outage or a malformed answer with
- * the session cookie possibly still valid; only `signed-out` means a 401.
- * `superseded` means a sign-in or sign-out replaced the read before it ended.
- */
 export type SessionRefresh =
   | { kind: 'authenticated'; user: AuthUser }
   | { kind: 'signed-out' }
@@ -39,7 +34,6 @@ class AuthService {
   private initialized = false;
   private lastArtworkWarmupUserId: string | null = null;
   private sessionRead: { promise: Promise<SessionRefresh>; controller: AbortController } | null = null;
-  /** The user object built from the last applied session payload, with that payload. */
   private appliedSessionUser: { json: string; user: AuthUser } | null = null;
 
   private resolveAvatarUrl(userData: Record<string, unknown>): string {
@@ -452,16 +446,11 @@ class AuthService {
     return this.mapToAuthUser(userData);
   }
 
-  /**
-   * Applies the session that a sign-in, sign-up, or password update returned.
-   * A pending session read belongs to the previous identity, so it is dropped.
-   */
   private startSession({ user: userData, counts }: SignedInBody): AuthUser {
     this.abortSessionRead();
     if (counts) {
       return this.applySession(userData, counts);
     }
-    // Signed in, but without valid counts: the session is an error until a read succeeds.
     const user = this.mapToAuthUser(userData);
     useAuthStore.getState().setSessionError(user);
     this.warmProfileArtworkCache(user);
@@ -501,7 +490,6 @@ class AuthService {
         },
         signal,
       });
-      // Only a 200 carries a session; any other answer is classified by its status alone.
       const body: unknown = response.status === 200 ? await response.json().catch(() => null) : null;
       return readSessionResponse(response.status, body);
     } catch (error) {
@@ -512,12 +500,6 @@ class AuthService {
     }
   }
 
-  /**
-   * Reads the web session and applies it to the auth store. Callers share one
-   * pending read; `restart` replaces it with a read that starts now, for a
-   * caller whose own change (a profile save, a membership change) the pending
-   * read may predate.
-   */
   refreshSession({ restart = false }: { restart?: boolean } = {}): Promise<SessionRefresh> {
     if (this.sessionRead && !restart) {
       return this.sessionRead.promise;
@@ -528,13 +510,9 @@ class AuthService {
     useAuthStore.getState().setRefreshingSession(true);
     const promise = this.fetchSession(controller.signal)
       .then((read): SessionRefresh | Promise<SessionRefresh> => {
-        // A sign-in, sign-out, or newer read replaced this one; its answer is
-        // stale. A newer read answers for it.
         if (controller.signal.aborted) {
           return this.sessionRead?.promise ?? { kind: 'superseded' };
         }
-        // The answer is in: a caller from here on starts a new read, never
-        // this one. The store sees the end of the read and its answer together.
         this.endSessionRead(controller);
         switch (read.kind) {
           case 'authenticated':
@@ -566,7 +544,6 @@ class AuthService {
     this.initialized = true;
     void this.refreshSession();
 
-    // A returning viewer gets a fresh session once the last read is too old.
     const refreshIfStale = () => {
       if (document.visibilityState !== 'visible') return;
       const { user, sessionError, sessionCheckedAt } = useAuthStore.getState();

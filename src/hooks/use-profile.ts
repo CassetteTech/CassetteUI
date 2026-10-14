@@ -2,10 +2,6 @@ import { useInfiniteQuery, useQuery, useQueryClient, useMutation, type InfiniteD
 import { profileService } from '@/services/profile';
 import { UserBio, PaginatedActivityResponse, PaginatedExploreUsersResponse, ExploreCurator, CuratorFeedPage } from '@/types';
 
-/**
- * Query keys for profile-related queries.
- * Centralized here for easy invalidation.
- */
 export const profileQueryKeys = {
   bio: (userIdentifier: string) => ['user-bio', userIdentifier] as const,
   activity: (userIdentifier: string, page?: number, elementType?: string) =>
@@ -24,11 +20,6 @@ export const profileQueryKeys = {
     ['curator-feed', viewerId, membersOnly] as const,
 };
 
-/**
- * Fetches a user's bio/profile information.
- * React Query handles deduplication - multiple components can call this
- * with the same userIdentifier and only one network request is made.
- */
 interface UserBioQueryOptions {
   enabled?: boolean;
   staleTime?: number;
@@ -62,10 +53,6 @@ interface ActivityQueryOptions {
   enabled?: boolean;
 }
 
-/**
- * Fetches a user's activity/posts with pagination.
- * React Query handles deduplication automatically.
- */
 export const useUserActivity = (
   userIdentifier: string | undefined,
   options: ActivityQueryOptions = {}
@@ -78,14 +65,11 @@ export const useUserActivity = (
       profileService.fetchUserActivity(userIdentifier!, { page, pageSize, elementType }),
     enabled: !!userIdentifier && enabled,
     refetchOnMount: 'always',
-    staleTime: 1000 * 60 * 2, // 2 minutes (activity changes more frequently)
-    gcTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 5,
   });
 };
 
-/**
- * Fetches a user's tracks specifically.
- */
 export const useUserTracks = (
   userIdentifier: string | undefined,
   options: Omit<ActivityQueryOptions, 'elementType'> = {}
@@ -93,9 +77,6 @@ export const useUserTracks = (
   return useUserActivity(userIdentifier, { ...options, elementType: 'Track' });
 };
 
-/**
- * Fetches a user's albums specifically.
- */
 export const useUserAlbums = (
   userIdentifier: string | undefined,
   options: Omit<ActivityQueryOptions, 'elementType'> = {}
@@ -103,9 +84,6 @@ export const useUserAlbums = (
   return useUserActivity(userIdentifier, { ...options, elementType: 'Album' });
 };
 
-/**
- * Fetches a user's artists specifically.
- */
 export const useUserArtists = (
   userIdentifier: string | undefined,
   options: Omit<ActivityQueryOptions, 'elementType'> = {}
@@ -113,9 +91,6 @@ export const useUserArtists = (
   return useUserActivity(userIdentifier, { ...options, elementType: 'Artist' });
 };
 
-/**
- * Fetches a user's playlists specifically.
- */
 export const useUserPlaylists = (
   userIdentifier: string | undefined,
   options: Omit<ActivityQueryOptions, 'elementType'> = {}
@@ -123,9 +98,6 @@ export const useUserPlaylists = (
   return useUserActivity(userIdentifier, { ...options, elementType: 'Playlist' });
 };
 
-/**
- * Fetches posts liked by a user.
- */
 export const useUserLikedPosts = (
   userId: string | undefined,
   options: Omit<ActivityQueryOptions, 'elementType'> = {}
@@ -163,11 +135,6 @@ export const useExploreActivity = (options: ExploreQueryOptions = {}) => {
   });
 };
 
-/**
- * The viewer's curator Feed. Keyed by viewer so a session change never shows
- * another account's posts. Session refreshes remove these pages and restart
- * at the first page, so nothing refetches the loaded page chain on its own.
- */
 export const useCuratorFeed = (viewerId: string | null, membersOnly: boolean, enabled: boolean) =>
   useInfiniteQuery<
     CuratorFeedPage,
@@ -210,10 +177,6 @@ export const useExploreUsers = (options: ExploreQueryOptions = {}) => {
   });
 };
 
-/**
- * Mutation hook for updating user profile.
- * Invalidates bio queries on success.
- */
 export const useUpdateProfile = () => {
   const queryClient = useQueryClient();
 
@@ -226,28 +189,20 @@ export const useUpdateProfile = () => {
       avatarFile?: File | null;
     }) => profileService.updateProfile(data),
     onSuccess: () => {
-      // Invalidate all bio queries to refresh profile data
       queryClient.invalidateQueries({ queryKey: ['user-bio'] });
     },
   });
 };
 
-/**
- * Hook to check username availability.
- */
 export const useCheckUsernameAvailability = (username: string) => {
   return useQuery({
     queryKey: ['username-availability', username],
     queryFn: () => profileService.checkUsernameAvailability(username),
     enabled: !!username && username.length >= 3,
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: 1000 * 30,
   });
 };
 
-/**
- * Helper hook to invalidate profile queries.
- * Useful after mutations that affect profile data.
- */
 export const useInvalidateProfileQueries = () => {
   const queryClient = useQueryClient();
 

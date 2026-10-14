@@ -17,12 +17,9 @@ test.describe('sign out', () => {
     await expect(page).toHaveURL('/auth/signin');
     await expect(page.getByRole('button', { name: 'Sign Out' })).toHaveCount(0);
 
-    // A protected route must not resolve once the session is gone.
     await page.goto('/profile');
     await expect(page).toHaveURL('/auth/signin');
 
-    // The assertion that actually catches a cookie outliving a cleared client
-    // store: a fresh load must still be signed out.
     await page.reload();
     await expect(page).toHaveURL('/auth/signin');
     await expect(page.getByRole('button', { name: 'Sign Out' })).toHaveCount(0);

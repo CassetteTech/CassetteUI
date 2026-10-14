@@ -43,7 +43,6 @@ void test('turns a Follow or Join sign-in return into the profile with its inten
 void test('opens sign-in with the same return for any other local page', () => {
   assert.equal(browserHandoffPath('/post/post-1'), '/auth/signin?redirect=%2Fpost%2Fpost-1');
   assert.equal(browserHandoffPath('/profile/crate_keeper'), '/auth/signin?redirect=%2Fprofile%2Fcrate_keeper');
-  // An unknown interval is not a Join intent.
   assert.equal(
     browserHandoffPath('/profile/crate_keeper?membership=join&interval=week'),
     '/auth/signin?redirect=%2Fprofile%2Fcrate_keeper%3Fmembership%3Djoin%26interval%3Dweek',

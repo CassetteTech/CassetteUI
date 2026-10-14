@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { HOMEPAGE_DEMO_VIDEO } from '@/lib/marketing-copy';
 import { cn } from '@/lib/utils';
 
-/** The beta badge that follows the wordmark everywhere. */
 export function BetaBadge({ className }: { className?: string }) {
   return (
     <div className={cn('home-wordmark-badge shrink-0', className)}>
@@ -22,11 +21,6 @@ export function BetaBadge({ className }: { className?: string }) {
   );
 }
 
-/**
- * The folding wordmark with its beta badge. The SVG box carries empty
- * space above and below the lettering (its extrusion travel), so the
- * wrapper trims it and the badge sits at the foot of the extrusion.
- */
 export function HomeBrand({ className }: { className?: string }) {
   return (
     <div className={cn('flex flex-row items-end', className)}>
@@ -38,7 +32,6 @@ export function HomeBrand({ className }: { className?: string }) {
   );
 }
 
-/** The streaming services Cassette converts between, with their logos. */
 export const STREAMING_SERVICES = [
   { label: 'Spotify', logo: '/images/spotify_logo_colored.png' },
   { label: 'Apple Music', logo: '/images/apple_music_logo_colored.png' },
@@ -47,8 +40,6 @@ export const STREAMING_SERVICES = [
 
 const CURATOR_STUDIO = '/studio';
 
-/** The curator call to action. A new visitor signs up first, then lands in
-    Curator Studio, where the free page starts with one click. */
 export function StartPageLink({ isAuthenticated, className }: { isAuthenticated: boolean; className?: string }) {
   const href = isAuthenticated ? CURATOR_STUDIO : `/auth/signup?redirect=${encodeURIComponent(CURATOR_STUDIO)}`;
   return (
@@ -58,7 +49,6 @@ export function StartPageLink({ isAuthenticated, className }: { isAuthenticated:
   );
 }
 
-/** Opens the product walkthrough. */
 export function DemoButton() {
   return (
     <DemoVideoDialog

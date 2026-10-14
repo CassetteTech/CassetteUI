@@ -2,11 +2,6 @@ import { expect, test, type Page } from '@playwright/test';
 import { fixtureUsers } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
-/**
- * The /internal gate resolves client-side, so a deny has to be asserted on the
- * absence of console content, not just on the URL — a gate that redirected but
- * still rendered would leak internal data for a frame.
- */
 const consoleHeading = (page: Page) => page.getByRole('heading', { name: 'Console', level: 1 });
 
 /**
@@ -108,7 +103,6 @@ test.describe('internal console access', () => {
     let call = 0;
     await page.route('**/api/auth/session', async (route) => {
       call += 1;
-      // Hold the refresh open so the gate is parked in its loading state.
       if (call > 1) await refreshHeld;
       await route.fulfill({
         status: 200,
@@ -132,8 +126,6 @@ test.describe('internal console access', () => {
 
     await page.goto('/internal');
 
-    // While the refresh is held the gate is unresolved, so no console content
-    // may exist yet — not merely be invisible.
     await expect(consoleHeading(page)).toHaveCount(0);
     await page.waitForTimeout(500);
     await expect(consoleHeading(page)).toHaveCount(0);

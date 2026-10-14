@@ -1,5 +1,3 @@
-// Verifies client analytics wrappers, route surfaces, and internal-account suppression.
-
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { captureClientEvent, identifyClientUser, resetAnalyticsContextForTests, surfaceFromRoute, trackBrowserPageview } from '../client';

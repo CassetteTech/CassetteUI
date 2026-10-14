@@ -1,5 +1,3 @@
-/** Covers private Follow on curator profiles: one action each way, failure and retry, membership, ownership, and signed-out return. */
-
 import { expect, type Page, test } from '@playwright/test';
 
 import {
@@ -70,7 +68,6 @@ test('Follow sits quietly under Join, takes one action each way, and refreshes t
 
   await page.goto(CURATOR_PATH);
   const card = page.locator('[data-testid="curator-membership-card"]:visible');
-  // Join is the first and primary action; Follow comes after it.
   await expect(card.getByRole('button')).toHaveText([`Join ${NAME}`, `Follow ${NAME}`]);
   const readsBefore = sessionReads.length;
 
@@ -123,7 +120,6 @@ test('a relationship read failure offers a retry, never a guessed button', async
     currentUser: fixtureUsers.viewer,
     curatorPage: fixtureCuratorPage,
     membershipStatus: fixtureNoMembershipStatus,
-    // The first read and its one automatic retry fail.
     curatorFollowReadFailures: 2,
   });
 
@@ -241,7 +237,6 @@ test.describe('signed-out Follow', () => {
     expect(Number(await page.evaluate((key) => sessionStorage.getItem(key), INTENT_KEY))).toBeGreaterThan(0);
     expect(writes(state)).toEqual([]);
 
-    // Signing in returns to the validated redirect in the same tab.
     state.currentUser = { ...fixtureUsers.viewer };
     await page.goto(returnPath);
 
@@ -265,14 +260,12 @@ test.describe('signed-out Follow', () => {
     await expect(followButton(page)).toBeVisible();
     await expect(page).toHaveURL(CURATOR_PATH);
 
-    // An intent older than its lifetime counts for nothing.
     await page.evaluate((key) => sessionStorage.setItem(key, String(Date.now() - 11 * 60 * 1_000)), INTENT_KEY);
     await page.goto(`${CURATOR_PATH}?follow=1`);
     await expect(followButton(page)).toBeVisible();
     await expect(page).toHaveURL(CURATOR_PATH);
     await page.waitForTimeout(300);
     expect(writes(state)).toEqual([]);
-    // A Join intent is a different consent and never starts a Follow either.
     expect(state.membershipCheckoutRequests).toEqual([]);
   });
 
@@ -304,7 +297,6 @@ test.describe('membership changes', () => {
   test('a confirmed Join hides Follow by the relationship, not the member-posts flag, and keeps the earlier Follow', async ({ page }) => {
     const { state } = await mockCassetteApp(page, {
       currentUser: fixtureUsers.viewer,
-      // The plan gives no member posts, so the page still treats the viewer as a nonmember.
       curatorPage: fixtureCuratorPage,
       membershipStatus: fixtureNoMembershipStatus,
       membershipPollSequence: [fixtureIncompleteMembershipStatus, fixtureActiveMembershipStatus],
@@ -364,7 +356,6 @@ test.describe('stale answers', () => {
     await page.route(`**/api/v1/curators/${CURATOR_ID}/follow`, async (route) => {
       if (route.request().method() !== 'PUT') return route.fallback();
       await released;
-      // Bridge followed for the earlier account; its answer arrives late.
       await route.fulfill({ json: { isFollowing: true, hasExplicitFollow: true, hasActiveMembership: false } }).catch(() => {});
     });
 
@@ -372,7 +363,6 @@ test.describe('stale answers', () => {
     await followButton(page).click();
     await expect.poll(() => followRequests).toContain('PUT');
 
-    // Another account becomes current before the earlier account's Follow answers.
     state.currentUser = { ...fixtureUsers.member };
     await page.clock.fastForward('01:01');
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
@@ -402,14 +392,12 @@ test.describe('stale answers', () => {
       if (staleAnswers === 0) return route.fallback();
       staleAnswers -= 1;
       await released;
-      // The earlier account follows this curator; its answer arrives late.
       await route.fulfill({ json: { isFollowing: true, hasExplicitFollow: true, hasActiveMembership: false } }).catch(() => {});
     });
 
     await page.goto(CURATOR_PATH);
     await expect.poll(() => followRequests.length).toBe(1);
 
-    // Another account, which follows nobody, becomes current while that read is open.
     state.currentUser = { ...fixtureUsers.member };
     state.curatorFollows.clear();
     await page.clock.fastForward('01:01');
@@ -444,7 +432,6 @@ test.describe('stale answers', () => {
           if (route.request().method() !== 'GET' || !holdRead) return route.fallback();
           holdRead = false;
           readArrived = true;
-          // Bridge answers with the relationship as it stood when the read arrived.
           const stood = state.curatorFollows.has(CURATOR_ID);
           await readReleased;
           await route.fulfill({ json: { isFollowing: stood, hasExplicitFollow: stood, hasActiveMembership: false } }).catch(() => {});
@@ -452,7 +439,6 @@ test.describe('stale answers', () => {
         });
         const startRead = async () => {
           holdRead = true;
-          // A return to the tab reads the same relationship again in the background.
           await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange', { bubbles: true })));
           await expect.poll(() => readArrived).toBe(true);
         };
@@ -473,7 +459,6 @@ test.describe('stale answers', () => {
         await expect(confirmed).toBeEnabled();
         await expect.poll(() => sessionReads.length).toBe(readsBefore + 1);
 
-        // The earlier answer arrives after the confirmed one.
         releaseRead();
         await readDone;
         await page.waitForTimeout(500);
@@ -482,7 +467,6 @@ test.describe('stale answers', () => {
         expect(writes(state)).toEqual([followed ? 'DELETE' : 'PUT']);
         expect(sessionReads.length).toBe(readsBefore + 1);
 
-        // The Feed opens from the confirmed sources.
         await page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Feed' }).click();
         if (followed) {
           await expect(page.getByRole('heading', { name: 'Join a curator' })).toBeVisible();
@@ -499,25 +483,20 @@ test.describe('stale answers', () => {
 test('the built server routes Follow writes through the origin check and refuses other methods', async ({ request, baseURL }) => {
   const followPath = `/api/v1/curators/${CURATOR_ID}/follow`;
 
-  // Cross-origin writes stop at the origin check; nothing is forwarded.
   for (const method of ['PUT', 'DELETE'] as const) {
     const refused = await request.fetch(followPath, { method, headers: { origin: 'https://evil.example' } });
     expect(refused.status(), method).toBe(403);
   }
-  // A same-origin write passes the check and then meets the Playwright proxy guard, never Bridge.
   const allowed = await request.fetch(followPath, { method: 'PUT', headers: { origin: baseURL! } });
   expect(allowed.status()).toBe(503);
-  // Other methods get no handler here, and never fall through to the generic proxy.
   for (const method of ['POST', 'PATCH'] as const) {
     const unsupported = await request.fetch(followPath, { method, headers: { origin: baseURL! } });
     expect(unsupported.status(), method).toBe(405);
   }
-  // A sibling curator path still reaches the generic proxy.
   expect((await request.get(`/api/v1/curators/${fixtureCuratorPage.curator.username}/page`)).status()).toBe(503);
 });
 
 test('the built server refuses cross-origin writes under every Follow path spelling the generic proxy receives', async ({ request, baseURL }) => {
-  // The scoped Follow route matches case-sensitively and never sees an encoded slash.
   const aliases = [
     `/api/v1/Curators/${CURATOR_ID}/follow`,
     `/api/v1/curators/${CURATOR_ID}/Follow`,
@@ -527,11 +506,9 @@ test('the built server refuses cross-origin writes under every Follow path spell
     for (const method of ['PUT', 'DELETE'] as const) {
       expect.soft((await request.fetch(path, { method, headers: { origin: 'https://evil.example' } })).status(), `${method} ${path}`).toBe(403);
       expect.soft((await request.fetch(path, { method })).status(), `${method} ${path} without an origin`).toBe(403);
-      // A same-origin write passes the check and then meets the Playwright proxy guard, never Bridge.
       expect.soft((await request.fetch(path, { method, headers: { origin: baseURL! } })).status(), `${method} ${path} same origin`).toBe(503);
     }
   }
-  // Any other write through the generic proxy takes the same check.
   expect.soft((await request.post('/api/v1/social/posts', { headers: { origin: 'https://evil.example' } })).status()).toBe(403);
   expect.soft((await request.post('/api/v1/social/posts', { headers: { origin: baseURL! } })).status()).toBe(503);
 });

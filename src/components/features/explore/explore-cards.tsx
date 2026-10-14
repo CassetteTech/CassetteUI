@@ -1,5 +1,3 @@
-/** Explore's paper cards, shared with the Feed: post cards, the Feed's locked post card, their grid and skeleton, section headings, and creator cards. */
-
 import Image from 'next/image';
 import Link from 'next/link';
 import { LockKeyhole, Music2, Repeat2 } from 'lucide-react';
@@ -11,10 +9,8 @@ import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
 import type { ActivityPost, CuratorFeedItem, ExploreUser } from '@/types';
 
-// Row gaps leave room for the offset shadow below each card.
 export const POST_GRID = 'grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 sm:gap-x-6 sm:gap-y-8';
 
-// The paper card shared by posts and skeletons: warm white in every theme.
 const PAPER_CARD = 'border-2 border-foreground bg-primary-foreground force-light-surface text-foreground';
 
 export function SectionHeading({
@@ -38,13 +34,6 @@ export function SectionHeading({
 
 const ARTWORK_CHIP = 'absolute top-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]';
 
-/**
- * A paper card: ink border, offset shadow, artwork flush at the top printing
- * into the paper through the brand's dither seam (the post page's label
- * device). Every card reserves the same title, detail, and footer lines, so a
- * grid row has one height whatever the copy. The card lifts on hover and its
- * shadow turns brand red.
- */
 export function PostCard({
   post,
   label,
@@ -52,7 +41,6 @@ export function PostCard({
   onClick,
 }: {
   post: ActivityPost;
-  /** A disclosure printed in the footer, such as "Sponsored"; it also turns the shadow red. */
   label?: string;
   artworkTestId?: string;
   onClick?: () => void;
@@ -105,8 +93,6 @@ export function PostCard({
           )}
         </div>
 
-        {/* min-h holds two title lines, a detail line, and the footer, so a
-            one-line title leaves its slack above the pinned footer. */}
         <div className="relative flex min-h-28 flex-1 flex-col px-3 pb-3 pt-3">
           <DitherEdge color="hsl(var(--primary-foreground))" side="top" scale={0.5} />
           <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight line-clamp-2 transition-colors group-hover:text-primary">
@@ -128,12 +114,6 @@ export function PostCard({
   );
 }
 
-/**
- * A members-only post the viewer has not joined for: the lock where the
- * artwork goes, the curator, and the time, and no link to the post. Join opens
- * the curator's offer and never starts Checkout. `availability` comes from the
- * viewer's membership status; while it is unknown the card offers the profile.
- */
 export function LockedPostCard({
   item,
   joinHref,

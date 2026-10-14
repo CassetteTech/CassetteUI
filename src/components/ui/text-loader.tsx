@@ -46,7 +46,6 @@ export function TextLoader({ text = 'Loading', className }: { text?: string; cla
     <output className={cn('flex select-none items-center justify-center gap-2.5', className)}>
       <TextLoaderOrb />
       <span className="sr-only">{text}</span>
-      {/* whitespace-pre keeps a space its width inside its own box. */}
       <span aria-hidden className="flex gap-px whitespace-pre">
         {Array.from(text, (letter, index) => (
           <span

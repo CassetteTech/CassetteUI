@@ -26,7 +26,6 @@ interface PostEngagementBarProps {
   onOpenComments?: () => void;
 
   canManage?: boolean;
-  /** The owner's saved visibility; the manage control shows it so a locked post reads as locked. */
   privacy?: PostPrivacy;
   onOpenStudio?: () => void;
 
@@ -75,7 +74,6 @@ export function PostEngagementBar({
         className,
       )}
     >
-      {/* Like */}
       <button
         type="button"
         onClick={onToggleLike}
@@ -107,7 +105,6 @@ export function PostEngagementBar({
 
       <span className="h-4 w-px bg-border/40" aria-hidden />
 
-      {/* Comments trigger */}
       <button
         type="button"
         data-comments-trigger
@@ -133,7 +130,6 @@ export function PostEngagementBar({
         )}
       </button>
 
-      {/* Repost */}
       {canRepost && (
         <>
           <span className="h-4 w-px bg-border/40" aria-hidden />
@@ -161,8 +157,6 @@ export function PostEngagementBar({
         </>
       )}
 
-      {/* Post studio (owner only): the control names the current visibility, so a
-          members-only post shows its lock here, and opens the owner sheet. */}
       {canManage && (
         <>
           <span className="h-4 w-px bg-border/40" aria-hidden />

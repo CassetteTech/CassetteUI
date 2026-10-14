@@ -39,7 +39,6 @@ export function ChooseHandleStep({
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
   const [debouncedUsername, setDebouncedUsername] = useState(formData.username);
 
-  // Debounce username input
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedUsername(formData.username);
@@ -47,7 +46,6 @@ export function ChooseHandleStep({
     return () => clearTimeout(timer);
   }, [formData.username]);
 
-  // Check username availability
   const checkUsernameAvailability = useCallback(async (username: string) => {
     if (!username || username.length < 3) {
       setUsernameStatus('idle');
@@ -68,11 +66,9 @@ export function ChooseHandleStep({
         const data = await response.json();
         setUsernameStatus(data.available ? 'available' : 'taken');
       } else {
-        // If endpoint doesn't exist or errors, assume available and let backend validate on submit
         setUsernameStatus('available');
       }
     } catch {
-      // Network error - assume available and let backend validate on submit
       setUsernameStatus('available');
     }
   }, [apiUrl]);
@@ -159,7 +155,6 @@ export function ChooseHandleStep({
       </div>
 
       <div className="space-y-5">
-        {/* Username Field */}
         <div className="space-y-2">
           <Label htmlFor="username" className="text-sm font-medium text-foreground flex items-center gap-2">
             <AtSign className="w-4 h-4" />
@@ -180,7 +175,6 @@ export function ChooseHandleStep({
             </div>
           </div>
 
-          {/* Status Message */}
           {usernameStatus !== 'idle' && (
             <motion.p
               initial={{ opacity: 0, y: -5 }}
@@ -204,7 +198,6 @@ export function ChooseHandleStep({
           </p>
         </div>
 
-        {/* Display Name Field */}
         <div className="space-y-2">
           <Label htmlFor="displayName" className="text-sm font-medium text-foreground flex items-center gap-2">
             <User className="w-4 h-4" />

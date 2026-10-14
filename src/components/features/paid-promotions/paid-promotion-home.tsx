@@ -39,13 +39,6 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   timeStyle: 'short',
 });
 
-/**
- * Campaigns are grouped by whose move it is, so the first thing on screen is
- * whatever is actually waiting on the promoter. Statuses this build does not
- * recognize (a newer Bridge deploy) land in the in-flight group rather than
- * being filed away as closed — they still render their own
- * "status unavailable" presentation, but they stay above the archive.
- */
 const CAMPAIGN_GROUPS = [
   {
     key: 'waiting-on-you',
@@ -98,13 +91,6 @@ function resourceFailure(error: unknown, fallback: string): ResourceState<never>
   };
 }
 
-/**
- * Status-first campaign card: the lifecycle state is the loudest thing on it,
- * the artwork is a framed tape-window rather than a list thumbnail, and the
- * copy underneath is the presentation layer's customer language verbatim.
- * `featured` promotes the single most urgent campaign to the focal brutalist
- * treatment; everything else stays quiet chrome.
- */
 function CampaignCard({
   campaign,
   subject,
@@ -135,7 +121,6 @@ function CampaignCard({
             : 'border border-border',
         )}
       >
-        {/* Status bar — the headline of the card. */}
         <div
           className={cn(
             'flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2.5',
@@ -162,11 +147,8 @@ function CampaignCard({
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 sm:flex-row sm:gap-5">
-          {/* Artwork framed like a cassette window. */}
           <div
             className={cn(
-              // `self-start` keeps the square from being stretched by the
-              // row's default `align-items: stretch`.
               'relative aspect-square w-24 shrink-0 self-start overflow-hidden border-2 border-foreground sm:w-28',
               featured && 'sm:w-36',
             )}
@@ -181,8 +163,6 @@ function CampaignCard({
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col">
-            {/* The campaign carries its own element type, so the badge is
-                correct even when the subject rollup is missing. */}
             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
               {getPaidPromotionElementTypeLabel(campaign.elementType)}
             </p>
@@ -194,8 +174,6 @@ function CampaignCard({
             >
               {subject?.title ?? 'Subject details unavailable'}
             </h3>
-            {/* Artists are a track/album line; artist and playlist subjects
-                are their own name and get no second line. */}
             {subject && subject.subtitleNames.length > 0 && (
               <p className="truncate text-sm text-muted-foreground">
                 {subject.subtitleNames.join(', ')}
@@ -367,9 +345,6 @@ export function PaidPromotionHome() {
   const [subjects, setSubjects] = useState<ResourceState<PaidPromotionSubject[]>>({
     phase: 'loading',
   });
-  // Tracks whether the first campaign fetch has settled, so a later manual
-  // refresh (which re-enters the loading phase) never bounces the workspace
-  // back to the marketing landing.
   const [hasLoadedCampaigns, setHasLoadedCampaigns] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const requestId = useRef(0);
@@ -422,7 +397,6 @@ export function PaidPromotionHome() {
     return new Map(subjects.data.map((subject) => [subject.elementId, subject]));
   }, [subjects]);
 
-  // Server order is preserved inside each group; only the grouping reorders.
   const groupedCampaigns = useMemo(() => {
     if (campaigns.phase !== 'ready') return [];
     return CAMPAIGN_GROUPS.map((group) => ({
@@ -431,13 +405,6 @@ export function PaidPromotionHome() {
     })).filter((group) => group.items.length > 0);
   }, [campaigns]);
 
-  // The marketing landing is the default render (including during SSR and
-  // auth resolution), so signed-out visitors and crawlers get full public
-  // content with no auth redirect. The sign-in gate lives on the start-a-
-  // campaign path instead. The workspace appears only for signed-in users
-  // whose first campaign fetch settled with campaign history or an error
-  // worth surfacing with a retry; users with no campaigns stay on the
-  // landing in its signed-in continue state.
   if (authLoading || !isAuthenticated || !hasLoadedCampaigns) {
     return <PromoteLanding signedIn={!authLoading && isAuthenticated} salesEnabled={salesEnabled} />;
   }
@@ -451,8 +418,6 @@ export function PaidPromotionHome() {
 
   return (
     <div className="relative min-h-svh bg-background pb-16">
-      {/* Slim variant of the landing hero, so both states of /promote read as
-          one page rather than a marketing site bolted to a workspace. */}
       <TapeDeckBand variant="band">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
@@ -530,8 +495,6 @@ export function PaidPromotionHome() {
                           campaign={campaign}
                           salesEnabled={salesEnabled}
                           subject={subjectsByElementId.get(campaign.elementId)}
-                          // Only the single most urgent campaign gets the focal
-                          // treatment; a page of focal cards has no hierarchy.
                           featured={groupIndex === 0 && index === 0}
                         />
                       ))}

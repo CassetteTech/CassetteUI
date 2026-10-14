@@ -21,8 +21,6 @@ const layers = [
   { color: '#FFFFFF', offset: 0 },
 ];
 
-// Multiplies each channel by the layer color: white becomes the color, black
-// stays black, and the antialiased outline edge blends between them.
 function tintMatrix(color: string) {
   const [red, green, blue] = [1, 3, 5].map(start => parseInt(color.slice(start, start + 2), 16) / 255);
   return `${red} 0 0 0 0  0 ${green} 0 0 0  0 0 ${blue} 0 0  0 0 0 1 0`;

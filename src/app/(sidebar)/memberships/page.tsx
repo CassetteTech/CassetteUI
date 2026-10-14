@@ -141,8 +141,7 @@ function MyMemberships() {
   const empty = query.data?.length === 0;
 
   return (
-    // At least one screen tall (under the 4rem phone navbar), so an empty list can center in the free height.
-    <div className="studio-surface mx-auto flex min-h-[calc(100svh-4rem)] w-full max-w-3xl flex-col px-4 py-6 sm:px-6 sm:py-8 lg:min-h-full lg:py-10">
+    <div className="studio-surface mx-auto flex min-h-[calc(100svh-var(--navbar-height))] w-full max-w-3xl flex-col px-4 py-6 sm:px-6 sm:py-8 lg:min-h-full lg:py-10">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">

@@ -106,7 +106,9 @@
     "src/hooks/use-provider-return-poll.ts",
     "src/hooks/__tests__/use-provider-return-poll.test.ts",
     "src/lib/utils/scroll-tab-into-row.ts",
-    "src/lib/utils/__tests__/scroll-tab-into-row.test.ts"
+    "src/lib/utils/__tests__/scroll-tab-into-row.test.ts",
+    "src/lib/best-effort.ts",
+    "src/lib/__tests__/best-effort.test.ts"
   ],
   "exclude": ["node_modules"]
 }

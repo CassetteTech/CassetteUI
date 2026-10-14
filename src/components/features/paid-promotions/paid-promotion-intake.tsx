@@ -1290,15 +1290,8 @@ function PaidPromotionIntakeForm({ repeatElementId }: { repeatElementId?: string
             )}
           </div>
 
-          {/* Order rail — one element, two behaviours. On desktop it pins
-              below the fixed navbar (h-16) and scrolls internally if the
-              contents ever outgrow the viewport, so the action can never be
-              stranded off-screen. On mobile the verbose blocks collapse and it
-              pins to the bottom of the viewport as a compact checkout bar,
-              rather than sitting at the end of a long form where the buyer has
-              to scroll to find out what anything costs. */}
           <aside
-            className="sticky bottom-0 z-30 self-start max-lg:-mx-4 max-lg:mt-2 lg:bottom-auto lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain"
+            className="sticky bottom-0 z-30 self-start max-lg:-mx-4 max-lg:mt-2 lg:bottom-auto lg:top-[calc(var(--navbar-height)+1rem)] lg:max-h-[calc(100vh-var(--navbar-height)-2rem)] lg:overflow-y-auto lg:overscroll-contain"
           >
             <div className="space-y-5 border-border bg-card p-5 max-lg:border-t max-lg:shadow-[0_-4px_16px_hsl(var(--foreground)/0.08)] lg:card-quiet">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground max-lg:hidden">

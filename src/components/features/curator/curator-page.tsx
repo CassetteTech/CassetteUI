@@ -41,6 +41,7 @@ import { removeQueryParameters, removeQueryParametersFromRouter } from '@/utils/
 import { parseProfileActionIntent } from '@/utils/profile-action-intent';
 import { CarriedActionConfirmation } from '@/components/features/curator/carried-action-confirmation';
 import { Empty, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import { tryStorage } from '@/lib/best-effort';
 
 type MembershipFlow = 'join' | 'return' | 'canceled' | 'portal-return' | null;
 const joinIntentPrefix = 'cassette:membership-join-intent:';
@@ -52,10 +53,7 @@ function signInToJoin(
   planId: string,
   interval: MembershipInterval,
 ) {
-  try {
-    sessionStorage.setItem(`${joinIntentPrefix}${planId}:${interval}`, String(Date.now()));
-  } catch {
-  }
+  tryStorage(() => sessionStorage.setItem(`${joinIntentPrefix}${planId}:${interval}`, String(Date.now())), undefined);
   const returnPath = `/profile/${encodeURIComponent(username)}?membership=join&interval=${interval}`;
   router.push(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
 }
@@ -301,13 +299,12 @@ export function PublicCuratorPage({
 
     flowHandled.current = true;
     removeQueryParameters('membership', 'interval');
-    let intentCreatedAt = Number.NaN;
-    try {
-      const key = `${joinIntentPrefix}${page.membership.planId}:${checkoutInterval}`;
-      intentCreatedAt = Number(sessionStorage.getItem(key));
-      sessionStorage.removeItem(key);
-    } catch {
-    }
+    const intentKey = `${joinIntentPrefix}${page.membership.planId}:${checkoutInterval}`;
+    const intentCreatedAt = tryStorage(() => {
+      const createdAt = Number(sessionStorage.getItem(intentKey));
+      sessionStorage.removeItem(intentKey);
+      return createdAt;
+    }, Number.NaN);
     const intentAge = Date.now() - intentCreatedAt;
     if (!Number.isFinite(intentCreatedAt) || intentAge < 0 || intentAge > joinIntentLifetimeMs) {
       setNotice('Choose a billing option and select Join to continue.');

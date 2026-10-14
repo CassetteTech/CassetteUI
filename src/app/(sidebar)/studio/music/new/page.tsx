@@ -45,6 +45,7 @@ import { PostVisibilityControl } from '@/components/features/post/post-visibilit
 import { studioLabels, studioViewOfPath } from '@/components/features/curator/studio-routes';
 import type { MusicLinkConversion, PostPrivacy } from '@/types';
 import { cn } from '@/lib/utils';
+import { ignoreFailure } from '@/lib/best-effort';
 
 // Analytics keep the route name this page had before it moved into Curator Studio, so funnels stay continuous.
 const ANALYTICS_ROUTE = '/add-music';
@@ -840,12 +841,9 @@ export default function AddMusicPage() {
 
       router.prefetch(`/post/${result.postId}`);
       if (result.postId) {
-        try {
-          const post = await apiService.fetchPostById(result.postId);
-          if (post?.success) {
-            savePrefetchedPost(result.postId, post);
-          }
-        } catch {
+        const post = await ignoreFailure(apiService.fetchPostById(result.postId));
+        if (post?.success) {
+          savePrefetchedPost(result.postId, post);
         }
       }
 

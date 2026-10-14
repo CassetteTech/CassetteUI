@@ -1,4 +1,5 @@
 import { defineSound } from '@web-kits/audio';
+import { ignoreFailure } from '@/lib/best-effort';
 
 const likePop = defineSound({
   layers: [
@@ -36,13 +37,8 @@ const errorTone = defineSound({
   gain: 0.18,
 });
 
-// Audio must never break an interaction handler (blocked AudioContext, old browsers).
 const safely = (play: () => unknown) => () => {
-  try {
-    play();
-  } catch {
-    // Audio unavailable; the visual feedback still happens.
-  }
+  ignoreFailure(play);
 };
 
 export const playLikePop = safely(likePop);

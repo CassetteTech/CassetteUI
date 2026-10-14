@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { formatPaidPromotionMinorAmount } from './paid-promotion-lifecycle';
+import { tryStorage } from '../lib/best-effort';
 
 export const membershipStatusSchema = z.enum([
   'incomplete',
@@ -117,13 +118,10 @@ const portalBaselineSchema = z.object({
 export type MembershipPortalBaseline = z.infer<typeof portalBaselineSchema>;
 
 export function rememberMembershipPortalBaseline(subscription: MembershipSubscription): void {
-  try {
-    sessionStorage.setItem(
-      `${portalBaselinePrefix}${subscription.membershipSubscriptionId}`,
-      JSON.stringify({ status: subscription.status, cancelAtPeriodEnd: subscription.cancelAtPeriodEnd }),
-    );
-  } catch {
-  }
+  tryStorage(() => sessionStorage.setItem(
+    `${portalBaselinePrefix}${subscription.membershipSubscriptionId}`,
+    JSON.stringify({ status: subscription.status, cancelAtPeriodEnd: subscription.cancelAtPeriodEnd }),
+  ), undefined);
 }
 
 export function takeMembershipPortalBaseline(membershipSubscriptionId: string): MembershipPortalBaseline | null {

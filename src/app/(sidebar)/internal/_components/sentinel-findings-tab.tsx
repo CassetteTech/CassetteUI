@@ -65,6 +65,7 @@ import {
   type Tone,
 } from './kit';
 import { SentinelRuntimePanel } from './sentinel-runtime-panel';
+import { ignoreFailure } from '@/lib/best-effort';
 
 const ALL_FILTER = 'all';
 const COORDINATOR_PAGE_SIZE = 100;
@@ -886,11 +887,8 @@ function useInvariantNotes() {
   const [notes, setNotes] = useState<Record<string, InternalSentinelInvariantNote>>({});
 
   const loadNotes = useCallback(async () => {
-    try {
-      const response = await apiService.getInternalSentinelInvariantNotes();
-      setNotes(Object.fromEntries(response.items.map((note) => [note.invariantId, note])));
-    } catch {
-    }
+    const response = await ignoreFailure(apiService.getInternalSentinelInvariantNotes());
+    if (response) setNotes(Object.fromEntries(response.items.map((note) => [note.invariantId, note])));
   }, []);
 
   useEffect(() => {

@@ -78,7 +78,7 @@ export function Navbar() {
         />
       )}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-[var(--navbar-height)]">
           <div className="flex items-center space-x-8">
             <Link href="/" className="flex items-center">
               <Image
@@ -236,7 +236,7 @@ export function Navbar() {
         tabIndex={-1}
         onClick={() => setIsMobileMenuOpen(false)}
         className={cn(
-          "lg:hidden fixed inset-x-0 top-16 bottom-0 z-40 bg-background/60 backdrop-blur-sm transition-opacity duration-280",
+          "lg:hidden fixed inset-x-0 top-[var(--navbar-height)] bottom-0 z-40 bg-background/60 backdrop-blur-sm transition-opacity duration-280",
           isMobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       />

@@ -10,7 +10,7 @@ export default function PaidPromotionsInternalLayout({ children }: { children: R
     <InternalAccessGate>
       <SidebarProvider
         defaultOpen
-        className="min-h-[calc(100svh-4rem)] bg-background lg:h-screen lg:min-h-0"
+        className="min-h-[calc(100svh-var(--navbar-height))] bg-background lg:h-screen lg:min-h-0"
       >
         <AppSidebar className="max-lg:hidden" />
         <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-background">

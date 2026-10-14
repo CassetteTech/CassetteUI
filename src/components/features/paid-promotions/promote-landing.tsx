@@ -373,12 +373,10 @@ export function PromoteLanding({ signedIn = false, salesEnabled = false }: {
         <DitherEdge color="hsl(var(--section-dark))" side="bottom" />
       </section>
 
-      {/* Linked from checkout as /promote#refund-policy — scroll margin keeps
-          the heading clear of the sticky navbar. */}
       <section
         id="refund-policy"
         aria-labelledby="promote-refunds-heading"
-        className="scroll-mt-24 pt-16 sm:pt-20"
+        className="scroll-mt-[calc(var(--navbar-height)+2rem)] pt-16 sm:pt-20"
       >
         <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-10">
           <div className="space-y-8 border-l-2 border-foreground pl-5 sm:pl-6">

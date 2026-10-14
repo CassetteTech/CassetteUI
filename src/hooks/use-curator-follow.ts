@@ -10,6 +10,7 @@ import { fetchCuratorFollow, setCuratorFollow } from '@/services/curator';
 import { useAuthStore } from '@/stores/auth-store';
 import { removeQueryParameters, removeQueryParametersFromRouter } from '@/utils/remove-query-parameters';
 import { parseProfileActionIntent } from '@/utils/profile-action-intent';
+import { tryStorage } from '@/lib/best-effort';
 
 const followIntentPrefix = 'cassette:follow-intent:';
 const followIntentLifetimeMs = 10 * 60 * 1_000;
@@ -41,10 +42,7 @@ function signInToFollow(
   curator: { id: string; username: string },
   returnQuery: string,
 ) {
-  try {
-    sessionStorage.setItem(`${followIntentPrefix}${curator.id}`, String(Date.now()));
-  } catch {
-  }
+  tryStorage(() => sessionStorage.setItem(`${followIntentPrefix}${curator.id}`, String(Date.now())), undefined);
   const query = new URLSearchParams(returnQuery);
   query.set('follow', '1');
   const returnPath = `/profile/${encodeURIComponent(curator.username)}?${query}`;
@@ -102,13 +100,12 @@ export function useCuratorFollow(
 
     returnHandled.current = true;
     removeQueryParameters('follow');
-    let intentCreatedAt = Number.NaN;
-    try {
-      const key = `${followIntentPrefix}${curatorId}`;
-      intentCreatedAt = Number(sessionStorage.getItem(key));
-      sessionStorage.removeItem(key);
-    } catch {
-    }
+    const intentKey = `${followIntentPrefix}${curatorId}`;
+    const intentCreatedAt = tryStorage(() => {
+      const createdAt = Number(sessionStorage.getItem(intentKey));
+      sessionStorage.removeItem(intentKey);
+      return createdAt;
+    }, Number.NaN);
     const intentAge = Date.now() - intentCreatedAt;
     if (!Number.isFinite(intentCreatedAt) || intentAge < 0 || intentAge > followIntentLifetimeMs) return;
     if (isOwner || knownRelationship?.isFollowing) return;

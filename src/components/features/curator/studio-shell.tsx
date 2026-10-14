@@ -145,10 +145,9 @@ export function StudioSection({
       id={id}
       data-testid={testId}
       aria-labelledby={headingId}
-      // Focusable so a step link can move focus here; scroll-mt keeps anchored jumps clear of any sticky chrome above.
       tabIndex={-1}
       className={cn(
-        'scroll-mt-24 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        'scroll-mt-[calc(var(--navbar-height)+2rem)] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         plain ? 'rounded-md' : 'card-quiet',
       )}
     >

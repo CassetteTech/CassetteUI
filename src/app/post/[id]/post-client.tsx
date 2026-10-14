@@ -52,6 +52,7 @@ import { appLogger } from '@/lib/observability/logger';
 import { captureUiException } from '@/lib/observability/error-reporting';
 import { ApiConnectionError } from '@/utils/api-connection-error';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
+import { tryStorage } from '@/lib/best-effort';
 
 function PostFoot({
   signUp,
@@ -239,21 +240,19 @@ const readRepostedPosts = (userId?: string | null): Record<string, true> => {
 
 const markPostAsReposted = (userId: string | undefined, targetPostId: string | undefined) => {
   if (!userId || !targetPostId || typeof window === 'undefined') return;
-  try {
+  tryStorage(() => {
     const raw = window.localStorage.getItem(REPOSTED_POSTS_STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) as Record<string, Record<string, true>> : {};
     const currentUserPosts = parsed[userId] || {};
     currentUserPosts[targetPostId] = true;
     parsed[userId] = currentUserPosts;
     window.localStorage.setItem(REPOSTED_POSTS_STORAGE_KEY, JSON.stringify(parsed));
-  } catch {
-    // best effort
-  }
+  }, undefined);
 };
 
 const unmarkPostAsReposted = (userId: string | undefined, targetPostId: string | undefined) => {
   if (!userId || !targetPostId || typeof window === 'undefined') return;
-  try {
+  tryStorage(() => {
     const raw = window.localStorage.getItem(REPOSTED_POSTS_STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw) as Record<string, Record<string, true>>;
@@ -263,9 +262,7 @@ const unmarkPostAsReposted = (userId: string | undefined, targetPostId: string |
     }
     parsed[userId] = currentUserPosts;
     window.localStorage.setItem(REPOSTED_POSTS_STORAGE_KEY, JSON.stringify(parsed));
-  } catch {
-    // best effort
-  }
+  }, undefined);
 };
 
 export default function PostClientPage({ postId, initialMetadata }: PostClientPageProps) {
@@ -1366,16 +1363,11 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         {isDesktop ? (
             <div className="flex min-h-svh flex-col pt-16 before:flex-1 after:min-h-20 after:flex-1">
               <div className={`mx-auto w-full px-8 pb-4 ${ownerColumnBeside ? 'max-w-7xl' : 'max-w-[68rem]'}`}>
-                {/* Sticky under the navbar (see followScrollUnderToolbar). The post's half follows the
-                    content column below it: a paper lid that keeps what scrolls under it, first the
-                    post's cover and title, then the tracklist's stats as a running track counter.
-                    Share stays clear of it on the right, above the owner column, which sticks at
-                    8.5rem. */}
                 <div
                   ref={toolbarRef}
                   data-post-toolbar
                   data-dock={toolbarDock}
-                  className={`group sticky top-[4.5rem] z-30 mb-6 mt-4 grid items-center ${ownerColumnBeside ? 'grid-cols-[minmax(0,1fr)_20rem] gap-x-8' : 'grid-cols-[minmax(0,1fr)_auto] gap-x-3'}`}
+                  className={`group sticky top-[calc(var(--navbar-height)+0.5rem)] z-30 mb-6 mt-4 grid items-center ${ownerColumnBeside ? 'grid-cols-[minmax(0,1fr)_20rem] gap-x-8' : 'grid-cols-[minmax(0,1fr)_auto] gap-x-3'}`}
                 >
                 <div className="relative min-w-0">
                   <div
@@ -1593,7 +1585,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     <PostStudioColumn
                       {...ownerColumnProps}
                       ref={centerOnPostCard}
-                      className="sticky top-[8.5rem] w-auto motion-safe:data-[recentered]:transition-[margin-top] motion-safe:data-[recentered]:duration-300 motion-safe:data-[recentered]:ease-out-quart"
+                      className="sticky top-[var(--post-toolbar-clearance)] w-auto motion-safe:data-[recentered]:transition-[margin-top] motion-safe:data-[recentered]:duration-300 motion-safe:data-[recentered]:ease-out-quart"
                     />
                   )}
                 </div>

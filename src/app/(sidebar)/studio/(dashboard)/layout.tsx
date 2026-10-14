@@ -40,6 +40,7 @@ import {
 } from '@/services/curator';
 import { useCuratorPlans, usePayoutAccount } from '@/hooks/use-curator';
 import { profileService } from '@/services/profile';
+import { tryStorage } from '@/lib/best-effort';
 
 const profileQueryKey = ['curator-profile', 'me'] as const;
 const pageLinkCopiedKey = (userId: string) => `cassette:studio-page-link-copied:${userId}`;
@@ -75,10 +76,7 @@ function usePageLinkCopied(userId: string | null) {
   const markCopied = () => {
     if (!userId) return;
     setCopiedUserId(userId);
-    try {
-      localStorage.setItem(pageLinkCopiedKey(userId), 'true');
-    } catch {
-    }
+    tryStorage(() => localStorage.setItem(pageLinkCopiedKey(userId), 'true'), undefined);
   };
   return [copied, markCopied] as const;
 }
@@ -430,9 +428,7 @@ function StudioDashboard({ children }: { children: ReactNode }) {
           </div>
           <div className="max-lg:contents lg:relative lg:flex lg:flex-col lg:gap-6 lg:self-stretch">
             {wide && <StudioRailShareLinks onPageLinkCopied={launch.markPageLinkCopied} />}
-            {/* The rail: the pass, then the audience. Phones show the pass under the main column. It
-                sticks one gap under the share links' band (6 + 8 + 3 + 6). */}
-            <div className="max-lg:contents lg:sticky lg:top-23 lg:flex lg:flex-col lg:gap-6">
+            <div className="max-lg:contents lg:sticky lg:top-[calc(var(--studio-share-band-height)+1.5rem)] lg:flex lg:flex-col lg:gap-6">
               <aside
                 ref={setPassSlot}
                 aria-label={view === 'studio-membership' ? 'Membership plan' : 'Your public pass'}

@@ -1,3 +1,5 @@
+import { tryStorage } from '../lib/best-effort';
+
 const LAST_VIEWED_SPONSORED_POST_KEY = 'cassette:last-viewed-sponsored-explore-post:v1';
 const MAX_POST_ID_LENGTH = 128;
 
@@ -13,11 +15,7 @@ function normalizePostId(value: string | null | undefined): string | undefined {
 export function getLastViewedSponsoredExplorePostId(): string | undefined {
   if (typeof window === 'undefined') return undefined;
 
-  try {
-    return normalizePostId(window.localStorage.getItem(LAST_VIEWED_SPONSORED_POST_KEY));
-  } catch {
-    return undefined;
-  }
+  return tryStorage(() => normalizePostId(window.localStorage.getItem(LAST_VIEWED_SPONSORED_POST_KEY)), undefined);
 }
 
 export function rememberViewedSponsoredExplorePost(postId: string): void {
@@ -26,9 +24,5 @@ export function rememberViewedSponsoredExplorePost(postId: string): void {
   const normalized = normalizePostId(postId);
   if (!normalized) return;
 
-  try {
-    window.localStorage.setItem(LAST_VIEWED_SPONSORED_POST_KEY, normalized);
-  } catch {
-    // Storage may be unavailable in privacy-restricted browser contexts.
-  }
+  tryStorage(() => window.localStorage.setItem(LAST_VIEWED_SPONSORED_POST_KEY, normalized), undefined);
 }

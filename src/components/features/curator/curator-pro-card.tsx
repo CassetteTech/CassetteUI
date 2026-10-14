@@ -13,6 +13,7 @@ import { StudioNotice, StudioSection, StudioStat } from '@/components/features/c
 import { Button } from '@/components/ui/button';
 import { removeQueryParameters } from '@/utils/remove-query-parameters';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
+import { tryStorage } from '@/lib/best-effort';
 
 type ProFlow = 'return' | 'portal-return' | null;
 
@@ -31,28 +32,23 @@ const dateFormatter = new Intl.DateTimeFormat(priceLocale, {
 
 function readPortalBaseline(userId: string): PortalBaseline | null {
   const key = `${portalBaselinePrefix}${userId}`;
-  try {
+  return tryStorage(() => {
     const stored = sessionStorage.getItem(key);
     sessionStorage.removeItem(key);
     if (!stored) return null;
     const parsed = portalBaselineSchema.safeParse(JSON.parse(stored));
     return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
+  }, null);
 }
 
 function writePortalBaseline(userId: string, status: CuratorProStatus) {
-  try {
-    sessionStorage.setItem(
-      `${portalBaselinePrefix}${userId}`,
-      JSON.stringify({
-        status: status.status,
-        cancelAtPeriodEnd: status.cancelAtPeriodEnd,
-      } satisfies PortalBaseline),
-    );
-  } catch {
-  }
+  tryStorage(() => sessionStorage.setItem(
+    `${portalBaselinePrefix}${userId}`,
+    JSON.stringify({
+      status: status.status,
+      cancelAtPeriodEnd: status.cancelAtPeriodEnd,
+    } satisfies PortalBaseline),
+  ), undefined);
 }
 
 function formatMoney(amountMinor: number, currency: string) {

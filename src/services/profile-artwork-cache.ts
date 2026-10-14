@@ -1,6 +1,7 @@
 import { ActivityPost } from '@/types';
 import { apiService } from '@/services/api';
 import { profileService } from '@/services/profile';
+import { ignoreFailure, tryStorage } from '@/lib/best-effort';
 
 const CACHE_KEY = 'profile_artwork_cache_v1';
 const PREFETCH_SESSION_KEY = 'profile_artwork_prefetched_users_v1';
@@ -42,7 +43,7 @@ function hydrateFromStorage() {
   if (hydratedFromStorage || typeof window === 'undefined') return;
   hydratedFromStorage = true;
 
-  try {
+  tryStorage(() => {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return;
     const entries = JSON.parse(raw) as Array<[string, string]>;
@@ -51,44 +52,32 @@ function hydrateFromStorage() {
         memoryCache.set(postId, artworkUrl);
       }
     }
-  } catch {
-    // ignore malformed cache entries
-  }
+  }, undefined);
 }
 
 function persistToStorage() {
   if (typeof window === 'undefined') return;
-  try {
-    const entries = Array.from(memoryCache.entries()).slice(-MAX_CACHE_ENTRIES);
-    localStorage.setItem(CACHE_KEY, JSON.stringify(entries));
-  } catch {
-    // ignore storage quota/private mode failures
-  }
+  const entries = Array.from(memoryCache.entries()).slice(-MAX_CACHE_ENTRIES);
+  tryStorage(() => localStorage.setItem(CACHE_KEY, JSON.stringify(entries)), undefined);
 }
 
 function hydratePrefetchedUsers() {
   if (prefetchedUsersHydrated || typeof window === 'undefined') return;
   prefetchedUsersHydrated = true;
 
-  try {
+  tryStorage(() => {
     const raw = sessionStorage.getItem(PREFETCH_SESSION_KEY);
     if (!raw) return;
     const entries = JSON.parse(raw) as string[];
     for (const entry of entries) {
       if (entry) prefetchedUsers.add(entry);
     }
-  } catch {
-    // ignore malformed values
-  }
+  }, undefined);
 }
 
 function persistPrefetchedUsers() {
   if (typeof window === 'undefined') return;
-  try {
-    sessionStorage.setItem(PREFETCH_SESSION_KEY, JSON.stringify(Array.from(prefetchedUsers)));
-  } catch {
-    // ignore storage quota/private mode failures
-  }
+  tryStorage(() => sessionStorage.setItem(PREFETCH_SESSION_KEY, JSON.stringify(Array.from(prefetchedUsers))), undefined);
 }
 
 function setArtwork(postId: string, artworkUrl: string) {
@@ -154,26 +143,22 @@ export async function prefetchProfileArtwork(
 
     await Promise.all(
       candidates.map(async (post) => {
-        try {
-          const supportsAbortTimeout =
-            typeof AbortSignal !== 'undefined' &&
-            typeof (AbortSignal as typeof AbortSignal & { timeout?: (ms: number) => AbortSignal }).timeout === 'function';
+        const supportsAbortTimeout =
+          typeof AbortSignal !== 'undefined' &&
+          typeof (AbortSignal as typeof AbortSignal & { timeout?: (ms: number) => AbortSignal }).timeout === 'function';
 
-          const signal = supportsAbortTimeout
-            ? (AbortSignal as typeof AbortSignal & { timeout: (ms: number) => AbortSignal }).timeout(2000)
-            : undefined;
+        const signal = supportsAbortTimeout
+          ? (AbortSignal as typeof AbortSignal & { timeout: (ms: number) => AbortSignal }).timeout(2000)
+          : undefined;
 
-          const result = await apiService.fetchPostById(
-            post.postId,
-            signal ? { signal } : undefined,
-          );
+        const result = await ignoreFailure(apiService.fetchPostById(
+          post.postId,
+          signal ? { signal } : undefined,
+        ));
 
-          const artwork = resolvePostArtwork(result);
-          if (artwork) {
-            setArtwork(post.postId, artwork);
-          }
-        } catch {
-          // Best-effort cache warmup only
+        const artwork = result && resolvePostArtwork(result);
+        if (artwork) {
+          setArtwork(post.postId, artwork);
         }
       }),
     );

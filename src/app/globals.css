@@ -499,17 +499,6 @@
   .signal-dot-pulse::after { animation: none; }
 }
 
-@keyframes waveform-pulse {
-  0%, 100% {
-    transform: scaleY(0.3);
-    opacity: 0.7;
-  }
-  50% {
-    transform: scaleY(1);
-    opacity: 1;
-  }
-}
-
 @keyframes progress-breath {
   0%, 100% {
     opacity: 0.45;
@@ -808,12 +797,6 @@
   .blueprint-crop,
   .blueprint-grid {
     transition: none;
-  }
-
-  /* waveform-pulse is applied via inline style (no class hook), so neutralize
-     the keyframe itself to a static, movement-free frame. */
-  @keyframes waveform-pulse {
-    0%, 100% { transform: none; opacity: 1; }
   }
 }
 

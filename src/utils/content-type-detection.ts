@@ -1,4 +1,3 @@
-import type { ContentType } from '../hooks/use-simulated-progress';
 import {
   type PlatformAnalyticsKey,
   getPlatformDefinition,
@@ -13,6 +12,7 @@ export interface ContentInfo {
 }
 
 const CONTENT_TYPES = ['track', 'album', 'artist', 'playlist'] as const;
+type ContentType = (typeof CONTENT_TYPES)[number];
 
 function getUrl(raw: string): URL | null {
   try {

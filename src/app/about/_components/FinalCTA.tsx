@@ -43,7 +43,7 @@ export function FinalCTA() {
                 />
               </span>
             </h2>
-            <p className="font-roboto text-base sm:text-lg opacity-80 italic max-w-xl mx-auto leading-relaxed">
+            <p className="font-roboto-flex text-base sm:text-lg opacity-80 italic max-w-xl mx-auto leading-relaxed">
               Join the listeners tearing down streaming walls, one smart link
               at a time.
             </p>

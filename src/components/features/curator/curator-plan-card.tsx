@@ -3,13 +3,12 @@
 import { useContext, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
+import { curatorPlansKey, payoutAccountKey, useCuratorPlans, usePayoutAccount } from '@/hooks/use-curator';
 import { useSharedPositionHold } from '@/hooks/use-shared-position';
 import {
   CuratorPageError,
-  fetchCuratorPayoutAccount,
   fetchOwnCuratorProfile,
   type CuratorProfile,
 } from '@/services/curator';
@@ -21,7 +20,6 @@ import {
   createCuratorPlan,
   deleteCuratorPlan,
   fetchCuratorFeatures,
-  fetchCuratorPlans,
   fetchCuratorPricing,
   publishCuratorPlan,
   updateCuratorPlan,
@@ -97,7 +95,6 @@ const planActions = {
 } satisfies Record<PlanAction['kind'], { run: (planId: string) => Promise<CuratorPlan>; notice: PlanNotice }>;
 
 const profileQueryKey = ['curator-profile', 'me'] as const;
-const payoutQueryKey = ['curator-payout-account', 'current'] as const;
 const feeFormatter = new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 2 });
 // Server contract bounds for the monthly price (see curatorPlanRequestSchema).
 const monthlyMinMinor = 500;
@@ -247,8 +244,7 @@ function AnnualPriceAdder({ plan, refresh, onAdded }: {
   refresh: () => Promise<void>;
   onAdded: () => void;
 }) {
-  // null until first opened, so only Cancel returns focus to the opening button.
-  const [open, setOpen] = useState<boolean | null>(null);
+  const [open, setOpen] = useState<'never' | 'open' | 'closed'>('never');
   const [price, setPrice] = useState('');
   const add = useMutation({
     mutationFn: (annualAmountMinor: number) => addCuratorPlanAnnualPrice(plan.id, annualAmountMinor),
@@ -269,14 +265,14 @@ function AnnualPriceAdder({ plan, refresh, onAdded }: {
     : getUserFacingApiErrorMessage(add.error, 'The annual price was not added.');
 
   if (plan.annualAmountMinor !== null) return null;
-  if (!open) {
+  if (open !== 'open') {
     return (
       <Button
         type="button"
         variant="outline"
         data-testid="curator-plan-annual-open"
-        ref={open === false ? focusOnMount : undefined}
-        onClick={() => setOpen(true)}
+        ref={open === 'closed' ? focusOnMount : undefined}
+        onClick={() => setOpen('open')}
       >
         Add annual price
       </Button>
@@ -310,7 +306,7 @@ function AnnualPriceAdder({ plan, refresh, onAdded }: {
         <Button type="submit" className="w-full sm:w-auto" disabled={!valid || add.isPending}>
           {add.isPending ? 'Adding…' : 'Add annual price'}
         </Button>
-        <Button type="button" variant="ghost" className="w-full sm:w-auto" disabled={add.isPending} onClick={() => setOpen(false)}>
+        <Button type="button" variant="ghost" className="w-full sm:w-auto" disabled={add.isPending} onClick={() => setOpen('closed')}>
           Cancel
         </Button>
       </div>
@@ -325,9 +321,6 @@ export function CuratorPlanCard({ profile, preview }: {
   const { user } = useAuthState();
   const views = useContext(StudioStepsContext);
   const passSlot = views?.passSlot ?? null;
-  // During a payout provider return the payout card owns the single refresh
-  // request and seeds this key; an ordinary read here would race it with stale data.
-  const payoutFlowActive = useSearchParams().has('payout');
   const queryClient = useQueryClient();
   const formRef = useRef<HTMLFormElement>(null);
   const monthlyRef = useRef<HTMLInputElement>(null);
@@ -339,13 +332,8 @@ export function CuratorPlanCard({ profile, preview }: {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const plansKey = ['curator-plans', profile?.id ?? 'none'] as const;
-  const plans = useQuery({
-    queryKey: plansKey,
-    queryFn: ({ signal }) => fetchCuratorPlans(signal),
-    enabled: profile !== null,
-    staleTime: 0,
-  });
+  const plansKey = curatorPlansKey(profile?.id ?? null);
+  const plans = useCuratorPlans(profile?.id ?? null);
   const features = useQuery({
     queryKey: ['curator-plan-features'],
     queryFn: ({ signal }) => fetchCuratorFeatures(signal),
@@ -356,12 +344,7 @@ export function CuratorPlanCard({ profile, preview }: {
     queryFn: ({ signal }) => fetchCuratorPricing(signal),
     staleTime: 0,
   });
-  const payout = useQuery({
-    queryKey: payoutQueryKey,
-    queryFn: ({ signal }) => fetchCuratorPayoutAccount(false, signal),
-    enabled: !payoutFlowActive,
-    staleTime: 0,
-  });
+  const { account: payout } = usePayoutAccount();
 
   const resetForm = () => {
     setEditingId(null);
@@ -378,7 +361,7 @@ export function CuratorPlanCard({ profile, preview }: {
         await queryClient.cancelQueries({ queryKey: profileQueryKey });
         const created = await fetchOwnCuratorProfile().catch(() => null);
         if (created) {
-          queryClient.setQueryData(['curator-plans', created.id], [saved]);
+          queryClient.setQueryData(curatorPlansKey(created.id), [saved]);
           queryClient.setQueryData(['curator-pricing', created.id], pricing.data);
           queryClient.setQueryData(profileQueryKey, created);
         } else {
@@ -416,7 +399,7 @@ export function CuratorPlanCard({ profile, preview }: {
     onError: () => Promise.all([
       queryClient.invalidateQueries({ queryKey: profileQueryKey }),
       queryClient.invalidateQueries({ queryKey: plansKey }),
-      queryClient.invalidateQueries({ queryKey: payoutQueryKey }),
+      queryClient.invalidateQueries({ queryKey: payoutAccountKey }),
     ]),
   });
 
@@ -668,18 +651,15 @@ export function CuratorPlanCard({ profile, preview }: {
                           <Button
                             type="button"
                             data-testid="curator-plan-publish"
-                            // aria-disabled keeps the button focusable so the linked
-                            // requirement text stays reachable; the click is guarded.
-                            aria-disabled={!canPublish || change.isPending || editing ? true : undefined}
+                            busy={!canPublish || change.isPending || editing}
                             aria-describedby={[
                               `plan-${plan.id}-freeze`,
                               missingFeatures && `plan-${plan.id}-features`,
                               !payoutConfirmed && `plan-${plan.id}-gates`,
                               blockedByActivePlan && `plan-${plan.id}-blocked`,
                             ].filter(Boolean).join(' ')}
-                            className="w-full sm:w-auto aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                            className="w-full sm:w-auto aria-disabled:pointer-events-auto aria-disabled:cursor-not-allowed"
                             onClick={() => {
-                              if (!canPublish || change.isPending || editing) return;
                               setNotice(null);
                               change.mutate({ kind: 'publish', planId: plan.id });
                             }}

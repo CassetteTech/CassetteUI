@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { tryStorage } from '../best-effort';
 
 const COHORT_KEY = 'cassette_membership_cohort';
 const COHORT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -13,13 +14,10 @@ const cohortRecordSchema = z.object({
 export type UserCohort = z.infer<typeof cohortSchema>;
 
 export function rememberUserCohort(userId: string, cohort: UserCohort, nowMs = Date.now()): void {
-  try {
-    window.sessionStorage.setItem(
-      COHORT_KEY,
-      JSON.stringify({ userId, cohort, expiresAt: nowMs + COHORT_TTL_MS } satisfies z.infer<typeof cohortRecordSchema>),
-    );
-  } catch {
-  }
+  tryStorage(() => window.sessionStorage.setItem(
+    COHORT_KEY,
+    JSON.stringify({ userId, cohort, expiresAt: nowMs + COHORT_TTL_MS } satisfies z.infer<typeof cohortRecordSchema>),
+  ), undefined);
 }
 
 export function getUserCohort(userId: string | null | undefined, nowMs = Date.now()): UserCohort | undefined {

@@ -1,4 +1,4 @@
-import './server-only';
+import 'server-only';
 import { serverConfig } from '@/lib/config-server';
 import { MusicSearchResult } from '@/types';
 import { appLogger } from '@/lib/observability/logger';

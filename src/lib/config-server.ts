@@ -1,19 +1,10 @@
-import { getBaseUrl } from './utils/url';
+import 'server-only';
 import { appLogger } from '@/lib/observability/logger';
 
-// Server-only configuration - contains sensitive secrets
-// This config should NEVER be imported by client components
-// Only use in API routes, server actions, and server-side code
 
 export const serverConfig = {
   supabase: {
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key',
-  },
-
-  // NextAuth configuration
-  nextAuth: {
-    url: getBaseUrl(),
-    secret: process.env.NEXTAUTH_SECRET || 'placeholder-secret',
   },
 
   spotify: {
@@ -67,7 +58,6 @@ export function validateServerConfig() {
 
   const required = {
     'SUPABASE_SERVICE_ROLE_KEY': serverConfig.supabase.serviceRoleKey,
-    'NEXTAUTH_SECRET': serverConfig.nextAuth.secret,
     'SPOTIFY_CLIENT_SECRET': serverConfig.spotify.clientSecret,
     'APPLE_MUSIC_PRIVATE_KEY': serverConfig.appleMusic.privateKey,
   };

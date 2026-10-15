@@ -7,6 +7,8 @@ export const profileQueryKeys = {
   activity: (userIdentifier: string, page?: number, elementType?: string) =>
     ['user-activity', userIdentifier, page, elementType] as const,
   allActivity: (userIdentifier: string) => ['user-activity', userIdentifier] as const,
+  studioActivity: (userId: string | null, slot: 'studio-has-music' | 'studio-artists' | 'studio-members-latest' | 'studio-library') =>
+    ['user-activity', userId, slot] as const,
   likedActivity: (userId: string, page?: number) => ['user-liked-activity', userId, page] as const,
   tabProbe: (userIdentifier: string, slot: string) =>
     ['profile-tab-probe', userIdentifier, slot] as const,

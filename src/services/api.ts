@@ -131,6 +131,8 @@ export class ApiError extends Error {
   }
 }
 
+const INLINE_MAINTENANCE_TIMEOUT_MS = 60_000;
+
 class ApiService {
   private baseUrl = getBrowserApiBaseUrl();
 
@@ -945,9 +947,7 @@ class ApiService {
       '/api/v1/internal/conversion-issues/revalidate',
       {
         method: 'POST',
-        // Synchronous sweep over every unresolved issue — give it more room
-        // than the fire-and-forget rescan before the client-side timeout trips.
-        timeoutMs: 60000,
+        timeoutMs: INLINE_MAINTENANCE_TIMEOUT_MS,
       },
     );
   }
@@ -958,9 +958,7 @@ class ApiService {
       {
         method: 'POST',
         body: JSON.stringify({ dryRun, includeDuplicateStubIssues: true }),
-        // Runs the whole merge transaction inline (even for dry runs), so it
-        // needs the same headroom as the revalidation sweep.
-        timeoutMs: 60000,
+        timeoutMs: INLINE_MAINTENANCE_TIMEOUT_MS,
       },
     );
   }

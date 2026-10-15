@@ -1,4 +1,4 @@
-import './server-only';
+import 'server-only';
 import jwt from 'jsonwebtoken';
 import { serverConfig } from '@/lib/config-server';
 import { MusicSearchResult } from '@/types';

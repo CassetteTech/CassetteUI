@@ -24,6 +24,7 @@ import { useUpdatePost } from '@/hooks/use-music';
 import { ApiError, apiService } from '@/services/api';
 import type { PostInsightsPlatformBreakdownItem, PostInsightsResponse, PostInsightsTrendPoint, PostPrivacy } from '@/types';
 import { cn } from '@/lib/utils';
+import { returnFocusOnClose } from '@/lib/utils/return-focus';
 import { ValueFlash } from '@/components/ui/interior/value-flash';
 
 type InsightsStatus = 'loading' | 'success' | 'error';
@@ -437,14 +438,7 @@ export function PostStudioSheet({
         <DialogPrimitive.Content
           data-testid="post-studio-sheet"
           aria-describedby={undefined}
-          // Radix would return focus to a Trigger this sheet does not render. The engagement
-          // bar pill is the sheet's real opener (the menus only mirror it), so focus goes there.
-          onCloseAutoFocus={(event) => {
-            const pill = document.querySelector<HTMLElement>('[data-studio-trigger]');
-            if (!pill) return;
-            event.preventDefault();
-            pill.focus();
-          }}
+          onCloseAutoFocus={returnFocusOnClose(() => document.querySelector<HTMLElement>('[data-studio-trigger]'))}
           className={cn(
             'fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto overflow-x-hidden rounded-t-xl border-t border-border bg-background elev-3',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',

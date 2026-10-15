@@ -5,6 +5,7 @@ import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { returnFocusOnClose } from "@/lib/utils/return-focus"
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
@@ -48,9 +49,12 @@ function SheetContent({
   className,
   children,
   side = "right",
+  returnFocusTo,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
+  returnFocusTo?: () => HTMLElement | null | undefined
 }) {
   return (
     <SheetPortal>
@@ -69,6 +73,7 @@ function SheetContent({
             "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t",
           className
         )}
+        onCloseAutoFocus={returnFocusTo ? returnFocusOnClose(returnFocusTo) : onCloseAutoFocus}
         {...props}
       >
         {children}

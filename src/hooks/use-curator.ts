@@ -1,9 +1,15 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
-import { fetchMemberPostAuthoring } from '@/services/curator-plans';
-import { fetchCuratorPage, unfilteredCuratorPage, type CuratorPageFilter } from '@/services/curator';
+import { fetchCuratorPlans, fetchMemberPostAuthoring } from '@/services/curator-plans';
+import {
+  fetchCuratorPage,
+  fetchCuratorPayoutAccount,
+  unfilteredCuratorPage,
+  type CuratorPageFilter,
+} from '@/services/curator';
 
 const PAGE_SIZE = 20;
 
@@ -45,6 +51,36 @@ export function useMemberPostAccess(enabled = true) {
   return { state, refetch: () => void authoring.refetch() };
 }
 
+/** Reads the access that Studio Music fetches, without a second request. */
+export function useObservedMemberPostAccess() {
+  return useMemberPostAccess(false);
+}
+
 export function useSubscriberPostEligibility(enabled = true): boolean {
   return useMemberPostAccess(enabled).state === 'ready';
+}
+
+export const curatorPlansKey = (profileId: string | null) => ['curator-plans', profileId ?? 'none'] as const;
+
+export function useCuratorPlans(profileId: string | null) {
+  return useQuery({
+    queryKey: curatorPlansKey(profileId),
+    queryFn: ({ signal }) => fetchCuratorPlans(signal),
+    enabled: profileId !== null,
+    staleTime: 0,
+  });
+}
+
+export const payoutAccountKey = ['curator-payout-account', 'current'] as const;
+
+/** During a payout provider return the payout card refreshes and seeds this key, so this read waits for it. */
+export function usePayoutAccount() {
+  const payoutReturn = useSearchParams().has('payout');
+  const account = useQuery({
+    queryKey: payoutAccountKey,
+    queryFn: ({ signal }) => fetchCuratorPayoutAccount(false, signal),
+    enabled: !payoutReturn,
+    staleTime: 0,
+  });
+  return { account, payoutReturn };
 }

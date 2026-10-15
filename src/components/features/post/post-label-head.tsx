@@ -19,7 +19,7 @@ interface PostLabelHeadProps {
     href: string;
     name: string;
     icon: string;
-    onClick: (event: MouseEvent<HTMLAnchorElement>) => void;
+    onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
   };
   tint?: string;
   compact?: boolean;

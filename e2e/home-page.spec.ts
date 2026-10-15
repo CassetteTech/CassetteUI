@@ -60,9 +60,7 @@ test.describe('home page', () => {
   });
 
   test('turns the link card only while motion is allowed', async ({ page }) => {
-    await mockCassetteApp(page);
-    // After the shared mocks, which turn reduced motion on.
-    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await mockCassetteApp(page, { reducedMotion: 'no-preference' });
     await page.goto('/');
     const card = page.getByRole('figure', { name: /Paste a Spotify, Apple Music, or Deezer link/ });
     const pasted = card.getByTestId('link-card-pasted-turning');

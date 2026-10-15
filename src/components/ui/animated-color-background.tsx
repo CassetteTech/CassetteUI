@@ -11,16 +11,16 @@ interface AnimatedColorBackgroundProps {
 }
 
 const DITHER_STEPS = 4;
-const DITHER_CELL = 4; // css px per dither cell
+const DITHER_CELL_CSS_PX = 4;
 
 const BAYER_TILE_URI = (() => {
   const cells = BAYER.flatMap((row, y) =>
     row.map(
       (threshold, x) =>
-        `<rect x='${x * DITHER_CELL}' y='${y * DITHER_CELL}' width='${DITHER_CELL}' height='${DITHER_CELL}' fill-opacity='${threshold}'/>`
+        `<rect x='${x * DITHER_CELL_CSS_PX}' y='${y * DITHER_CELL_CSS_PX}' width='${DITHER_CELL_CSS_PX}' height='${DITHER_CELL_CSS_PX}' fill-opacity='${threshold}'/>`
     )
   ).join('');
-  const size = 4 * DITHER_CELL;
+  const size = 4 * DITHER_CELL_CSS_PX;
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' shape-rendering='crispEdges'>${cells}</svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 })();
@@ -142,7 +142,7 @@ export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = (
       />
       <svg width="0" height="0" className="absolute">
         <filter id="post-gradient-dither" x="0" y="0" width="1" height="1" colorInterpolationFilters="sRGB">
-          <feImage href={BAYER_TILE_URI} width={4 * DITHER_CELL} height={4 * DITHER_CELL} result="cell" />
+          <feImage href={BAYER_TILE_URI} width={4 * DITHER_CELL_CSS_PX} height={4 * DITHER_CELL_CSS_PX} result="cell" />
           <feTile in="cell" result="bayer" />
           <feComposite
             in="SourceAlpha"

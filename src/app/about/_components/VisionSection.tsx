@@ -42,7 +42,7 @@ export function VisionSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="mt-6 max-w-xl font-roboto text-sm sm:text-base italic opacity-80 leading-relaxed border-l-2 border-primary/70 pl-4"
+          className="mt-6 max-w-xl font-roboto-flex text-sm sm:text-base italic opacity-80 leading-relaxed border-l-2 border-primary/70 pl-4"
         >
           We&apos;re building a platform where modern tastemakers thrive—where
           sharing your taste builds community and earns recognition. Join us to

@@ -41,7 +41,7 @@ export function ProblemSection() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="mt-8 max-w-xl border-l-2 border-primary/70 pl-4"
         >
-          <p className="font-roboto text-sm sm:text-base leading-relaxed italic opacity-80">
+          <p className="font-roboto-flex text-sm sm:text-base leading-relaxed italic opacity-80">
             Music is universal. Platforms aren&apos;t. Cassette removes the
             walls so your tracks, albums, artists, and whole playlists flow to
             everyone, everywhere—no friction, no dead ends.

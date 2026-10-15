@@ -74,7 +74,7 @@ export const AlbumName: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'p' 
 }) => (
-  <Component className={cn('font-roboto text-base sm:text-lg font-medium text-foreground', className)}>
+  <Component className={cn('font-roboto-flex text-base sm:text-lg font-medium text-foreground', className)}>
     {children}
   </Component>
 );
@@ -84,7 +84,7 @@ export const GenreText: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'p' 
 }) => (
-  <Component className={cn('font-roboto text-sm font-normal text-muted-foreground', className)}>
+  <Component className={cn('font-roboto-flex text-sm font-normal text-muted-foreground', className)}>
     {children}
   </Component>
 );
@@ -124,7 +124,7 @@ export const HintText: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'span' 
 }) => (
-  <Component className={cn('font-roboto text-sm font-semibold text-muted-foreground', className)}>
+  <Component className={cn('font-roboto-flex text-sm font-semibold text-muted-foreground', className)}>
     {children}
   </Component>
 );
@@ -204,7 +204,7 @@ export const TrackPageAlbumName: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'p' 
 }) => (
-  <Component className={cn('font-roboto text-base sm:text-lg font-medium text-white', className)}>
+  <Component className={cn('font-roboto-flex text-base sm:text-lg font-medium text-white', className)}>
     {children}
   </Component>
 );
@@ -214,7 +214,7 @@ export const TrackPageGenres: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'p' 
 }) => (
-  <Component className={cn('font-roboto text-sm font-normal text-white', className)}>
+  <Component className={cn('font-roboto-flex text-sm font-normal text-white', className)}>
     {children}
   </Component>
 );

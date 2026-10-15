@@ -8,11 +8,13 @@ const TABS = [
     href: '/internal/paid-promotions',
     label: 'Campaigns',
     hint: 'Every booking, newest activity first',
+    isActive: (pathname: string) => !pathname.startsWith('/internal/paid-promotions/subjects'),
   },
   {
     href: '/internal/paid-promotions/subjects',
     label: 'By release',
     hint: 'The same campaigns, grouped by what they promote',
+    isActive: (pathname: string) => pathname.startsWith('/internal/paid-promotions/subjects'),
   },
 ];
 
@@ -23,11 +25,7 @@ export function PaidPromotionTabs() {
     <nav aria-label="Paid promotions views" className="border-b border-border">
       <ul className="flex gap-1">
         {TABS.map((tab) => {
-          // The campaign detail route lives under the queue, so exact-match the
-          // list and prefix-match everything that is not the release view.
-          const active = tab.href === '/internal/paid-promotions'
-            ? !pathname?.startsWith('/internal/paid-promotions/subjects')
-            : pathname?.startsWith(tab.href);
+          const active = pathname !== null && tab.isActive(pathname);
 
           return (
             <li key={tab.href}>

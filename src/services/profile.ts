@@ -266,15 +266,7 @@ export class ProfileService {
 
   private buildApiUrl(path: string) {
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    const baseUrl = this.apiBaseUrl?.trim();
-
-    // Some environments set NEXT_PUBLIC_API_URL to literal "undefined"/"null".
-    if (!baseUrl || baseUrl === 'undefined' || baseUrl === 'null') {
-      return normalizedPath;
-    }
-
-    const base = baseUrl.replace(/\/+$/, '');
-    return `${base}${normalizedPath}`;
+    return `${this.apiBaseUrl.replace(/\/+$/, '')}${normalizedPath}`;
   }
 
   private mapActivityResponse(

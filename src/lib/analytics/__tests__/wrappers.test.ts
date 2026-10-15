@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { captureClientEvent, identifyClientUser, resetAnalyticsContextForTests, surfaceFromRoute, trackBrowserPageview } from '../client';
 import { shouldSuppressClientCapture, isCassetteInternalAccount, isInternalRoute } from '../internal-suppression';
 import type { AnalyticsBaseProps } from '../events';
+import { ignoreFailure } from '../../best-effort';
 
 type MemoryStorage = {
   getItem(key: string): string | null;
@@ -85,14 +86,12 @@ function setupBrowserMocks(pathname = '/auth/signup', search = '') {
   }) as typeof fetch;
 
   if (previousNavigator && typeof previousNavigator === 'object') {
-    try {
+    ignoreFailure(() => {
       previousNavigator.sendBeacon = (_url: string, data: Blob) => {
         beaconPayloads.push(data);
         return true;
       };
-    } catch {
-      // ignore navigator mutation failures
-    }
+    });
   }
 
   return {
@@ -103,11 +102,9 @@ function setupBrowserMocks(pathname = '/auth/signup', search = '') {
       (globalThis as { window?: unknown }).window = previousWindow;
       globalThis.fetch = previousFetch;
       if (previousNavigator && typeof previousNavigator === 'object') {
-        try {
+        ignoreFailure(() => {
           previousNavigator.sendBeacon = previousSendBeacon;
-        } catch {
-          // ignore navigator mutation failures
-        }
+        });
       }
     },
   };
@@ -120,13 +117,9 @@ async function collectCapturedPayloads(
   const captured = [...fetchPayloads];
 
   for (const blob of beaconPayloads) {
-    try {
-      const text = await blob.text();
-      if (!text) continue;
-      captured.push(JSON.parse(text));
-    } catch {
-      // ignore parse failures
-    }
+    const text = await ignoreFailure(blob.text());
+    const payload = text ? ignoreFailure(() => JSON.parse(text)) : undefined;
+    if (payload !== undefined) captured.push(payload);
   }
 
   return captured;

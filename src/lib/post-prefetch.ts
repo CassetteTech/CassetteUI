@@ -1,4 +1,5 @@
 import type { PostByIdResponse } from '@/types';
+import { tryStorage } from './best-effort';
 
 /**
  * Warm handoff between the inline conversion surfaces (home, add-music) and
@@ -13,17 +14,13 @@ import type { PostByIdResponse } from '@/types';
 const KEY_PREFIX = 'cassette:prefetched-post:';
 
 export function savePrefetchedPost(postId: string, post: PostByIdResponse): void {
-  try {
-    const {
-      paidPromotionCampaignId: _paidPromotionAttribution,
-      curatorId: _curatorAttribution,
-      isMemberView: _memberViewAttribution,
-      ...cacheablePost
-    } = post;
-    sessionStorage.setItem(KEY_PREFIX + postId, JSON.stringify(cacheablePost));
-  } catch {
-    // Storage full/unavailable — the post page falls back to fetching.
-  }
+  const {
+    paidPromotionCampaignId: _paidPromotionAttribution,
+    curatorId: _curatorAttribution,
+    isMemberView: _memberViewAttribution,
+    ...cacheablePost
+  } = post;
+  tryStorage(() => sessionStorage.setItem(KEY_PREFIX + postId, JSON.stringify(cacheablePost)), undefined);
 }
 
 export function takePrefetchedPost(postId: string): PostByIdResponse | null {

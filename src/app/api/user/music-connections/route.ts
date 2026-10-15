@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { config } from '@/lib/config';
+import { clientConfig } from '@/lib/config-client';
 import { appLogger } from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       headers['Authorization'] = authHeader;
     }
 
-    const response = await fetch(`${config.api.url}/api/v1/music-services/connected`, {
+    const response = await fetch(`${clientConfig.api.url}/api/v1/music-services/connected`, {
       method: 'GET',
       headers,
     });
@@ -62,7 +62,7 @@ export async function DELETE(request: NextRequest) {
       headers['Authorization'] = authHeader;
     }
 
-    const response = await fetch(`${config.api.url}/api/v1/music-services/${service}`, {
+    const response = await fetch(`${clientConfig.api.url}/api/v1/music-services/${service}`, {
       method: 'DELETE',
       headers,
     });

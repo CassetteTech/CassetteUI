@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { Globe, Lock } from 'lucide-react';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { scrollTabIntoRow } from '@/lib/utils/scroll-tab-into-row';
 
 export type TabType = 'music' | 'liked';
 
@@ -25,9 +26,10 @@ export function ProfileTabs({
 
   const LikedVisibilityIcon = likedTabVisibility === 'private' ? Lock : Globe;
   const listRef = useRef<HTMLDivElement>(null);
-  // The strip scrolls on narrow screens; a deep-linked tab must not start off-screen.
   useEffect(() => {
-    listRef.current?.querySelector('[data-state="active"]')?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+    const list = listRef.current;
+    const tab = list?.querySelector<HTMLElement>('[data-state="active"]');
+    if (list && tab) scrollTabIntoRow(list, tab);
   }, [activeTab]);
 
   return (

@@ -26,7 +26,7 @@ export function KofiSupportBand({ title, copy }: KofiSupportBandProps) {
           <h3 className="font-teko text-3xl sm:text-4xl uppercase tracking-tight leading-none text-foreground">
             {title}
           </h3>
-          <p className="font-roboto text-muted-foreground text-sm italic mt-2 max-w-xl leading-relaxed">
+          <p className="font-roboto-flex text-muted-foreground text-sm italic mt-2 max-w-xl leading-relaxed">
             {copy}
           </p>
         </div>

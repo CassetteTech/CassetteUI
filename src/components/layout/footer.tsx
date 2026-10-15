@@ -52,7 +52,7 @@ export function Footer() {
                 Cassette
               </span>
             </Link>
-            <p className="font-roboto text-sm text-muted-foreground mt-4 max-w-xs italic border-l-2 border-foreground/30 pl-3">
+            <p className="font-roboto-flex text-sm text-muted-foreground mt-4 max-w-xs italic border-l-2 border-foreground/30 pl-3">
               Share music across every streaming platform. One link, no friction.
             </p>
             <SocialLinks className="mt-6" />
@@ -94,7 +94,7 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
     <li>
       <Link
         href={href}
-        className="group inline-flex items-center gap-1.5 font-roboto text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className="group inline-flex items-center gap-1.5 font-roboto-flex text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <span className="inline-block w-3 overflow-hidden scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-150 font-mono text-primary text-xs">
           →

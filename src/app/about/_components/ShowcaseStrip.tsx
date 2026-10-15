@@ -95,7 +95,7 @@ export function ShowcaseStrip() {
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2.5">
             Opens everywhere
           </p>
-          <p className="font-roboto text-sm italic text-foreground/80 leading-snug">
+          <p className="font-roboto-flex text-sm italic text-foreground/80 leading-snug">
             Every listener lands in their own player. No dead ends.
           </p>
         </div>
@@ -122,7 +122,7 @@ export function ShowcaseStrip() {
                 <span className="block font-teko text-2xl sm:text-3xl uppercase leading-[0.95] tracking-tight truncate">
                   {link.title}
                 </span>
-                <span className="block font-roboto text-xs italic text-muted-foreground group-hover:text-background/70 transition-colors mt-0.5">
+                <span className="block font-roboto-flex text-xs italic text-muted-foreground group-hover:text-background/70 transition-colors mt-0.5">
                   {link.artist} &middot; {link.kind}
                 </span>
               </span>

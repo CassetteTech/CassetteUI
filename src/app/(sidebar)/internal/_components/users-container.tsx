@@ -37,7 +37,7 @@ export function UsersContainer() {
   const [updatingAccountType, setUpdatingAccountType] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
 
-  const debouncedUserSearch = useDebounce(userSearch, 300);
+  const debouncedUserSearch = useDebounce(userSearch);
   const actorCanAssignVerified = usersResponse?.actorCanAssignVerified ?? false;
 
   const selectedUserAccountType = useMemo(

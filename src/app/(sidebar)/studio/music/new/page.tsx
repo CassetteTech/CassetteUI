@@ -45,9 +45,9 @@ import { PostVisibilityControl } from '@/components/features/post/post-visibilit
 import { studioLabels, studioViewOfPath } from '@/components/features/curator/studio-routes';
 import type { MusicLinkConversion, PostPrivacy } from '@/types';
 import { cn } from '@/lib/utils';
+import { ignoreFailure } from '@/lib/best-effort';
 
-// Analytics keep the route name this page had before it moved into Curator Studio, so funnels stay continuous.
-const ANALYTICS_ROUTE = '/add-music';
+const LEGACY_ADD_MUSIC_ANALYTICS_ROUTE = '/add-music';
 
 type SelectedItem = {
   id: string;
@@ -429,7 +429,6 @@ export default function AddMusicPage() {
     returnedDraft && !returnedSelection ? getMusicSourceLabel(returnedDraft.link) : null,
   );
   const [errorMessage, setErrorMessage] = useState(returnedDraft?.errorMessage ?? '');
-  // Idempotency key of the in-flight conversion; doubles as the "converting" flag.
   const [conversionKey, setConversionKey] = useState<string | null>(null);
   const [convertingMeta, setConvertingMeta] = useState<ConvertingMeta | null>(null);
 
@@ -437,7 +436,7 @@ export default function AddMusicPage() {
   const lastTrackedSearchRef = useRef<string>('');
   const runningRef = useRef<{ url: string; key: string; result: Promise<MusicLinkConversion> } | null>(null);
   const handedOffRef = useRef(false);
-  const debouncedSearchTerm = useDebounce(musicUrl, 300); // matches the home page search feel
+  const debouncedSearchTerm = useDebounce(musicUrl);
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
   const resolvedReturnRoute = normalizeAuthRedirect(searchParams?.get('from'))
@@ -573,7 +572,7 @@ export default function AddMusicPage() {
         setErrorMessage(validationError);
         setIsSearchActive(false);
         void captureClientEvent('unsupported_music_link_pasted', {
-          route: ANALYTICS_ROUTE,
+          route: LEGACY_ADD_MUSIC_ANALYTICS_ROUTE,
           source_surface: 'add_music',
           source_domain: sanitizeDomain(normalizedValue),
           source_platform: detected.platform,
@@ -586,7 +585,7 @@ export default function AddMusicPage() {
       if (isValidMusicUrl(normalizedValue)) {
         commitMusicLinkInput(normalizedValue);
         void captureClientEvent('music_link_pasted', {
-          route: ANALYTICS_ROUTE,
+          route: LEGACY_ADD_MUSIC_ANALYTICS_ROUTE,
           source_surface: 'add_music',
           source_domain: sanitizeDomain(normalizedValue),
           source_platform: detected.platform,
@@ -642,7 +641,7 @@ export default function AddMusicPage() {
       playErrorTone();
 
       void captureClientEvent('unsupported_music_link_pasted', {
-        route: ANALYTICS_ROUTE,
+        route: LEGACY_ADD_MUSIC_ANALYTICS_ROUTE,
         source_surface: 'add_music',
         source_domain: sanitizeDomain(pastedText),
         source_platform: detected.platform,
@@ -655,7 +654,7 @@ export default function AddMusicPage() {
     if (isValidMusicUrl(pastedText)) {
       commitMusicLinkInput(pastedText);
       void captureClientEvent('music_link_pasted', {
-        route: ANALYTICS_ROUTE,
+        route: LEGACY_ADD_MUSIC_ANALYTICS_ROUTE,
         source_surface: 'add_music',
         source_domain: sanitizeDomain(pastedText),
         source_platform: detected.platform,
@@ -664,7 +663,7 @@ export default function AddMusicPage() {
       });
     } else {
       void captureClientEvent('unsupported_music_link_pasted', {
-        route: ANALYTICS_ROUTE,
+        route: LEGACY_ADD_MUSIC_ANALYTICS_ROUTE,
         source_surface: 'add_music',
         source_domain: sanitizeDomain(pastedText),
         source_platform: detected.platform,
@@ -710,7 +709,7 @@ export default function AddMusicPage() {
   const handleSelectItem = (url: string, title: string, type: string) => {
     const detected = detectContentType(url);
     void captureClientEvent('search_result_selected', {
-      route: ANALYTICS_ROUTE,
+      route: LEGACY_ADD_MUSIC_ANALYTICS_ROUTE,
       source_surface: 'add_music',
       source_platform: detected.platform,
       element_type_guess: detected.type,
@@ -797,7 +796,7 @@ export default function AddMusicPage() {
     
     const detected = detectContentType(urlToConvert);
     void captureClientEvent('conversion_entry_started', {
-      route: ANALYTICS_ROUTE,
+      route: LEGACY_ADD_MUSIC_ANALYTICS_ROUTE,
       source_surface: 'add_music',
       source_platform: detected.platform,
       element_type_guess: detected.type,
@@ -840,12 +839,9 @@ export default function AddMusicPage() {
 
       router.prefetch(`/post/${result.postId}`);
       if (result.postId) {
-        try {
-          const post = await apiService.fetchPostById(result.postId);
-          if (post?.success) {
-            savePrefetchedPost(result.postId, post);
-          }
-        } catch {
+        const post = await ignoreFailure(apiService.fetchPostById(result.postId));
+        if (post?.success) {
+          savePrefetchedPost(result.postId, post);
         }
       }
 
@@ -886,7 +882,7 @@ export default function AddMusicPage() {
       (searchResultsData?.playlists?.length || 0);
 
     void captureClientEvent('search_submitted', {
-      route: ANALYTICS_ROUTE,
+      route: LEGACY_ADD_MUSIC_ANALYTICS_ROUTE,
       source_surface: 'add_music',
       result_count: resultCount,
       is_authenticated: true,

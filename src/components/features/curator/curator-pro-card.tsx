@@ -1,9 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useAuthState } from '@/hooks/use-auth';
+import { useProviderReturnPoll } from '@/hooks/use-provider-return-poll';
+import { useRedirectMutation } from '@/hooks/use-redirect-mutation';
 import { apiService } from '@/services/api';
 import type { CuratorProStatus } from '@/services/curator-pro';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
@@ -11,6 +13,7 @@ import { StudioNotice, StudioSection, StudioStat } from '@/components/features/c
 import { Button } from '@/components/ui/button';
 import { removeQueryParameters } from '@/utils/remove-query-parameters';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
+import { tryStorage } from '@/lib/best-effort';
 
 type ProFlow = 'return' | 'portal-return' | null;
 
@@ -29,29 +32,23 @@ const dateFormatter = new Intl.DateTimeFormat(priceLocale, {
 
 function readPortalBaseline(userId: string): PortalBaseline | null {
   const key = `${portalBaselinePrefix}${userId}`;
-  try {
+  return tryStorage(() => {
     const stored = sessionStorage.getItem(key);
     sessionStorage.removeItem(key);
     if (!stored) return null;
     const parsed = portalBaselineSchema.safeParse(JSON.parse(stored));
     return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
+  }, null);
 }
 
 function writePortalBaseline(userId: string, status: CuratorProStatus) {
-  try {
-    sessionStorage.setItem(
-      `${portalBaselinePrefix}${userId}`,
-      JSON.stringify({
-        status: status.status,
-        cancelAtPeriodEnd: status.cancelAtPeriodEnd,
-      } satisfies PortalBaseline),
-    );
-  } catch {
-    // Portal still works; without a baseline the return message stays neutral.
-  }
+  tryStorage(() => sessionStorage.setItem(
+    `${portalBaselinePrefix}${userId}`,
+    JSON.stringify({
+      status: status.status,
+      cancelAtPeriodEnd: status.cancelAtPeriodEnd,
+    } satisfies PortalBaseline),
+  ), undefined);
 }
 
 function formatMoney(amountMinor: number, currency: string) {
@@ -108,7 +105,6 @@ export function CuratorProCard() {
   const userId = user?.id ?? null;
   const [flow, setFlow] = useState<ProFlow>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  // Set when the checkout poll gives up, so the curator can restart it themselves.
   const [timedOutFlow, setTimedOutFlow] = useState<ProFlow>(null);
   const flowInitialized = useRef(false);
   const flowHandled = useRef(false);
@@ -118,16 +114,14 @@ export function CuratorProCard() {
     queryFn: ({ signal }) => apiService.getCuratorProStatus(signal),
     enabled: Boolean(userId),
     staleTime: 0,
-    // Both provider returns wait on the billing mirror, which Stripe updates by
-    // webhook, possibly after the curator is back.
     refetchInterval: flow ? 1_000 : false,
   });
   const status = statusQuery.data;
-  const checkout = useMutation({
+  const checkout = useRedirectMutation({
     mutationFn: () => apiService.createCuratorProCheckout(),
     onSuccess: (result) => window.location.assign(result.checkoutUrl),
   });
-  const portal = useMutation({
+  const portal = useRedirectMutation({
     mutationFn: async () => {
       if (!userId || !status) throw new Error('Curator Pro status is unavailable');
       const result = await apiService.createCuratorProPortal();
@@ -168,22 +162,22 @@ export function CuratorProCard() {
     setFlow(requestedFlow);
   }, [userId]);
 
-  useEffect(() => {
-    if (!flow) return;
-    const timeout = window.setTimeout(() => {
-      setTimedOutFlow(flow);
-      finishFlow(flow === 'return'
+  useProviderReturnPoll({
+    flow,
+    polling: flow !== null,
+    read: statusQuery,
+    onTimeout: (timedOut) => {
+      setTimedOutFlow(timedOut);
+      finishFlow(timedOut === 'return'
         ? 'Curator Pro activation is still processing. Refresh in a moment.'
         : 'No billing change has reached Cassette yet. A change made in Stripe can take a minute to appear.');
-    }, 30_000);
-    return () => window.clearTimeout(timeout);
-  }, [finishFlow, flow]);
+    },
+    onRead: (returned, current) => {
+      if (!flowHandled.current) settleProReturn(returned, current);
+    },
+  });
 
-  const fetchedAfterMount = statusQuery.isFetchedAfterMount;
-  useEffect(() => {
-    // Only a status read completed by this page load counts; a cached entry
-    // from before the provider handoff must not resolve the flow.
-    if (!flow || !status || !fetchedAfterMount || flowHandled.current) return;
+  function settleProReturn(flow: 'return' | 'portal-return', status: CuratorProStatus) {
     if (flow === 'return') {
       if (status.hasAccess) {
         finishFlow('Curator Pro is active.');
@@ -195,8 +189,6 @@ export function CuratorProCard() {
       return;
     }
 
-    // Portal return: an unchanged read proves nothing, because the change can
-    // still be on its way. The bounded poll ends with neutral copy instead.
     const baseline = portalBaseline.current;
     const canceled = baseline !== null && baseline.status !== 'canceled' && status.status === 'canceled';
     const canceling = baseline !== null && !baseline.cancelAtPeriodEnd && status.cancelAtPeriodEnd;
@@ -214,17 +206,14 @@ export function CuratorProCard() {
     } else if (baseline !== null && baseline.status !== status.status) {
       finishFlow('Your Curator Pro billing status changed. Review the current status below.');
     }
-  }, [fetchedAfterMount, finishFlow, flow, status]);
+  }
 
   const actionError = checkout.isError
     ? `${getUserFacingApiErrorMessage(checkout.error, 'We could not start secure Checkout.')} Try again.`
     : portal.isError
       ? `${getUserFacingApiErrorMessage(portal.error, 'We could not open billing management.')} Try again.`
       : null;
-  // isSuccess keeps the buttons disabled while the Stripe navigation is pending,
-  // preventing a double submit after the mutation resolves.
-  const actionPending = checkout.isPending || checkout.isSuccess ||
-    portal.isPending || portal.isSuccess;
+  const actionPending = checkout.busy || portal.busy;
 
   if (!status?.available && !status?.canManage) return null;
 
@@ -299,7 +288,7 @@ export function CuratorProCard() {
                     checkout.mutate();
                   }}
                 >
-                  {checkout.isPending || checkout.isSuccess
+                  {checkout.busy
                     ? 'Opening Checkout…'
                     : status.status === 'canceled' ? 'Restart Curator Pro' : 'Start Curator Pro'}
                 </Button>
@@ -316,7 +305,7 @@ export function CuratorProCard() {
                     portal.mutate();
                   }}
                 >
-                  {portal.isPending || portal.isSuccess ? 'Opening…' : 'Manage billing'}
+                  {portal.busy ? 'Opening…' : 'Manage billing'}
                 </Button>
               )}
             </div>

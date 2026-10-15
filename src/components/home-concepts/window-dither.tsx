@@ -3,8 +3,7 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import { BAYER8 } from '@/components/pages/home-dither-field';
 
-// Dither cell in CSS px, snapped to whole device pixels like HomeDitherField.
-const CELL = 3;
+const DITHER_CELL_CSS_PX = 3;
 // The footage's own colours: ffmpeg `palettegen` (24 colours) over both
 // stills and two frames of each camera move, then the reds of the window
 // frame and the bed, the tan of the room's wall, and three tape label
@@ -140,7 +139,7 @@ export function WindowDither({ copyRef }: { copyRef: RefObject<HTMLElement | nul
 
     const measure = () => {
       const ratio = window.devicePixelRatio;
-      const cellPixels = Math.max(1, Math.round(CELL * ratio));
+      const cellPixels = Math.max(1, Math.round(DITHER_CELL_CSS_PX * ratio));
       const cellCss = cellPixels / ratio;
       const { width, height } = root.getBoundingClientRect();
       columns = Math.ceil(width / cellCss);

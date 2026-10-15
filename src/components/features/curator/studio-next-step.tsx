@@ -7,7 +7,8 @@ import { StepButton, type LaunchStep } from '@/components/features/curator/studi
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useAuthState } from '@/hooks/use-auth';
-import { useMemberPostAccess } from '@/hooks/use-curator';
+import { useObservedMemberPostAccess } from '@/hooks/use-curator';
+import { profileQueryKeys } from '@/hooks/use-profile';
 import { profileService } from '@/services/profile';
 
 const membersPostNudgeDays = 14;
@@ -16,10 +17,8 @@ const dayMs = 24 * 60 * 60 * 1000;
 function useMembersPostGap(enabled: boolean) {
   const { user } = useAuthState();
   const userId = user?.id ?? null;
-  // Newest first, so one item is the latest members-only post. Under the activity key, so a new
-  // post anywhere refreshes it.
   const latest = useQuery({
-    queryKey: ['user-activity', userId, 'studio-members-latest'],
+    queryKey: profileQueryKeys.studioActivity(userId, 'studio-members-latest'),
     queryFn: () => profileService.fetchUserActivity(userId!, { pageSize: 1, privacy: 'subscriber' }),
     enabled: enabled && userId !== null,
     staleTime: 0,
@@ -67,8 +66,7 @@ export function StudioNextStep({ stepsKnown, setupSteps, musicStep, shareStep }:
   musicStep: LaunchStep | null;
   shareStep: LaunchStep;
 }) {
-  // Shows only above Studio Music, which reads the access; observe that read instead of repeating it.
-  const access = useMemberPostAccess(false);
+  const access = useObservedMemberPostAccess();
   const membersGap = useMembersPostGap(access.state === 'ready');
   const openStep = stepsKnown ? setupSteps.find((step) => !step.done) : undefined;
   if (openStep) return <StepBanner step={openStep} />;

@@ -6,6 +6,7 @@ import type {
   PaidPromotionRateCard,
   PaidPromotionNeedsInfo,
 } from '@/types';
+import { ignoreFailure } from '../lib/best-effort';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -186,16 +187,13 @@ export function formatPaidPromotionMinorAmount(
 
   const code = currency.trim().toUpperCase();
 
-  try {
+  const formatted = ignoreFailure(() => {
     const formatter = new Intl.NumberFormat(locale, { style: 'currency', currency: code });
     const fractionDigits = formatter.resolvedOptions().maximumFractionDigits;
-    if (fractionDigits !== undefined) {
-      return formatter.format(amountMinor / 10 ** fractionDigits);
-    }
-  } catch {
-  }
+    return fractionDigits === undefined ? undefined : formatter.format(amountMinor / 10 ** fractionDigits);
+  });
 
-  return `${code} ${(amountMinor / 100).toFixed(2)}`;
+  return formatted ?? `${code} ${(amountMinor / 100).toFixed(2)}`;
 }
 
 export type PaidPromotionReturnState =

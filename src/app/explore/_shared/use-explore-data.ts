@@ -50,7 +50,7 @@ export function useExploreData() {
   const [isLoadingMoreUsers, setIsLoadingMoreUsers] = useState(false);
   const [visibleUsersCount, setVisibleUsersCount] = useState(SECTION_INCREMENT);
   const [userSearch, setUserSearch] = useState('');
-  const debouncedUserSearch = useDebounce(userSearch, 300);
+  const debouncedUserSearch = useDebounce(userSearch);
   const isSearchingUsers = debouncedUserSearch.trim().length > 0;
 
   const { data: exploreData, isLoading: isLoadingPosts, error: postsError } = useExploreActivity({

@@ -61,6 +61,7 @@ const elementTypeForFixtureId = (
 };
 
 type MockCassetteOptions = {
+  reducedMotion?: 'reduce' | 'no-preference';
   analyticsCaptures?: Array<Record<string, unknown>>;
   exploreRequests?: string[];
   currentUser?: FixtureUser | null;
@@ -924,7 +925,7 @@ function emailPreferencesBody(state: MockState, userId: string) {
 export async function mockCassetteApp(page: Page, options: MockCassetteOptions = {}) {
   const state = buildState(options);
 
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.emulateMedia({ reducedMotion: options.reducedMotion ?? 'reduce' });
 
   await page.route(
     /^https:\/\/fonts\.googleapis\.com\/icon\?family=Material\+Icons$/,

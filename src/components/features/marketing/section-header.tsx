@@ -38,7 +38,7 @@ export function SectionHeader({
         {title}
       </h2>
       {sub ? (
-        <p className="font-roboto text-base italic opacity-70 mt-4 max-w-md">
+        <p className="font-roboto-flex text-base italic opacity-70 mt-4 max-w-md">
           {sub}
         </p>
       ) : null}

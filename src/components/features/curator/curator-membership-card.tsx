@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -23,10 +23,13 @@ import { WalletPass } from '@/components/features/curator/wallet-pass';
 import { studioPaths } from '@/components/features/curator/studio-routes';
 import { StudioNotice } from '@/components/features/curator/studio-shell';
 import { CuratorFollowAction } from '@/components/features/curator/curator-follow-action';
+import { useScrollToHashTarget } from '@/hooks/use-scroll-to-hash-target';
 import { useSharedPosition } from '@/hooks/use-shared-position';
 import { cn } from '@/lib/utils';
 
 export const MEMBERSHIP_OFFER_ID = 'membership-offer';
+
+export const membershipPassPositionKey = (username: string) => `membership-pass:${username}`;
 
 export function CuratorMembershipCard({
   page,
@@ -78,14 +81,8 @@ export function CuratorMembershipCard({
   const plan = page.membership;
   const membership = status?.membership;
   const memberPassRef = useRef<HTMLDivElement>(null);
-  useSharedPosition(memberPassRef, `membership-pass:${page.curator.username}`);
-  // The card renders after the page's own read, too late for the browser's
-  // scroll to a linked anchor. On a phone it sits below the posts.
-  useEffect(() => {
-    if (window.location.hash !== `#${membershipId}`) return;
-    const offer = document.getElementById(membershipId);
-    if (offer && offer.getBoundingClientRect().top >= window.innerHeight) offer.scrollIntoView({ block: 'start' });
-  }, [membershipId]);
+  useSharedPosition(memberPassRef, membershipPassPositionKey(page.curator.username));
+  useScrollToHashTarget(membershipId);
   const planMatchesMembership = !membership || membership.planId === plan?.planId;
   const displayedPlan = status?.canSubscribe === false && !planMatchesMembership ? null : plan;
   const annual = displayedPlan?.annualAmountMinor != null && displayedPlan.annualServiceFeeMinor != null
@@ -132,7 +129,6 @@ export function CuratorMembershipCard({
           {statusNotice}
         </output>
       )}
-      {/* The outer guard keeps the notice out of the DOM when empty; tests count zero elements. */}
       {notice && (
         <StudioNotice testId="membership-notice" className="mt-4 px-3 py-2">{notice}</StudioNotice>
       )}
@@ -262,10 +258,9 @@ export function CuratorMembershipCard({
         ) : canJoin ? (
           <>
             <Button
-              // aria-disabled, not disabled: a disabled button cannot take keyboard focus while checkout opens.
-              className="w-full aria-disabled:pointer-events-none aria-disabled:opacity-50"
+              className="w-full"
               onClick={onJoin}
-              aria-disabled={checkoutPending}
+              busy={checkoutPending}
               data-testid="membership-join"
             >
               {checkoutPending ? (

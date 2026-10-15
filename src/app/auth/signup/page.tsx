@@ -75,7 +75,7 @@ export default function SignUpPage() {
               <h1 className="text-2xl font-semibold tracking-tight leading-none">
                 {membershipIntent ? 'Create a free account' : 'Create your account'}
               </h1>
-              <CardDescription className="font-roboto italic mt-2">
+              <CardDescription className="font-roboto-flex italic mt-2">
                 {membershipIntent
                   ? 'Your account is free. Payment for the membership comes next, on the curator\u2019s page.'
                   : isPromoteIntent
@@ -137,7 +137,7 @@ export default function SignUpPage() {
               .
             </p>
 
-              <div className="text-center text-sm mt-4 font-roboto text-muted-foreground">
+              <div className="text-center text-sm mt-4 font-roboto-flex text-muted-foreground">
                 Already have an account?{' '}
                 <Link
                   href={signInHref}

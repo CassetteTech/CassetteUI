@@ -27,7 +27,7 @@ export function IssuesContainer() {
   const [selectedIssue, setSelectedIssue] = useState<InternalIssueDetail | null>(null);
   const [selectedIssueLoading, setSelectedIssueLoading] = useState(false);
 
-  const debouncedIssueSearch = useDebounce(issueSearch, 300);
+  const debouncedIssueSearch = useDebounce(issueSearch);
 
   const loadIssues = useCallback(async () => {
     setIssuesLoading(true);

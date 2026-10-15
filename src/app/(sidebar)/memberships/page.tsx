@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronDown } from 'lucide-react';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { WalletPass } from '@/components/features/curator/wallet-pass';
+import { membershipPassPositionKey } from '@/components/features/curator/curator-membership-card';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -48,9 +49,8 @@ function MembershipPass({ entry }: { entry: MyMembership }) {
   const money = (minor: number) => formatPaidPromotionMinorAmount(minor, membership.currency);
   const endUtc = membershipEndOrRenewalUtc(membership);
   const end = endUtc ? formatMembershipDate(endUtc) : null;
-  // The same key on the curator's profile pass lets this card slide into the rail on navigation, and back.
   const passRef = useRef<HTMLDivElement>(null);
-  useSharedPosition(passRef, `membership-pass:${entry.curatorUsername}`);
+  useSharedPosition(passRef, membershipPassPositionKey(entry.curatorUsername));
 
   async function manage() {
     setPortalPending(true);
@@ -141,8 +141,7 @@ function MyMemberships() {
   const empty = query.data?.length === 0;
 
   return (
-    // At least one screen tall (under the 4rem phone navbar), so an empty list can center in the free height.
-    <div className="studio-surface mx-auto flex min-h-[calc(100svh-4rem)] w-full max-w-3xl flex-col px-4 py-6 sm:px-6 sm:py-8 lg:min-h-full lg:py-10">
+    <div className="studio-surface mx-auto flex min-h-[calc(100svh-var(--navbar-height))] w-full max-w-3xl flex-col px-4 py-6 sm:px-6 sm:py-8 lg:min-h-full lg:py-10">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">

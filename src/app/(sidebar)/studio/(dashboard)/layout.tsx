@@ -31,16 +31,16 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { useAuthState } from '@/hooks/use-auth';
-import { useUserBio } from '@/hooks/use-profile';
+import { profileQueryKeys, useUserBio } from '@/hooks/use-profile';
 import { cn } from '@/lib/utils';
 import { useSharedPositionHold } from '@/hooks/use-shared-position';
 import {
-  fetchCuratorPayoutAccount,
   fetchOwnCuratorProfile,
   type CuratorProfile,
 } from '@/services/curator';
-import { fetchCuratorPlans } from '@/services/curator-plans';
+import { useCuratorPlans, usePayoutAccount } from '@/hooks/use-curator';
 import { profileService } from '@/services/profile';
+import { tryStorage } from '@/lib/best-effort';
 
 const profileQueryKey = ['curator-profile', 'me'] as const;
 const pageLinkCopiedKey = (userId: string) => `cassette:studio-page-link-copied:${userId}`;
@@ -55,7 +55,7 @@ function readPageLinkCopied(userId: string) {
 
 function useMusicStep(userId: string | null) {
   const music = useQuery({
-    queryKey: ['user-activity', userId, 'studio-has-music'],
+    queryKey: profileQueryKeys.studioActivity(userId, 'studio-has-music'),
     queryFn: () => profileService.fetchUserActivity(userId!, { pageSize: 1 }),
     enabled: userId !== null,
     staleTime: 0,
@@ -76,10 +76,7 @@ function usePageLinkCopied(userId: string | null) {
   const markCopied = () => {
     if (!userId) return;
     setCopiedUserId(userId);
-    try {
-      localStorage.setItem(pageLinkCopiedKey(userId), 'true');
-    } catch {
-    }
+    tryStorage(() => localStorage.setItem(pageLinkCopiedKey(userId), 'true'), undefined);
   };
   return [copied, markCopied] as const;
 }
@@ -88,19 +85,8 @@ function useLaunchSteps(profile: CuratorProfile | null) {
   const { user } = useAuthState();
   const userId = user?.id ?? null;
   const music = useMusicStep(userId);
-  const payoutFlowActive = useSearchParams().has('payout');
-  const payout = useQuery({
-    queryKey: ['curator-payout-account', 'current'],
-    queryFn: ({ signal }) => fetchCuratorPayoutAccount(false, signal),
-    enabled: !payoutFlowActive,
-    staleTime: 0,
-  });
-  const plans = useQuery({
-    queryKey: ['curator-plans', profile?.id ?? 'none'],
-    queryFn: ({ signal }) => fetchCuratorPlans(signal),
-    enabled: Boolean(profile),
-    staleTime: 0,
-  });
+  const { account: payout, payoutReturn: payoutFlowActive } = usePayoutAccount();
+  const plans = useCuratorPlans(profile?.id ?? null);
   const [pageLinkCopied, markPageLinkCopied] = usePageLinkCopied(userId);
 
   const payoutStarted = payout.data != null;
@@ -442,9 +428,7 @@ function StudioDashboard({ children }: { children: ReactNode }) {
           </div>
           <div className="max-lg:contents lg:relative lg:flex lg:flex-col lg:gap-6 lg:self-stretch">
             {wide && <StudioRailShareLinks onPageLinkCopied={launch.markPageLinkCopied} />}
-            {/* The rail: the pass, then the audience. Phones show the pass under the main column. It
-                sticks one gap under the share links' band (6 + 8 + 3 + 6). */}
-            <div className="max-lg:contents lg:sticky lg:top-23 lg:flex lg:flex-col lg:gap-6">
+            <div className="max-lg:contents lg:sticky lg:flex lg:flex-col lg:gap-6">
               <aside
                 ref={setPassSlot}
                 aria-label={view === 'studio-membership' ? 'Membership plan' : 'Your public pass'}

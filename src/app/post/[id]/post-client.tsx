@@ -53,6 +53,8 @@ import { appLogger } from '@/lib/observability/logger';
 import { captureUiException } from '@/lib/observability/error-reporting';
 import { ApiConnectionError } from '@/utils/api-connection-error';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
+import { tryStorage } from '@/lib/best-effort';
+import { listProgress, statsSlideUnderLid, titleUnder, trackCounterText, trackStatsUnderLid } from '@/components/features/post/toolbar-scroll';
 
 function PostFoot({
   signUp,
@@ -128,6 +130,7 @@ type PostLikeResponse = {
 };
 
 const REPOSTED_POSTS_STORAGE_KEY = 'cassette_reposted_posts_v1';
+const COMMENTS_PADDING_TRANSITION_MS = 450;
 
 const readRepostedPosts = (userId?: string | null): Record<string, true> => {
   if (!userId || typeof window === 'undefined') return {};
@@ -143,21 +146,19 @@ const readRepostedPosts = (userId?: string | null): Record<string, true> => {
 
 const markPostAsReposted = (userId: string | undefined, targetPostId: string | undefined) => {
   if (!userId || !targetPostId || typeof window === 'undefined') return;
-  try {
+  tryStorage(() => {
     const raw = window.localStorage.getItem(REPOSTED_POSTS_STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) as Record<string, Record<string, true>> : {};
     const currentUserPosts = parsed[userId] || {};
     currentUserPosts[targetPostId] = true;
     parsed[userId] = currentUserPosts;
     window.localStorage.setItem(REPOSTED_POSTS_STORAGE_KEY, JSON.stringify(parsed));
-  } catch {
-    // best effort
-  }
+  }, undefined);
 };
 
 const unmarkPostAsReposted = (userId: string | undefined, targetPostId: string | undefined) => {
   if (!userId || !targetPostId || typeof window === 'undefined') return;
-  try {
+  tryStorage(() => {
     const raw = window.localStorage.getItem(REPOSTED_POSTS_STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw) as Record<string, Record<string, true>>;
@@ -167,9 +168,7 @@ const unmarkPostAsReposted = (userId: string | undefined, targetPostId: string |
     }
     parsed[userId] = currentUserPosts;
     window.localStorage.setItem(REPOSTED_POSTS_STORAGE_KEY, JSON.stringify(parsed));
-  } catch {
-    // best effort
-  }
+  }, undefined);
 };
 
 export default function PostClientPage({ postId, initialMetadata }: PostClientPageProps) {
@@ -181,8 +180,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const { mutate: addToProfile, isPending: isAddingToProfile } = useAddMusicToProfile();
   const [addStatus, setAddStatus] = useState<'idle' | 'added' | 'error'>('idle');
   const [postData, setPostData] = useState<PostPageData | null>(null);
-  // The post came from a conversion handoff, so its staged content was already on screen.
-  const [arrivedWarm, setArrivedWarm] = useState(false);
+  const [arrivedFromConversionHandoff, setArrivedFromConversionHandoff] = useState(false);
   const [error, setError] = useState<PostLoadError | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
@@ -575,7 +573,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         const startedAt = Date.now();
         let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null =
           takePrefetchedPost(postId);
-        if (response) setArrivedWarm(true);
+        if (response) setArrivedFromConversionHandoff(true);
 
         while (!response && Date.now() - startedAt < maxWaitMs) {
           if (isCancelled) return;
@@ -725,15 +723,13 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     if (hasColumnRoom) setStudioPanelOpen(false);
   }, [hasColumnRoom]);
 
-  // The comments panel pads the page's right edge (450 ms transition). The owner column
-  // stays out of the layout until that padding has shrunk again, or the artwork collapses.
   const [commentsPadded, setCommentsPadded] = useState(false);
   useEffect(() => {
     if (commentsSheetOpen) {
       setCommentsPadded(true);
       return;
     }
-    const timeout = setTimeout(() => setCommentsPadded(false), 450);
+    const timeout = setTimeout(() => setCommentsPadded(false), COMMENTS_PADDING_TRANSITION_MS);
     return () => clearTimeout(timeout);
   }, [commentsSheetOpen]);
 
@@ -750,17 +746,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     return () => observer.disconnect();
   }, []);
 
-  // The desktop toolbar stays under the navbar on a paper lid once the page scrolls ('raised'),
-  // and the lid keeps what scrolls under it. Each value is a function of the scroll position, so
-  // scrolling up replays the way down in reverse:
-  // - the post's cover and title print on the lid as the h1 goes under it (--title-under, 0 to 1;
-  //   'docked' once it is fully under);
-  // - the tracklist's stats slide under the lid's edge and stop at its centre line
-  //   (--stats-shift), then roll over into "Track NN of N" (--counter-swap) on lists long enough
-  //   to collapse, with a fill along the lid's bottom edge (--list-progress);
-  // - the tracklist card's bottom edge moves the stats and the fill out again (--list-exit).
-  // The values go to CSS variables and the counter's text node, so scrolling renders nothing.
-  // Set on the h1, which mounts after the toolbar; the tracklist mounts later and is read per frame.
   const toolbarRef = useRef<HTMLDivElement>(null);
   const toolbarLidRef = useRef<HTMLDivElement>(null);
   const trackCardRef = useRef<HTMLDivElement>(null);
@@ -772,47 +757,42 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     const lid = toolbarLidRef.current;
     if (!title || !toolbar || !lid) return;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const unit = (value: number) => Math.min(1, Math.max(0, value));
     const set = (name: string, value: number | string) => toolbar.style.setProperty(name, String(value));
     let frame = 0;
     const update = () => {
       frame = 0;
       const lidBox = lid.getBoundingClientRect();
       const titleBox = title.getBoundingClientRect();
-      const titleUnder = unit((lidBox.bottom - titleBox.top) / titleBox.height);
-      set('--title-under', titleUnder);
-      setToolbarDock(titleUnder === 1 ? 'docked' : window.scrollY > 0 ? 'raised' : undefined);
+      const titleShare = titleUnder(lidBox, titleBox);
+      set('--title-under', titleShare);
+      setToolbarDock(titleShare === 1 ? 'docked' : window.scrollY > 0 ? 'raised' : undefined);
 
       const card = trackCardRef.current;
       const stats = trackStatsRef.current;
       const rows = card?.querySelectorAll<HTMLElement>('[data-track-row]');
       if (!card || !stats || !rows?.length) return;
       const statsBox = stats.getBoundingClientRect();
-      const offset = (statsBox.top + statsBox.bottom) / 2 - (lidBox.top + lidBox.bottom) / 2;
-      const exit = Math.min(0, card.getBoundingClientRect().bottom - lidBox.bottom);
       const counts = rows.length >= EXPANDABLE_MIN_TRACKS;
-      // The copy can meet the real stats only where they run under the lid. A visitor's lid ends
-      // before Share while the card does not, so there (and with reduced motion) the stats
-      // appear in place once they reach the lid's centre line instead of sliding in.
-      const slides = !reducedMotion.matches && statsBox.right <= lidBox.right;
-      set('--stats-shift', `${slides ? Math.max(0, offset) + exit : exit}px`);
-      set('--stats-visible', !slides && offset > 0 ? 0 : 1);
-      set('--counter-swap', counts ? unit(-offset / 24) : 0);
-      set('--list-exit', `${exit}px`);
+      const under = trackStatsUnderLid({
+        lid: lidBox,
+        stats: statsBox,
+        cardBottom: card.getBoundingClientRect().bottom,
+        slides: statsSlideUnderLid(statsBox, lidBox, reducedMotion.matches),
+        counts,
+      });
+      set('--stats-shift', `${under.statsShift}px`);
+      set('--stats-visible', under.statsVisible);
+      set('--counter-swap', under.counterSwap);
+      set('--list-exit', `${under.listExit}px`);
       if (!counts) return;
-      // A collapsed list clips its later rows; they count only once they are on show.
-      const shownBottom = rows[0].parentElement?.parentElement?.getBoundingClientRect().bottom ?? Infinity;
-      const passedLine = Math.min(lidBox.bottom, shownBottom);
+      const unclippedListBottom = rows[0].parentElement?.parentElement?.getBoundingClientRect().bottom ?? Infinity;
+      const passedLine = Math.min(lidBox.bottom, unclippedListBottom);
       let passed = 0;
       while (passed < rows.length && rows[passed].getBoundingClientRect().top < passedLine) passed += 1;
       const listTop = rows[0].getBoundingClientRect().top;
-      const listBottom = Math.min(rows[rows.length - 1].getBoundingClientRect().bottom, shownBottom);
-      set('--list-progress', unit((lidBox.bottom - listTop) / (listBottom - listTop)));
-      if (trackCounterRef.current) {
-        const digits = Math.max(2, String(rows.length).length);
-        trackCounterRef.current.textContent =
-          `Track ${String(Math.max(1, passed)).padStart(digits, '0')} of ${rows.length}`;
-      }
+      const listBottom = Math.min(rows[rows.length - 1].getBoundingClientRect().bottom, unclippedListBottom);
+      set('--list-progress', listProgress(lidBox.bottom, listTop, listBottom));
+      if (trackCounterRef.current) trackCounterRef.current.textContent = trackCounterText(passed, rows.length);
     };
     const schedule = () => {
       frame ||= requestAnimationFrame(update);
@@ -999,7 +979,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const analyticsSourcePlatform = sourcePlatformKey || postData?.sourcePlatform || sourcePlatformRef.current || undefined;
   const sourceService = sourcePlatformKey ? streamingServices[sourcePlatformKey] : null;
 
-  const printedByConversion = arrivedWarm && metadata.artwork ? printedBand(metadata.artwork) : null;
+  const printedByConversion = arrivedFromConversionHandoff && metadata.artwork ? printedBand(metadata.artwork) : null;
   const labelTint = printedByConversion
     ? printedByConversion.tint
     : (palette ?? (metadata.artwork ? ColorExtractor.cachedPalette(metadata.artwork) : undefined))?.vibrant;
@@ -1094,21 +1074,17 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         onDelete={() => setDeleteModalOpen(true)}
       >
       <div
-        className={`relative z-10 min-h-svh transition-[padding] duration-450 ease-out-quart ${arrivedWarm ? "" : "motion-safe:animate-focus-in"} ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
+        className={`relative z-10 min-h-svh transition-[padding] ease-out-quart ${arrivedFromConversionHandoff ? "" : "motion-safe:animate-focus-in"} ${commentsSheetOpen ? "md:pr-[512px]" : ""}`}
+        style={{ transitionDuration: `${COMMENTS_PADDING_TRANSITION_MS}ms` }}
       >
         {isDesktop ? (
             <div className="flex min-h-svh flex-col pt-16 before:flex-1 after:min-h-20 after:flex-1">
               <div className={`mx-auto w-full px-8 pb-4 ${ownerColumnBeside ? 'max-w-7xl' : 'max-w-[68rem]'}`}>
-                {/* Sticky under the navbar (see followScrollUnderToolbar). The post's half follows the
-                    content column below it: a paper lid that keeps what scrolls under it, first the
-                    post's cover and title, then the tracklist's stats as a running track counter.
-                    Share stays clear of it on the right, above the owner column, which sticks at
-                    8.5rem. */}
                 <div
                   ref={toolbarRef}
                   data-post-toolbar
                   data-dock={toolbarDock}
-                  className={`group sticky top-[4.5rem] z-30 mb-6 mt-4 grid items-center ${ownerColumnBeside ? 'grid-cols-[minmax(0,1fr)_20rem] gap-x-8' : 'grid-cols-[minmax(0,1fr)_auto] gap-x-3'}`}
+                  className={`group sticky top-[calc(var(--navbar-height)+0.5rem)] z-30 mb-6 mt-4 grid items-center ${ownerColumnBeside ? 'grid-cols-[minmax(0,1fr)_20rem] gap-x-8' : 'grid-cols-[minmax(0,1fr)_auto] gap-x-3'}`}
                 >
                 <div className="relative min-w-0">
                   <div
@@ -1308,10 +1284,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             </div>
                             <TrackList
                               items={postData.tracks!}
-                              artwork={metadata.artwork}
                               albumArtist={metadata.artist}
-                              variant={isAlbum ? 'album' : 'playlist'}
-                              expandable
                               className="!border-0 !bg-transparent !shadow-none"
                               sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                             />
@@ -1329,7 +1302,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     <PostStudioColumn
                       {...ownerColumnProps}
                       ref={centerOnPostCard}
-                      className="sticky top-[8.5rem] w-auto motion-safe:data-[recentered]:transition-[margin-top] motion-safe:data-[recentered]:duration-300 motion-safe:data-[recentered]:ease-out-quart"
+                      className="sticky top-[var(--post-toolbar-clearance)] w-auto motion-safe:data-[recentered]:transition-[margin-top] motion-safe:data-[recentered]:duration-300 motion-safe:data-[recentered]:ease-out-quart"
                     />
                   )}
                 </div>
@@ -1488,11 +1461,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   </div>
                   <TrackList
                     items={postData.tracks!}
-                    artwork={metadata.artwork}
                     albumArtist={metadata.artist}
-                    variant={isAlbum ? 'album' : 'playlist'}
                     compact
-                    expandable
                     className="!border-0 !bg-transparent !shadow-none"
                     sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
                   />

@@ -7,6 +7,7 @@ import { Copy, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useHydrated } from '@/hooks/use-hydrated';
 import { externalBrowserUrl, inAppBrowserHint, type InAppBrowser } from '@/utils/in-app-browser';
 import { browserHandoffPath } from '@/utils/profile-action-intent';
 
@@ -23,7 +24,8 @@ export function InAppBrowserSignIn({
   className?: string;
 }) {
   const [copyFailed, setCopyFailed] = useState(false);
-  // Rendered only in the browser: the server render never detects an in-app browser.
+  const hydrated = useHydrated();
+  if (!hydrated) return null;
   const { origin, pathname, search } = window.location;
   const url = new URL(handoffPath ?? browserHandoffPath(`${pathname}${search}`), origin).toString();
   const openUrl = externalBrowserUrl(url, browser);

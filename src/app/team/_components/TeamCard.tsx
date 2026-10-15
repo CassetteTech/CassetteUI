@@ -42,7 +42,7 @@ export function TeamCard({ member, onClick }: TeamCardProps) {
           {member.name}
         </h3>
 
-        <p className="font-roboto text-xs text-muted-foreground mt-1 line-clamp-2">
+        <p className="font-roboto-flex text-xs text-muted-foreground mt-1 line-clamp-2">
           {member.role}
         </p>
 

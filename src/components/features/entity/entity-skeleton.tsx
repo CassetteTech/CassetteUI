@@ -450,8 +450,7 @@ const TRACK_ROW_COUNT = 6;
 function playlistSource(link: StagedConversion['sourceLink']) {
   const service = link ? streamingServices[link.platform] : undefined;
   if (!link || !service) return undefined;
-  // The post records the open in analytics; a conversion in progress has no post to record it for.
-  return { href: link.url, name: service.name, icon: service.icon, onClick: () => {} };
+  return { href: link.url, name: service.name, icon: service.icon };
 }
 
 const LabelHead: React.FC<{
@@ -626,9 +625,7 @@ const TracklistCard: React.FC<{
             </div>
             <TrackList
               items={tracks}
-              variant="playlist"
               compact={compact}
-              expandable
               className="!border-0 !bg-transparent !shadow-none"
             />
           </div>

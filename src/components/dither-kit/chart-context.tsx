@@ -31,7 +31,7 @@ export type ChartContextValue = {
   xCenter: (index: number) => number
   indexAtX: (px: number) => number
   y: ScaleLinear<number, number>
-  bands: Record<string, [number, number][]>
+  bands: Record<string, [y0: number, y1: number][]>
 
   hoverIndex: number | null
   setHoverIndex: (index: number | null) => void

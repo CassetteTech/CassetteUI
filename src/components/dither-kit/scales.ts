@@ -6,17 +6,11 @@ export const field = (row: object | undefined, key: string): unknown =>
 const num = (v: unknown) =>
   typeof v === "number" && Number.isFinite(v) ? v : 0
 
-/**
- * Per-series [y0, y1] bands for every row. Every series sits on the zero
- * baseline (y0 = 0), so a negative value yields `[0, v]` with `v < 0` and draws
- * below the baseline. `max`/`min` bound the value range so the y-scale can span
- * a diverging (below-zero) domain.
- */
 export function computeBands(
   data: object[],
   keys: string[]
-): { bands: Record<string, [number, number][]>; max: number; min: number } {
-  const bands: Record<string, [number, number][]> = {}
+): { bands: Record<string, [y0: number, y1: number][]>; max: number; min: number } {
+  const bands: Record<string, [y0: number, y1: number][]> = {}
   let max = 0
   let min = 0
   for (const key of keys) {

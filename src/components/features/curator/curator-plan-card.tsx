@@ -21,6 +21,8 @@ import {
   deleteCuratorPlan,
   fetchCuratorFeatures,
   fetchCuratorPricing,
+  MONTHLY_PRICE_MAX_MINOR,
+  MONTHLY_PRICE_MIN_MINOR,
   publishCuratorPlan,
   updateCuratorPlan,
   type CuratorPlan,
@@ -96,9 +98,6 @@ const planActions = {
 
 const profileQueryKey = ['curator-profile', 'me'] as const;
 const feeFormatter = new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 2 });
-// Server contract bounds for the monthly price (see curatorPlanRequestSchema).
-const monthlyMinMinor = 500;
-const monthlyMaxMinor = 10_000;
 const defaultMonthlyPrice = '5.00';
 const suggestedMonthlyOptions = [5, 10, 15, 25].map((dollars) => ({
   value: dollars.toFixed(2),
@@ -409,12 +408,12 @@ export function CuratorPlanCard({ profile, preview }: {
   const monthlyMinor = priceMinor(draft.monthlyPrice);
   const annualEntered = draft.annualPrice.trim() !== '';
   const annualMinor = annualEntered ? priceMinor(draft.annualPrice) : null;
-  const validMonthly = monthlyMinor !== null && monthlyMinor >= monthlyMinMinor && monthlyMinor <= monthlyMaxMinor;
+  const validMonthly = monthlyMinor !== null && monthlyMinor >= MONTHLY_PRICE_MIN_MINOR && monthlyMinor <= MONTHLY_PRICE_MAX_MINOR;
   const validAnnual = annualMinor !== null && monthlyMinor !== null && annualMinor <= monthlyMinor * 12;
   const priceCurrency = pricing.data?.currency ?? 'USD';
   const monthlyError = validMonthly
     ? null
-    : `Monthly price must be between ${money(monthlyMinMinor, priceCurrency)} and ${money(monthlyMaxMinor, priceCurrency)}.`;
+    : `Monthly price must be between ${money(MONTHLY_PRICE_MIN_MINOR, priceCurrency)} and ${money(MONTHLY_PRICE_MAX_MINOR, priceCurrency)}.`;
   const annualError = !annualEntered || validAnnual
     ? null
     : annualMinor === null

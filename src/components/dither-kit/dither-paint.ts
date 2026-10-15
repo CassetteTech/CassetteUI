@@ -10,7 +10,7 @@ export const BAYER = [
   [15, 7, 13, 5],
 ].map((row) => row.map((v) => (v + 0.5) / 16))
 
-export const CELL = 2 // css px per dither cell — chunky enough to read pixelated
+export const CELL_CSS_PX = 2
 export const MAX_COLS = 520
 export const MAX_ROWS = 200
 export const BORDER_ALPHA = 0.72
@@ -18,8 +18,8 @@ export const OFF_TIER = 0.4
 
 export type PaintOpts = {
   variant: AreaVariant
-  intensity: number // 0–1 hover lift
-  sparse: number // raise the dither threshold (thin out) — front layers
+  hoverLift: number
+  frontLayerThinning: number
 }
 
 export function paintColumn(
@@ -28,7 +28,7 @@ export function paintColumn(
   top: number,
   floor: number,
   seed: Seed,
-  { variant, intensity, sparse }: PaintOpts
+  { variant, hoverLift, frontLayerThinning }: PaintOpts
 ) {
   const t = Math.round(top)
   const f = Math.round(floor)
@@ -38,13 +38,13 @@ export function paintColumn(
     octx.fillRect(x, t, 1, 1)
     return
   }
-  const bias = (variant === "dotted" ? 0.12 : 0) - sparse
+  const bias = (variant === "dotted" ? 0.12 : 0) - frontLayerThinning
   for (let y = t; y < f; y++) {
     const density = (y - t) / depth
     if (variant === "hatched" && ((x + y) & 3) >= 2) continue
-    const lit = density > BAYER[y & 3][x & 3] - 0.1 * intensity - bias
+    const lit = density > BAYER[y & 3][x & 3] - 0.1 * hoverLift - bias
     if (variant === "dotted" && !lit) continue
-    const k = (0.3 + density * 0.7) * (1 + 0.22 * intensity)
+    const k = (0.3 + density * 0.7) * (1 + 0.22 * hoverLift)
     const alpha = clamp01(lit ? k : k * OFF_TIER)
     octx.fillStyle = rgb(seed.fill, 1, alpha)
     octx.fillRect(x, y, 1, 1)
@@ -73,8 +73,8 @@ export function resample(src: number[], cols: number): number[] {
 
 export function backingSize(width: number, height: number) {
   return {
-    cols: Math.min(MAX_COLS, Math.max(8, Math.round(width / CELL))),
-    rows: Math.min(MAX_ROWS, Math.max(8, Math.round(height / CELL))),
+    cols: Math.min(MAX_COLS, Math.max(8, Math.round(width / CELL_CSS_PX))),
+    rows: Math.min(MAX_ROWS, Math.max(8, Math.round(height / CELL_CSS_PX))),
   }
 }
 

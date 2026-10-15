@@ -6,10 +6,13 @@ const timestampSchema = z.string().datetime({ offset: true });
 const featureKeySchema = z.string().min(1).max(100).regex(/^[a-z0-9_]+$/);
 const basisPointsSchema = z.number().int().nonnegative().safe();
 
+export const MONTHLY_PRICE_MIN_MINOR = 500;
+export const MONTHLY_PRICE_MAX_MINOR = 10_000;
+
 const curatorPlanRequestSchema = z.object({
   name: z.string().trim().min(1).max(150),
   description: z.string().trim().max(2000),
-  amountMinor: moneyMinorSchema.min(500).max(10_000),
+  amountMinor: moneyMinorSchema.min(MONTHLY_PRICE_MIN_MINOR).max(MONTHLY_PRICE_MAX_MINOR),
   annualAmountMinor: moneyMinorSchema.positive().nullable(),
   featureKeys: z.array(featureKeySchema).max(10),
 }).strict().superRefine((plan, context) => {
@@ -26,7 +29,7 @@ export const curatorPlanSchema = z.object({
   id: z.string().regex(/^mpl_[0-9A-Za-z]+$/).max(40),
   name: z.string().min(1).max(150),
   description: z.string().max(2000),
-  amountMinor: moneyMinorSchema.min(500).max(10_000),
+  amountMinor: moneyMinorSchema.min(MONTHLY_PRICE_MIN_MINOR).max(MONTHLY_PRICE_MAX_MINOR),
   annualAmountMinor: moneyMinorSchema.positive().nullable(),
   currency: z.literal('USD'),
   serviceFeeMinor: moneyMinorSchema.nullable(),

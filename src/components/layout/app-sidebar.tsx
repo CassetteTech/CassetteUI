@@ -136,10 +136,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
     const updateIndicator = () => {
       if (!contentRef.current) return;
 
-      // SAFETY: data-active is only set on rendered menu buttons, which are HTMLElements.
-      const activeButton = contentRef.current.querySelector(
-        '[data-active="true"]'
-      ) as HTMLElement | null;
+      const activeButton = contentRef.current.querySelector<HTMLElement>('[data-active="true"]');
 
       if (activeButton) {
         const containerRect = contentRef.current.getBoundingClientRect();

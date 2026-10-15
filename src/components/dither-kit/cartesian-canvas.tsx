@@ -64,8 +64,8 @@ function startCartesianLoop({
         const b = cur.floor[x] ?? 0
         paintColumn(octx, x, Math.min(a, b), Math.max(a, b), seed, {
           variant,
-          intensity,
-          sparse,
+          hoverLift: intensity,
+          frontLayerThinning: sparse,
         })
       }
     })

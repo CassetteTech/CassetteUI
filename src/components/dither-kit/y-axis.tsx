@@ -1,17 +1,15 @@
 "use client"
 
-import { useChartPart } from "./chart-context"
+import { useChart } from "./chart-context"
 
 export function YAxis({
   tickFormatter,
   tickCount = 4,
-  tickMargin = 8,
 }: {
   tickFormatter?: (value: number) => string
   tickCount?: number
-  tickMargin?: number
 }) {
-  const ctx = useChartPart("YAxis")
+  const ctx = useChart("YAxis")
   if (!ctx.ready) return null
 
   return (
@@ -19,7 +17,7 @@ export function YAxis({
       {ctx.y.ticks(tickCount).map((t) => (
         <text
           key={t}
-          x={-tickMargin}
+          x={-8}
           y={ctx.y(t)}
           textAnchor="end"
           dominantBaseline="central"

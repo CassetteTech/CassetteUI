@@ -45,7 +45,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDebounce } from '@/hooks/use-debounce';
 import { PAGE_SIZE, formatDate } from './internal-utils';
-import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
+import { useCopyToClipboard } from '@/components/interior/copy-button';
 import {
   SectionHeader,
   Panel,

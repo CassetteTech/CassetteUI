@@ -1,63 +1,32 @@
-// Pure geometry helpers for the dither chart engine. Kept framework-free so the
-// context (and, later, bar/line/pie/radar roots) can share the same math.
+import { scaleLinear, scalePoint } from "d3-scale"
 
-import { scaleBand, scaleLinear, scalePoint } from "d3-scale"
-import { stack as d3Stack, stackOffsetExpand } from "d3-shape"
-
-export type StackType = "default" | "stacked" | "percent"
-
-type Row = Record<string, unknown>
+export const field = (row: object | undefined, key: string): unknown =>
+  row === undefined ? undefined : Reflect.get(row, key)
 
 const num = (v: unknown) =>
   typeof v === "number" && Number.isFinite(v) ? v : 0
 
 /**
- * Per-series [y0, y1] bands for every row. For `default` every series sits on
- * the zero baseline (y0 = 0), so a negative value yields `[0, v]` with `v < 0`
- * and draws below the baseline; for `stacked`/`percent` they pile on top of
- * each other via d3's stack layout (which splits negatives below zero). The
- * shape `bands[key][i] = [y0, y1]` is what both the SVG area paths and the
- * canvas overlay read from. `max`/`min` bound the value range so the y-scale
- * can span a diverging (below-zero) domain.
+ * Per-series [y0, y1] bands for every row. Every series sits on the zero
+ * baseline (y0 = 0), so a negative value yields `[0, v]` with `v < 0` and draws
+ * below the baseline. `max`/`min` bound the value range so the y-scale can span
+ * a diverging (below-zero) domain.
  */
 export function computeBands(
-  data: Row[],
-  keys: string[],
-  stackType: StackType
+  data: object[],
+  keys: string[]
 ): { bands: Record<string, [number, number][]>; max: number; min: number } {
-  if (stackType === "default") {
-    const bands: Record<string, [number, number][]> = {}
-    let max = 0
-    let min = 0
-    for (const key of keys) {
-      bands[key] = data.map((row) => {
-        const v = num(row[key])
-        if (v > max) max = v
-        if (v < min) min = v
-        return [0, v]
-      })
-    }
-    const flat = max === 0 && min === 0
-    return { bands, max: flat ? 1 : max, min }
-  }
-
-  const series = d3Stack<Row>()
-    .keys(keys)
-    .value((row, key) => num(row[key]))
-    .offset(stackType === "percent" ? stackOffsetExpand : (undefined as never))(
-    data
-  )
-
   const bands: Record<string, [number, number][]> = {}
   let max = 0
   let min = 0
-  series.forEach((layer) => {
-    bands[layer.key] = layer.map((point) => {
-      if (point[1] > max) max = point[1]
-      if (point[0] < min) min = point[0]
-      return [point[0], point[1]]
+  for (const key of keys) {
+    bands[key] = data.map((row) => {
+      const v = num(field(row, key))
+      if (v > max) max = v
+      if (v < min) min = v
+      return [0, v]
     })
-  })
+  }
   const flat = max === 0 && min === 0
   return { bands, max: flat ? 1 : max, min }
 }
@@ -66,22 +35,6 @@ export function buildXScale(length: number, plotWidth: number) {
   return scalePoint<number>()
     .domain(Array.from({ length }, (_, i) => i))
     .range([0, plotWidth])
-}
-
-/** Banded x for bar categories — each index owns a slot of `bandwidth` width. */
-export function buildBandScale(length: number, plotWidth: number) {
-  return scaleBand<number>()
-    .domain(Array.from({ length }, (_, i) => i))
-    .range([0, plotWidth])
-    .paddingInner(0.28)
-    .paddingOuter(0.18)
-}
-
-/** Index of the category whose band a horizontal pixel offset falls in. */
-export function indexAtBand(px: number, length: number, plotWidth: number) {
-  if (length <= 0 || plotWidth <= 0) return 0
-  const t = Math.max(0, Math.min(0.999, px / plotWidth))
-  return Math.min(length - 1, Math.floor(t * length))
 }
 
 export function buildYScale(min: number, max: number, plotHeight: number, top?: number) {

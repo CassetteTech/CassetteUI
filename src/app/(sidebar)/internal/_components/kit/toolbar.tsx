@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SegmentedControl as SlidingSegments } from '@/components/ui/interior/segmented-control';
+import { SegmentedControl as SlidingSegments } from '@/components/interior/segmented-control';
 
 export function Toolbar({
   search,
@@ -68,7 +68,9 @@ export function SegmentedControl<T extends string>({
       <SlidingSegments
         label={label ?? 'Filter'}
         value={value}
-        onValueChange={(next) => onChange(next as T)}
+        onValueChange={(next) => {
+          if (next !== value) onChange(next as T);
+        }}
         options={options}
       />
     </div>

@@ -101,38 +101,6 @@ export const useTopCharts = () => {
   });
 };
 
-export const useTrack = (id: string) => {
-  return useQuery({
-    queryKey: ['track', id],
-    queryFn: () => musicService.getTrackById(id),
-    enabled: !!id,
-  });
-};
-
-export const useAlbum = (id: string) => {
-  return useQuery({
-    queryKey: ['album', id],
-    queryFn: () => musicService.getAlbumById(id),
-    enabled: !!id,
-  });
-};
-
-export const useArtist = (id: string) => {
-  return useQuery({
-    queryKey: ['artist', id],
-    queryFn: () => musicService.getArtistById(id),
-    enabled: !!id,
-  });
-};
-
-export const usePlaylist = (id: string) => {
-  return useQuery({
-    queryKey: ['playlist', id],
-    queryFn: () => musicService.getPlaylistById(id),
-    enabled: !!id,
-  });
-};
-
 export const useCreatePost = () => {
   const queryClient = useQueryClient();
 

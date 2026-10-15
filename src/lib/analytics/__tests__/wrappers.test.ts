@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { captureClientEvent, identifyClientUser, resetAnalyticsContextForTests, surfaceFromRoute, trackBrowserPageview } from '../client';
-import { shouldSuppressClientCapture, isCassetteInternalAccount, isInternalOrDemoRoute } from '../internal-suppression';
+import { shouldSuppressClientCapture, isCassetteInternalAccount, isInternalRoute } from '../internal-suppression';
 import type { AnalyticsBaseProps } from '../events';
 
 type MemoryStorage = {
@@ -21,8 +21,8 @@ test('maps curator routes to their analytics surface', () => {
 });
 
 test('suppresses every internal paid-promotion console route', () => {
-  assert.equal(isInternalOrDemoRoute('/internal/paid-promotions'), true);
-  assert.equal(isInternalOrDemoRoute('/internal/paid-promotions/pmc_0123AbCd?tab=payment'), true);
+  assert.equal(isInternalRoute('/internal/paid-promotions'), true);
+  assert.equal(isInternalRoute('/internal/paid-promotions/pmc_0123AbCd?tab=payment'), true);
   assert.equal(shouldSuppressClientCapture({
     route: '/internal/paid-promotions/pmc_0123AbCd',
     allowInDev: true,
@@ -296,14 +296,14 @@ test('identifyClientUser alias merge is idempotent for same anon-user pair', { c
   process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
 });
 
-test('identifyClientUser respects internal/demo suppression', { concurrency: false }, async () => {
+test('identifyClientUser respects internal route suppression', { concurrency: false }, async () => {
   const previousKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   const previousDevFlag = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV;
   process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_test_key';
   process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = 'true';
   resetAnalyticsContextForTests();
 
-  const mocks = setupBrowserMocks('/debug');
+  const mocks = setupBrowserMocks('/internal/users');
   mocks.localStorage.setItem('cassette_posthog_distinct_id', 'anon:suppressed');
 
   const result = await identifyClientUser({
@@ -552,10 +552,10 @@ test('trackBrowserPageview stores safe Reddit attribution for later events', { c
   process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
 });
 
-test('suppression logic blocks internal/demo routes but not cassette team actors', () => {
-  assert.equal(isInternalOrDemoRoute('/debug'), true);
-  assert.equal(isInternalOrDemoRoute('/demo/profile'), true);
-  assert.equal(isInternalOrDemoRoute('/post/abc'), false);
+test('suppression logic blocks internal routes but not cassette team actors', () => {
+  assert.equal(isInternalRoute('/internal'), true);
+  assert.equal(isInternalRoute('/internal-notes'), false);
+  assert.equal(isInternalRoute('/post/abc'), false);
 
   assert.equal(shouldSuppressClientCapture({ route: '/profile/test', accountType: 'CassetteTeam', allowInDev: true }), false);
   assert.equal(shouldSuppressClientCapture({ route: '/post/abc', accountType: 'Regular', allowInDev: true }), false);

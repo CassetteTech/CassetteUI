@@ -29,19 +29,12 @@ export const NOINDEX_ROUTES = [
   '/studio',
   '/feed',
   '/onboarding',
-  '/collections',
   '/profile',
   '/profile/edit',
   '/login',
   '/signup',
   '/spotify_callback',
   '/deezer_callback',
-  // Development leftovers. Kept out of the index while they still exist; they
-  // are candidates for deletion rather than long-term maintenance.
-  '/debug',
-  '/demo',
-  '/demo/profile',
-  '/music-auth-demo',
 ] as const;
 
 export const NOINDEX_SUBTREES = ['/auth', '/internal', '/studio'] as const;

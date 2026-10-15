@@ -33,7 +33,7 @@ import { CuratorFollowConfirmation, CuratorFollowContext } from '@/components/fe
 import { useCuratorPage, useSubscriberPostEligibility } from '@/hooks/use-curator';
 import { useCuratorFollow } from '@/hooks/use-curator-follow';
 import { toast } from 'sonner';
-import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
+import { useCopyToClipboard } from '@/components/interior/copy-button';
 
 const membershipFlows = ['join', 'return', 'canceled', 'portal-return'] as const;
 const legacyMusicTabs = new Set(['posts', 'playlists', 'tracks', 'albums', 'artists']);

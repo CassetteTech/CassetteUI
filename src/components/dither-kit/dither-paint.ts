@@ -1,7 +1,3 @@
-// Shared ordered-dither painting primitives, used by every cartesian canvas
-// (area, line, bar). Keeping the Bayer threshold loop in one place means every
-// chart type reads with the exact same pixel texture.
-
 import type { AreaVariant } from "./chart-context"
 import { rgb, type Seed } from "./palette"
 
@@ -23,9 +19,7 @@ export const OFF_TIER = 0.4
 export type PaintOpts = {
   variant: AreaVariant
   intensity: number // 0–1 hover lift
-  dim: number // selection dim multiplier (0.3 dimmed, 1 normal)
-  stacked: boolean // denser + solid floor when layers stack
-  sparse?: number // raise the dither threshold (thin out) — front layers
+  sparse: number // raise the dither threshold (thin out) — front layers
 }
 
 export function paintColumn(
@@ -34,34 +28,31 @@ export function paintColumn(
   top: number,
   floor: number,
   seed: Seed,
-  { variant, intensity, dim, stacked, sparse = 0 }: PaintOpts
+  { variant, intensity, sparse }: PaintOpts
 ) {
   const t = Math.round(top)
   const f = Math.round(floor)
   const depth = f - t
   if (depth <= 0) {
-    octx.fillStyle = rgb(seed.fill, 1, BORDER_ALPHA * dim)
+    octx.fillStyle = rgb(seed.fill, 1, BORDER_ALPHA)
     octx.fillRect(x, t, 1, 1)
     return
   }
-  const bias = (variant === "dotted" ? 0.12 : 0) + (stacked ? 0.2 : 0) - sparse
+  const bias = (variant === "dotted" ? 0.12 : 0) - sparse
   for (let y = t; y < f; y++) {
-    let density = (y - t) / depth
-    if (stacked) density = 0.5 + 0.5 * density
+    const density = (y - t) / depth
     if (variant === "hatched" && ((x + y) & 3) >= 2) continue
-    const lit =
-      variant === "solid" ||
-      density > BAYER[y & 3][x & 3] - 0.1 * intensity - bias
+    const lit = density > BAYER[y & 3][x & 3] - 0.1 * intensity - bias
     if (variant === "dotted" && !lit) continue
     const k = (0.3 + density * 0.7) * (1 + 0.22 * intensity)
-    const alpha = clamp01((lit ? k : k * OFF_TIER) * dim)
+    const alpha = clamp01(lit ? k : k * OFF_TIER)
     octx.fillStyle = rgb(seed.fill, 1, alpha)
     octx.fillRect(x, y, 1, 1)
   }
-  octx.fillStyle = rgb(seed.fill, 1, BORDER_ALPHA * dim)
+  octx.fillStyle = rgb(seed.fill, 1, BORDER_ALPHA)
   octx.fillRect(x, t, 1, 1)
   if (depth > 1) {
-    octx.fillStyle = rgb(seed.fill, 1, BORDER_ALPHA * 0.5 * dim)
+    octx.fillStyle = rgb(seed.fill, 1, BORDER_ALPHA * 0.5)
     octx.fillRect(x, t + 1, 1, 1)
   }
 }
@@ -87,55 +78,8 @@ export function backingSize(width: number, height: number) {
   }
 }
 
-// Bloom — a real "shader" glow that comes from the colours themselves: a blurred
-// copy of the rendered canvas, composited additively (`plus-lighter`) so each
-// hue blooms in its own colour instead of a grey wash. Lives on a second canvas
-// layered over the crisp one (which stays sharp/pixelated).
-export type BloomLevel = "off" | "low" | "high" | "aura"
-export type BloomBlend = "plus-lighter" | "screen" | "lighten"
-export type BloomConfig = {
-  blur: number // px
-  brightness: number // 1 = none
-  opacity: number // 0–1
-  /** Saturation of the glow — >1 keeps it vividly in the dither's colour
-   * instead of washing toward white. */
-  saturate?: number
-  blend?: BloomBlend // additive by default
-}
-/** A preset name, a full config, or "off". */
-export type BloomInput = BloomLevel | BloomConfig
-
-const PRESET: Record<Exclude<BloomLevel, "off">, BloomConfig> = {
-  low: { blur: 3, brightness: 1.35, opacity: 0.7, saturate: 1.4 },
-  high: { blur: 5, brightness: 1.5, opacity: 0.78, saturate: 1.5 },
-  aura: { blur: 15, brightness: 2.9, opacity: 0.1, saturate: 3 },
-}
-
-export type BloomStyle = {
-  filter: string
-  opacity: number
-  mixBlendMode: BloomBlend
-  imageRendering: "auto"
-}
-
-/** Style for the bloom *layer* canvas (a blurred, additive copy). null when off. */
-export function bloomLayerStyle(
-  input: BloomInput,
-  active: boolean
-): BloomStyle | null {
-  if (!active || input === "off") return null
-  const cfg = typeof input === "string" ? PRESET[input] : input
-  return {
-    filter: `blur(${cfg.blur}px) brightness(${cfg.brightness}) saturate(${cfg.saturate ?? 1})`,
-    opacity: cfg.opacity,
-    mixBlendMode: cfg.blend ?? "plus-lighter",
-    imageRendering: "auto",
-  }
-}
-
 export const easeInOutCubic = (t: number) =>
   t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
-export const easeOutCubic = (t: number) => 1 - (1 - t) ** 3
 export const clamp01 = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t)
 
 export function prefersReducedMotion() {

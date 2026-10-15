@@ -1,21 +1,14 @@
-const INTERNAL_ROUTE_PREFIXES = [
-  '/internal',
-  '/debug',
-  '/demo',
-  '/music-auth-demo',
-];
-
 function normalizePath(path: string): string {
   if (!path) return '/';
   if (!path.startsWith('/')) return `/${path}`;
   return path;
 }
 
-export function isInternalOrDemoRoute(route?: string | null): boolean {
+export function isInternalRoute(route?: string | null): boolean {
   if (!route) return false;
 
   const path = normalizePath(route.split('?')[0].split('#')[0]);
-  return INTERNAL_ROUTE_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+  return path === '/internal' || path.startsWith('/internal/');
 }
 
 export function isCassetteInternalAccount(accountType?: string | number | null): boolean {
@@ -48,7 +41,7 @@ export function shouldSuppressClientCapture(options: {
   accountType?: string | number | null;
   allowInDev?: boolean;
 }): boolean {
-  if (isInternalOrDemoRoute(options.route)) {
+  if (isInternalRoute(options.route)) {
     return true;
   }
 

@@ -39,10 +39,9 @@ const statusSubscriptionSchema = z.object({
   serviceFeeMinor: moneyMinorSchema,
   totalAmountMinor: moneyMinorSchema,
   currency: currencySchema,
-  // Optional so a response from a Bridge without the ending fields still parses.
-  endReason: z.string().min(1).max(30).nullable().optional(),
-  accessEndsAtUtc: z.string().datetime({ offset: true }).nullable().optional(),
-  refundStatus: z.enum(['pending', 'refunded', 'none']).nullable().optional(),
+  endReason: z.string().min(1).max(30).nullable(),
+  accessEndsAtUtc: z.string().datetime({ offset: true }).nullable(),
+  refundStatus: z.enum(['pending', 'refunded', 'none']).nullable(),
 }).strict().refine(
   (subscription) => Number.isSafeInteger(subscription.faceAmountMinor + subscription.serviceFeeMinor) &&
     subscription.faceAmountMinor + subscription.serviceFeeMinor === subscription.totalAmountMinor,
@@ -149,16 +148,11 @@ const refundCopy = {
 
 export type MembershipPhase = 'ended' | 'ending' | 'payment-problem' | 'paused' | 'renewing' | 'pending';
 
-// When a scheduled or past ending cuts off access; null while the membership keeps renewing.
-// An older Bridge response has no ending fields; a fan's own cancellation ends at paid-through.
-const membershipEndUtc = (subscription: MembershipSubscription): string | null =>
-  subscription.accessEndsAtUtc ?? (subscription.cancelAtPeriodEnd ? subscription.paidThroughUtc : null);
-
 const hasScheduledEnd = (subscription: MembershipSubscription): boolean =>
-  subscription.cancelAtPeriodEnd || membershipEndUtc(subscription) !== null;
+  subscription.cancelAtPeriodEnd || subscription.accessEndsAtUtc !== null;
 
 export function membershipPhase(subscription: MembershipSubscription, nowMs = Date.now()): MembershipPhase {
-  const endUtc = membershipEndUtc(subscription);
+  const endUtc = subscription.accessEndsAtUtc;
   if (
     subscription.status === 'canceled' ||
     immediateEndReasons.has(subscription.endReason ?? '') ||

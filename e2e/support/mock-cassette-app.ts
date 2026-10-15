@@ -365,6 +365,9 @@ const defaultMembershipStatus = (
           serviceFeeMinor: page.membership?.serviceFeeMinor ?? 50,
           totalAmountMinor: (page.membership?.amountMinor ?? 500) + (page.membership?.serviceFeeMinor ?? 50),
           currency: page.membership?.currency ?? 'USD',
+          endReason: null,
+          accessEndsAtUtc: null,
+          refundStatus: null,
         }
       : null,
   };
@@ -393,7 +396,6 @@ const toProfileBio = (user: FixtureUser, state: MockState) => ({
   isOwnProfile: state.currentUser?.id === user.id,
   likedPostsPrivacy: user.likedPostsPrivacy || 'public',
   likedPostsVisibility: user.likedPostsPrivacy || 'public',
-  showLikedPosts: (user.likedPostsPrivacy || 'public') === 'public',
   totalLikesReceived: Array.from(state.postsById.values())
     .filter((post) => post.ownerId === user.id)
     .reduce((sum, post) => sum + (post.likeCount || 0), 0),
@@ -1600,6 +1602,9 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
           serviceFeeMinor,
           totalAmountMinor: faceAmountMinor + serviceFeeMinor,
           currency: plan.currency,
+          endReason: null,
+          accessEndsAtUtc: null,
+          refundStatus: null,
         },
       };
       state.membershipPollSequenceActive = true;

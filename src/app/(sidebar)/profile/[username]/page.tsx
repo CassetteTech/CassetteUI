@@ -82,13 +82,9 @@ export default function ProfilePage() {
       user.username?.toLowerCase() === userBio.username?.toLowerCase()
     )
   );
-  const likedSectionVisible =
-    isCurrentUser ||
-    (userBio?.likedPostsPrivacy
-      ? userBio.likedPostsPrivacy === 'public'
-      : userBio?.showLikedPosts !== false);
   const likedTabVisibility: 'public' | 'private' =
-    userBio?.likedPostsPrivacy || userBio?.likedPostsVisibility || (userBio?.showLikedPosts === false ? 'private' : 'public');
+    userBio?.likedPostsPrivacy || userBio?.likedPostsVisibility || 'public';
+  const likedSectionVisible = isCurrentUser || likedTabVisibility === 'public';
 
   const tabParam = searchParams.get('tab');
   const activeTab: TabType = tabParam === 'liked' && (likedSectionVisible || isLoadingBio) ? 'liked' : 'music';

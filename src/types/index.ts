@@ -13,7 +13,6 @@ export interface UserBio {
   isOwnProfile: boolean;
   likedPostsPrivacy?: 'public' | 'private';
   likedPostsVisibility?: 'public' | 'private';
-  showLikedPosts?: boolean;
   accountType?: AccountType;
   totalLikesReceived?: number;
   connectedServices: ConnectedService[];

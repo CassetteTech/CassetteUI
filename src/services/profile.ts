@@ -198,8 +198,6 @@ export class ProfileService {
       merged.LikedPostsTabVisibility ??
       merged.liked_posts_visibility ??
       merged.liked_posts_privacy ??
-      merged.showLikedPosts ??
-      merged.ShowLikedPosts ??
       merged.isLikedPostsPublic ??
       merged.IsLikedPostsPublic
     ) as unknown;
@@ -246,9 +244,6 @@ export class ProfileService {
       isOwnProfile: Boolean(merged.isOwnProfile ?? merged.IsOwnProfile ?? false),
       likedPostsPrivacy: normalizedLikedPostsPrivacy,
       likedPostsVisibility: normalizedLikedPostsPrivacy,
-      showLikedPosts: normalizedLikedPostsPrivacy
-        ? normalizedLikedPostsPrivacy === 'public'
-        : Boolean(merged.showLikedPosts ?? merged.ShowLikedPosts ?? true),
       totalLikesReceived: Number(
         merged.totalLikesReceived ??
         merged.TotalLikesReceived ??
@@ -916,11 +911,7 @@ export class ProfileService {
         formData.append('Avatar', data.avatarFile, data.avatarFile.name);
       }
       if (data.avatarUrl && !data.avatarFile) formData.append('AvatarUrl', data.avatarUrl);
-      if (data.likedPostsPrivacy) {
-        formData.append('likedPostsPrivacy', data.likedPostsPrivacy);
-        // Compatibility fallback for older servers
-        formData.append('showLikedPosts', String(data.likedPostsPrivacy === 'public'));
-      }
+      if (data.likedPostsPrivacy) formData.append('likedPostsPrivacy', data.likedPostsPrivacy);
       if (data.profileLinks !== undefined) {
         // Whole-list replace; the server treats a single blank entry as "clear all"
         // since multipart forms cannot express an empty list.

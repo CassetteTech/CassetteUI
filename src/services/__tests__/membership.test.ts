@@ -7,10 +7,10 @@ import {
   hasMembershipAccess,
   membershipDateLabel,
   membershipPhase,
-  parseMembershipCheckout,
-  parseMembershipPortal,
-  parseMembershipStatus,
-  parseMyMemberships,
+  membershipCheckoutSchema,
+  membershipPortalSchema,
+  membershipStatusViewSchema,
+  myMembershipsSchema,
 } from '../membership';
 
 const subscription = {
@@ -36,22 +36,22 @@ const statusView = {
 };
 
 void test('membership parsers accept the public contract and reject provider fields', () => {
-  const parsed = parseMembershipStatus({
+  const parsed = membershipStatusViewSchema.parse({
     ...statusView,
     correlationId: '44444444-4444-4444-8444-444444444444',
   });
   assert.equal(parsed.membership?.status, 'active');
   assert.equal('correlationId' in parsed, false);
-  assert.throws(() => parseMembershipStatus({
+  assert.throws(() => membershipStatusViewSchema.parse({
     ...statusView,
     membership: { ...statusView.membership, stripeSubscriptionId: 'sub_secret' },
   }));
-  assert.throws(() => parseMembershipStatus({ ...statusView, curatorProfileId: 'curator-1' }));
-  assert.throws(() => parseMembershipStatus({
+  assert.throws(() => membershipStatusViewSchema.parse({ ...statusView, curatorProfileId: 'curator-1' }));
+  assert.throws(() => membershipStatusViewSchema.parse({
     ...statusView,
     membership: { ...subscription, totalAmountMinor: 551 },
   }));
-  assert.throws(() => parseMembershipStatus({
+  assert.throws(() => membershipStatusViewSchema.parse({
     ...statusView,
     membership: { ...subscription, currency: 'usd' },
   }));
@@ -64,9 +64,9 @@ void test('my memberships parser keeps only the fan contract', () => {
     curatorDisplayName: 'Crate Digger',
     membership: subscription,
   };
-  assert.equal(parseMyMemberships([entry]).length, 1);
-  assert.deepEqual(parseMyMemberships([]), []);
-  assert.throws(() => parseMyMemberships([{ ...entry, fanEmail: 'fan@example.com' }]));
+  assert.equal(myMembershipsSchema.parse([entry]).length, 1);
+  assert.deepEqual(myMembershipsSchema.parse([]), []);
+  assert.throws(() => myMembershipsSchema.parse([{ ...entry, fanEmail: 'fan@example.com' }]));
 });
 
 void test('billing copy comes from the subscription price and paid-through date', () => {
@@ -103,18 +103,18 @@ void test('Checkout parser requires a safe exact total and HTTPS handoff', () =>
     currency: 'USD',
   };
 
-  const parsed = parseMembershipCheckout({
+  const parsed = membershipCheckoutSchema.parse({
     ...checkout,
     correlationId: '44444444-4444-4444-8444-444444444444',
   });
   assert.equal(parsed.totalAmountMinor, 5500);
   assert.equal('correlationId' in parsed, false);
-  assert.throws(() => parseMembershipCheckout({ ...checkout, totalAmountMinor: 5501 }));
-  assert.throws(() => parseMembershipCheckout({ ...checkout, checkoutUrl: 'http://stripe.test/session' }));
+  assert.throws(() => membershipCheckoutSchema.parse({ ...checkout, totalAmountMinor: 5501 }));
+  assert.throws(() => membershipCheckoutSchema.parse({ ...checkout, checkoutUrl: 'http://stripe.test/session' }));
 });
 
 void test('Portal parser requires HTTPS and standing access follows the backend lifecycle', () => {
-  const parsed = parseMembershipPortal({
+  const parsed = membershipPortalSchema.parse({
     portalUrl: 'https://billing.stripe.test/session',
     correlationId: '44444444-4444-4444-8444-444444444444',
   });
@@ -123,7 +123,7 @@ void test('Portal parser requires HTTPS and standing access follows the backend 
     'https://billing.stripe.test/session',
   );
   assert.equal('correlationId' in parsed, false);
-  assert.throws(() => parseMembershipPortal({ portalUrl: 'javascript:alert(1)' }));
+  assert.throws(() => membershipPortalSchema.parse({ portalUrl: 'javascript:alert(1)' }));
 
   assert.equal(grantsMembershipAccess('trialing'), true);
   assert.equal(grantsMembershipAccess('active'), true);
@@ -133,8 +133,8 @@ void test('Portal parser requires HTTPS and standing access follows the backend 
 });
 
 void test('ending fields parse when present or absent and reject unknown refund states', () => {
-  assert.equal(parseMembershipStatus(statusView).membership?.endReason, undefined);
-  const ending = parseMembershipStatus({
+  assert.equal(membershipStatusViewSchema.parse(statusView).membership?.endReason, undefined);
+  const ending = membershipStatusViewSchema.parse({
     ...statusView,
     membership: {
       ...subscription,
@@ -144,7 +144,7 @@ void test('ending fields parse when present or absent and reject unknown refund 
     },
   });
   assert.equal(ending.membership?.refundStatus, 'pending');
-  assert.throws(() => parseMembershipStatus({
+  assert.throws(() => membershipStatusViewSchema.parse({
     ...statusView,
     membership: { ...subscription, refundStatus: 'partial' },
   }));

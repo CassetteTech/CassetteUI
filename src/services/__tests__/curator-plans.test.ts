@@ -10,9 +10,9 @@ import {
   fetchCuratorPlans,
   fetchCuratorPricing,
   fetchMemberPostAuthoring,
-  parseCuratorFeatures,
-  parseCuratorPlan,
-  parseCuratorPricing,
+  curatorFeaturesSchema,
+  curatorPlanSchema,
+  curatorPricingSchema,
   publishCuratorPlan,
   updateCuratorPlan,
   type CuratorPricing,
@@ -50,8 +50,7 @@ const draft = {
 } as const;
 
 function requestUrl(input: string | URL | Request): string {
-  // SAFETY: every client function under test calls fetch with a string path.
-  return input as string;
+  return input instanceof Request ? input.url : String(input);
 }
 
 void test('members-only authoring uses the Bridge decision privately and strictly', async (t) => {
@@ -71,8 +70,8 @@ void test('members-only authoring uses the Bridge decision privately and strictl
 });
 
 void test('plan and feature parsers enforce the public contract and published evidence', () => {
-  assert.equal(parseCuratorPlan(draft).status, 'draft');
-  assert.equal(parseCuratorPlan({
+  assert.equal(curatorPlanSchema.parse(draft).status, 'draft');
+  assert.equal(curatorPlanSchema.parse({
     ...draft,
     status: 'active',
     serviceFeeMinor: 58,
@@ -80,11 +79,11 @@ void test('plan and feature parsers enforce the public contract and published ev
     publishedAtUtc: '2026-08-16T13:00:00Z',
   }).serviceFeeMinor, 58);
 
-  assert.throws(() => parseCuratorPlan({ ...draft, stripePriceId: 'price_secret' }));
-  assert.throws(() => parseCuratorPlan({ ...draft, currency: 'EUR' }));
-  assert.throws(() => parseCuratorPlan({ ...draft, status: 'active' }));
-  assert.throws(() => parseCuratorPlan({ ...draft, annualAmountMinor: 8401 }));
-  assert.throws(() => parseCuratorFeatures([{
+  assert.throws(() => curatorPlanSchema.parse({ ...draft, stripePriceId: 'price_secret' }));
+  assert.throws(() => curatorPlanSchema.parse({ ...draft, currency: 'EUR' }));
+  assert.throws(() => curatorPlanSchema.parse({ ...draft, status: 'active' }));
+  assert.throws(() => curatorPlanSchema.parse({ ...draft, annualAmountMinor: 8401 }));
+  assert.throws(() => curatorFeaturesSchema.parse([{
     featureKey: 'member_posts',
     displayName: 'Member-only posts',
     description: 'Unlock subscriber posts.',
@@ -93,14 +92,14 @@ void test('plan and feature parsers enforce the public contract and published ev
 });
 
 void test('pricing parser accepts every economics input and rejects internal or invalid fields', () => {
-  assert.deepEqual(parseCuratorPricing(pricing), pricing);
-  assert.throws(() => parseCuratorPricing({ ...pricing, feeScheduleId: 'msf_internal' }));
-  assert.throws(() => parseCuratorPricing({ ...pricing, currency: 'EUR' }));
-  assert.throws(() => parseCuratorPricing({
+  assert.deepEqual(curatorPricingSchema.parse(pricing), pricing);
+  assert.throws(() => curatorPricingSchema.parse({ ...pricing, feeScheduleId: 'msf_internal' }));
+  assert.throws(() => curatorPricingSchema.parse({ ...pricing, currency: 'EUR' }));
+  assert.throws(() => curatorPricingSchema.parse({
     ...pricing,
     processingBorneBy: 'curator',
   }), /Fan service fees/);
-  assert.throws(() => parseCuratorPricing({
+  assert.throws(() => curatorPricingSchema.parse({
     ...pricing,
     processingFeeBps: Number.MAX_SAFE_INTEGER + 1,
   }));

@@ -68,8 +68,7 @@ function getItemClassName(variant: NavigationSectionProps['variant'], isActive: 
 
 /** The menu's staggered entrance reads its order from this custom property. */
 function revealIndex(index: number) {
-  // SAFETY: CSSProperties has no custom-property keys; the value is a plain index.
-  return { '--reveal-index': index } as React.CSSProperties;
+  return { '--reveal-index': index };
 }
 
 function SectionHeading({ children, hidden = false }: { children: React.ReactNode; hidden?: boolean }) {

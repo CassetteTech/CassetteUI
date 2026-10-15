@@ -14,7 +14,7 @@ export interface UserBio {
   likedPostsPrivacy?: 'public' | 'private';
   likedPostsVisibility?: 'public' | 'private';
   showLikedPosts?: boolean;
-  accountType?: AccountType | number; // API returns integer, frontend uses enum
+  accountType?: AccountType;
   totalLikesReceived?: number;
   connectedServices: ConnectedService[];
   platformPreferences?: PlatformPreferenceInfo[];
@@ -49,7 +49,7 @@ export interface ActivityPost {
   originalPostOwnerUserId?: string | null;
   originalPostOwnerUsername?: string | null;
   originalPostOwnerAvatarUrl?: string | null;
-  originalPostOwnerAccountType?: AccountType | number | string | null;
+  originalPostOwnerAccountType?: AccountType | null;
   elementType: string;
   title: string;
   subtitle?: string;
@@ -63,7 +63,7 @@ export interface ActivityPost {
   likeCount?: number;
   likedByCurrentUser?: boolean;
   commentsEnabled?: boolean;
-  accountType?: AccountType | number | string;
+  accountType?: AccountType;
 }
 
 export interface PaginatedActivityResponse {
@@ -111,7 +111,7 @@ export interface ExploreUser {
   username: string;
   displayName?: string;
   avatarUrl?: string;
-  accountType?: AccountType | number | string;
+  accountType?: AccountType;
   latestExplorePostAt?: string;
 }
 
@@ -121,7 +121,7 @@ export interface ExploreCurator {
   displayName?: string;
   avatarUrl?: string;
   bio?: string;
-  accountType?: AccountType | number | string;
+  accountType?: AccountType;
   publicPostCount: number;
   latestPostAt?: string;
   recentArtworkUrls: string[];
@@ -679,6 +679,18 @@ export interface FailedTrack {
   ambiguous?: boolean;
 }
 
+export interface PostResponseTrack {
+  title?: string;
+  duration?: string;
+  trackNumber?: number;
+  artist?: string;
+  artists?: string[];
+  previewUrl?: string | null;
+  isrc?: string;
+  spotifyTrackId?: string;
+  appleMusicTrackId?: string;
+}
+
 export interface PostByIdResponse {
   success: boolean;
   postId: string;
@@ -689,6 +701,9 @@ export interface PostByIdResponse {
   isRepost?: boolean;
   originalPostId?: string | null;
   repostedByCurrentUser?: boolean;
+  RepostedByCurrentUser?: boolean;
+  isRepostedByCurrentUser?: boolean;
+  IsRepostedByCurrentUser?: boolean;
   elementType: string;
   musicElementId: string;
   userId?: string | null;
@@ -711,7 +726,7 @@ export interface PostByIdResponse {
     previewUrl?: string;
     releaseDate?: string | null;
     trackCount?: number;
-    tracks?: unknown[];
+    tracks?: PostResponseTrack[];
   };
   metadata?: {
     duration?: string;
@@ -735,6 +750,11 @@ export interface PostByIdResponse {
   description?: string;
   username?: string;
   originalLink?: string;
+  sourceUrl?: string;
+  name?: string;
+  imageUrl?: string;
+  numberOfTracks?: number;
+  tracks?: PostResponseTrack[];
 }
 
 export interface PublicPostPageMetadata {

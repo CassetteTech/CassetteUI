@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { accountTypeSchema } from '../lib/account-type';
 import { correlationIdSchema, httpsUrlSchema } from './membership';
 import { formatPaidPromotionMinorAmount } from './paid-promotion-lifecycle';
 
@@ -8,7 +9,7 @@ const moneyMinor = z.number().int().nonnegative().safe();
 const profileText = z.string().max(2000);
 const profileList = z.array(profileText).max(20);
 
-const curatorPayoutAccountSchema = z.object({
+export const curatorPayoutAccountSchema = z.object({
   onboardingStatus: z.enum(['created', 'onboarding', 'active', 'restricted']),
   transfersCapabilityStatus: z.string().min(1).max(50).nullable(),
   requirementsDue: z.boolean(),
@@ -16,7 +17,7 @@ const curatorPayoutAccountSchema = z.object({
   correlationId: correlationIdSchema,
 }).strict().transform(({ correlationId: _correlationId, ...account }) => account);
 
-const curatorPayoutOnboardingSchema = z.object({
+export const curatorPayoutOnboardingSchema = z.object({
   onboardingUrl: httpsUrlSchema,
   expiresAtUtc: timestamp.nullable(),
   account: curatorPayoutAccountSchema,
@@ -30,7 +31,7 @@ const curatorProfileRequestSchema = z.object({
   declaredPlatforms: profileList,
 }).strict();
 
-const curatorProfileSchema = curatorProfileRequestSchema.extend({
+export const curatorProfileSchema = curatorProfileRequestSchema.extend({
   id: z.string().regex(/^cpr_[0-9A-Za-z]+$/).max(40),
   status: z.enum(['active', 'suspended', 'retired']),
   suspensionReason: nullableString,
@@ -44,7 +45,7 @@ const curatorPostSchema = z.object({
   elementType: z.string().min(1),
   createdAt: timestamp,
   username: z.string().min(1),
-  accountType: nullableString,
+  accountType: nullableString.pipe(accountTypeSchema),
   title: z.string(),
   subtitle: nullableString,
   imageUrl: nullableString,
@@ -54,7 +55,7 @@ const curatorPostSchema = z.object({
   commentsEnabled: z.boolean().optional(),
   isRepost: z.boolean().optional(),
   originalPostOwnerUsername: nullableString.optional(),
-  originalPostOwnerAccountType: nullableString.optional(),
+  originalPostOwnerAccountType: nullableString.pipe(accountTypeSchema).optional(),
 });
 
 export const curatorElementTypes = ['Playlist', 'Track', 'Album', 'Artist'] as const;
@@ -69,7 +70,7 @@ const postItemSchema = z.discriminatedUnion('kind', [
   }).strict(),
 ]);
 
-const curatorPageSchema = z.object({
+export const curatorPageSchema = z.object({
   curator: z.object({
     id: z.string().min(1),
     username: z.string().min(1),
@@ -77,7 +78,7 @@ const curatorPageSchema = z.object({
     bio: nullableString,
     avatarUrl: nullableString,
     profileLinks: z.array(z.string()),
-    accountType: z.string(),
+    accountType: z.string().pipe(accountTypeSchema),
     headline: nullableString,
     about: nullableString,
     declaredGenres: z.array(z.string()),
@@ -131,7 +132,7 @@ const curatorPageSchema = z.object({
   { message: 'Subscriber post bodies require an entitled viewer' },
 );
 
-const curatorFollowStateSchema = z.object({
+export const curatorFollowStateSchema = z.object({
   isFollowing: z.boolean(),
   hasExplicitFollow: z.boolean(),
   hasActiveMembership: z.boolean(),
@@ -139,7 +140,7 @@ const curatorFollowStateSchema = z.object({
 
 // Current owner counts, never identities. Each count is checked on its own:
 // Bridge counts them in separate statements, so they can briefly disagree.
-const curatorAudienceSchema = z.object({
+export const curatorAudienceSchema = z.object({
   audienceCount: z.number().int().nonnegative(),
   activeMemberCount: z.number().int().nonnegative(),
 }).strict();
@@ -157,42 +158,6 @@ export class CuratorPageError extends Error {
     super(message);
     this.name = 'CuratorPageError';
   }
-}
-
-// The endpoint body is untrusted until this schema succeeds.
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export function parseCuratorPage(value: unknown): CuratorPage {
-  return curatorPageSchema.parse(value);
-}
-
-// The endpoint body is untrusted until this schema succeeds.
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export function parseCuratorFollowState(value: unknown): CuratorFollowState {
-  return curatorFollowStateSchema.parse(value);
-}
-
-// The endpoint body is untrusted until this schema succeeds.
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export function parseCuratorAudience(value: unknown): CuratorAudience {
-  return curatorAudienceSchema.parse(value);
-}
-
-// The endpoint body is untrusted until this schema succeeds.
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export function parseCuratorProfile(value: unknown): CuratorProfile {
-  return curatorProfileSchema.parse(value);
-}
-
-// The endpoint body is untrusted until this schema succeeds.
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export function parseCuratorPayoutAccount(value: unknown): CuratorPayoutAccount {
-  return curatorPayoutAccountSchema.parse(value);
-}
-
-// The endpoint body is untrusted until this schema succeeds.
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export function parseCuratorPayoutOnboarding(value: unknown): CuratorPayoutOnboarding {
-  return curatorPayoutOnboardingSchema.parse(value);
 }
 
 export type CuratorPageFilter = { elementType: CuratorElementType | null; membersOnly: boolean };
@@ -232,7 +197,7 @@ export async function fetchCuratorPage(
     );
   }
 
-  return parseCuratorPage(await response.json());
+  return curatorPageSchema.parse(await response.json());
 }
 
 export async function fetchOwnCuratorProfile(
@@ -249,7 +214,7 @@ export async function fetchOwnCuratorProfile(
     throw new CuratorPageError('Failed to load curator profile', response.status);
   }
 
-  return parseCuratorProfile(await response.json());
+  return curatorProfileSchema.parse(await response.json());
 }
 
 const curatorFollowPath = (curatorProfileId: string) =>
@@ -267,7 +232,7 @@ export async function fetchCuratorFollow(
   if (!response.ok) {
     throw new CuratorPageError('Failed to load follow status', response.status);
   }
-  return parseCuratorFollowState(await response.json());
+  return curatorFollowStateSchema.parse(await response.json());
 }
 
 export async function setCuratorFollow(
@@ -282,7 +247,7 @@ export async function setCuratorFollow(
   if (!response.ok) {
     throw new CuratorPageError(following ? 'Failed to follow' : 'Failed to unfollow', response.status);
   }
-  return parseCuratorFollowState(await response.json());
+  return curatorFollowStateSchema.parse(await response.json());
 }
 
 export async function fetchCuratorAudience(signal?: AbortSignal): Promise<CuratorAudience> {
@@ -294,7 +259,7 @@ export async function fetchCuratorAudience(signal?: AbortSignal): Promise<Curato
   if (!response.ok) {
     throw new CuratorPageError('Failed to load audience', response.status);
   }
-  return parseCuratorAudience(await response.json());
+  return curatorAudienceSchema.parse(await response.json());
 }
 
 export async function fetchCuratorPayoutAccount(
@@ -312,7 +277,7 @@ export async function fetchCuratorPayoutAccount(
     throw new CuratorPageError('Failed to load payout account', response.status);
   }
 
-  return parseCuratorPayoutAccount(await response.json());
+  return curatorPayoutAccountSchema.parse(await response.json());
 }
 
 export async function startCuratorPayoutOnboarding(
@@ -326,7 +291,7 @@ export async function startCuratorPayoutOnboarding(
   if (!response.ok) {
     throw new CuratorPageError('Failed to start payout onboarding', response.status);
   }
-  return parseCuratorPayoutOnboarding(await response.json());
+  return curatorPayoutOnboardingSchema.parse(await response.json());
 }
 
 export function formatCuratorPlanPrice(

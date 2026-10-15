@@ -48,8 +48,8 @@ import {
   fetchInternalCurators,
   fetchPricingAssignments,
   fetchPricingPolicies,
-  parsePricingAssignmentRequest,
-  parsePricingPolicyRequest,
+  pricingAssignmentRequestSchema,
+  pricingPolicyRequestSchema,
   reinstateInternalCurator,
   setDefaultPricingPolicy,
   suspendInternalCurator,
@@ -334,7 +334,7 @@ function AssignmentPanel({
     if (!curator) return;
     const values = new FormData(event.currentTarget);
     const effectiveAt = formString(values, 'effectiveAt');
-    assignment.mutate(parsePricingAssignmentRequest({
+    assignment.mutate(pricingAssignmentRequestSchema.parse({
       curatorProfileId: curator.id,
       policyId: formString(values, 'policyId'),
       effectiveAtUtc: effectiveAt ? new Date(effectiveAt).toISOString() : null,
@@ -451,7 +451,7 @@ function PricingPolicies({
     event.preventDefault();
     const values = new FormData(event.currentTarget);
     try {
-      createPolicy.mutate(parsePricingPolicyRequest({
+      createPolicy.mutate(pricingPolicyRequestSchema.parse({
         policyKey: formString(values, 'policyKey'),
         displayName: formString(values, 'displayName'),
         isActive: values.get('isActive') === 'on',

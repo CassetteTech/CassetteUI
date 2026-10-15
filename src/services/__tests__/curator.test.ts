@@ -8,12 +8,12 @@ import {
   fetchCuratorPage,
   fetchOwnCuratorProfile,
   formatCuratorPlanPrice,
-  parseCuratorAudience,
-  parseCuratorFollowState,
-  parseCuratorPage,
-  parseCuratorPayoutAccount,
-  parseCuratorPayoutOnboarding,
-  parseCuratorProfile,
+  curatorAudienceSchema,
+  curatorFollowStateSchema,
+  curatorPageSchema,
+  curatorPayoutAccountSchema,
+  curatorPayoutOnboardingSchema,
+  curatorProfileSchema,
   setCuratorFollow,
   startCuratorPayoutOnboarding,
 } from '../curator';
@@ -104,7 +104,7 @@ function profilePayload() {
 }
 
 void test('parses the curator page union and strips internal additive fields', () => {
-  const parsed = parseCuratorPage(pagePayload());
+  const parsed = curatorPageSchema.parse(pagePayload());
 
   assert.equal(parsed.posts.items[0]?.kind, 'post');
   assert.equal(parsed.posts.items[1]?.kind, 'locked');
@@ -113,13 +113,13 @@ void test('parses the curator page union and strips internal additive fields', (
 });
 
 void test('rejects any content attached to a locked post', () => {
-  assert.throws(() => parseCuratorPage(pagePayload(true)), /Unrecognized key/);
+  assert.throws(() => curatorPageSchema.parse(pagePayload(true)), /Unrecognized key/);
 });
 
 void test('rejects a partial annual price', () => {
   const payload = pagePayload();
 
-  assert.throws(() => parseCuratorPage({
+  assert.throws(() => curatorPageSchema.parse({
     ...payload,
     membership: { ...payload.membership, annualServiceFeeMinor: null },
   }), /Annual amount and service fee/);
@@ -128,7 +128,7 @@ void test('rejects a partial annual price', () => {
 void test('accepts member content for a retained member when no public plan is offered', () => {
   const payload = pagePayload();
 
-  const parsed = parseCuratorPage({
+  const parsed = curatorPageSchema.parse({
     ...payload,
     membership: null,
     viewer: { isOwner: false, isMember: true, hasMemberBadge: true },
@@ -144,7 +144,7 @@ void test('accepts member content for a retained member when no public plan is o
 void test('rejects subscriber post bodies for an unentitled viewer', () => {
   const payload = pagePayload();
 
-  assert.throws(() => parseCuratorPage({
+  assert.throws(() => curatorPageSchema.parse({
     ...payload,
     posts: {
       ...payload.posts,
@@ -156,7 +156,7 @@ void test('rejects subscriber post bodies for an unentitled viewer', () => {
 void test('rejects unsafe membership totals', () => {
   const payload = pagePayload();
 
-  assert.throws(() => parseCuratorPage({
+  assert.throws(() => curatorPageSchema.parse({
     ...payload,
     membership: {
       ...payload.membership,
@@ -177,15 +177,15 @@ void test('preserves a not-found response as a typed 404', async (t) => {
 
 void test('parses the strict self-profile contract and strips the transport correlation ID', () => {
   const profile = profilePayload();
-  const parsed = parseCuratorProfile({
+  const parsed = curatorProfileSchema.parse({
     ...profile,
     correlationId: '44444444-4444-4444-8444-444444444444',
   });
 
   assert.equal(parsed.id, profile.id);
   assert.equal('correlationId' in parsed, false);
-  assert.throws(() => parseCuratorProfile({ ...profile, eligibilityStatus: 'approved' }));
-  assert.throws(() => parseCuratorProfile({ ...profile, status: 'pending_review' }));
+  assert.throws(() => curatorProfileSchema.parse({ ...profile, eligibilityStatus: 'approved' }));
+  assert.throws(() => curatorProfileSchema.parse({ ...profile, status: 'pending_review' }));
 });
 
 void test('returns null when the authenticated user has no curator profile', async (t) => {
@@ -202,20 +202,20 @@ void test('parses payout status and secure onboarding without provider identifie
     capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
     correlationId: '44444444-4444-4444-8444-444444444444',
   };
-  const parsed = parseCuratorPayoutAccount(account);
+  const parsed = curatorPayoutAccountSchema.parse(account);
   assert.equal(parsed.onboardingStatus, 'onboarding');
   assert.equal('correlationId' in parsed, false);
-  assert.throws(() => parseCuratorPayoutAccount({ ...account, stripeAccountId: 'acct_secret' }));
+  assert.throws(() => curatorPayoutAccountSchema.parse({ ...account, stripeAccountId: 'acct_secret' }));
 
-  const onboarding = parseCuratorPayoutOnboarding({
+  const onboarding = curatorPayoutOnboardingSchema.parse({
     onboardingUrl: 'https://connect.stripe.test/setup',
     expiresAtUtc: '2026-08-16T13:00:00Z',
     account,
     correlationId: '55555555-5555-4555-8555-555555555555',
   });
   assert.equal(onboarding.onboardingUrl, 'https://connect.stripe.test/setup');
-  assert.equal(parseCuratorPayoutOnboarding({ ...onboarding, expiresAtUtc: null }).expiresAtUtc, null);
-  assert.throws(() => parseCuratorPayoutOnboarding({
+  assert.equal(curatorPayoutOnboardingSchema.parse({ ...onboarding, expiresAtUtc: null }).expiresAtUtc, null);
+  assert.throws(() => curatorPayoutOnboardingSchema.parse({
     onboardingUrl: 'http://connect.stripe.test/setup',
     expiresAtUtc: '2026-08-16T13:00:00Z',
     account,
@@ -285,14 +285,14 @@ void test('formats the fan charge from face price plus frozen service fee', () =
 
 void test('parses only the exact private Follow relationship', () => {
   const state = { isFollowing: true, hasExplicitFollow: false, hasActiveMembership: true };
-  assert.deepEqual(parseCuratorFollowState(state), state);
+  assert.deepEqual(curatorFollowStateSchema.parse(state), state);
   for (const body of [
     { ...state, followerCount: 3 },
     { ...state, followers: null },
     { isFollowing: true, hasExplicitFollow: false },
     { ...state, hasActiveMembership: 'true' },
   ]) {
-    assert.throws(() => parseCuratorFollowState(body), JSON.stringify(body));
+    assert.throws(() => curatorFollowStateSchema.parse(body), JSON.stringify(body));
   }
 });
 
@@ -324,12 +324,12 @@ void test('a failed Follow write is an error with its status, never a relationsh
 });
 
 void test('parses the owner audience with each count checked on its own', () => {
-  assert.deepEqual(parseCuratorAudience({ audienceCount: 7, activeMemberCount: 5 }), {
+  assert.deepEqual(curatorAudienceSchema.parse({ audienceCount: 7, activeMemberCount: 5 }), {
     audienceCount: 7,
     activeMemberCount: 5,
   });
   // Separate statements can briefly report more members than audience; that is not an error.
-  assert.deepEqual(parseCuratorAudience({ audienceCount: 0, activeMemberCount: 1 }), {
+  assert.deepEqual(curatorAudienceSchema.parse({ audienceCount: 0, activeMemberCount: 1 }), {
     audienceCount: 0,
     activeMemberCount: 1,
   });
@@ -340,7 +340,7 @@ void test('parses the owner audience with each count checked on its own', () => 
     { audienceCount: 1, activeMemberCount: 0, followers: [] },
     { audienceCount: 1, activeMemberCount: 0, followerIds: null },
   ]) {
-    assert.throws(() => parseCuratorAudience(body), JSON.stringify(body));
+    assert.throws(() => curatorAudienceSchema.parse(body), JSON.stringify(body));
   }
 });
 

@@ -266,8 +266,7 @@ export function Navbar() {
                 aria-current={isOwnProfilePath(pathname, user) ? 'page' : undefined}
                 className="mb-4 flex items-center gap-3 border-b border-border/40 pb-4"
                 data-menu-reveal
-                // SAFETY: CSSProperties has no custom-property keys; the value is a plain index.
-                style={{ '--reveal-index': 1 } as React.CSSProperties}
+                style={{ '--reveal-index': 1 }}
               >
                 <Avatar className="h-10 w-10 ring-2 ring-primary ring-offset-2 ring-offset-card">
                   <AvatarImage src={user.profilePicture} alt={`@${user.username}`} />

@@ -81,10 +81,10 @@ import {
   parsePaidPromotionCampaigns,
 } from './paid-promotion-lifecycle';
 import {
-  parseMembershipCheckout,
-  parseMembershipPortal,
-  parseMembershipStatus,
-  parseMyMemberships,
+  membershipCheckoutSchema,
+  membershipPortalSchema,
+  membershipStatusViewSchema,
+  myMembershipsSchema,
   type MembershipCheckout,
   type MembershipInterval,
   type MembershipPortal,
@@ -92,9 +92,9 @@ import {
   type MyMembership,
 } from './membership';
 import {
-  parseCuratorProCheckout,
-  parseCuratorProPortal,
-  parseCuratorProStatus,
+  curatorProCheckoutSchema,
+  curatorProPortalSchema,
+  curatorProStatusSchema,
   type CuratorProCheckout,
   type CuratorProPortal,
   type CuratorProStatus,
@@ -445,12 +445,12 @@ class ApiService {
       `/api/v1/memberships/status/${encodeURIComponent(curatorProfileId)}`,
       { signal },
     );
-    return parseMembershipStatus(response);
+    return membershipStatusViewSchema.parse(response);
   }
 
   async getMyMemberships(signal?: AbortSignal): Promise<MyMembership[]> {
     const response = await this.request<unknown>('/api/v1/memberships/me', { signal });
-    return parseMyMemberships(response);
+    return myMembershipsSchema.parse(response);
   }
 
   async createMembershipCheckout(
@@ -461,7 +461,7 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ planId, interval }),
     });
-    return parseMembershipCheckout(response);
+    return membershipCheckoutSchema.parse(response);
   }
 
   async createMembershipPortal(membershipSubscriptionId: string): Promise<MembershipPortal> {
@@ -469,7 +469,7 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ membershipSubscriptionId }),
     });
-    return parseMembershipPortal(response);
+    return membershipPortalSchema.parse(response);
   }
 
   async getCuratorProStatus(signal?: AbortSignal): Promise<CuratorProStatus> {
@@ -477,21 +477,21 @@ class ApiService {
       cache: 'no-store',
       signal,
     });
-    return parseCuratorProStatus(response);
+    return curatorProStatusSchema.parse(response);
   }
 
   async createCuratorProCheckout(): Promise<CuratorProCheckout> {
     const response = await this.request<unknown>('/api/v1/curators/pro/checkout', {
       method: 'POST',
     });
-    return parseCuratorProCheckout(response);
+    return curatorProCheckoutSchema.parse(response);
   }
 
   async createCuratorProPortal(): Promise<CuratorProPortal> {
     const response = await this.request<unknown>('/api/v1/curators/pro/billing-portal', {
       method: 'POST',
     });
-    return parseCuratorProPortal(response);
+    return curatorProPortalSchema.parse(response);
   }
 
   async createPaidPromotionCampaign(

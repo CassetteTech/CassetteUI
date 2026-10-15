@@ -18,59 +18,11 @@ import {
   normalizeStreamingServiceType,
 } from '@/utils/platform-normalization';
 import { normalizeSponsoredExplorePlacementEnvelope } from './sponsored-explore-contract';
+import { accountTypeSchema } from '../lib/account-type';
 
-interface ActivityItemPayload {
-  postId: string;
-  redirectPostId?: string;
-  isRepost?: boolean;
-  originalPostId?: string | null;
-  originalUsername?: string;
-  originalPostOwnerUserId?: string | null;
-  originalPostOwnerUsername?: string | null;
-  originalPostOwnerAvatarUrl?: string | null;
-  originalPostOwnerAccountType?: string | number | null;
-  elementType: string;
-  title: string;
-  name?: string;
-  elementName?: string;
-  elementTitle?: string;
-  artistName?: string;
-  albumName?: string;
-  subtitle?: string;
-  description?: string;
-  caption?: string;
-  imageUrl?: string;
-  coverArtUrl?: string;
-  artworkUrl?: string;
-  artwork?: string;
-  image?: string;
-  details?: {
-    coverArtUrl?: string;
-    imageUrl?: string;
-    artworkUrl?: string;
-    artwork?: string;
-    title?: string;
-    name?: string;
-    artist?: string;
-    album?: string;
-    description?: string;
-    caption?: string;
-  };
-  metadata?: {
-    artwork?: string;
-  };
-  platforms?: Record<string, { artworkUrl?: string; imageUrl?: string; coverArtUrl?: string }>;
-  username: string;
-  userId?: string;
-  createdAt: string;
-  privacy?: PostPrivacy;
-  conversionSuccessCount?: number;
-  likeCount?: number;
-  likedByCurrentUser?: boolean;
-  commentsEnabled?: boolean;
-  accountType?: string | number;
-  [key: string]: unknown;
-}
+const activityItemPayloadSchema = z.record(z.string(), z.unknown());
+
+type ActivityItemPayload = z.infer<typeof activityItemPayloadSchema>;
 
 interface ActivityApiResponse {
   items?: ActivityItemPayload[];
@@ -106,7 +58,7 @@ const feedCount = z.number().int().nonnegative();
 // field on it would carry the post's content to a viewer without access.
 const curatorFeedPageSchema = z.object({
   items: z.array(z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('post'), post: z.record(z.string(), z.unknown()) }).strict(),
+    z.object({ kind: z.literal('post'), post: activityItemPayloadSchema }).strict(),
     z.object({
       kind: z.literal('locked'),
       postId: z.string().min(1),
@@ -308,7 +260,7 @@ export class ProfileService {
       profileLinks: (this.firstArrayCandidate(merged.profileLinks, merged.ProfileLinks) ?? []).filter(
         (link): link is string => typeof link === 'string' && link.length > 0,
       ),
-      accountType: (merged.accountType ?? merged.AccountType ?? merged.account_type) as UserBio['accountType'],
+      accountType: accountTypeSchema.parse(merged.accountType ?? merged.AccountType ?? merged.account_type),
     };
   }
 
@@ -388,8 +340,7 @@ export class ProfileService {
 
     const sourceItems = json.items ?? json.data ?? json.Items ?? json.Data ?? [];
     const items: ActivityPost[] =
-      sourceItems.map((item) => {
-        const itemObj = item as Record<string, unknown>;
+      sourceItems.map((itemObj) => {
         const detailsObj = asObject(itemObj.details);
         const metadataObj = asObject(itemObj.metadata);
         const originalPostObj = asObject(itemObj.originalPost) || asObject(itemObj.OriginalPost);
@@ -480,7 +431,7 @@ export class ProfileService {
             pickString(itemObj, ['originalPostOwnerAvatarUrl', 'OriginalPostOwnerAvatarUrl']) ||
             (originalOwnerObj ? pickString(originalOwnerObj, ['avatarUrl', 'AvatarUrl', 'profilePicture', 'ProfilePicture']) : undefined) ||
             null,
-          originalPostOwnerAccountType:
+          originalPostOwnerAccountType: accountTypeSchema.parse(
             pickString(itemObj, ['originalPostOwnerAccountType', 'OriginalPostOwnerAccountType']) ??
             pickNumber(itemObj, ['originalPostOwnerAccountType', 'OriginalPostOwnerAccountType']) ??
             (originalOwnerObj
@@ -488,8 +439,8 @@ export class ProfileService {
                   pickString(originalOwnerObj, ['accountType', 'AccountType']) ??
                   pickNumber(originalOwnerObj, ['accountType', 'AccountType'])
                 )
-              : undefined) ??
-            null,
+              : undefined),
+          ) ?? null,
           elementType:
             pickString(itemObj, ['elementType', 'ElementType']) ||
             'Track',
@@ -505,9 +456,10 @@ export class ProfileService {
           likeCount: pickNumber(itemObj, ['likeCount', 'LikeCount']),
           likedByCurrentUser: pickBoolean(itemObj, ['likedByCurrentUser', 'LikedByCurrentUser']),
           commentsEnabled: pickBoolean(itemObj, ['commentsEnabled', 'CommentsEnabled']),
-          accountType:
+          accountType: accountTypeSchema.parse(
             pickString(itemObj, ['accountType', 'AccountType']) ??
             pickNumber(itemObj, ['accountType', 'AccountType']),
+          ),
         };
       });
 
@@ -540,7 +492,7 @@ export class ProfileService {
     }
 
     const post = this.mapActivityResponse(
-      { items: [envelope.postPayload as ActivityItemPayload] },
+      { items: [envelope.postPayload] },
       1,
       1,
     ).items[0];
@@ -727,8 +679,7 @@ export class ProfileService {
     }
     const { items, nextCursor, activeMembershipCount, feedCuratorCount } = parsed.data;
     const posts = this.mapActivityResponse(
-      // SAFETY: each post is an object; mapActivityResponse reads every field defensively.
-      { items: items.flatMap((item) => (item.kind === 'post' ? [item.post as ActivityItemPayload] : [])) },
+      { items: items.flatMap((item) => (item.kind === 'post' ? [item.post] : [])) },
       1,
       pageSize,
     ).items;
@@ -803,9 +754,10 @@ export class ProfileService {
             username: pickString(['username', 'Username']) || 'unknown',
             displayName: pickString(['displayName', 'DisplayName']),
             avatarUrl: pickString(['avatarUrl', 'AvatarUrl', 'profilePicture', 'ProfilePicture']),
-            accountType:
+            accountType: accountTypeSchema.parse(
               pickString(['accountType', 'AccountType']) ??
               pickNumber(['accountType', 'AccountType']),
+            ),
             latestExplorePostAt: pickString(['latestExplorePostAt', 'LatestExplorePostAt']),
           };
         });
@@ -862,6 +814,7 @@ export class ProfileService {
         curator.profileLinks ?? (curator as { ProfileLinks?: string[] }).ProfileLinks ?? [],
       topGenres: curator.topGenres ?? (curator as { TopGenres?: string[] }).TopGenres ?? [],
       hasActiveMembershipPlan: curator.hasActiveMembershipPlan === true,
+      accountType: accountTypeSchema.parse(curator.accountType),
     }));
   }
 

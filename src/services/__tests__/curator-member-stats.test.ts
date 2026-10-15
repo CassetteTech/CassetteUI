@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fetchCuratorMemberStats, memberAxisMax, parseCuratorMemberStats } from '../curator-member-stats';
+import { fetchCuratorMemberStats, memberAxisMax, curatorMemberStatsSchema } from '../curator-member-stats';
 
 const payload = {
   days: 7,
@@ -16,21 +16,21 @@ const payload = {
 };
 
 void test('parses counts only and rejects identities or inconsistent windows', () => {
-  assert.deepEqual(parseCuratorMemberStats(payload), payload);
-  assert.throws(() => parseCuratorMemberStats({ ...payload, fanUserIds: ['fan'] }), /Unrecognized key/);
-  assert.throws(() => parseCuratorMemberStats({
+  assert.deepEqual(curatorMemberStatsSchema.parse(payload), payload);
+  assert.throws(() => curatorMemberStatsSchema.parse({ ...payload, fanUserIds: ['fan'] }), /Unrecognized key/);
+  assert.throws(() => curatorMemberStatsSchema.parse({
     ...payload,
     daily: [{ ...payload.daily[0], membershipSubscriptionId: 'msb_secret' }, ...payload.daily.slice(1)],
   }), /Unrecognized key/);
-  assert.throws(() => parseCuratorMemberStats({ ...payload, daily: payload.daily.slice(1) }), /inconsistent/);
+  assert.throws(() => curatorMemberStatsSchema.parse({ ...payload, daily: payload.daily.slice(1) }), /inconsistent/);
   for (const date of ['2026-13-01', '2026-02-30', '2026-8-10', '2026-08-10T00:00:00Z']) {
-    assert.throws(() => parseCuratorMemberStats({
+    assert.throws(() => curatorMemberStatsSchema.parse({
       ...payload,
       daily: [{ ...payload.daily[0], date }, ...payload.daily.slice(1)],
     }));
   }
-  assert.throws(() => parseCuratorMemberStats({ ...payload, notRenewingMembers: 4 }), /inconsistent/);
-  assert.throws(() => parseCuratorMemberStats({ ...payload, endedMembers: -1 }));
+  assert.throws(() => curatorMemberStatsSchema.parse({ ...payload, notRenewingMembers: 4 }), /inconsistent/);
+  assert.throws(() => curatorMemberStatsSchema.parse({ ...payload, endedMembers: -1 }));
 });
 
 void test('leaves headroom above the busiest day on a whole-number axis', () => {

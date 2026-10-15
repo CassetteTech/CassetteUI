@@ -4,11 +4,11 @@ import {
   createPricingPolicy,
   decimalToHundredths,
   fetchInternalCurators,
-  parseInternalCurators,
-  parsePricingAssignmentRequest,
-  parsePricingAssignments,
-  parsePricingPolicies,
-  parsePricingPolicyRequest,
+  internalCuratorsSchema,
+  pricingAssignmentRequestSchema,
+  pricingAssignmentsSchema,
+  pricingPoliciesSchema,
+  pricingPolicyRequestSchema,
 } from '../internal-curators';
 
 const timestamp = '2026-08-16T12:00:00Z';
@@ -50,21 +50,21 @@ const curator = {
 };
 
 void test('internal curator contracts reject inconsistent and unexpected fields', () => {
-  assert.deepEqual(parseInternalCurators([curator]), [curator]);
-  assert.throws(() => parseInternalCurators([{ ...curator, status: 'suspended' }]));
-  assert.throws(() => parseInternalCurators([{
+  assert.deepEqual(internalCuratorsSchema.parse([curator]), [curator]);
+  assert.throws(() => internalCuratorsSchema.parse([{ ...curator, status: 'suspended' }]));
+  assert.throws(() => internalCuratorsSchema.parse([{
     ...curator,
     status: 'suspended',
     suspensionReason: 'x'.repeat(2_001),
   }]));
-  assert.throws(() => parseInternalCurators([{ ...curator, email: 'private@example.test' }]));
+  assert.throws(() => internalCuratorsSchema.parse([{ ...curator, email: 'private@example.test' }]));
 });
 
 void test('pricing policy contracts keep internal economics exact', () => {
-  assert.deepEqual(parsePricingPolicies([policy]), [policy]);
-  assert.throws(() => parsePricingPolicies([{ ...policy, currency: 'EUR' }]));
-  assert.throws(() => parsePricingPolicies([{ ...policy, isActive: false }]));
-  assert.throws(() => parsePricingPolicies([{ ...policy, stripePriceId: 'price_secret' }]));
+  assert.deepEqual(pricingPoliciesSchema.parse([policy]), [policy]);
+  assert.throws(() => pricingPoliciesSchema.parse([{ ...policy, currency: 'EUR' }]));
+  assert.throws(() => pricingPoliciesSchema.parse([{ ...policy, isActive: false }]));
+  assert.throws(() => pricingPoliciesSchema.parse([{ ...policy, stripePriceId: 'price_secret' }]));
 
   const request = {
     policyKey: policy.policyKey,
@@ -80,13 +80,13 @@ void test('pricing policy contracts keep internal economics exact', () => {
     payoutCadence: policy.payoutCadence,
     minPayoutMinor: policy.minPayoutMinor,
   };
-  assert.deepEqual(parsePricingPolicyRequest(request), request);
-  assert.throws(() => parsePricingPolicyRequest({
+  assert.deepEqual(pricingPolicyRequestSchema.parse(request), request);
+  assert.throws(() => pricingPolicyRequestSchema.parse({
     ...request,
     processingBorneBy: 'curator',
   }));
-  assert.throws(() => parsePricingPolicyRequest({ ...request, serviceFeeBps: 10_001 }));
-  assert.throws(() => parsePricingPolicyRequest({ ...request, minPayoutMinor: 100_000_000 }));
+  assert.throws(() => pricingPolicyRequestSchema.parse({ ...request, serviceFeeBps: 10_001 }));
+  assert.throws(() => pricingPolicyRequestSchema.parse({ ...request, minPayoutMinor: 100_000_000 }));
 });
 
 void test('assignment contracts preserve actor and effective-time audit fields', () => {
@@ -103,8 +103,8 @@ void test('assignment contracts preserve actor and effective-time audit fields',
     effectiveAtUtc: timestamp,
     createdAtUtc: timestamp,
   };
-  assert.deepEqual(parsePricingAssignments([assignment]), [assignment]);
-  assert.throws(() => parsePricingAssignments([{ ...assignment, providerCustomerId: 'cus_secret' }]));
+  assert.deepEqual(pricingAssignmentsSchema.parse([assignment]), [assignment]);
+  assert.throws(() => pricingAssignmentsSchema.parse([{ ...assignment, providerCustomerId: 'cus_secret' }]));
 
   const request = {
     curatorProfileId: curator.id,
@@ -112,9 +112,9 @@ void test('assignment contracts preserve actor and effective-time audit fields',
     effectiveAtUtc: null,
     reason: 'Immediate assignment.',
   };
-  assert.deepEqual(parsePricingAssignmentRequest(request), request);
-  assert.throws(() => parsePricingAssignmentRequest({ ...request, reason: ' ' }));
-  assert.throws(() => parsePricingAssignmentRequest({ ...request, reason: 'x'.repeat(2_001) }));
+  assert.deepEqual(pricingAssignmentRequestSchema.parse(request), request);
+  assert.throws(() => pricingAssignmentRequestSchema.parse({ ...request, reason: ' ' }));
+  assert.throws(() => pricingAssignmentRequestSchema.parse({ ...request, reason: 'x'.repeat(2_001) }));
 });
 
 void test('decimal inputs convert to exact minor units and basis points', () => {
@@ -135,7 +135,7 @@ void test('internal client sends authenticated no-store requests and parses resp
     const url = input instanceof Request ? input.url : input.toString();
     return new Response(JSON.stringify(url.endsWith('/curators') ? [curator] : createdPolicy));
   });
-  const request = parsePricingPolicyRequest({
+  const request = pricingPolicyRequestSchema.parse({
     policyKey: policy.policyKey,
     displayName: policy.displayName,
     isActive: true,

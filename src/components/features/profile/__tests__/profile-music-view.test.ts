@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { CuratorPage } from '../../../../services/curator';
+import { AccountType } from '../../../../types';
 import {
   curatorMusicViews,
   curatorPageFilterOf,
@@ -22,7 +23,7 @@ const page = (overrides: {
     bio: null,
     avatarUrl: null,
     profileLinks: [],
-    accountType: 'Regular',
+    accountType: AccountType.REGULAR,
     headline: null,
     about: null,
     declaredGenres: [],

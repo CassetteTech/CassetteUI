@@ -218,8 +218,7 @@ export function CuratorMembershipCard({
           !(membership?.status === 'incomplete' && planMatchesMembership) && (
             <RadioGroup
               value={interval}
-              // SAFETY: the only rendered items are 'month' and 'year', both MembershipInterval.
-              onValueChange={(value) => onIntervalChange(value as MembershipInterval)}
+              onValueChange={(value) => onIntervalChange(value === 'year' ? 'year' : 'month')}
               aria-label="Billing interval"
               className="mt-5 grid grid-cols-2 gap-2"
             >

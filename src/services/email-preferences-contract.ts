@@ -29,11 +29,15 @@ export class EmailPreferenceRequestError extends Error {
   }
 }
 
-// A response without either category fails as a bad gateway, so the settings
-// never show a guessed value for a preference Bridge did not return.
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export function parseEmailPreferencesResponse(value: unknown): EmailPreferencesResponse {
-  const parsed = emailPreferencesResponseSchema.safeParse(value);
+// A failed request keeps its status. A body without either category fails as a
+// bad gateway, so the settings never show a guessed value for a preference
+// Bridge did not return.
+export async function readEmailPreferencesResponse(response: Response): Promise<EmailPreferencesResponse> {
+  if (!response.ok) {
+    throw new EmailPreferenceRequestError(response.status);
+  }
+
+  const parsed = emailPreferencesResponseSchema.safeParse(await response.json().catch(() => null));
   if (!parsed.success) {
     throw new EmailPreferenceRequestError(502);
   }

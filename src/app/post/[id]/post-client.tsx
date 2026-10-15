@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback, type MouseEvent } from 'react';
-import { MusicLinkConversion, ElementType, MediaListTrack, InternalSignupLinkTemplate, PostByIdResponse, PostPrivacy, PublicPostPageMetadata } from '@/types';
+import { MusicLinkConversion, ElementType, InternalSignupLinkTemplate, PostByIdResponse, PostPrivacy, PublicPostPageMetadata } from '@/types';
+import { normalizePlatformKey, parsePostResponse, type PostPageData } from '@/services/post-response';
 import { EntitySkeleton, printedBand } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
 import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
@@ -119,108 +120,11 @@ type PostLoadError = {
   kind: 'unavailable' | 'session' | 'error';
 };
 
-type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
-  previewUrl?: string;
-  description?: string;
-  isRepost?: boolean;
-  originalPostId?: string | null;
-  redirectPostId?: string;
-  paidPromotionCampaignId?: string | null;
-  curatorId?: string | null;
-  isMemberView?: boolean;
-  repostedByCurrentUser?: boolean;
-  username?: string;
-  userId?: string | null;
-  createdAt?: string;
-  genres?: string[];
-  albumName?: string;
-  releaseDate?: string | null;
-  trackCount?: number;
-  details?: { artists?: Array<{ name: string; role: string; }>; };
-  musicElementId?: string;
-  sourcePlatform?: string;
-  privacy?: string;
-  conversionSuccessCount?: number | null;
-  likeCount?: number;
-  likedByCurrentUser?: boolean;
-  commentsEnabled?: boolean;
-};
-
 type PostLikeResponse = {
   success: boolean;
   postId: string;
   liked: boolean;
   likeCount: number;
-};
-
-type NormalizedPlatformKey = 'spotify' | 'appleMusic' | 'deezer';
-
-const normalizePlatformKey = (platform?: string | null): NormalizedPlatformKey | null => {
-  if (!platform) return null;
-  const normalized = platform.toLowerCase().replace(/[\s_-]/g, '');
-
-  if (normalized === 'spotify') return 'spotify';
-  if (normalized === 'deezer') return 'deezer';
-  if (normalized === 'applemusic' || normalized === 'apple') return 'appleMusic';
-
-  return null;
-};
-
-const normalizeElementType = (elementType?: string | null): 'track' | 'album' | 'artist' | 'playlist' => {
-  const normalized = elementType?.toLowerCase();
-  if (normalized === 'track' || normalized === 'album' || normalized === 'artist' || normalized === 'playlist') {
-    return normalized;
-  }
-  return 'track';
-};
-
-const resolvePlatformUrl = (
-  platform: NormalizedPlatformKey,
-  platformData: { url?: string; uri?: string; platformSpecificId?: string; elementType?: string } | undefined,
-  fallbackElementType: string | undefined,
-): string => {
-  const directUrl = platformData?.url?.trim();
-  if (directUrl) {
-    return directUrl;
-  }
-
-  const uriAsUrl = platformData?.uri?.trim();
-  if (uriAsUrl && /^https?:\/\//i.test(uriAsUrl)) {
-    return uriAsUrl;
-  }
-
-  const platformSpecificId = platformData?.platformSpecificId?.trim();
-  if (!platformSpecificId) {
-    return '';
-  }
-
-  const elementType = normalizeElementType(platformData?.elementType || fallbackElementType);
-
-  if (platform === 'spotify') {
-    return `https://open.spotify.com/${elementType}/${platformSpecificId}`;
-  }
-
-  if (platform === 'deezer') {
-    return `https://www.deezer.com/${elementType}/${platformSpecificId}`;
-  }
-
-  const applePathType = elementType === 'track' ? 'song' : elementType;
-  return `https://music.apple.com/us/${applePathType}/${platformSpecificId}`;
-};
-
-const buildArtistSearchUrl = (platform: NormalizedPlatformKey, artistName: string): string => {
-  const query = encodeURIComponent(artistName.trim());
-  if (!query) return '';
-
-  if (platform === 'spotify') {
-    return `https://open.spotify.com/search/${query}`;
-  }
-
-  if (platform === 'deezer') {
-    return `https://www.deezer.com/search/${query}`;
-  }
-
-  return `https://music.apple.com/us/search?term=${query}`;
 };
 
 const REPOSTED_POSTS_STORAGE_KEY = 'cassette_reposted_posts_v1';
@@ -704,188 +608,17 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         }
 
         const applyResponse = (payload: PostByIdResponse) => {
-          const response = payload;
           setError(null);
-          const elementTypeLower = response.elementType?.toLowerCase();
-          const isTrackResp = elementTypeLower === 'track';
-          const isAlbumResp = elementTypeLower === 'album';
-          const isArtistResp = elementTypeLower === 'artist';
-          const typeVal = isTrackResp ? ElementType.TRACK : isAlbumResp ? ElementType.ALBUM : isArtistResp ? ElementType.ARTIST : ElementType.PLAYLIST;
-
-          const titleVal = response.details?.title || response.details?.name || (response as unknown as { name?: string }).name || 'Unknown';
-          const artistVal = response.details?.artist || '';
-          const artworkVal = response.details?.coverArtUrl || response.details?.imageUrl || (response as unknown as { imageUrl?: string }).imageUrl || '';
-          const durationVal = response.metadata?.duration || response.details?.duration || '';
-
-          const originalLink =
-            response.originalLink ||
-            (response as unknown as { sourceUrl?: string }).sourceUrl ||
-            response.platforms?.spotify?.url ||
-            response.platforms?.applemusic?.url ||
-            response.platforms?.appleMusic?.url ||
-            response.platforms?.deezer?.url ||
-            '';
-          const transformedData: PostPageData = {
-            originalUrl: originalLink,
-            convertedUrls: {},
-            metadata: {
-              type: typeVal,
-              title: titleVal,
-              artist: artistVal,
-              artwork: artworkVal,
-              duration: durationVal,
-            },
-            description: response.description || response.caption,
-            isRepost: Boolean(response.isRepost),
-            originalPostId: response.originalPostId ?? null,
-            redirectPostId: response.redirectPostId || response.postId || postId,
-            paidPromotionCampaignId: response.paidPromotionCampaignId ?? null,
-            curatorId: response.curatorId ?? null,
-            isMemberView: response.isMemberView === true,
-            repostedByCurrentUser: Boolean(
-              (response as unknown as Record<string, unknown>).repostedByCurrentUser === true ||
-              (response as unknown as Record<string, unknown>).RepostedByCurrentUser === true ||
-              (response as unknown as Record<string, unknown>).isRepostedByCurrentUser === true ||
-              (response as unknown as Record<string, unknown>).IsRepostedByCurrentUser === true
-            ),
-            username: response.username,
-            userId: response.userId ?? null,
-            createdAt: response.createdAt,
-            privacy: response.privacy,
-            conversionSuccessCount: response.conversionSuccessCount,
-            likeCount: typeof response.likeCount === 'number' ? response.likeCount : 0,
-            likedByCurrentUser: Boolean(response.likedByCurrentUser),
-            commentsEnabled: response.commentsEnabled ?? true,
-            genres: response.details?.genres || response.metadata?.genres || [],
-            albumName: response.metadata?.albumName || response.details?.album || '',
-            releaseDate: response.metadata?.releaseDate || response.details?.releaseDate || null,
-            trackCount: (typeof (response.details as { trackCount?: number } | undefined)?.trackCount === 'number')
-              ? (response.details as { trackCount?: number }).trackCount
-              : (response as unknown as { numberOfTracks?: number }).numberOfTracks,
-            details: {
-              artists: response.details?.artists || []
-            },
-            musicElementId: response.musicElementId || ''
-          };
-
-          type ApiAlbumTrack = {
-            title?: string;
-            duration?: string;
-            trackNumber?: number;
-            artists?: string[];
-            previewUrl?: string;
-            isrc?: string;
-            spotifyTrackId?: string;
-            appleMusicTrackId?: string;
-          };
-
-          const trackArray = (response.details as { tracks?: ApiAlbumTrack[] } | undefined)?.tracks;
-          if (Array.isArray(trackArray) && trackArray.length > 0) {
-            const mapped: MediaListTrack[] = trackArray.map((t) => ({
-              trackNumber: t.trackNumber,
-              title: t.title ?? 'Untitled',
-              duration: t.duration,
-              artists: Array.isArray(t.artists) ? t.artists : undefined,
-              previewUrl: t.previewUrl,
-              isrc: t.isrc,
-              spotifyTrackId: t.spotifyTrackId,
-              appleMusicTrackId: t.appleMusicTrackId,
-            }));
-            transformedData.tracks = mapped;
-          }
-
-          // Fallback: some responses provide tracks at the top level
-          type ApiTopLevelTrack = {
-            title?: string;
-            duration?: string;
-            artist?: string;
-            artists?: string[];
-            previewUrl?: string | null;
-            trackNumber?: number;
-            isrc?: string;
-            spotifyTrackId?: string;
-            appleMusicTrackId?: string;
-          };
-          const topLevelTracks = (response as unknown as { tracks?: ApiTopLevelTrack[] }).tracks;
-          if ((!transformedData.tracks || transformedData.tracks.length === 0) && Array.isArray(topLevelTracks) && topLevelTracks.length > 0) {
-            const mappedTop: MediaListTrack[] = topLevelTracks.map((t, idx) => ({
-              trackNumber: typeof t.trackNumber === 'number' ? t.trackNumber : idx + 1,
-              title: t.title ?? 'Untitled',
-              duration: t.duration,
-              artists: t.artist ? [t.artist] : Array.isArray(t.artists) ? t.artists : undefined,
-              previewUrl: t.previewUrl ?? undefined,
-              isrc: t.isrc,
-              spotifyTrackId: t.spotifyTrackId,
-              appleMusicTrackId: t.appleMusicTrackId,
-            }));
-            transformedData.tracks = mappedTop;
-          }
-
-          // Extract platform URLs and artwork (with URL reconstruction fallback for older/incomplete records)
-          let fallbackArtwork = '';
-          let fallbackPreview = '';
-          if (response.platforms) {
-            Object.entries(response.platforms).forEach(([platform, data]) => {
-              const platformKey = normalizePlatformKey(platform);
-              if (platformKey) {
-                const resolvedUrl = resolvePlatformUrl(
-                  platformKey,
-                  data as { url?: string; uri?: string; platformSpecificId?: string; elementType?: string } | undefined,
-                  elementTypeLower
-                );
-
-                if (resolvedUrl) {
-                  transformedData.convertedUrls[platformKey] = resolvedUrl;
-                }
-              }
-
-              if (data?.artworkUrl && !fallbackArtwork) {
-                fallbackArtwork = data.artworkUrl;
-              }
-
-              if (data?.previewUrl && data.previewUrl.trim() !== '' && !fallbackPreview) {
-                fallbackPreview = data.previewUrl;
-              }
-            });
-
-            transformedData.previewUrl = response.details?.previewUrl || fallbackPreview;
-          }
-
-          if (!transformedData.metadata.artwork && fallbackArtwork) {
-            transformedData.metadata.artwork = fallbackArtwork;
-          }
-
-          // Artist posts can have partial platform data persisted in DB.
-          // Keep destination buttons visible by falling back to platform search links.
-          if (typeVal === ElementType.ARTIST) {
-            const artistSearchName = (transformedData.metadata.title || transformedData.metadata.artist || '').trim();
-            if (artistSearchName) {
-              if (!transformedData.convertedUrls.spotify) {
-                transformedData.convertedUrls.spotify = buildArtistSearchUrl('spotify', artistSearchName);
-              }
-              if (!transformedData.convertedUrls.appleMusic) {
-                transformedData.convertedUrls.appleMusic = buildArtistSearchUrl('appleMusic', artistSearchName);
-              }
-              if (!transformedData.convertedUrls.deezer) {
-                transformedData.convertedUrls.deezer = buildArtistSearchUrl('deezer', artistSearchName);
-              }
-            }
-          }
-
-          const detectedSourcePlatform = detectContentType(originalLink || '').platform;
-          sourceUrlRef.current = originalLink || sourceUrlRef.current;
-          sourcePlatformRef.current = detectedSourcePlatform || sourcePlatformRef.current;
-          setPostData({
-            ...transformedData,
-            sourcePlatform: detectedSourcePlatform,
-            postId: response.postId || postId || transformedData.postId,
-          });
-          const repostedByApi = Boolean(transformedData.repostedByCurrentUser);
-          const repostedFromLocal = Boolean(readRepostedPosts(user?.id)[response.postId || postId]);
+          const data = parsePostResponse(payload, postId);
+          sourceUrlRef.current = data.originalUrl || sourceUrlRef.current;
+          sourcePlatformRef.current = data.sourcePlatform || sourcePlatformRef.current;
+          setPostData(data);
+          const repostedByApi = Boolean(data.repostedByCurrentUser);
+          const repostedFromLocal = Boolean(readRepostedPosts(user?.id)[payload.postId || postId]);
           setHasReposted(repostedByApi || repostedFromLocal);
 
-          if (transformedData.metadata.artwork) {
-            extractColorFromArtwork(transformedData.metadata.artwork);
+          if (data.metadata.artwork) {
+            extractColorFromArtwork(data.metadata.artwork);
           }
         };
 

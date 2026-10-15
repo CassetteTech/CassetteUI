@@ -38,8 +38,7 @@ export const ConversionBeam: React.FC<ConversionBeamProps> = ({
       borderRadius={borderRadius}
       onDeactivate={onDeactivate}
       className={className}
-      // SAFETY: CSSProperties has no custom-property keys; the value is a plain CSS angle.
-      style={{ '--beam-hue-base': '-12deg' } as React.CSSProperties}
+      style={{ '--beam-hue-base': '-12deg' }}
     >
       {children}
     </BorderBeam>

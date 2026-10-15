@@ -9,6 +9,32 @@ import {
   validateMusicLink,
 } from '../music-link-input';
 
+const contentTypeCases = [
+  ['Spotify track', 'https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh', 'track', 'spotify', '4iV5W9uYEdYUVa79Axb7Rh'],
+  ['Spotify album', 'https://open.spotify.com/album/1A2GTWGtFfWp7KSQTwWOyo', 'album', 'spotify', '1A2GTWGtFfWp7KSQTwWOyo'],
+  ['Spotify artist', 'https://open.spotify.com/artist/4tZwfgrHOc3mvqYlEYSvVi', 'artist', 'spotify', '4tZwfgrHOc3mvqYlEYSvVi'],
+  ['Spotify playlist', 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M', 'playlist', 'spotify', '37i9dQZF1DXcBWIGoYBM5M'],
+  ['Apple Music song', 'https://music.apple.com/us/song/as-it-was/1615585803', 'track', 'apple', '1615585803'],
+  ['Apple Music album track (?i=)', 'https://music.apple.com/us/album/harrys-house/1615584999?i=1615585803', 'track', 'apple', '1615585803'],
+  ['Apple Music album', 'https://music.apple.com/us/album/harrys-house/1615584999', 'album', 'apple', '1615584999'],
+  ['Apple Music artist', 'https://music.apple.com/us/artist/harry-styles/1252689966', 'artist', 'apple', '1252689966'],
+  ['Apple Music playlist', 'https://music.apple.com/us/playlist/todays-hits/pl.f4d106fed2bd41149aaacabb233eb5eb', 'playlist', 'apple', 'pl.f4d106fed2bd41149aaacabb233eb5eb'],
+  ['Deezer track', 'https://www.deezer.com/track/1677006422', 'track', 'deezer', '1677006422'],
+  ['Deezer album', 'https://www.deezer.com/album/287842312', 'album', 'deezer', '287842312'],
+  ['Deezer artist', 'https://www.deezer.com/artist/4050205', 'artist', 'deezer', '4050205'],
+  ['Deezer playlist', 'https://www.deezer.com/playlist/1362917922', 'playlist', 'deezer', '1362917922'],
+  ['Spotify track with query parameters', 'https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh?si=abc123', 'track', 'spotify', '4iV5W9uYEdYUVa79Axb7Rh'],
+  ['upper-case Spotify track', 'HTTPS://OPEN.SPOTIFY.COM/TRACK/4iV5W9uYEdYUVa79Axb7Rh', 'track', 'spotify', '4iV5W9uYEdYUVa79Axb7Rh'],
+  ['unknown site', 'https://example.com/some/path', 'track', 'unknown', ''],
+] as const;
+
+for (const [name, url, type, platform, id] of contentTypeCases) {
+  void test(`detectContentType reads the type, platform, and id of this link: ${name}`, () => {
+    const { type: actualType, platform: actualPlatform, id: actualId } = detectContentType(url);
+    assert.deepEqual({ type: actualType, platform: actualPlatform, id: actualId }, { type, platform, id });
+  });
+}
+
 test('detectContentType extracts ids across current supported platforms', () => {
   assert.deepEqual(detectContentType('https://open.spotify.com/TRACK/4iV5W9uYEdYUVa79Axb7Rh'), {
     type: 'track',

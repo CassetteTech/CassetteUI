@@ -22,6 +22,7 @@
     "test:analytics": "rm -rf .analytics-test-dist && tsc -p tsconfig.analytics-tests.json && node --test $(find .analytics-test-dist -name '*.test.js' -print)",
     "release:draft": "bash scripts/release-draft.sh",
     "test:release-email-ingestion": "node --test scripts/__tests__/ingest-release-email.test.mjs",
+    "test:scripts": "node --test scripts/__tests__/*.test.mjs",
     "posthog:provision:dry": "node scripts/posthog/provision.mjs --dry-run",
     "posthog:provision": "node scripts/posthog/provision.mjs",
     "posthog:provision:growth": "node scripts/posthog/provision.mjs --growth-only",

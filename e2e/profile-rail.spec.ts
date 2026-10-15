@@ -55,15 +55,17 @@ test.describe('profile rail', () => {
     await expect(html).toHaveAttribute('data-view-transitions', '1');
   });
 
-  test('puts the inbox in the sidebar header and gives the account row, active in Studio, the full width', async ({ page }) => {
+  test('puts the inbox in the sidebar header and gives the account row the full width', async ({ page }) => {
     await mockCassetteApp(page, { currentUser: fixtureUsers.viewer, curatorPage: fixtureCuratorPage });
 
     await page.goto('/studio');
 
     const sidebar = page.locator('[data-slot="sidebar"]');
     await expect(sidebar.locator('[data-slot="sidebar-header"]').getByRole('button', { name: 'Notifications' })).toBeVisible();
-    const accountRow = sidebar.locator('a[aria-current="page"]', { hasText: `@${fixtureUsers.viewer.username}` });
+    const accountRow = sidebar.locator('a[href="/studio"]', { hasText: `@${fixtureUsers.viewer.username}` });
     await expect(accountRow).toBeVisible();
+    // The account row opens Studio but the Curator Studio page row is the active one.
+    await expect(accountRow).not.toHaveAttribute('aria-current', 'page');
     const addMusic = sidebar.getByRole('link', { name: 'Add music' });
     const [rowBox, buttonBox] = await Promise.all([accountRow.boundingBox(), addMusic.boundingBox()]);
     expect(rowBox?.width).toBe(buttonBox?.width);

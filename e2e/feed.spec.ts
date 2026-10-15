@@ -625,7 +625,7 @@ test.describe('freshness', () => {
 });
 
 test.describe('navigation', () => {
-  test('the sidebar puts Feed first, Explore last, and has no Home, Profile, Curator Studio, or Support Us row', async ({ page }) => {
+  test('the sidebar puts Curator Studio first, Explore last, and has no Home, Profile, or Support Us row', async ({ page }) => {
     await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
 
     await page.goto('/feed');
@@ -633,20 +633,20 @@ test.describe('navigation', () => {
     const sidebarLinks = page.locator('[data-sidebar="menu"]').getByRole('link');
     // Add music is an action above the menu, not one of its page rows. It returns the finished
     // post to the page that opened it.
-    await expect(sidebarLinks).toHaveText(['Feed', 'Memberships', 'Explore']);
+    await expect(sidebarLinks).toHaveText(['Curator Studio', 'Feed', 'Memberships', 'Explore']);
     await expect(sidebar.getByRole('link', { name: 'Add music', exact: true }))
       .toHaveAttribute('href', `/studio/music/new?from=${encodeURIComponent('/feed')}`);
     await expect(page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Feed' })).toHaveAttribute('data-active', 'true');
     await expect(sidebar.getByRole('link', { name: 'Support Us' })).toHaveCount(0);
 
-    // The account row is the only way to Curator Studio, the curator's home, so it carries the
-    // active state there; the public page is a preview reached from Studio.
-    const accountRow = sidebar.locator('a[href="/studio"]');
+    // The account row also opens Curator Studio, the curator's home, but the Studio page row is
+    // the one that marks it as the open page; the public page is a preview reached from Studio.
+    const accountRow = sidebar.locator('a[href="/studio"]', { hasText: `@${fixtureUsers.member.username}` });
     await expect(accountRow).toHaveCount(1);
-    await expect(accountRow).toHaveAttribute('data-active', 'false');
     await accountRow.click();
     await expect(page).toHaveURL('/studio/music');
-    await expect(accountRow).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Curator Studio' })).toHaveAttribute('data-active', 'true');
+    await expect(accountRow).not.toHaveAttribute('aria-current', 'page');
     await expect(sidebar.locator('[data-active="true"]')).toHaveCount(1);
 
     await page.getByRole('button', { name: 'Sign Out' }).click();
@@ -675,7 +675,7 @@ test.describe('navigation', () => {
   test.describe('on a phone', () => {
     test.use({ viewport: { width: 390, height: 844 } });
 
-    test('the signed-in menu is the sidebar: the account summary opens Studio, then Add music and the pages', async ({ page }) => {
+    test('the signed-in menu is the sidebar: the account summary opens Studio, then Add music and Curator Studio first', async ({ page }) => {
       await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
 
       await page.goto('/explore');
@@ -685,7 +685,7 @@ test.describe('navigation', () => {
       await expect(menu.getByRole('link', { name: 'Add music', exact: true }))
         .toHaveAttribute('href', `/studio/music/new?from=${encodeURIComponent('/explore')}`);
       const pages = menu.getByRole('region', { name: 'Pages' }).getByRole('link');
-      await expect(pages).toHaveText(['Feed', 'Memberships', 'Explore']);
+      await expect(pages).toHaveText(['Curator Studio', 'Feed', 'Memberships', 'Explore']);
       await expect(menu.getByRole('region', { name: 'Browse' })).toHaveCount(0);
       await expect(menu.getByRole('region', { name: 'Account' }).getByRole('button', { name: 'Sign Out' })).toBeVisible();
       await pages.filter({ hasText: 'Feed' }).click();
